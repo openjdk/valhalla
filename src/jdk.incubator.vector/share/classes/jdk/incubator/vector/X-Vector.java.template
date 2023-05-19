@@ -97,20 +97,13 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
 
     // Virtualized getter
 
-    /*package-private*/
-    abstract $type$[] vec();
-
-    abstract VectorPayloadMF vec_mf();
-
     // Virtualized constructors
 
     /**
      * Build a vector directly using my own constructor.
-     * It is an error if the array is aliased elsewhere.
+     * It is an error if the vec is aliased elsewhere.
      */
     /*package-private*/
-    abstract $abstractvectortype$ vectorFactory($type$[] vec);
-
     abstract $abstractvectortype$ vectorFactory(VectorPayloadMF vec);
 
     /**
@@ -169,7 +162,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     @ForceInline
     final
     $abstractvectortype$ uOpTemplateMF(FUnOp f) {
-        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF vec = this.vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
@@ -193,7 +186,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             return uOpTemplateMF(f);
         }
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
-        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF vec = this.vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -222,8 +215,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     final
     $abstractvectortype$ bOpTemplateMF(Vector<$Boxtype$> o,
                                      FBinOp f) {
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = (($abstractvectortype$)o).vec_mf();
+        VectorPayloadMF vec1 = vec();
+        VectorPayloadMF vec2 = (($abstractvectortype$)o).vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
@@ -250,8 +243,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             return bOpTemplateMF(o, f);
         }
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = (($abstractvectortype$)o).vec_mf();
+        VectorPayloadMF vec1 = this.vec();
+        VectorPayloadMF vec2 = (($abstractvectortype$)o).vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -283,9 +276,9 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     $abstractvectortype$ tOpTemplateMF(Vector<$Boxtype$> o1,
                                      Vector<$Boxtype$> o2,
                                      FTriOp f) {
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = (($abstractvectortype$)o1).vec_mf();
-        VectorPayloadMF vec3 = (($abstractvectortype$)o2).vec_mf();
+        VectorPayloadMF vec1 = this.vec();
+        VectorPayloadMF vec2 = (($abstractvectortype$)o1).vec();
+        VectorPayloadMF vec3 = (($abstractvectortype$)o2).vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
@@ -315,9 +308,9 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             return tOpTemplateMF(o1, o2, f);
         }
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = (($abstractvectortype$)o1).vec_mf();
-        VectorPayloadMF vec3 = (($abstractvectortype$)o2).vec_mf();
+        VectorPayloadMF vec1 = this.vec();
+        VectorPayloadMF vec2 = (($abstractvectortype$)o1).vec();
+        VectorPayloadMF vec3 = (($abstractvectortype$)o2).vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -345,7 +338,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         if (m == null) {
             return rOpTemplateMF(v, f);
         }
-        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF vec = this.vec();
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -360,7 +353,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     @ForceInline
     final
     $type$ rOpTemplateMF($type$ v, FBinOp f) {
-        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF vec = vec();
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
@@ -474,7 +467,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     final
     <M> void stOpMF(M memory, int offset,
                   FStOp<M> f) {
-        VectorPayloadMF vec = vec_mf();
+        VectorPayloadMF vec = vec();
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
@@ -488,7 +481,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     <M> void stOpMF(M memory, int offset,
                   VectorMask<$Boxtype$> m,
                   FStOp<M> f) {
-        VectorPayloadMF vec = vec_mf();
+        VectorPayloadMF vec = vec();
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -510,7 +503,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     final
     void stLongOpMF(MemorySegment memory, long offset,
                   FStLongOp f) {
-        VectorPayloadMF vec = vec_mf();
+        VectorPayloadMF vec = vec();
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
@@ -524,7 +517,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     void stLongOpMF(MemorySegment memory, long offset,
                   VectorMask<$Boxtype$> m,
                   FStLongOp f) {
-        VectorPayloadMF vec = vec_mf();
+        VectorPayloadMF vec = vec();
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -554,8 +547,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                   Vector<$Boxtype$> o,
                                   FBinTest f) {
         int length = vspecies().length();
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = (($abstractvectortype$)o).vec_mf();
+        VectorPayloadMF vec1 = vec();
+        VectorPayloadMF vec2 = (($abstractvectortype$)o).vec();
         VectorPayloadMF mbits = VectorPayloadMF.newInstanceFactory(boolean.class, length);
         mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();

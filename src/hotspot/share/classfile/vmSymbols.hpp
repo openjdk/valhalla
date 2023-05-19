@@ -101,6 +101,9 @@
   template(jdk_internal_vm_vector_VectorPayloadMF128Z, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128Z") \
   template(jdk_internal_vm_vector_VectorPayloadMF256Z, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256Z") \
   template(jdk_internal_vm_vector_VectorPayloadMF512Z, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF512Z") \
+  template(jdk_internal_vm_vector_VectorPayloadMF8B,   "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF8B")   \
+  template(jdk_internal_vm_vector_VectorPayloadMF16B,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF16B")  \
+  template(jdk_internal_vm_vector_VectorPayloadMF32B,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF32B")  \
   template(jdk_internal_vm_vector_VectorPayloadMF64B,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF64B")  \
   template(jdk_internal_vm_vector_VectorPayloadMF128B, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128B") \
   template(jdk_internal_vm_vector_VectorPayloadMF256B, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256B") \
@@ -307,6 +310,9 @@
   template(vector_VectorPayloadMF128Z_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128Z;") \
   template(vector_VectorPayloadMF256Z_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256Z;") \
   template(vector_VectorPayloadMF512Z_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512Z;") \
+  template(vector_VectorPayloadMF8B_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF8B;")   \
+  template(vector_VectorPayloadMF16B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF16B;")  \
+  template(vector_VectorPayloadMF32B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF32B;")  \
   template(vector_VectorPayloadMF64B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64B;")  \
   template(vector_VectorPayloadMF128B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128B;") \
   template(vector_VectorPayloadMF256B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256B;") \

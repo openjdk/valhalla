@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2318,7 +2318,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       }
       base = vt->get_oop();
       AllocateNode* alloc = AllocateNode::Ideal_allocation(base, &_gvn);
-      assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
+      if (alloc != NULL) {
+        assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
+      }
     } else {
       if (offset->is_Con()) {
         long off = find_long_con(offset, 0);

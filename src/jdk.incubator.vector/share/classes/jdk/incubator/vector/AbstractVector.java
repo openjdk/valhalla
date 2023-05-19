@@ -72,6 +72,9 @@ abstract class AbstractVector<E> extends Vector<E> {
     // Extractors
 
     /*package-private*/
+    abstract VectorPayloadMF vec();
+
+    /*package-private*/
     abstract AbstractSpecies<E> vspecies();
 
     /*package-private*/
@@ -191,7 +194,7 @@ abstract class AbstractVector<E> extends Vector<E> {
     abstract AbstractShuffle<E> iotaShuffle(int start, int step, boolean wrap);
 
     /*do not alias this byte array*/
-    abstract AbstractShuffle<E> shuffleFromBytes(byte[] reorder);
+    abstract AbstractShuffle<E> shuffleFromBytes(VectorPayloadMF reorder);
 
     abstract AbstractShuffle<E> shuffleFromArray(int[] indexes, int i);
 

@@ -60,16 +60,13 @@ value class Double256Vector extends DoubleVector {
     private final VectorPayloadMF256D payload;
 
     Double256Vector(Object value) {
-        this.payload = (VectorPayloadMF256D)value;
+        this.payload = (VectorPayloadMF256D) value;
     }
 
-    VectorPayloadMF vec_mf() {
-        return payload;
-    }
-
+    @ForceInline
     @Override
-    protected final Object getPayload() {
-       return vec_mf();
+    final VectorPayloadMF vec() {
+        return payload;
     }
 
     static final Double256Vector ZERO = new Double256Vector(VectorPayloadMF.newInstanceFactory(double.class, 4));
@@ -122,15 +119,6 @@ value class Double256Vector extends DoubleVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    double[] vec() {
-        return (double[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Double256Vector broadcast(double e) {
@@ -166,7 +154,7 @@ value class Double256Vector extends DoubleVector {
 
     @Override
     @ForceInline
-    Double256Shuffle shuffleFromBytes(byte[] reorder) { return new Double256Shuffle(reorder); }
+    Double256Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Double256Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Double256Vector extends DoubleVector {
     @Override
     @ForceInline
     Double256Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Double256Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Double256Vector vectorFactory(double[] vec) {
-        return new Double256Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -532,7 +513,7 @@ value class Double256Vector extends DoubleVector {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                         VectorPayloadMF vecpayload = vec.vec_mf();
+                         VectorPayloadMF vecpayload = vec.vec();
                          long start_offset = vecpayload.multiFieldOffset();
                          return (long)Double.doubleToLongBits(Unsafe.getUnsafe().getDouble(vecpayload, start_offset + ix * Double.BYTES));
                      });
@@ -555,7 +536,7 @@ value class Double256Vector extends DoubleVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)Double.doubleToLongBits(e),
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putDouble(tpayload, start_offset + ix * Double.BYTES, Double.longBitsToDouble((long)bits));
@@ -594,14 +575,9 @@ value class Double256Vector extends DoubleVector {
         }
 
         @ForceInline
-        final @Override
-        VectorPayloadMF getBits() {
-            return payload;
-        }
-
         @Override
-        protected final Object getPayload() {
-            return getBits();
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -733,24 +709,34 @@ value class Double256Vector extends DoubleVector {
 
     // Shuffle
 
-    static final class Double256Shuffle extends AbstractShuffle<Double> {
+    static final value class Double256Shuffle extends AbstractShuffle<Double> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Double> ETYPE = double.class; // used by the JVM
 
-        Double256Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF32B payload;
+
+        Double256Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF32B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Double256Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Double256Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Double256Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -787,13 +773,17 @@ value class Double256Vector extends DoubleVector {
         @Override
         public Double256Shuffle rearrange(VectorShuffle<Double> shuffle) {
             Double256Shuffle s = (Double256Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Double256Shuffle(r);
         }
     }

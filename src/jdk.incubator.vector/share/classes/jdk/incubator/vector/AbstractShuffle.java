@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,10 @@
 package jdk.incubator.vector;
 
 import java.util.function.IntUnaryOperator;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.ForceInline;
+
+import static jdk.internal.vm.vector.VectorSupport.*;
 
 abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     static final IntUnaryOperator IDENTITY = i -> i;
@@ -33,47 +36,34 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     // Internal representation allows for a maximum index of 256
     // Values are clipped to [-VLENGTH..VLENGTH-1].
 
-    AbstractShuffle(int length, byte[] reorder) {
-        super(reorder);
-        assert(length == reorder.length);
-        assert(indexesInRange(reorder));
-    }
-
-    AbstractShuffle(int length, int[] reorder) {
-        this(length, reorder, 0);
-    }
-
-    AbstractShuffle(int length, int[] reorder, int offset) {
-        super(prepare(length, reorder, offset));
-    }
-
-    AbstractShuffle(int length, IntUnaryOperator f) {
-        super(prepare(length, f));
-    }
-
-    private static byte[] prepare(int length, int[] reorder, int offset) {
-        byte[] a = new byte[length];
+    static VectorPayloadMF prepare(int length, int[] reorder, int offset) {
+        VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(byte.class, length);
+        payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
+        long mf_offset = payload.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             int si = reorder[offset + i];
             si = partiallyWrapIndex(si, length);
-            a[i] = (byte) si;
+            Unsafe.getUnsafe().putByte(payload, mf_offset + i * Byte.BYTES, (byte) si);
         }
-        return a;
+        payload = Unsafe.getUnsafe().finishPrivateBuffer(payload);
+        return payload;
     }
 
-    private static byte[] prepare(int length, IntUnaryOperator f) {
-        byte[] a = new byte[length];
-        for (int i = 0; i < a.length; i++) {
+    static VectorPayloadMF prepare(int length, IntUnaryOperator f) {
+        VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(byte.class, length);
+        payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
+        long offset = payload.multiFieldOffset();
+        for (int i = 0; i < length; i++) {
             int si = f.applyAsInt(i);
             si = partiallyWrapIndex(si, length);
-            a[i] = (byte) si;
+            Unsafe.getUnsafe().putByte(payload, offset + i * Byte.BYTES, (byte) si);
         }
-        return a;
+        payload = Unsafe.getUnsafe().finishPrivateBuffer(payload);
+        return payload;
     }
 
-    byte[] reorder() {
-        return (byte[])getPayload();
-    }
+    /*package-private*/
+    abstract VectorPayloadMF reorder();
 
     /*package-private*/
     abstract AbstractSpecies<E> vspecies();
@@ -87,10 +77,11 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     @Override
     @ForceInline
     public void intoArray(int[] a, int offset) {
-        byte[] reorder = reorder();
-        int vlen = reorder.length;
+        VectorPayloadMF reorder = reorder();
+        int vlen = reorder.length();
+        long mf_offset = reorder.multiFieldOffset();
         for (int i = 0; i < vlen; i++) {
-            int sourceIndex = reorder[i];
+            int sourceIndex = Unsafe.getUnsafe().getByte(reorder, mf_offset + i * Byte.BYTES);
             assert(sourceIndex >= -vlen && sourceIndex < vlen);
             a[offset + i] = sourceIndex;
         }
@@ -99,8 +90,8 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     @Override
     @ForceInline
     public int[] toArray() {
-        byte[] reorder = reorder();
-        int[] a = new int[reorder.length];
+        VectorPayloadMF reorder = reorder();
+        int[] a = new int[reorder.length()];
         intoArray(a, 0);
         return a;
     }
@@ -126,8 +117,9 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         Vector<E> shufvec = this.toVector();
         VectorMask<E> vecmask = shufvec.compare(VectorOperators.LT, vspecies().zero());
         if (vecmask.anyTrue()) {
-            byte[] reorder = reorder();
-            throw checkIndexFailed(reorder[vecmask.firstTrue()], length());
+            VectorPayloadMF reorder = reorder();
+            long offset = reorder.multiFieldOffset();
+            throw checkIndexFailed(Unsafe.getUnsafe().getByte(reorder, offset + vecmask.firstTrue() * Byte.BYTES), length());
         }
         return this;
     }
@@ -138,18 +130,20 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         VectorMask<E> vecmask = shufvec.compare(VectorOperators.LT, vspecies().zero());
         if (vecmask.anyTrue()) {
             // FIXME: vectorize this
-            byte[] reorder = reorder();
+            VectorPayloadMF reorder = reorder();
             return wrapAndRebuild(reorder);
         }
         return this;
     }
 
     @ForceInline
-    public final VectorShuffle<E> wrapAndRebuild(byte[] oldReorder) {
-        int length = oldReorder.length;
-        byte[] reorder = new byte[length];
+    public final VectorShuffle<E> wrapAndRebuild(VectorPayloadMF oldReorder) {
+        int length = oldReorder.length();
+        VectorPayloadMF reorder = VectorPayloadMF.newInstanceFactory(byte.class, length);
+        long offset = oldReorder.multiFieldOffset();
+        reorder = Unsafe.getUnsafe().makePrivateBuffer(reorder);
         for (int i = 0; i < length; i++) {
-            int si = oldReorder[i];
+            int si = Unsafe.getUnsafe().getByte(oldReorder, offset + i * Byte.BYTES);
             // FIXME: This does not work unless it's a power of 2.
             if ((length & (length - 1)) == 0) {
                 si += si & length;  // power-of-two optimization
@@ -158,8 +152,9 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
                 si += length;
             }
             assert(si >= 0 && si < length);
-            reorder[i] = (byte) si;
+            Unsafe.getUnsafe().putByte(reorder, offset + i * Byte.BYTES, (byte) si);
         }
+        reorder = Unsafe.getUnsafe().finishPrivateBuffer(reorder);
         return vspecies().dummyVectorMF().shuffleFromBytes(reorder);
     }
 
@@ -221,15 +216,17 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         return new IndexOutOfBoundsException(msg);
     }
 
-    static boolean indexesInRange(byte[] reorder) {
-        int length = reorder.length;
-        for (byte si : reorder) {
+    static boolean indexesInRange(VectorPayloadMF reorder) {
+        int length = reorder.length();
+        long offset = reorder.multiFieldOffset();
+        for (int i = 0; i < length; i++) {
+            byte si = Unsafe.getUnsafe().getByte(reorder, offset + i * Byte.BYTES);
             if (si >= length || si < -length) {
                 boolean assertsEnabled = false;
                 assert(assertsEnabled = true);
                 if (assertsEnabled) {
                     String msg = ("index "+si+"out of range ["+length+"] in "+
-                                  java.util.Arrays.toString(reorder));
+                            reorder.toString());
                     throw new AssertionError(msg);
                 }
                 return false;

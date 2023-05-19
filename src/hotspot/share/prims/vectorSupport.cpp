@@ -69,7 +69,7 @@ const char* VectorSupport::svmlname[VectorSupport::NUM_SVML_OP] = {
 #endif
 
 bool VectorSupport::is_vector(Klass* klass) {
-  return klass->is_subclass_of(vmClasses::vector_Vector_klass());
+  return klass->is_subclass_of(vmClasses::vector_VectorPayload_klass());
 }
 
 bool VectorSupport::is_vector_payload_mf(Klass* klass) {
@@ -86,7 +86,6 @@ bool VectorSupport::is_vector_shuffle(Klass* klass) {
 
 bool VectorSupport::skip_value_scalarization(Klass* klass) {
   return VectorSupport::is_vector(klass) ||
-         VectorSupport::is_vector_mask(klass) ||
          VectorSupport::is_vector_payload_mf(klass);
 }
 
@@ -125,93 +124,58 @@ jint VectorSupport::klass2length(InstanceKlass* ik) {
   return vlen;
 }
 
-// Masks require special handling: when boxed they are packed and stored in boolean
-// arrays, but in scalarized form they have the same size as corresponding vectors.
-// For example, Int512Mask is represented in memory as boolean[16], but
-// occupies the whole 512-bit vector register when scalarized.
-// During scalarization inserting a VectorStoreMask node between mask
-// and safepoint node always ensures the existence of masks in a boolean array.
-
-void VectorSupport::init_payload_element(typeArrayOop arr, BasicType elem_bt, int index, address addr) {
-  switch (elem_bt) {
-    case T_BOOLEAN: arr->bool_at_put(index, *(jboolean*)addr); break;
-    case T_BYTE:    arr->byte_at_put(index, *(jbyte*)addr); break;
-    case T_SHORT:   arr->short_at_put(index, *(jshort*)addr); break;
-    case T_INT:     arr->int_at_put(index, *(jint*)addr); break;
-    case T_FLOAT:   arr->float_at_put(index, *(jfloat*)addr); break;
-    case T_LONG:    arr->long_at_put(index, *(jlong*)addr); break;
-    case T_DOUBLE:  arr->double_at_put(index, *(jdouble*)addr); break;
-    default: fatal("unsupported: %s", type2name(elem_bt));
-  }
-}
-
 Handle VectorSupport::allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, Location location, int larval, TRAPS) {
+  // On-heap vector values are represented as primitive class instances with a multi-field payload.
+  InstanceKlass* payload_kls = get_vector_payload_klass(elem_bt, num_elem);
+  assert(payload_kls->is_inline_klass(), "");
+  instanceOop obj = InlineKlass::cast(payload_kls)->allocate_instance(THREAD);
+  if (larval) obj->set_mark(obj->mark().enter_larval_state());
+
+  fieldDescriptor fd;
+  Klass* def = payload_kls->find_field(vmSymbols::mfield_name(), vmSymbols::type_signature(elem_bt), false, &fd);
+  assert(fd.is_multifield_base() && fd.secondary_fields_count(fd.index()) == num_elem, "");
+
+  int ffo = InlineKlass::cast(payload_kls)->first_field_offset();
   int elem_size = type2aelembytes(elem_bt);
 
-  // FIXME: Existing handling is used for shuffles and mask classes, to be removed after
-  // complete support.
-  // On-heap vector values are represented as primitive arrays.
-  if (is_vector_shuffle(ik) || is_vector_mask(ik)) {
-    TypeArrayKlass* tak = TypeArrayKlass::cast(Universe::typeArrayKlassObj(elem_bt));
-    typeArrayOop arr = tak->allocate(num_elem, CHECK_NH); // safepoint
-
-    if (location.is_register()) {
-      // Value was in a callee-saved register.
-      VMReg vreg = VMRegImpl::as_VMReg(location.register_number());
-
-      for (int i = 0; i < num_elem; i++) {
-        int vslot = (i * elem_size) / VMRegImpl::stack_slot_size;
-        int off   = (i * elem_size) % VMRegImpl::stack_slot_size;
-
-        address elem_addr = reg_map->location(vreg, vslot) + off; // assumes little endian element order
-        init_payload_element(arr, elem_bt, i, elem_addr);
-      }
-    } else {
-      // Value was directly saved on the stack.
-      address base_addr = ((address)fr->unextended_sp()) + location.stack_offset();
-      for (int i = 0; i < num_elem; i++) {
-        init_payload_element(arr, elem_bt, i, base_addr + i * elem_size);
-      }
+  if (location.is_register()) {
+    // Value was in a callee-saved register.
+    VMReg vreg = VMRegImpl::as_VMReg(location.register_number());
+    int vec_size = num_elem * elem_size;
+    for (int i = 0; i < vec_size; i++) {
+      int vslot = i / VMRegImpl::stack_slot_size;
+      int off   = i % VMRegImpl::stack_slot_size;
+      address elem_addr = reg_map->location(vreg, vslot) + off; // assumes little endian element order
+      obj->byte_field_put(ffo + i, *(jbyte*)elem_addr);
     }
-    return Handle(THREAD, arr);
   } else {
-    // On-heap vector values are represented as primitive class instances with a multi-field payload.
-    InstanceKlass* payload_kls = get_vector_payload_klass(elem_bt, num_elem);
-    assert(payload_kls->is_inline_klass(), "");
-    instanceOop obj = InlineKlass::cast(payload_kls)->allocate_instance(THREAD);
-    if (larval) obj->set_mark(obj->mark().enter_larval_state());
-
-    fieldDescriptor fd;
-    Klass* def = payload_kls->find_field(vmSymbols::mfield_name(), vmSymbols::type_signature(elem_bt), false, &fd);
-    assert(fd.is_multifield_base() && fd.secondary_fields_count(fd.index()) == num_elem, "");
-
-    int ffo = InlineKlass::cast(payload_kls)->first_field_offset();
-
-    if (location.is_register()) {
-      // Value was in a callee-saved register.
-      VMReg vreg = VMRegImpl::as_VMReg(location.register_number());
-      int vec_size = num_elem * elem_size;
-      for (int i = 0; i < vec_size; i++) {
-        int vslot = i / VMRegImpl::stack_slot_size;
-        int off   = i % VMRegImpl::stack_slot_size;
-        address elem_addr = reg_map->location(vreg, vslot) + off; // assumes little endian element order
-        obj->byte_field_put(ffo + i, *(jbyte*)elem_addr);
-      }
-    } else {
-      // Value was directly saved on the stack.
-      address base_addr = ((address)fr->unextended_sp()) + location.stack_offset();
-      for (int i = 0; i < elem_size * num_elem; i++) {
-        obj->byte_field_put(ffo + i, *(jbyte*)(base_addr + i));
-      }
+    // Value was directly saved on the stack.
+    address base_addr = ((address)fr->unextended_sp()) + location.stack_offset();
+    for (int i = 0; i < elem_size * num_elem; i++) {
+      obj->byte_field_put(ffo + i, *(jbyte*)(base_addr + i));
     }
-    return Handle(THREAD, obj);
   }
+  return Handle(THREAD, obj);
 }
 
 Symbol* VectorSupport::get_vector_payload_field_signature(BasicType elem_bt, int num_elem) {
   switch(elem_bt) {
+    case T_BOOLEAN:
+      switch(num_elem) {
+        case  1: return vmSymbols::vector_VectorPayloadMF8Z_signature();
+        case  2: return vmSymbols::vector_VectorPayloadMF16Z_signature();
+        case  4: return vmSymbols::vector_VectorPayloadMF32Z_signature();
+        case  8: return vmSymbols::vector_VectorPayloadMF64Z_signature();
+        case 16: return vmSymbols::vector_VectorPayloadMF128Z_signature();
+        case 32: return vmSymbols::vector_VectorPayloadMF256Z_signature();
+        case 64: return vmSymbols::vector_VectorPayloadMF512Z_signature();
+        default: ShouldNotReachHere();
+      } break;
     case T_BYTE:
       switch(num_elem) {
+        case  1: return vmSymbols::vector_VectorPayloadMF8B_signature();
+        case  2: return vmSymbols::vector_VectorPayloadMF16B_signature();
+        case  4: return vmSymbols::vector_VectorPayloadMF32B_signature();
         case  8: return vmSymbols::vector_VectorPayloadMF64B_signature();
         case 16: return vmSymbols::vector_VectorPayloadMF128B_signature();
         case 32: return vmSymbols::vector_VectorPayloadMF256B_signature();
@@ -266,8 +230,22 @@ Symbol* VectorSupport::get_vector_payload_field_signature(BasicType elem_bt, int
 
 InstanceKlass* VectorSupport::get_vector_payload_klass(BasicType elem_bt, int num_elem) {
   switch(elem_bt) {
+    case T_BOOLEAN:
+      switch(num_elem) {
+        case  1: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF8Z_klass));
+        case  2: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF16Z_klass));
+        case  4: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF32Z_klass));
+        case  8: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF64Z_klass));
+        case 16: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF128Z_klass));
+        case 32: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF256Z_klass));
+        case 64: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF512Z_klass));
+        default: ShouldNotReachHere();
+      } break;
     case T_BYTE:
       switch(num_elem) {
+        case  1: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF8B_klass));
+        case  2: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF16B_klass));
+        case  4: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF32B_klass));
         case  8: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF64B_klass));
         case 16: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF128B_klass));
         case 32: return vmClasses::klass_at(VM_CLASS_ID(vector_VectorPayloadMF256B_klass));

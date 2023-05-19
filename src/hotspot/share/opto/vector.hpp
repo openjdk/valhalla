@@ -45,26 +45,13 @@ class PhaseVector : public Phase {
 
   Node* expand_vbox_alloc_node(VectorBoxNode* vec_box,
                                VectorBoxAllocateNode* vbox_alloc,
-                               Node* value,
                                const TypeInstPtr* box_type,
                                const TypeVect* vect_type);
-
-  Node* expand_vbox_alloc_node_vector(VectorBoxNode* vec_box,
-                                      VectorBoxAllocateNode* vbox_alloc,
-                                      const TypeInstPtr* box_type,
-                                      const TypeVect* vect_type);
-
-  Node* expand_vbox_alloc_node_shuffle(VectorBoxAllocateNode* vbox_alloc,
-                                            Node* value,
-                                            const TypeInstPtr* box_type,
-                                            const TypeVect* vect_type);
 
   void scalarize_vbox_nodes();
   void scalarize_vbox_node(VectorBoxNode* vec_box);
   void expand_vunbox_nodes();
   void expand_vunbox_node(VectorUnboxNode* vec_box);
-  void expand_vunbox_node_vector(VectorUnboxNode* vec_unbox);
-  void expand_vunbox_node_shuffle(VectorUnboxNode* vec_unbox);
   void eliminate_vbox_alloc_nodes();
   void eliminate_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc);
   void do_cleanup();

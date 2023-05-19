@@ -200,6 +200,9 @@
   do_klass(vector_VectorPayloadMF128Z_klass,            jdk_internal_vm_vector_VectorPayloadMF128Z            ) \
   do_klass(vector_VectorPayloadMF256Z_klass,            jdk_internal_vm_vector_VectorPayloadMF256Z            ) \
   do_klass(vector_VectorPayloadMF512Z_klass,            jdk_internal_vm_vector_VectorPayloadMF512Z            ) \
+  do_klass(vector_VectorPayloadMF8B_klass,              jdk_internal_vm_vector_VectorPayloadMF8B              ) \
+  do_klass(vector_VectorPayloadMF16B_klass,             jdk_internal_vm_vector_VectorPayloadMF16B             ) \
+  do_klass(vector_VectorPayloadMF32B_klass,             jdk_internal_vm_vector_VectorPayloadMF32B             ) \
   do_klass(vector_VectorPayloadMF64B_klass,             jdk_internal_vm_vector_VectorPayloadMF64B             ) \
   do_klass(vector_VectorPayloadMF128B_klass,            jdk_internal_vm_vector_VectorPayloadMF128B            ) \
   do_klass(vector_VectorPayloadMF256B_klass,            jdk_internal_vm_vector_VectorPayloadMF256B            ) \

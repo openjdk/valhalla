@@ -60,16 +60,13 @@ value class Short64Vector extends ShortVector {
     private final VectorPayloadMF64S payload;
 
     Short64Vector(Object value) {
-        this.payload = (VectorPayloadMF64S)value;
+        this.payload = (VectorPayloadMF64S) value;
     }
 
-    VectorPayloadMF vec_mf() {
-        return payload;
-    }
-
+    @ForceInline
     @Override
-    protected final Object getPayload() {
-       return vec_mf();
+    final VectorPayloadMF vec() {
+        return payload;
     }
 
     static final Short64Vector ZERO = new Short64Vector(VectorPayloadMF.newInstanceFactory(short.class, 4));
@@ -122,15 +119,6 @@ value class Short64Vector extends ShortVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    short[] vec() {
-        return (short[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Short64Vector broadcast(short e) {
@@ -166,7 +154,7 @@ value class Short64Vector extends ShortVector {
 
     @Override
     @ForceInline
-    Short64Shuffle shuffleFromBytes(byte[] reorder) { return new Short64Shuffle(reorder); }
+    Short64Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Short64Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Short64Vector extends ShortVector {
     @Override
     @ForceInline
     Short64Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Short64Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Short64Vector vectorFactory(short[] vec) {
-        return new Short64Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -543,7 +524,7 @@ value class Short64Vector extends ShortVector {
                              VCLASS, ETYPE, VLENGTH,
                              this, i,
                              (vec, ix) -> {
-                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 VectorPayloadMF vecpayload = vec.vec();
                                  long start_offset = vecpayload.multiFieldOffset();
                                  return (long)Unsafe.getUnsafe().getShort(vecpayload, start_offset + ix * Short.BYTES);
                              });
@@ -566,7 +547,7 @@ value class Short64Vector extends ShortVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putShort(tpayload, start_offset + ix * Short.BYTES, (short)bits);
@@ -605,14 +586,9 @@ value class Short64Vector extends ShortVector {
         }
 
         @ForceInline
-        final @Override
-        VectorPayloadMF getBits() {
-            return payload;
-        }
-
         @Override
-        protected final Object getPayload() {
-            return getBits();
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -744,24 +720,34 @@ value class Short64Vector extends ShortVector {
 
     // Shuffle
 
-    static final class Short64Shuffle extends AbstractShuffle<Short> {
+    static final value class Short64Shuffle extends AbstractShuffle<Short> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
-        Short64Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF32B payload;
+
+        Short64Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF32B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Short64Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Short64Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Short64Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -798,13 +784,17 @@ value class Short64Vector extends ShortVector {
         @Override
         public Short64Shuffle rearrange(VectorShuffle<Short> shuffle) {
             Short64Shuffle s = (Short64Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Short64Shuffle(r);
         }
     }

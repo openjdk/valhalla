@@ -310,30 +310,12 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
      */
     @ForceInline
     /*package-private*/
-    AbstractVector<E> dummyVector() {
-        // This JITs to a constant value:
-        AbstractVector<E> dummy = dummyVector;
-        if (dummy != null)  return dummy;
-        // The rest of this computation is probably not JIT-ted.
-        return makeDummyVector();
-    }
-    @ForceInline
-    /*package-private*/
     AbstractVector<E> dummyVectorMF() {
         // This JITs to a constant value:
         AbstractVector<E> dummy = dummyVectorMF;
         if (dummy != null)  return dummy;
         // The rest of this computation is probably not JIT-ted.
         return makeDummyVectorMF();
-    }
-
-    @ForceInline
-    private AbstractVector<E> makeDummyVector() {
-        Object za = Array.newInstance(elementType(), laneCount);
-        return dummyVector = vectorFactory.apply(za);
-        // This is the only use of vectorFactory.
-        // All other factory requests are routed
-        // through the dummy vector.
     }
 
     @ForceInline

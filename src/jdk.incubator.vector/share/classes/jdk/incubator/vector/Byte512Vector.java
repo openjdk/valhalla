@@ -60,16 +60,13 @@ value class Byte512Vector extends ByteVector {
     private final VectorPayloadMF512B payload;
 
     Byte512Vector(Object value) {
-        this.payload = (VectorPayloadMF512B)value;
+        this.payload = (VectorPayloadMF512B) value;
     }
 
-    VectorPayloadMF vec_mf() {
-        return payload;
-    }
-
+    @ForceInline
     @Override
-    protected final Object getPayload() {
-       return vec_mf();
+    final VectorPayloadMF vec() {
+        return payload;
     }
 
     static final Byte512Vector ZERO = new Byte512Vector(VectorPayloadMF.newInstanceFactory(byte.class, 64));
@@ -122,15 +119,6 @@ value class Byte512Vector extends ByteVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    byte[] vec() {
-        return (byte[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Byte512Vector broadcast(byte e) {
@@ -166,7 +154,7 @@ value class Byte512Vector extends ByteVector {
 
     @Override
     @ForceInline
-    Byte512Shuffle shuffleFromBytes(byte[] reorder) { return new Byte512Shuffle(reorder); }
+    Byte512Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Byte512Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Byte512Vector extends ByteVector {
     @Override
     @ForceInline
     Byte512Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Byte512Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Byte512Vector vectorFactory(byte[] vec) {
-        return new Byte512Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -603,7 +584,7 @@ value class Byte512Vector extends ByteVector {
                              VCLASS, ETYPE, VLENGTH,
                              this, i,
                              (vec, ix) -> {
-                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 VectorPayloadMF vecpayload = vec.vec();
                                  long start_offset = vecpayload.multiFieldOffset();
                                  return (long)Unsafe.getUnsafe().getByte(vecpayload, start_offset + ix * Byte.BYTES);
                              });
@@ -686,7 +667,7 @@ value class Byte512Vector extends ByteVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putByte(tpayload, start_offset + ix * Byte.BYTES, (byte)bits);
@@ -725,14 +706,9 @@ value class Byte512Vector extends ByteVector {
         }
 
         @ForceInline
-        final @Override
-        VectorPayloadMF getBits() {
-            return payload;
-        }
-
         @Override
-        protected final Object getPayload() {
-            return getBits();
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -864,24 +840,34 @@ value class Byte512Vector extends ByteVector {
 
     // Shuffle
 
-    static final class Byte512Shuffle extends AbstractShuffle<Byte> {
+    static final value class Byte512Shuffle extends AbstractShuffle<Byte> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-        Byte512Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF512B payload;
+
+        Byte512Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF512B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Byte512Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Byte512Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Byte512Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -918,13 +904,17 @@ value class Byte512Vector extends ByteVector {
         @Override
         public Byte512Shuffle rearrange(VectorShuffle<Byte> shuffle) {
             Byte512Shuffle s = (Byte512Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Byte512Shuffle(r);
         }
     }

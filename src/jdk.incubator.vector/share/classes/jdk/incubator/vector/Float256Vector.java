@@ -60,16 +60,13 @@ value class Float256Vector extends FloatVector {
     private final VectorPayloadMF256F payload;
 
     Float256Vector(Object value) {
-        this.payload = (VectorPayloadMF256F)value;
+        this.payload = (VectorPayloadMF256F) value;
     }
 
-    VectorPayloadMF vec_mf() {
-        return payload;
-    }
-
+    @ForceInline
     @Override
-    protected final Object getPayload() {
-       return vec_mf();
+    final VectorPayloadMF vec() {
+        return payload;
     }
 
     static final Float256Vector ZERO = new Float256Vector(VectorPayloadMF.newInstanceFactory(float.class, 8));
@@ -122,15 +119,6 @@ value class Float256Vector extends FloatVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    float[] vec() {
-        return (float[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Float256Vector broadcast(float e) {
@@ -166,7 +154,7 @@ value class Float256Vector extends FloatVector {
 
     @Override
     @ForceInline
-    Float256Shuffle shuffleFromBytes(byte[] reorder) { return new Float256Shuffle(reorder); }
+    Float256Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Float256Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Float256Vector extends FloatVector {
     @Override
     @ForceInline
     Float256Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Float256Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Float256Vector vectorFactory(float[] vec) {
-        return new Float256Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -536,7 +517,7 @@ value class Float256Vector extends FloatVector {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                         VectorPayloadMF vecpayload = vec.vec_mf();
+                         VectorPayloadMF vecpayload = vec.vec();
                          long start_offset = vecpayload.multiFieldOffset();
                          return (long)Float.floatToIntBits(Unsafe.getUnsafe().getFloat(vecpayload, start_offset + ix * Float.BYTES));
                      });
@@ -563,7 +544,7 @@ value class Float256Vector extends FloatVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)Float.floatToIntBits(e),
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putFloat(tpayload, start_offset + ix * Float.BYTES, Float.intBitsToFloat((int)bits));
@@ -602,14 +583,9 @@ value class Float256Vector extends FloatVector {
         }
 
         @ForceInline
-        final @Override
-        VectorPayloadMF getBits() {
-            return payload;
-        }
-
         @Override
-        protected final Object getPayload() {
-            return getBits();
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -741,24 +717,34 @@ value class Float256Vector extends FloatVector {
 
     // Shuffle
 
-    static final class Float256Shuffle extends AbstractShuffle<Float> {
+    static final value class Float256Shuffle extends AbstractShuffle<Float> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Float> ETYPE = float.class; // used by the JVM
 
-        Float256Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF64B payload;
+
+        Float256Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF64B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Float256Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Float256Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Float256Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -795,13 +781,17 @@ value class Float256Vector extends FloatVector {
         @Override
         public Float256Shuffle rearrange(VectorShuffle<Float> shuffle) {
             Float256Shuffle s = (Float256Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Float256Shuffle(r);
         }
     }

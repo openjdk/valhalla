@@ -1649,9 +1649,14 @@ Node* VectorInsertNode::make(Node* vec, Node* new_val, int position) {
   return new VectorInsertNode(vec, new_val, pos, vec->bottom_type()->is_vect());
 }
 
-Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+Node* VectorUnboxNode::Identity(PhaseGVN* phase) {
   Node* n = obj();
   assert(n->is_InlineType(), "");
+  if (!n->is_VectorBox()) {
+    // FIXME: Directly return Vector loaded from multi-field for concrete
+    // vector InlineType nodes. This can save deferring unbox expansion.
+    // For masks/shuffle emit additional pruning IR to match the vector size.
+  }
   // Vector APIs are lazily intrinsified, during parsing compiler emits a
   // call to intrinsic function, since most of the APIs return an abstract vector
   // hence a subsequent checkcast results into a graph shape comprising of CheckPP
@@ -1665,57 +1670,7 @@ Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   n = n->uncast();
   if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
     if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {
-      // Handled by VectorUnboxNode::Identity()
-    } else {
-      VectorBoxNode* vbox = static_cast<VectorBoxNode*>(n);
-      ciKlass* vbox_klass = vbox->box_type()->instance_klass();
-      const TypeVect* in_vt = vbox->vec_type();
-      const TypeVect* out_vt = type()->is_vect();
-
-      if (in_vt->length() == out_vt->length()) {
-        Node* value = vbox->field_value(0);
-        bool is_vector_shuffle = vbox_klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
-        if (is_vector_shuffle) {
-          if (!is_shuffle_to_vector()) {
-            // VectorUnbox (VectorBox vshuffle) ==> VectorLoadShuffle vshuffle
-            return new VectorLoadShuffleNode(value, out_vt);
-          }
-        } else {
-          // Vector type mismatch is only supported for shuffles, but sometimes it happens in pathological cases.
-        }
-      } else {
-        // Vector length mismatch.
-        // Sometimes happen in pathological cases (e.g., when unboxing happens in effectively dead code).
-      }
-    }
-  }
-  return NULL;
-}
-
-Node* VectorUnboxNode::Identity(PhaseGVN* phase) {
-  Node* n = obj();
-  if (n->is_InlineType() && !n->is_VectorBox()) {
-    // FIXME: Directly return Vector loaded from multi-field for concrete
-    // vector InlineType nodes. This can save deferring unbox expansion.
-    // For masks/shuffle emit additional pruning IR to match the vector size.
-  }
-  // Vector APIs are lazily intrinsified, during parsing compiler emits a
-  // call to intrinsic function, since most of the APIs return an abstract vector
-  // hence a subsequent checkcast results into a graph shape comprising of CheckPP
-  // and CheckCastPP chain. During lazy inline expansion, call gets replaced by
-  // a VectorBox but we still need to traverse back through chain of cast nodes
-  // to get to the VectorBox.
-  if (n->is_InlineType() &&
-      !n->is_VectorBox() &&
-      VectorSupport::is_vector(n->as_InlineType()->inline_klass()->get_InlineKlass())) {
-    n = n->as_InlineType()->get_oop();
-  }
-  n = n->uncast();
-  if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
-    if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {
       return n->as_VectorBox()->get_vec(); // VectorUnbox (VectorBox v) ==> v
-    } else {
-      // Handled by VectorUnboxNode::Ideal().
     }
   }
   return this;

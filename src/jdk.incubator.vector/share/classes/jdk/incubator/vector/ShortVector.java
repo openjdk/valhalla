@@ -93,20 +93,13 @@ public abstract class ShortVector extends AbstractVector<Short> {
 
     // Virtualized getter
 
-    /*package-private*/
-    abstract short[] vec();
-
-    abstract VectorPayloadMF vec_mf();
-
     // Virtualized constructors
 
     /**
      * Build a vector directly using my own constructor.
-     * It is an error if the array is aliased elsewhere.
+     * It is an error if the vec is aliased elsewhere.
      */
     /*package-private*/
-    abstract ShortVector vectorFactory(short[] vec);
-
     abstract ShortVector vectorFactory(VectorPayloadMF vec);
 
     /**
@@ -165,7 +158,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
     @ForceInline
     final
     ShortVector uOpTemplateMF(FUnOp f) {
-        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF vec = this.vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
@@ -189,7 +182,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
             return uOpTemplateMF(f);
         }
         VectorPayloadMF mbits = ((AbstractMask<Short>)m).getBits();
-        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF vec = this.vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -218,8 +211,8 @@ public abstract class ShortVector extends AbstractVector<Short> {
     final
     ShortVector bOpTemplateMF(Vector<Short> o,
                                      FBinOp f) {
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = ((ShortVector)o).vec_mf();
+        VectorPayloadMF vec1 = vec();
+        VectorPayloadMF vec2 = ((ShortVector)o).vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
@@ -246,8 +239,8 @@ public abstract class ShortVector extends AbstractVector<Short> {
             return bOpTemplateMF(o, f);
         }
         VectorPayloadMF mbits = ((AbstractMask<Short>)m).getBits();
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = ((ShortVector)o).vec_mf();
+        VectorPayloadMF vec1 = this.vec();
+        VectorPayloadMF vec2 = ((ShortVector)o).vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -279,9 +272,9 @@ public abstract class ShortVector extends AbstractVector<Short> {
     ShortVector tOpTemplateMF(Vector<Short> o1,
                                      Vector<Short> o2,
                                      FTriOp f) {
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = ((ShortVector)o1).vec_mf();
-        VectorPayloadMF vec3 = ((ShortVector)o2).vec_mf();
+        VectorPayloadMF vec1 = this.vec();
+        VectorPayloadMF vec2 = ((ShortVector)o1).vec();
+        VectorPayloadMF vec3 = ((ShortVector)o2).vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
@@ -311,9 +304,9 @@ public abstract class ShortVector extends AbstractVector<Short> {
             return tOpTemplateMF(o1, o2, f);
         }
         VectorPayloadMF mbits = ((AbstractMask<Short>)m).getBits();
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = ((ShortVector)o1).vec_mf();
-        VectorPayloadMF vec3 = ((ShortVector)o2).vec_mf();
+        VectorPayloadMF vec1 = this.vec();
+        VectorPayloadMF vec2 = ((ShortVector)o1).vec();
+        VectorPayloadMF vec3 = ((ShortVector)o2).vec();
         VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -341,7 +334,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
         if (m == null) {
             return rOpTemplateMF(v, f);
         }
-        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF vec = this.vec();
         VectorPayloadMF mbits = ((AbstractMask<Short>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -356,7 +349,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
     @ForceInline
     final
     short rOpTemplateMF(short v, FBinOp f) {
-        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF vec = vec();
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
@@ -470,7 +463,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
     final
     <M> void stOpMF(M memory, int offset,
                   FStOp<M> f) {
-        VectorPayloadMF vec = vec_mf();
+        VectorPayloadMF vec = vec();
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
@@ -484,7 +477,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
     <M> void stOpMF(M memory, int offset,
                   VectorMask<Short> m,
                   FStOp<M> f) {
-        VectorPayloadMF vec = vec_mf();
+        VectorPayloadMF vec = vec();
         VectorPayloadMF mbits = ((AbstractMask<Short>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -506,7 +499,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
     final
     void stLongOpMF(MemorySegment memory, long offset,
                   FStLongOp f) {
-        VectorPayloadMF vec = vec_mf();
+        VectorPayloadMF vec = vec();
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
@@ -520,7 +513,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
     void stLongOpMF(MemorySegment memory, long offset,
                   VectorMask<Short> m,
                   FStLongOp f) {
-        VectorPayloadMF vec = vec_mf();
+        VectorPayloadMF vec = vec();
         VectorPayloadMF mbits = ((AbstractMask<Short>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -550,8 +543,8 @@ public abstract class ShortVector extends AbstractVector<Short> {
                                   Vector<Short> o,
                                   FBinTest f) {
         int length = vspecies().length();
-        VectorPayloadMF vec1 = this.vec_mf();
-        VectorPayloadMF vec2 = ((ShortVector)o).vec_mf();
+        VectorPayloadMF vec1 = vec();
+        VectorPayloadMF vec2 = ((ShortVector)o).vec();
         VectorPayloadMF mbits = VectorPayloadMF.newInstanceFactory(boolean.class, length);
         mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();

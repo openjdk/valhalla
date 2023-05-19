@@ -60,16 +60,13 @@ value class Byte128Vector extends ByteVector {
     private final VectorPayloadMF128B payload;
 
     Byte128Vector(Object value) {
-        this.payload = (VectorPayloadMF128B)value;
+        this.payload = (VectorPayloadMF128B) value;
     }
 
-    VectorPayloadMF vec_mf() {
-        return payload;
-    }
-
+    @ForceInline
     @Override
-    protected final Object getPayload() {
-       return vec_mf();
+    final VectorPayloadMF vec() {
+        return payload;
     }
 
     static final Byte128Vector ZERO = new Byte128Vector(VectorPayloadMF.newInstanceFactory(byte.class, 16));
@@ -122,15 +119,6 @@ value class Byte128Vector extends ByteVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    byte[] vec() {
-        return (byte[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Byte128Vector broadcast(byte e) {
@@ -166,7 +154,7 @@ value class Byte128Vector extends ByteVector {
 
     @Override
     @ForceInline
-    Byte128Shuffle shuffleFromBytes(byte[] reorder) { return new Byte128Shuffle(reorder); }
+    Byte128Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Byte128Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Byte128Vector extends ByteVector {
     @Override
     @ForceInline
     Byte128Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Byte128Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Byte128Vector vectorFactory(byte[] vec) {
-        return new Byte128Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -555,7 +536,7 @@ value class Byte128Vector extends ByteVector {
                              VCLASS, ETYPE, VLENGTH,
                              this, i,
                              (vec, ix) -> {
-                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 VectorPayloadMF vecpayload = vec.vec();
                                  long start_offset = vecpayload.multiFieldOffset();
                                  return (long)Unsafe.getUnsafe().getByte(vecpayload, start_offset + ix * Byte.BYTES);
                              });
@@ -590,7 +571,7 @@ value class Byte128Vector extends ByteVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putByte(tpayload, start_offset + ix * Byte.BYTES, (byte)bits);
@@ -629,14 +610,9 @@ value class Byte128Vector extends ByteVector {
         }
 
         @ForceInline
-        final @Override
-        VectorPayloadMF getBits() {
-            return payload;
-        }
-
         @Override
-        protected final Object getPayload() {
-            return getBits();
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -768,24 +744,34 @@ value class Byte128Vector extends ByteVector {
 
     // Shuffle
 
-    static final class Byte128Shuffle extends AbstractShuffle<Byte> {
+    static final value class Byte128Shuffle extends AbstractShuffle<Byte> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-        Byte128Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF128B payload;
+
+        Byte128Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF128B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Byte128Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Byte128Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Byte128Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -822,13 +808,17 @@ value class Byte128Vector extends ByteVector {
         @Override
         public Byte128Shuffle rearrange(VectorShuffle<Byte> shuffle) {
             Byte128Shuffle s = (Byte128Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Byte128Shuffle(r);
         }
     }
