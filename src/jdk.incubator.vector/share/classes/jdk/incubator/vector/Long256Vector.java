@@ -622,7 +622,7 @@ value class Long256Vector extends LongVector {
             Long256Mask m = (Long256Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, Long256Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Long256Mask) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (Long256Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -632,7 +632,7 @@ value class Long256Vector extends LongVector {
             Long256Mask m = (Long256Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, Long256Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Long256Mask) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (Long256Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -642,7 +642,7 @@ value class Long256Vector extends LongVector {
             Long256Mask m = (Long256Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Long256Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Long256Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (Long256Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations

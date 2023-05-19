@@ -640,7 +640,7 @@ value class Short128Vector extends ShortVector {
             Short128Mask m = (Short128Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, Short128Mask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short128Mask) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (Short128Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -650,7 +650,7 @@ value class Short128Vector extends ShortVector {
             Short128Mask m = (Short128Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, Short128Mask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short128Mask) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (Short128Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -660,7 +660,7 @@ value class Short128Vector extends ShortVector {
             Short128Mask m = (Short128Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Short128Mask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short128Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (Short128Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations

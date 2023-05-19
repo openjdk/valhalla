@@ -621,7 +621,7 @@ value class Float128Vector extends FloatVector {
             Float128Mask m = (Float128Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, Float128Mask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Float128Mask) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (Float128Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -631,7 +631,7 @@ value class Float128Vector extends FloatVector {
             Float128Mask m = (Float128Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, Float128Mask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Float128Mask) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (Float128Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -641,7 +641,7 @@ value class Float128Vector extends FloatVector {
             Float128Mask m = (Float128Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Float128Mask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Float128Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (Float128Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations

@@ -70,7 +70,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         boolean apply(int i, boolean a);
     }
 
-    AbstractMask<E> uOp(MUnOp f) {
+    AbstractMask<E> uOpMF(MUnOp f) {
         int length = vspecies().laneCount();
         VectorPayloadMF bits = getBits();
         VectorPayloadMF res = VectorPayloadMF.newInstanceFactory(boolean.class, length);
@@ -90,7 +90,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         boolean apply(int i, boolean a, boolean b);
     }
 
-    AbstractMask<E> bOp(AbstractMask<E> m, MBinOp f) {
+    AbstractMask<E> bOpMF(AbstractMask<E> m, MBinOp f) {
         int length = vspecies().laneCount();
         VectorPayloadMF bits = getBits();
         VectorPayloadMF mbits = m.getBits();
@@ -108,7 +108,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
 
     // Store operator
 
-    void stOp(boolean[] arr, int idx) {
+    void stOpMF(boolean[] arr, int idx) {
         VectorPayloadMF bits = getBits();
         long mOffset = bits.multiFieldOffset();
         for (int i = 0; i < vspecies().laneCount(); i++) {
@@ -161,7 +161,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
             vsp.maskType(), vsp.elementType(), laneCount,
             bits, (long) i + Unsafe.ARRAY_BOOLEAN_BASE_OFFSET,
             this, bits, i,
-            (c, idx, s) -> s.stOp(c, (int) idx));
+            (c, idx, s) -> s.stOpMF(c, (int) idx));
     }
 
     @Override

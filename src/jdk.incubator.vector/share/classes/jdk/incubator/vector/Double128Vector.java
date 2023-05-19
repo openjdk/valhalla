@@ -617,7 +617,7 @@ value class Double128Vector extends DoubleVector {
             Double128Mask m = (Double128Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, Double128Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Double128Mask) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (Double128Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -627,7 +627,7 @@ value class Double128Vector extends DoubleVector {
             Double128Mask m = (Double128Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, Double128Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Double128Mask) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (Double128Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -637,7 +637,7 @@ value class Double128Vector extends DoubleVector {
             Double128Mask m = (Double128Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Double128Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Double128Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (Double128Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations

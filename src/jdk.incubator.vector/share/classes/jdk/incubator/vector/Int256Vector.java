@@ -640,7 +640,7 @@ value class Int256Vector extends IntVector {
             Int256Mask m = (Int256Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, Int256Mask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Int256Mask) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (Int256Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -650,7 +650,7 @@ value class Int256Vector extends IntVector {
             Int256Mask m = (Int256Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, Int256Mask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Int256Mask) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (Int256Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -660,7 +660,7 @@ value class Int256Vector extends IntVector {
             Int256Mask m = (Int256Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Int256Mask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Int256Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (Int256Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations

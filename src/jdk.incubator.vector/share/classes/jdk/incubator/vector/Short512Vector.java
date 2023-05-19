@@ -688,7 +688,7 @@ value class Short512Vector extends ShortVector {
             Short512Mask m = (Short512Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, Short512Mask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short512Mask) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (Short512Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -698,7 +698,7 @@ value class Short512Vector extends ShortVector {
             Short512Mask m = (Short512Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, Short512Mask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short512Mask) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (Short512Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -708,7 +708,7 @@ value class Short512Vector extends ShortVector {
             Short512Mask m = (Short512Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Short512Mask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short512Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (Short512Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations

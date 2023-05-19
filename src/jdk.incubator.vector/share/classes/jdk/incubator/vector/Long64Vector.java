@@ -616,7 +616,7 @@ value class Long64Vector extends LongVector {
             Long64Mask m = (Long64Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, Long64Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Long64Mask) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (Long64Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -626,7 +626,7 @@ value class Long64Vector extends LongVector {
             Long64Mask m = (Long64Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, Long64Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Long64Mask) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (Long64Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -636,7 +636,7 @@ value class Long64Vector extends LongVector {
             Long64Mask m = (Long64Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Long64Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Long64Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (Long64Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations

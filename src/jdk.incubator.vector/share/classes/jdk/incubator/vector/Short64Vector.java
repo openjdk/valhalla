@@ -632,7 +632,7 @@ value class Short64Vector extends ShortVector {
             Short64Mask m = (Short64Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, Short64Mask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short64Mask) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (Short64Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -642,7 +642,7 @@ value class Short64Vector extends ShortVector {
             Short64Mask m = (Short64Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, Short64Mask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short64Mask) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (Short64Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -652,7 +652,7 @@ value class Short64Vector extends ShortVector {
             Short64Mask m = (Short64Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Short64Mask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short64Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (Short64Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations

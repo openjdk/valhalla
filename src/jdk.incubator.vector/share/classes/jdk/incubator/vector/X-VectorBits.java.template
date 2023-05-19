@@ -903,7 +903,7 @@ value class $vectortype$ extends $abstractvectortype$ {
             $masktype$ m = ($masktype$)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, $masktype$.class, null,
                                           $bitstype$.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> ($masktype$) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> ($masktype$) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -913,7 +913,7 @@ value class $vectortype$ extends $abstractvectortype$ {
             $masktype$ m = ($masktype$)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, $masktype$.class, null,
                                           $bitstype$.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> ($masktype$) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> ($masktype$) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -923,7 +923,7 @@ value class $vectortype$ extends $abstractvectortype$ {
             $masktype$ m = ($masktype$)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, $masktype$.class, null,
                                           $bitstype$.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> ($masktype$) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> ($masktype$) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations

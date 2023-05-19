@@ -630,7 +630,7 @@ value class Long512Vector extends LongVector {
             Long512Mask m = (Long512Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_AND, Long512Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Long512Mask) m1.bOp(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (Long512Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -640,7 +640,7 @@ value class Long512Vector extends LongVector {
             Long512Mask m = (Long512Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_OR, Long512Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Long512Mask) m1.bOp(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (Long512Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -650,7 +650,7 @@ value class Long512Vector extends LongVector {
             Long512Mask m = (Long512Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Long512Mask.class, null,
                                           long.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Long512Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (Long512Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
