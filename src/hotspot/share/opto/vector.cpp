@@ -234,15 +234,14 @@ void PhaseVector::expand_vbox_node(VectorBoxNode* vec_box) {
   if (vec_box->outcnt() > 0) {
     Node* vbox = vec_box->get_oop();
     Node* vect = vec_box->get_vec();
-    Node* result = expand_vbox_node_helper(vec_box, vbox, vect, vec_box->box_type(), vec_box->vec_type());
+    Node* result = expand_vbox_node_helper(vbox, vect, vec_box->box_type(), vec_box->vec_type());
     C->gvn_replace_by(vec_box, result);
     C->print_method(PHASE_EXPAND_VBOX, 3, vec_box);
   }
   C->remove_macro_node(vec_box);
 }
 
-Node* PhaseVector::expand_vbox_node_helper(VectorBoxNode* vec_box,
-                                           Node* vbox,
+Node* PhaseVector::expand_vbox_node_helper(Node* vbox,
                                            Node* vect,
                                            const TypeInstPtr* box_type,
                                            const TypeVect* vect_type) {
@@ -250,7 +249,7 @@ Node* PhaseVector::expand_vbox_node_helper(VectorBoxNode* vec_box,
     assert(vbox->as_Phi()->region() == vect->as_Phi()->region(), "");
     Node* new_phi = new PhiNode(vbox->as_Phi()->region(), box_type);
     for (uint i = 1; i < vbox->req(); i++) {
-      Node* new_box = expand_vbox_node_helper(vec_box, vbox->in(i), vect->in(i), box_type, vect_type);
+      Node* new_box = expand_vbox_node_helper(vbox->in(i), vect->in(i), box_type, vect_type);
       new_phi->set_req(i, new_box);
     }
     new_phi = C->initial_gvn()->transform(new_phi);
@@ -265,14 +264,14 @@ Node* PhaseVector::expand_vbox_node_helper(VectorBoxNode* vec_box,
     // move up and are guaranteed to dominate.
     Node* new_phi = new PhiNode(vbox->as_Phi()->region(), box_type);
     for (uint i = 1; i < vbox->req(); i++) {
-      Node* new_box = expand_vbox_node_helper(vec_box, vbox->in(i), vect, box_type, vect_type);
+      Node* new_box = expand_vbox_node_helper(vbox->in(i), vect, box_type, vect_type);
       new_phi->set_req(i, new_box);
     }
     new_phi = C->initial_gvn()->transform(new_phi);
     return new_phi;
   } else if (vbox->is_Proj() && vbox->in(0)->Opcode() == Op_VectorBoxAllocate) {
     VectorBoxAllocateNode* vbox_alloc = static_cast<VectorBoxAllocateNode*>(vbox->in(0));
-    return expand_vbox_alloc_node(vec_box, vbox_alloc, box_type, vect_type);
+    return expand_vbox_alloc_node(vbox_alloc, vect, box_type, vect_type);
   } else {
     assert(!vbox->is_Phi(), "");
     // TODO: assert that expanded vbox is initialized with the same value (vect).
@@ -280,24 +279,39 @@ Node* PhaseVector::expand_vbox_node_helper(VectorBoxNode* vec_box,
   }
 }
 
-Node* PhaseVector::expand_vbox_alloc_node(VectorBoxNode* vec_box,
-                                          VectorBoxAllocateNode* vbox_alloc,
+Node* PhaseVector::expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
+                                          Node* vect,
                                           const TypeInstPtr* box_type,
                                           const TypeVect* vect_type) {
   JVMState* jvms = clone_jvms(C, vbox_alloc);
   GraphKit kit(jvms);
+  PhaseGVN& gvn = kit.gvn();
 
   ciInlineKlass* vk = static_cast<ciInlineKlass*>(box_type->inline_klass());
-  const TypeKlassPtr* klass_type = box_type->as_klass_type();
-  Node* klass_node = kit.makecon(klass_type);
-  Node* buffer_mem = kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
-  vec_box->store(&kit, buffer_mem, buffer_mem, vk);
+
+  // Re-generate an InlineTypeNode to represent the payload field. This is necessary
+  // in case the input "vect" is not the original vector value when creating the
+  // VectorBox (e.g. original vector value is a PhiNode).
+  ciInlineKlass* payload = vk->declared_nonstatic_field_at(0)->type()->as_inline_klass();
+  Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, true);
+  payload_value->as_InlineType()->set_field_value(0, vect);
+  payload_value = gvn.transform(payload_value);
+
+  // Re-generate an InlineTypeNode to represent the vector object. New a buffer
+  // and save its field value to the buffer.
+  InlineTypeNode* vector = InlineTypeNode::make_uninitialized(gvn, vk, false);
+  vector->set_field_value(0, payload_value);
+  vector = gvn.transform(vector)->as_InlineType();
+
+  Node* klass_node = kit.makecon(TypeKlassPtr::make(vk));
+  Node* alloc_oop  = kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true, vector);
+  vector->store(&kit, alloc_oop, alloc_oop, vk);
 
   C->set_max_vector_size(MAX2(C->max_vector_size(), vect_type->length_in_bytes()));
 
-  kit.replace_call(vbox_alloc, buffer_mem, true);
+  kit.replace_call(vbox_alloc, alloc_oop, true);
   C->remove_macro_node(vbox_alloc);
-  return buffer_mem;
+  return alloc_oop;
 }
 
 void PhaseVector::expand_vunbox_node(VectorUnboxNode* vec_unbox) {

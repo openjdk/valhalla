@@ -2571,7 +2571,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           n = n->in(1);
         }
         const Type* t = phase->type(n);
-        if (n->is_InlineType() && (vk == NULL || vk == t->inline_klass())) {
+        if (n->is_InlineType() && !n->is_VectorBox() && (vk == NULL || vk == t->inline_klass())) {
           vk = (vk == NULL) ? t->inline_klass() : vk;
           if (phase->find_int_con(n->as_InlineType()->get_is_init(), 0) != 1) {
             is_init = false;

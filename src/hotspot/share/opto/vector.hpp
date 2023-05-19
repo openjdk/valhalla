@@ -37,14 +37,13 @@ class PhaseVector : public Phase {
 
   void expand_vbox_nodes();
   void expand_vbox_node(VectorBoxNode* vec_box);
-  Node* expand_vbox_node_helper(VectorBoxNode* vec_box,
-                                Node* vbox_alloc,
+  Node* expand_vbox_node_helper(Node* vbox_alloc,
                                 Node* vect,
                                 const TypeInstPtr* box_type,
                                 const TypeVect* vect_type);
 
-  Node* expand_vbox_alloc_node(VectorBoxNode* vec_box,
-                               VectorBoxAllocateNode* vbox_alloc,
+  Node* expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
+                               Node* vect,
                                const TypeInstPtr* box_type,
                                const TypeVect* vect_type);
 
