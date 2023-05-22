@@ -129,6 +129,14 @@ public:
   virtual uint ideal_reg() const { return Op_RegF; }
 };
 
+//------------------------------AddHFNode---------------------------------------
+// Add 2 floats
+class AddHFNode : public AddFNode {
+public:
+  AddHFNode( Node *in1, Node *in2 ) : AddFNode(in1,in2) {}
+  virtual int Opcode() const;
+};
+
 //------------------------------AddDNode---------------------------------------
 // Add 2 doubles
 class AddDNode : public AddNode {

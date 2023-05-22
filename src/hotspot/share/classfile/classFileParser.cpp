@@ -4781,6 +4781,15 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
   }
 }
 
+// utility function to skip over internal jdk primitive classes used to override the need for passing
+// an explict JVM flag EnablePrimitiveClasses.
+bool ClassFileParser::is_jdk_internal_class(const Symbol* class_name) const {
+  if (vmSymbols::java_lang_Float16() == class_name) {
+    return true;
+  }
+  return false;
+}
+
 // utility methods for format checking
 
 void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const {
@@ -4811,7 +4820,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
     return;
   }
 
-  if (is_primitive_class && !EnablePrimitiveClasses) {
+  if (is_primitive_class && !is_jdk_internal_class(_class_name) && !EnablePrimitiveClasses) {
       ResourceMark rm(THREAD);
       Exceptions::fthrow(
         THREAD_AND_LOCATION,

@@ -78,6 +78,7 @@
   template(java_lang_Character_CharacterCache,        "java/lang/Character$CharacterCache")       \
   template(java_lang_CharacterDataLatin1,             "java/lang/CharacterDataLatin1")            \
   template(java_lang_Float,                           "java/lang/Float")                          \
+  template(java_lang_Float16,                         "java/lang/Float16")                        \
   template(java_lang_Double,                          "java/lang/Double")                         \
   template(java_lang_Byte,                            "java/lang/Byte")                           \
   template(java_lang_Byte_ByteCache,                  "java/lang/Byte$ByteCache")                 \

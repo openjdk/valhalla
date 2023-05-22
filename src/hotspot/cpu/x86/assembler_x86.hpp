@@ -543,6 +543,7 @@ class Assembler : public AbstractAssembler  {
     VEX_OPCODE_0F    = 0x1,
     VEX_OPCODE_0F_38 = 0x2,
     VEX_OPCODE_0F_3A = 0x3,
+    VEX_OPCODE_MAP5  = 0x5,
     VEX_OPCODE_MASK  = 0x1F
   };
 
@@ -2380,6 +2381,7 @@ private:
   void vpaddw(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
   void vpaddd(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
   void vpaddq(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
+  void evaddsh(XMMRegister dst, XMMRegister nds, XMMRegister src);
 
   // Leaf level assembler routines for masked operations.
   void evpaddb(XMMRegister dst, KRegister mask, XMMRegister nds, XMMRegister src, bool merge, int vector_len);

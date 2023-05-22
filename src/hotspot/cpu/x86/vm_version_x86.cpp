@@ -3010,6 +3010,9 @@ uint64_t VM_Version::feature_flags() {
     }
     if (_cpuid_info.sef_cpuid7_edx.bits.serialize != 0)
       result |= CPU_SERIALIZE;
+
+    if (_cpuid_info.sef_cpuid7_edx.bits.avx512_fp16 != 0)
+      result |= CPU_AVX512_FP16;
   }
 
   // ZX features.

@@ -214,6 +214,8 @@ class ClassFileParser {
   bool _has_vanilla_constructor;
   int _max_bootstrap_specifier_index;  // detects BSS values
 
+  bool is_jdk_internal_class(const Symbol* class_name) const;
+
   void parse_stream(const ClassFileStream* const stream, TRAPS);
 
   void mangle_hidden_class_name(InstanceKlass* const ik);
