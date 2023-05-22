@@ -490,9 +490,9 @@ void ArchiveHeapWriter::update_header_for_requested_obj(oop requested_obj, oop s
   // in the shared heap. This also has the side effect of pre-initializing the
   // identity_hash for all shared objects, so they are less likely to be written
   // into during run time, increasing the potential of memory sharing.
-  if (src_obj != nullptr) {
+  if (src_obj != nullptr && (!(EnableValhalla && src_obj->mark().is_inline_type()))) {
     int src_hash = src_obj->identity_hash();
-    fake_oop->set_mark(markWord::prototype().copy_set_hash(src_hash));
+    fake_oop->set_mark(src_klass->prototype_header().copy_set_hash(src_hash));
     assert(fake_oop->mark().is_unlocked(), "sanity");
 
     DEBUG_ONLY(int archived_hash = fake_oop->identity_hash());
