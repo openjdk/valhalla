@@ -1329,9 +1329,6 @@ const int ObjectAlignmentInBytes = 8;
   develop(intx, MallocCatchPtr, -1,                                         \
           "Hit breakpoint when mallocing/freeing this pointer")             \
                                                                             \
-  notproduct(ccstrlist, SuppressErrorAt, "",                                \
-          "List of assertions (file:line) to muzzle")                       \
-                                                                            \
   develop(intx, StackPrintLimit, 100,                                       \
           "number of stack frames to print in VM-level stack dump")         \
                                                                             \
@@ -1441,7 +1438,7 @@ const int ObjectAlignmentInBytes = 8;
           "Force the class space to be allocated at this address or "       \
           "fails VM initialization (requires -Xshare=off.")                 \
                                                                             \
-  product(ccstr, MetaspaceReclaimPolicy, "balanced",                        \
+  product(ccstr, MetaspaceReclaimPolicy, "balanced", DIAGNOSTIC,            \
           "options: balanced, aggressive, none")                            \
                                                                             \
   product(bool, PrintMetaspaceStatisticsAtExit, false, DIAGNOSTIC,          \
