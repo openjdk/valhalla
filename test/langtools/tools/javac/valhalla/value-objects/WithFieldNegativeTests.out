@@ -1,12 +1,12 @@
-WithFieldNegativeTests.java:16:14: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:17:14: compiler.err.cant.assign.val.to.final.var: sx
-WithFieldNegativeTests.java:22:16: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:26:10: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:27:12: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:28:11: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:29:9: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:30:13: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:31:15: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:37:10: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:38:10: compiler.err.cant.assign.val.to.final.var: sx
+WithFieldNegativeTests.java:16:14: compiler.err.cant.assign.val.to.var: final, x
+WithFieldNegativeTests.java:17:14: compiler.err.cant.assign.val.to.var: static final, sx
+WithFieldNegativeTests.java:22:16: compiler.err.cant.assign.val.to.var: final, x
+WithFieldNegativeTests.java:26:10: compiler.err.cant.assign.val.to.var: final, x
+WithFieldNegativeTests.java:27:12: compiler.err.cant.assign.val.to.var: final, x
+WithFieldNegativeTests.java:28:11: compiler.err.cant.assign.val.to.var: final, x
+WithFieldNegativeTests.java:29:9: compiler.err.cant.assign.val.to.var: final, x
+WithFieldNegativeTests.java:30:13: compiler.err.cant.assign.val.to.var: final, x
+WithFieldNegativeTests.java:31:15: compiler.err.cant.assign.val.to.var: final, x
+WithFieldNegativeTests.java:37:10: compiler.err.cant.assign.val.to.var: final, x
+WithFieldNegativeTests.java:38:10: compiler.err.cant.assign.val.to.var: static final, sx
 11 errors
