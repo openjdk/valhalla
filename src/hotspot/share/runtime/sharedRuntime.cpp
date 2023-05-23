@@ -3046,7 +3046,9 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
                   JavaThread* thread = JavaThread::current();
                   HandleMark hm(thread);
                   methodHandle mh(thread, super_method);
-                  CodeCache::flush_dependents_on_method(mh);
+                  DeoptimizationScope deopt_scope;
+                  CodeCache::mark_for_deoptimization(&deopt_scope, mh());
+                  deopt_scope.deoptimize_marked();
                 }
               }
             }
