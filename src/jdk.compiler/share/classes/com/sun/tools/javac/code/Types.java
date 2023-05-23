@@ -2567,7 +2567,7 @@ public class Types {
                     Type erased = t.tsym.erasure(Types.this);
                     if (recurse) {
                         erased = new ErasedClassType(erased.getEnclosingType(), erased.tsym,
-                                t.dropMetadata(Annotations.class).getMetadata();
+                                                     t.dropMetadata(Annotations.class).getMetadata());
                         return erased;
                     } else {
                         return combineMetadata(erased, t);
@@ -4013,7 +4013,7 @@ public class Types {
             // There is no spec detailing how type annotations are to
             // be inherited.  So set it to noAnnotations for now
             return new ClassType(class1.getEnclosingType(), merged.toList(),
-                                 class1.tsym, TypeMetadata.EMPTY, class1.getFlavor());
+                                 class1.tsym, List.nil(), class1.getFlavor());
         }
 
     /**

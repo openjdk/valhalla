@@ -108,8 +108,6 @@ public class ClassWriter extends ClassFile {
     /** Type utilities. */
     private Types types;
 
-    private Symtab syms;
-
     private Check check;
 
     private boolean allowPrimitiveClasses;
@@ -179,7 +177,6 @@ public class ClassWriter extends ClassFile {
         target = Target.instance(context);
         source = Source.instance(context);
         types = Types.instance(context);
-        syms = Symtab.instance(context);
         check = Check.instance(context);
         fileManager = context.get(JavaFileManager.class);
         poolWriter = Gen.instance(context).poolWriter;

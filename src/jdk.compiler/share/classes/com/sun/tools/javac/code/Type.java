@@ -1199,8 +1199,12 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             this(outer, typarams, tsym, List.nil(), Flavor.L_TypeOf_L);
         }
 
+        public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym, Flavor flavor) {
+            this(outer, typarams, tsym, List.nil(), flavor);
+        }
+
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym,
-                         List<TypeMetadata>, Flavor flavor) {
+                         List<TypeMetadata> metadata, Flavor flavor) {
             super(tsym, metadata);
             this.outer_field = outer;
             this.typarams_field = typarams;
@@ -2599,7 +2603,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         public ErrorType(Type originalType, TypeSymbol tsym) {
-            super(noType, List.nil(), tsym, TypeMetadata.EMPTY, Flavor.E_Typeof_X);
+            super(noType, List.nil(), tsym, List.nil(), Flavor.E_Typeof_X);
             this.originalType = (originalType == null ? noType : originalType);
         }
 

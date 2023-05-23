@@ -591,7 +591,7 @@ public class ClassReader {
                         // Todo: This spews out more objects than before, i.e no reuse with identical flavor
                         return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata(), flavor);
                     }
-                    return new ClassType(outer, List.nil(), t, TypeMetadata.EMPTY, flavor);
+                    return new ClassType(outer, List.nil(), t, List.nil(), flavor);
                 } finally {
                     sbp = startSbp;
                 }
@@ -603,7 +603,7 @@ public class ClassReader {
                                                          sbp - startSbp));
                 // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
                 flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.Q_TypeOf_X;
-                outer = new ClassType(outer, sigToTypes('>'), t, TypeMetadata.EMPTY, flavor) {
+                outer = new ClassType(outer, sigToTypes('>'), t, List.nil(), flavor) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
                         public Type getEnclosingType() {
@@ -668,7 +668,7 @@ public class ClassReader {
                                                  sbp - startSbp));
                     // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
                     flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.Q_TypeOf_X;
-                    outer = new ClassType(outer, List.nil(), t, TypeMetadata.EMPTY, flavor);
+                    outer = new ClassType(outer, List.nil(), t, List.nil(), flavor);
                 }
                 signatureBuffer[sbp++] = (byte)'$';
                 continue;
