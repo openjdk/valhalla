@@ -45,6 +45,7 @@ compiler.err.type.var.more.than.once                    # UNUSED
 compiler.err.type.var.more.than.once.in.result          # UNUSED
 compiler.err.unexpected.type
 compiler.misc.bad.class.signature                       # bad class file
+compiler.misc.bad.class.truncated.at.offset             # bad class file
 compiler.misc.bad.const.pool.tag                        # bad class file
 compiler.misc.bad.const.pool.tag.at                     # bad class file
 compiler.misc.unexpected.const.pool.tag.at              # bad class file
@@ -210,6 +211,9 @@ compiler.err.preview.without.source.or.release
 
 compiler.misc.illegal.signature                               # the compiler can now detect more non-denotable types before class writing
 
+# this one needs a forged class file to be reproduced
+compiler.err.annotation.unrecognized.attribute.name
+
 # Value Objects
 compiler.misc.feature.value.classes
 
@@ -217,3 +221,4 @@ compiler.misc.feature.value.classes
 compiler.err.cyclic.primitive.class.membership
 compiler.misc.feature.primitive.classes
 compiler.err.generic.parameterization.with.primitive.class
+

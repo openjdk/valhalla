@@ -103,6 +103,7 @@ class GraphKit : public Phase {
   void*         barrier_set_state() const { return C->barrier_set_state(); }
 
   void record_for_igvn(Node* n) const { _gvn.record_for_igvn(n); }
+  void remove_for_igvn(Node* n) const { C->remove_for_igvn(n); }
 
   // Handy well-known nodes:
   Node*         null()          const { return zerocon(T_OBJECT); }
@@ -178,6 +179,11 @@ class GraphKit : public Phase {
 
   // Clone the existing map state.  (Implements PreserveJVMState.)
   SafePointNode* clone_map();
+
+  // Reverses the work done by clone_map(). Should only be used when the node returned by
+  // clone_map() is ultimately not used. Calling Node::destruct directly in the previously
+  // mentioned circumstance instead of this method may result in use-after-free.
+  void destruct_map_clone(SafePointNode* sfp);
 
   // Set the map to a clone of the given one.
   void set_map_clone(SafePointNode* m);
