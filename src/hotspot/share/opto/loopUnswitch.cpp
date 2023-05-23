@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -83,7 +83,7 @@ bool IdealLoopTree::policy_unswitching( PhaseIdealLoop *phase ) const {
   }
 
   Node_List unswitch_iffs;
-  if (phase->find_unswitching_candidate(this, unswitch_iffs) == NULL) {
+  if (phase->find_unswitching_candidate(this, unswitch_iffs) == nullptr) {
     return false;
   }
 
@@ -97,7 +97,7 @@ IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, No
 
   // Find first invariant test that doesn't exit the loop
   LoopNode *head = loop->_head->as_Loop();
-  IfNode* unswitch_iff = NULL;
+  IfNode* unswitch_iff = nullptr;
   Node* n = head->in(LoopNode::LoopBackControl);
   while (n != head) {
     Node* n_dom = idom(n);
@@ -118,19 +118,19 @@ IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, No
     }
     n = n_dom;
   }
-  if (unswitch_iff != NULL) {
+  if (unswitch_iff != nullptr) {
     unswitch_iffs.push(unswitch_iff);
   }
 
   // Collect all non-flattened array checks for unswitching to create a fast loop
   // without checks (only non-flattened array accesses) and a slow loop with checks.
-  if (unswitch_iff == NULL || unswitch_iff->is_flat_array_check(&_igvn)) {
+  if (unswitch_iff == nullptr || unswitch_iff->is_flat_array_check(&_igvn)) {
     for (uint i = 0; i < loop->_body.size(); i++) {
       IfNode* n = loop->_body.at(i)->isa_If();
-      if (n != NULL && n != unswitch_iff && n->is_flat_array_check(&_igvn) &&
+      if (n != nullptr && n != unswitch_iff && n->is_flat_array_check(&_igvn) &&
           loop->is_invariant(n->in(1)) && !loop->is_loop_exit(n)) {
         unswitch_iffs.push(n);
-        if (unswitch_iff == NULL) {
+        if (unswitch_iff == nullptr) {
           unswitch_iff = n;
         }
       }
@@ -147,9 +147,9 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
 
   LoopNode *head = loop->_head->as_Loop();
   Node* entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
-  if (find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check) != NULL
-      || (UseProfiledLoopPredicate && find_predicate_insertion_point(entry, Deoptimization::Reason_profile_predicate) != NULL)
-      || (UseLoopPredicate && find_predicate_insertion_point(entry, Deoptimization::Reason_predicate) != NULL)) {
+  if (find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check) != nullptr
+      || (UseProfiledLoopPredicate && find_predicate_insertion_point(entry, Deoptimization::Reason_profile_predicate) != nullptr)
+      || (UseLoopPredicate && find_predicate_insertion_point(entry, Deoptimization::Reason_predicate) != nullptr)) {
     assert(entry->is_IfProj(), "sanity - must be ifProj since there is at least one predicate");
     if (entry->outcnt() > 1) {
       // Bailout if there are loop predicates from which there are additional control dependencies (i.e. from
@@ -161,7 +161,7 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   // Find first invariant test that doesn't exit the loop
   Node_List unswitch_iffs;
   IfNode* unswitch_iff = find_unswitching_candidate((const IdealLoopTree *)loop, unswitch_iffs);
-  assert(unswitch_iff != NULL && unswitch_iff == unswitch_iffs.at(0), "should be at least one");
+  assert(unswitch_iff != nullptr && unswitch_iff == unswitch_iffs.at(0), "should be at least one");
   bool flat_array_checks = unswitch_iffs.size() > 1;
 
 #ifndef PRODUCT
@@ -188,7 +188,7 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   assert(proj_true->is_IfTrue(), "must be true projection");
   entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
   Node* predicate = find_predicate(entry);
-  if (predicate == NULL) {
+  if (predicate == nullptr) {
     // No empty predicate
     Node* uniqc = proj_true->unique_ctrl_out();
     assert((uniqc == head && !head->is_strip_mined()) || (uniqc == head->in(LoopNode::EntryControl)
@@ -199,13 +199,13 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
     Node* proj_before_first_empty_predicate = skip_loop_predicates(entry);
     if (UseProfiledLoopPredicate) {
       predicate = find_predicate(proj_before_first_empty_predicate);
-      if (predicate != NULL) {
+      if (predicate != nullptr) {
         proj_before_first_empty_predicate = skip_loop_predicates(predicate);
       }
     }
     if (UseLoopPredicate) {
       predicate = find_predicate(proj_before_first_empty_predicate);
-      if (predicate != NULL) {
+      if (predicate != nullptr) {
         proj_before_first_empty_predicate = skip_loop_predicates(predicate);
       }
     }
@@ -417,9 +417,9 @@ LoopNode* PhaseIdealLoop::create_reserve_version_of_loop(IdealLoopTree *loop, Co
 CountedLoopReserveKit::CountedLoopReserveKit(PhaseIdealLoop* phase, IdealLoopTree *loop, bool active = true) :
   _phase(phase),
   _lpt(loop),
-  _lp(NULL),
-  _iff(NULL),
-  _lp_reserved(NULL),
+  _lp(nullptr),
+  _iff(nullptr),
+  _lp_reserved(nullptr),
   _has_reserved(false),
   _use_new(false),
   _active(active)

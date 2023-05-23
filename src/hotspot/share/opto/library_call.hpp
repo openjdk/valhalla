@@ -76,7 +76,7 @@ class LibraryCallKit : public GraphKit {
   LibraryCallKit(JVMState* jvms, LibraryIntrinsic* intrinsic)
     : GraphKit(jvms),
       _intrinsic(intrinsic),
-      _result(NULL)
+      _result(nullptr)
   {
     // Check if this is a root compile.  In that case we don't have a caller.
     if (!jvms->has_method()) {
@@ -86,7 +86,7 @@ class LibraryCallKit : public GraphKit {
       // and save the stack pointer value so it can used by uncommon_trap.
       // We find the argument count by looking at the declared signature.
       bool ignored_will_link;
-      ciSignature* declared_signature = NULL;
+      ciSignature* declared_signature = nullptr;
       ciMethod* ignored_callee = caller()->get_method_at_bci(bci(), ignored_will_link, &declared_signature);
       const int nargs = declared_signature->arg_size_for_bc(caller()->java_code_at_bci(bci()));
       _reexecute_sp = sp() + nargs;  // "push" arguments back on stack
@@ -107,7 +107,7 @@ class LibraryCallKit : public GraphKit {
   void push_result() {
     // Push the result onto the stack.
     Node* res = result();
-    if (!stopped() && res != NULL) {
+    if (!stopped() && res != nullptr) {
       BasicType bt = res->bottom_type()->basic_type();
       if (C->inlining_incrementally() && res->is_InlineType()) {
         // The caller expects an oop when incrementally inlining an intrinsic that returns an
@@ -125,7 +125,7 @@ class LibraryCallKit : public GraphKit {
     fatal("unexpected intrinsic %d: %s", vmIntrinsics::as_int(iid), vmIntrinsics::name_at(iid));
   }
 
-  void  set_result(Node* n) { assert(_result == NULL, "only set once"); _result = n; }
+  void  set_result(Node* n) { assert(_result == nullptr, "only set once"); _result = n; }
   void  set_result(RegionNode* region, PhiNode* value);
   Node*     result() { return _result; }
 
@@ -137,7 +137,7 @@ class LibraryCallKit : public GraphKit {
   Node* generate_fair_guard(Node* test, RegionNode* region);
   Node* generate_negative_guard(Node* index, RegionNode* region,
                                 // resulting CastII of index:
-                                Node* *pos_index = NULL);
+                                Node* *pos_index = nullptr);
   Node* generate_limit_guard(Node* offset, Node* subseq_length,
                              Node* array_length,
                              RegionNode* region);
@@ -204,8 +204,8 @@ class LibraryCallKit : public GraphKit {
   CallJavaNode* generate_method_call_virtual(vmIntrinsics::ID method_id) {
     return generate_method_call(method_id, true, false);
   }
-  Node* load_field_from_object(Node* fromObj, const char* fieldName, const char* fieldTypeString, DecoratorSet decorators = IN_HEAP, bool is_static = false, ciInstanceKlass* fromKls = NULL);
-  Node* field_address_from_object(Node* fromObj, const char* fieldName, const char* fieldTypeString, bool is_exact = true, bool is_static = false, ciInstanceKlass* fromKls = NULL);
+  Node* load_field_from_object(Node* fromObj, const char* fieldName, const char* fieldTypeString, DecoratorSet decorators = IN_HEAP, bool is_static = false, ciInstanceKlass* fromKls = nullptr);
+  Node* field_address_from_object(Node* fromObj, const char* fieldName, const char* fieldTypeString, bool is_exact = true, bool is_static = false, ciInstanceKlass* fromKls = nullptr);
 
   Node* make_string_method_node(int opcode, Node* str1_start, Node* cnt1, Node* str2_start, Node* cnt2, StrIntrinsicNode::ArgEnc ae);
   bool inline_string_compareTo(StrIntrinsicNode::ArgEnc ae);

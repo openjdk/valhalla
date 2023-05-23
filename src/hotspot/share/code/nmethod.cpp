@@ -613,12 +613,12 @@ nmethod* nmethod::new_nmethod(const methodHandle& method,
           oop call_site = deps.argument_oop(0);
           MethodHandles::add_dependent_nmethod(call_site, nm);
         } else {
-          Klass* klass = deps.context_type();
-          if (klass == nullptr) {
+          InstanceKlass* ik = deps.context_type();
+          if (ik == nullptr) {
             continue;  // ignore things like evol_method
           }
           // record this nmethod as dependent on this klass
-          InstanceKlass::cast(klass)->add_dependent_nmethod(nm);
+          ik->add_dependent_nmethod(nm);
         }
       }
       NOT_PRODUCT(if (nm != nullptr)  note_java_nmethod(nm));
@@ -1169,6 +1169,8 @@ void nmethod::finalize_relocations() {
 
 void nmethod::make_deoptimized() {
   if (!Continuations::enabled()) {
+    // Don't deopt this again.
+    set_deoptimized_done();
     return;
   }
 
@@ -1176,6 +1178,12 @@ void nmethod::make_deoptimized() {
 
   CompiledICLocker ml(this);
   assert(CompiledICLocker::is_safe(this), "mt unsafe call");
+
+  // If post call nops have been already patched, we can just bail-out.
+  if (has_been_deoptimized()) {
+    return;
+  }
+
   ResourceMark rm;
   RelocIterator iter(this, oops_reloc_begin());
 
@@ -1211,7 +1219,7 @@ void nmethod::make_deoptimized() {
     }
   }
   // Don't deopt this again.
-  mark_deoptimized();
+  set_deoptimized_done();
 }
 
 void nmethod::verify_clean_inline_caches() {
@@ -1497,13 +1505,13 @@ void nmethod::flush_dependencies() {
         oop call_site = deps.argument_oop(0);
         MethodHandles::clean_dependency_context(call_site);
       } else {
-        Klass* klass = deps.context_type();
-        if (klass == nullptr) {
+        InstanceKlass* ik = deps.context_type();
+        if (ik == nullptr) {
           continue;  // ignore things like evol_method
         }
         // During GC liveness of dependee determines class that needs to be updated.
         // The GC may clean dependency contexts concurrently and in parallel.
-        InstanceKlass::cast(klass)->clean_dependency_context();
+        ik->clean_dependency_context();
       }
     }
   }
@@ -2488,9 +2496,9 @@ void nmethod::print_dependencies() {
   tty->print_cr("Dependencies:");
   for (Dependencies::DepStream deps(this); deps.next(); ) {
     deps.print_dependency();
-    Klass* ctxk = deps.context_type();
+    InstanceKlass* ctxk = deps.context_type();
     if (ctxk != nullptr) {
-      if (ctxk->is_instance_klass() && InstanceKlass::cast(ctxk)->is_dependent_nmethod(this)) {
+      if (ctxk->is_dependent_nmethod(this)) {
         tty->print_cr("   [nmethod<=klass]%s", ctxk->external_name());
       }
     }
