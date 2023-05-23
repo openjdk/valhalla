@@ -2479,7 +2479,7 @@ public final class System {
             }
 
             public String newStringUTF8NoRepl(byte[] bytes, int off, int len) {
-                return String.newStringUTF8NoRepl(bytes, off, len);
+                return String.newStringUTF8NoRepl(bytes, off, len, true);
             }
 
             public byte[] getBytesUTF8NoRepl(String s) {
@@ -2685,6 +2685,10 @@ public final class System {
 
             public int classFileFormatVersion(Class<?> clazz) {
                 return clazz.getClassFileVersion();
+            }
+
+            public String getLoaderNameID(ClassLoader loader) {
+                return loader.nameAndId();
             }
         });
     }

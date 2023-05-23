@@ -879,7 +879,7 @@ public class Proxy implements java.io.Serializable {
             }
             if (PrimitiveClass.asPrimaryType(type) != PrimitiveClass.asPrimaryType(c)) {
                 throw new IllegalArgumentException(c.getName() +
-                        " referenced from a method is not visible from class loader");
+                        " referenced from a method is not visible from class loader: " + JLA.getLoaderNameID(ld));
             }
         }
 
