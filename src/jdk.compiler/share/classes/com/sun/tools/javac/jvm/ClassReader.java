@@ -834,12 +834,16 @@ public class ClassReader {
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
                     if (sym.isInitOrVNew() && sym.type.getParameterTypes().size() == 0) {
-                        int code_length = buf.getInt(bp + 4);
-                        if ((code_length == 1 && buf.getByte(bp + 8) == (byte) ByteCodes.return_) ||
+                        try {
+                            int code_length = buf.getInt(bp + 4);
+                            if ((code_length == 1 && buf.getByte(bp + 8) == (byte) ByteCodes.return_) ||
                                 (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
                                     buf.getByte(bp + 9) == (byte) ByteCodes.invokespecial &&
                                             buf.getByte(bp + 12) == (byte) ByteCodes.return_)) {
                                 sym.flags_field |= EMPTYNOARGCONSTR;
+                            }
+                        } catch (UnderflowException e) {
+                            throw badClassFile("bad.class.truncated.at.offset", Integer.toString(e.getLength()));
                         }
                     }
                     if (saveParameterNames)
