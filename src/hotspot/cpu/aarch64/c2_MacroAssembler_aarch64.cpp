@@ -68,10 +68,6 @@ void C2_MacroAssembler::entry_barrier() {
   }
 }
 
-int C2_MacroAssembler::entry_barrier_stub_size() {
-  return 4 * 6;
-}
-
 // Search for str1 in str2 and return index or -1
 void C2_MacroAssembler::string_indexof(Register str2, Register str1,
                                        Register cnt2, Register cnt1,

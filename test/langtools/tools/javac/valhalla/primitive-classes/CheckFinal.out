@@ -1,6 +1,6 @@
-CheckFinal.java:14:13: compiler.err.cant.assign.val.to.final.var: fi
-CheckFinal.java:15:13: compiler.err.cant.assign.val.to.final.var: fe
-CheckFinal.java:17:13: compiler.err.cant.assign.val.to.final.var: xsf
+CheckFinal.java:14:13: compiler.err.cant.assign.val.to.var: final, fi
+CheckFinal.java:15:13: compiler.err.cant.assign.val.to.var: final, fe
+CheckFinal.java:17:13: compiler.err.cant.assign.val.to.var: static final, xsf
 CheckFinal.java:19:29: compiler.err.cant.inherit.from.final: CheckFinal
 CheckFinal.java:19:42: compiler.err.identity.type.has.value.super.type: compiler.misc.anonymous.class: CheckFinal, CheckFinal
 5 errors
