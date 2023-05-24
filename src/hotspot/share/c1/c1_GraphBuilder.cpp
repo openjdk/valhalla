@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -574,7 +574,7 @@ class FieldBuffer: public CompilationResourceObj {
 
   Value at(ciField* field) {
     assert(field->holder()->is_loaded(), "must be a loaded field");
-    int offset = field->offset();
+    int offset = field->offset_in_bytes();
     if (offset < _values.length()) {
       return _values.at(offset);
     } else {
@@ -584,7 +584,7 @@ class FieldBuffer: public CompilationResourceObj {
 
   void at_put(ciField* field, Value value) {
     assert(field->holder()->is_loaded(), "must be a loaded field");
-    int offset = field->offset();
+    int offset = field->offset_in_bytes();
     _values.at_put_grow(offset, value, NULL);
   }
 
@@ -625,7 +625,7 @@ class MemoryBuffer: public CompilationResourceObj {
     Value value = st->value();
     ciField* field = st->field();
     if (field->holder()->is_loaded()) {
-      int offset = field->offset();
+      int offset = field->offset_in_bytes();
       int index = _newobjects.find(object);
       if (index != -1) {
         // newly allocated object with no other stores performed on this field
@@ -693,7 +693,7 @@ class MemoryBuffer: public CompilationResourceObj {
     ciField* field = load->field();
     Value object   = load->obj();
     if (field->holder()->is_loaded() && !field->is_volatile()) {
-      int offset = field->offset();
+      int offset = field->offset_in_bytes();
       Value result = NULL;
       int index = _newobjects.find(object);
       if (index != -1) {
@@ -1913,7 +1913,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     }
   }
 
-  int offset = !needs_patching ? field->offset() : -1;
+  int offset = !needs_patching ? field->offset_in_bytes() : -1;
   switch (code) {
     case Bytecodes::_getstatic: {
       // check for compile-time constants, i.e., initialized static final fields

@@ -148,9 +148,9 @@ class FieldGroup : public ResourceObj {
   int contended_group() const { return _contended_group; }
   int oop_count() const { return _oop_count; }
 
-  void add_primitive_field(AllFieldStream fs, BasicType type);
-  void add_oop_field(AllFieldStream fs);
-  void add_inlined_field(AllFieldStream fs, InlineKlass* vk);
+  void add_primitive_field(int idx, BasicType type);
+  void add_oop_field(idx);
+  void add_inlined_field(int idx, InlineKlass* vk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -176,14 +176,14 @@ class FieldGroup : public ResourceObj {
 //
 class FieldLayout : public ResourceObj {
  private:
-  Array<u2>* _fields;
+  GrowableArray<FieldInfo>* _field_info;
   ConstantPool* _cp;
   LayoutRawBlock* _blocks;  // the layout being computed
   LayoutRawBlock* _start;   // points to the first block where a field can be inserted
   LayoutRawBlock* _last;    // points to the last block of the layout (big empty block)
 
  public:
-  FieldLayout(Array<u2>* fields, ConstantPool* cp);
+  FieldLayout(GrowableArray<FieldInfo>* field_info, ConstantPool* cp);
   void initialize_static_layout();
   void initialize_instance_layout(const InstanceKlass* ik);
 
@@ -242,7 +242,7 @@ class FieldLayoutBuilder : public ResourceObj {
   const Symbol* _classname;
   const InstanceKlass* _super_klass;
   ConstantPool* _constant_pool;
-  Array<u2>* _fields;
+  GrowableArray<FieldInfo>* _field_info;
   FieldLayoutInfo* _info;
   Array<InlineKlass*>* _inline_type_field_klasses;
   FieldGroup* _root_group;
@@ -266,7 +266,8 @@ class FieldLayoutBuilder : public ResourceObj {
 
  public:
   FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-      Array<u2>* fields, bool is_contended, bool is_inline_type, FieldLayoutInfo* info, Array<InlineKlass*>* inline_type_field_klasses);
+                     GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, FieldLayoutInfo* info,
+                     Array<InlineKlass*>* inline_type_field_klasses);
 
   int get_alignment() {
     assert(_alignment != -1, "Uninitialized");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -99,7 +99,7 @@ void C1SafepointPollStub::emit_code(LIR_Assembler* ce) {
   __ pop(tmp2);
   __ pop(tmp1);
 #endif /* _LP64 */
-  assert(SharedRuntime::polling_page_return_handler_blob() != NULL,
+  assert(SharedRuntime::polling_page_return_handler_blob() != nullptr,
          "polling page return stub not created yet");
 
   address stub = SharedRuntime::polling_page_return_handler_blob()->entry_point();
@@ -408,7 +408,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
 #ifdef ASSERT
     address start = __ pc();
 #endif
-    Metadata* o = NULL;
+    Metadata* o = nullptr;
     __ mov_metadata(_obj, o);
 #ifdef ASSERT
     for (int i = 0; i < _bytes_to_copy; i++) {
@@ -423,7 +423,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
 #ifdef ASSERT
     address start = __ pc();
 #endif
-    jobject o = NULL;
+    jobject o = nullptr;
     __ movoop(_obj, o);
 #ifdef ASSERT
     for (int i = 0; i < _bytes_to_copy; i++) {
@@ -494,7 +494,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
 
   address entry = __ pc();
   NativeGeneralJump::insert_unconditional((address)_pc_start, entry);
-  address target = NULL;
+  address target = nullptr;
   relocInfo::relocType reloc_type = relocInfo::none;
   switch (_id) {
     case access_field_id:  target = Runtime1::entry_for(Runtime1::access_field_patching_id); break;

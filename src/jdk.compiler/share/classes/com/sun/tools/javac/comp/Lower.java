@@ -105,6 +105,7 @@ public class Lower extends TreeTranslator {
     private final boolean allowPrimitiveClasses;
     private final boolean useMatchException;
 
+    @SuppressWarnings("this-escape")
     protected Lower(Context context) {
         context.put(lowerKey, this);
         names = Names.instance(context);
