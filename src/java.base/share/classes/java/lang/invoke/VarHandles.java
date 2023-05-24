@@ -26,6 +26,7 @@
 package java.lang.invoke;
 
 import jdk.internal.value.PrimitiveClass;
+import jdk.internal.foreign.Utils;
 import sun.invoke.util.Wrapper;
 
 import java.lang.reflect.Constructor;
@@ -332,7 +333,7 @@ final class VarHandles {
         if (!carrier.isPrimitive() || carrier == void.class || carrier == boolean.class) {
             throw new IllegalArgumentException("Invalid carrier: " + carrier.getName());
         }
-        long size = Wrapper.forPrimitiveType(carrier).bitWidth() / 8;
+        long size = Utils.byteWidthOfPrimitive(carrier);
         boolean be = byteOrder == ByteOrder.BIG_ENDIAN;
         boolean exact = false;
 

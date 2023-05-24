@@ -63,6 +63,7 @@ import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.util.*;
+import com.sun.tools.javac.util.ByteBuffer.UnderflowException;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
@@ -340,7 +341,12 @@ public class ClassReader {
     /** Read a character.
      */
     char nextChar() {
-        char res = buf.getChar(bp);
+        char res;
+        try {
+            res = buf.getChar(bp);
+        } catch (UnderflowException e) {
+            throw badClassFile("bad.class.truncated.at.offset", Integer.toString(e.getLength()));
+        }
         bp += 2;
         return res;
     }
@@ -348,13 +354,22 @@ public class ClassReader {
     /** Read a byte.
      */
     int nextByte() {
-        return buf.getByte(bp++) & 0xFF;
+        try {
+            return buf.getByte(bp++) & 0xFF;
+        } catch (UnderflowException e) {
+            throw badClassFile("bad.class.truncated.at.offset", Integer.toString(e.getLength()));
+        }
     }
 
     /** Read an integer.
      */
     int nextInt() {
-        int res = buf.getInt(bp);
+        int res;
+        try {
+            res = buf.getInt(bp);
+        } catch (UnderflowException e) {
+            throw badClassFile("bad.class.truncated.at.offset", Integer.toString(e.getLength()));
+        }
         bp += 4;
         return res;
     }
@@ -819,12 +834,16 @@ public class ClassReader {
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
                     if (sym.isInitOrVNew() && sym.type.getParameterTypes().size() == 0) {
-                        int code_length = buf.getInt(bp + 4);
-                        if ((code_length == 1 && buf.getByte(bp + 8) == (byte) ByteCodes.return_) ||
+                        try {
+                            int code_length = buf.getInt(bp + 4);
+                            if ((code_length == 1 && buf.getByte(bp + 8) == (byte) ByteCodes.return_) ||
                                 (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
                                     buf.getByte(bp + 9) == (byte) ByteCodes.invokespecial &&
                                             buf.getByte(bp + 12) == (byte) ByteCodes.return_)) {
                                 sym.flags_field |= EMPTYNOARGCONSTR;
+                            }
+                        } catch (UnderflowException e) {
+                            throw badClassFile("bad.class.truncated.at.offset", Integer.toString(e.getLength()));
                         }
                     }
                     if (saveParameterNames)
@@ -1526,7 +1545,12 @@ public class ClassReader {
     /** Read parameter annotations.
      */
     void readParameterAnnotations(Symbol meth) {
-        int numParameters = buf.getByte(bp++) & 0xFF;
+        int numParameters;
+        try {
+            numParameters = buf.getByte(bp++) & 0xFF;
+        } catch (UnderflowException e) {
+            throw badClassFile("bad.class.truncated.at.offset", Integer.toString(e.getLength()));
+        }
         if (parameterAnnotations == null) {
             parameterAnnotations = new ParameterAnnotations[numParameters];
         } else if (parameterAnnotations.length != numParameters) {
@@ -1815,7 +1839,12 @@ public class ClassReader {
     }
 
     Attribute readAttributeValue() {
-        char c = (char) buf.getByte(bp++);
+        char c;
+        try {
+            c = (char)buf.getByte(bp++);
+        } catch (UnderflowException e) {
+            throw badClassFile("bad.class.truncated.at.offset", Integer.toString(e.getLength()));
+        }
         switch (c) {
         case 'B':
             return new Attribute.Constant(syms.byteType, poolReader.getConstant(nextChar()));

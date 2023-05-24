@@ -1903,6 +1903,9 @@ public final class System {
      * Runtime.getRuntime().exit(n)
      * </pre></blockquote>
      *
+     * @implNote
+     * The initiation of the shutdown sequence is logged by {@link Runtime#exit(int)}.
+     *
      * @param  status exit status.
      * @throws SecurityException
      *         if a security manager exists and its {@code checkExit} method
@@ -2476,7 +2479,7 @@ public final class System {
             }
 
             public String newStringUTF8NoRepl(byte[] bytes, int off, int len) {
-                return String.newStringUTF8NoRepl(bytes, off, len);
+                return String.newStringUTF8NoRepl(bytes, off, len, true);
             }
 
             public byte[] getBytesUTF8NoRepl(String s) {
@@ -2682,6 +2685,10 @@ public final class System {
 
             public int classFileFormatVersion(Class<?> clazz) {
                 return clazz.getClassFileVersion();
+            }
+
+            public String getLoaderNameID(ClassLoader loader) {
+                return loader.nameAndId();
             }
         });
     }

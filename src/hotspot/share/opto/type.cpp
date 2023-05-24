@@ -5327,6 +5327,11 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       // instance_id = InstanceBot;
       elem = Type::BOTTOM;
       result = NOT_SUBTYPE;
+      if (above_centerline(ptr) || ptr == Constant) {
+        ptr = NotNull;
+        res_xk = false;
+        return NOT_SUBTYPE;
+      }
     }
   } else {// Non integral arrays.
     // Must fall to bottom if exact klasses in upper lattice

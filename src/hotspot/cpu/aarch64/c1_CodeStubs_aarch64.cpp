@@ -63,18 +63,6 @@ void CounterOverflowStub::emit_code(LIR_Assembler* ce) {
   __ b(_continuation);
 }
 
-RangeCheckStub::RangeCheckStub(CodeEmitInfo* info, LIR_Opr index, LIR_Opr array)
-  : _index(index), _array(array), _throw_index_out_of_bounds_exception(false) {
-  assert(info != NULL, "must have info");
-  _info = new CodeEmitInfo(info);
-}
-
-RangeCheckStub::RangeCheckStub(CodeEmitInfo* info, LIR_Opr index)
-  : _index(index), _array(), _throw_index_out_of_bounds_exception(true) {
-  assert(info != NULL, "must have info");
-  _info = new CodeEmitInfo(info);
-}
-
 void RangeCheckStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   if (_info->deoptimize_on_exception()) {
@@ -281,19 +269,6 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   assert(_result->as_register() == r0, "result must in r0");
   __ b(_continuation);
 }
-// Implementation of MonitorAccessStubs
-
-MonitorEnterStub::MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info,  CodeStub* throw_imse_stub, LIR_Opr scratch_reg)
-: MonitorAccessStub(obj_reg, lock_reg)
-{
-  _info = new CodeEmitInfo(info);
-  _scratch_reg = scratch_reg;
-  _throw_imse_stub = throw_imse_stub;
-  if (_throw_imse_stub != NULL) {
-    assert(_scratch_reg != LIR_OprFact::illegalOpr, "must be");
-  }
-}
-
 
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
