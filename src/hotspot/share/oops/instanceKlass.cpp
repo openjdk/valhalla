@@ -165,7 +165,9 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
-bool InstanceKlass::field_is_null_free_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_PRIMITIVE_OBJECT; }
+bool InstanceKlass::field_is_null_free_inline_type(int index) const {
+  return Signature::basic_type(field_signature(index)) == T_PRIMITIVE_OBJECT;
+}
 
 static inline bool is_stack_chunk_class(const Symbol* class_name,
                                         const ClassLoaderData* loader_data) {
@@ -562,7 +564,6 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
     if (parser.has_inline_fields()) {
       set_has_inline_type_fields();
     }
-    _java_fields_count = parser.java_fields_count();
 
   assert(nullptr == _methods, "underlying memory not zeroed?");
   assert(is_instance_klass(), "is layout incorrect?");
@@ -2742,7 +2743,7 @@ void InstanceKlass::remove_unshareable_info() {
   }
 
   if (has_inline_type_fields()) {
-    for (AllFieldStream fs(fields(), constants()); !fs.done(); fs.next()) {
+    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
         reset_inline_type_field_klass(fs.index());
       }

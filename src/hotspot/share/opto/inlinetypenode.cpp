@@ -223,7 +223,7 @@ void InlineTypeNode::set_field_value_by_offset(int offset, Node* value) {
 
 int InlineTypeNode::field_offset(uint index) const {
   assert(index < field_count(), "index out of bounds");
-  return inline_klass()->declared_nonstatic_field_at(index)->offset();
+  return inline_klass()->declared_nonstatic_field_at(index)->offset_in_bytes();
 }
 
 uint InlineTypeNode::field_index(int offset) const {
@@ -275,7 +275,7 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   // Iterate over the inline type fields in order of increasing
   // offset and add the field values to the safepoint.
   for (uint j = 0; j < nfields; ++j) {
-    int offset = vk->nonstatic_field_at(j)->offset();
+    int offset = vk->nonstatic_field_at(j)->offset_in_bytes();
     Node* value = field_value_by_offset(offset, true /* include flattened inline type fields */);
     if (value->is_InlineType()) {
       // Add inline type field to the worklist to process later
@@ -623,7 +623,7 @@ void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile
         }
       }
       ciField* f = vk->nonstatic_field_at(field_nb - extra);
-      field = field_value_by_offset(f->offset(), true);
+      field = field_value_by_offset(f->offset_in_bytes(), true);
     }
     if (field != NULL) {
       C->gvn_replace_by(pn, field);

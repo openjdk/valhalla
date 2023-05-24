@@ -5815,7 +5815,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   }
 
   bool all_fields_empty = true;
-  for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
     if (!fs.access_flags().is_static()) {
       if (fs.field_descriptor().is_inline_type()) {
         Klass* k = _inline_type_field_klasses->at(fs.index());
@@ -6549,10 +6549,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                    java_fields_count(),
                                                    nullptr,
                                                    CHECK);
-    for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT && !fs.access_flags().is_static()) {
+    for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it) {
+      FieldInfo fieldinfo = *it;
+      Symbol* sig = fieldinfo.signature(cp);
+
+      if (Signature::basic_type(sig) == T_PRIMITIVE_OBJECT && !fieldinfo.access_flags().is_static()) {
         // Pre-load inline class
-        Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
+        Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(sig,
             Handle(THREAD, _loader_data->class_loader()),
             _protection_domain, true, CHECK);
         assert(klass != nullptr, "Sanity check");
@@ -6564,7 +6567,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                       _class_name->as_C_string(),
                       InstanceKlass::cast(klass)->external_name()));
         }
-        _inline_type_field_klasses->at_put(fs.index(), InlineKlass::cast(klass));
+        _inline_type_field_klasses->at_put(fieldinfo.index(), InlineKlass::cast(klass));
       }
     }
   }

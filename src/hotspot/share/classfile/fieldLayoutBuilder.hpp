@@ -149,7 +149,7 @@ class FieldGroup : public ResourceObj {
   int oop_count() const { return _oop_count; }
 
   void add_primitive_field(int idx, BasicType type);
-  void add_oop_field(idx);
+  void add_oop_field(int idx);
   void add_inlined_field(int idx, InlineKlass* vk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();

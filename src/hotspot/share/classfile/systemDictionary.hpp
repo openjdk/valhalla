@@ -133,7 +133,7 @@ class SystemDictionary : AllStatic {
   static oop get_platform_class_loader_impl(TRAPS);
 
  public:
-  static Klass* resolve_inline_type_field_or_fail(AllFieldStream* fs,
+  static Klass* resolve_inline_type_field_or_fail(Symbol* signature,
                                                   Handle class_loader,
                                                   Handle protection_domain,
                                                   bool throw_error,

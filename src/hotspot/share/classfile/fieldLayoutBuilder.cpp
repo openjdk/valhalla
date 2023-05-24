@@ -513,7 +513,6 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
               found = true;
               break;
             }
-          }
         }
         ik = ik->java_super();
       }
@@ -652,16 +651,16 @@ void FieldLayoutBuilder::regular_field_sorting() {
         bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
                                    (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
         bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
-        bool too_volatile_to_flatten = field_info.access_flags().is_volatile();
+        bool too_volatile_to_flatten = fieldinfo.access_flags().is_volatile();
         if (vk->is_naturally_atomic()) {
           too_atomic_to_flatten = false;
           //too_volatile_to_flatten = false; //FIXME
           // volatile fields are currently never inlined, this could change in the future
         }
-        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten) || fs.access_flags().is_final()) {
+        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten) || fieldinfo.access_flags().is_final()) {
           group->add_inlined_field(idx, vk);
           _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
-          fs.set_inlined(true);
+          fieldinfo.field_flags().update_inlined(true);
           if (!vk->is_atomic()) {  // flat and non-atomic: take note
             _has_nonatomic_values = true;
             _atomic_field_count--;  // every other field is atomic but this one
@@ -699,10 +698,11 @@ void FieldLayoutBuilder::regular_field_sorting() {
 void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
   assert(_is_inline_type, "Should only be used for inline classes");
   int alignment = 1;
-  for (AllFieldStream fs(_fields, _constant_pool); !fs.done(); fs.next()) {
+  for (GrowableArrayIterator<FieldInfo> it = _field_info->begin(); it != _field_info->end(); ++it) {
     FieldGroup* group = nullptr;
+    FieldInfo fieldinfo = *it;
     int field_alignment = 1;
-    if (fs.access_flags().is_static()) {
+    if (fieldinfo.access_flags().is_static()) {
       group = _static_fields;
     } else {
       _has_nonstatic_fields = true;
@@ -710,7 +710,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
       group = _root_group;
     }
     assert(group != nullptr, "invariant");
-    BasicType type = Signature::basic_type(fs.signature());
+    BasicType type = Signature::basic_type(fieldinfo.signature(_constant_pool));
     switch(type) {
     case T_BYTE:
     case T_CHAR:
@@ -723,7 +723,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
       if (group != _static_fields) {
         field_alignment = type2aelembytes(type); // alignment == size for primitive types
       }
-      group->add_primitive_field(fs, type);
+      group->add_primitive_field(fieldinfo.index(), type);
       break;
     case T_OBJECT:
     case T_ARRAY:
@@ -731,36 +731,36 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
         _nonstatic_oopmap_count++;
         field_alignment = type2aelembytes(type); // alignment == size for oops
       }
-      group->add_oop_field(fs);
+      group->add_oop_field(fieldinfo.index());
       break;
     case T_PRIMITIVE_OBJECT: {
 //      fs.set_inline(true);
       _has_inline_type_fields = true;
       if (group == _static_fields) {
         // static fields are never inlined
-        group->add_oop_field(fs);
+        group->add_oop_field(fieldinfo.index());
       } else {
         // Flattening decision to be taken here
         // This code assumes all verifications have already been performed
         // (field's type has been loaded and it is an inline klass)
         JavaThread* THREAD = JavaThread::current();
-        Klass* klass =  _inline_type_field_klasses->at(fs.index());
+        Klass* klass =  _inline_type_field_klasses->at(fieldinfo.index());
         assert(klass != nullptr, "Sanity check");
         InlineKlass* vk = InlineKlass::cast(klass);
         bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
                                    (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
         bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
-        bool too_volatile_to_flatten = fs.access_flags().is_volatile();
+        bool too_volatile_to_flatten = fieldinfo.access_flags().is_volatile();
         if (vk->is_naturally_atomic()) {
           too_atomic_to_flatten = false;
           //too_volatile_to_flatten = false; //FIXME
           // volatile fields are currently never inlined, this could change in the future
         }
-        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten) || fs.access_flags().is_final()) {
-          group->add_inlined_field(fs, vk);
+        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten) || fieldinfo.access_flags().is_final()) {
+          group->add_inlined_field(fieldinfo.index(), vk);
           _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
           field_alignment = vk->get_alignment();
-          fs.set_inlined(true);
+          fieldinfo.field_flags().update_inlined(true);
           if (!vk->is_atomic()) {  // flat and non-atomic: take note
             _has_nonatomic_values = true;
             _atomic_field_count--;  // every other field is atomic but this one
@@ -768,7 +768,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
         } else {
           _nonstatic_oopmap_count++;
           field_alignment = type2aelembytes(T_OBJECT);
-          group->add_oop_field(fs);
+          group->add_oop_field(fieldinfo.index());
         }
       }
       break;
@@ -776,7 +776,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
     default:
       fatal("Unexpected BasicType");
     }
-    if (!fs.access_flags().is_static() && field_alignment > alignment) alignment = field_alignment;
+    if (!fieldinfo.access_flags().is_static() && field_alignment > alignment) alignment = field_alignment;
   }
   _alignment = alignment;
   if (!_has_nonstatic_fields) {

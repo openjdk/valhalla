@@ -499,12 +499,12 @@ InstanceKlass* SystemDictionary::resolve_super_or_fail(Symbol* class_name,
   return superk;
 }
 
-Klass* SystemDictionary::resolve_inline_type_field_or_fail(AllFieldStream* fs,
+Klass* SystemDictionary::resolve_inline_type_field_or_fail(Symbol* signature,
                                                            Handle class_loader,
                                                            Handle protection_domain,
                                                            bool throw_error,
                                                            TRAPS) {
-  Symbol* class_name = fs->signature()->fundamental_name(THREAD);
+  Symbol* class_name = signature->fundamental_name(THREAD);
   class_loader = Handle(THREAD, java_lang_ClassLoader::non_reflection_class_loader(class_loader()));
   ClassLoaderData* loader_data = class_loader_data(class_loader);
   bool throw_circularity_error = false;
@@ -1197,11 +1197,12 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
 
 
   if (ik->has_inline_type_fields()) {
-    for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
+    for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
+      Symbol* sig = fs.signature();
+      if (Signature::basic_type(sig) == T_PRIMITIVE_OBJECT) {
         if (!fs.access_flags().is_static()) {
           // Pre-load inline class
-          Klass* real_k = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
+          Klass* real_k = SystemDictionary::resolve_inline_type_field_or_fail(sig,
             class_loader, protection_domain, true, CHECK_NULL);
           Klass* k = ik->get_inline_type_field_klass_or_null(fs.index());
           if (real_k != k) {

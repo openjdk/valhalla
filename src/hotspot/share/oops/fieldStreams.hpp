@@ -111,7 +111,7 @@ class FieldStreamBase : public StackObj {
   }
 
   bool is_inlined() {
-    return field()->is_inlined();
+    return field()->field_flags().is_inlined();
   }
 
   bool is_contended() const {

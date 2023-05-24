@@ -54,7 +54,7 @@ int ciInlineKlass::field_index_by_offset(int offset) {
   int best_index = -1;
   // Search the field with the given offset
   for (int i = 0; i < nof_declared_nonstatic_fields(); ++i) {
-    int field_offset = _declared_nonstatic_fields->at(i)->offset();
+    int field_offset = _declared_nonstatic_fields->at(i)->offset_in_bytes();
     if (field_offset == offset) {
       // Exact match
       return i;

@@ -54,7 +54,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
     assert(is_get, "inline type field store not supported");
     InlineTypeNode* vt = peek()->as_InlineType();
     null_check(vt);
-    Node* value = vt->field_value_by_offset(field->offset());
+    Node* value = vt->field_value_by_offset(field->offset_in_bytes());
     if (value->is_InlineType()) {
       value = value->as_InlineType()->adjust_scalarization_depth(this);
     }
