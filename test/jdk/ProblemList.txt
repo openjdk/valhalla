@@ -758,6 +758,11 @@ jdk/jfr/api/consumer/recordingstream/TestOnEvent.java           8255404 linux-x6
 
 # jdk_internal
 
+jdk/classfile/SwapTest.java                                     8308778 generic-all
+jdk/classfile/LowAdaptTest.java                                 8308778 generic-all
+jdk/classfile/BuilderBlockTest.java                             8308778 generic-all
+jdk/classfile/BuilderTryCatchTest.java                          8308778 generic-all
+
 ############################################################################
 
 # jdk_jpackage
