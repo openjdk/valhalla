@@ -171,6 +171,9 @@ address StubRoutines::_dtan = nullptr;
 address StubRoutines::_load_inline_type_fields_in_regs = nullptr;
 address StubRoutines::_store_inline_type_fields_to_buf = nullptr;
 
+address StubRoutines::_f2hf = nullptr;
+address StubRoutines::_hf2f = nullptr;
+
 address StubRoutines::_vector_f_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP] = {{nullptr}, {nullptr}};
 address StubRoutines::_vector_d_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP] = {{nullptr}, {nullptr}};
 

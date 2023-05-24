@@ -148,7 +148,7 @@ class CloneMap {
   void*     _2p(node_idx_t key)   const          { return (void*)(intptr_t)key; } // 2 conversion functions to make gcc happy
   node_idx_t _2_node_idx_t(const void* k) const  { return (node_idx_t)(intptr_t)k; }
   Dict*     dict()                const          { return _dict; }
-  void insert(node_idx_t key, uint64_t val)      { assert(_dict->operator[](_2p(key)) == NULL, "key existed"); _dict->Insert(_2p(key), (void*)val); }
+  void insert(node_idx_t key, uint64_t val)      { assert(_dict->operator[](_2p(key)) == nullptr, "key existed"); _dict->Insert(_2p(key), (void*)val); }
   void insert(node_idx_t key, NodeCloneInfo& ci) { insert(key, ci.get()); }
   void remove(node_idx_t key)                    { _dict->Delete(_2p(key)); }
   uint64_t value(node_idx_t key)  const          { return (uint64_t)_dict->operator[](_2p(key)); }
@@ -218,7 +218,7 @@ class Compile : public Phase {
     AliasIdxRaw = 3   // hard-wired index for TypeRawPtr::BOTTOM
   };
 
-  // Variant of TraceTime(NULL, &_t_accumulator, CITime);
+  // Variant of TraceTime(nullptr, &_t_accumulator, CITime);
   // Integrated with logging.  If logging is turned on, and CITimeVerbose is true,
   // then brackets are put into the log, with time stamps and node counts.
   // (The time collection itself is always conditionalized on CITime.)
@@ -267,7 +267,7 @@ class Compile : public Phase {
       }
     }
     void set_element(const Type* e) {
-      assert(_element == NULL, "");
+      assert(_element == nullptr, "");
       _element = e;
     }
 
@@ -293,9 +293,9 @@ class Compile : public Phase {
   int                   _entry_bci;             // entry bci for osr methods.
   const TypeFunc*       _tf;                    // My kind of signature
   InlineTree*           _ilt;                   // Ditto (temporary).
-  address               _stub_function;         // VM entry for stub being compiled, or NULL
-  const char*           _stub_name;             // Name of stub or adapter being compiled, or NULL
-  address               _stub_entry_point;      // Compile code entry for generated stub, or NULL
+  address               _stub_function;         // VM entry for stub being compiled, or null
+  const char*           _stub_name;             // Name of stub or adapter being compiled, or null
+  address               _stub_entry_point;      // Compile code entry for generated stub, or null
 
   // Control of this compilation.
   int                   _max_inline_size;       // Max inline size for this compilation
@@ -383,7 +383,7 @@ class Compile : public Phase {
   debug_only(static int _debug_idx;)            // Monotonic counter (not reset), use -XX:BreakAtNode=<idx>
   Arena                 _node_arena;            // Arena for new-space Nodes
   Arena                 _old_arena;             // Arena for old-space Nodes, lifetime during xform
-  RootNode*             _root;                  // Unique root of compilation, or NULL after bail-out.
+  RootNode*             _root;                  // Unique root of compilation, or null after bail-out.
   Node*                 _top;                   // Unique top node.  (Reset by various phases.)
 
   Node*                 _immutable_memory;      // Initial memory state
@@ -444,7 +444,7 @@ class Compile : public Phase {
 
    public:
     PrintInliningBuffer()
-      : _cg(NULL), _ss(default_stream_buffer_size) {}
+      : _cg(nullptr), _ss(default_stream_buffer_size) {}
 
     stringStream* ss()             { return &_ss; }
     CallGenerator* cg()            { return _cg; }
@@ -491,7 +491,7 @@ class Compile : public Phase {
   void print_inlining_assert_ready();
   void print_inlining_reset();
 
-  void print_inlining(ciMethod* method, int inline_level, int bci, const char* msg = NULL) {
+  void print_inlining(ciMethod* method, int inline_level, int bci, const char* msg = nullptr) {
     stringStream ss;
     CompileTask::print_inlining_inner(&ss, method, inline_level, bci, msg);
     print_inlining_stream()->print("%s", ss.freeze());
@@ -561,9 +561,9 @@ class Compile : public Phase {
   ciMethod*         method() const              { return _method; }
   int               entry_bci() const           { return _entry_bci; }
   bool              is_osr_compilation() const  { return _entry_bci != InvocationEntryBci; }
-  bool              is_method_compilation() const { return (_method != NULL && !_method->flags().is_native()); }
-  const TypeFunc*   tf() const                  { assert(_tf!=NULL, ""); return _tf; }
-  void         init_tf(const TypeFunc* tf)      { assert(_tf==NULL, ""); _tf = tf; }
+  bool              is_method_compilation() const { return (_method != nullptr && !_method->flags().is_native()); }
+  const TypeFunc*   tf() const                  { assert(_tf!=nullptr, ""); return _tf; }
+  void         init_tf(const TypeFunc* tf)      { assert(_tf==nullptr, ""); _tf = tf; }
   InlineTree*       ilt() const                 { return _ilt; }
   address           stub_function() const       { return _stub_function; }
   const char*       stub_name() const           { return _stub_name; }
@@ -644,15 +644,15 @@ class Compile : public Phase {
   void          set_scalarize_in_safepoints(bool z) { _scalarize_in_safepoints = z; }
 
   // Support for scalarized inline type calling convention
-  bool              has_scalarized_args() const  { return _method != NULL && _method->has_scalarized_args(); }
-  bool              needs_stack_repair()  const  { return _method != NULL && _method->get_Method()->c2_needs_stack_repair(); }
+  bool              has_scalarized_args() const  { return _method != nullptr && _method->has_scalarized_args(); }
+  bool              needs_stack_repair()  const  { return _method != nullptr && _method->get_Method()->c2_needs_stack_repair(); }
 
   bool              has_monitors() const         { return _has_monitors; }
   void          set_has_monitors(bool v)         { _has_monitors = v; }
 
   // check the CompilerOracle for special behaviours for this compile
   bool          method_has_option(enum CompileCommand option) {
-    return method() != NULL && method()->has_option(option);
+    return method() != nullptr && method()->has_option(option);
   }
 
 #ifndef PRODUCT
@@ -780,11 +780,11 @@ class Compile : public Phase {
   Arena*      comp_arena()           { return &_comp_arena; }
   ciEnv*      env() const            { return _env; }
   CompileLog* log() const            { return _log; }
-  bool        failing() const        { return _env->failing() || _failure_reason != NULL; }
+  bool        failing() const        { return _env->failing() || _failure_reason != nullptr; }
   const char* failure_reason() const { return (_env->failing()) ? _env->failure_reason() : _failure_reason; }
 
   bool failure_reason_is(const char* r) const {
-    return (r == _failure_reason) || (r != NULL && _failure_reason != NULL && strcmp(r, _failure_reason) == 0);
+    return (r == _failure_reason) || (r != nullptr && _failure_reason != nullptr && strcmp(r, _failure_reason) == 0);
   }
 
   void record_failure(const char* reason);
@@ -846,7 +846,7 @@ class Compile : public Phase {
   DEBUG_ONLY( Unique_Node_List*   modified_nodes() const { return _modified_nodes; } )
 
   MachConstantBaseNode*     mach_constant_base_node();
-  bool                  has_mach_constant_base_node() const { return _mach_constant_base_node != NULL; }
+  bool                  has_mach_constant_base_node() const { return _mach_constant_base_node != nullptr; }
   // Generated by adlc, true if CallNode requires MachConstantBase.
   bool                      needs_deep_clone_jvms();
 
@@ -890,20 +890,20 @@ class Compile : public Phase {
   void          set_type_last_size(size_t sz)           { _type_last_size = sz; }
 
   const TypeFunc* last_tf(ciMethod* m) {
-    return (m == _last_tf_m) ? _last_tf : NULL;
+    return (m == _last_tf_m) ? _last_tf : nullptr;
   }
   void set_last_tf(ciMethod* m, const TypeFunc* tf) {
-    assert(m != NULL || tf == NULL, "");
+    assert(m != nullptr || tf == nullptr, "");
     _last_tf_m = m;
     _last_tf = tf;
   }
 
   AliasType*        alias_type(int                idx)  { assert(idx < num_alias_types(), "oob"); return _alias_types[idx]; }
-  AliasType*        alias_type(const TypePtr* adr_type, ciField* field = NULL, bool uncached = false) { return find_alias_type(adr_type, false, field, uncached); }
+  AliasType*        alias_type(const TypePtr* adr_type, ciField* field = nullptr, bool uncached = false) { return find_alias_type(adr_type, false, field, uncached); }
   bool         have_alias_type(const TypePtr* adr_type);
   AliasType*        alias_type(ciField*         field);
 
-  int               get_alias_index(const TypePtr* at, bool uncached = false) { return alias_type(at, NULL, uncached)->index(); }
+  int               get_alias_index(const TypePtr* at, bool uncached = false) { return alias_type(at, nullptr, uncached)->index(); }
   const TypePtr*    get_adr_type(uint aidx)             { return alias_type(aidx)->adr_type(); }
   int               get_general_index(uint aidx)        { return alias_type(aidx)->general_index(); }
 
@@ -915,7 +915,7 @@ class Compile : public Phase {
   // Decide how to build a call.
   // The profile factor is a discount to apply to this site's interp. profile.
   CallGenerator*    call_generator(ciMethod* call_method, int vtable_index, bool call_does_dispatch,
-                                   JVMState* jvms, bool allow_inline, float profile_factor, ciKlass* speculative_receiver_type = NULL,
+                                   JVMState* jvms, bool allow_inline, float profile_factor, ciKlass* speculative_receiver_type = nullptr,
                                    bool allow_intrinsics = true);
   bool should_delay_inlining(ciMethod* call_method, JVMState* jvms) {
     return should_delay_string_inlining(call_method, jvms) ||
@@ -945,7 +945,7 @@ class Compile : public Phase {
   // PerMethodTrapLimit was exceeded for all inlined methods seen so far.
   bool too_many_traps(Deoptimization::DeoptReason reason,
                       // Privately used parameter for logging:
-                      ciMethodData* logmd = NULL);
+                      ciMethodData* logmd = nullptr);
   // Report if there were too many recompiles at a method and bci.
   bool too_many_recompiles(ciMethod* method, int bci, Deoptimization::DeoptReason reason);
   // Report if there were too many traps or recompiles at a method and bci.
@@ -1087,7 +1087,7 @@ class Compile : public Phase {
   };
 
   // Are we compiling a method?
-  bool has_method() { return method() != NULL; }
+  bool has_method() { return method() != nullptr; }
 
   // Maybe print some information about this compile.
   void print_compile_messages();
@@ -1206,7 +1206,7 @@ class Compile : public Phase {
 
   static Node* conv_I2X_index(PhaseGVN* phase, Node* offset, const TypeInt* sizetype,
                               // Optional control dependency (for example, on range check)
-                              Node* ctrl = NULL);
+                              Node* ctrl = nullptr);
 
   // Convert integer value to a narrowed long type dependent on ctrl (for example, a range check)
   static Node* constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* itype, Node* ctrl, bool carry_dependency = false);
