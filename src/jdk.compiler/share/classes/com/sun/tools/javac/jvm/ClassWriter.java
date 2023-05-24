@@ -1670,7 +1670,9 @@ public class ClassWriter extends ClassFile {
         acount += writeExtraAttributes(c);
 
         poolbuf.appendInt(JAVA_MAGIC);
-        if (preview.isEnabled() && preview.usesPreview(c.sourcefile)) {
+        if (preview.isEnabled() && preview.usesPreview(c.sourcefile)
+                // do not write PREVIEW_MINOR_VERSION for classes participating in preview
+                && !preview.participatesInPreview(syms, c, syms.java_base.unnamedPackage)) {
             poolbuf.appendChar(ClassFile.PREVIEW_MINOR_VERSION);
         } else {
             poolbuf.appendChar(target.minorVersion);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,12 +73,12 @@ void Parse::do_checkcast() {
   Node *obj = peek();
 
   // Throw uncommon trap if class is not loaded or the value we are casting
-  // _from_ is not loaded, and value is not null.  If the value _is_ NULL,
+  // _from_ is not loaded, and value is not null.  If the value _is_ null,
   // then the checkcast does nothing.
   const TypeOopPtr *tp = _gvn.type(obj)->isa_oopptr();
   if (!will_link || (tp && !tp->is_loaded())) {
     assert(!null_free, "Inline type should be loaded");
-    if (C->log() != NULL) {
+    if (C->log() != nullptr) {
       if (!will_link) {
         C->log()->elem("assert_null reason='checkcast' klass='%d'",
                        C->log()->identify(klass));
@@ -95,7 +95,7 @@ void Parse::do_checkcast() {
     return;
   }
 
-  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass, Type::trust_interfaces)), NULL, null_free);
+  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass, Type::trust_interfaces)), nullptr, null_free);
   if (stopped()) {
     return;
   }
@@ -118,7 +118,7 @@ void Parse::do_instanceof() {
   ciKlass* klass = iter().get_klass(will_link);
 
   if (!will_link) {
-    if (C->log() != NULL) {
+    if (C->log() != nullptr) {
       C->log()->elem("assert_null reason='instanceof' klass='%d'",
                      C->log()->identify(klass));
     }
@@ -172,26 +172,26 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   bool always_see_exact_class = false;
   if (MonomorphicArrayCheck && !tak->klass_is_exact()) {
     // Make a constant out of the inexact array klass
-    const TypeKlassPtr* extak = NULL;
+    const TypeKlassPtr* extak = nullptr;
     const TypeOopPtr* ary_t = _gvn.type(ary)->is_oopptr();
     ciKlass* ary_spec = ary_t->speculative_type();
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
     // Try to cast the array to an exact type from profile data. First
     // check the speculative type.
-    if (ary_spec != NULL && !too_many_traps(Deoptimization::Reason_speculate_class_check)) {
+    if (ary_spec != nullptr && !too_many_traps(Deoptimization::Reason_speculate_class_check)) {
       extak = TypeKlassPtr::make(ary_spec);
       reason = Deoptimization::Reason_speculate_class_check;
     } else if (UseArrayLoadStoreProfile) {
       // No speculative type: check profile data at this bci.
       reason = Deoptimization::Reason_class_check;
       if (!too_many_traps(reason)) {
-        ciKlass* array_type = NULL;
-        ciKlass* element_type = NULL;
+        ciKlass* array_type = nullptr;
+        ciKlass* element_type = nullptr;
         ProfilePtrKind element_ptr = ProfileMaybeNull;
         bool flat_array = true;
         bool null_free_array = true;
         method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
-        if (array_type != NULL) {
+        if (array_type != nullptr) {
           extak = TypeKlassPtr::make(array_type);
         }
       }
@@ -217,7 +217,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       extak = tak->cast_to_exactness(true);
       reason = Deoptimization::Reason_array_check;
     }
-    if (extak != NULL && extak->exact_klass(true) != NULL) {
+    if (extak != nullptr && extak->exact_klass(true) != nullptr) {
       Node* con = makecon(extak);
       Node* cmp = _gvn.transform(new CmpPNode(array_klass, con));
       Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
@@ -242,7 +242,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
         adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
 
         CompileLog* log = C->log();
-        if (log != NULL) {
+        if (log != nullptr) {
           log->elem("cast_up reason='monomorphic_array' from='%d' to='(exact)'",
                     log->identify(extak->exact_klass()));
         }
@@ -259,7 +259,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   // We are allowed to use the constant type only if cast succeeded. If always_see_exact_class is true,
   // we must set a control edge from the IfTrue node created by the uncommon_trap above to the
   // LoadKlassNode.
-  Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : NULL,
+  Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : nullptr,
                                                        immutable_memory(), p2, tak));
 
   // If we statically know that this is an inline type array, use precise element klass for checkcast
@@ -272,7 +272,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   }
 
   // Check (the hard way) and throw if not a subklass.
-  return gen_checkcast(obj, a_e_klass, NULL, null_free);
+  return gen_checkcast(obj, a_e_klass, nullptr, null_free);
 }
 
 
@@ -381,8 +381,8 @@ void Parse::do_withfield() {
 // Debug dump of the mapping from address types to MergeMemNode indices.
 void Parse::dump_map_adr_mem() const {
   tty->print_cr("--- Mapping from address types to memory Nodes ---");
-  MergeMemNode *mem = map() == NULL ? NULL : (map()->memory()->is_MergeMem() ?
-                                      map()->memory()->as_MergeMem() : NULL);
+  MergeMemNode *mem = map() == nullptr ? nullptr : (map()->memory()->is_MergeMem() ?
+                                      map()->memory()->as_MergeMem() : nullptr);
   for (uint i = 0; i < (uint)C->num_alias_types(); i++) {
     C->alias_type(i)->print_on(tty);
     tty->print("\t");
