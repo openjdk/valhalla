@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -574,7 +574,7 @@ class FieldBuffer: public CompilationResourceObj {
 
   Value at(ciField* field) {
     assert(field->holder()->is_loaded(), "must be a loaded field");
-    int offset = field->offset();
+    int offset = field->offset_in_bytes();
     if (offset < _values.length()) {
       return _values.at(offset);
     } else {
@@ -584,7 +584,7 @@ class FieldBuffer: public CompilationResourceObj {
 
   void at_put(ciField* field, Value value) {
     assert(field->holder()->is_loaded(), "must be a loaded field");
-    int offset = field->offset();
+    int offset = field->offset_in_bytes();
     _values.at_put_grow(offset, value, NULL);
   }
 
@@ -625,7 +625,7 @@ class MemoryBuffer: public CompilationResourceObj {
     Value value = st->value();
     ciField* field = st->field();
     if (field->holder()->is_loaded()) {
-      int offset = field->offset();
+      int offset = field->offset_in_bytes();
       int index = _newobjects.find(object);
       if (index != -1) {
         // newly allocated object with no other stores performed on this field
@@ -693,7 +693,7 @@ class MemoryBuffer: public CompilationResourceObj {
     ciField* field = load->field();
     Value object   = load->obj();
     if (field->holder()->is_loaded() && !field->is_volatile()) {
-      int offset = field->offset();
+      int offset = field->offset_in_bytes();
       Value result = NULL;
       int index = _newobjects.find(object);
       if (index != -1) {
@@ -1864,7 +1864,7 @@ void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off
   for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
     ciField* inner_field = vk->nonstatic_field_at(i);
     assert(!inner_field->is_flattened(), "the iteration over nested fields is handled by the loop itself");
-    int off = inner_field->offset() - vk->first_field_offset();
+    int off = inner_field->offset_in_bytes() - vk->first_field_offset();
     LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
     Value replacement = append(load);
     StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, false);
@@ -1913,7 +1913,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     }
   }
 
-  int offset = !needs_patching ? field->offset() : -1;
+  int offset = !needs_patching ? field->offset_in_bytes() : -1;
   switch (code) {
     case Bytecodes::_getstatic: {
       // check for compile-time constants, i.e., initialized static final fields
@@ -2062,7 +2062,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               pending_field_access()->inc_offset(offset - field->holder()->as_inline_klass()->first_field_offset());
             } else {
               null_check(obj);
-              DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field->holder(), field->offset());
+              DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field->holder(), field->offset_in_bytes());
               set_pending_field_access(dfa);
             }
           } else {
@@ -2094,11 +2094,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               assert(!needs_patching, "Can't patch flattened inline type field access");
               if (has_pending_field_access()) {
                 copy_inline_content(inline_klass, pending_field_access()->obj(),
-                                    pending_field_access()->offset() + field->offset() - field->holder()->as_inline_klass()->first_field_offset(),
+                                    pending_field_access()->offset() + field->offset_in_bytes() - field->holder()->as_inline_klass()->first_field_offset(),
                                     new_instance, inline_klass->first_field_offset(), state_before);
                 set_pending_field_access(NULL);
               } else {
-                copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(), state_before);
+                copy_inline_content(inline_klass, obj, field->offset_in_bytes(), new_instance, inline_klass->first_field_offset(), state_before);
               }
               need_membar = true;
             }
@@ -2168,7 +2168,7 @@ void GraphBuilder::withfield(int field_index) {
   // call will_link again to determine if the field is valid.
   const bool needs_patching = !field_modify->will_link(method(), Bytecodes::_withfield) ||
                               (!field_modify->is_flattened() && PatchALot);
-  const int offset_modify = !needs_patching ? field_modify->offset() : -1;
+  const int offset_modify = !needs_patching ? field_modify->offset_in_bytes() : -1;
 
   scope()->set_wrote_final();
   scope()->set_wrote_fields();
@@ -2185,9 +2185,9 @@ void GraphBuilder::withfield(int field_index) {
     // Initialize fields which are not modified
     for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
       ciField* field = holder->nonstatic_field_at(i);
-      int offset = field->offset();
+      int offset = field->offset_in_bytes();
       // Don't use offset_modify here, it might be set to -1 if needs_patching
-      if (offset != field_modify->offset()) {
+      if (offset != field_modify->offset_in_bytes()) {
         if (field->is_flattened()) {
           ciInlineKlass* vk = field->type()->as_inline_klass();
           if (!vk->is_empty()) {

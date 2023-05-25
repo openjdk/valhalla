@@ -115,7 +115,7 @@ ciConstant ciInstance::field_value(ciField* field) {
   assert(field->is_static() || field->holder()->is_inlinetype() || klass()->is_subclass_of(field->holder()),
          "invalid access - must be subclass");
 
-  return field_value_impl(field->type()->basic_type(), field->offset());
+  return field_value_impl(field->type()->basic_type(), field->offset_in_bytes());
 }
 
 // ------------------------------------------------------------------

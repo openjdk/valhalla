@@ -44,6 +44,7 @@ protected:
   DCmdArgument<bool> _all;
   DCmdArgument<char*> _cmd;
 public:
+  static int num_arguments() { return 2; }
   HelpDCmd(outputStream* output, bool heap);
   static const char* name() { return "help"; }
   static const char* description() {
@@ -113,6 +114,7 @@ class PrintVMFlagsDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<bool> _all;
 public:
+  static int num_arguments() { return 1; }
   PrintVMFlagsDCmd(outputStream* output, bool heap);
   static const char* name() { return "VM.flags"; }
   static const char* description() {
@@ -135,6 +137,7 @@ protected:
   DCmdArgument<char*> _value;
 
 public:
+  static int num_arguments() { return 2; }
   SetVMFlagDCmd(outputStream* output, bool heap);
   static const char* name() { return "VM.set_flag"; }
   static const char* description() {
@@ -176,6 +179,7 @@ protected:
   DCmdArgument<char*> _libpath;
   DCmdArgument<char*> _option;
 public:
+  static int num_arguments() { return 2; }
   JVMTIAgentLoadDCmd(outputStream* output, bool heap);
   static const char* name() { return "JVMTI.agent_load"; }
   static const char* description() {
@@ -216,6 +220,7 @@ class VMUptimeDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<bool> _date;
 public:
+  static int num_arguments() { return 1; }
   VMUptimeDCmd(outputStream* output, bool heap);
   static const char* name() { return "VM.uptime"; }
   static const char* description() {
@@ -316,6 +321,7 @@ protected:
   DCmdArgument<jlong> _gzip;
   DCmdArgument<bool> _overwrite;
 public:
+  static int num_arguments() { return 4; }
   HeapDumpDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "GC.heap_dump";
@@ -342,6 +348,7 @@ protected:
   DCmdArgument<bool> _all;
   DCmdArgument<jlong> _parallel_thread_num;
 public:
+  static int num_arguments() { return 2; }
   ClassHistogramDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "GC.class_histogram";
@@ -366,6 +373,7 @@ protected:
   DCmdArgument<bool> _print_subclasses; // true if subclasses of the specified classname should be printed.
   DCmdArgument<char*> _classname; // Optional single class name whose hierarchy should be printed.
 public:
+  static int num_arguments() { return 3; }
   ClassHierarchyDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "VM.class_hierarchy";
@@ -417,6 +425,7 @@ protected:
   DCmdArgument<char*> _suboption;   // option of VM.cds
   DCmdArgument<char*> _filename;    // file name, optional
 public:
+  static int num_arguments() { return 2; }
   DumpSharedArchiveDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "VM.cds";
@@ -432,7 +441,6 @@ public:
                         "monitor", nullptr};
     return p;
   }
-  static int num_arguments();
   virtual void execute(DCmdSource source, TRAPS);
 };
 #endif // INCLUDE_CDS
@@ -443,6 +451,7 @@ protected:
   DCmdArgument<bool> _locks;
   DCmdArgument<bool> _extended;
 public:
+  static int num_arguments() { return 2; }
   ThreadDumpDCmd(outputStream* output, bool heap);
   static const char* name() { return "Thread.print"; }
   static const char* description() {
@@ -494,6 +503,8 @@ class JMXStartRemoteDCmd : public DCmdWithParser {
   DCmdArgument<char *> _jdp_name;
 
 public:
+  static int num_arguments() { return 21; }
+
   JMXStartRemoteDCmd(outputStream *output, bool heap_allocated);
 
   static const char *name() {
@@ -657,6 +668,7 @@ protected:
   DCmdArgument<char*> _function;
   DCmdArgument<jlong> _granularity;
 public:
+  static int num_arguments() { return 2; }
   CodeHeapAnalyticsDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "Compiler.CodeHeap_Analytics";
@@ -721,6 +733,7 @@ class CompilerDirectivesAddDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<char*> _filename;
 public:
+  static int num_arguments() { return 1; }
   CompilerDirectivesAddDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "Compiler.directives_add";
@@ -806,6 +819,7 @@ class SymboltableDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<bool> _verbose;
 public:
+  static int num_arguments() { return 1; }
   SymboltableDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "VM.symboltable";
@@ -828,6 +842,7 @@ class StringtableDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<bool> _verbose;
 public:
+  static int num_arguments() { return 1; }
   StringtableDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "VM.stringtable";
@@ -850,6 +865,7 @@ class SystemDictionaryDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<bool> _verbose;
 public:
+  static int num_arguments() { return 1; }
   SystemDictionaryDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "VM.systemdictionary";
@@ -872,6 +888,7 @@ class ClassesDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<bool> _verbose;
 public:
+  static int num_arguments() { return 1; }
   ClassesDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "VM.classes";
@@ -916,6 +933,7 @@ protected:
   DCmdArgument<char*> _log;
   DCmdArgument<char*> _max;
 public:
+  static int num_arguments() { return 2; }
   EventLogDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "VM.events";
@@ -942,6 +960,7 @@ protected:
   DCmdArgument<char*> _format;
   DCmdArgument<char*> _filepath;
 public:
+  static int num_arguments() { return 3; }
   ThreadDumpToFileDCmd(outputStream *output, bool heap);
   static const char *name() {
     return "Thread.dump_to_file";
@@ -956,7 +975,6 @@ public:
     JavaPermission p = {"java.lang.management.ManagementPermission", "monitor", nullptr};
     return p;
   }
-  static int num_arguments();
   virtual void execute(DCmdSource source, TRAPS);
 };
 

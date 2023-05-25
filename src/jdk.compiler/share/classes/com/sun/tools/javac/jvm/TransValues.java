@@ -109,13 +109,14 @@ public class TransValues extends TreeTranslator {
 
     public static TransValues instance(Context context) {
         TransValues instance = context.get(transValueClass);
-        if (instance == null)
+        if (instance == null) {
             instance = new TransValues(context);
+            context.put(transValueClass, instance);
+        }
         return instance;
     }
 
     protected TransValues(Context context) {
-        context.put(transValueClass, this);
         syms = Symtab.instance(context);
         make = TreeMaker.instance(context);
         types = Types.instance(context);

@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
+#include "classfile/classFileParser.hpp"
 #include "classfile/javaClasses.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
@@ -37,6 +38,7 @@
 class InlineKlass: public InstanceKlass {
   friend class VMStructs;
   friend class InstanceKlass;
+  friend class ClassFileParser;
 
  public:
   static const KlassKind Kind = InlineKlassKind;
@@ -48,6 +50,7 @@ class InlineKlass: public InstanceKlass {
   // Constructor
   InlineKlass(const ClassFileParser& parser);
 
+  void init_fixed_block();
   inline InlineKlassFixedBlock* inlineklass_static_block() const;
   inline address adr_return_regs() const;
 

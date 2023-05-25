@@ -51,6 +51,12 @@
   // Constructor
 InlineKlass::InlineKlass(const ClassFileParser& parser)
     : InstanceKlass(parser, InlineKlass::Kind) {
+  set_prototype_header(markWord::inline_type_prototype());
+  assert(is_inline_klass(), "sanity");
+  assert(prototype_header().is_inline_type(), "sanity");
+}
+
+void InlineKlass::init_fixed_block() {
   _adr_inlineklass_fixed_block = inlineklass_static_block();
   // Addresses used for inline type calling convention
   *((Array<SigEntry>**)adr_extended_sig()) = NULL;
@@ -61,9 +67,6 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   assert(pack_handler() == NULL, "pack handler not null");
   *((int*)adr_default_value_offset()) = 0;
   *((address*)adr_value_array_klasses()) = NULL;
-  set_prototype_header(markWord::inline_type_prototype());
-  assert(is_inline_klass(), "sanity");
-  assert(prototype_header().is_inline_type(), "sanity");
 }
 
 oop InlineKlass::default_value() {
