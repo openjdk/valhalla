@@ -22,6 +22,7 @@
  *
  */
 
+#include "oops/inlineKlass.hpp"
 #include "precompiled.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
@@ -5653,6 +5654,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*
   apply_parsed_class_metadata(ik, _java_fields_count);
+  if (ik->is_inline_klass()) {
+    InlineKlass::cast(ik)->init_fixed_block();
+  }
 
   // can only set dynamic nest-host after static nest information is set
   if (cl_inst_info.dynamic_nest_host() != nullptr) {

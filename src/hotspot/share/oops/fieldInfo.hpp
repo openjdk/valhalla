@@ -71,8 +71,8 @@ class FieldInfo {
     // flags should come earlier than less frequent ones, because
     // earlier ones compress better.
     enum FieldFlagBitPosition {
-      _ff_initialized,  // has ConstantValue initializer attribute
       _ff_inlined,      // or "flattened"
+      _ff_initialized,  // has ConstantValue initializer attribute
       _ff_injected,     // internal field injected by the JVM
       _ff_generic,      // has a generic signature
       _ff_stable,       // trust as stable b/c declared as @Stable
@@ -83,7 +83,6 @@ class FieldInfo {
     // additional 32-bit item in the field record.
     static const u4 _optional_item_bit_mask =
       flag_mask((int)_ff_initialized) |
-      flag_mask((int)_ff_inlined)     |
       flag_mask((int)_ff_generic)     |
       flag_mask((int)_ff_contended);
 

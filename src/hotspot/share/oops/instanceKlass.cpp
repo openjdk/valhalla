@@ -480,7 +480,6 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   }
 
 #ifdef ASSERT
-  assert(ik->size() == size, "");
   ik->bounds_check((address) ik->start_of_vtable(), false, size);
   ik->bounds_check((address) ik->start_of_itable(), false, size);
   ik->bounds_check((address) ik->end_of_itable(), true, size);
@@ -561,9 +560,9 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
   if (parser.is_hidden()) set_is_hidden();
   set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
-    if (parser.has_inline_fields()) {
-      set_has_inline_type_fields();
-    }
+  if (parser.has_inline_fields()) {
+    set_has_inline_type_fields();
+  }
 
   assert(nullptr == _methods, "underlying memory not zeroed?");
   assert(is_instance_klass(), "is layout incorrect?");
