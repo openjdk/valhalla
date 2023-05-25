@@ -94,7 +94,7 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   subptr(hdr, rsp);
   andptr(hdr, aligned_mask - (int)os::vm_page_size());
   // for recursive locking, the result is zero => save it in the displaced header
-  // location (NULL in the displaced hdr location indicates recursive locking)
+  // location (null in the displaced hdr location indicates recursive locking)
   movptr(Address(disp_hdr, 0), hdr);
   // otherwise we don't care about the result and handle locking via runtime call
   jcc(Assembler::notZero, slow_case);
@@ -115,7 +115,7 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
 
   // load displaced header
   movptr(hdr, Address(disp_hdr, 0));
-  // if the loaded hdr is NULL we had recursive locking
+  // if the loaded hdr is null we had recursive locking
   testptr(hdr, hdr);
   // if we had recursive locking, we are done
   jcc(Assembler::zero, done);
@@ -292,7 +292,7 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 
 void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   verify_oop(receiver);
-  // explicit NULL check not needed since load from [klass_offset] causes a trap
+  // explicit null check not needed since load from [klass_offset] causes a trap
   // check against inline cache
   assert(!MacroAssembler::needs_explicit_null_check(oopDesc::klass_offset_in_bytes()), "must add explicit null check");
   int start_offset = offset();
@@ -349,9 +349,9 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   // C1 code is not hot enough to micro optimize the nmethod entry barrier with an out-of-line stub
-  bs->nmethod_entry_barrier(this, NULL /* slow_path */, NULL /* continuation */);
+  bs->nmethod_entry_barrier(this, nullptr /* slow_path */, nullptr /* continuation */);
 
-  if (verified_inline_entry_label != NULL) {
+  if (verified_inline_entry_label != nullptr) {
     // Jump here from the scalarized entry points that already created the frame.
     bind(*verified_inline_entry_label);
   }
@@ -397,7 +397,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // The runtime call might safepoint, make sure nmethod entry barrier is executed
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   // C1 code is not hot enough to micro optimize the nmethod entry barrier with an out-of-line stub
-  bs->nmethod_entry_barrier(this, NULL /* slow_path */, NULL /* continuation */);
+  bs->nmethod_entry_barrier(this, nullptr /* slow_path */, nullptr /* continuation */);
 
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   movptr(rbx, (intptr_t)(ces->method()));

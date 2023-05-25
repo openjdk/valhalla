@@ -165,7 +165,9 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
-bool InstanceKlass::field_is_null_free_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_PRIMITIVE_OBJECT; }
+bool InstanceKlass::field_is_null_free_inline_type(int index) const {
+  return Signature::basic_type(field_signature(index)) == T_PRIMITIVE_OBJECT;
+}
 
 static inline bool is_stack_chunk_class(const Symbol* class_name,
                                         const ClassLoaderData* loader_data) {
@@ -478,7 +480,6 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   }
 
 #ifdef ASSERT
-  assert(ik->size() == size, "");
   ik->bounds_check((address) ik->start_of_vtable(), false, size);
   ik->bounds_check((address) ik->start_of_itable(), false, size);
   ik->bounds_check((address) ik->end_of_itable(), true, size);
@@ -559,10 +560,9 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
   if (parser.is_hidden()) set_is_hidden();
   set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
-    if (parser.has_inline_fields()) {
-      set_has_inline_type_fields();
-    }
-    _java_fields_count = parser.java_fields_count();
+  if (parser.has_inline_fields()) {
+    set_has_inline_type_fields();
+  }
 
   assert(nullptr == _methods, "underlying memory not zeroed?");
   assert(is_instance_klass(), "is layout incorrect?");
@@ -696,10 +696,15 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   set_transitive_interfaces(nullptr);
   set_local_interfaces(nullptr);
 
-  if (fields() != nullptr && !fields()->is_shared()) {
-    MetadataFactory::free_array<jushort>(loader_data, fields());
+  if (fieldinfo_stream() != nullptr && !fieldinfo_stream()->is_shared()) {
+    MetadataFactory::free_array<u1>(loader_data, fieldinfo_stream());
   }
-  set_fields(nullptr, 0);
+  set_fieldinfo_stream(nullptr);
+
+  if (fields_status() != nullptr && !fields_status()->is_shared()) {
+    MetadataFactory::free_array<FieldStatus>(loader_data, fields_status());
+  }
+  set_fields_status(nullptr);
 
   // If a method from a redefined class is using this constant pool, don't
   // delete it, yet.  The new class's previous version will point to this.
@@ -1585,6 +1590,18 @@ instanceOop InstanceKlass::allocate_instance(TRAPS) {
   return i;
 }
 
+instanceOop InstanceKlass::allocate_instance(oop java_class, TRAPS) {
+  Klass* k = java_lang_Class::as_Klass(java_class);
+  if (k == nullptr) {
+    ResourceMark rm(THREAD);
+    THROW_(vmSymbols::java_lang_InstantiationException(), nullptr);
+  }
+  InstanceKlass* ik = cast(k);
+  ik->check_valid_for_instantiation(false, CHECK_NULL);
+  ik->initialize(CHECK_NULL);
+  return ik->allocate_instance(THREAD);
+}
+
 instanceHandle InstanceKlass::allocate_instance_handle(TRAPS) {
   return instanceHandle(THREAD, allocate_instance(THREAD));
 }
@@ -1707,6 +1724,17 @@ void InstanceKlass::mask_for(const methodHandle& method, int bci,
   }
   // _oop_map_cache is constant after init; lookup below does its own locking.
   oop_map_cache->lookup(method, bci, entry_for);
+}
+
+
+FieldInfo InstanceKlass::field(int index) const {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
+    if (fs.index() == index) {
+      return fs.to_FieldInfo();
+    }
+  }
+  fatal("Field not found");
+  return FieldInfo();
 }
 
 bool InstanceKlass::find_local_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const {
@@ -2638,8 +2666,9 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
     it->push(&_default_vtable_indices);
   }
 
-  // _fields might be written into by Rewriter::scan_method() -> fd.set_has_initialized_final_update()
-  it->push(&_fields, MetaspaceClosure::_writable);
+  it->push(&_fieldinfo_stream);
+  // _fields_status might be written into by Rewriter::scan_method() -> fd.set_has_initialized_final_update()
+  it->push(&_fields_status, MetaspaceClosure::_writable);
 
   if (itable_length() > 0) {
     itableOffsetEntry* ioe = (itableOffsetEntry*)start_of_itable();
@@ -2713,7 +2742,7 @@ void InstanceKlass::remove_unshareable_info() {
   }
 
   if (has_inline_type_fields()) {
-    for (AllFieldStream fs(fields(), constants()); !fs.done(); fs.next()) {
+    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
         reset_inline_type_field_klass(fs.index());
       }

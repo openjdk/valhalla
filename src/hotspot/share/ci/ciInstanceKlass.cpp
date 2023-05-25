@@ -561,7 +561,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
         ciField* flattened_field = vk->nonstatic_field_at(i);
         // Adjust offset to account for missing oop header
-        int offset = field_offset + (flattened_field->offset() - vk->first_field_offset());
+        int offset = field_offset + (flattened_field->offset_in_bytes() - vk->first_field_offset());
         // A flattened field can be treated as final if the non-flattened
         // field is declared final or the holder klass is an inline type itself.
         bool is_final = fd.is_final() || is_inlinetype();
