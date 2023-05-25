@@ -2317,6 +2317,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         return false;
       }
       base = vt->get_oop();
+      // FIXME: Larval bit check is needed to preserve the semantics of value
+      // objects which can be mutated only if its _larval bit is set. Since
+      // the oop is not always an AllocateNode, we have to find an utility way
+      // to check the larval state for all kind of oops.
       AllocateNode* alloc = AllocateNode::Ideal_allocation(base, &_gvn);
       if (alloc != NULL) {
         assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
