@@ -1679,7 +1679,7 @@ void PSParallelCompact::summary_phase(bool maximum_compaction)
 // may be true because this method can be called without intervening
 // activity.  For example when the heap space is tight and full measure
 // are being taken to free space.
-void PSParallelCompact::invoke(bool maximum_heap_compaction) {
+bool PSParallelCompact::invoke(bool maximum_heap_compaction) {
   assert(SafepointSynchronize::is_at_safepoint(), "should be at safepoint");
   assert(Thread::current() == (Thread*)VMThread::vm_thread(),
          "should be in vm thread");
@@ -1696,8 +1696,8 @@ void PSParallelCompact::invoke(bool maximum_heap_compaction) {
   const bool clear_all_soft_refs =
     heap->soft_ref_policy()->should_clear_all_soft_refs();
 
-  PSParallelCompact::invoke_no_policy(clear_all_soft_refs ||
-                                      maximum_heap_compaction);
+  return PSParallelCompact::invoke_no_policy(clear_all_soft_refs ||
+                                             maximum_heap_compaction);
 }
 
 // This method contains no policy. You should probably

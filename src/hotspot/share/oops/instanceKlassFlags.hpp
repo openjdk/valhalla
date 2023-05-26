@@ -50,12 +50,16 @@ class InstanceKlassFlags {
     flag(is_shared_app_class                , 1 << 9) /* defining class loader is app class loader */ \
     flag(has_contended_annotations          , 1 << 10) /* has @Contended annotation */ \
     flag(has_localvariable_table            , 1 << 11) /* has localvariable information */ \
-    flag(has_inline_type_fields             , 1 << 12) /* has inline fields and related embedded section is not empty */ \
-    flag(is_empty_inline_type               , 1 << 13) /* empty inline type (*) */ \
-    flag(is_naturally_atomic                , 1 << 14) /* loaded/stored in one instruction */ \
-    flag(is_declared_atomic                 , 1 << 15) /* Listed -XX:ForceNonTearable=clist option */ \
-    flag(carries_value_modifier             , 1 << 16) /* the class or one of its super types has the ACC_VALUE modifier */ \
-    flag(carries_identity_modifier          , 1 << 17) /* the class or one of its super types has the ACC_IDENTITY modifier */
+    flag(has_miranda_methods                , 1 << 12) /* True if this class has miranda methods in it's vtable */ \
+    flag(has_vanilla_constructor            , 1 << 13) /* True if klass has a vanilla default constructor */ \
+    flag(has_final_method                   , 1 << 14) /* True if klass has final method */ \
+    flag(has_inline_type_fields             , 1 << 15) /* has inline fields and related embedded section is not empty */ \
+    flag(is_empty_inline_type               , 1 << 16) /* empty inline type (*) */ \
+    flag(is_naturally_atomic                , 1 << 17) /* loaded/stored in one instruction */ \
+    flag(is_declared_atomic                 , 1 << 18) /* Listed -XX:ForceNonTearable=clist option */ \
+    flag(carries_value_modifier             , 1 << 19) /* the class or one of its super types has the ACC_VALUE modifier */ \
+    flag(carries_identity_modifier          , 1 << 20) /* the class or one of its super types has the ACC_IDENTITY modifier */
+    /* end of list */
 
   /* (*) An inline type is considered empty if it contains no non-static fields or
      if it contains only empty inline fields. Note that JITs have a slightly different
@@ -93,7 +97,7 @@ class InstanceKlassFlags {
 
  public:
 
-  InstanceKlassFlags() : _flags(0) {}
+  InstanceKlassFlags() : _flags(0), _status(0) {}
 
   // Create getters and setters for the flag values.
 #define IK_FLAGS_GET(name, ignore)          \
