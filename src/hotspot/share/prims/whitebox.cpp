@@ -827,10 +827,9 @@ static bool is_excluded_for_compiler(AbstractCompiler* comp, methodHandle& mh) {
     return true;
   }
   DirectiveSet* directive = DirectivesStack::getMatchingDirective(mh, comp);
-  if (directive->ExcludeOption) {
-    return true;
-  }
-  return false;
+  bool exclude = directive->ExcludeOption;
+  DirectivesStack::release(directive);
+  return exclude;
 }
 
 static bool can_be_compiled_at_level(methodHandle& mh, jboolean is_osr, int level) {
@@ -1877,12 +1876,12 @@ WB_END
 WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, jobject thing))
   oop aoop = JNIHandles::resolve(thing);
   if (!aoop->is_instance()) {
-    return NULL;
+    return nullptr;
   }
   instanceHandle ih(THREAD, (instanceOop) aoop);
   InstanceKlass* klass = InstanceKlass::cast(ih->klass());
   if (klass->nonstatic_oop_map_count() == 0) {
-    return NULL;
+    return nullptr;
   }
   const OopMapBlock* map = klass->start_of_nonstatic_oop_maps();
   const OopMapBlock* const end = map + klass->nonstatic_oop_map_count();
@@ -1923,7 +1922,7 @@ class CollectOops : public BasicOopIterateClosure {
   void add_oop(oop o) {
     Handle oh = Handle(Thread::current(), o);
     // Value might be oop, but JLS can't see as Object, just iterate through it...
-    if (oh != NULL && oh->is_inline_type()) {
+    if (oh != nullptr && oh->is_inline_type()) {
       oh->oop_iterate(this);
     } else {
       array->append(oh);
@@ -1954,12 +1953,30 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaFrameOopIterator(JNIEnv* env, jobject wb,
   while (depth > 0) { // Skip the native WB API frame
     sfs.next();
     frame* f = sfs.current();
-    f->oops_do(&collectOops, NULL, sfs.register_map());
+    f->oops_do(&collectOops, nullptr, sfs.register_map());
     depth--;
   }
   return collectOops.create_jni_result(env, THREAD);
 WB_END
 
+
+WB_ENTRY(jint, WB_getIndyInfoLength(JNIEnv* env, jobject wb, jclass klass))
+  InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(klass)));
+  ConstantPool* cp = ik->constants();
+  if (cp->cache() == nullptr) {
+      return -1;
+  }
+  return cp->resolved_indy_entries_length();
+WB_END
+
+WB_ENTRY(jint, WB_getIndyCPIndex(JNIEnv* env, jobject wb, jclass klass, jint index))
+  InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(klass)));
+  ConstantPool* cp = ik->constants();
+  if (cp->cache() == nullptr) {
+      return -1;
+  }
+  return cp->resolved_indy_entry_at(index)->constant_pool_index();
+WB_END
 
 WB_ENTRY(void, WB_ClearInlineCaches(JNIEnv* env, jobject wb, jboolean preserve_static_stubs))
   VM_ClearICs clear_ics(preserve_static_stubs == JNI_TRUE);
@@ -2806,6 +2823,8 @@ static JNINativeMethod methods[] = {
           CC"(Ljava/lang/Object;)[Ljava/lang/Object;",(void*)&WB_getObjectsViaOopIterator},
   {CC"getObjectsViaFrameOopIterator",
       CC"(I)[Ljava/lang/Object;",                     (void*)&WB_getObjectsViaFrameOopIterator},
+  {CC"getIndyInfoLength0", CC"(Ljava/lang/Class;)I",  (void*)&WB_getIndyInfoLength},
+  {CC"getIndyCPIndex0",    CC"(Ljava/lang/Class;I)I", (void*)&WB_getIndyCPIndex},
   {CC"getMethodBooleanOption",
       CC"(Ljava/lang/reflect/Executable;Ljava/lang/String;)Ljava/lang/Boolean;",
                                                       (void*)&WB_GetMethodBooleaneOption},

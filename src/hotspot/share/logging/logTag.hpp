@@ -180,6 +180,7 @@ class outputStream;
   LOG_TAG(streaming) \
   LOG_TAG(stringdedup) \
   LOG_TAG(stringtable) \
+  LOG_TAG(stubs) \
   LOG_TAG(subclass) \
   LOG_TAG(survivor) \
   LOG_TAG(suspend) \
