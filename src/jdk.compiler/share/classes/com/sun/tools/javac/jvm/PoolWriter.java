@@ -399,7 +399,7 @@ public class PoolWriter {
                     Type ct = c instanceof ConstantPoolQType ? ((ConstantPoolQType)c).type : (Type)c;
                     Name name = ct.hasTag(ARRAY) ?
                             typeSig(ct) :
-                            c instanceof ConstantPoolQType ? names.fromString("Q" + new String(externalize(ct.tsym.flatName())) + ";") : externalize(ct.tsym.flatName());
+                      c instanceof ConstantPoolQType ? names.fromString("Q" + externalize(ct.tsym.flatName()) + ";") : externalize(ct.tsym.flatName());
                     poolbuf.appendByte(tag);
                     poolbuf.appendChar(putName(name));
                     if (ct.hasTag(CLASS)) {

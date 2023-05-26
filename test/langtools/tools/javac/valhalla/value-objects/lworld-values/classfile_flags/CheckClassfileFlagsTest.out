@@ -1,2 +1,2 @@
-CheckClassfileFlagsTest.java:15:9: compiler.err.cant.access: ValueWithInvalidFlags, (compiler.misc.bad.class.file.header: ValueWithInvalidFlags.class, (compiler.misc.bad.class.signature: QValueWith))
+CheckClassfileFlagsTest.java:15:9: compiler.err.cant.access: ValueWithInvalidFlags, (compiler.misc.bad.class.file.header: ValueWithInvalidFlags.class, (compiler.misc.bad.class.signature: "QValueWithInvalidFlags;"))
 1 error

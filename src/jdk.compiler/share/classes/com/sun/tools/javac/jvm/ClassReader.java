@@ -523,7 +523,7 @@ public class ClassReader {
                 // int oldsigp = sigp;
                 if ((char) signature[sigp] == 'Q' && !allowPrimitiveClasses) {
                     throw badClassFile("bad.class.signature",
-                            Convert.utf2string(signature, sigp, 10));
+                                       quoteBadSignature());
                 }
                 Type t = classSigToType();
                 if (sigp < siglimit && signature[sigp] == '.')
