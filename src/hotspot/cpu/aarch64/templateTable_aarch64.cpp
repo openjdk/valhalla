@@ -732,8 +732,6 @@ void TemplateTable::wide_aload()
 void TemplateTable::index_check(Register array, Register index)
 {
   // destroys r1, rscratch1
-  // check array
-  __ null_check(array, arrayOopDesc::length_offset_in_bytes());
   // sign extend index for use by indexed load
   // __ movl2ptr(index, index);
   // check index
@@ -3598,7 +3596,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ bind(notFinal);
 
   // get receiver klass
-  __ load_klass_check_null(r0, recv);
+  __ load_klass(r0, recv);
 
   // profile this call
   __ profile_virtual_call(r0, rlocals, r3);
@@ -3686,8 +3684,8 @@ void TemplateTable::invokeinterface(int byte_no) {
   Label notVFinal;
   __ tbz(r3, ConstantPoolCacheEntry::is_vfinal_shift, notVFinal);
 
-  // Get receiver klass into r3 - also a null check
-  __ load_klass_check_null(r3, r2);
+  // Get receiver klass into r3
+  __ load_klass(r3, r2);
 
   Label subtype;
   __ check_klass_subtype(r3, r0, r4, subtype);
@@ -3701,9 +3699,9 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   __ bind(notVFinal);
 
-  // Get receiver klass into r3 - also a null check
+  // Get receiver klass into r3
   __ restore_locals();
-  __ load_klass_check_null(r3, r2);
+  __ load_klass(r3, r2);
 
   Label no_such_method;
 
@@ -3926,7 +3924,6 @@ void TemplateTable::anewarray() {
 
 void TemplateTable::arraylength() {
   transition(atos, itos);
-  __ null_check(r0, arrayOopDesc::length_offset_in_bytes());
   __ ldrw(r0, Address(r0, arrayOopDesc::length_offset_in_bytes()));
 }
 

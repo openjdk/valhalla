@@ -214,6 +214,7 @@ void ConstantPool::initialize_resolved_references(ClassLoaderData* loader_data,
     // Create Java array for holding resolved strings, methodHandles,
     // methodTypes, invokedynamic and invokehandle appendix objects, etc.
     objArrayOop stom = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
+    HandleMark hm(THREAD);
     Handle refs_handle (THREAD, stom);  // must handleize.
     set_resolved_references(loader_data->add_handle(refs_handle));
   }
@@ -339,10 +340,11 @@ void ConstantPool::restore_unshareable_info(TRAPS) {
   if (vmClasses::Object_klass_loaded()) {
     ClassLoaderData* loader_data = pool_holder()->class_loader_data();
 #if INCLUDE_CDS_JAVA_HEAP
-    if (ArchiveHeapLoader::is_fully_available() &&
+    if (ArchiveHeapLoader::is_in_use() &&
         _cache->archived_references() != nullptr) {
       oop archived = _cache->archived_references();
       // Create handle for the archived resolved reference array object
+      HandleMark hm(THREAD);
       Handle refs_handle(THREAD, archived);
       set_resolved_references(loader_data->add_handle(refs_handle));
       _cache->clear_archived_references();
@@ -354,6 +356,7 @@ void ConstantPool::restore_unshareable_info(TRAPS) {
       int map_length = resolved_reference_length();
       if (map_length > 0) {
         objArrayOop stom = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
+        HandleMark hm(THREAD);
         Handle refs_handle(THREAD, stom);  // must handleize.
         set_resolved_references(loader_data->add_handle(refs_handle));
       }
@@ -531,6 +534,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
     ShouldNotReachHere();
   }
 
+  HandleMark hm(THREAD);
   Handle mirror_handle;
   Symbol* name = this_cp->symbol_at(name_index);
   bool inline_type_signature = false;
@@ -639,6 +643,7 @@ Klass* ConstantPool::klass_at_if_loaded(const constantPoolHandle& this_cp, int w
     return nullptr;
   } else {
     Thread* current = Thread::current();
+    HandleMark hm(current);
     Symbol* name = this_cp->symbol_at(name_index);
     oop loader = this_cp->pool_holder()->class_loader();
     oop protection_domain = this_cp->pool_holder()->protection_domain();
@@ -986,7 +991,6 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
                                            int index, int cache_index,
                                            bool* status_return, TRAPS) {
   oop result_oop = nullptr;
-  Handle throw_exception;
 
   if (cache_index == _possible_index_sentinel) {
     // It is possible that this constant is one which is cached in the objects.
@@ -1156,6 +1160,7 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
       }
 
       Klass* klass = this_cp->pool_holder();
+      HandleMark hm(THREAD);
       Handle value = SystemDictionary::link_method_handle_constant(klass, ref_kind,
                                                                    callee, name, signature,
                                                                    THREAD);
@@ -1175,6 +1180,7 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
                               signature->as_C_string());
       }
       Klass* klass = this_cp->pool_holder();
+      HandleMark hm(THREAD);
       Handle value = SystemDictionary::find_method_handle_type(signature, klass, THREAD);
       result_oop = value();
       if (HAS_PENDING_EXCEPTION) {

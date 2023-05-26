@@ -723,7 +723,7 @@ public:
   }
   static const JavaPermission permission() {
     JavaPermission p = {"java.lang.management.ManagementPermission",
-                        "monitor", nullptr};
+                        "control", nullptr};
     return p;
   }
   virtual void execute(DCmdSource source, TRAPS);
@@ -746,7 +746,7 @@ public:
   }
   static const JavaPermission permission() {
     JavaPermission p = {"java.lang.management.ManagementPermission",
-                        "monitor", nullptr};
+                        "control", nullptr};
     return p;
   }
   virtual void execute(DCmdSource source, TRAPS);
@@ -766,7 +766,7 @@ public:
   }
   static const JavaPermission permission() {
     JavaPermission p = {"java.lang.management.ManagementPermission",
-                        "monitor", nullptr};
+                        "control", nullptr};
     return p;
   }
   virtual void execute(DCmdSource source, TRAPS);
