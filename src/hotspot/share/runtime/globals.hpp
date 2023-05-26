@@ -357,7 +357,7 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseVectorizedMismatchIntrinsic, false, DIAGNOSTIC,          \
           "Enables intrinsification of ArraysSupport.vectorizedMismatch()") \
                                                                             \
-  product(bool, UseVectorizedHashCodeIntrinsic, false, DIAGNOSTIC,           \
+  product(bool, UseVectorizedHashCodeIntrinsic, false, DIAGNOSTIC,          \
           "Enables intrinsification of ArraysSupport.vectorizedHashCode()") \
                                                                             \
   product(bool, UseCopySignIntrinsic, false, DIAGNOSTIC,                    \
@@ -365,6 +365,9 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(bool, UseSignumIntrinsic, false, DIAGNOSTIC,                      \
           "Enables intrinsification of Math.signum")                        \
+                                                                            \
+  product_pd(bool, DelayCompilerStubsGeneration, DIAGNOSTIC,                \
+          "Use Compiler thread for compiler's stubs generation")            \
                                                                             \
   product(ccstrlist, DisableIntrinsic, "", DIAGNOSTIC,                      \
          "do not expand intrinsics whose (internal) names appear here")     \
@@ -708,6 +711,13 @@ const int ObjectAlignmentInBytes = 8;
   product(intx, AsyncDeflationInterval, 250, DIAGNOSTIC,                    \
           "Async deflate idle monitors every so many milliseconds when "    \
           "MonitorUsedDeflationThreshold is exceeded (0 is off).")          \
+          range(0, max_jint)                                                \
+                                                                            \
+  /* notice: the max range value here is max_jint, not max_intx  */         \
+  /* because of overflow issue                                   */         \
+  product(intx, GuaranteedAsyncDeflationInterval, 60000, DIAGNOSTIC,        \
+          "Async deflate idle monitors every so many milliseconds even "    \
+          "when MonitorUsedDeflationThreshold is NOT exceeded (0 is off).") \
           range(0, max_jint)                                                \
                                                                             \
   product(size_t, AvgMonitorsPerThreadEstimate, 1024, DIAGNOSTIC,           \
@@ -1308,8 +1318,8 @@ const int ObjectAlignmentInBytes = 8;
           "Delay in milliseconds for option SafepointTimeout")              \
           range(0, max_intx LP64_ONLY(/MICROUNITS))                         \
                                                                             \
-  product(bool, UseSystemMemoryBarrier, false, EXPERIMENTAL,                \
-          "Try to enable system memory barrier")                            \
+  product(bool, UseSystemMemoryBarrier, false,                              \
+          "Try to enable system memory barrier if supported by OS")         \
                                                                             \
   product(intx, NmethodSweepActivity, 4,                                    \
           "Removes cold nmethods from code cache if > 0. Higher values "    \

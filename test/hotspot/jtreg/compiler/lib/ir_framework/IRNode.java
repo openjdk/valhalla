@@ -654,6 +654,11 @@ public class IRNode {
         beforeMatchingNameRegex(MAX_I, "MaxI");
     }
 
+    public static final String MAX_L = PREFIX + "MAX_L" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(MAX_L, "MaxL");
+    }
+
     public static final String MAX_V = PREFIX + "MAX_V" + POSTFIX;
     static {
         beforeMatchingNameRegex(MAX_V, "MaxV");
@@ -677,6 +682,11 @@ public class IRNode {
     public static final String MIN_I = PREFIX + "MIN_I" + POSTFIX;
     static {
         beforeMatchingNameRegex(MIN_I, "MinI");
+    }
+
+    public static final String MIN_L = PREFIX + "MIN_L" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(MIN_L, "MinL");
     }
 
     public static final String MIN_V = PREFIX + "MIN_V" + POSTFIX;
@@ -722,6 +732,16 @@ public class IRNode {
     public static final String MUL_VI = PREFIX + "MUL_VI" + POSTFIX;
     static {
         beforeMatchingNameRegex(MUL_VI, "MulVI");
+    }
+
+    public static final String MUL_VF = PREFIX + "MUL_VF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(MUL_VF, "MulVF");
+    }
+
+    public static final String MUL_VD = PREFIX + "MUL_VD" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(MUL_VD, "MulVD");
     }
 
     public static final String MUL_REDUCTION_VD = PREFIX + "MUL_REDUCTION_VD" + POSTFIX;
@@ -1406,6 +1426,16 @@ public class IRNode {
     public static final String XOR3_SVE = PREFIX + "XOR3_SVE" + POSTFIX;
     static {
         machOnlyNameRegex(XOR3_SVE, "veor3_sve");
+    }
+
+    public static final String COMPRESS_BITSV = PREFIX + "COMPRESS_BITSV" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(COMPRESS_BITSV, "CompressBitsV");
+    }
+
+    public static final String EXPAND_BITSV = PREFIX + "EXPAND_BITSV" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(EXPAND_BITSV, "ExpandBitsV");
     }
 
     /*

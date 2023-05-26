@@ -2457,7 +2457,12 @@ public class LambdaToMethod extends TreeTranslator {
 
         @Override
         protected void append(byte[] ba) {
-            Name name = names.fromUtf(ba);
+            Name name;
+            try {
+                name = names.fromUtf(ba);
+            } catch (InvalidUtfException e) {
+                throw new AssertionError(e);
+            }
             sb.append(name.toString());
         }
 

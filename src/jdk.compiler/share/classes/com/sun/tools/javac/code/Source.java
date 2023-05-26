@@ -238,6 +238,7 @@ public enum Source {
         RECORD_PATTERNS(JDK19, Fragments.FeatureDeconstructionPatterns, DiagKind.PLURAL),
         PRIMITIVE_CLASSES(JDK19, Fragments.FeaturePrimitiveClasses, DiagKind.PLURAL),
         VALUE_CLASSES(JDK19, Fragments.FeatureValueClasses, DiagKind.PLURAL),
+        WARN_ON_ILLEGAL_UTF8(MIN, JDK21),
         ;
 
         enum DiagKind {
