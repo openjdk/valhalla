@@ -2557,17 +2557,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       Node* phi = worklist.at(next);
       for (uint i = 1; i < phi->req() && can_optimize; i++) {
         Node* n = phi->in(i);
-        // FIXME: Skipping pushing VectorBox across Phi
-        // since they are special type of InlineTypeNode
-        // carrying VBA as oop fields.
-        // We have a seperate handling for pushing VectorBoxes
-        // across PhiNodes in merge_through_phi.
-        // In long run we should eliminate VectorBox which is
-        // just a light weight wrapper of InlineTypeNode.
-        // Only reason to keep VectorBox was to defer buffering
-        // to a later stage and associate VBA which carry
-        // JVM state to reinitialize GraphKit before buffering.
-        if (n == NULL || n->Opcode() == Op_VectorBox) {
+        if (n == NULL) {
           can_optimize = false;
           break;
         }
@@ -2581,7 +2571,17 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           n = n->in(1);
         }
         const Type* t = phase->type(n);
-        if (n->is_InlineType() && (vk == NULL || vk == t->inline_klass())) {
+        // FIXME: Skipping pushing VectorBox across Phi
+        // since they are special type of InlineTypeNode
+        // carrying VBA as oop fields.
+        // We have a seperate handling for pushing VectorBoxes
+        // across PhiNodes in merge_through_phi.
+        // In long run we should eliminate VectorBox which is
+        // just a light weight wrapper of InlineTypeNode.
+        // Only reason to keep VectorBox was to defer buffering
+        // to a later stage and associate VBA which carry
+        // JVM state to reinitialize GraphKit before buffering.
+        if (n->is_InlineType() && !n->is_VectorBox() && (vk == NULL || vk == t->inline_klass())) {
           vk = (vk == NULL) ? t->inline_klass() : vk;
           if (phase->find_int_con(n->as_InlineType()->get_is_init(), 0) != 1) {
             is_init = false;
