@@ -842,51 +842,22 @@ public:
   bool has_reserved_stack_access() const { return constMethod()->reserved_stack_access(); }
   void set_has_reserved_stack_access() { constMethod()->set_reserved_stack_access(); }
 
-  bool has_scalarized_args() const {
-    return (_flags & _scalarized_args) != 0;
-  }
+  bool has_scalarized_args() const { return constMethod()->has_scalarized_args(); }
+  void set_has_scalarized_args() { constMethod()->set_has_scalarized_args(); }
 
-  void set_has_scalarized_args(bool x) {
-    _flags = x ? (_flags | _scalarized_args) : (_flags & ~_scalarized_args);
-  }
-
-  bool has_scalarized_return() const {
-    return (_flags & _scalarized_return) != 0;
-  }
-
-  void set_has_scalarized_return(bool x) {
-    _flags = x ? (_flags | _scalarized_return) : (_flags & ~_scalarized_return);
-  }
-
-  static u2 scalarized_return_flag() {
-    return _scalarized_return;
-  }
+  bool has_scalarized_return() const { return constMethod()->has_scalarized_return(); }
+  void set_has_scalarized_return() { constMethod()->set_has_scalarized_return(); }
 
   bool is_scalarized_arg(int idx) const;
 
-  bool c1_needs_stack_repair() const {
-    return (_flags & _c1_needs_stack_repair) != 0;
-  }
+  bool c1_needs_stack_repair() const { return constMethod()->c1_needs_stack_repair(); }
+  void set_c1_needs_stack_repair() { constMethod()->set_c1_needs_stack_repair(); }
 
-  bool c2_needs_stack_repair() const {
-    return (_flags & _c2_needs_stack_repair) != 0;
-  }
+  bool c2_needs_stack_repair() const { return constMethod()->c2_needs_stack_repair(); }
+  void set_c2_needs_stack_repair() { constMethod()->set_c2_needs_stack_repair(); }
 
-  void set_c1_needs_stack_repair(bool x) {
-    _flags = x ? (_flags | _c1_needs_stack_repair) : (_flags & ~_c1_needs_stack_repair);
-  }
-
-  void set_c2_needs_stack_repair(bool x) {
-    _flags = x ? (_flags | _c2_needs_stack_repair) : (_flags & ~_c2_needs_stack_repair);
-  }
-
-  bool mismatch() const {
-    return (_flags & _mismatch) != 0;
-  }
-
-  void set_mismatch(bool x) {
-    _flags = x ? (_flags | _mismatch) : (_flags & ~_mismatch);
-  }
+  bool mismatch() const { return constMethod()->mismatch(); }
+  void set_mismatch() { constMethod()->set_mismatch(); }
 
   JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)
 

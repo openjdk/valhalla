@@ -29,6 +29,7 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "logging/log.hpp"
 #include "oops/arrayOop.hpp"
+#include "oops/constMethodFlags.hpp"
 #include "oops/markWord.hpp"
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
@@ -1197,7 +1198,7 @@ void InterpreterMacroAssembler::remove_activation(
       Label skip_stress;
       movptr(rscratch1, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
       movl(rscratch1, Address(rscratch1, Method::flags_offset()));
-      testl(rcx, Method::scalarized_return_flag());
+      testl(rcx, ConstMethodFlags::has_scalarized_return_flag());
       jcc(Assembler::zero, skip_stress);
       load_klass(rax, rax, rscratch1);
       orptr(rax, 1);

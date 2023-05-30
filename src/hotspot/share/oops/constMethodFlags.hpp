@@ -58,6 +58,11 @@ class ConstMethodFlags {
    flag(is_scoped                 , 1 << 16) \
    flag(changes_current_thread    , 1 << 17) \
    flag(jvmti_mount_transition    , 1 << 18) \
+   flag(has_scalarized_args       , 1 << 19) \
+   flag(has_scalarized_return     , 1 << 20) \
+   flag(c1_needs_stack_repair     , 1 << 21) \
+   flag(c2_needs_stack_repair     , 1 << 22) \
+   flag(mismatch                  , 1 << 23) \
    /* end of list */
 
 #define CM_FLAGS_ENUM_NAME(name, value)    _misc_##name = value,
@@ -81,6 +86,10 @@ class ConstMethodFlags {
   }
   CM_FLAGS_DO(CM_FLAGS_GET_SET)
 #undef CM_FLAGS_GET_SET
+
+  static u4 has_scalarized_return_flag() {
+    return _misc_has_scalarized_return;
+  }
 
   int as_int() const { return _flags; }
   void print_on(outputStream* st) const;

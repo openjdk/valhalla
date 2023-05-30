@@ -3081,7 +3081,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
               for (int i = 0; i < supers->length(); ++i) {
                 Method* super_method = supers->at(i);
                 if (super_method->is_scalarized_arg(arg_num) debug_only(|| (stress && (os::random() & 1) == 1))) {
-                  super_method->set_mismatch(true);
+                  super_method->set_mismatch();
                   MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
                   JavaThread* thread = JavaThread::current();
                   HandleMark hm(thread);
@@ -3175,9 +3175,13 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   CompiledEntrySignature ces(method());
   ces.compute_calling_conventions();
   if (ces.has_scalarized_args()) {
-    method->set_has_scalarized_args(true);
-    method->set_c1_needs_stack_repair(ces.c1_needs_stack_repair());
-    method->set_c2_needs_stack_repair(ces.c2_needs_stack_repair());
+    method->set_has_scalarized_args();
+    if (ces.c1_needs_stack_repair()) {
+      method->set_c1_needs_stack_repair();
+    }
+    if (ces.c2_needs_stack_repair()) {
+      method->set_c2_needs_stack_repair();
+    }
   } else if (method->is_abstract()) {
     return _abstract_method_handler;
   }

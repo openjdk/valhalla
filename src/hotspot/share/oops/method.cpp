@@ -1267,7 +1267,7 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
       !native_bind_event_is_interesting);
   }
   if (InlineTypeReturnedAsFields && returns_inline_type(THREAD)) {
-    set_has_scalarized_return(true);
+    set_has_scalarized_return();
   }
 
   // Setup compiler entrypoint.  This is made eagerly, so we do not need
