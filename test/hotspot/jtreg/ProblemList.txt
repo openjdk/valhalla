@@ -164,6 +164,7 @@ serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 
 #############################################################################
 
+gtest/NMTGtests.java 8306561 aix-ppc64
 
 #############################################################################
 

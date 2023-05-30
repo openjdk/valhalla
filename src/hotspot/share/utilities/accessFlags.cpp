@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,27 +27,6 @@
 #include "runtime/atomic.hpp"
 #include "utilities/accessFlags.hpp"
 
-void AccessFlags::atomic_set_bits(jint bits) {
-  // Atomically update the flags with the bits given
-  jint old_flags, new_flags, f;
-  do {
-    old_flags = _flags;
-    new_flags = old_flags | bits;
-    f = Atomic::cmpxchg(&_flags, old_flags, new_flags);
-  } while(f != old_flags);
-}
-
-void AccessFlags::atomic_clear_bits(jint bits) {
-  // Atomically update the flags with the bits given
-  jint old_flags, new_flags, f;
-  do {
-    old_flags = _flags;
-    new_flags = old_flags & ~bits;
-    f = Atomic::cmpxchg(&_flags, old_flags, new_flags);
-  } while(f != old_flags);
-}
-
-
 #if !defined(PRODUCT) || INCLUDE_JVMTI
 
 void AccessFlags::print_on(outputStream* st) const {
@@ -66,9 +45,6 @@ void AccessFlags::print_on(outputStream* st) const {
   if (is_identity_class()) st->print("identity "  );
   if (is_value_class()) st->print("value "        );
   if (is_primitive_class()) st->print("primitive ");
-  if (is_old         ()) st->print("{old} "       );
-  if (is_obsolete    ()) st->print("{obsolete} "  );
-  if (on_stack       ()) st->print("{on_stack} "  );
 }
 
 #endif // !PRODUCT || INCLUDE_JVMTI
