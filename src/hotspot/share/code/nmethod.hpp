@@ -296,9 +296,9 @@ class nmethod : public CompiledMethod {
           AbstractCompiler* compiler,
           CompLevel comp_level
 #if INCLUDE_JVMCI
-          , char* speculations,
-          int speculations_len,
-          int jvmci_data_size
+          , char* speculations = nullptr,
+          int speculations_len = 0,
+          JVMCINMethodData* jvmci_data = nullptr
 #endif
           );
 
@@ -349,9 +349,7 @@ class nmethod : public CompiledMethod {
 #if INCLUDE_JVMCI
                               , char* speculations = nullptr,
                               int speculations_len = 0,
-                              int nmethod_mirror_index = -1,
-                              const char* nmethod_mirror_name = nullptr,
-                              FailedSpeculation** failed_speculations = nullptr
+                              JVMCINMethodData* jvmci_data = nullptr
 #endif
   );
 

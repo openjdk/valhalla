@@ -78,14 +78,6 @@ public:
     _default
   };
 
-  enum SpecialRef {
-    // A field that points to a method entry. E.g., Method::_i2i_entry
-    _method_entry_ref,
-
-    // A field that points to a location inside the current object.
-    _internal_pointer_ref,
-  };
-
   // class MetaspaceClosure::Ref --
   //
   // MetaspaceClosure can be viewed as a very simple type of copying garbage
@@ -360,31 +352,6 @@ public:
   }
 #endif
 
-  template <class T> void push_method_entry(T** mpp, intptr_t* p) {
-    Ref* ref = new MSORef<T>(mpp, _default);
-    push_special(_method_entry_ref, ref, p);
-    if (!ref->keep_after_pushing()) {
-      delete ref;
-    }
-  }
-
-  template <class T> void push_internal_pointer(T** mpp, intptr_t* p) {
-    Ref* ref = new MSORef<T>(mpp, _default);
-    push_special(_internal_pointer_ref, ref, p);
-    if (!ref->keep_after_pushing()) {
-      delete ref;
-    }
-  }
-
-  // This is for tagging special pointers that are not a reference to MetaspaceObj. It's currently
-  // used to mark the method entry points in Method/ConstMethod.
-  virtual void push_special(SpecialRef type, Ref* obj, intptr_t* p) {
-    assert_valid(type);
-  }
-
-  static void assert_valid(SpecialRef type) {
-    assert(type == _method_entry_ref || type == _internal_pointer_ref, "only special types allowed for now");
-  }
 };
 
 // This is a special MetaspaceClosure that visits each unique MetaspaceObj once.

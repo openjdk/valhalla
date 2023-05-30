@@ -74,6 +74,8 @@ public @interface PreviewFeature {
         FOREIGN,
         @JEP(number=8277163, title="Value Objects")
         VALUE_OBJECTS,
+        @JEP(number=430, title="String Templates", status="First Preview")
+        STRING_TEMPLATES,
         /**
          * A key for testing.
          */

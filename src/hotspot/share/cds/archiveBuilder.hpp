@@ -122,28 +122,6 @@ public:
   };
 
 private:
-  class SpecialRefInfo {
-    // We have a "special pointer" of the given _type at _field_offset of _src_obj.
-    // See MetaspaceClosure::push_special().
-    MetaspaceClosure::SpecialRef _type;
-    address _src_obj;
-    size_t _field_offset;
-    DEBUG_ONLY(size_t _src_obj_size_in_bytes;)
-
-  public:
-    SpecialRefInfo() {}
-    SpecialRefInfo(MetaspaceClosure::SpecialRef type, address src_obj, size_t field_offset, size_t src_obj_size_in_bytes)
-      : _type(type), _src_obj(src_obj), _field_offset(field_offset) {
-      DEBUG_ONLY(_src_obj_size_in_bytes = src_obj_size_in_bytes);
-    }
-
-    MetaspaceClosure::SpecialRef type() const { return _type;         }
-    address src_obj()                   const { return _src_obj;      }
-    size_t field_offset()               const { return _field_offset; }
-
-    DEBUG_ONLY(size_t src_obj_size_in_bytes() const { return _src_obj_size_in_bytes; })
-  };
-
   class SourceObjInfo {
     MetaspaceClosure::Ref* _ref; // The object that's copied into the buffer
     uintx _ptrmap_start;     // The bit-offset of the start of this object (inclusive)
@@ -235,7 +213,6 @@ private:
   ResizeableResourceHashtable<address, address, AnyObj::C_HEAP, mtClassShared> _buffered_to_src_table;
   GrowableArray<Klass*>* _klasses;
   GrowableArray<Symbol*>* _symbols;
-  GrowableArray<SpecialRefInfo>* _special_refs;
 
   // statistics
   DumpAllocStats _alloc_stats;
@@ -273,7 +250,6 @@ private:
   void make_shallow_copies(DumpRegion *dump_region, const SourceObjList* src_objs);
   void make_shallow_copy(DumpRegion *dump_region, SourceObjInfo* src_info);
 
-  void update_special_refs();
   void relocate_embedded_pointers(SourceObjList* src_objs);
 
   bool is_excluded(Klass* k);
@@ -362,9 +338,6 @@ public:
   void gather_source_objs();
   bool gather_klass_and_symbol(MetaspaceClosure::Ref* ref, bool read_only);
   bool gather_one_source_obj(MetaspaceClosure::Ref* enclosing_ref, MetaspaceClosure::Ref* ref, bool read_only);
-  void add_special_ref(MetaspaceClosure::SpecialRef type, address src_obj, size_t field_offset, size_t src_obj_size_in_bytes) {
-    _special_refs->append(SpecialRefInfo(type, src_obj, field_offset, src_obj_size_in_bytes));
-  }
   void remember_embedded_pointer_in_copied_obj(MetaspaceClosure::Ref* enclosing_ref, MetaspaceClosure::Ref* ref);
 
   DumpRegion* rw_region() { return &_rw_region; }
