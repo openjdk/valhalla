@@ -71,6 +71,7 @@ class NativeNMethodBarrier {
   int*     _guard_addr;
   nmethod* _nm;
 
+public:
   address instruction_address() const { return _instruction_address; }
 
   int *guard_addr() {
@@ -82,7 +83,6 @@ class NativeNMethodBarrier {
     return (-entry_barrier_offset(nm)) - 4;
   }
 
-public:
   NativeNMethodBarrier(nmethod* nm, address alt_entry_instruction_address = 0): _nm(nm) {
 #if INCLUDE_JVMCI
     if (nm->is_compiled_by_jvmci()) {
@@ -191,7 +191,7 @@ void BarrierSetNMethod::deoptimize(nmethod* nm, address* return_address_ptr) {
 }
 
 static void set_value(nmethod* nm, jint val) {
-  NativeNMethodBarrier cmp1 = native_nmethod_barrier(nm);
+  NativeNMethodBarrier cmp1 = NativeNMethodBarrier(nm);
   cmp1.set_value(val);
 
   if (!nm->is_osr_method() && nm->method()->has_scalarized_args()) {
