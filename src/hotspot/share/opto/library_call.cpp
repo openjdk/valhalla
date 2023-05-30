@@ -2351,7 +2351,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
         ciField* field = vk->get_non_flattened_field_by_offset(off);
         if (field != nullptr) {
-          BasicType bt = field->layout_type();
+          BasicType bt = type2field[field->type()->basic_type()];
           if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flattened())) {
             bt = T_OBJECT;
           }
@@ -2439,7 +2439,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       field = k->get_non_flattened_field_by_offset(off);
     }
     if (field != nullptr) {
-      bt = field->layout_type();
+      bt = type2field[field->type()->basic_type()];
     }
     assert(bt == alias_type->basic_type() || bt == T_PRIMITIVE_OBJECT, "should match");
     if (field != nullptr && bt == T_PRIMITIVE_OBJECT && !field->is_flattened()) {
