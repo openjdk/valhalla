@@ -78,11 +78,13 @@ public:
     static oop oop_atomic_xchg_in_heap_at(oop base, ptrdiff_t offset, oop new_value);
 
     template <typename T>
-    static bool oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+    static void oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
                                       arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                       size_t length);
 
     static void clone_in_heap(oop src, oop dst, size_t size);
+
+    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md);
 
     //
     // Not in heap

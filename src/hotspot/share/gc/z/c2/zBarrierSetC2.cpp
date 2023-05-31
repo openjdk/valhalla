@@ -942,7 +942,7 @@ void ZBarrierSetC2::compute_liveness_at_stubs() const {
   }
 }
 
-void ZBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
+void ZBarrierSetC2::eliminate_gc_barrier(PhaseIterGVN* igvn, Node* node) const {
   eliminate_gc_barrier_data(node);
 }
 
