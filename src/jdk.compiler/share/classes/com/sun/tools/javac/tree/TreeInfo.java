@@ -665,10 +665,6 @@ public class TreeInfo {
                 return getEndPos(((JCWhileLoop) tree).body, endPosTable);
             case ANNOTATED_TYPE:
                 return getEndPos(((JCAnnotatedType) tree).underlyingType, endPosTable);
-            case PARENTHESIZEDPATTERN: {
-                JCParenthesizedPattern node = (JCParenthesizedPattern) tree;
-                return getEndPos(node.pattern, endPosTable);
-            }
             case ERRONEOUS: {
                 JCErroneous node = (JCErroneous)tree;
                 if (node.errs != null && node.errs.nonEmpty())
@@ -870,15 +866,6 @@ public class TreeInfo {
             return skipParens((JCParens)tree);
         else
             return tree;
-    }
-
-    /** Skip parens and return the enclosed expression
-     */
-    public static JCPattern skipParens(JCPattern tree) {
-        while (tree.hasTag(PARENTHESIZEDPATTERN)) {
-            tree = ((JCParenthesizedPattern) tree).pattern;
-        }
-        return tree;
     }
 
     /** Return the types of a list of trees.
@@ -1375,8 +1362,8 @@ public class TreeInfo {
     public static Type primaryPatternType(JCTree pat) {
         return switch (pat.getTag()) {
             case BINDINGPATTERN -> pat.type;
-            case PARENTHESIZEDPATTERN -> primaryPatternType(((JCParenthesizedPattern) pat).pattern);
             case RECORDPATTERN -> ((JCRecordPattern) pat).type;
+            case ANYPATTERN -> ((JCAnyPattern) pat).type;
             default -> throw new AssertionError();
         };
     }
@@ -1384,7 +1371,6 @@ public class TreeInfo {
     public static JCTree primaryPatternTypeTree(JCTree pat) {
         return switch (pat.getTag()) {
             case BINDINGPATTERN -> ((JCBindingPattern) pat).var.vartype;
-            case PARENTHESIZEDPATTERN -> primaryPatternTypeTree(((JCParenthesizedPattern) pat).pattern);
             case RECORDPATTERN -> ((JCRecordPattern) pat).deconstructor;
             default -> throw new AssertionError();
         };
@@ -1397,11 +1383,8 @@ public class TreeInfo {
                          .anyMatch(l -> TreeInfo.isNullCaseLabel(l));
     }
 
-    public static boolean unguardedCaseLabel(JCCaseLabel cse) {
-        if (!cse.hasTag(PATTERNCASELABEL)) {
-            return true;
-        }
-        JCExpression guard = ((JCPatternCaseLabel) cse).guard;
+    public static boolean unguardedCase(JCCase cse) {
+        JCExpression guard = cse.guard;
         if (guard == null) {
             return true;
         }

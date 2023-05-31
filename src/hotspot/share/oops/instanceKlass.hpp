@@ -275,6 +275,7 @@ class InstanceKlass: public Klass {
 #endif
 
   NOT_PRODUCT(int _verify_count;)  // to avoid redundant verifies
+  NOT_PRODUCT(volatile int _shared_class_load_count;) // ensure a shared class is loaded only once
 
   // Method array.
   Array<Method*>* _methods;
@@ -608,7 +609,7 @@ public:
   u2 this_class_index() const             { return _this_class_index; }
   void set_this_class_index(u2 index)     { _this_class_index = index; }
 
-  static ByteSize reference_type_offset() { return in_ByteSize(offset_of(InstanceKlass, _reference_type)); }
+  static ByteSize reference_type_offset() { return byte_offset_of(InstanceKlass, _reference_type); }
 
   // find local field, returns true if found
   bool find_local_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const;
@@ -927,9 +928,9 @@ public:
 #endif
 
   // support for stub routines
-  static ByteSize init_state_offset()  { return in_ByteSize(offset_of(InstanceKlass, _init_state)); }
+  static ByteSize init_state_offset()  { return byte_offset_of(InstanceKlass, _init_state); }
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
-  static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
+  static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
   static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
   static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }

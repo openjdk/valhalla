@@ -119,7 +119,6 @@ JAVADOC_OPTIONS := -XDignore.symbol.file=true -use -keywords -notimestamp \
 # development cycle.
 REFERENCE_OPTIONS := -XDignore.symbol.file=true -use -keywords -notimestamp \
     -encoding ISO-8859-1 -breakiterator -splitIndex --system none \
-    --enable-preview -source $(JDK_SOURCE_TARGET_VERSION) \
     -html5 -javafx --expand-requires transitive \
     --no-external-specs-page
 

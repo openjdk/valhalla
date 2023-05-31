@@ -429,8 +429,8 @@ class CompileReplay : public StackObj {
         pool_index = cp->resolved_indy_entry_at(index)->constant_pool_index();
       } else if (bytecode.is_invokehandle()) {
 #ifdef ASSERT
-        Klass* holder = cp->klass_ref_at(index, CHECK_NULL);
-        Symbol* name = cp->name_ref_at(index);
+        Klass* holder = cp->klass_ref_at(index, bytecode.code(), CHECK_NULL);
+        Symbol* name = cp->name_ref_at(index, bytecode.code());
         assert(MethodHandles::is_signature_polymorphic_name(holder, name), "");
 #endif
         cp_cache_entry = cp->cache()->entry_at(cp->decode_cpcache_index(index));
@@ -1155,10 +1155,12 @@ class CompileReplay : public StackObj {
         } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
                    field_signature[1] == JVM_SIGNATURE_CLASS) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
+          parse_klass(CHECK_(true)); // eat up the array class name
           value = oopFactory::new_objArray(kelem, length, CHECK_(true));
         } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
                    field_signature[1] == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
+          parse_klass(CHECK_(true)); // eat up the array class name
           value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
         } else {
           report_error("unhandled array staticfield");
