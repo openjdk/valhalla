@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,6 +97,7 @@ class LIR_Assembler: public CompilationResourceObj {
     return compilation()->needs_stack_repair();
   }
 
+ public:
   // addresses
   Address as_Address(LIR_Address* addr);
   Address as_Address_lo(LIR_Address* addr);
@@ -110,6 +111,7 @@ class LIR_Assembler: public CompilationResourceObj {
   ImplicitNullCheckStub* add_debug_info_for_null_check(int pc_offset, CodeEmitInfo* cinfo);
   ImplicitNullCheckStub* add_debug_info_for_null_check_here(CodeEmitInfo* info);
 
+ private:
   void breakpoint();
   void push(LIR_Opr opr);
   void pop(LIR_Opr opr);
