@@ -508,7 +508,7 @@ void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   InstanceKlass::metaspace_pointers_do(it);
 
   InlineKlass* this_ptr = this;
-  it->push_internal_pointer(&this_ptr, (intptr_t*)&_adr_inlineklass_fixed_block);
+  // TODO: _adr_inlineklass_fixed_block ?
   it->push((Klass**)adr_value_array_klasses());
 }
 

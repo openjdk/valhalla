@@ -329,6 +329,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   LIR_Opr scratch = LIR_OprFact::illegalOpr;
   if (EnableValhalla && x->maybe_inlinetype()) {
     scratch = new_register(T_INT);
+    assert(LockingMode != LM_LIGHTWEIGHT, "LM_LIGHTWEIGHT not yet compatible with EnableValhalla");
   }
 
   CodeEmitInfo* info_for_exception = nullptr;

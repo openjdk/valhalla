@@ -631,35 +631,29 @@ void SharedRuntime::throw_and_post_jvmti_exception(JavaThread* current, Symbol* 
 }
 
 #if INCLUDE_JVMTI
-JRT_ENTRY(void, SharedRuntime::notify_jvmti_object_alloc(oopDesc* o, JavaThread* current))
-  Handle h = Handle(current, o);
-  if (JvmtiExport::should_post_vm_object_alloc()) {
-    JvmtiExport::post_vm_object_alloc(current, o);
-  }
-  current->set_vm_result(h());
-JRT_END
-
-JRT_ENTRY(void, SharedRuntime::notify_jvmti_mount(oopDesc* vt, jboolean hide, jboolean first_mount, JavaThread* current))
+JRT_ENTRY(void, SharedRuntime::notify_jvmti_vthread_start(oopDesc* vt, jboolean hide, JavaThread* current))
+  assert(hide == JNI_FALSE, "must be VTMS transition finish");
   jobject vthread = JNIHandles::make_local(const_cast<oopDesc*>(vt));
-
-  if (hide) {
-    JvmtiVTMSTransitionDisabler::VTMS_mount_begin(vthread, first_mount);
-  } else {
-    JvmtiVTMSTransitionDisabler::VTMS_mount_end(vthread, first_mount);
-  }
-
+  JvmtiVTMSTransitionDisabler::VTMS_vthread_start(vthread);
   JNIHandles::destroy_local(vthread);
 JRT_END
 
-JRT_ENTRY(void, SharedRuntime::notify_jvmti_unmount(oopDesc* vt, jboolean hide, jboolean last_unmount, JavaThread* current))
+JRT_ENTRY(void, SharedRuntime::notify_jvmti_vthread_end(oopDesc* vt, jboolean hide, JavaThread* current))
+  assert(hide == JNI_TRUE, "must be VTMS transition start");
   jobject vthread = JNIHandles::make_local(const_cast<oopDesc*>(vt));
+  JvmtiVTMSTransitionDisabler::VTMS_vthread_end(vthread);
+  JNIHandles::destroy_local(vthread);
+JRT_END
 
-  if (hide) {
-    JvmtiVTMSTransitionDisabler::VTMS_unmount_begin(vthread, last_unmount);
-  } else {
-    JvmtiVTMSTransitionDisabler::VTMS_unmount_end(vthread, last_unmount);
-  }
+JRT_ENTRY(void, SharedRuntime::notify_jvmti_vthread_mount(oopDesc* vt, jboolean hide, JavaThread* current))
+  jobject vthread = JNIHandles::make_local(const_cast<oopDesc*>(vt));
+  JvmtiVTMSTransitionDisabler::VTMS_vthread_mount(vthread, hide);
+  JNIHandles::destroy_local(vthread);
+JRT_END
 
+JRT_ENTRY(void, SharedRuntime::notify_jvmti_vthread_unmount(oopDesc* vt, jboolean hide, JavaThread* current))
+  jobject vthread = JNIHandles::make_local(const_cast<oopDesc*>(vt));
+  JvmtiVTMSTransitionDisabler::VTMS_vthread_unmount(vthread, hide);
   JNIHandles::destroy_local(vthread);
 JRT_END
 #endif // INCLUDE_JVMTI
@@ -1264,7 +1258,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
     } else {
       // Klass is already loaded.
       constantPoolHandle constants(current, caller->constants());
-      rk = constants->klass_ref_at(bytecode_index, CHECK_NH);
+      rk = constants->klass_ref_at(bytecode_index, bc, CHECK_NH);
     }
     Klass* static_receiver_klass = rk;
     assert(receiver_klass->is_subtype_of(static_receiver_klass),
@@ -3079,7 +3073,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
               for (int i = 0; i < supers->length(); ++i) {
                 Method* super_method = supers->at(i);
                 if (super_method->is_scalarized_arg(arg_num) debug_only(|| (stress && (os::random() & 1) == 1))) {
-                  super_method->set_mismatch(true);
+                  super_method->set_mismatch();
                   MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
                   JavaThread* thread = JavaThread::current();
                   HandleMark hm(thread);
@@ -3173,9 +3167,13 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   CompiledEntrySignature ces(method());
   ces.compute_calling_conventions();
   if (ces.has_scalarized_args()) {
-    method->set_has_scalarized_args(true);
-    method->set_c1_needs_stack_repair(ces.c1_needs_stack_repair());
-    method->set_c2_needs_stack_repair(ces.c2_needs_stack_repair());
+    method->set_has_scalarized_args();
+    if (ces.c1_needs_stack_repair()) {
+      method->set_c1_needs_stack_repair();
+    }
+    if (ces.c2_needs_stack_repair()) {
+      method->set_c2_needs_stack_repair();
+    }
   } else if (method->is_abstract()) {
     return _abstract_method_handler;
   }

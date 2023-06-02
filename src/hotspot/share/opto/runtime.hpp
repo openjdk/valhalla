@@ -137,9 +137,10 @@ class OptoRuntime : public AllStatic {
   static address _register_finalizer_Java;
   static address _load_unknown_inline;
 #if INCLUDE_JVMTI
-  static address _notify_jvmti_object_alloc;
-  static address _notify_jvmti_mount;
-  static address _notify_jvmti_unmount;
+  static address _notify_jvmti_vthread_start;
+  static address _notify_jvmti_vthread_end;
+  static address _notify_jvmti_vthread_mount;
+  static address _notify_jvmti_vthread_unmount;
 #endif
 
   //
@@ -216,9 +217,10 @@ private:
   static address register_finalizer_Java()               { return _register_finalizer_Java; }
   static address load_unknown_inline_Java()              { return _load_unknown_inline; }
 #if INCLUDE_JVMTI
-  static address notify_jvmti_object_alloc()             { return _notify_jvmti_object_alloc; }
-  static address notify_jvmti_mount()                    { return _notify_jvmti_mount; }
-  static address notify_jvmti_unmount()                  { return _notify_jvmti_unmount; }
+  static address notify_jvmti_vthread_start()            { return _notify_jvmti_vthread_start; }
+  static address notify_jvmti_vthread_end()              { return _notify_jvmti_vthread_end; }
+  static address notify_jvmti_vthread_mount()            { return _notify_jvmti_vthread_mount; }
+  static address notify_jvmti_vthread_unmount()          { return _notify_jvmti_vthread_unmount; }
 #endif
 
   static ExceptionBlob*    exception_blob()                      { return _exception_blob; }
@@ -307,8 +309,7 @@ private:
 
   JFR_ONLY(static const TypeFunc* class_id_load_barrier_Type();)
 #if INCLUDE_JVMTI
-  static const TypeFunc* notify_jvmti_object_alloc_Type();
-  static const TypeFunc* notify_jvmti_Type();
+  static const TypeFunc* notify_jvmti_vthread_Type();
 #endif
 
   // Dtrace support

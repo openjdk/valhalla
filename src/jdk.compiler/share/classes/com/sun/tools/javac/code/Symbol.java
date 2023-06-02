@@ -1688,6 +1688,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
     /** A class for variable symbols
      */
+    @SuppressWarnings("preview")
     public static class VarSymbol extends Symbol implements VariableElement {
 
         /** The variable's declaration position.
@@ -1829,6 +1830,10 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         public <R, P> R accept(Symbol.Visitor<R, P> v, P p) {
             return v.visitVarSymbol(this, p);
+        }
+
+        public boolean isUnnamedVariable() {
+            return name.isEmpty();
         }
     }
 
