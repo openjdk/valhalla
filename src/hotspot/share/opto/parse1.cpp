@@ -515,7 +515,9 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     _entry_bci = C->entry_bci();
     _flow = method()->get_osr_flow_analysis(osr_bci());
     if (_flow->failing()) {
-      assert(false, "type flow analysis failed for OSR compilation");
+      // TODO Adding a trap due to an unloaded return type in ciTypeFlow::StateVector::do_invoke
+      // can lead to this. Re-enable once 8284443 is fixed.
+      // assert(false, "type flow analysis failed for OSR compilation");
       C->record_method_not_compilable(_flow->failure_reason());
 #ifndef PRODUCT
       if (PrintOpto && (Verbose || WizardMode)) {
