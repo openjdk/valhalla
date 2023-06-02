@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2571,7 +2571,17 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           n = n->in(1);
         }
         const Type* t = phase->type(n);
-        if (n->is_InlineType() && (vk == NULL || vk == t->inline_klass())) {
+        // FIXME: Skipping pushing VectorBox across Phi
+        // since they are special type of InlineTypeNode
+        // carrying VBA as oop fields.
+        // We have a seperate handling for pushing VectorBoxes
+        // across PhiNodes in merge_through_phi.
+        // In long run we should eliminate VectorBox which is
+        // just a light weight wrapper of InlineTypeNode.
+        // Only reason to keep VectorBox was to defer buffering
+        // to a later stage and associate VBA which carry
+        // JVM state to reinitialize GraphKit before buffering.
+        if (n->is_InlineType() && !n->is_VectorBox() && (vk == NULL || vk == t->inline_klass())) {
           vk = (vk == NULL) ? t->inline_klass() : vk;
           if (phase->find_int_con(n->as_InlineType()->get_is_init(), 0) != 1) {
             is_init = false;

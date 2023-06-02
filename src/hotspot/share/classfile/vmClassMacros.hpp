@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -193,6 +193,16 @@
                                                                                                                 \
   /* support multi-field based vectors */                                                                       \
   do_klass(vector_VectorPayloadMF_klass,                jdk_internal_vm_vector_VectorPayloadMF                ) \
+  do_klass(vector_VectorPayloadMF8Z_klass,              jdk_internal_vm_vector_VectorPayloadMF8Z              ) \
+  do_klass(vector_VectorPayloadMF16Z_klass,             jdk_internal_vm_vector_VectorPayloadMF16Z             ) \
+  do_klass(vector_VectorPayloadMF32Z_klass,             jdk_internal_vm_vector_VectorPayloadMF32Z             ) \
+  do_klass(vector_VectorPayloadMF64Z_klass,             jdk_internal_vm_vector_VectorPayloadMF64Z             ) \
+  do_klass(vector_VectorPayloadMF128Z_klass,            jdk_internal_vm_vector_VectorPayloadMF128Z            ) \
+  do_klass(vector_VectorPayloadMF256Z_klass,            jdk_internal_vm_vector_VectorPayloadMF256Z            ) \
+  do_klass(vector_VectorPayloadMF512Z_klass,            jdk_internal_vm_vector_VectorPayloadMF512Z            ) \
+  do_klass(vector_VectorPayloadMF8B_klass,              jdk_internal_vm_vector_VectorPayloadMF8B              ) \
+  do_klass(vector_VectorPayloadMF16B_klass,             jdk_internal_vm_vector_VectorPayloadMF16B             ) \
+  do_klass(vector_VectorPayloadMF32B_klass,             jdk_internal_vm_vector_VectorPayloadMF32B             ) \
   do_klass(vector_VectorPayloadMF64B_klass,             jdk_internal_vm_vector_VectorPayloadMF64B             ) \
   do_klass(vector_VectorPayloadMF128B_klass,            jdk_internal_vm_vector_VectorPayloadMF128B            ) \
   do_klass(vector_VectorPayloadMF256B_klass,            jdk_internal_vm_vector_VectorPayloadMF256B            ) \

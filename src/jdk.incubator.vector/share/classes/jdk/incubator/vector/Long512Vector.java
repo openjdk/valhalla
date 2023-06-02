@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,20 +60,17 @@ value class Long512Vector extends LongVector {
     private final VectorPayloadMF512L payload;
 
     Long512Vector(Object value) {
-        this.payload = (VectorPayloadMF512L)value;
+        this.payload = (VectorPayloadMF512L) value;
     }
 
-    VectorPayloadMF vec_mf() {
+    @ForceInline
+    @Override
+    final VectorPayloadMF vec() {
         return payload;
     }
 
-    @Override
-    protected final Object getPayload() {
-       return vec_mf();
-    }
-
-    static final Long512Vector ZERO = new Long512Vector(VectorPayloadMF.createVectPayloadInstance(long.class, 8));
-    static final Long512Vector IOTA = new Long512Vector(VectorPayloadMF.createVectPayloadInstanceL(8, (long [])(VSPECIES.iotaArray())));
+    static final Long512Vector ZERO = new Long512Vector(VectorPayloadMF.newInstanceFactory(long.class, 8));
+    static final Long512Vector IOTA = new Long512Vector(VectorPayloadMF.createVectPayloadInstanceL(8, (long[])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
@@ -122,15 +119,6 @@ value class Long512Vector extends LongVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    long[] vec() {
-        return (long[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Long512Vector broadcast(long e) {
@@ -140,8 +128,8 @@ value class Long512Vector extends LongVector {
 
     @Override
     @ForceInline
-    Long512Mask maskFromArray(boolean[] bits) {
-        return new Long512Mask(bits);
+    Long512Mask maskFromPayload(VectorPayloadMF payload) {
+        return new Long512Mask(payload);
     }
 
     @Override
@@ -161,7 +149,7 @@ value class Long512Vector extends LongVector {
 
     @Override
     @ForceInline
-    Long512Shuffle shuffleFromBytes(byte[] reorder) { return new Long512Shuffle(reorder); }
+    Long512Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Long512Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -170,13 +158,6 @@ value class Long512Vector extends LongVector {
     @Override
     @ForceInline
     Long512Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Long512Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Long512Vector vectorFactory(long[] vec) {
-        return new Long512Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -537,7 +518,7 @@ value class Long512Vector extends LongVector {
                              VCLASS, ETYPE, VLENGTH,
                              this, i,
                              (vec, ix) -> {
-                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 VectorPayloadMF vecpayload = vec.vec();
                                  long start_offset = vecpayload.multiFieldOffset();
                                  return (long)Unsafe.getUnsafe().getLong(vecpayload, start_offset + ix * Long.BYTES);
                              });
@@ -564,7 +545,7 @@ value class Long512Vector extends LongVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putLong(tpayload, start_offset + ix * Long.BYTES, (long)bits);
@@ -575,34 +556,22 @@ value class Long512Vector extends LongVector {
 
     // Mask
 
-    static final class Long512Mask extends AbstractMask<Long> {
+    static final value class Long512Mask extends AbstractMask<Long> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Long> ETYPE = long.class; // used by the JVM
 
-        Long512Mask(boolean[] bits) {
-            this(bits, 0);
+        private final VectorPayloadMF64Z payload;
+
+        Long512Mask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF64Z) payload;
         }
 
-        Long512Mask(boolean[] bits, int offset) {
-            super(prepare(bits, offset));
+        Long512Mask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VLENGTH));
         }
 
         Long512Mask(boolean val) {
-            super(prepare(val));
-        }
-
-        private static boolean[] prepare(boolean[] bits, int offset) {
-            boolean[] newBits = new boolean[VSPECIES.laneCount()];
-            for (int i = 0; i < newBits.length; i++) {
-                newBits[i] = bits[offset + i];
-            }
-            return newBits;
-        }
-
-        private static boolean[] prepare(boolean val) {
-            boolean[] bits = new boolean[VSPECIES.laneCount()];
-            Arrays.fill(bits, val);
-            return bits;
+            this(prepare(val, VLENGTH));
         }
 
         @ForceInline
@@ -615,29 +584,9 @@ value class Long512Vector extends LongVector {
         }
 
         @ForceInline
-        boolean[] getBits() {
-            return (boolean[])getPayload();
-        }
-
         @Override
-        Long512Mask uOp(MUnOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i]);
-            }
-            return new Long512Mask(res);
-        }
-
-        @Override
-        Long512Mask bOp(VectorMask<Long> m, MBinOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            boolean[] mbits = ((Long512Mask)m).getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i], mbits[i]);
-            }
-            return new Long512Mask(res);
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -645,33 +594,6 @@ value class Long512Vector extends LongVector {
         public final
         Long512Vector toVector() {
             return (Long512Vector) super.toVectorTemplate();  // specialize
-        }
-
-        /**
-         * Helper function for lane-wise mask conversions.
-         * This function kicks in after intrinsic failure.
-         */
-        @ForceInline
-        private final <E>
-        VectorMask<E> defaultMaskCast(AbstractSpecies<E> dsp) {
-            if (length() != dsp.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-            boolean[] maskArray = toArray();
-            return  dsp.maskFactory(maskArray).check(dsp);
-        }
-
-        @Override
-        @ForceInline
-        public <E> VectorMask<E> cast(VectorSpecies<E> dsp) {
-            AbstractSpecies<E> species = (AbstractSpecies<E>) dsp;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-
-            return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                this.getClass(), ETYPE, VLENGTH,
-                species.maskType(), species.elementType(), VLENGTH,
-                this, species,
-                (m, s) -> s.maskFactory(m.toArray()).check(s));
         }
 
         @Override
@@ -693,7 +615,7 @@ value class Long512Vector extends LongVector {
         @Override
         @ForceInline
         public Long512Mask compress() {
-            return (Long512Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Long512Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Long512Vector.class, Long512Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -706,9 +628,9 @@ value class Long512Vector extends LongVector {
         public Long512Mask and(VectorMask<Long> mask) {
             Objects.requireNonNull(mask);
             Long512Mask m = (Long512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Long512Mask.class, null, long.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a & b));
+            return VectorSupport.binaryOp(VECTOR_OP_AND, Long512Mask.class, null,
+                                          long.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Long512Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -716,9 +638,9 @@ value class Long512Vector extends LongVector {
         public Long512Mask or(VectorMask<Long> mask) {
             Objects.requireNonNull(mask);
             Long512Mask m = (Long512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Long512Mask.class, null, long.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a | b));
+            return VectorSupport.binaryOp(VECTOR_OP_OR, Long512Mask.class, null,
+                                          long.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Long512Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -726,9 +648,9 @@ value class Long512Vector extends LongVector {
         Long512Mask xor(VectorMask<Long> mask) {
             Objects.requireNonNull(mask);
             Long512Mask m = (Long512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Long512Mask.class, null, long.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a ^ b));
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, Long512Mask.class, null,
+                                          long.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Long512Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -737,21 +659,21 @@ value class Long512Vector extends LongVector {
         @ForceInline
         public int trueCount() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Long512Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> trueCountHelper(m.getBits()));
+                                                            (m) -> ((Long512Mask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Long512Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> firstTrueHelper(m.getBits()));
+                                                            (m) -> ((Long512Mask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Long512Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> lastTrueHelper(m.getBits()));
+                                                            (m) -> ((Long512Mask) m).lastTrueHelper());
         }
 
         @Override
@@ -761,7 +683,7 @@ value class Long512Vector extends LongVector {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
             return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Long512Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> toLongHelper(m.getBits()));
+                                                      (m) -> ((Long512Mask) m).toLongHelper());
         }
 
         // Reductions
@@ -771,7 +693,7 @@ value class Long512Vector extends LongVector {
         public boolean anyTrue() {
             return VectorSupport.test(BT_ne, Long512Mask.class, long.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> anyTrueHelper(((Long512Mask)m).getBits()));
+                                         (m, __) -> ((Long512Mask) m).anyTrueHelper());
         }
 
         @Override
@@ -779,7 +701,7 @@ value class Long512Vector extends LongVector {
         public boolean allTrue() {
             return VectorSupport.test(BT_overflow, Long512Mask.class, long.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> allTrueHelper(((Long512Mask)m).getBits()));
+                                         (m, __) -> ((Long512Mask) m).allTrueHelper());
         }
 
         @ForceInline
@@ -796,24 +718,34 @@ value class Long512Vector extends LongVector {
 
     // Shuffle
 
-    static final class Long512Shuffle extends AbstractShuffle<Long> {
+    static final value class Long512Shuffle extends AbstractShuffle<Long> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Long> ETYPE = long.class; // used by the JVM
 
-        Long512Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF64B payload;
+
+        Long512Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF64B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Long512Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Long512Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Long512Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -850,13 +782,17 @@ value class Long512Vector extends LongVector {
         @Override
         public Long512Shuffle rearrange(VectorShuffle<Long> shuffle) {
             Long512Shuffle s = (Long512Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Long512Shuffle(r);
         }
     }

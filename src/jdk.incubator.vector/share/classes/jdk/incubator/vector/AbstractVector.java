@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.nio.ByteOrder;
 import java.util.function.IntUnaryOperator;
 
 import static jdk.incubator.vector.VectorOperators.*;
+import static jdk.internal.vm.vector.VectorSupport.*;
 
 @SuppressWarnings({"cast", "missing-explicit-ctor"})
 abstract class AbstractVector<E> extends Vector<E> {
@@ -69,6 +70,9 @@ abstract class AbstractVector<E> extends Vector<E> {
     static final int OFFSET_OUT_OF_RANGE = 0;
 
     // Extractors
+
+    /*package-private*/
+    abstract VectorPayloadMF vec();
 
     /*package-private*/
     abstract AbstractSpecies<E> vspecies();
@@ -183,15 +187,14 @@ abstract class AbstractVector<E> extends Vector<E> {
         return (ByteVector) asVectorRawTemplate(LaneType.BYTE);
     }
 
-
-    abstract AbstractMask<E> maskFromArray(boolean[] bits);
+    abstract AbstractMask<E> maskFromPayload(VectorPayloadMF payload);
 
     abstract AbstractShuffle<E> iotaShuffle();
 
     abstract AbstractShuffle<E> iotaShuffle(int start, int step, boolean wrap);
 
     /*do not alias this byte array*/
-    abstract AbstractShuffle<E> shuffleFromBytes(byte[] reorder);
+    abstract AbstractShuffle<E> shuffleFromBytes(VectorPayloadMF reorder);
 
     abstract AbstractShuffle<E> shuffleFromArray(int[] indexes, int i);
 

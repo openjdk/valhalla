@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,20 +60,17 @@ value class Short512Vector extends ShortVector {
     private final VectorPayloadMF512S payload;
 
     Short512Vector(Object value) {
-        this.payload = (VectorPayloadMF512S)value;
+        this.payload = (VectorPayloadMF512S) value;
     }
 
-    VectorPayloadMF vec_mf() {
+    @ForceInline
+    @Override
+    final VectorPayloadMF vec() {
         return payload;
     }
 
-    @Override
-    protected final Object getPayload() {
-       return vec_mf();
-    }
-
-    static final Short512Vector ZERO = new Short512Vector(VectorPayloadMF.createVectPayloadInstance(short.class, 32));
-    static final Short512Vector IOTA = new Short512Vector(VectorPayloadMF.createVectPayloadInstanceS(32, (short [])(VSPECIES.iotaArray())));
+    static final Short512Vector ZERO = new Short512Vector(VectorPayloadMF.newInstanceFactory(short.class, 32));
+    static final Short512Vector IOTA = new Short512Vector(VectorPayloadMF.createVectPayloadInstanceS(32, (short[])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
@@ -122,15 +119,6 @@ value class Short512Vector extends ShortVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    short[] vec() {
-        return (short[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Short512Vector broadcast(short e) {
@@ -145,8 +133,8 @@ value class Short512Vector extends ShortVector {
 
     @Override
     @ForceInline
-    Short512Mask maskFromArray(boolean[] bits) {
-        return new Short512Mask(bits);
+    Short512Mask maskFromPayload(VectorPayloadMF payload) {
+        return new Short512Mask(payload);
     }
 
     @Override
@@ -166,7 +154,7 @@ value class Short512Vector extends ShortVector {
 
     @Override
     @ForceInline
-    Short512Shuffle shuffleFromBytes(byte[] reorder) { return new Short512Shuffle(reorder); }
+    Short512Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Short512Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Short512Vector extends ShortVector {
     @Override
     @ForceInline
     Short512Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Short512Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Short512Vector vectorFactory(short[] vec) {
-        return new Short512Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -571,7 +552,7 @@ value class Short512Vector extends ShortVector {
                              VCLASS, ETYPE, VLENGTH,
                              this, i,
                              (vec, ix) -> {
-                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 VectorPayloadMF vecpayload = vec.vec();
                                  long start_offset = vecpayload.multiFieldOffset();
                                  return (long)Unsafe.getUnsafe().getShort(vecpayload, start_offset + ix * Short.BYTES);
                              });
@@ -622,7 +603,7 @@ value class Short512Vector extends ShortVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putShort(tpayload, start_offset + ix * Short.BYTES, (short)bits);
@@ -633,34 +614,22 @@ value class Short512Vector extends ShortVector {
 
     // Mask
 
-    static final class Short512Mask extends AbstractMask<Short> {
+    static final value class Short512Mask extends AbstractMask<Short> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
-        Short512Mask(boolean[] bits) {
-            this(bits, 0);
+        private final VectorPayloadMF256Z payload;
+
+        Short512Mask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF256Z) payload;
         }
 
-        Short512Mask(boolean[] bits, int offset) {
-            super(prepare(bits, offset));
+        Short512Mask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VLENGTH));
         }
 
         Short512Mask(boolean val) {
-            super(prepare(val));
-        }
-
-        private static boolean[] prepare(boolean[] bits, int offset) {
-            boolean[] newBits = new boolean[VSPECIES.laneCount()];
-            for (int i = 0; i < newBits.length; i++) {
-                newBits[i] = bits[offset + i];
-            }
-            return newBits;
-        }
-
-        private static boolean[] prepare(boolean val) {
-            boolean[] bits = new boolean[VSPECIES.laneCount()];
-            Arrays.fill(bits, val);
-            return bits;
+            this(prepare(val, VLENGTH));
         }
 
         @ForceInline
@@ -673,29 +642,9 @@ value class Short512Vector extends ShortVector {
         }
 
         @ForceInline
-        boolean[] getBits() {
-            return (boolean[])getPayload();
-        }
-
         @Override
-        Short512Mask uOp(MUnOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i]);
-            }
-            return new Short512Mask(res);
-        }
-
-        @Override
-        Short512Mask bOp(VectorMask<Short> m, MBinOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            boolean[] mbits = ((Short512Mask)m).getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i], mbits[i]);
-            }
-            return new Short512Mask(res);
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -703,33 +652,6 @@ value class Short512Vector extends ShortVector {
         public final
         Short512Vector toVector() {
             return (Short512Vector) super.toVectorTemplate();  // specialize
-        }
-
-        /**
-         * Helper function for lane-wise mask conversions.
-         * This function kicks in after intrinsic failure.
-         */
-        @ForceInline
-        private final <E>
-        VectorMask<E> defaultMaskCast(AbstractSpecies<E> dsp) {
-            if (length() != dsp.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-            boolean[] maskArray = toArray();
-            return  dsp.maskFactory(maskArray).check(dsp);
-        }
-
-        @Override
-        @ForceInline
-        public <E> VectorMask<E> cast(VectorSpecies<E> dsp) {
-            AbstractSpecies<E> species = (AbstractSpecies<E>) dsp;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-
-            return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                this.getClass(), ETYPE, VLENGTH,
-                species.maskType(), species.elementType(), VLENGTH,
-                this, species,
-                (m, s) -> s.maskFactory(m.toArray()).check(s));
         }
 
         @Override
@@ -751,7 +673,7 @@ value class Short512Vector extends ShortVector {
         @Override
         @ForceInline
         public Short512Mask compress() {
-            return (Short512Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Short512Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Short512Vector.class, Short512Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -764,9 +686,9 @@ value class Short512Vector extends ShortVector {
         public Short512Mask and(VectorMask<Short> mask) {
             Objects.requireNonNull(mask);
             Short512Mask m = (Short512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Short512Mask.class, null, short.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a & b));
+            return VectorSupport.binaryOp(VECTOR_OP_AND, Short512Mask.class, null,
+                                          short.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Short512Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -774,9 +696,9 @@ value class Short512Vector extends ShortVector {
         public Short512Mask or(VectorMask<Short> mask) {
             Objects.requireNonNull(mask);
             Short512Mask m = (Short512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Short512Mask.class, null, short.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a | b));
+            return VectorSupport.binaryOp(VECTOR_OP_OR, Short512Mask.class, null,
+                                          short.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Short512Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -784,9 +706,9 @@ value class Short512Vector extends ShortVector {
         Short512Mask xor(VectorMask<Short> mask) {
             Objects.requireNonNull(mask);
             Short512Mask m = (Short512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Short512Mask.class, null, short.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a ^ b));
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, Short512Mask.class, null,
+                                          short.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Short512Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -795,21 +717,21 @@ value class Short512Vector extends ShortVector {
         @ForceInline
         public int trueCount() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Short512Mask.class, short.class, VLENGTH, this,
-                                                      (m) -> trueCountHelper(m.getBits()));
+                                                            (m) -> ((Short512Mask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Short512Mask.class, short.class, VLENGTH, this,
-                                                      (m) -> firstTrueHelper(m.getBits()));
+                                                            (m) -> ((Short512Mask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Short512Mask.class, short.class, VLENGTH, this,
-                                                      (m) -> lastTrueHelper(m.getBits()));
+                                                            (m) -> ((Short512Mask) m).lastTrueHelper());
         }
 
         @Override
@@ -819,7 +741,7 @@ value class Short512Vector extends ShortVector {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
             return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Short512Mask.class, short.class, VLENGTH, this,
-                                                      (m) -> toLongHelper(m.getBits()));
+                                                      (m) -> ((Short512Mask) m).toLongHelper());
         }
 
         // Reductions
@@ -829,7 +751,7 @@ value class Short512Vector extends ShortVector {
         public boolean anyTrue() {
             return VectorSupport.test(BT_ne, Short512Mask.class, short.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> anyTrueHelper(((Short512Mask)m).getBits()));
+                                         (m, __) -> ((Short512Mask) m).anyTrueHelper());
         }
 
         @Override
@@ -837,7 +759,7 @@ value class Short512Vector extends ShortVector {
         public boolean allTrue() {
             return VectorSupport.test(BT_overflow, Short512Mask.class, short.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> allTrueHelper(((Short512Mask)m).getBits()));
+                                         (m, __) -> ((Short512Mask) m).allTrueHelper());
         }
 
         @ForceInline
@@ -854,24 +776,34 @@ value class Short512Vector extends ShortVector {
 
     // Shuffle
 
-    static final class Short512Shuffle extends AbstractShuffle<Short> {
+    static final value class Short512Shuffle extends AbstractShuffle<Short> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
-        Short512Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF256B payload;
+
+        Short512Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF256B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Short512Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Short512Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Short512Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -908,13 +840,17 @@ value class Short512Vector extends ShortVector {
         @Override
         public Short512Shuffle rearrange(VectorShuffle<Short> shuffle) {
             Short512Shuffle s = (Short512Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Short512Shuffle(r);
         }
     }

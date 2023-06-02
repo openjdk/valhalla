@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1489,6 +1489,7 @@ class VectorLoadMaskNode : public VectorNode {
 
   virtual int Opcode() const;
   virtual Node* Identity(PhaseGVN* phase);
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };
 
 class VectorStoreMaskNode : public VectorNode {
@@ -1688,8 +1689,6 @@ class VectorBoxNode : public InlineTypeNode {
                                       const TypeInstPtr* box_type, const TypeVect* vt) {
     ciInlineKlass* vk = static_cast<ciInlineKlass*>(box_type->inline_klass());
     ciInlineKlass* payload = vk->declared_nonstatic_field_at(0)->type()->as_inline_klass();
-
-    Node* payload_oop = payload->is_initialized() ? default_oop(gvn, payload) : gvn.zerocon(T_PRIMITIVE_OBJECT);
     Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, true);
     payload_value->as_InlineType()->set_field_value(0, val);
     payload_value = gvn.transform(payload_value);
@@ -1697,7 +1696,6 @@ class VectorBoxNode : public InlineTypeNode {
     VectorBoxNode* box_node = new VectorBoxNode(C, vk, box, box_type, vt, false, vk->is_empty() && vk->is_initialized());
     box_node->set_field_value(0, payload_value);
     box_node->set_is_init(gvn);
-
     return box_node;
   }
 
@@ -1732,14 +1730,11 @@ class VectorBoxAllocateNode : public CallStaticJavaNode {
 };
 
 class VectorUnboxNode : public VectorNode {
- private:
-  bool _shuffle_to_vector;
  protected:
   uint size_of() const { return sizeof(*this); }
  public:
-  VectorUnboxNode(Compile* C, const TypeVect* vec_type, Node* obj, Node* mem, bool shuffle_to_vector)
+  VectorUnboxNode(Compile* C, const TypeVect* vec_type, Node* obj, Node* mem)
     : VectorNode(mem, obj, vec_type) {
-    _shuffle_to_vector = shuffle_to_vector;
     init_class_id(Class_VectorUnbox);
     init_flags(Flag_is_macro);
     C->add_macro_node(this);
@@ -1749,8 +1744,6 @@ class VectorUnboxNode : public VectorNode {
   Node* obj() const { return in(2); }
   Node* mem() const { return in(1); }
   virtual Node* Identity(PhaseGVN* phase);
-  Node* Ideal(PhaseGVN* phase, bool can_reshape);
-  bool is_shuffle_to_vector() { return _shuffle_to_vector; }
 };
 
 class RotateRightVNode : public VectorNode {

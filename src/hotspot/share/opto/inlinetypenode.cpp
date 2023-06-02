@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -151,6 +151,7 @@ bool InlineTypeNode::has_phi_inputs(Node* region) {
 
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
 InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform) {
+  assert(this->Opcode() == other->Opcode(), "");
   _is_buffered = _is_buffered && other->_is_buffered;
   // Merge oop inputs
   PhiNode* phi = get_oop()->as_Phi();
@@ -408,6 +409,11 @@ const TypePtr* InlineTypeNode::field_adr_type(Node* base, int offset, ciInstance
 }
 
 void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
+  // FIXME: It is possible that "base" is a constant NULL_PTR, which is
+  // created by "gvn.zerocon(T_PRIMITIVE_OBJECT)". It has to do special
+  // handling for such cases.
+  assert(!kit->gvn().type(base)->maybe_null(), "the memory cannot be null");
+
   // Initialize the inline type by loading its field values from
   // memory and adding the values as input edges to the node.
   for (uint i = 0; i < field_count(); ++i) {
@@ -425,7 +431,7 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != NULL);
       bool mismatched = (decorators & C2_MISMATCHED) != 0;
-      if (base->is_Con() && !is_array && !mismatched) {
+      if (base->is_Con() && !is_array && !mismatched && ft->bundle_size() == 1) {
         // If the oop to the inline type is constant (static final field), we can
         // also treat the fields as constants because the inline type is immutable.
         ciObject* constant_oop = oop_ptr->const_oop();
@@ -439,12 +445,6 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
         if (con_type->is_inlinetypeptr() && !con_type->is_zero_type()) {
           ft = con_type->inline_klass();
           null_free = true;
-        }
-        BasicType bt = con_type->basic_type();
-        int vec_len = field->secondary_fields_count();
-        if (field->is_multifield_base() &&
-          Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {
-          value = kit->gvn().transform(VectorNode::scalar2vector(value, vec_len, Type::get_const_type(field->type()), false));
         }
       } else {
         // Load field value from memory

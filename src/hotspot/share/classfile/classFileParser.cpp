@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -4892,10 +4892,7 @@ bool ClassFileParser::is_jdk_internal_class(const Symbol* outer_class, const cha
       inner_class &&
       (vmSymbols::jdk_internal_vm_vector_VectorSupport() == outer_class ||
        vmSymbols::jdk_internal_vm_vector_VectorPayloadMF() == outer_class)) {
-    if (strstr(inner_class, "VectorPayloadMF64")  ||
-        strstr(inner_class, "VectorPayloadMF128") ||
-        strstr(inner_class, "VectorPayloadMF256") ||
-        strstr(inner_class, "VectorPayloadMF512")) {
+    if (strstr(inner_class, "VectorPayloadMF")) {
       return true;
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -855,10 +855,6 @@ bool VectorNode::is_all_ones_vector(Node* n) {
   case Op_ReplicateL:
   case Op_MaskAll:
     return is_con(n->in(1), -1);
-  case Op_ReplicateF:
-    return n->in(1)->bottom_type() == TypeF::ONE;
-  case Op_ReplicateD:
-    return n->in(1)->bottom_type() == TypeD::ONE;
   default:
     return false;
   }
@@ -1301,12 +1297,34 @@ Node* ReductionNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   return NULL;
 }
 
+Node* VectorLoadMaskNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  if (in(1)->Opcode() == Op_VectorStoreMask) {
+    if (Type::cmp(bottom_type(), in(1)->in(1)->bottom_type()) == 0) {
+      // // Handled by VectorLoadMaskNode::Identity()
+    } else {
+      const TypeVect* out_vt = vect_type();
+      const TypeVect* in_vt = in(1)->in(1)->bottom_type()->is_vect();
+      if (out_vt->length() == in_vt->length() &&
+          out_vt->length_in_bytes() == in_vt->length_in_bytes()) {
+        const TypeVect* vmask_type = TypeVect::makemask(out_vt->element_basic_type(), out_vt->length());
+        return new VectorMaskCastNode(in(1)->in(1), vmask_type);
+      }
+    }
+  }
+  return VectorNode::Ideal(phase, can_reshape);
+}
+
 Node* VectorLoadMaskNode::Identity(PhaseGVN* phase) {
-  BasicType out_bt = type()->is_vect()->element_basic_type();
+  BasicType out_bt = vect_type()->element_basic_type();
   if (!Matcher::has_predicated_vectors() && out_bt == T_BOOLEAN) {
     return in(1); // redundant conversion
   }
 
+  // VectorLoadMask (VectorStoreMask mask) ==> mask
+  if (in(1)->Opcode() == Op_VectorStoreMask &&
+      Type::cmp(bottom_type(), in(1)->in(1)->bottom_type()) == 0) {
+    return in(1)->in(1);
+  }
   return this;
 }
 
@@ -1631,9 +1649,14 @@ Node* VectorInsertNode::make(Node* vec, Node* new_val, int position) {
   return new VectorInsertNode(vec, new_val, pos, vec->bottom_type()->is_vect());
 }
 
-Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+Node* VectorUnboxNode::Identity(PhaseGVN* phase) {
   Node* n = obj();
   assert(n->is_InlineType(), "");
+  if (!n->is_VectorBox()) {
+    // FIXME: Directly return Vector loaded from multi-field for concrete
+    // vector InlineType nodes. This can save deferring unbox expansion.
+    // For masks/shuffle emit additional pruning IR to match the vector size.
+  }
   // Vector APIs are lazily intrinsified, during parsing compiler emits a
   // call to intrinsic function, since most of the APIs return an abstract vector
   // hence a subsequent checkcast results into a graph shape comprising of CheckPP
@@ -1647,63 +1670,7 @@ Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   n = n->uncast();
   if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
     if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {
-      // Handled by VectorUnboxNode::Identity()
-    } else {
-      VectorBoxNode* vbox = static_cast<VectorBoxNode*>(n);
-      ciKlass* vbox_klass = vbox->box_type()->instance_klass();
-      const TypeVect* in_vt = vbox->vec_type();
-      const TypeVect* out_vt = type()->is_vect();
-
-      if (in_vt->length() == out_vt->length()) {
-        Node* value = vbox->field_value(0);
-
-        bool is_vector_mask    = vbox_klass->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
-        bool is_vector_shuffle = vbox_klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
-        if (is_vector_mask) {
-          // VectorUnbox (VectorBox vmask) ==> VectorMaskCast vmask
-          const TypeVect* vmask_type = TypeVect::makemask(out_vt->element_basic_type(), out_vt->length());
-          return new VectorMaskCastNode(value, vmask_type);
-        } else if (is_vector_shuffle) {
-          if (!is_shuffle_to_vector()) {
-            // VectorUnbox (VectorBox vshuffle) ==> VectorLoadShuffle vshuffle
-            return new VectorLoadShuffleNode(value, out_vt);
-          }
-        } else {
-          // Vector type mismatch is only supported for masks and shuffles, but sometimes it happens in pathological cases.
-        }
-      } else {
-        // Vector length mismatch.
-        // Sometimes happen in pathological cases (e.g., when unboxing happens in effectively dead code).
-      }
-    }
-  }
-  return NULL;
-}
-
-Node* VectorUnboxNode::Identity(PhaseGVN* phase) {
-  Node* n = obj();
-  if (n->is_InlineType() && !n->is_VectorBox()) {
-    // FIXME: Directly return Vector loaded from multi-field for concrete
-    // vector InlineType nodes. This can save deferring unbox expansion.
-    // For masks/shuffle emit additional pruning IR to match the vector size.
-  }
-  // Vector APIs are lazily intrinsified, during parsing compiler emits a
-  // call to intrinsic function, since most of the APIs return an abstract vector
-  // hence a subsequent checkcast results into a graph shape comprising of CheckPP
-  // and CheckCastPP chain. During lazy inline expansion, call gets replaced by
-  // a VectorBox but we still need to traverse back through chain of cast nodes
-  // to get to the VectorBox.
-  if (n->is_InlineType() &&
-      !n->is_VectorBox() &&
-      VectorSupport::is_vector(n->as_InlineType()->inline_klass()->get_InlineKlass())) {
-    n = n->as_InlineType()->get_oop();
-  }
-  n = n->uncast();
-  if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
-    if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {
       return n->as_VectorBox()->get_vec(); // VectorUnbox (VectorBox v) ==> v
-    } else {
-      // Handled by VectorUnboxNode::Ideal().
     }
   }
   return this;

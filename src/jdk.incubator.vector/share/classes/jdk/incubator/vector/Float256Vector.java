@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,20 +60,17 @@ value class Float256Vector extends FloatVector {
     private final VectorPayloadMF256F payload;
 
     Float256Vector(Object value) {
-        this.payload = (VectorPayloadMF256F)value;
+        this.payload = (VectorPayloadMF256F) value;
     }
 
-    VectorPayloadMF vec_mf() {
+    @ForceInline
+    @Override
+    final VectorPayloadMF vec() {
         return payload;
     }
 
-    @Override
-    protected final Object getPayload() {
-       return vec_mf();
-    }
-
-    static final Float256Vector ZERO = new Float256Vector(VectorPayloadMF.createVectPayloadInstance(float.class, 8));
-    static final Float256Vector IOTA = new Float256Vector(VectorPayloadMF.createVectPayloadInstanceF(8, (float [])(VSPECIES.iotaArray())));
+    static final Float256Vector ZERO = new Float256Vector(VectorPayloadMF.newInstanceFactory(float.class, 8));
+    static final Float256Vector IOTA = new Float256Vector(VectorPayloadMF.createVectPayloadInstanceF(8, (float[])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
@@ -122,15 +119,6 @@ value class Float256Vector extends FloatVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    float[] vec() {
-        return (float[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Float256Vector broadcast(float e) {
@@ -145,8 +133,8 @@ value class Float256Vector extends FloatVector {
 
     @Override
     @ForceInline
-    Float256Mask maskFromArray(boolean[] bits) {
-        return new Float256Mask(bits);
+    Float256Mask maskFromPayload(VectorPayloadMF payload) {
+        return new Float256Mask(payload);
     }
 
     @Override
@@ -166,7 +154,7 @@ value class Float256Vector extends FloatVector {
 
     @Override
     @ForceInline
-    Float256Shuffle shuffleFromBytes(byte[] reorder) { return new Float256Shuffle(reorder); }
+    Float256Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Float256Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Float256Vector extends FloatVector {
     @Override
     @ForceInline
     Float256Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Float256Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Float256Vector vectorFactory(float[] vec) {
-        return new Float256Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -536,7 +517,7 @@ value class Float256Vector extends FloatVector {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                         VectorPayloadMF vecpayload = vec.vec_mf();
+                         VectorPayloadMF vecpayload = vec.vec();
                          long start_offset = vecpayload.multiFieldOffset();
                          return (long)Float.floatToIntBits(Unsafe.getUnsafe().getFloat(vecpayload, start_offset + ix * Float.BYTES));
                      });
@@ -563,7 +544,7 @@ value class Float256Vector extends FloatVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)Float.floatToIntBits(e),
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putFloat(tpayload, start_offset + ix * Float.BYTES, Float.intBitsToFloat((int)bits));
@@ -574,34 +555,22 @@ value class Float256Vector extends FloatVector {
 
     // Mask
 
-    static final class Float256Mask extends AbstractMask<Float> {
+    static final value class Float256Mask extends AbstractMask<Float> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Float> ETYPE = float.class; // used by the JVM
 
-        Float256Mask(boolean[] bits) {
-            this(bits, 0);
+        private final VectorPayloadMF64Z payload;
+
+        Float256Mask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF64Z) payload;
         }
 
-        Float256Mask(boolean[] bits, int offset) {
-            super(prepare(bits, offset));
+        Float256Mask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VLENGTH));
         }
 
         Float256Mask(boolean val) {
-            super(prepare(val));
-        }
-
-        private static boolean[] prepare(boolean[] bits, int offset) {
-            boolean[] newBits = new boolean[VSPECIES.laneCount()];
-            for (int i = 0; i < newBits.length; i++) {
-                newBits[i] = bits[offset + i];
-            }
-            return newBits;
-        }
-
-        private static boolean[] prepare(boolean val) {
-            boolean[] bits = new boolean[VSPECIES.laneCount()];
-            Arrays.fill(bits, val);
-            return bits;
+            this(prepare(val, VLENGTH));
         }
 
         @ForceInline
@@ -614,29 +583,9 @@ value class Float256Vector extends FloatVector {
         }
 
         @ForceInline
-        boolean[] getBits() {
-            return (boolean[])getPayload();
-        }
-
         @Override
-        Float256Mask uOp(MUnOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i]);
-            }
-            return new Float256Mask(res);
-        }
-
-        @Override
-        Float256Mask bOp(VectorMask<Float> m, MBinOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            boolean[] mbits = ((Float256Mask)m).getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i], mbits[i]);
-            }
-            return new Float256Mask(res);
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -644,33 +593,6 @@ value class Float256Vector extends FloatVector {
         public final
         Float256Vector toVector() {
             return (Float256Vector) super.toVectorTemplate();  // specialize
-        }
-
-        /**
-         * Helper function for lane-wise mask conversions.
-         * This function kicks in after intrinsic failure.
-         */
-        @ForceInline
-        private final <E>
-        VectorMask<E> defaultMaskCast(AbstractSpecies<E> dsp) {
-            if (length() != dsp.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-            boolean[] maskArray = toArray();
-            return  dsp.maskFactory(maskArray).check(dsp);
-        }
-
-        @Override
-        @ForceInline
-        public <E> VectorMask<E> cast(VectorSpecies<E> dsp) {
-            AbstractSpecies<E> species = (AbstractSpecies<E>) dsp;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-
-            return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                this.getClass(), ETYPE, VLENGTH,
-                species.maskType(), species.elementType(), VLENGTH,
-                this, species,
-                (m, s) -> s.maskFactory(m.toArray()).check(s));
         }
 
         @Override
@@ -692,7 +614,7 @@ value class Float256Vector extends FloatVector {
         @Override
         @ForceInline
         public Float256Mask compress() {
-            return (Float256Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Float256Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Float256Vector.class, Float256Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -705,9 +627,9 @@ value class Float256Vector extends FloatVector {
         public Float256Mask and(VectorMask<Float> mask) {
             Objects.requireNonNull(mask);
             Float256Mask m = (Float256Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Float256Mask.class, null, int.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a & b));
+            return VectorSupport.binaryOp(VECTOR_OP_AND, Float256Mask.class, null,
+                                          int.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Float256Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -715,9 +637,9 @@ value class Float256Vector extends FloatVector {
         public Float256Mask or(VectorMask<Float> mask) {
             Objects.requireNonNull(mask);
             Float256Mask m = (Float256Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Float256Mask.class, null, int.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a | b));
+            return VectorSupport.binaryOp(VECTOR_OP_OR, Float256Mask.class, null,
+                                          int.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Float256Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -725,9 +647,9 @@ value class Float256Vector extends FloatVector {
         Float256Mask xor(VectorMask<Float> mask) {
             Objects.requireNonNull(mask);
             Float256Mask m = (Float256Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Float256Mask.class, null, int.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a ^ b));
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, Float256Mask.class, null,
+                                          int.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Float256Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -736,21 +658,21 @@ value class Float256Vector extends FloatVector {
         @ForceInline
         public int trueCount() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Float256Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> trueCountHelper(m.getBits()));
+                                                            (m) -> ((Float256Mask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Float256Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> firstTrueHelper(m.getBits()));
+                                                            (m) -> ((Float256Mask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Float256Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> lastTrueHelper(m.getBits()));
+                                                            (m) -> ((Float256Mask) m).lastTrueHelper());
         }
 
         @Override
@@ -760,7 +682,7 @@ value class Float256Vector extends FloatVector {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
             return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Float256Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> toLongHelper(m.getBits()));
+                                                      (m) -> ((Float256Mask) m).toLongHelper());
         }
 
         // Reductions
@@ -770,7 +692,7 @@ value class Float256Vector extends FloatVector {
         public boolean anyTrue() {
             return VectorSupport.test(BT_ne, Float256Mask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> anyTrueHelper(((Float256Mask)m).getBits()));
+                                         (m, __) -> ((Float256Mask) m).anyTrueHelper());
         }
 
         @Override
@@ -778,7 +700,7 @@ value class Float256Vector extends FloatVector {
         public boolean allTrue() {
             return VectorSupport.test(BT_overflow, Float256Mask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> allTrueHelper(((Float256Mask)m).getBits()));
+                                         (m, __) -> ((Float256Mask) m).allTrueHelper());
         }
 
         @ForceInline
@@ -795,24 +717,34 @@ value class Float256Vector extends FloatVector {
 
     // Shuffle
 
-    static final class Float256Shuffle extends AbstractShuffle<Float> {
+    static final value class Float256Shuffle extends AbstractShuffle<Float> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Float> ETYPE = float.class; // used by the JVM
 
-        Float256Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF64B payload;
+
+        Float256Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF64B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Float256Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Float256Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Float256Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -849,13 +781,17 @@ value class Float256Vector extends FloatVector {
         @Override
         public Float256Shuffle rearrange(VectorShuffle<Float> shuffle) {
             Float256Shuffle s = (Float256Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Float256Shuffle(r);
         }
     }

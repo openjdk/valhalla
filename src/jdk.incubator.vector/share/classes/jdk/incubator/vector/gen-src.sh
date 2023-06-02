@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -154,6 +154,7 @@ do
     bitsvectortype=${typeprefix}${Bitstype}${bits}Vector
     fpvectortype=${typeprefix}${Fptype}${bits}Vector
     vectorindexbits=$((bits * 4 / sizeInBytes))
+    vectorsizeinbytes=$((bits / sizeInBytes))
 
     numLanes=$((bits / (sizeInBytes * 8)))
     if [[ "${numLanes}" == "1" ]]; then
@@ -192,7 +193,7 @@ do
     if [[ "${vectortype}" == "IntMaxVector" ]]; then
       args="$args -KintAndMax"
     fi
-    bitargs="$args -Dbits=$bits -DBITS=$BITS -Dvectortype=$vectortype -DnumLanes=$numLanes  -Dmasktype=$masktype -Dshuffletype=$shuffletype -Dbitsvectortype=$bitsvectortype -Dfpvectortype=$fpvectortype -Dvectorindextype=$vectorindextype -Dshape=$shape -DShape=$Shape"
+    bitargs="$args -Dbits=$bits -DBITS=$BITS -Dvectortype=$vectortype -DnumLanes=$numLanes  -Dmasktype=$masktype -Dshuffletype=$shuffletype -Dbitsvectortype=$bitsvectortype -Dfpvectortype=$fpvectortype -Dvectorindextype=$vectorindextype -Dshape=$shape -DShape=$Shape -Dvectorsizeinbytes=$vectorsizeinbytes"
 
     case $vectortype in
     $CLASS_FILTER)

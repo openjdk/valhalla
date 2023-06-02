@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,20 +60,17 @@ value class Short256Vector extends ShortVector {
     private final VectorPayloadMF256S payload;
 
     Short256Vector(Object value) {
-        this.payload = (VectorPayloadMF256S)value;
+        this.payload = (VectorPayloadMF256S) value;
     }
 
-    VectorPayloadMF vec_mf() {
+    @ForceInline
+    @Override
+    final VectorPayloadMF vec() {
         return payload;
     }
 
-    @Override
-    protected final Object getPayload() {
-       return vec_mf();
-    }
-
-    static final Short256Vector ZERO = new Short256Vector(VectorPayloadMF.createVectPayloadInstance(short.class, 16));
-    static final Short256Vector IOTA = new Short256Vector(VectorPayloadMF.createVectPayloadInstanceS(16, (short [])(VSPECIES.iotaArray())));
+    static final Short256Vector ZERO = new Short256Vector(VectorPayloadMF.newInstanceFactory(short.class, 16));
+    static final Short256Vector IOTA = new Short256Vector(VectorPayloadMF.createVectPayloadInstanceS(16, (short[])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
@@ -122,15 +119,6 @@ value class Short256Vector extends ShortVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    short[] vec() {
-        return (short[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Short256Vector broadcast(short e) {
@@ -145,8 +133,8 @@ value class Short256Vector extends ShortVector {
 
     @Override
     @ForceInline
-    Short256Mask maskFromArray(boolean[] bits) {
-        return new Short256Mask(bits);
+    Short256Mask maskFromPayload(VectorPayloadMF payload) {
+        return new Short256Mask(payload);
     }
 
     @Override
@@ -166,7 +154,7 @@ value class Short256Vector extends ShortVector {
 
     @Override
     @ForceInline
-    Short256Shuffle shuffleFromBytes(byte[] reorder) { return new Short256Shuffle(reorder); }
+    Short256Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Short256Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Short256Vector extends ShortVector {
     @Override
     @ForceInline
     Short256Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Short256Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Short256Vector vectorFactory(short[] vec) {
-        return new Short256Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -555,7 +536,7 @@ value class Short256Vector extends ShortVector {
                              VCLASS, ETYPE, VLENGTH,
                              this, i,
                              (vec, ix) -> {
-                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 VectorPayloadMF vecpayload = vec.vec();
                                  long start_offset = vecpayload.multiFieldOffset();
                                  return (long)Unsafe.getUnsafe().getShort(vecpayload, start_offset + ix * Short.BYTES);
                              });
@@ -590,7 +571,7 @@ value class Short256Vector extends ShortVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putShort(tpayload, start_offset + ix * Short.BYTES, (short)bits);
@@ -601,34 +582,22 @@ value class Short256Vector extends ShortVector {
 
     // Mask
 
-    static final class Short256Mask extends AbstractMask<Short> {
+    static final value class Short256Mask extends AbstractMask<Short> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
-        Short256Mask(boolean[] bits) {
-            this(bits, 0);
+        private final VectorPayloadMF128Z payload;
+
+        Short256Mask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF128Z) payload;
         }
 
-        Short256Mask(boolean[] bits, int offset) {
-            super(prepare(bits, offset));
+        Short256Mask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VLENGTH));
         }
 
         Short256Mask(boolean val) {
-            super(prepare(val));
-        }
-
-        private static boolean[] prepare(boolean[] bits, int offset) {
-            boolean[] newBits = new boolean[VSPECIES.laneCount()];
-            for (int i = 0; i < newBits.length; i++) {
-                newBits[i] = bits[offset + i];
-            }
-            return newBits;
-        }
-
-        private static boolean[] prepare(boolean val) {
-            boolean[] bits = new boolean[VSPECIES.laneCount()];
-            Arrays.fill(bits, val);
-            return bits;
+            this(prepare(val, VLENGTH));
         }
 
         @ForceInline
@@ -641,29 +610,9 @@ value class Short256Vector extends ShortVector {
         }
 
         @ForceInline
-        boolean[] getBits() {
-            return (boolean[])getPayload();
-        }
-
         @Override
-        Short256Mask uOp(MUnOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i]);
-            }
-            return new Short256Mask(res);
-        }
-
-        @Override
-        Short256Mask bOp(VectorMask<Short> m, MBinOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            boolean[] mbits = ((Short256Mask)m).getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i], mbits[i]);
-            }
-            return new Short256Mask(res);
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -671,33 +620,6 @@ value class Short256Vector extends ShortVector {
         public final
         Short256Vector toVector() {
             return (Short256Vector) super.toVectorTemplate();  // specialize
-        }
-
-        /**
-         * Helper function for lane-wise mask conversions.
-         * This function kicks in after intrinsic failure.
-         */
-        @ForceInline
-        private final <E>
-        VectorMask<E> defaultMaskCast(AbstractSpecies<E> dsp) {
-            if (length() != dsp.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-            boolean[] maskArray = toArray();
-            return  dsp.maskFactory(maskArray).check(dsp);
-        }
-
-        @Override
-        @ForceInline
-        public <E> VectorMask<E> cast(VectorSpecies<E> dsp) {
-            AbstractSpecies<E> species = (AbstractSpecies<E>) dsp;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-
-            return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                this.getClass(), ETYPE, VLENGTH,
-                species.maskType(), species.elementType(), VLENGTH,
-                this, species,
-                (m, s) -> s.maskFactory(m.toArray()).check(s));
         }
 
         @Override
@@ -719,7 +641,7 @@ value class Short256Vector extends ShortVector {
         @Override
         @ForceInline
         public Short256Mask compress() {
-            return (Short256Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Short256Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Short256Vector.class, Short256Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -732,9 +654,9 @@ value class Short256Vector extends ShortVector {
         public Short256Mask and(VectorMask<Short> mask) {
             Objects.requireNonNull(mask);
             Short256Mask m = (Short256Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Short256Mask.class, null, short.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a & b));
+            return VectorSupport.binaryOp(VECTOR_OP_AND, Short256Mask.class, null,
+                                          short.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Short256Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -742,9 +664,9 @@ value class Short256Vector extends ShortVector {
         public Short256Mask or(VectorMask<Short> mask) {
             Objects.requireNonNull(mask);
             Short256Mask m = (Short256Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Short256Mask.class, null, short.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a | b));
+            return VectorSupport.binaryOp(VECTOR_OP_OR, Short256Mask.class, null,
+                                          short.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Short256Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -752,9 +674,9 @@ value class Short256Vector extends ShortVector {
         Short256Mask xor(VectorMask<Short> mask) {
             Objects.requireNonNull(mask);
             Short256Mask m = (Short256Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Short256Mask.class, null, short.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a ^ b));
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, Short256Mask.class, null,
+                                          short.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Short256Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -763,21 +685,21 @@ value class Short256Vector extends ShortVector {
         @ForceInline
         public int trueCount() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Short256Mask.class, short.class, VLENGTH, this,
-                                                      (m) -> trueCountHelper(m.getBits()));
+                                                            (m) -> ((Short256Mask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Short256Mask.class, short.class, VLENGTH, this,
-                                                      (m) -> firstTrueHelper(m.getBits()));
+                                                            (m) -> ((Short256Mask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Short256Mask.class, short.class, VLENGTH, this,
-                                                      (m) -> lastTrueHelper(m.getBits()));
+                                                            (m) -> ((Short256Mask) m).lastTrueHelper());
         }
 
         @Override
@@ -787,7 +709,7 @@ value class Short256Vector extends ShortVector {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
             return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Short256Mask.class, short.class, VLENGTH, this,
-                                                      (m) -> toLongHelper(m.getBits()));
+                                                      (m) -> ((Short256Mask) m).toLongHelper());
         }
 
         // Reductions
@@ -797,7 +719,7 @@ value class Short256Vector extends ShortVector {
         public boolean anyTrue() {
             return VectorSupport.test(BT_ne, Short256Mask.class, short.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> anyTrueHelper(((Short256Mask)m).getBits()));
+                                         (m, __) -> ((Short256Mask) m).anyTrueHelper());
         }
 
         @Override
@@ -805,7 +727,7 @@ value class Short256Vector extends ShortVector {
         public boolean allTrue() {
             return VectorSupport.test(BT_overflow, Short256Mask.class, short.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> allTrueHelper(((Short256Mask)m).getBits()));
+                                         (m, __) -> ((Short256Mask) m).allTrueHelper());
         }
 
         @ForceInline
@@ -822,24 +744,34 @@ value class Short256Vector extends ShortVector {
 
     // Shuffle
 
-    static final class Short256Shuffle extends AbstractShuffle<Short> {
+    static final value class Short256Shuffle extends AbstractShuffle<Short> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
-        Short256Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF128B payload;
+
+        Short256Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF128B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Short256Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Short256Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Short256Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -876,13 +808,17 @@ value class Short256Vector extends ShortVector {
         @Override
         public Short256Shuffle rearrange(VectorShuffle<Short> shuffle) {
             Short256Shuffle s = (Short256Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Short256Shuffle(r);
         }
     }

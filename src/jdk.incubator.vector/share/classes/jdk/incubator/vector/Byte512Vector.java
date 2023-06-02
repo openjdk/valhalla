@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,20 +60,17 @@ value class Byte512Vector extends ByteVector {
     private final VectorPayloadMF512B payload;
 
     Byte512Vector(Object value) {
-        this.payload = (VectorPayloadMF512B)value;
+        this.payload = (VectorPayloadMF512B) value;
     }
 
-    VectorPayloadMF vec_mf() {
+    @ForceInline
+    @Override
+    final VectorPayloadMF vec() {
         return payload;
     }
 
-    @Override
-    protected final Object getPayload() {
-       return vec_mf();
-    }
-
-    static final Byte512Vector ZERO = new Byte512Vector(VectorPayloadMF.createVectPayloadInstance(byte.class, 64));
-    static final Byte512Vector IOTA = new Byte512Vector(VectorPayloadMF.createVectPayloadInstanceB(64, (byte [])(VSPECIES.iotaArray())));
+    static final Byte512Vector ZERO = new Byte512Vector(VectorPayloadMF.newInstanceFactory(byte.class, 64));
+    static final Byte512Vector IOTA = new Byte512Vector(VectorPayloadMF.createVectPayloadInstanceB(64, (byte[])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
@@ -122,15 +119,6 @@ value class Byte512Vector extends ByteVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    byte[] vec() {
-        return (byte[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Byte512Vector broadcast(byte e) {
@@ -145,8 +133,8 @@ value class Byte512Vector extends ByteVector {
 
     @Override
     @ForceInline
-    Byte512Mask maskFromArray(boolean[] bits) {
-        return new Byte512Mask(bits);
+    Byte512Mask maskFromPayload(VectorPayloadMF payload) {
+        return new Byte512Mask(payload);
     }
 
     @Override
@@ -166,7 +154,7 @@ value class Byte512Vector extends ByteVector {
 
     @Override
     @ForceInline
-    Byte512Shuffle shuffleFromBytes(byte[] reorder) { return new Byte512Shuffle(reorder); }
+    Byte512Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Byte512Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Byte512Vector extends ByteVector {
     @Override
     @ForceInline
     Byte512Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Byte512Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Byte512Vector vectorFactory(byte[] vec) {
-        return new Byte512Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -603,7 +584,7 @@ value class Byte512Vector extends ByteVector {
                              VCLASS, ETYPE, VLENGTH,
                              this, i,
                              (vec, ix) -> {
-                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 VectorPayloadMF vecpayload = vec.vec();
                                  long start_offset = vecpayload.multiFieldOffset();
                                  return (long)Unsafe.getUnsafe().getByte(vecpayload, start_offset + ix * Byte.BYTES);
                              });
@@ -686,7 +667,7 @@ value class Byte512Vector extends ByteVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putByte(tpayload, start_offset + ix * Byte.BYTES, (byte)bits);
@@ -697,34 +678,22 @@ value class Byte512Vector extends ByteVector {
 
     // Mask
 
-    static final class Byte512Mask extends AbstractMask<Byte> {
+    static final value class Byte512Mask extends AbstractMask<Byte> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-        Byte512Mask(boolean[] bits) {
-            this(bits, 0);
+        private final VectorPayloadMF512Z payload;
+
+        Byte512Mask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF512Z) payload;
         }
 
-        Byte512Mask(boolean[] bits, int offset) {
-            super(prepare(bits, offset));
+        Byte512Mask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VLENGTH));
         }
 
         Byte512Mask(boolean val) {
-            super(prepare(val));
-        }
-
-        private static boolean[] prepare(boolean[] bits, int offset) {
-            boolean[] newBits = new boolean[VSPECIES.laneCount()];
-            for (int i = 0; i < newBits.length; i++) {
-                newBits[i] = bits[offset + i];
-            }
-            return newBits;
-        }
-
-        private static boolean[] prepare(boolean val) {
-            boolean[] bits = new boolean[VSPECIES.laneCount()];
-            Arrays.fill(bits, val);
-            return bits;
+            this(prepare(val, VLENGTH));
         }
 
         @ForceInline
@@ -737,29 +706,9 @@ value class Byte512Vector extends ByteVector {
         }
 
         @ForceInline
-        boolean[] getBits() {
-            return (boolean[])getPayload();
-        }
-
         @Override
-        Byte512Mask uOp(MUnOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i]);
-            }
-            return new Byte512Mask(res);
-        }
-
-        @Override
-        Byte512Mask bOp(VectorMask<Byte> m, MBinOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            boolean[] mbits = ((Byte512Mask)m).getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i], mbits[i]);
-            }
-            return new Byte512Mask(res);
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -767,33 +716,6 @@ value class Byte512Vector extends ByteVector {
         public final
         Byte512Vector toVector() {
             return (Byte512Vector) super.toVectorTemplate();  // specialize
-        }
-
-        /**
-         * Helper function for lane-wise mask conversions.
-         * This function kicks in after intrinsic failure.
-         */
-        @ForceInline
-        private final <E>
-        VectorMask<E> defaultMaskCast(AbstractSpecies<E> dsp) {
-            if (length() != dsp.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-            boolean[] maskArray = toArray();
-            return  dsp.maskFactory(maskArray).check(dsp);
-        }
-
-        @Override
-        @ForceInline
-        public <E> VectorMask<E> cast(VectorSpecies<E> dsp) {
-            AbstractSpecies<E> species = (AbstractSpecies<E>) dsp;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-
-            return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                this.getClass(), ETYPE, VLENGTH,
-                species.maskType(), species.elementType(), VLENGTH,
-                this, species,
-                (m, s) -> s.maskFactory(m.toArray()).check(s));
         }
 
         @Override
@@ -815,7 +737,7 @@ value class Byte512Vector extends ByteVector {
         @Override
         @ForceInline
         public Byte512Mask compress() {
-            return (Byte512Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Byte512Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Byte512Vector.class, Byte512Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -828,9 +750,9 @@ value class Byte512Vector extends ByteVector {
         public Byte512Mask and(VectorMask<Byte> mask) {
             Objects.requireNonNull(mask);
             Byte512Mask m = (Byte512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Byte512Mask.class, null, byte.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a & b));
+            return VectorSupport.binaryOp(VECTOR_OP_AND, Byte512Mask.class, null,
+                                          byte.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Byte512Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -838,9 +760,9 @@ value class Byte512Vector extends ByteVector {
         public Byte512Mask or(VectorMask<Byte> mask) {
             Objects.requireNonNull(mask);
             Byte512Mask m = (Byte512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Byte512Mask.class, null, byte.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a | b));
+            return VectorSupport.binaryOp(VECTOR_OP_OR, Byte512Mask.class, null,
+                                          byte.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Byte512Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -848,9 +770,9 @@ value class Byte512Vector extends ByteVector {
         Byte512Mask xor(VectorMask<Byte> mask) {
             Objects.requireNonNull(mask);
             Byte512Mask m = (Byte512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Byte512Mask.class, null, byte.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a ^ b));
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, Byte512Mask.class, null,
+                                          byte.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Byte512Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -859,21 +781,21 @@ value class Byte512Vector extends ByteVector {
         @ForceInline
         public int trueCount() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Byte512Mask.class, byte.class, VLENGTH, this,
-                                                      (m) -> trueCountHelper(m.getBits()));
+                                                            (m) -> ((Byte512Mask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Byte512Mask.class, byte.class, VLENGTH, this,
-                                                      (m) -> firstTrueHelper(m.getBits()));
+                                                            (m) -> ((Byte512Mask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Byte512Mask.class, byte.class, VLENGTH, this,
-                                                      (m) -> lastTrueHelper(m.getBits()));
+                                                            (m) -> ((Byte512Mask) m).lastTrueHelper());
         }
 
         @Override
@@ -883,7 +805,7 @@ value class Byte512Vector extends ByteVector {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
             return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Byte512Mask.class, byte.class, VLENGTH, this,
-                                                      (m) -> toLongHelper(m.getBits()));
+                                                      (m) -> ((Byte512Mask) m).toLongHelper());
         }
 
         // Reductions
@@ -893,7 +815,7 @@ value class Byte512Vector extends ByteVector {
         public boolean anyTrue() {
             return VectorSupport.test(BT_ne, Byte512Mask.class, byte.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> anyTrueHelper(((Byte512Mask)m).getBits()));
+                                         (m, __) -> ((Byte512Mask) m).anyTrueHelper());
         }
 
         @Override
@@ -901,7 +823,7 @@ value class Byte512Vector extends ByteVector {
         public boolean allTrue() {
             return VectorSupport.test(BT_overflow, Byte512Mask.class, byte.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> allTrueHelper(((Byte512Mask)m).getBits()));
+                                         (m, __) -> ((Byte512Mask) m).allTrueHelper());
         }
 
         @ForceInline
@@ -918,24 +840,34 @@ value class Byte512Vector extends ByteVector {
 
     // Shuffle
 
-    static final class Byte512Shuffle extends AbstractShuffle<Byte> {
+    static final value class Byte512Shuffle extends AbstractShuffle<Byte> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-        Byte512Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF512B payload;
+
+        Byte512Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF512B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Byte512Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Byte512Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Byte512Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -972,13 +904,17 @@ value class Byte512Vector extends ByteVector {
         @Override
         public Byte512Shuffle rearrange(VectorShuffle<Byte> shuffle) {
             Byte512Shuffle s = (Byte512Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Byte512Shuffle(r);
         }
     }

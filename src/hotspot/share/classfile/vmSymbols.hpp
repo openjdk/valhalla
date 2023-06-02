@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,12 +88,22 @@
   template(java_lang_Long,                            "java/lang/Long")                           \
   template(java_lang_Long_LongCache,                  "java/lang/Long$LongCache")                 \
                                                                                                   \
-  template(jdk_internal_vm_vector_VectorSupport,      "jdk/internal/vm/vector/VectorSupport")               \
-  template(jdk_internal_vm_vector_VectorPayload,      "jdk/internal/vm/vector/VectorSupport$VectorPayload") \
-  template(jdk_internal_vm_vector_Vector,             "jdk/internal/vm/vector/VectorSupport$Vector")        \
-  template(jdk_internal_vm_vector_VectorMask,         "jdk/internal/vm/vector/VectorSupport$VectorMask")    \
-  template(jdk_internal_vm_vector_VectorShuffle,      "jdk/internal/vm/vector/VectorSupport$VectorShuffle") \
-  template(jdk_internal_vm_vector_VectorPayloadMF,    "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF")    \
+  template(jdk_internal_vm_vector_VectorSupport,       "jdk/internal/vm/vector/VectorSupport")                     \
+  template(jdk_internal_vm_vector_VectorPayload,       "jdk/internal/vm/vector/VectorSupport$VectorPayload")       \
+  template(jdk_internal_vm_vector_Vector,              "jdk/internal/vm/vector/VectorSupport$Vector")              \
+  template(jdk_internal_vm_vector_VectorMask,          "jdk/internal/vm/vector/VectorSupport$VectorMask")          \
+  template(jdk_internal_vm_vector_VectorShuffle,       "jdk/internal/vm/vector/VectorSupport$VectorShuffle")       \
+  template(jdk_internal_vm_vector_VectorPayloadMF,     "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF")     \
+  template(jdk_internal_vm_vector_VectorPayloadMF8Z,   "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF8Z")   \
+  template(jdk_internal_vm_vector_VectorPayloadMF16Z,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF16Z")  \
+  template(jdk_internal_vm_vector_VectorPayloadMF32Z,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF32Z")  \
+  template(jdk_internal_vm_vector_VectorPayloadMF64Z,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF64Z")  \
+  template(jdk_internal_vm_vector_VectorPayloadMF128Z, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128Z") \
+  template(jdk_internal_vm_vector_VectorPayloadMF256Z, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256Z") \
+  template(jdk_internal_vm_vector_VectorPayloadMF512Z, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF512Z") \
+  template(jdk_internal_vm_vector_VectorPayloadMF8B,   "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF8B")   \
+  template(jdk_internal_vm_vector_VectorPayloadMF16B,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF16B")  \
+  template(jdk_internal_vm_vector_VectorPayloadMF32B,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF32B")  \
   template(jdk_internal_vm_vector_VectorPayloadMF64B,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF64B")  \
   template(jdk_internal_vm_vector_VectorPayloadMF128B, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128B") \
   template(jdk_internal_vm_vector_VectorPayloadMF256B, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256B") \
@@ -118,10 +128,10 @@
   template(jdk_internal_vm_vector_VectorPayloadMF128D, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128D") \
   template(jdk_internal_vm_vector_VectorPayloadMF256D, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256D") \
   template(jdk_internal_vm_vector_VectorPayloadMF512D, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF512D") \
-  template(payload_name,                               "payload")                                 \
-  template(mfield_name,                                "mfield")                                  \
-  template(ETYPE_name,                                 "ETYPE")                                   \
-  template(VLENGTH_name,                               "VLENGTH")                                 \
+  template(payload_name,                               "payload")                                                  \
+  template(mfield_name,                                "mfield")                                                   \
+  template(ETYPE_name,                                 "ETYPE")                                                    \
+  template(VLENGTH_name,                               "VLENGTH")                                                  \
                                                                                                   \
   template(jdk_internal_vm_FillerObject,              "jdk/internal/vm/FillerObject")             \
                                                                                                   \
@@ -293,6 +303,16 @@
   template(jdk_internal_ValueBased_signature,                                "Ljdk/internal/ValueBased;") \
                                                                                                   \
   /* VectorAPI support */                                                                         \
+  template(vector_VectorPayloadMF8Z_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF8Z;")   \
+  template(vector_VectorPayloadMF16Z_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF16Z;")  \
+  template(vector_VectorPayloadMF32Z_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF32Z;")  \
+  template(vector_VectorPayloadMF64Z_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64Z;")  \
+  template(vector_VectorPayloadMF128Z_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128Z;") \
+  template(vector_VectorPayloadMF256Z_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256Z;") \
+  template(vector_VectorPayloadMF512Z_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512Z;") \
+  template(vector_VectorPayloadMF8B_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF8B;")   \
+  template(vector_VectorPayloadMF16B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF16B;")  \
+  template(vector_VectorPayloadMF32B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF32B;")  \
   template(vector_VectorPayloadMF64B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64B;")  \
   template(vector_VectorPayloadMF128B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128B;") \
   template(vector_VectorPayloadMF256B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256B;") \

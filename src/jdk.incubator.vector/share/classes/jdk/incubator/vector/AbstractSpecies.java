@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,10 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.IntUnaryOperator;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.vector.VectorSupport;
 
+import static jdk.internal.vm.vector.VectorSupport.*;
 
 abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
                                   implements VectorSpecies<E> {
@@ -308,30 +310,12 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
      */
     @ForceInline
     /*package-private*/
-    AbstractVector<E> dummyVector() {
-        // This JITs to a constant value:
-        AbstractVector<E> dummy = dummyVector;
-        if (dummy != null)  return dummy;
-        // The rest of this computation is probably not JIT-ted.
-        return makeDummyVector();
-    }
-    @ForceInline
-    /*package-private*/
     AbstractVector<E> dummyVectorMF() {
         // This JITs to a constant value:
         AbstractVector<E> dummy = dummyVectorMF;
         if (dummy != null)  return dummy;
         // The rest of this computation is probably not JIT-ted.
         return makeDummyVectorMF();
-    }
-
-    @ForceInline
-    private AbstractVector<E> makeDummyVector() {
-        Object za = Array.newInstance(elementType(), laneCount);
-        return dummyVector = vectorFactory.apply(za);
-        // This is the only use of vectorFactory.
-        // All other factory requests are routed
-        // through the dummy vector.
     }
 
     @ForceInline
@@ -373,7 +357,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         case LaneType.SK_SHORT:
         case LaneType.SK_INT:
         case LaneType.SK_LONG:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstance(elementType(), laneCount);
+            za = VectorPayloadMF.newInstanceFactory(elementType(), laneCount);
             break;
         default:
             assert false : "Unsupported elemType in makeDummyVectorMF";
@@ -391,8 +375,8 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
      */
     @ForceInline
     /*package-private*/
-    AbstractMask<E> maskFactory(boolean[] bits) {
-        return dummyVectorMF().maskFromArray(bits);
+    AbstractMask<E> maskFactory(VectorPayloadMF payload) {
+        return dummyVectorMF().maskFromPayload(payload);
     }
 
     public final
@@ -527,11 +511,14 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
     }
 
     AbstractMask<E> opm(FOpm f) {
-        boolean[] res = new boolean[laneCount];
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(i);
+        VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(boolean.class, laneCount);
+        payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
+        long mOffset = payload.multiFieldOffset();
+        for (int i = 0; i < laneCount; i++) {
+            Unsafe.getUnsafe().putBoolean(payload, mOffset + i, f.apply(i));
         }
-        return dummyVectorMF().maskFromArray(res);
+        payload = Unsafe.getUnsafe().finishPrivateBuffer(payload);
+        return maskFactory(payload);
     }
 
     @Override

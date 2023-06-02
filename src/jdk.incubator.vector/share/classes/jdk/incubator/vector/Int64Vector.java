@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,20 +60,17 @@ value class Int64Vector extends IntVector {
     private final VectorPayloadMF64I payload;
 
     Int64Vector(Object value) {
-        this.payload = (VectorPayloadMF64I)value;
+        this.payload = (VectorPayloadMF64I) value;
     }
 
-    VectorPayloadMF vec_mf() {
+    @ForceInline
+    @Override
+    final VectorPayloadMF vec() {
         return payload;
     }
 
-    @Override
-    protected final Object getPayload() {
-       return vec_mf();
-    }
-
-    static final Int64Vector ZERO = new Int64Vector(VectorPayloadMF.createVectPayloadInstance(int.class, 2));
-    static final Int64Vector IOTA = new Int64Vector(VectorPayloadMF.createVectPayloadInstanceI(2, (int [])(VSPECIES.iotaArray())));
+    static final Int64Vector ZERO = new Int64Vector(VectorPayloadMF.newInstanceFactory(int.class, 2));
+    static final Int64Vector IOTA = new Int64Vector(VectorPayloadMF.createVectPayloadInstanceI(2, (int[])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
@@ -122,15 +119,6 @@ value class Int64Vector extends IntVector {
     @Override
     public final long multiFieldOffset() { return MFOFFSET; }
 
-    /*package-private*/
-    @ForceInline
-    final @Override
-    int[] vec() {
-        return (int[])getPayload();
-    }
-
-    // Virtualized constructors
-
     @Override
     @ForceInline
     public final Int64Vector broadcast(int e) {
@@ -145,8 +133,8 @@ value class Int64Vector extends IntVector {
 
     @Override
     @ForceInline
-    Int64Mask maskFromArray(boolean[] bits) {
-        return new Int64Mask(bits);
+    Int64Mask maskFromPayload(VectorPayloadMF payload) {
+        return new Int64Mask(payload);
     }
 
     @Override
@@ -166,7 +154,7 @@ value class Int64Vector extends IntVector {
 
     @Override
     @ForceInline
-    Int64Shuffle shuffleFromBytes(byte[] reorder) { return new Int64Shuffle(reorder); }
+    Int64Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Int64Shuffle(reorder); }
 
     @Override
     @ForceInline
@@ -175,13 +163,6 @@ value class Int64Vector extends IntVector {
     @Override
     @ForceInline
     Int64Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Int64Shuffle(fn); }
-
-    // Make a vector of the same species but the given elements:
-    @ForceInline
-    final @Override
-    Int64Vector vectorFactory(int[] vec) {
-        return new Int64Vector(vec);
-    }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
@@ -541,7 +522,7 @@ value class Int64Vector extends IntVector {
                              VCLASS, ETYPE, VLENGTH,
                              this, i,
                              (vec, ix) -> {
-                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 VectorPayloadMF vecpayload = vec.vec();
                                  long start_offset = vecpayload.multiFieldOffset();
                                  return (long)Unsafe.getUnsafe().getInt(vecpayload, start_offset + ix * Integer.BYTES);
                              });
@@ -562,7 +543,7 @@ value class Int64Vector extends IntVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
                                     Unsafe.getUnsafe().putInt(tpayload, start_offset + ix * Integer.BYTES, (int)bits);
@@ -573,34 +554,22 @@ value class Int64Vector extends IntVector {
 
     // Mask
 
-    static final class Int64Mask extends AbstractMask<Integer> {
+    static final value class Int64Mask extends AbstractMask<Integer> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-        Int64Mask(boolean[] bits) {
-            this(bits, 0);
+        private final VectorPayloadMF16Z payload;
+
+        Int64Mask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF16Z) payload;
         }
 
-        Int64Mask(boolean[] bits, int offset) {
-            super(prepare(bits, offset));
+        Int64Mask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VLENGTH));
         }
 
         Int64Mask(boolean val) {
-            super(prepare(val));
-        }
-
-        private static boolean[] prepare(boolean[] bits, int offset) {
-            boolean[] newBits = new boolean[VSPECIES.laneCount()];
-            for (int i = 0; i < newBits.length; i++) {
-                newBits[i] = bits[offset + i];
-            }
-            return newBits;
-        }
-
-        private static boolean[] prepare(boolean val) {
-            boolean[] bits = new boolean[VSPECIES.laneCount()];
-            Arrays.fill(bits, val);
-            return bits;
+            this(prepare(val, VLENGTH));
         }
 
         @ForceInline
@@ -613,29 +582,9 @@ value class Int64Vector extends IntVector {
         }
 
         @ForceInline
-        boolean[] getBits() {
-            return (boolean[])getPayload();
-        }
-
         @Override
-        Int64Mask uOp(MUnOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i]);
-            }
-            return new Int64Mask(res);
-        }
-
-        @Override
-        Int64Mask bOp(VectorMask<Integer> m, MBinOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            boolean[] mbits = ((Int64Mask)m).getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i], mbits[i]);
-            }
-            return new Int64Mask(res);
+        final VectorPayloadMF getBits() {
+            return payload;
         }
 
         @ForceInline
@@ -643,33 +592,6 @@ value class Int64Vector extends IntVector {
         public final
         Int64Vector toVector() {
             return (Int64Vector) super.toVectorTemplate();  // specialize
-        }
-
-        /**
-         * Helper function for lane-wise mask conversions.
-         * This function kicks in after intrinsic failure.
-         */
-        @ForceInline
-        private final <E>
-        VectorMask<E> defaultMaskCast(AbstractSpecies<E> dsp) {
-            if (length() != dsp.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-            boolean[] maskArray = toArray();
-            return  dsp.maskFactory(maskArray).check(dsp);
-        }
-
-        @Override
-        @ForceInline
-        public <E> VectorMask<E> cast(VectorSpecies<E> dsp) {
-            AbstractSpecies<E> species = (AbstractSpecies<E>) dsp;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-
-            return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                this.getClass(), ETYPE, VLENGTH,
-                species.maskType(), species.elementType(), VLENGTH,
-                this, species,
-                (m, s) -> s.maskFactory(m.toArray()).check(s));
         }
 
         @Override
@@ -691,7 +613,7 @@ value class Int64Vector extends IntVector {
         @Override
         @ForceInline
         public Int64Mask compress() {
-            return (Int64Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Int64Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Int64Vector.class, Int64Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -704,9 +626,9 @@ value class Int64Vector extends IntVector {
         public Int64Mask and(VectorMask<Integer> mask) {
             Objects.requireNonNull(mask);
             Int64Mask m = (Int64Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Int64Mask.class, null, int.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a & b));
+            return VectorSupport.binaryOp(VECTOR_OP_AND, Int64Mask.class, null,
+                                          int.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Int64Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -714,9 +636,9 @@ value class Int64Vector extends IntVector {
         public Int64Mask or(VectorMask<Integer> mask) {
             Objects.requireNonNull(mask);
             Int64Mask m = (Int64Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Int64Mask.class, null, int.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a | b));
+            return VectorSupport.binaryOp(VECTOR_OP_OR, Int64Mask.class, null,
+                                          int.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Int64Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -724,9 +646,9 @@ value class Int64Vector extends IntVector {
         Int64Mask xor(VectorMask<Integer> mask) {
             Objects.requireNonNull(mask);
             Int64Mask m = (Int64Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Int64Mask.class, null, int.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a ^ b));
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, Int64Mask.class, null,
+                                          int.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Int64Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -735,21 +657,21 @@ value class Int64Vector extends IntVector {
         @ForceInline
         public int trueCount() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Int64Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> trueCountHelper(m.getBits()));
+                                                            (m) -> ((Int64Mask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Int64Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> firstTrueHelper(m.getBits()));
+                                                            (m) -> ((Int64Mask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Int64Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> lastTrueHelper(m.getBits()));
+                                                            (m) -> ((Int64Mask) m).lastTrueHelper());
         }
 
         @Override
@@ -759,7 +681,7 @@ value class Int64Vector extends IntVector {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
             return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Int64Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> toLongHelper(m.getBits()));
+                                                      (m) -> ((Int64Mask) m).toLongHelper());
         }
 
         // Reductions
@@ -769,7 +691,7 @@ value class Int64Vector extends IntVector {
         public boolean anyTrue() {
             return VectorSupport.test(BT_ne, Int64Mask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> anyTrueHelper(((Int64Mask)m).getBits()));
+                                         (m, __) -> ((Int64Mask) m).anyTrueHelper());
         }
 
         @Override
@@ -777,7 +699,7 @@ value class Int64Vector extends IntVector {
         public boolean allTrue() {
             return VectorSupport.test(BT_overflow, Int64Mask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> allTrueHelper(((Int64Mask)m).getBits()));
+                                         (m, __) -> ((Int64Mask) m).allTrueHelper());
         }
 
         @ForceInline
@@ -794,24 +716,34 @@ value class Int64Vector extends IntVector {
 
     // Shuffle
 
-    static final class Int64Shuffle extends AbstractShuffle<Integer> {
+    static final value class Int64Shuffle extends AbstractShuffle<Integer> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-        Int64Shuffle(byte[] reorder) {
-            super(VLENGTH, reorder);
+        private final VectorPayloadMF16B payload;
+
+        Int64Shuffle(VectorPayloadMF reorder) {
+            this.payload = (VectorPayloadMF16B) reorder;
+            assert(VLENGTH == reorder.length());
+            assert(indexesInRange(reorder));
         }
 
         public Int64Shuffle(int[] reorder) {
-            super(VLENGTH, reorder);
+            this(reorder, 0);
         }
 
         public Int64Shuffle(int[] reorder, int i) {
-            super(VLENGTH, reorder, i);
+            this(prepare(VLENGTH, reorder, i));
         }
 
         public Int64Shuffle(IntUnaryOperator fn) {
-            super(VLENGTH, fn);
+            this(prepare(VLENGTH, fn));
+        }
+
+        @ForceInline
+        @Override
+        protected final VectorPayloadMF reorder() {
+            return payload;
         }
 
         @Override
@@ -848,13 +780,17 @@ value class Int64Vector extends IntVector {
         @Override
         public Int64Shuffle rearrange(VectorShuffle<Integer> shuffle) {
             Int64Shuffle s = (Int64Shuffle) shuffle;
-            byte[] reorder1 = reorder();
-            byte[] reorder2 = s.reorder();
-            byte[] r = new byte[reorder1.length];
-            for (int i = 0; i < reorder1.length; i++) {
-                int ssi = reorder2[i];
-                r[i] = reorder1[ssi];  // throws on exceptional index
+            VectorPayloadMF reorder1 = reorder();
+            VectorPayloadMF reorder2 = s.reorder();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
             return new Int64Shuffle(r);
         }
     }
