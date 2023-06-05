@@ -109,6 +109,8 @@ containers/docker/TestMemoryAwareness.java 8303470 linux-x64
 
 # Valhalla
 runtime/AccModule/ConstModule.java 8294051 generic-all
+runtime/cds/appcds/dynamicArchive/DynamicArchiveRelocationTest.java 8309357 generic-all
+runtime/cds/appcds/dynamicArchive/HelloDynamicInlineClass.java 8309357 generic-all
 
 #############################################################################
 
