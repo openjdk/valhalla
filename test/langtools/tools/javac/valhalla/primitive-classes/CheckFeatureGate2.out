@@ -1,2 +1,2 @@
-CheckFeatureGate2.java:11:17: compiler.err.primitive.classes.not.supported: 19
+CheckFeatureGate2.java:11:17: compiler.err.primitive.classes.not.supported: 21
 1 error
