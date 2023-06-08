@@ -1167,7 +1167,7 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit, bool 
     kit.set_argument(arg_nb, arg);
   }
   if (sig_type->is_inlinetypeptr()) {
-    arg = InlineTypeNode::make_from_oop(&kit, arg, t->as_inline_klass(), !kit.gvn().type(arg)->maybe_null());
+    arg = InlineTypeNode::make_from_oop(&kit, arg, sig_type->inline_klass(), !kit.gvn().type(arg)->maybe_null());
     kit.set_argument(arg_nb, arg);
   }
 }
