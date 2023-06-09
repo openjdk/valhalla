@@ -3032,6 +3032,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
         res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass());
       }
       (*casted_receiver) = res;
+      assert(!(*casted_receiver)->is_top(), "that path should be unreachable");
       // (User must make the replace_in_map call.)
     }
   }
@@ -3858,28 +3859,28 @@ void GraphKit::shared_unlock(Node* box, Node* obj) {
 // This two-faced routine is useful because allocation sites
 // almost always feature constant types.
 Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
-  const TypeKlassPtr* inst_klass = _gvn.type(klass_node)->isa_klassptr();
-  if (!StressReflectiveCode && inst_klass != nullptr) {
-    bool xklass = inst_klass->klass_is_exact();
+  const TypeKlassPtr* klass_t = _gvn.type(klass_node)->isa_klassptr();
+  if (!StressReflectiveCode && klass_t != nullptr) {
+    bool xklass = klass_t->klass_is_exact();
     bool can_be_flattened = false;
-    const TypeAryPtr* ary_type = inst_klass->as_instance_type()->isa_aryptr();
+    const TypeAryPtr* ary_type = klass_t->as_instance_type()->isa_aryptr();
     if (UseFlatArray && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
       // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue. Don't constant fold.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
       can_be_flattened = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flatten_array());
     }
-    if (!can_be_flattened && (xklass || inst_klass->isa_aryklassptr())) {
+    if (!can_be_flattened && (xklass || (klass_t->isa_aryklassptr() && klass_t->is_aryklassptr()->elem() != Type::BOTTOM))) {
       jint lhelper;
-      if (inst_klass->is_flat()) {
+      if (klass_t->is_flat()) {
         lhelper = ary_type->flat_layout_helper();
-      } else if (inst_klass->isa_aryklassptr()) {
+      } else if (klass_t->isa_aryklassptr()) {
         BasicType elem = ary_type->elem()->array_element_basic_type();
         if (is_reference_type(elem, true)) {
           elem = T_OBJECT;
         }
         lhelper = Klass::array_layout_helper(elem);
       } else {
-        lhelper = inst_klass->is_instklassptr()->exact_klass()->layout_helper();
+        lhelper = klass_t->is_instklassptr()->exact_klass()->layout_helper();
       }
       if (lhelper != Klass::_lh_neutral_value) {
         constant_value = lhelper;
@@ -4432,20 +4433,21 @@ void GraphKit::add_parse_predicate(Deoptimization::DeoptReason reason, const int
     return;
   }
 
-  Node* cont    = _gvn.intcon(1);
-  Node* opq     = _gvn.transform(new Opaque1Node(C, cont));
-  Node* bol     = _gvn.transform(new Conv2BNode(opq));
-  IfNode* iff   = create_and_map_if(control(), bol, PROB_MAX, COUNT_UNKNOWN);
-  Node* iffalse = _gvn.transform(new IfFalseNode(iff));
-  C->add_parse_predicate_opaq(opq);
+  Node* cont = _gvn.intcon(1);
+  Node* opaq = _gvn.transform(new Opaque1Node(C, cont));
+  C->add_parse_predicate_opaq(opaq);
+  Node* bol = _gvn.transform(new Conv2BNode(opaq));
+  ParsePredicateNode* parse_predicate = new ParsePredicateNode(control(), bol, reason);
+  _gvn.set_type(parse_predicate, parse_predicate->Value(&_gvn));
+  Node* if_false = _gvn.transform(new IfFalseNode(parse_predicate));
   {
     PreserveJVMState pjvms(this);
-    set_control(iffalse);
+    set_control(if_false);
     inc_sp(nargs);
     uncommon_trap(reason, Deoptimization::Action_maybe_recompile);
   }
-  Node* iftrue = _gvn.transform(new IfTrueNode(iff));
-  set_control(iftrue);
+  Node* if_true = _gvn.transform(new IfTrueNode(parse_predicate));
+  set_control(if_true);
 }
 
 // Add Parse Predicates which serve as placeholders to create new Runtime Predicates above them. All
