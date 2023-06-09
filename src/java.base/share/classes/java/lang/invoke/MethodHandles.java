@@ -4100,7 +4100,7 @@ return mh1;
             assert(!method.isMethodHandleInvoke());
             if (refKind == REF_invokeSpecial &&
                 refc != lookupClass() &&
-                !refc.isInterface() &&
+                !refc.isInterface() && !lookupClass().isInterface() &&
                 refc != lookupClass().getSuperclass() &&
                 refc.isAssignableFrom(lookupClass())) {
                 assert(!method.getName().equals(ConstantDescs.INIT_NAME));  // not this code path
