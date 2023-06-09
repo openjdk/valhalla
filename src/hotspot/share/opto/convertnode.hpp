@@ -39,7 +39,6 @@ class Conv2BNode : public Node {
   virtual Node* Identity(PhaseGVN* phase);
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
-  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
   virtual uint  ideal_reg() const { return Op_RegI; }
 };
 

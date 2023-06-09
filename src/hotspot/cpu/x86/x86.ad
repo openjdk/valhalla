@@ -2806,7 +2806,7 @@ encode %{
             VMReg reg = OptoReg::as_VMReg(optoReg, ra_->_framesize, OptoReg::reg2stack(ra_->_matcher._new_SP));
             Register toReg = reg->is_reg() ? reg->as_Register() : rscratch1;
             __ testq(rax, rax);
-            __ set_byte_if_not_zero(toReg);
+            __ setb(Assembler::notZero, toReg);
             __ movzbl(toReg, toReg);
             if (reg->is_stack()) {
               int st_off = reg->reg2stack() * VMRegImpl::stack_slot_size;

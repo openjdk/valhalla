@@ -438,7 +438,7 @@ void Compile::disconnect_useless_nodes(Unique_Node_List& useful, Unique_Node_Lis
       worklist.push(n->unique_out());
     }
     if (n->outcnt() == 0) {
-      worklist->push(n);
+      worklist.push(n);
     }
   }
 
