@@ -155,7 +155,7 @@ public class Flags {
 
     /** Class is a unnamed top level class.
      */
-    public static final int UNNAMED_CLASS    = 1<<34;
+    public static final int UNNAMED_CLASS    = 1<<23;
 
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.

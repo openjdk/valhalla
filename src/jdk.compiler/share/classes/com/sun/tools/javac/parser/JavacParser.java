@@ -195,6 +195,8 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
+        this.allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && fac.options.isSet("enablePrimitiveClasses");
+        this.allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Construct a parser from an existing parser, with minimal overhead.
@@ -218,8 +220,8 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
-        this.allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && fac.options.isSet("enablePrimitiveClasses");
-        this.allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowPrimitiveClasses = parser.allowPrimitiveClasses;
+        this.allowValueClasses = parser.allowValueClasses;
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
