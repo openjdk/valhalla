@@ -2793,6 +2793,14 @@ public class ClassReader {
             signatureBuffer = new byte[ns];
         }
         readClass(c);
+        if (previewClassFile) {
+            if ((c.flags_field & SYNTHETIC) != 0 &&
+                    c.owner.kind == PCK &&
+                    (c.flags_field & AUXILIARY) == 0 &&
+                    (c.flags_field & FINAL) != 0) {
+                c.flags_field |= UNNAMED_CLASS;
+            }
+        }
     }
 
     public void readClassFile(ClassSymbol c) {

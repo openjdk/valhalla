@@ -143,6 +143,10 @@ jint init_globals() {
   accessFlags_init();
   InterfaceSupport_init();
   SharedRuntime::generate_stubs();
+  return JNI_OK;
+}
+
+jint init_globals2() {
   universe2_init();          // dependent on codeCache_init and initial_stubs_init
   javaClasses_init();        // must happen after vtable initialization, before referenceProcessor_init
   interpreter_init_code();   // after javaClasses_init and before any method gets linked

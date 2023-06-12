@@ -221,7 +221,7 @@ class Symbol : public MetaspaceObj {
   bool ends_with(const char* suffix) const {
     return ends_with(suffix, (int) strlen(suffix));
   }
-  bool ends_with(int suffix_char) const {
+  bool ends_with(char suffix_char) const {
     return contains_byte_at(utf8_length() - 1, suffix_char);
   }
 
