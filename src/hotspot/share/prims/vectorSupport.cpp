@@ -299,6 +299,9 @@ InstanceKlass* VectorSupport::get_vector_payload_klass(BasicType elem_bt, int nu
 }
 
 Handle VectorSupport::allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS) {
+  assert(ov->field_size() == 1, "%s not a vector", ik->name()->as_C_string());
+  assert(ik->is_inline_klass(), "");
+
   ScopeValue* payload = ov->field_at(0);
   intptr_t is_larval = StackValue::create_stack_value(fr, reg_map, ov->is_larval())->get_int();
   jint larval = (jint)*((jint*)&is_larval);

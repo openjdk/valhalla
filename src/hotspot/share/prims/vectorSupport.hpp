@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,8 +40,6 @@ class VectorSupport : AllStatic {
  private:
   static Handle allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, Location location, int larval, TRAPS);
   static Handle allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS);
-
-  static void init_payload_element(typeArrayOop arr, BasicType elem_bt, int index, address addr);
 
   static BasicType klass2bt(InstanceKlass* ik);
   static jint klass2length(InstanceKlass* ik);

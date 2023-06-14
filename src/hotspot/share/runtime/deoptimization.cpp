@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1141,9 +1141,17 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       InstanceKlass* ik = InstanceKlass::cast(k);
       if (obj == NULL) {
 #ifdef COMPILER2
-        if (EnableVectorSupport && VectorSupport::is_vector(ik)) {
+        bool is_vector = false;
+        if (sv->field_size() > 0) {
+          ScopeValue* field = sv->field_at(0);
+          if (field->is_location() &&
+              field->as_LocationValue()->location().type() == Location::vector) {
+            is_vector = true;
+          }
+        }
+        if (is_vector && VectorSupport::is_vector(ik)) {
           obj = VectorSupport::allocate_vector(ik, fr, reg_map, sv, THREAD);
-        } else if (EnableVectorSupport && VectorSupport::is_vector_payload_mf(ik)) {
+        } else if (is_vector && VectorSupport::is_vector_payload_mf(ik)) {
           obj = VectorSupport::allocate_vector_payload(ik, fr, reg_map, sv, THREAD);
         } else {
           obj = ik->allocate_instance(THREAD);
@@ -1545,8 +1553,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     }
 #endif // INCLUDE_JVMCI
 #ifdef COMPILER2
-    if (EnableVectorSupport && (VectorSupport::is_vector(k) || VectorSupport::is_vector_payload_mf(k))) {
-      assert(sv->field_size() == 1, "%s not a vector", k->name()->as_C_string());
+    if (VectorSupport::is_vector(k) || VectorSupport::is_vector_payload_mf(k)) {
       ScopeValue* payload = sv->field_at(0);
       if (payload->is_location() &&
           payload->as_LocationValue()->location().type() == Location::vector) {

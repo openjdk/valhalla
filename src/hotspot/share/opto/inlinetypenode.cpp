@@ -299,6 +299,33 @@ bool InlineTypeNode::field_is_null_free(uint index) const {
 void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
+  uint sec_nfields = 0;
+  Node_List fields;
+
+  // Iterate over the inline type fields in the order of increasing
+  // offset and add them to the "fields" list.
+  for (uint j = 0; j < nfields; j++) {
+    ciField* field = vk->nonstatic_field_at(j);
+    Node* value = field_value_by_offset(field->offset(), true /* include flattened inline type fields */);
+    fields.push(value);
+
+    if (value->is_InlineType()) {
+      // Add inline type field to the worklist to process later.
+      worklist.push(value);
+    } else if (field->is_multifield_base() && !value->bottom_type()->isa_vect()) {
+      // Add un-vectorized multi-fields to the "fields" list. These
+      // multi-fields should be passed to safepoint as well.
+      sec_nfields += field->secondary_fields_count() - 1;
+      for (int i = 0; i < field->secondary_fields_count() - 1; i++) {
+        ciField* sec_field = static_cast<ciMultiField*>(field)->secondary_field_at(i);
+        assert(sec_field != nullptr, "");
+        value = field_value_by_offset(sec_field->offset(), true);
+        assert(!value->is_InlineType(), "");
+        fields.push(value);
+      }
+    }
+  }
+
   JVMState* jvms = sfpt->jvms();
   // Replace safepoint edge by SafePointScalarObjectNode and add field values
   assert(jvms != NULL, "missing JVMS");
@@ -307,7 +334,7 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
 #ifdef ASSERT
                                                                   NULL,
 #endif
-                                                                  first_ind, nfields);
+                                                                  first_ind, nfields + sec_nfields);
   sobj->init_req(0, igvn->C->root());
   // Nullable inline types have an IsInit field that needs
   // to be checked before using the field values.
@@ -320,17 +347,11 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   AllocateNode* alloc = AllocateNode::Ideal_allocation(get_oop(), igvn);
   sfpt->add_req(igvn->intcon(alloc && alloc->_larval ? 1 : 0));
 
-  // Iterate over the inline type fields in order of increasing
-  // offset and add the field values to the safepoint.
-  for (uint j = 0; j < nfields; ++j) {
-    int offset = vk->nonstatic_field_at(j)->offset();
-    Node* value = field_value_by_offset(offset, true /* include flattened inline type fields */);
-    if (value->is_InlineType()) {
-      // Add inline type field to the worklist to process later
-      worklist.push(value);
-    }
-    sfpt->add_req(value);
+  // Add the field values to the safepoint.
+  for (uint i = 0; i < fields.size(); ++i) {
+    sfpt->add_req(fields.at(i));
   }
+
   jvms->set_endoff(sfpt->req());
   sobj = igvn->transform(sobj)->as_SafePointScalarObject();
   igvn->rehash_node_delayed(sfpt);
