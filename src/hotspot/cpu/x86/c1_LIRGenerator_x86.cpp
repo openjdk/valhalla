@@ -325,12 +325,6 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
 
   // "lock" stores the address of the monitor stack slot, so this is not an oop
   LIR_Opr lock = new_register(T_INT);
-  // Need a scratch register for inline types on x86
-  LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (EnableValhalla && x->maybe_inlinetype()) {
-    scratch = new_register(T_INT);
-    assert(LockingMode != LM_LIGHTWEIGHT, "LM_LIGHTWEIGHT not yet compatible with EnableValhalla");
-  }
 
   CodeEmitInfo* info_for_exception = nullptr;
   if (x->needs_null_check()) {
@@ -345,7 +339,8 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   // this CodeEmitInfo must not have the xhandlers because here the
   // object is already locked (xhandlers expect object to be unlocked)
   CodeEmitInfo* info = state_for(x, x->state(), true);
-  monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
+  LIR_Opr tmp = LockingMode == LM_LIGHTWEIGHT ? new_register(T_ADDRESS) : LIR_OprFact::illegalOpr;
+  monitor_enter(obj.result(), lock, syncTempOpr(), tmp,
                 x->monitor_no(), info_for_exception, info, throw_imse_stub);
 }
 
