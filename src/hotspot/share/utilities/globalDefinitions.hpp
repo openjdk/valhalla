@@ -1370,7 +1370,7 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 
 // TEMP!!!!
 // This should be removed after LW2 arrays are implemented (JDK-8220790).
-// It's an alias to (EnableValhalla && (FlatArrayElementMaxSize != 0)),
+// It's an alias to (EnablePrimitiveClasses && (FlatArrayElementMaxSize != 0)),
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
 #define UseFlatArray (EnablePrimitiveClasses && (FlatArrayElementMaxSize != 0))
