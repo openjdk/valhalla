@@ -320,7 +320,7 @@ instanceOop VectorSupport::allocate_vector(InstanceKlass* ik, frame* fr, Registe
   Handle payload_instance = VectorSupport::allocate_vector_payload(ik, num_elem, elem_bt, fr, reg_map, ov, CHECK_NULL);
 
   InstanceKlass* payload_class = InstanceKlass::cast(payload_instance()->klass());
-  Deoptimization::reassign_fields_by_klass(payload_class, fr, reg_map, ov, 0, payload_instance(), true, 0, CHECK_NULL); 
+  Deoptimization::reassign_fields_by_klass(payload_class, fr, reg_map, ov, 0, payload_instance(), true, 0, CHECK_NULL);
 
   instanceOop vbox = ik->allocate_instance(THREAD);
   Handle vbox_h = Handle(THREAD, vbox);
