@@ -244,7 +244,8 @@ public class MemberEnter extends JCTree.Visitor {
         }
 
         if (m.isInitOrVNew() && m.type.getParameterTypes().size() == 0) {
-            int statsSize = tree.body.stats.size();
+            // implicit constructors are empty bodied
+            int statsSize = (tree.body == null) && ((tree.mods.flags & IMPLICIT) != 0) ? 0 : tree.body.stats.size();
             if (statsSize == 0) {
                 m.flags_field |= EMPTYNOARGCONSTR;
             } else if (statsSize == 1 && TreeInfo.isSuperCall(tree.body.stats.head)) {

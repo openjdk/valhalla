@@ -61,7 +61,10 @@ public class AccessFlags {
     public static final int ACC_MANDATED      = 0x8000; //                          method parameter
     public static final int ACC_MODULE        = 0x8000; // class
 
-    public static enum Kind { Class, InnerClass, Field, Method}
+    public static final int ACC_DEFAULT       = 0x0001; // ImplicitCreation attribute
+    public static final int ACC_NON_ATOMIC    = 0x0002; // ImplicitCreation attribute
+
+    public static enum Kind { Class, InnerClass, Field, Method, ImplicitCreationAttr}
 
     AccessFlags(ClassReader cr) throws IOException {
         this(cr.readUnsignedShort());
@@ -157,6 +160,12 @@ public class AccessFlags {
         return getFlags(methodFlags, Kind.Method);
     }
 
+    private static final int[] implicitCreationAttrFlags = { ACC_DEFAULT, ACC_NON_ATOMIC };
+
+    public Set<String> getImplicitCreationAttrFlags() {
+        return getFlags(implicitCreationAttrFlags, Kind.ImplicitCreationAttr);
+    }
+
     private Set<String> getModifiers(int[] modifierFlags, Kind t) {
         return getModifiers(flags, modifierFlags, t);
     }
@@ -221,9 +230,9 @@ public class AccessFlags {
     private static String flagToName(int flag, Kind t) {
         switch (flag) {
         case ACC_PUBLIC:
-            return "ACC_PUBLIC";
+            return t == Kind.ImplicitCreationAttr ? "ACC_DEFAULT" : "ACC_PUBLIC";
         case ACC_PRIVATE:
-            return "ACC_PRIVATE";
+            return t == Kind.ImplicitCreationAttr ? "ACC_NON_ATOMIC" : "ACC_PRIVATE";
         case ACC_PROTECTED:
             return "ACC_PROTECTED";
         case ACC_STATIC:

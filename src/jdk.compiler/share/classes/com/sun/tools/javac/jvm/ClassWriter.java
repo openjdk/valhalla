@@ -378,6 +378,9 @@ public class ClassWriter extends ClassFile {
         }
         acount += writeJavaAnnotations(sym.getRawAttributes());
         acount += writeTypeAnnotations(sym.getRawTypeAttributes(), false);
+        if (target.hasValueClasses()) {
+            acount += writeNullRestrictedIfNeeded(sym);
+        }
         return acount;
     }
 
@@ -943,6 +946,30 @@ public class ClassWriter extends ClassFile {
             for (Symbol c : csym.permitted) {
                 databuf.appendChar(poolWriter.putClass((ClassSymbol) c));
             }
+            endAttr(alenIdx);
+            return 1;
+        }
+        return 0;
+    }
+
+    /** Write "ImplicitCreation" attribute.
+     */
+    int writeImplicitCreationIfNeeded(ClassSymbol csym) {
+        if (csym.isValueClass() && csym.getImplicitConstructor() != null) {
+            int alenIdx = writeAttr(names.ImplicitCreation);
+            int flags = ACC_DEFAULT | (csym.isSubClass(syms.nonAtomicType.tsym, types) ? ACC_NON_ATOMIC : 0);
+            databuf.appendChar(flags);
+            endAttr(alenIdx);
+            return 1;
+        }
+        return 0;
+    }
+
+    /** Write "NullRestricted" attribute.
+     */
+    int writeNullRestrictedIfNeeded(Symbol sym) {
+        if (sym.kind == VAR && sym.owner.isValueClass() /* && sym.type.isNonNullable() */) {
+            int alenIdx = writeAttr(names.NullRestricted);
             endAttr(alenIdx);
             return 1;
         }
@@ -1725,6 +1752,10 @@ public class ClassWriter extends ClassFile {
 
         if (target.hasSealedClasses()) {
             acount += writePermittedSubclassesIfNeeded(c);
+        }
+
+        if (target.hasValueClasses()) {
+            acount += writeImplicitCreationIfNeeded(c);
         }
 
         if (!poolWriter.bootstrapMethods.isEmpty()) {

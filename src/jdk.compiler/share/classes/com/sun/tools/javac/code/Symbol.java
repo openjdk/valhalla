@@ -485,6 +485,12 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return name == name.table.names.vnew && this.type.getReturnType().tsym == this.owner;
     }
 
+    /** Is this symbol an implicit constructor?
+     */
+    public boolean isImplicitConstructor() {
+        return isInitOrVNew() && ((flags() & IMPLICIT) != 0);
+    }
+
     /** Is this symbol a constructor or value factory?
      */
     public boolean isInitOrVNew() {
@@ -1679,6 +1685,21 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         public boolean isUnnamed() {
             return (flags_field & Flags.UNNAMED_CLASS) != 0 ;
         }
+
+        public MethodSymbol getImplicitConstructor() {
+            for (Symbol s : members().getSymbols(NON_RECURSIVE)) {
+                switch (s.kind) {
+                    case MTH:
+                        if (s.isInitOrVNew()) {
+                            if (s.isImplicitConstructor()) {
+                                return (MethodSymbol) s;
+                            }
+                        }
+                }
+            }
+            return null;
+        }
+
     }
 
 
