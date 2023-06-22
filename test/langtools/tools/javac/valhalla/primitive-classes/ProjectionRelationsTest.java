@@ -24,6 +24,7 @@
 /**
  * @test
  * @bug 8237072
+ * @ignore
  * @summary Test various relationships between a value type and its reference projection.
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api

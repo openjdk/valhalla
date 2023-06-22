@@ -187,21 +187,13 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     public void testRepeatedModifiers() {
-        String[] previousOptions = getCompileOptions();
-        try {
-            String[] testOptions = {"-XDenablePrimitiveClasses"};
-            setCompileOptions(testOptions);
-            String[] sources = new String[] {
-                    "static static class StaticTest {}",
-                    "native native class NativeTest {}",
-                    "value value primitive class ValueTest {}",
-                    "primitive primitive value class PrimitiveTest {}"
-            };
-            for (String source : sources) {
-                assertFail("compiler.err.repeated.modifier", source);
-            }
-        } finally {
-            setCompileOptions(previousOptions);
+        String[] sources = new String[] {
+                "static static class StaticTest {}",
+                "native native class NativeTest {}",
+                "value value class ValueTest {}"
+        };
+        for (String source : sources) {
+            assertFail("compiler.err.repeated.modifier", source);
         }
     }
 

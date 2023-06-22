@@ -37,7 +37,6 @@ import java.util.function.Predicate;
 import javax.lang.model.type.*;
 
 import com.sun.tools.javac.code.Symbol.*;
-import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.code.TypeMetadata.ConstantValue;
 import com.sun.tools.javac.code.Types.TypeMapping;
@@ -232,10 +231,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         this.metadata = metadata;
     }
 
-    public boolean isPrimitiveClass() {
-        return false;
-    }
-
     public boolean isValueClass() {
         return false;
     }
@@ -256,49 +251,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     public boolean requiresPreload(Symbol referringClass) {
         if (this.tsym == referringClass)
             return false; // pointless
-        if (this.isReferenceProjection())
-            return true;
-        return this.isValueClass() && !this.isPrimitiveClass();
-    }
-
-    /**
-     * Return the `flavor' associated with a ClassType.
-     * @see ClassType.Flavor
-     */
-    public Flavor getFlavor() {
-        throw new AssertionError("Unexpected call to getFlavor() on a Type that is not a ClassType: " + this);
-    }
-
-    /**
-     * @return true IFF the receiver is a reference projection of a primitive class type and false
-     * for primitives or plain references
-     */
-    public boolean isReferenceProjection() {
-        return false;
-    }
-
-    /**
-     * @return the value projection type IFF the receiver is a reference projection of a primitive class type
-     * and null otherwise
-     */
-    public Type valueProjection() {
-        return null;
-    }
-
-    /**
-     * @return the reference projection type IFF the receiver is a primitive class type
-     * and null otherwise
-     */
-    public Type referenceProjection() {
-        return null;
-    }
-
-    /**
-     * @return the reference projection type IFF the receiver is a primitive class type or self otherwise.
-     */
-    public Type referenceProjectionOrSelf() {
-        Type projection = referenceProjection();
-        return projection != null ? projection : this;
+        return this.isValueClass();
     }
 
     /**
@@ -315,7 +268,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             List<Type> typarams = t.getTypeArguments();
             List<Type> typarams1 = visit(typarams, s);
             if (outer1 == outer && typarams1 == typarams) return t;
-            else return new ClassType(outer1, typarams1, t.tsym, t.metadata, t.getFlavor()) {
+            else return new ClassType(outer1, typarams1, t.tsym, t.metadata) {
                 @Override
                 protected boolean needsStripping() {
                     return true;
@@ -1053,121 +1006,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
     }
 
-    public static class ConstantPoolQType implements PoolConstant {
-
-        public final Type type;
-        final Types types;
-
-        public ConstantPoolQType(Type type, Types types) {
-            this.type = type;
-            this.types = types;
-        }
-
-        @Override
-        public Object poolKey(Types types) {
-            return this;
-        }
-
-        @Override
-        public int poolTag() {
-            return ClassFile.CONSTANT_Class;
-        }
-
-        public int hashCode() {
-            return types.hashCode(type);
-        }
-
-        public boolean equals(Object obj) {
-            return (obj instanceof ConstantPoolQType) &&
-                    types.isSameType(type, ((ConstantPoolQType)obj).type);
-        }
-
-        public String toString() {
-            return type.toString();
-        }
-    }
-
     public static class ClassType extends Type implements DeclaredType, LoadableConstant,
                                                           javax.lang.model.type.ErrorType {
-
-        /**
-         * The 'flavor' of a ClassType indicates its reference/primitive projectionness
-         * viewed against the default nature of the associated class.
-         */
-        public enum Flavor {
-
-            /**
-             * Classic reference type. Also reference projection type of a reference-favoring aka
-             * reference-default primitive class type
-             */
-            L_TypeOf_L,
-
-            /**
-             * Reference projection type of a primitive-favoring aka primitive-default
-             * plain vanilla primitive class type,
-             */
-            L_TypeOf_Q,
-
-            /**
-             * Value projection type of a primitive-favoring aka primitive-default
-             * plain vanilla primitive class type,
-             */
-            Q_TypeOf_Q,
-
-            /**
-             * Value projection type of a reference-favoring aka
-             * reference-default primitive class type
-             */
-            Q_TypeOf_L,
-
-            /**
-             * Reference projection type of a class type of an as yet unknown default provenance, 'X' will be
-             * discovered to be 'L' or 'Q' in "due course" and mutated suitably.
-             */
-            L_TypeOf_X,
-
-            /**
-             * Value projection type of a class type of an as yet unknown default provenance, 'X' will be
-             * discovered to be 'L' or 'Q' in "due course" and mutated suitably.
-             */
-            Q_TypeOf_X,
-
-            /**
-             *  As yet unknown projection type of an as yet unknown default provenance class.
-             */
-            X_Typeof_X,
-
-            /**
-             *  An error type - we don't care to discriminate them any further.
-             */
-             E_Typeof_X;
-
-            // We don't seem to need X_Typeof_L or X_Typeof_Q so far.
-
-            // Transform a larval form into a more evolved form
-            public Flavor metamorphose(boolean isPrimtiveClass) {
-
-                switch (this) {
-
-                    case E_Typeof_X:  // stunted form
-                    case L_TypeOf_L:
-                    case L_TypeOf_Q:
-                    case Q_TypeOf_L:
-                    case Q_TypeOf_Q:
-                            // These are fully evolved sealed forms or stunted - no futher transformation
-                            return this;
-                    case L_TypeOf_X:
-                            return isPrimtiveClass ? L_TypeOf_Q : L_TypeOf_L;
-                    case Q_TypeOf_X:
-                            return isPrimtiveClass ? Q_TypeOf_Q : Q_TypeOf_L;
-                    case X_Typeof_X:
-                            return isPrimtiveClass ? Q_TypeOf_Q : L_TypeOf_L;
-                    default:
-                            throw new AssertionError("Unexpected class type flavor");
-                }
-            }
-        }
-
         /** The enclosing type of this type. If this is the type of an inner
          *  class, outer_field refers to the type of its enclosing
          *  instance class, in all other cases it refers to noType.
@@ -1196,36 +1036,22 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public List<Type> all_interfaces_field;
 
-        /** The 'other' projection: If 'this' is type of a primitive class, then 'projection' is the
-         *  reference projection type and vice versa. Lazily initialized, not to be accessed directly.
-        */
-        public ClassType projection;
-
-        /** Is this L of default {L, Q, X} or Q of default {L, Q, X} ?
-         */
-        public Flavor flavor;
-
         /*
          * Use of this constructor is kinda sorta deprecated, use the other constructor
          * that forces the call site to consider and include the class type flavor.
          */
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym) {
-            this(outer, typarams, tsym, List.nil(), Flavor.L_TypeOf_L);
-        }
-
-        public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym, Flavor flavor) {
-            this(outer, typarams, tsym, List.nil(), flavor);
+            this(outer, typarams, tsym, List.nil());
         }
 
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym,
-                         List<TypeMetadata> metadata, Flavor flavor) {
+                         List<TypeMetadata> metadata) {
             super(tsym, metadata);
             this.outer_field = outer;
             this.typarams_field = typarams;
             this.allparams_field = null;
             this.supertype_field = null;
             this.interfaces_field = null;
-            this.flavor = flavor;
         }
 
         public int poolTag() {
@@ -1234,7 +1060,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         @Override
         public ClassType cloneWithMetadata(List<TypeMetadata> md) {
-            return new ClassType(outer_field, typarams_field, tsym, md, flavor) {
+            return new ClassType(outer_field, typarams_field, tsym, md) {
                 @Override
                 public Type baseType() { return ClassType.this.baseType(); }
             };
@@ -1285,17 +1111,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 }
             }
 
-            boolean isReferenceProjection;
-            try {
-                isReferenceProjection = isReferenceProjection();
-            } catch (CompletionFailure cf) {
-                isReferenceProjection = false; // handle missing types gracefully.
-            }
-            if (isReferenceProjection) {
-                buf.append('.');
-                buf.append(tsym.name.table.names.ref);
-            }
-
             if (getTypeArguments().nonEmpty()) {
                 buf.append('<');
                 buf.append(getTypeArguments().toString());
@@ -1334,10 +1149,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 }
             }
 
-        public Flavor getFlavor() {
-            return flavor;
-        }
-
         @DefinedBy(Api.LANGUAGE_MODEL)
         public List<Type> getTypeArguments() {
             if (typarams_field == null) {
@@ -1354,9 +1165,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public Type getEnclosingType() {
-            if (outer_field != null && outer_field.isReferenceProjection()) {
-                outer_field = outer_field.valueProjection();
-            }
             return outer_field;
         }
 
@@ -1389,13 +1197,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         @Override
-        public boolean isPrimitiveClass() {
-            return !isReferenceProjection() && tsym != null && tsym.isPrimitiveClass();
-        }
-
-        @Override
         public boolean isValueClass() {
-            return !isReferenceProjection() && tsym != null && tsym.isValueClass();
+            return tsym != null && tsym.isValueClass();
         }
 
         @Override
@@ -1405,61 +1208,12 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         @Override
         public boolean isIdentityClass() {
-            return !isReferenceProjection() && tsym != null && tsym.isIdentityClass();
+            return tsym != null && tsym.isIdentityClass();
         }
 
         @Override
         public boolean isIdentityInterface() {
             return isInterface() && tsym.isIdentityInterface();
-        }
-
-        @Override
-        public boolean isReferenceProjection() {
-            // gaurd against over-eager and/or inopportune completion
-            if (tsym != null) {
-                if (flavor == Flavor.L_TypeOf_X || tsym.isCompleted()) {
-                    flavor = flavor.metamorphose(tsym.isPrimitiveClass());
-                }
-            }
-            return flavor == Flavor.L_TypeOf_Q;
-        }
-
-        @Override
-        public Type valueProjection() {
-            if (!isReferenceProjection())
-                return null;
-
-            if (projection !=  null)
-                return projection;
-
-            projection = new ClassType(outer_field, typarams_field, tsym, getMetadata(), Flavor.Q_TypeOf_Q);
-            projection.allparams_field = allparams_field;
-            projection.supertype_field = supertype_field;
-
-            projection.interfaces_field = interfaces_field;
-            projection.all_interfaces_field = all_interfaces_field;
-            projection.projection = this;
-            return projection;
-        }
-
-        // return the reference projection type preserving parameterizations
-        @Override
-        public ClassType referenceProjection() {
-
-            if (!isPrimitiveClass())
-                return null;
-
-            if (projection != null)
-                return projection;
-
-            projection = new ClassType(outer_field, typarams_field, tsym, getMetadata(), Flavor.L_TypeOf_Q);
-            projection.allparams_field = allparams_field;
-            projection.supertype_field = supertype_field;
-
-            projection.interfaces_field = interfaces_field;
-            projection.all_interfaces_field = all_interfaces_field;
-            projection.projection = this;
-            return projection;
         }
 
         @Override
@@ -1510,7 +1264,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     public static class ErasedClassType extends ClassType {
         public ErasedClassType(Type outer, TypeSymbol tsym,
                                List<TypeMetadata> metadata) {
-            super(outer, List.nil(), tsym, metadata, tsym.type.getFlavor());
+            super(outer, List.nil(), tsym, metadata);
         }
 
         @Override
@@ -2621,20 +2375,20 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         public ErrorType(Type originalType, TypeSymbol tsym) {
-            super(noType, List.nil(), tsym, List.nil(), Flavor.E_Typeof_X);
+            super(noType, List.nil(), tsym, List.nil());
             this.originalType = (originalType == null ? noType : originalType);
         }
 
         private ErrorType(Type originalType, TypeSymbol tsym,
-                          List<TypeMetadata> metadata, Flavor flavor) {
-            super(noType, List.nil(), null, metadata, flavor);
+                          List<TypeMetadata> metadata) {
+            super(noType, List.nil(), null, metadata);
             this.tsym = tsym;
             this.originalType = (originalType == null ? noType : originalType);
         }
 
         @Override
         public ErrorType cloneWithMetadata(List<TypeMetadata> md) {
-            return new ErrorType(originalType, tsym, md, getFlavor()) {
+            return new ErrorType(originalType, tsym, md) {
                 @Override
                 public Type baseType() { return ErrorType.this.baseType(); }
             };

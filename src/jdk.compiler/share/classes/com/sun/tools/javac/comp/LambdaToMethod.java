@@ -1865,7 +1865,7 @@ public class LambdaToMethod extends TreeTranslator {
                 if (forceSerializable) {
                     return true;
                 }
-                return types.asSuper(tree.target.referenceProjectionOrSelf(), syms.serializableType.tsym) != null;
+                return types.asSuper(tree.target, syms.serializableType.tsym) != null;
             }
 
             /**

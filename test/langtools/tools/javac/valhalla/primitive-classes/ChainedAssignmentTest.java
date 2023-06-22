@@ -24,6 +24,7 @@
 /**
  * @test
  * @bug 8207332
+ * @ignore
  * @summary Verify that chained assignments in value constructors are lowered correctly.
  * @compile -XDenablePrimitiveClasses ChainedAssignmentTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ChainedAssignmentTest

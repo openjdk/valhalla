@@ -101,7 +101,6 @@ public class Lower extends TreeTranslator {
     private final boolean disableProtectedAccessors; // experimental
     private final PkgInfo pkginfoOpt;
     private final boolean optimizeOuterThis;
-    private final boolean allowPrimitiveClasses;
     private final boolean useMatchException;
 
     @SuppressWarnings("this-escape")
@@ -131,7 +130,6 @@ public class Lower extends TreeTranslator {
             options.getBoolean("optimizeOuterThis", false);
         disableProtectedAccessors = options.isSet("disableProtectedAccessors");
         Source source = Source.instance(context);
-        allowPrimitiveClasses = Source.Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
         Preview preview = Preview.instance(context);
         useMatchException = Feature.PATTERN_SWITCH.allowedInSource(source) &&
                             (preview.isEnabled() || !preview.isPreview(Feature.PATTERN_SWITCH));
@@ -1234,9 +1232,6 @@ public class Lower extends TreeTranslator {
         switch (sym.kind) {
         case TYP:
             if (sym.owner.kind != PCK) {
-                // Make sure not to lose type fidelity due to symbol sharing between projections
-                boolean requireReferenceProjection = allowPrimitiveClasses &&
-                        tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref && tree.type.isReferenceProjection();
                 // Convert type idents to
                 // <flat name> or <package name> . <flat name>
                 Name flatname = Convert.shortName(sym.flatName());
@@ -1252,15 +1247,9 @@ public class Lower extends TreeTranslator {
                 } else if (base == null) {
                     tree = make.at(tree.pos).Ident(sym);
                     ((JCIdent) tree).name = flatname;
-                    if (requireReferenceProjection) {
-                        tree.setType(tree.type.referenceProjection());
-                    }
                 } else {
                     ((JCFieldAccess) tree).selected = base;
                     ((JCFieldAccess) tree).name = flatname;
-                    if (requireReferenceProjection) {
-                        tree.setType(tree.type.referenceProjection());
-                    }
                 }
             }
             break;
@@ -1817,7 +1806,7 @@ public class Lower extends TreeTranslator {
 
     private JCStatement makeResourceCloseInvocation(JCExpression resource) {
         // convert to AutoCloseable if needed
-        if (types.asSuper(resource.type.referenceProjectionOrSelf(), syms.autoCloseableType.tsym) == null) {
+        if (types.asSuper(resource.type, syms.autoCloseableType.tsym) == null) {
             resource = convert(resource, syms.autoCloseableType);
         }
 
@@ -2201,8 +2190,7 @@ public class Lower extends TreeTranslator {
     /** Visitor method: Translate a single node, boxing or unboxing if needed.
      */
     public <T extends JCExpression> T translate(T tree, Type type) {
-        return (tree == null) ? null :
-                applyPrimitiveConversionsAsNeeded(boxIfNeeded(translate(tree), type), type);
+        return (tree == null) ? null : boxIfNeeded(translate(tree), type);
     }
 
     /** Visitor method: Translate tree.
@@ -3230,17 +3218,6 @@ public class Lower extends TreeTranslator {
         return result.toList();
     }
 
-    /** Apply primitive value/reference conversions as needed */
-    @SuppressWarnings("unchecked")
-    <T extends JCExpression> T applyPrimitiveConversionsAsNeeded(T tree, Type type) {
-        boolean haveValue = tree.type.isPrimitiveClass();
-        if (haveValue == type.isPrimitiveClass())
-            return tree;
-        // For narrowing conversion, insert a cast which should trigger a null check
-        // For widening conversions, insert a cast if emitting a unified class file.
-        return (T) make.TypeCast(type, tree);
-    }
-
     /** Expand a boxing or unboxing conversion if needed. */
     @SuppressWarnings("unchecked") // XXX unchecked
     <T extends JCExpression> T boxIfNeeded(T tree, Type type) {
@@ -3639,7 +3616,7 @@ public class Lower extends TreeTranslator {
         private void visitIterableForeachLoop(JCEnhancedForLoop tree) {
             make_at(tree.expr.pos());
             Type iteratorTarget = syms.objectType;
-            Type iterableType = types.asSuper(types.cvarUpperBound(tree.expr.type.referenceProjectionOrSelf()),
+            Type iterableType = types.asSuper(types.cvarUpperBound(tree.expr.type),
                                               syms.iterableType.tsym);
             if (iterableType.getTypeArguments().nonEmpty())
                 iteratorTarget = types.erasure(iterableType.getTypeArguments().head);
@@ -3649,7 +3626,7 @@ public class Lower extends TreeTranslator {
                                            names.iterator,
                                            tree.expr.type,
                                            List.nil());
-            Assert.check(types.isSameType(types.erasure(types.asSuper(iterator.type.getReturnType().referenceProjectionOrSelf(), syms.iteratorType.tsym)), types.erasure(syms.iteratorType)));
+            Assert.check(types.isSameType(types.erasure(types.asSuper(iterator.type.getReturnType(), syms.iteratorType.tsym)), types.erasure(syms.iteratorType)));
             VarSymbol itvar = new VarSymbol(SYNTHETIC, names.fromString("i" + target.syntheticNameChar()),
                                             types.erasure(syms.iteratorType),
                                             currentMethodSym);
@@ -4241,15 +4218,7 @@ public class Lower extends TreeTranslator {
             tree.selected.hasTag(SELECT) &&
             TreeInfo.name(tree.selected) == names._super &&
             !types.isDirectSuperInterface(((JCFieldAccess)tree.selected).selected.type.tsym, currentClass);
-        /* JDK-8269956: Where a reflective (class) literal is needed, the unqualified Point.class is
-         * always the "primary" mirror - representing the primitive reference runtime type - thereby
-         * always matching the behavior of Object::getClass
-         */
-        boolean needPrimaryMirror = tree.name == names._class && tree.selected.type.isReferenceProjection();
         tree.selected = translate(tree.selected);
-        if (needPrimaryMirror && allowPrimitiveClasses && tree.selected.type.isPrimitiveClass()) {
-            tree.selected.setType(tree.selected.type.referenceProjection());
-        }
         if (tree.name == names._class) {
             result = classOf(tree.selected);
         }
@@ -4257,7 +4226,7 @@ public class Lower extends TreeTranslator {
                 types.isDirectSuperInterface(tree.selected.type.tsym, currentClass)) {
             //default super call!! Not a classic qualified super call
             TypeSymbol supSym = tree.selected.type.tsym;
-            Assert.checkNonNull(types.asSuper(currentClass.type.referenceProjectionOrSelf(), supSym));
+            Assert.checkNonNull(types.asSuper(currentClass.type, supSym));
             result = tree;
         }
         else if (tree.name == names._this || tree.name == names._super) {

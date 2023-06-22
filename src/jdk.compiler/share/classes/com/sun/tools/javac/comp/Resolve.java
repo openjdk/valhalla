@@ -112,7 +112,6 @@ public class Resolve {
     private final boolean allowYieldStatement;
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
     final boolean dumpMethodReferenceSearchResults;
-    final boolean allowPrimitiveClasses;
 
     WriteableScope polymorphicSignatureScope;
 
@@ -151,7 +150,6 @@ public class Resolve {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         dumpMethodReferenceSearchResults = options.isSet("debug.dumpMethodReferenceSearchResults");
         allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** error symbols, which are returned when resolution fails
@@ -420,20 +418,6 @@ public class Resolve {
         }
 
         ClassSymbol enclosingCsym = env.enclClass.sym;
-        if (allowPrimitiveClasses) {
-            if (sym.kind == MTH || sym.kind == VAR) {
-                /* If any primitive class types are involved, ask the same question in the reference universe,
-                   where the hierarchy is navigable
-                */
-                if (site.isPrimitiveClass())
-                    site = site.referenceProjection();
-            } else if (sym.kind == TYP) {
-                // A type is accessible in a reference projection if it was
-                // accessible in the value projection.
-                if (site.isReferenceProjection())
-                    site = site.valueProjection();
-            }
-        }
         try {
             switch ((short)(sym.flags() & AccessFlags)) {
                 case PRIVATE:
@@ -487,13 +471,6 @@ public class Resolve {
     private boolean notOverriddenIn(Type site, Symbol sym) {
         if (sym.kind != MTH || sym.isInitOrVNew() || sym.isStatic())
             return true;
-
-        /* If any primitive class types are involved, ask the same question in the reference universe,
-           where the hierarchy is navigable
-        */
-        if (allowPrimitiveClasses && site.isPrimitiveClass()) {
-            site = site.referenceProjection();
-        }
 
         Symbol s2 = ((MethodSymbol)sym).implementation(site.tsym, types, true);
         return (s2 == null || s2 == sym || sym.owner == s2.owner || (sym.owner.isInterface() && s2.owner == syms.objectType.tsym) ||
@@ -1717,12 +1694,12 @@ public class Resolve {
                 // but we need to protect against cases where the methods are defined in some classfile
                 // and make sure we issue an ambiguity error accordingly (by skipping the logic below).
                 if (m1Owner != m2Owner) {
-                    if (types.asSuper(m1Owner.type.referenceProjectionOrSelf(), m2Owner) != null &&
+                    if (types.asSuper(m1Owner.type, m2Owner) != null &&
                         ((m1.owner.flags_field & INTERFACE) == 0 ||
                          (m2.owner.flags_field & INTERFACE) != 0) &&
                         m1.overrides(m2, m1Owner, types, false))
                         return m1;
-                    if (types.asSuper(m2Owner.type.referenceProjectionOrSelf(), m1Owner) != null &&
+                    if (types.asSuper(m2Owner.type, m1Owner) != null &&
                         ((m2.owner.flags_field & INTERFACE) == 0 ||
                          (m1.owner.flags_field & INTERFACE) != 0) &&
                         m2.overrides(m1, m2Owner, types, false))
@@ -3624,7 +3601,7 @@ public class Resolve {
             if (TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                 if (argtypes.nonEmpty() &&
                         (argtypes.head.hasTag(NONE) ||
-                        types.isSubtypeUnchecked(inferenceContext.asUndetVar(argtypes.head.referenceProjectionOrSelf()), originalSite))) {
+                        types.isSubtypeUnchecked(inferenceContext.asUndetVar(argtypes.head), originalSite))) {
                     return new UnboundMethodReferenceLookupHelper(referenceTree, name,
                             originalSite, argtypes, typeargtypes, maxPhase);
                 } else {
@@ -3677,7 +3654,7 @@ public class Resolve {
                 List<Type> argtypes, List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
             super(referenceTree, name, site, argtypes.tail, typeargtypes, maxPhase);
             if (site.isRaw() && !argtypes.head.hasTag(NONE)) {
-                Type asSuperSite = types.asSuper(argtypes.head.referenceProjectionOrSelf(), site.tsym);
+                Type asSuperSite = types.asSuper(argtypes.head, site.tsym);
                 this.site = types.skipTypeVars(asSuperSite, true);
             }
         }
@@ -3739,7 +3716,7 @@ public class Resolve {
             if (site.isRaw()) {
                 this.site = new ClassType(site.getEnclosingType(),
                         !(site.tsym.isInner() && site.getEnclosingType().isRaw()) ?
-                            site.tsym.type.getTypeArguments() : List.nil(), site.tsym, site.getMetadata(), site.getFlavor());
+                            site.tsym.type.getTypeArguments() : List.nil(), site.tsym, site.getMetadata());
                 needsInference = true;
             }
         }
@@ -3829,7 +3806,7 @@ public class Resolve {
                 if (t.tsym == c) {
                     env.info.defaultSuperCallSite = t;
                     return new VarSymbol(0, names._super,
-                            types.asSuper(env.enclClass.type.referenceProjectionOrSelf(), c), env.enclClass.sym);
+                            types.asSuper(env.enclClass.type, c), env.enclClass.sym);
                 }
             }
             //find a direct supertype that is a subtype of 'c'

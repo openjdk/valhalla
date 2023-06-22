@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8244712
+ * @ignore
  * @summary Javac should switch to reference projection before walking type hierarchy.
  * @compile -XDenablePrimitiveClasses AsSuperTests.java
  */

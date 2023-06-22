@@ -25,6 +25,7 @@
 
 /*
  * @bug 8247664
+ * @ignore
  * @summary Bogus error message: incompatible types while using separate compilation.
  */
 

@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8244711 8244712
+ * @ignore
  * @summary Test that inline types work well with enhanced for loop.
  * @compile -XDenablePrimitiveClasses EnhancedForLoopTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses EnhancedForLoopTest

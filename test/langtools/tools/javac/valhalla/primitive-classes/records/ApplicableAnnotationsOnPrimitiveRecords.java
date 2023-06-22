@@ -25,6 +25,7 @@
  * @test
  * @summary [lworld] test for equal treatment of annotations on primitive records (copy of ApplicableAnnotationsOnRecords)
  * @bug 8273018
+ * @ignore
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.util
  *          jdk.jdeps/com.sun.tools.classfile

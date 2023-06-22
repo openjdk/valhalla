@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @ignore
  * @summary Check code generation for value creation ops
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile -XDenablePrimitiveClasses ValueCreationTest.java

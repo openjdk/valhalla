@@ -26,6 +26,7 @@
 /*
  * @test
  * @summary Test various inference scenarios.
+ * @ignore
  * @compile -XDenablePrimitiveClasses InferredValueParameterizationTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InferredValueParameterizationTest
  *

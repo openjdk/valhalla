@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8222634
+ * @ignore
  * @summary Check various code snippets that were incorrectly failing to compile.
  * @compile -XDenablePrimitiveClasses AssortedTests.java
  */

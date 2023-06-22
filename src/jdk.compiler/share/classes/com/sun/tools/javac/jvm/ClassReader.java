@@ -45,7 +45,6 @@ import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Source.Feature;
-import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.comp.Annotate;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
 import com.sun.tools.javac.code.*;
@@ -108,10 +107,6 @@ public class ClassReader {
     /** Switch: allow modules.
      */
     boolean allowModules;
-
-    /** Switch: allow primitive classes.
-     */
-    boolean allowPrimitiveClasses;
 
     /** Switch: allow value classes.
      */
@@ -291,7 +286,6 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
         allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
@@ -511,14 +505,9 @@ public class ClassReader {
         case 'J':
             sigp++;
             return syms.longType;
-        case 'Q':
         case 'L':
             {
                 // int oldsigp = sigp;
-                if ((char) signature[sigp] == 'Q' && !allowPrimitiveClasses) {
-                    throw badClassFile("bad.class.signature",
-                                       quoteBadSignature());
-                }
                 Type t = classSigToType();
                 if (sigp < siglimit && signature[sigp] == '.')
                     throw badClassFile("deprecated inner class signature syntax " +
@@ -577,12 +566,11 @@ public class ClassReader {
      */
     Type classSigToType() {
         byte prefix = signature[sigp];
-        if (prefix != 'L' && (!allowPrimitiveClasses || prefix != 'Q'))
+        if (prefix != 'L')
             throw badClassFile("bad.class.signature", quoteBadSignature());
         sigp++;
         Type outer = Type.noType;
         Name name;
-        ClassType.Flavor flavor;
         int startSbp = sbp;
 
         while (true) {
@@ -595,14 +583,12 @@ public class ClassReader {
                                                          sbp - startSbp));
 
                 // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
-                flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.Q_TypeOf_X;
                 try {
                     if (outer == Type.noType) {
                         ClassType et = (ClassType) t.erasure(types);
-                        // Todo: This spews out more objects than before, i.e no reuse with identical flavor
-                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata(), flavor);
+                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
                     }
-                    return new ClassType(outer, List.nil(), t, List.nil(), flavor);
+                    return new ClassType(outer, List.nil(), t, List.nil());
                 } finally {
                     sbp = startSbp;
                 }
@@ -613,8 +599,7 @@ public class ClassReader {
                                                          startSbp,
                                                          sbp - startSbp));
                 // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
-                flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.Q_TypeOf_X;
-                outer = new ClassType(outer, sigToTypes('>'), t, List.nil(), flavor) {
+                outer = new ClassType(outer, sigToTypes('>'), t, List.nil()) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
                         public Type getEnclosingType() {
@@ -678,8 +663,7 @@ public class ClassReader {
                                                  startSbp,
                                                  sbp - startSbp));
                     // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
-                    flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.Q_TypeOf_X;
-                    outer = new ClassType(outer, List.nil(), t, List.nil(), flavor);
+                    outer = new ClassType(outer, List.nil(), t, List.nil());
                 }
                 signatureBuffer[sbp++] = (byte)'$';
                 continue;
@@ -2635,11 +2619,6 @@ public class ClassReader {
         if (c == syms.objectType.tsym) {
             flags &= ~IDENTITY_TYPE; // jlO lacks identity even while being a concrete class.
         }
-        if ((flags & PRIMITIVE_CLASS) != 0) {
-            if (!allowPrimitiveClasses || (flags & (FINAL | PRIMITIVE_CLASS | IDENTITY_TYPE)) != (FINAL | PRIMITIVE_CLASS)) {
-                throw badClassFile("bad.access.flags", Flags.toString(flags));
-            }
-        }
         if ((flags & MODULE) == 0) {
             if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
             // read own class name and check that it matches
@@ -2903,12 +2882,6 @@ public class ClassReader {
         if ((flags & ACC_MODULE) != 0) {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
-        }
-        if ((flags & ACC_PRIMITIVE) != 0) {
-            flags &= ~ACC_PRIMITIVE;
-            if (allowPrimitiveClasses) {
-                flags |= PRIMITIVE_CLASS;
-            }
         }
         if ((flags & ACC_VALUE) != 0) {
             flags &= ~ACC_VALUE;

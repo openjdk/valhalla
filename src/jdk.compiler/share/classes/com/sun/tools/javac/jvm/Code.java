@@ -182,7 +182,6 @@ public class Code {
     final MethodSymbol meth;
 
     private int letExprStackPos = 0;
-    private boolean allowPrimitiveClasses;
 
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
@@ -196,8 +195,7 @@ public class Code {
                 CRTable crt,
                 Symtab syms,
                 Types types,
-                PoolWriter poolWriter,
-                boolean allowPrimitiveClasses) {
+                PoolWriter poolWriter) {
         this.meth = meth;
         this.fatcode = fatcode;
         this.lineMap = lineMap;
@@ -219,7 +217,6 @@ public class Code {
         }
         state = new State();
         lvar = new LocalVar[20];
-        this.allowPrimitiveClasses = allowPrimitiveClasses;
     }
 
 
@@ -1069,7 +1066,7 @@ public class Code {
             break;
         case checkcast: {
             state.pop(1); // object ref
-            Type t = types.erasure(data instanceof  ConstantPoolQType ? ((ConstantPoolQType)data).type: (Type)data);
+            Type t = types.erasure((Type)data);
             state.push(t);
             break; }
         case ldc2w:
@@ -1783,12 +1780,8 @@ public class Code {
             case ARRAY:
                 int width = width(t);
                 Type old = stack[stacksize-width];
-                if (!allowPrimitiveClasses) {
-                    Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)));
-                } else {
-                    Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)) ||
-                            (old.isPrimitiveClass() != t.isPrimitiveClass() && types.isConvertible(types.erasure(old), types.erasure(t))));
-                }
+                Assert.check(types.isSubtype(types.erasure(old),
+                                       types.erasure(t)));
                 stack[stacksize-width] = t;
                 break;
             default:

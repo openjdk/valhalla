@@ -1,6 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8205910
+ * @ignore
  * @summary Complain when `this' of a value class is leaked from constructor before all instance fields are definitely assigned.
  * @compile/fail/ref=CheckThisLeak.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses CheckThisLeak.java
  */
@@ -62,23 +63,23 @@ primitive class V {
 
 	V() { // non-initial constructor. All, statements below are OK.
         this(10, 20);
-		OK();                       
-		this.OK();                  
+		OK();
+		this.OK();
 
-		validate();                 
-		this.validate();            
-		V.this.validate();          
+		validate();
+		this.validate();
+		V.this.validate();
 
-		System.out.println(this);   
-		System.out.println(V.this); 
+		System.out.println(this);
+		System.out.println(V.this);
 
-		V v = this;                 
-		v = V.this;                 
+		V v = this;
+		v = V.this;
 
-		int l = this.ymx;           
+		int l = this.ymx;
 
-		assert (this.x > 0);        
-		assert (this.y() > 0);      
+		assert (this.x > 0);
+		assert (this.y() > 0);
 	}
 
 	static void OK() {

@@ -24,6 +24,7 @@
 /*
  * @test
  * @bug 8205686 8215109
+ * @ignore
  * @summary __WithField seems to have trouble if the value type is a generic type.
  * @compile -XDenablePrimitiveClasses WithFieldOfGenericType.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses WithFieldOfGenericType

@@ -26,7 +26,7 @@
 /*
  * @test
  * @summary Test basic syntax of values
- *
+ * @ignore
  * @compile -XDenablePrimitiveClasses Point.java
  */
 

@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8267984
+ * @ignore
  * @summary The fix for JDK-8267918 incorrectly precludes synchronization of variables of Type Variable type.
  * @run main TypeVarSynchronize
  */
