@@ -161,7 +161,6 @@ module java.base {
         jdk.jlink,
         jdk.jfr,
         jdk.net,
-        jdk.incubator.concurrent,
         jdk.sctp,
         jdk.crypto.cryptoki;
     exports jdk.internal.foreign to
@@ -221,7 +220,6 @@ module java.base {
         jdk.charsets,
         jdk.compiler,
         jdk.crypto.cryptoki,
-        jdk.incubator.concurrent,
         jdk.incubator.vector,
         jdk.jfr,
         jdk.jshell,
@@ -255,7 +253,6 @@ module java.base {
         jdk.unsupported;
     exports jdk.internal.vm to
         java.management,
-        jdk.incubator.concurrent,
         jdk.internal.jvmstat,
         jdk.management,
         jdk.management.agent,
@@ -263,7 +260,6 @@ module java.base {
     exports jdk.internal.vm.annotation to
         java.instrument,
         jdk.internal.vm.ci,
-        jdk.incubator.concurrent,
         jdk.incubator.vector,
         jdk.jfr,
         jdk.unsupported;
@@ -284,6 +280,7 @@ module java.base {
         java.smartcardio,
         jdk.charsets,
         jdk.jlink,
+        jdk.jpackage,
         jdk.net;
     exports sun.net to
         java.net.http,
@@ -326,8 +323,7 @@ module java.base {
     exports sun.security.action to
         java.desktop,
         java.security.jgss,
-        jdk.crypto.ec,
-        jdk.incubator.concurrent;
+        jdk.crypto.ec;
     exports sun.security.internal.interfaces to
         jdk.crypto.cryptoki;
     exports sun.security.internal.spec to

@@ -1191,15 +1191,15 @@ inline intx byte_size(void* from, void* to) {
 
 // Pack and extract shorts to/from ints:
 
-inline int extract_low_short_from_int(jint x) {
-  return x & 0xffff;
+inline u2 extract_low_short_from_int(u4 x) {
+  return u2(x & 0xffff);
 }
 
-inline int extract_high_short_from_int(jint x) {
-  return (x >> 16) & 0xffff;
+inline u2 extract_high_short_from_int(u4 x) {
+  return u2((x >> 16) & 0xffff);
 }
 
-inline int build_int_from_shorts( jushort low, jushort high ) {
+inline int build_int_from_shorts( u2 low, u2 high ) {
   return ((int)((unsigned int)high << 16) | (unsigned int)low);
 }
 
@@ -1370,7 +1370,7 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 
 // TEMP!!!!
 // This should be removed after LW2 arrays are implemented (JDK-8220790).
-// It's an alias to (EnableValhalla && (FlatArrayElementMaxSize != 0)),
+// It's an alias to (EnablePrimitiveClasses && (FlatArrayElementMaxSize != 0)),
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
 #define UseFlatArray (EnablePrimitiveClasses && (FlatArrayElementMaxSize != 0))

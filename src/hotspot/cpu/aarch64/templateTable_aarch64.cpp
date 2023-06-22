@@ -3831,7 +3831,7 @@ void TemplateTable::_new() {
   __ load_resolved_klass_at_offset(r4, r3, r4, rscratch1);
 
   __ ldrb(rscratch1, Address(r4, InstanceKlass::kind_offset()));
-  __ cmp(rscratch1, (u1)InlineKlassKind);
+  __ cmp(rscratch1, (u1)Klass::InlineKlassKind);
   __ br(Assembler::NE, is_not_value);
 
   __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));

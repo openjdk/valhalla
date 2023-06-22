@@ -327,9 +327,9 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   LIR_Opr lock = new_register(T_INT);
   // Need a scratch register for inline types on x86
   LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (EnableValhalla && x->maybe_inlinetype()) {
-    scratch = new_register(T_INT);
-    assert(LockingMode != LM_LIGHTWEIGHT, "LM_LIGHTWEIGHT not yet compatible with EnableValhalla");
+  if ((LockingMode == LM_LIGHTWEIGHT) ||
+      (EnableValhalla && x->maybe_inlinetype())) {
+    scratch = new_register(T_ADDRESS);
   }
 
   CodeEmitInfo* info_for_exception = nullptr;

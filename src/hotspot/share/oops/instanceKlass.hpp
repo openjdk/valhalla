@@ -1044,7 +1044,6 @@ public:
 
   inline intptr_t* start_of_itable() const;
   inline intptr_t* end_of_itable() const;
-  inline int itable_offset_in_words() const;
   inline oop static_field_base_raw();
   bool bounds_check(address addr, bool edge_ok = false, intptr_t size_in_bytes = -1) const PRODUCT_RETURN0;
 
