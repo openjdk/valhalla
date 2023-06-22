@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -86,7 +86,7 @@ JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle recei
   _handles      = _thread->active_handles();    // save previous handle block & Java frame linkage
 
   // For the profiler, the last_Java_frame information in thread must always be in
-  // legal state. We have no last Java frame if last_Java_sp == NULL so
+  // legal state. We have no last Java frame if last_Java_sp == nullptr so
   // the valid transition is to clear _last_Java_sp and then reset the rest of
   // the (platform specific) state.
 
@@ -95,8 +95,6 @@ JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle recei
 
   debug_only(_thread->inc_java_call_counter());
   _thread->set_active_handles(new_handles);     // install new handle block and reset Java frame linkage
-
-  assert (_thread->thread_state() != _thread_in_native, "cannot set native pc to NULL");
 
   MACOS_AARCH64_ONLY(_thread->enable_wx(WXExec));
 }
@@ -179,7 +177,7 @@ static BasicType runtime_type_from(JavaValue* result) {
 void JavaCalls::call_virtual(JavaValue* result, Klass* spec_klass, Symbol* name, Symbol* signature, JavaCallArguments* args, TRAPS) {
   CallInfo callinfo;
   Handle receiver = args->receiver();
-  Klass* recvrKlass = receiver.is_null() ? (Klass*)NULL : receiver->klass();
+  Klass* recvrKlass = receiver.is_null() ? (Klass*)nullptr : receiver->klass();
   LinkInfo link_info(spec_klass, name, signature);
   LinkResolver::resolve_virtual_call(
           callinfo, receiver, recvrKlass, link_info, true, CHECK);
@@ -408,12 +406,12 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
     os::map_stack_shadow_pages(sp);
   }
 
-  jobject value_buffer = NULL;
+  jobject value_buffer = nullptr;
   if (InlineTypeReturnedAsFields && (result->get_type() == T_PRIMITIVE_OBJECT || result->get_type() == T_OBJECT)) {
     // Pre allocate a buffered inline type in case the result is returned
     // flattened by compiled code
     InlineKlass* vk = method->returns_inline_type(thread);
-    if (vk != NULL && vk->can_be_returned_as_fields()) {
+    if (vk != nullptr && vk->can_be_returned_as_fields()) {
       oop instance = vk->allocate_instance(CHECK);
       value_buffer = JNIHandles::make_local(thread, instance);
       result->set_jobject(value_buffer);
@@ -435,8 +433,8 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
         // Must extract verified entry point from HotSpotNmethod after VM to Java
         // transition in JavaCallWrapper constructor so that it is safe with
         // respect to nmethod sweeping.
-        address verified_entry_point = (address) HotSpotJVMCI::InstalledCode::entryPoint(NULL, alternative_target());
-        if (verified_entry_point != NULL) {
+        address verified_entry_point = (address) HotSpotJVMCI::InstalledCode::entryPoint(nullptr, alternative_target());
+        if (verified_entry_point != nullptr) {
           thread->set_jvmci_alternate_call_target(verified_entry_point);
           entry_point = method->adapter()->get_i2c_entry();
         }
@@ -469,7 +467,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   // Restore possible oop return
   if (oop_result_flag) {
     result->set_oop(thread->vm_result());
-    thread->set_vm_result(NULL);
+    thread->set_vm_result(nullptr);
     JNIHandles::destroy_local(value_buffer);
   }
 }
@@ -502,7 +500,7 @@ inline oop resolve_indirect_oop(intptr_t value, uint state) {
 
   default:
     ShouldNotReachHere();
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -580,7 +578,7 @@ class SignatureChekker : public SignatureIterator {
     if (v != 0) {
       // v is a "handle" referring to an oop, cast to integral type.
       // There shouldn't be any handles in very low memory.
-      guarantee((size_t)v >= (size_t)os::vm_page_size(),
+      guarantee((size_t)v >= os::vm_page_size(),
                 "Bad JNI oop argument %d: " PTR_FORMAT, _pos, v);
       // Verify the pointee.
       oop vv = resolve_indirect_oop(v, _value_state[_pos]);

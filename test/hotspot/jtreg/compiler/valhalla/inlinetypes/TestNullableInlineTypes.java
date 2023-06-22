@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2735,5 +2735,137 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test97(2, false), null);
         Asserts.assertEQ(test97(3, false), test97_res3);
         Asserts.assertEQ(test97(3, true), null);
+    }
+
+    static primitive class CircularValue1 {
+        CircularValue1.ref val;
+        int x;
+
+        @ForceInline
+        public CircularValue1(CircularValue1.ref val) {
+            this.val = val;
+            this.x = rI;
+        }
+    }
+
+    // Test scalarization of primitive class with circularity in fields
+    @Test
+    public CircularValue1 test98(CircularValue1 val) {
+        return new CircularValue1(val);
+    }
+
+    @Run(test = "test98")
+    public void test98_verifier()  {
+        CircularValue1 val = new CircularValue1(null);
+        CircularValue1 res = test98(val);
+        Asserts.assertEQ(res.x, rI);
+        Asserts.assertEQ(res.val, val);
+    }
+
+    static primitive class CircularValue2 {
+        CircularValue1 val;
+
+        @ForceInline
+        public CircularValue2(CircularValue1 val) {
+            this.val = val;
+        }
+    }
+
+    // Same as test98 but with circularity in class of flattened field
+    @Test
+    public CircularValue2 test99(CircularValue2 val) {
+        return new CircularValue2(val.val);
+    }
+
+    @Run(test = "test99")
+    public void test99_verifier()  {
+        CircularValue1 val1 = new CircularValue1(null);
+        CircularValue2 val2 = new CircularValue2(val1);
+        CircularValue2 res = test99(val2);
+        Asserts.assertEQ(res.val, val1);
+    }
+
+    static primitive class CircularValue3 {
+        CircularValue4.ref val;
+        int x;
+
+        @ForceInline
+        public CircularValue3(CircularValue4.ref val, int x) {
+            this.val = val;
+            this.x = x;
+        }
+    }
+
+    static primitive class CircularValue4 {
+        CircularValue3 val;
+
+        @ForceInline
+        public CircularValue4(CircularValue3 val) {
+            this.val = val;
+        }
+    }
+
+    // Same as test94 but with "indirect" circularity through field of flattened field
+    @Test
+    public CircularValue4 test100(CircularValue4 val) {
+        return new CircularValue4(new CircularValue3(val, rI));
+    }
+
+    @Run(test = "test100")
+    public void test100_verifier()  {
+        CircularValue3 val3 = new CircularValue3(null, 42);
+        CircularValue4 val4 = new CircularValue4(val3);
+        CircularValue4 res = test100(val4);
+        Asserts.assertEQ(res.val, new CircularValue3(val4, rI));
+    }
+
+    static primitive class CircularValue5 {
+        CircularValue6 val;
+        int x;
+
+        @ForceInline
+        public CircularValue5(CircularValue6 val, int x) {
+            this.val = val;
+            this.x = x;
+        }
+    }
+
+    static primitive class CircularValue6 {
+        CircularValue5.ref val;
+
+        @ForceInline
+        public CircularValue6(CircularValue5.ref val) {
+            this.val = val;
+        }
+    }
+
+    // Same as test100 but with different combination of .ref/.val fields
+    @Test
+    public CircularValue6 test101(CircularValue6 val) {
+        return new CircularValue6(new CircularValue5(val, rI));
+    }
+
+    @Run(test = "test101")
+    public void test101_verifier()  {
+        CircularValue5 val5 = new CircularValue5(CircularValue6.default, 42);
+        CircularValue6 val6 = new CircularValue6(val5);
+        CircularValue6 res = test101(val6);
+        Asserts.assertEQ(res.val, new CircularValue5(val6, rI));
+    }
+
+    // Test merging of fields with different scalarization depth
+    @Test
+    public CircularValue1.ref test102(boolean b) {
+        CircularValue1.ref val = new CircularValue1(CircularValue1.default);
+        if (b) {
+            val = null;
+        }
+        return val;
+    }
+
+    @Run(test = "test102")
+    public void test102_verifier() {
+        Asserts.assertEQ(test102(false), new CircularValue1(CircularValue1.default));
+        Asserts.assertEQ(test102(true), null);
     }
 }

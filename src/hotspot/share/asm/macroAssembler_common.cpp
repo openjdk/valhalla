@@ -212,7 +212,7 @@ bool MacroAssembler::shuffle_inline_args_spill(bool is_packing, const GrowableAr
   if (!is_packing || SigEntry::skip_value_delimiters(sig, sig_index)) {
     reg = regs_from[from_index].first();
     if (!reg->is_valid() || reg_state[reg->value()] != reg_readonly) {
-      // Spilling this won't break circles
+      // Spilling this won't break cycles
       return true;
     }
   } else {
@@ -229,7 +229,7 @@ bool MacroAssembler::shuffle_inline_args_spill(bool is_packing, const GrowableAr
       }
     }
     if (!found) {
-      // Spilling fields in this inline type arg won't break circles
+      // Spilling fields in this inline type arg won't break cycles
       return true;
     }
   }

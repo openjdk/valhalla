@@ -23,6 +23,7 @@
  */
 /*
  * @test
+ * @ignore  TBD: Resolution of -XX:-EnableValhalla
  * @summary test that if a class file has ACC_VALUE or ACC_PRIMITIVE set then it must be run
  *          with option -XX:+EnableValhalla or -XX:+EnablePrimitiveClasses respectively.
  * @compile cfpTests.jcod

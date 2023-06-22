@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@
 #include "utilities/powerOfTwo.hpp"
 
 ArrayCopyNode::ArrayCopyNode(Compile* C, bool alloc_tightly_coupled, bool has_negative_length_guard)
-  : CallNode(arraycopy_type(), NULL, TypePtr::BOTTOM),
+  : CallNode(arraycopy_type(), nullptr, TypePtr::BOTTOM),
     _kind(None),
     _alloc_tightly_coupled(alloc_tightly_coupled),
     _has_negative_length_guard(has_negative_length_guard),
@@ -137,14 +137,14 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
       return nb_fields;
     } else {
       const TypeAryPtr* ary_src = src_type->isa_aryptr();
-      assert (ary_src != NULL, "not an array or instance?");
+      assert (ary_src != nullptr, "not an array or instance?");
       // clone passes a length as a rounded number of longs. If we're
       // cloning an array we'll do it element by element. If the
       // length input to ArrayCopyNode is constant, length of input
       // array must be too.
 
       assert((get_length_if_constant(phase) == -1) != ary_src->size()->is_con() ||
-             (UseFlatArray && ary_src->elem()->make_oopptr() != NULL && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
+             (UseFlatArray && ary_src->elem()->make_oopptr() != nullptr && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
              phase->is_IterGVN() || phase->C->inlining_incrementally() || StressReflectiveCode, "inconsistent");
 
       if (ary_src->size()->is_con()) {
@@ -181,7 +181,7 @@ void ArrayCopyNode::store(BarrierSetC2* bs, PhaseGVN *phase, Node*& ctl, MergeMe
 
 Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int count) {
   if (!is_clonebasic()) {
-    return NULL;
+    return nullptr;
   }
 
   Node* base_src = in(ArrayCopyNode::Src);
@@ -191,8 +191,8 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
 
   const Type* src_type = phase->type(base_src);
   const TypeInstPtr* inst_src = src_type->isa_instptr();
-  if (inst_src == NULL) {
-    return NULL;
+  if (inst_src == nullptr) {
+    return nullptr;
   }
 
   MergeMemNode* mem = phase->transform(MergeMemNode::make(in_mem))->as_MergeMem();
@@ -221,7 +221,7 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
   for (int i = 0; i < count; i++) {
     ciField* field = ik->nonstatic_field_at(i);
     const TypePtr* adr_type = phase->C->alias_type(field)->adr_type();
-    Node* off = phase->MakeConX(field->offset());
+    Node* off = phase->MakeConX(field->offset_in_bytes());
     Node* next_src = phase->transform(new AddPNode(base_src,base_src,off));
     Node* next_dest = phase->transform(new AddPNode(base_dest,base_dest,off));
     BasicType bt = field->layout_type();
@@ -272,29 +272,25 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     // newly allocated object is guaranteed to not overlap with source object
     disjoint_bases = is_alloc_tightly_coupled();
-    if (ary_src  == NULL || ary_src->elem()  == Type::BOTTOM ||
-        ary_dest == NULL || ary_dest->elem() == Type::BOTTOM) {
+    if (ary_src  == nullptr || ary_src->elem()  == Type::BOTTOM ||
+        ary_dest == nullptr || ary_dest->elem() == Type::BOTTOM) {
       // We don't know if arguments are arrays
       return false;
     }
 
     BasicType src_elem = ary_src->elem()->array_element_basic_type();
     BasicType dest_elem = ary_dest->elem()->array_element_basic_type();
-    if (src_elem == T_ARRAY || src_elem == T_NARROWOOP || (src_elem == T_PRIMITIVE_OBJECT && !ary_src->is_flat())) {
-      src_elem  = T_OBJECT;
-    }
-    if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && !ary_dest->is_flat())) {
-      dest_elem = T_OBJECT;
-    }
+    if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
+    if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
 
-    if (src_elem != dest_elem || dest_elem == T_VOID) {
+    if (src_elem != dest_elem || ary_src->is_flat() != ary_dest->is_flat() || dest_elem == T_VOID) {
       // We don't know if arguments are arrays of the same type
       return false;
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, false, BarrierSetC2::Optimization) ||
-        (src_elem == T_PRIMITIVE_OBJECT && ary_src->elem()->inline_klass()->contains_oops() &&
+    if ((!ary_dest->is_flat() && bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, false, BarrierSetC2::Optimization)) ||
+        (ary_dest->is_flat() && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), T_OBJECT, false, false, BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
@@ -303,7 +299,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     value_type = ary_src->elem();
 
     uint shift  = exact_log2(type2aelembytes(dest_elem));
-    if (dest_elem == T_PRIMITIVE_OBJECT) {
+    if (ary_dest->is_flat()) {
       shift = ary_src->flat_log_elem_size();
     }
     uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
@@ -323,7 +319,13 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
       return false;
     }
 
+    Node* hook = new Node(1);
+    hook->init_req(0, dest_offset);
+
     Node* src_scale  = phase->transform(new LShiftXNode(src_offset, phase->intcon(shift)));
+
+    hook->destruct(phase);
+
     Node* dest_scale = phase->transform(new LShiftXNode(dest_offset, phase->intcon(shift)));
 
     adr_src          = phase->transform(new AddPNode(base_src, base_src, src_scale));
@@ -334,24 +336,24 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     copy_type = dest_elem;
   } else {
-    assert(ary_src != NULL, "should be a clone");
+    assert(ary_src != nullptr, "should be a clone");
     assert(is_clonebasic(), "should be");
 
     disjoint_bases = true;
 
-    if (ary_src->elem()->make_oopptr() != NULL &&
+    if (ary_src->elem()->make_oopptr() != nullptr &&
         ary_src->elem()->make_oopptr()->can_be_inline_type()) {
       return false;
     }
 
     BasicType elem = ary_src->isa_aryptr()->elem()->array_element_basic_type();
-    if (elem == T_ARRAY || elem == T_NARROWOOP || (elem == T_PRIMITIVE_OBJECT && !ary_src->is_flat())) {
+    if (is_reference_type(elem, true)) {
       elem = T_OBJECT;
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (bs->array_copy_requires_gc_barriers(true, elem, true, is_clone_inst(), BarrierSetC2::Optimization) ||
-        (elem == T_PRIMITIVE_OBJECT && ary_src->elem()->inline_klass()->contains_oops() &&
+    if ((!ary_src->is_flat() && bs->array_copy_requires_gc_barriers(true, elem, true, is_clone_inst(), BarrierSetC2::Optimization)) ||
+        (ary_src->is_flat() && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
@@ -391,7 +393,7 @@ void ArrayCopyNode::array_copy_test_overlap(GraphKit& kit, bool disjoint_bases, 
     PhaseGVN& gvn = kit.gvn();
     Node* src_offset = in(ArrayCopyNode::SrcPos);
     Node* dest_offset = in(ArrayCopyNode::DestPos);
-    assert(src_offset != NULL && dest_offset != NULL, "should be");
+    assert(src_offset != nullptr && dest_offset != nullptr, "should be");
     Node* cmp = gvn.transform(new CmpINode(src_offset, dest_offset));
     Node *bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
     IfNode *iff = new IfNode(ctl, bol, PROB_FAIR, COUNT_UNKNOWN);
@@ -415,11 +417,11 @@ void ArrayCopyNode::copy(GraphKit& kit,
                          const Type* value_type) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   Node* ctl = kit.control();
-  if (copy_type == T_PRIMITIVE_OBJECT) {
+  if (atp_dest->is_flat()) {
     ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
       ciField* field = vk->nonstatic_field_at(j);
-      int off_in_vt = field->offset() - vk->first_field_offset();
+      int off_in_vt = field->offset_in_bytes() - vk->first_field_offset();
       Node* off  = kit.MakeConX(off_in_vt + i * atp_src->flat_elem_size());
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
@@ -524,13 +526,13 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       // new memory, control and the input IO.
       CallProjections* callprojs = extract_projections(true, false);
 
-      if (callprojs->fallthrough_ioproj != NULL) {
+      if (callprojs->fallthrough_ioproj != nullptr) {
         igvn->replace_node(callprojs->fallthrough_ioproj, in(TypeFunc::I_O));
       }
-      if (callprojs->fallthrough_memproj != NULL) {
+      if (callprojs->fallthrough_memproj != nullptr) {
         igvn->replace_node(callprojs->fallthrough_memproj, mem);
       }
-      if (callprojs->fallthrough_catchproj != NULL) {
+      if (callprojs->fallthrough_catchproj != nullptr) {
         igvn->replace_node(callprojs->fallthrough_catchproj, ctl);
       }
 
@@ -546,15 +548,6 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
   } else {
     if (in(TypeFunc::Control) != ctl) {
       // we can't return new memory and control from Ideal at parse time
-#ifdef ASSERT
-      Node* src = in(ArrayCopyNode::Src);
-      const Type* src_type = phase->type(src);
-      const TypeAryPtr* ary_src = src_type->isa_aryptr();
-      BasicType elem = ary_src != NULL ? ary_src->elem()->array_element_basic_type() : T_CONFLICT;
-      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization) ||
-             (ary_src != NULL && elem == T_PRIMITIVE_OBJECT && ary_src->is_not_flat()), "added control for clone?");
-#endif
       assert(!is_clonebasic() || UseShenandoahGC, "added control for clone?");
       phase->record_for_igvn(this);
       return false;
@@ -567,13 +560,13 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
 Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Perform any generic optimizations first
   Node* result = SafePointNode::Ideal(phase, can_reshape);
-  if (result != NULL) {
+  if (result != nullptr) {
     return result;
   }
 
   if (StressArrayCopyMacroNode && !can_reshape) {
     phase->record_for_igvn(this);
-    return NULL;
+    return nullptr;
   }
 
   // See if it's a small array copy and we can inline it as
@@ -585,30 +578,30 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   if (!is_clonebasic() && !is_arraycopy_validated() &&
       !is_copyofrange_validated() && !is_copyof_validated()) {
-    return NULL;
+    return nullptr;
   }
 
-  assert(in(TypeFunc::Control) != NULL &&
-         in(TypeFunc::Memory) != NULL &&
-         in(ArrayCopyNode::Src) != NULL &&
-         in(ArrayCopyNode::Dest) != NULL &&
-         in(ArrayCopyNode::Length) != NULL &&
-         in(ArrayCopyNode::SrcPos) != NULL &&
-         in(ArrayCopyNode::DestPos) != NULL, "broken inputs");
+  assert(in(TypeFunc::Control) != nullptr &&
+         in(TypeFunc::Memory) != nullptr &&
+         in(ArrayCopyNode::Src) != nullptr &&
+         in(ArrayCopyNode::Dest) != nullptr &&
+         in(ArrayCopyNode::Length) != nullptr &&
+         in(ArrayCopyNode::SrcPos) != nullptr &&
+         in(ArrayCopyNode::DestPos) != nullptr, "broken inputs");
 
   if (in(TypeFunc::Control)->is_top() ||
       in(TypeFunc::Memory)->is_top() ||
       phase->type(in(ArrayCopyNode::Src)) == Type::TOP ||
       phase->type(in(ArrayCopyNode::Dest)) == Type::TOP ||
-      (in(ArrayCopyNode::SrcPos) != NULL && in(ArrayCopyNode::SrcPos)->is_top()) ||
-      (in(ArrayCopyNode::DestPos) != NULL && in(ArrayCopyNode::DestPos)->is_top())) {
-    return NULL;
+      (in(ArrayCopyNode::SrcPos) != nullptr && in(ArrayCopyNode::SrcPos)->is_top()) ||
+      (in(ArrayCopyNode::DestPos) != nullptr && in(ArrayCopyNode::DestPos)->is_top())) {
+    return nullptr;
   }
 
   int count = get_count(phase);
 
   if (count < 0 || count > ArrayCopyLoadStoreMaxElem) {
-    return NULL;
+    return nullptr;
   }
 
   Node* src = in(ArrayCopyNode::Src);
@@ -619,32 +612,32 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (src_type->isa_aryptr() && dest_type->isa_instptr()) {
     // clone used for load of unknown inline type can't be optimized at
     // this point
-    return NULL;
+    return nullptr;
   }
 
   Node* mem = try_clone_instance(phase, can_reshape, count);
-  if (mem != NULL) {
-    return (mem == NodeSentinel) ? NULL : mem;
+  if (mem != nullptr) {
+    return (mem == NodeSentinel) ? nullptr : mem;
   }
 
-  Node* adr_src = NULL;
-  Node* base_src = NULL;
-  Node* adr_dest = NULL;
-  Node* base_dest = NULL;
+  Node* adr_src = nullptr;
+  Node* base_src = nullptr;
+  Node* adr_dest = nullptr;
+  Node* base_dest = nullptr;
   BasicType copy_type = T_ILLEGAL;
-  const Type* value_type = NULL;
+  const Type* value_type = nullptr;
   bool disjoint_bases = false;
 
   if (!prepare_array_copy(phase, can_reshape,
                           adr_src, base_src, adr_dest, base_dest,
                           copy_type, value_type, disjoint_bases)) {
-    assert(adr_src == NULL, "no node can be left behind");
-    assert(adr_dest == NULL, "no node can be left behind");
-    return NULL;
+    assert(adr_src == nullptr, "no node can be left behind");
+    assert(adr_dest == nullptr, "no node can be left behind");
+    return nullptr;
   }
 
-  JVMState* new_jvms = NULL;
-  SafePointNode* new_map = NULL;
+  JVMState* new_jvms = nullptr;
+  SafePointNode* new_map = nullptr;
   if (!is_clonebasic()) {
     new_jvms = jvms()->clone_shallow(phase->C);
     new_map = new SafePointNode(req(), new_jvms);
@@ -672,8 +665,8 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   GraphKit kit(new_jvms, phase);
 
-  SafePointNode* backward_map = NULL;
-  SafePointNode* forward_map = NULL;
+  SafePointNode* backward_map = nullptr;
+  SafePointNode* forward_map = nullptr;
   Node* backward_ctl = phase->C->top();
 
   array_copy_test_overlap(kit, disjoint_bases, count, backward_ctl);
@@ -729,7 +722,7 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       // put in worklist, so that if it happens to be dead it is removed
       phase->is_IterGVN()->_worklist.push(mem);
     }
-    return NULL;
+    return nullptr;
   }
 
   return mem;
@@ -754,7 +747,7 @@ bool ArrayCopyNode::may_modify(const TypeOopPtr *t_oop, PhaseTransform *phase) {
 }
 
 bool ArrayCopyNode::may_modify_helper(const TypeOopPtr *t_oop, Node* n, PhaseTransform *phase, CallNode*& call) {
-  if (n != NULL &&
+  if (n != nullptr &&
       n->is_Call() &&
       n->as_Call()->may_modify(t_oop, phase) &&
       (n->as_Call()->is_ArrayCopy() || n->as_Call()->is_call_to_arraycopystub())) {
@@ -772,11 +765,11 @@ bool ArrayCopyNode::may_modify(const TypeOopPtr *t_oop, MemBarNode* mb, PhaseTra
   // step over g1 gc barrier if we're at e.g. a clone with ReduceInitialCardMarks off
   c = bs->step_over_gc_barrier(c);
 
-  CallNode* call = NULL;
-  guarantee(c != NULL, "step_over_gc_barrier failed, there must be something to step to.");
+  CallNode* call = nullptr;
+  guarantee(c != nullptr, "step_over_gc_barrier failed, there must be something to step to.");
   if (c->is_Region()) {
     for (uint i = 1; i < c->req(); i++) {
-      if (c->in(i) != NULL) {
+      if (c->in(i) != nullptr) {
         Node* n = c->in(i)->in(0);
         if (may_modify_helper(t_oop, n, phase, call)) {
           ac = call->isa_ArrayCopy();
@@ -790,7 +783,7 @@ bool ArrayCopyNode::may_modify(const TypeOopPtr *t_oop, MemBarNode* mb, PhaseTra
 #ifdef ASSERT
     bool use_ReduceInitialCardMarks = BarrierSet::barrier_set()->is_a(BarrierSet::CardTableBarrierSet) &&
       static_cast<CardTableBarrierSetC2*>(bs)->use_ReduceInitialCardMarks();
-    assert(c == mb->in(0) || (ac != NULL && ac->is_clonebasic() && !use_ReduceInitialCardMarks), "only for clone");
+    assert(c == mb->in(0) || (ac != nullptr && ac->is_clonebasic() && !use_ReduceInitialCardMarks), "only for clone");
 #endif
     return true;
   } else if (mb->trailing_partial_array_copy()) {
@@ -817,7 +810,7 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
   const TypeInt *len_t = phase->type(len)->isa_int();
   const TypeAryPtr* ary_t = phase->type(dest)->isa_aryptr();
 
-  if (dest_pos_t == NULL || len_t == NULL || ary_t == NULL) {
+  if (dest_pos_t == nullptr || len_t == nullptr || ary_t == nullptr) {
     return !must_modify;
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -83,6 +83,11 @@ inline void jdk_internal_vm_StackChunk::set_parent_access(oop chunk, oop value) 
 
 inline oop jdk_internal_vm_StackChunk::cont(oop chunk) {
   return chunk->obj_field(_cont_offset);
+}
+
+template<typename P>
+inline oop jdk_internal_vm_StackChunk::cont_raw(oop chunk) {
+  return (oop)RawAccess<>::oop_load(chunk->field_addr<P>(_cont_offset));
 }
 
 inline void jdk_internal_vm_StackChunk::set_cont(oop chunk, oop value) {

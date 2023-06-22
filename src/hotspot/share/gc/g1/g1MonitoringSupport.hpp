@@ -128,7 +128,7 @@ class G1MonitoringSupport : public CHeapObj<mtGC> {
   G1CollectedHeap* _g1h;
 
   // java.lang.management MemoryManager and MemoryPool support
-  GCMemoryManager _incremental_memory_manager;
+  GCMemoryManager _young_gc_memory_manager;
   GCMemoryManager _full_gc_memory_manager;
   GCMemoryManager _conc_gc_memory_manager;
 
@@ -137,11 +137,11 @@ class G1MonitoringSupport : public CHeapObj<mtGC> {
   MemoryPool* _old_gen_pool;
 
   // jstat performance counters
-  //  incremental collections both young and mixed
-  CollectorCounters*   _incremental_collection_counters;
+  //  young stop-the-world collections (including mixed)
+  CollectorCounters*   _young_collection_counters;
   //  full stop-the-world collections
   CollectorCounters*   _full_collection_counters;
-  //  stop-the-world phases in G1
+  //  stop-the-world phases in G1 concurrent collection
   CollectorCounters*   _conc_collection_counters;
   //  young collection set counters.  The _eden_counters,
   // _from_counters, and _to_counters are associated with
@@ -192,21 +192,6 @@ public:
   GrowableArray<GCMemoryManager*> memory_managers();
   GrowableArray<MemoryPool*> memory_pools();
 
-  // Unfortunately, the jstat tool assumes that no space has 0
-  // capacity. In our case, given that each space is logical, it's
-  // possible that no regions will be allocated to it, hence to have 0
-  // capacity (e.g., if there are no survivor regions, the survivor
-  // space has 0 capacity). The way we deal with this is to always pad
-  // each capacity value we report to jstat by a very small amount to
-  // make sure that it's never zero. Given that we sometimes have to
-  // report a capacity of a generation that contains several spaces
-  // (e.g., young gen includes one eden, two survivor spaces), the
-  // mult parameter is provided in order to adding the appropriate
-  // padding multiple times so that the capacities add up correctly.
-  static size_t pad_capacity(size_t size_bytes, size_t mult = 1) {
-    return size_bytes + MinObjAlignmentInBytes * mult;
-  }
-
   // Recalculate all the sizes from scratch and update all the jstat
   // counters accordingly.
   void update_sizes();
@@ -244,6 +229,7 @@ protected:
   G1MonitoringScope(G1MonitoringSupport* monitoring_support,
                     CollectorCounters* collection_counters,
                     GCMemoryManager* gc_memory_manager,
+                    const char* end_message,
                     bool all_memory_pools_affected = true);
   ~G1MonitoringScope();
 };

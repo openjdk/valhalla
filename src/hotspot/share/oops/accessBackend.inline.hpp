@@ -35,6 +35,8 @@
 #include "runtime/orderAccess.hpp"
 #include "oops/inlineKlass.hpp"
 
+#include <type_traits>
+
 template <DecoratorSet decorators>
 template <DecoratorSet idecorators, typename T>
 inline typename EnableIf<
@@ -252,7 +254,7 @@ RawAccessBarrier<ds>::atomic_cmpxchg_maybe_locked(void* addr, T compare_value, T
 }
 
 class RawAccessBarrierArrayCopy: public AllStatic {
-  template<typename T> struct IsHeapWordSized: public IntegralConstant<bool, sizeof(T) == HeapWordSize> { };
+  template<typename T> struct IsHeapWordSized: public std::integral_constant<bool, sizeof(T) == HeapWordSize> { };
 public:
   template <DecoratorSet decorators, typename T>
   static inline typename EnableIf<
@@ -335,7 +337,7 @@ public:
   }
 };
 
-template<> struct RawAccessBarrierArrayCopy::IsHeapWordSized<void>: public IntegralConstant<bool, false> { };
+template<> struct RawAccessBarrierArrayCopy::IsHeapWordSized<void>: public std::false_type { };
 
 template <DecoratorSet decorators>
 template <typename T>

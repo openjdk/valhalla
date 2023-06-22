@@ -116,6 +116,7 @@ public class Enter extends JCTree.Visitor {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected Enter(Context context) {
         context.put(enterKey, this);
 
@@ -360,10 +361,12 @@ public class Enter extends JCTree.Visitor {
             tree.packge.complete(); // Find all classes in package.
 
             Env<AttrContext> topEnv = topLevelEnv(tree);
-            Env<AttrContext> packageEnv = isPkgInfo ? topEnv.dup(pd) : null;
+            Env<AttrContext> packageEnv = null;
 
             // Save environment of package-info.java file.
             if (isPkgInfo) {
+                packageEnv = topEnv.dup(pd != null ? pd : tree);
+
                 Env<AttrContext> env0 = typeEnvs.get(tree.packge);
                 if (env0 != null) {
                     JCCompilationUnit tree0 = env0.toplevel;

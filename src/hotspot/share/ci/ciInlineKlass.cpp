@@ -56,7 +56,7 @@ int ciInlineKlass::field_index_by_offset(int offset) {
   // Search the field with the given offset
   for (int i = 0; i < nof_declared_nonstatic_fields(); ++i) {
     ciField* field = _declared_nonstatic_fields->at(i);
-    int field_offset = field->offset();
+    int field_offset = field->offset_in_bytes();
     if (field_offset == offset) {
       // Exact match
       return i;
@@ -64,7 +64,7 @@ int ciInlineKlass::field_index_by_offset(int offset) {
       for (int j = 0; j < field->secondary_fields_count(); j++) {
         ciField* sec_field = static_cast<ciMultiField*>(field)->secondary_field_at(j);
         assert(sec_field != NULL, "");
-        int sec_field_offset = sec_field->offset();
+        int sec_field_offset = sec_field->offset_in_bytes();
         if (sec_field_offset == offset) {
           return i + j + 1;
         } else if (sec_field_offset < offset && sec_field_offset > best_offset) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,7 +97,7 @@ class LayoutRawBlock : public ResourceObj {
   bool is_reference() const { return _is_reference; }
   jbyte multifield_index() const { return _multifield_index; }
   InlineKlass* inline_klass() const {
-    assert(_inline_klass != NULL, "Must be initialized");
+    assert(_inline_klass != nullptr, "Must be initialized");
     return _inline_klass;
   }
   void set_inline_klass(InlineKlass* inline_klass) { _inline_klass = inline_klass; }
@@ -143,9 +143,9 @@ class MultiFieldGroup : public ResourceObj {
   int group_alignment() const { return _group_alignment; }
   void set_group_alignment(int alignment) { _group_alignment = alignment; }
   GrowableArray<LayoutRawBlock*>* fields() const { return _fields; }
-  void add_field(AllFieldStream fs, InlineKlass* vk);
-    static int compare_multifield_index(LayoutRawBlock** x, LayoutRawBlock** y) {
-     return (*x)->multifield_index() - (*y)->multifield_index();
+  void add_field(ConstantPool* cp, FieldInfo* field, InlineKlass* vk, Array<MultiFieldInfo>* multifield_info);
+  static int compare_multifield_index(LayoutRawBlock** x, LayoutRawBlock** y) {
+    return (*x)->multifield_index() - (*y)->multifield_index();
   }
   static int compare_multifield_groups_inverted(MultiFieldGroup** x, MultiFieldGroup** y) {
     int diff = (*y)->group_size() - (*x)->group_size();
@@ -186,10 +186,10 @@ class FieldGroup : public ResourceObj {
   int contended_group() const { return _contended_group; }
   int oop_count() const { return _oop_count; }
 
-  void add_primitive_field(AllFieldStream fs, BasicType type);
-  void add_oop_field(AllFieldStream fs);
-  void add_inlined_field(AllFieldStream fs, InlineKlass* vk);
-  void add_multifield(AllFieldStream fs, Array<MultiFieldInfo>* multifield_info, InlineKlass* vk = NULL);
+  void add_primitive_field(int idx, BasicType type);
+  void add_oop_field(int idx);
+  void add_inlined_field(int idx, InlineKlass* vk);
+  void add_multifield(ConstantPool* cp, FieldInfo* field, Array<MultiFieldInfo>* multifield_info, InlineKlass* vk = NULL);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -215,7 +215,7 @@ class FieldGroup : public ResourceObj {
 //
 class FieldLayout : public ResourceObj {
  private:
-  Array<u2>* _fields;
+  GrowableArray<FieldInfo>* _field_info;
   ConstantPool* _cp;
   Array<MultiFieldInfo>* _multifield_info;
   LayoutRawBlock* _blocks;  // the layout being computed
@@ -223,7 +223,7 @@ class FieldLayout : public ResourceObj {
   LayoutRawBlock* _last;    // points to the last block of the layout (big empty block)
 
  public:
-  FieldLayout(Array<u2>* fields, ConstantPool* cp, Array<MultiFieldInfo>* multifields);
+  FieldLayout(GrowableArray<FieldInfo>* field_info, ConstantPool* cp, Array<MultiFieldInfo>* multifields);
   void initialize_static_layout();
   void initialize_instance_layout(const InstanceKlass* ik);
 
@@ -242,10 +242,10 @@ class FieldLayout : public ResourceObj {
   LayoutRawBlock* last_block() { return _last; }
 
   LayoutRawBlock* first_field_block();
-  void add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = NULL);
-  void add_field_at_offset(LayoutRawBlock* blocks, int offset, LayoutRawBlock* start = NULL);
-  void add_contiguously(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = NULL);
-  void add_multifield(MultiFieldGroup* multifield, LayoutRawBlock* start = NULL);
+  void add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = nullptr);
+  void add_field_at_offset(LayoutRawBlock* blocks, int offset, LayoutRawBlock* start = nullptr);
+  void add_contiguously(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = nullptr);
+  void add_multifield(MultiFieldGroup* multifield, LayoutRawBlock* start = nullptr);
   LayoutRawBlock* insert_field_block(LayoutRawBlock* slot, LayoutRawBlock* block);
   bool reconstruct_layout(const InstanceKlass* ik);
   void fill_holes(const InstanceKlass* ik);
@@ -283,7 +283,7 @@ class FieldLayoutBuilder : public ResourceObj {
   const Symbol* _classname;
   const InstanceKlass* _super_klass;
   ConstantPool* _constant_pool;
-  Array<u2>* _fields;
+  GrowableArray<FieldInfo>* _field_info;
   FieldLayoutInfo* _info;
   Array<InlineKlass*>* _inline_type_field_klasses;
   Array<MultiFieldInfo>* _multifield_info;
@@ -309,8 +309,8 @@ class FieldLayoutBuilder : public ResourceObj {
 
  public:
   FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-      Array<u2>* fields, bool is_contended, bool is_inline_type, FieldLayoutInfo* info,
-      Array<InlineKlass*>* inline_type_field_klasses, Array<MultiFieldInfo>* multifields);
+                     GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, FieldLayoutInfo* info,
+                     Array<InlineKlass*>* inline_type_field_klasses, Array<MultiFieldInfo>* multifields);
 
   int get_alignment() {
     assert(_alignment != -1, "Uninitialized");
