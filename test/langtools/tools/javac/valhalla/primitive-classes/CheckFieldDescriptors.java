@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8222634
+ * @ignore
  * @summary Check field descriptors in class file
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses CheckFieldDescriptors.java

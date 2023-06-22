@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary null cannot be casted to and compared with value types.
- *
+ * @ignore
  * @compile/fail/ref=CheckNullCastable.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckNullCastable.java
  */
 

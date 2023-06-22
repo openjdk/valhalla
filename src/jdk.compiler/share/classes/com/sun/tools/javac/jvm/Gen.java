@@ -135,8 +135,6 @@ public class Gen extends JCTree.Visitor {
         // ignore cldc because we cannot have both stackmap formats
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
-        Source source = Source.instance(context);
-        allowPrimitiveClasses = Source.Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
         qualifiedSymbolCache = new HashMap<>();
     }
 
@@ -180,8 +178,6 @@ public class Gen extends JCTree.Visitor {
     LocalItem switchResult;
     Set<JCMethodInvocation> invocationsWithPatternMatchingCatch = Set.of();
     ListBuffer<int[]> patternMatchingInvocationRanges;
-
-    boolean allowPrimitiveClasses;
 
     /** Cache the symbol to reflect the qualifying type.
      *  key: corresponding type
@@ -277,22 +273,9 @@ public class Gen extends JCTree.Visitor {
      *  return the reference's index.
      *  @param type   The type for which a reference is inserted.
      */
-    int makeRef(DiagnosticPosition pos, Type type, boolean emitQtype) {
-        checkDimension(pos, type);
-        if (emitQtype) {
-            return poolWriter.putClass(new ConstantPoolQType(type, types));
-        } else {
-            return poolWriter.putClass(type);
-        }
-    }
-
-    /** Insert a reference to given type in the constant pool,
-     *  checking for an array with too many dimensions;
-     *  return the reference's index.
-     *  @param type   The type for which a reference is inserted.
-     */
     int makeRef(DiagnosticPosition pos, Type type) {
-        return makeRef(pos, type, false);
+        checkDimension(pos, type);
+        return poolWriter.putClass(type);
     }
 
     /** Check if the given type is an array with too many dimensions.
@@ -1069,8 +1052,7 @@ public class Gen extends JCTree.Visitor {
                                                : null,
                                         syms,
                                         types,
-                                        poolWriter,
-                                        allowPrimitiveClasses);
+                                        poolWriter);
             items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {
                 System.err.println(meth + " for body " + tree);
@@ -2117,7 +2099,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype, elemtype.isPrimitiveClass()), type);
+                code.emitAnewarray(makeRef(pos, elemtype), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {
@@ -2343,18 +2325,10 @@ public class Gen extends JCTree.Visitor {
         // which is not statically a supertype of the expression's type.
         // For basic types, the coerce(...) in genExpr(...) will do
         // the conversion.
-        // primitive reference conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
-            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type) || true) &&
-           !types.isSubtype(tree.expr.type, tree.clazz.type)) {
-            checkDimension(tree.pos(), tree.clazz.type);
-            if (tree.clazz.type.isPrimitiveClass()) {
-                code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
-            } else {
-                code.emitop2(checkcast, tree.clazz.type, PoolWriter::putClass);
-            }
-
+           types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
+            code.emitop2(checkcast, checkDimension(tree.pos(), tree.clazz.type), PoolWriter::putClass);
         }
     }
 
@@ -2416,7 +2390,7 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, tree.selected.type.isPrimitiveClass()));
+            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type));
             result = items.makeStackItem(pt);
             return;
         }

@@ -330,19 +330,6 @@ public class TransValues extends TreeTranslator {
             Symbol sym = TreeInfo.symbol(fieldAccess);
             Symbol sitesym = TreeInfo.symbol(fieldAccess.selected);
             Type selectedType = fieldAccess.selected.type;
-            if (selectedType.isReferenceProjection()) {
-                switch (sym.kind) {
-                    case MTH:
-                    case VAR:
-                        if (sym.isStatic() && sitesym != null && sitesym.kind == TYP) {
-                            fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
-                        }
-                        break;
-                    case TYP:
-                        fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
-                        break;
-                }
-            }
         }
         result = fieldAccess;
     }

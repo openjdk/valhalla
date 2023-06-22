@@ -1,6 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8237067
+ * @ignore
  * @summary [lworld] Check good and bad selectors on a type name
  * @compile/fail/ref=CheckBadSelector.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckBadSelector.java
  */

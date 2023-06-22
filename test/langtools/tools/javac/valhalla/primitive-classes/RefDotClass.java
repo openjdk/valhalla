@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8222784
+ * @ignore
  * @summary Check that we are able to get a class literal for a reference projection type
  * @compile -XDenablePrimitiveClasses RefDotClass.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RefDotClass

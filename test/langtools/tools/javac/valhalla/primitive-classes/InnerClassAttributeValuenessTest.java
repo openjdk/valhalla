@@ -24,6 +24,7 @@
 /*
  * @test
  * @bug 8221330
+ * @ignore
  * @summary Javac adds InnerClass attribute missing value flag
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses InnerClassAttributeValuenessTest.java

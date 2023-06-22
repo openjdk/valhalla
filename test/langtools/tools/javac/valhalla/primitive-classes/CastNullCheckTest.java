@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8215110
+ * @ignore
  * @summary Check that casting to a value type involves a null check.
  *
  * @compile -XDallowWithFieldOperator -XDenablePrimitiveClasses Point.java

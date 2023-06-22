@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8222745
+ * @ignore
  * @summary Test inline modifier
  * @compile -XDenablePrimitiveClasses InlineClassTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InlineClassTest

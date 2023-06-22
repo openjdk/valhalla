@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8230121
+ * @ignore
  * @summary Javac does not properly parse nullable projection types of parameterized inline types
  * @compile -XDenablePrimitiveClasses GenericsAndValues5.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses GenericsAndValues5

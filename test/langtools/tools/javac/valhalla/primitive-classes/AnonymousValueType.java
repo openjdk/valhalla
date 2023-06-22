@@ -25,6 +25,7 @@
  * @test
  * @bug 8209400 8215246
  * @summary Allow anonymous classes to be value types
+ * @ignore
  * @compile -XDenablePrimitiveClasses AnonymousValueType.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:none AnonymousValueType
  */
