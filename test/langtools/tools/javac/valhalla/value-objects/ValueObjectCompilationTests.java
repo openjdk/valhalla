@@ -838,4 +838,34 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
             }
         }
     }
+
+    public void testSelectors() throws Exception {
+        assertOK(
+                """
+                value class V {
+                    void selector() {
+                        Class<?> c = int.class;
+                    }
+                }
+                """
+        );
+        assertOK(
+                """
+                value class V {
+                    void selector() {
+                        int i = int.default;
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.expected2",
+                """
+                value class V {
+                    void selector() {
+                        int i = int.some_selector;
+                    }
+                }
+                """
+        );
+    }
 }
