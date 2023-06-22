@@ -1070,6 +1070,7 @@ public class TypeEnter implements Completer {
                 defaultConstructor = defaultConstructor(make.at(tree.pos), helper);
                 tree.defs = tree.defs.prepend(defaultConstructor);
             }
+
             if (!sym.isRecord()) {
                 enterThisAndSuper(sym, env);
             }

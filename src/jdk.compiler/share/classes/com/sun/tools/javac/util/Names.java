@@ -173,6 +173,8 @@ public class Names {
     public final Name Value;
     public final Name Varargs;
     public final Name PermittedSubclasses;
+    public final Name ImplicitCreation;
+    public final Name NullRestricted;
 
     // members of java.lang.annotation.ElementType
     public final Name ANNOTATION_TYPE;
@@ -244,6 +246,9 @@ public class Names {
     public final Name newStringTemplate;
     public final Name newLargeStringTemplate;
     public final Name processStringTemplate;
+
+    // value classes
+    public final Name implicit;
 
     public final Name.Table table;
 
@@ -379,6 +384,8 @@ public class Names {
         Value = fromString("Value");
         Varargs = fromString("Varargs");
         PermittedSubclasses = fromString("PermittedSubclasses");
+        ImplicitCreation = fromString("ImplicitCreation");
+        NullRestricted = fromString("NullRestricted");
 
         // members of java.lang.annotation.ElementType
         ANNOTATION_TYPE = fromString("ANNOTATION_TYPE");
@@ -443,6 +450,9 @@ public class Names {
         typeSwitch = fromString("typeSwitch");
         enumSwitch = fromString("enumSwitch");
         enumConstant = fromString("enumConstant");
+
+        //value classes
+        implicit = fromString("implicit");
     }
 
     protected Name.Table createTable(Options options) {

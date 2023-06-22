@@ -2553,7 +2553,7 @@ public class Flow {
                                     } else {
                                         checkInit(TreeInfo.diagnosticPositionFor(var, vardecl), var);
                                     }
-                                } else {
+                                } else if (!tree.sym.isImplicitConstructor()) { // implicit constructors are special, ignore them
                                     checkInit(TreeInfo.diagEndPos(tree.body), var);
                                 }
                             }

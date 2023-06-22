@@ -245,6 +245,9 @@ public class Symtab {
     public final Type processorType;
     public final Type linkageType;
 
+    // for value objects
+    public final Type nonAtomicType;
+
     /** The symbol representing the length field of an array.
      */
     public final VarSymbol lengthVar;
@@ -639,6 +642,9 @@ public class Symtab {
         templateRuntimeType = enterClass("java.lang.runtime.TemplateRuntime");
         processorType = enterClass("java.lang.StringTemplate$Processor");
         linkageType = enterClass("java.lang.StringTemplate$Processor$Linkage");
+
+        // for value objects
+        nonAtomicType = enterClass("java.lang.NonAtomic");
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a

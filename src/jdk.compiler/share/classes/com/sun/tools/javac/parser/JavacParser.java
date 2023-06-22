@@ -3565,6 +3565,10 @@ public class JavacParser implements Parser {
                     flag = Flags.IDENTITY_TYPE;
                     break;
                 }
+                if (isImplicitModifier()) {
+                    flag = Flags.IMPLICIT;
+                    break;
+                }
                 break loop;
             }
             default: break loop;
@@ -3840,6 +3844,13 @@ public class JavacParser implements Parser {
         }
         if (name == names.identity) {
             if (shouldWarn) {
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
+            }
+        }
+        if (name == names.implicit) {
+            if (allowValueClasses) {
+                return Source.JDK18;
+            } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
             }
         }
@@ -4957,6 +4968,25 @@ public class JavacParser implements Parser {
                     break;
             }
             if (isIdentityModifier) {
+                checkSourceLevel(Feature.VALUE_CLASSES);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected boolean isImplicitModifier() {
+        if (token.kind == IDENTIFIER && token.name() == names.implicit) {
+            boolean isImplicitModifier = false;
+            Token next = S.token(1);
+            switch (next.kind) {
+                case PRIVATE: case PROTECTED: case PUBLIC: case MONKEYS_AT:
+                case STATIC: case FINAL: case ABSTRACT: case NATIVE:
+                case SYNCHRONIZED: case STRICTFP: case DEFAULT: case IDENTIFIER:
+                    isImplicitModifier = true;
+                    break;
+            }
+            if (isImplicitModifier) {
                 checkSourceLevel(Feature.VALUE_CLASSES);
                 return true;
             }

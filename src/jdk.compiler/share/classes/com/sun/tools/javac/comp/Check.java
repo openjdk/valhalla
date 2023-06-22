@@ -758,7 +758,9 @@ public class Check {
                                     : t;
         }
 
-    void checkConstraintsOfValueClass(DiagnosticPosition pos, ClassSymbol c) {
+    void checkConstraintsOfValueClass(JCClassDecl tree, ClassSymbol c) {
+        DiagnosticPosition pos = tree.pos();
+        checkConstraintsOfValueClassesWithImplicitConst(tree, c);
         for (Type st : types.closure(c.type)) {
             if (st == null || st.tsym == null || st.tsym.kind == ERR)
                 continue;
@@ -804,6 +806,28 @@ public class Check {
                         }
                     }
                     break;
+                }
+            }
+        }
+    }
+
+    void checkConstraintsOfValueClassesWithImplicitConst(JCClassDecl classDecl, ClassSymbol c) {
+        JCMethodDecl implicitConstructor = TreeInfo.getImplicitConstructor(classDecl.defs);
+        if (implicitConstructor != null) {
+            Type encl = c.type.getEnclosingType();
+            if (encl != null && encl.hasTag(CLASS)) {
+                log.error(classDecl.pos(), Errors.ValueClassWithImplicitCannotBeInner(c));
+            }
+            if ((c.flags() & HASINITBLOCK) != 0) {
+                log.error(classDecl.pos(), Errors.ValueClassWithImplicitDeclaresInitBlock(c));
+            }
+            for (Symbol s : c.members().getSymbols(NON_RECURSIVE)) {
+                switch (s.kind) {
+                    case VAR:
+                        if ((s.flags() & STATIC) == 0 & (s.flags() & HASINIT) != 0) {
+                            log.error(classDecl.pos(), Errors.ValueClassWithImplicitInstanceFieldInitializer(c));
+                        }
+                        break;
                 }
             }
         }
@@ -1442,7 +1466,13 @@ public class Check {
                                 ANNOTATION)
                 && checkDisjoint(pos, flags,
                                 VALUE_CLASS,
-                                ANNOTATION) ) {
+                                ANNOTATION)
+                && checkDisjoint(pos, flags,
+                                IMPLICIT,
+                                PRIVATE)
+                && checkDisjoint(pos, flags,
+                                IMPLICIT,
+                                PROTECTED) ) {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
@@ -2440,6 +2470,7 @@ public class Check {
     }
 
     // A primitive class cannot contain a field of its own type either or indirectly.
+    // TODO, update this method once we have null restricted types
     void checkNonCyclicMembership(JCClassDecl tree) {
         Assert.check((tree.sym.flags_field & LOCKED) == 0);
         try {
@@ -2473,7 +2504,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            return (symbol.flags() & STATIC) == 0;
+            return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass();
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {

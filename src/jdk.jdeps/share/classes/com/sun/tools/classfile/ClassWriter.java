@@ -467,6 +467,12 @@ public class ClassWriter {
         }
 
         @Override
+        public Void visitImplicitCreation(ImplicitCreation_attribute attr, ClassOutputStream out) {
+            out.writeShort(attr.flags);
+            return null;
+        }
+
+        @Override
         public Void visitInnerClasses(InnerClasses_attribute attr, ClassOutputStream out) {
             out.writeShort(attr.classes.length);
             for (InnerClasses_attribute.Info info: attr.classes)
@@ -529,6 +535,11 @@ public class ClassWriter {
         @Override
         public Void visitNestHost(NestHost_attribute attr, ClassOutputStream out) {
             out.writeShort(attr.top_index);
+            return null;
+        }
+
+        @Override
+        public Void visitNullRestricted(NullRestricted_attribute attr, ClassOutputStream out) {
             return null;
         }
 

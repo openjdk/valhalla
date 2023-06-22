@@ -124,6 +124,12 @@ public class TreeInfo {
         return false;
     }
 
+    public static JCMethodDecl getImplicitConstructor(List<JCTree> trees) {
+        for (List<JCTree> l = trees; l.nonEmpty(); l = l.tail)
+            if (isConstructor(l.head) && (((JCMethodDecl)l.head).mods.flags & IMPLICIT) != 0) return (JCMethodDecl) l.head;
+        return null;
+    }
+
     /** Is there a constructor invocation in the given list of trees?
      *  Optionally, check only for no-arg ctor invocation
      */

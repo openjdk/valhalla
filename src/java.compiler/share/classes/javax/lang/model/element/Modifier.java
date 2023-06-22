@@ -97,6 +97,12 @@ public enum Modifier {
      */
     IDENTITY,
 
+    /**
+     * The modifier {@code implicit}
+     * @since 21
+     */
+    IMPLICIT,
+
     /** The modifier {@code final} */           FINAL,
     /** The modifier {@code transient} */       TRANSIENT,
     /** The modifier {@code volatile} */        VOLATILE,
