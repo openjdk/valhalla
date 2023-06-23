@@ -247,6 +247,7 @@ public class Symtab {
 
     // for value objects
     public final Type nonAtomicType;
+    public final Type reflectArrayType;
 
     /** The symbol representing the length field of an array.
      */
@@ -645,6 +646,7 @@ public class Symtab {
 
         // for value objects
         nonAtomicType = enterClass("java.lang.NonAtomic");
+        reflectArrayType = enterClass("java.lang.reflect.Array");
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a

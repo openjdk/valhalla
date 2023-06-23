@@ -2194,10 +2194,18 @@ public class Types {
      * @return the ArrayType for the given component
      */
     public ArrayType makeArrayType(Type t) {
+        return makeArrayType(t, 1);
+    }
+
+    public ArrayType makeArrayType(Type t, int dimensions) {
         if (t.hasTag(VOID) || t.hasTag(PACKAGE)) {
             Assert.error("Type t must not be a VOID or PACKAGE type, " + t.toString());
         }
-        return new ArrayType(t, syms.arrayClass);
+        ArrayType result = new ArrayType(t, syms.arrayClass);
+        for (int i = 1; i < dimensions; i++) {
+            result = new ArrayType(result, syms.arrayClass);
+        }
+        return result;
     }
     // </editor-fold>
 
