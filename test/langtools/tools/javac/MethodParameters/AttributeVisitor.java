@@ -38,6 +38,7 @@ class AttributeVisitor<R, P> implements Attribute.Visitor<R, P> {
     public R visitDeprecated(Deprecated_attribute attr, P p) { return null; }
     public R visitEnclosingMethod(EnclosingMethod_attribute attr, P p) { return null; }
     public R visitExceptions(Exceptions_attribute attr, P p) { return null; }
+    public R visitImplicitCreation(ImplicitCreation_attribute attr, P p) { return null; }
     public R visitInnerClasses(InnerClasses_attribute attr, P p) { return null; }
     public R visitLineNumberTable(LineNumberTable_attribute attr, P p) { return null; }
     public R visitLocalVariableTable(LocalVariableTable_attribute attr, P p) { return null; }
@@ -51,6 +52,7 @@ class AttributeVisitor<R, P> implements Attribute.Visitor<R, P> {
     public R visitModuleResolution(ModuleResolution_attribute attr, P p) { return null; }
     public R visitModuleTarget(ModuleTarget_attribute attr, P p) { return null; }
     public R visitNestMembers(NestMembers_attribute attr, P p) { return null; }
+    public R visitNullRestricted(NullRestricted_attribute attr, P p) { return null; }
     public R visitRuntimeVisibleAnnotations(RuntimeVisibleAnnotations_attribute attr, P p) { return null; }
     public R visitRuntimeInvisibleAnnotations(RuntimeInvisibleAnnotations_attribute attr, P p) { return null; }
     public R visitRuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations_attribute attr, P p) { return null; }

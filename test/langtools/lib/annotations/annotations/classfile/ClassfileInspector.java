@@ -1233,6 +1233,11 @@ public class ClassfileInspector {
         }
 
         @Override
+        public Void visitImplicitCreation(ImplicitCreation_attribute attr, T p) {
+            return null;
+        }
+
+        @Override
         public Void visitInnerClasses(InnerClasses_attribute attr, T p) {
             return null;
         }
@@ -1253,7 +1258,12 @@ public class ClassfileInspector {
         }
 
         @Override
-          public Void visitNestHost(NestHost_attribute attr, T p) {
+        public Void visitNestHost(NestHost_attribute attr, T p) {
+            return null;
+        }
+
+        @Override
+        public Void visitNullRestricted(NullRestricted_attribute attr, T p) {
             return null;
         }
 
