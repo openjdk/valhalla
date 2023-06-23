@@ -331,7 +331,7 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 abstract class A {
                                     abstract String! lookup(String arg);
                                 }
-                                                                
+
                                 abstract class B extends A {
                                     abstract String lookup(String arg);
                                 }
