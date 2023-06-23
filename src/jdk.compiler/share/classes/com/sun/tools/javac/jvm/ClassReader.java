@@ -62,6 +62,7 @@ import com.sun.tools.javac.jvm.PoolConstant.NameAndType;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.ByteBuffer.UnderflowException;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -1354,7 +1355,7 @@ public class ClassReader {
                     return super.accepts(kind) && allowValueClasses;
                 }
                 protected void read(Symbol sym, int attrLen) {
-                    // here we could put the nullness annotation into the field's type
+                    sym.type = sym.type.asNullMarked(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL);
                 }
             },
         };
