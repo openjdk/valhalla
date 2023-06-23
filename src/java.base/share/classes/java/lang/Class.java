@@ -739,6 +739,18 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
+     * Returns a {@code Class} object representing the null restricted type
+     * of this class or interface.
+     *
+     * @return the {@code Class} representing the null restricted type of
+     *         this class or interface
+     * @since Valhalla
+     */
+    public Class<?> asNullRestrictedType() {
+        return this;
+    }
+
+    /**
      * Returns {@code true} if this {@code Class} object represents the primary type
      * of this class or interface.
      * <p>

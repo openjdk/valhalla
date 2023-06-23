@@ -95,6 +95,15 @@ public class RuntimeNullChecks extends TestRunner {
                 """,
                 """
                 class Test {
+                    public static void main(String... args) {
+                        String s = null;
+                        String![] sr = new String![10];
+                        sr[0] = s; // NPE at runtime, assignment
+                    }
+                }
+                """,
+                """
+                class Test {
                     static String id(String! arg) { return arg; }
                     public static void main(String... args) {
                         String s = null;

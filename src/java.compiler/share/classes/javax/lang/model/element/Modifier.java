@@ -80,12 +80,6 @@ public enum Modifier {
     },
 
     /**
-     * The modifier {@code primitive}
-     * @since 18
-     */
-    PRIMITIVE,
-
-    /**
      * The modifier {@code value}
      * @since 18
      */
