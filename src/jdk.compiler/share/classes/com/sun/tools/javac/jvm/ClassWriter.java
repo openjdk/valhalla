@@ -968,7 +968,7 @@ public class ClassWriter extends ClassFile {
     /** Write "NullRestricted" attribute.
      */
     int writeNullRestrictedIfNeeded(Symbol sym) {
-        if (sym.kind == VAR && sym.owner.isValueClass() /* && sym.type.isNonNullable() */) {
+        if (sym.kind == VAR && sym.type.isNonNullable()) {
             int alenIdx = writeAttr(names.NullRestricted);
             endAttr(alenIdx);
             return 1;
