@@ -912,6 +912,10 @@ public class Gen extends JCTree.Visitor {
     public void genArgs(List<JCExpression> trees, List<Type> pts) {
         for (List<JCExpression> l = trees; l.nonEmpty(); l = l.tail) {
             genExpr(l.head, pts.head).load();
+            if (pts.head.isNonNullable()) {
+                code.emitop0(dup);
+                genNullCheck(l.head);
+            }
             pts = pts.tail;
         }
         // require lists be of same length
@@ -1094,6 +1098,10 @@ public class Gen extends JCTree.Visitor {
                 Assert.check(code.isStatementStart());
                 code.newLocal(v);
                 genExpr(tree.init, v.erasure(types)).load();
+                if (tree.type.isNonNullable()) {
+                    code.emitop0(dup);
+                    genNullCheck(tree.init);
+                }
                 items.makeLocalItem(v).store();
                 Assert.check(code.isStatementStart());
             }
@@ -2115,6 +2123,10 @@ public class Gen extends JCTree.Visitor {
     public void visitAssign(JCAssign tree) {
         Item l = genExpr(tree.lhs, tree.lhs.type);
         genExpr(tree.rhs, tree.lhs.type).load();
+        if (tree.lhs.type.isNonNullable()) {
+            code.emitop0(dup);
+            genNullCheck(tree.rhs);
+        }
         if (tree.rhs.type.hasTag(BOT)) {
             /* This is just a case of widening reference conversion that per 5.1.5 simply calls
                for "regarding a reference as having some other type in a manner that can be proved
@@ -2320,6 +2332,10 @@ public class Gen extends JCTree.Visitor {
 
     public void visitTypeCast(JCTypeCast tree) {
         result = genExpr(tree.expr, tree.clazz.type).load();
+        if (tree.clazz.type.isNonNullable()) {
+            code.emitop0(dup);
+            genNullCheck(tree.expr);
+        }
         setTypeAnnotationPositions(tree.pos);
         // Additional code is only needed if we cast to a reference type
         // which is not statically a supertype of the expression's type.

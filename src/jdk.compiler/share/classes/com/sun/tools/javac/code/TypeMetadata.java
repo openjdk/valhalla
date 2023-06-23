@@ -25,6 +25,8 @@
 
 package com.sun.tools.javac.code;
 
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression;
+import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 
@@ -76,4 +78,9 @@ public sealed interface TypeMetadata {
      * such as the type of a string literal, or that of a numeric constant.
      */
     record ConstantValue(Object value) implements TypeMetadata { }
+
+    record NullMarker(JCNullableTypeExpression.NullMarker nullMarker) implements TypeMetadata {
+        @Override
+        public String toString() { return "NULL_MARKER [ " + nullMarker.typeSuffix() + " ]"; }
+    }
 }

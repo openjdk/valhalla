@@ -191,6 +191,9 @@ public class Pretty extends JCTree.Visitor {
             if (tree == null) print("/*missing*/");
             else {
                 tree.accept(this);
+                if (tree instanceof JCNullableTypeExpression nullableType) {
+                    print(nullableType.getNullMarker().typeSuffix());
+                }
             }
         } catch (UncheckedIOException ex) {
             throw ex.getCause();

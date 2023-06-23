@@ -80,6 +80,11 @@ public class Warner {
         this.warned = false;
     }
 
+    public void remove(LintCategory lint) {
+        nonSilentLintSet.remove(lint);
+        silentLintSet.remove(lint);
+    }
+
     public Warner() {
         this(null);
     }

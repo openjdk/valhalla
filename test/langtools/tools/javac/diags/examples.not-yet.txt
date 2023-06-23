@@ -226,3 +226,14 @@ compiler.err.cyclic.primitive.class.membership
 compiler.misc.feature.primitive.classes
 compiler.err.generic.parameterization.with.primitive.class
 
+#nullable types
+compiler.misc.feature.bang.types
+compiler.warn.accessing.member.of.nullable
+compiler.warn.narrowing.nullness.conversion
+compiler.warn.non.nullable.should.be.initialized
+compiler.warn.accessing.member.of.parametric
+compiler.warn.parametric.should.be.initialized
+compiler.err.non.nullable.cannot.be.assigned.null
+compiler.warn.unchecked.nullness.conversion
+compiler.warn.overrides.with.different.nullness.1
+compiler.warn.overrides.with.different.nullness.2
