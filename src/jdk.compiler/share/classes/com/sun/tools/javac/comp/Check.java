@@ -185,6 +185,7 @@ public class Check {
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
+        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -227,6 +228,10 @@ public class Check {
     /** Are sealed classes allowed
      */
     private final boolean allowSealed;
+
+    /** Are value classes allowed
+     */
+    private final boolean allowValueClasses;
 /* *************************************************************************
  * Errors and Warnings
  **************************************************************************/
@@ -2789,7 +2794,12 @@ public class Check {
         }
         checkCompatibleConcretes(pos, c);
 
-        boolean implementsNonAtomic = types.asSuper(c, syms.nonAtomicType.tsym) != null;
+        boolean implementsNonAtomic = false;
+        try {
+            implementsNonAtomic = allowValueClasses ? types.asSuper(c, syms.nonAtomicType.tsym) != null : false;
+        } catch (CompletionFailure cf) {
+            // ignore
+        }
         boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
         boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
         if (c.getKind() == TypeKind.DECLARED && implementsNonAtomic && !c.tsym.isAbstract()) {
