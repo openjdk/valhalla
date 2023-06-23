@@ -2170,7 +2170,8 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
-                isFinalUninitializedField(sym)));
+                isFinalUninitializedField(sym)) ||
+                isUninitializedNonNullableOrParametricField(sym));
         }
 
         boolean isFinalUninitializedField(VarSymbol sym) {
@@ -2181,6 +2182,13 @@ public class Flow {
 
         boolean isFinalUninitializedStaticField(VarSymbol sym) {
             return isFinalUninitializedField(sym) && sym.isStatic();
+        }
+
+        boolean isUninitializedNonNullableOrParametricField(VarSymbol sym) {
+            return sym.owner.kind == TYP &&
+                    ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
+                            classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
+                            (sym.type.isNonNullable() || sym.type.isParametric()));
         }
 
         /** Initialize new trackable variable by setting its address field
@@ -2293,7 +2301,17 @@ public class Flow {
                 trackable(sym) &&
                 !inits.isMember(sym.adr) &&
                 (sym.flags_field & CLASH) == 0) {
+                if (isUninitializedNonNullableOrParametricField(sym)) {
+                    if (lint.isEnabled(Lint.LintCategory.NULL)) {
+                        if (sym.type.isNonNullable()) {
+                            log.warning(pos, Warnings.NonNullableShouldBeInitialized);
+                        } else {
+                            log.warning(pos, Warnings.ParametricShouldBeInitialized);
+                        }
+                    }
+                } else {
                     log.error(pos, errkey);
+                }
                 inits.incl(sym.adr);
             }
         }

@@ -231,6 +231,11 @@ public class Lint
         MODULE("module"),
 
         /**
+         * Warn about operations on null-restricted and nullable types.
+         */
+        NULL("null"),
+
+        /**
          * Warn about issues related to migration of JDK classes.
          */
         MIGRATION("migration"),

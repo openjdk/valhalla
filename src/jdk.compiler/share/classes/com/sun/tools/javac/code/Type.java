@@ -30,7 +30,6 @@ import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -44,6 +43,7 @@ import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.comp.Infer.IncorporationAction;
 import com.sun.tools.javac.jvm.ClassFile;
 import com.sun.tools.javac.jvm.PoolConstant;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
 
@@ -747,6 +747,52 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return TypeKind.OTHER;
     }
 
+    // support for null-marked types
+
+    public Type asNullMarked(NullMarker nullMarker) {
+        if (nullMarker == NullMarker.UNSPECIFIED) {
+            return this;
+        } else {
+            return addMetadata(new TypeMetadata.NullMarker(nullMarker));
+        }
+    }
+
+    public boolean isNullable() {
+        TypeMetadata.NullMarker nm = getMetadata(TypeMetadata.NullMarker.class);
+        return nm != null && nm.nullMarker() == NullMarker.NULLABLE;
+    }
+
+    public boolean isNonNullable() {
+        TypeMetadata.NullMarker nm = getMetadata(TypeMetadata.NullMarker.class);
+        return nm != null && nm.nullMarker() == NullMarker.NOT_NULL;
+    }
+
+    public boolean isParametric() {
+        TypeMetadata.NullMarker nm = getMetadata(TypeMetadata.NullMarker.class);
+        return nm != null && nm.nullMarker() == NullMarker.PARAMETRIC;
+    }
+
+    public boolean isNullUnspecified() {
+        return getMetadata(TypeMetadata.NullMarker.class) == null;
+    }
+
+    public boolean sameNullabilityAs(Type t) {
+        if (isNullUnspecified()) return t.isNullUnspecified();
+        if (isNonNullable()) return t.isNonNullable();
+        if (isNullable()) return t.isNullable();
+        if (isParametric()) return t.isParametric();
+        throw new AssertionError("shouldn't get here");
+    }
+
+    public boolean hasNarrowerNullabilityThan(Type t) {
+        if (isNonNullable()) return !t.isNonNullable();
+        if (isParametric()) return t.isNonNullable() || t.isNullUnspecified();
+        if (isNullable()) return t.isNullUnspecified();
+        return false;
+    }
+
+    // end of support for null-marked types
+
     @Override @DefinedBy(Api.LANGUAGE_MODEL)
     public <R, P> R accept(TypeVisitor<R, P> v, P p) {
         throw new AssertionError();
@@ -1111,6 +1157,14 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 }
             }
 
+            if (isNullable()) {
+                buf.append("?");
+            } else if (isNonNullable()) {
+                buf.append("!");
+            } else if (isParametric()) {
+                buf.append("*");
+            }
+
             if (getTypeArguments().nonEmpty()) {
                 buf.append('<');
                 buf.append(getTypeArguments().toString());
@@ -1431,6 +1485,13 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             t = this;
             do {
                 t.appendAnnotationsString(sb, true);
+                if (t.isNullable()) {
+                    sb.append("?");
+                } else if (t.isNonNullable()) {
+                    sb.append("!");
+                } else if (t.isParametric()) {
+                    sb.append("*");
+                }
                 sb.append("[]");
                 t = ((ArrayType) t).getComponentType();
             } while (t.getKind() == TypeKind.ARRAY);

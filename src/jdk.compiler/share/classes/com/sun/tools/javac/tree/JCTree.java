@@ -2636,7 +2636,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     /**
      * Selects through packages and classes
      */
-    public static class JCFieldAccess extends JCExpression implements MemberSelectTree {
+    public static class JCFieldAccess extends JCNullableTypeExpression implements MemberSelectTree {
         /** selected Tree hierarchy */
         public JCExpression selected;
         /** name of field to select thru */
@@ -2773,7 +2773,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     /**
      * An identifier
      */
-    public static class JCIdent extends JCExpression implements IdentifierTree {
+    public static class JCIdent extends JCNullableTypeExpression implements IdentifierTree {
         /** the name */
         public Name name;
         /** the symbol */
@@ -2882,7 +2882,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     /**
      * An array type, A[]
      */
-    public static class JCArrayTypeTree extends JCExpression implements ArrayTypeTree {
+    public static class JCArrayTypeTree extends JCNullableTypeExpression implements ArrayTypeTree {
         public JCExpression elemtype;
         protected JCArrayTypeTree(JCExpression elemtype) {
             this.elemtype = elemtype;
@@ -2907,7 +2907,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     /**
      * A parameterized type, {@literal T<...>}
      */
-    public static class JCTypeApply extends JCExpression implements ParameterizedTypeTree {
+    public static class JCTypeApply extends JCNullableTypeExpression implements ParameterizedTypeTree {
         public JCExpression clazz;
         public List<JCExpression> arguments;
         protected JCTypeApply(JCExpression clazz, List<JCExpression> arguments) {
@@ -2962,6 +2962,40 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public Tag getTag() {
             return TYPEUNION;
+        }
+    }
+
+    /**
+     * A nullable type expression. Supported nullable expression types are: simple type names,
+     * qualified type names, parameterized types and array types.
+     */
+
+    public static abstract class JCNullableTypeExpression extends JCExpression {
+        private NullMarker nullMarker = NullMarker.UNSPECIFIED;
+
+        public NullMarker getNullMarker() {
+            return nullMarker;
+        }
+
+        public void setNullMarker(NullMarker nullMarker) {
+            this.nullMarker = nullMarker;
+        }
+
+        public enum NullMarker {
+            NOT_NULL("!"),
+            NULLABLE("?"),
+            PARAMETRIC("*"),
+            UNSPECIFIED("");
+
+            private final String typeSuffix;
+
+            NullMarker(String typeSuffix) {
+                this.typeSuffix = typeSuffix;
+            }
+
+            public String typeSuffix() {
+                return typeSuffix;
+            }
         }
     }
 

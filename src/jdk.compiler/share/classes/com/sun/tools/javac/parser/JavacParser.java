@@ -47,6 +47,7 @@ import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.Error;
@@ -68,6 +69,7 @@ import static com.sun.tools.javac.resources.CompilerProperties.Fragments.Implici
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.VarAndExplicitNotAllowed;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.VarAndImplicitNotAllowed;
 import com.sun.tools.javac.util.JCDiagnostic.SimpleDiagnosticPosition;
+import java.util.function.BiFunction;
 
 /**
  * The parser maps a token sequence into an abstract syntax tree.
@@ -275,6 +277,7 @@ public class JavacParser implements Parser {
      *     mode = NOPARAMS    : no parameters allowed for type
      *     mode = TYPEARG     : type argument
      *     mode |= NOLAMBDA   : lambdas are not allowed
+     *     mode |= NOQUES     : nullable types are not allowed
      */
     protected static final int EXPR          = 1 << 0;
     protected static final int TYPE          = 1 << 1;
@@ -282,6 +285,7 @@ public class JavacParser implements Parser {
     protected static final int TYPEARG       = 1 << 3;
     protected static final int DIAMOND       = 1 << 4;
     protected static final int NOLAMBDA      = 1 << 5;
+    protected static final int NOQUES        = 1 << 6;
 
     protected void setMode(int mode) {
         this.mode = mode;
@@ -300,11 +304,11 @@ public class JavacParser implements Parser {
     }
 
     protected void selectExprMode() {
-        setMode((mode & NOLAMBDA) | EXPR);
+        setMode((mode & (NOLAMBDA | NOQUES)) | EXPR);
     }
 
     protected void selectTypeMode() {
-        setMode((mode & NOLAMBDA) | TYPE);
+        setMode((mode & (NOLAMBDA | NOQUES)) | TYPE);
     }
 
     /** The current mode.
@@ -1150,7 +1154,18 @@ public class JavacParser implements Parser {
                     int patternPos = token.pos;
                     JCModifiers mods = optFinal(0);
                     int typePos = token.pos;
-                    JCExpression type = unannotatedType(false);
+                    JCExpression type = unannotatedType(false, NOQUES | TYPE);
+                    if (token.kind == QUES && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                        if (peekToken(IDENTIFIER, COMMA) || peekToken(IDENTIFIER, SEMI) ||
+                                peekToken(IDENTIFIER, RPAREN) || peekToken(IDENTIFIER, INSTANCEOF_INFIX)) {
+                            setNullMarker(type);
+                            accept(QUES);
+                        } else if (peekToken(COMMA) || peekToken(SEMI) ||
+                                peekToken(RPAREN) || peekToken(QUES) || peekToken(INSTANCEOF_INFIX)) {
+                            setNullMarker(type);
+                            accept(QUES);
+                        }
+                    }
                     if (token.kind == IDENTIFIER) {
                         checkSourceLevel(token.pos, Feature.PATTERN_MATCHING_IN_INSTANCEOF);
                         pattern = parsePattern(patternPos, mods, type, false, false);
@@ -1331,6 +1346,7 @@ public class JavacParser implements Parser {
         int pos = token.pos;
         JCExpression t;
         List<JCExpression> typeArgs = typeArgumentsOpt(EXPR);
+        boolean emotionalMarkersOK = false;
         switch (token.kind) {
         case QUES:
             if (isMode(TYPE) && isMode(TYPEARG) && !isMode(NOPARAMS)) {
@@ -1480,6 +1496,12 @@ public class JavacParser implements Parser {
                 t = lambdaExpressionOrStatement(false, false, pos);
             } else {
                 t = toP(F.at(token.pos).Ident(ident()));
+                if (EMOTIONAL_QUALIFIER.test(token.kind) && (peekToken(LBRACKET) || peekToken(LT))) {
+                    emotionalMarkersOK = true;
+                    selectTypeMode();
+                    setNullMarker(t);
+                    nextToken();
+                }
                 loop: while (true) {
                     pos = token.pos;
                     final List<JCAnnotation> annos = typeAnnotationsOpt();
@@ -1498,6 +1520,10 @@ public class JavacParser implements Parser {
                             t = toP(F.at(pos).TypeArray(t));
                             if (annos.nonEmpty()) {
                                 t = toP(F.at(pos).AnnotatedType(annos, t));
+                            }
+                            if (EMOTIONAL_QUALIFIER.test(token.kind)) {
+                                setNullMarker(t);
+                                nextToken();
                             }
                             t = bracketsSuffix(t);
                         } else {
@@ -1639,6 +1665,16 @@ public class JavacParser implements Parser {
                 }
             }
             if (typeArgs != null) illegal();
+            if (EMOTIONAL_QUALIFIER.test(token.kind) && (token.kind == QUES || token.kind == BANG || (token.kind == STAR))) {
+                if (peekToken(LBRACKET) || peekToken(LT) || emotionalMarkersOK) {
+                    selectTypeMode();
+                    setNullMarker(t);
+                    nextToken();
+                } else {
+                    // not a type
+                    break;
+                }
+            }
             t = typeArgumentsOpt(t);
             break;
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
@@ -1755,7 +1791,12 @@ public class JavacParser implements Parser {
             int pos1 = token.pos;
             final List<JCAnnotation> annos = typeAnnotationsOpt();
 
-            if (token.kind == LBRACKET) {
+            if (isMode(TYPE) && typeArgs == null && EMOTIONAL_QUALIFIER.test(token.kind) &&
+                    (t instanceof JCIdent || t instanceof JCFieldAccess || t instanceof JCArrayTypeTree)) {
+                setNullMarker(t);
+                selectTypeMode();
+                nextToken();
+            } else if (token.kind == LBRACKET) {
                 nextToken();
                 if (isMode(TYPE)) {
                     int prevmode = mode;
@@ -1764,6 +1805,10 @@ public class JavacParser implements Parser {
                         nextToken();
                         t = bracketsOpt(t);
                         t = toP(F.at(pos1).TypeArray(t));
+                        if (isMode(TYPE) && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                            setNullMarker(t);
+                            nextToken();
+                        }
                         if (token.kind == COLCOL) {
                             selectExprMode();
                             continue;
@@ -1848,6 +1893,15 @@ public class JavacParser implements Parser {
         return toP(t);
     }
 
+    void setNullMarker(JCExpression exp) {
+        ((JCNullableTypeExpression)exp).setNullMarker(
+                token.kind == QUES ?
+                        NullMarker.NULLABLE :
+                        token.kind == BANG ?
+                                NullMarker.NOT_NULL :
+                                NullMarker.PARAMETRIC);
+    }
+
     /**
      * If we see an identifier followed by a '&lt;' it could be an unbound
      * method reference or a default value creation that uses a parameterized type
@@ -1913,7 +1967,7 @@ public class JavacParser implements Parser {
      * method reference or a binary expression. To disambiguate, look for a
      * matching '&gt;' and see if the subsequent terminal is either '.' or '::'.
      */
-    @SuppressWarnings("fallthrough")
+    @SuppressWarnings({"fallthrough", "unchecked"})
     ParensResult analyzeParens() {
         int depth = 0;
         boolean type = false;
@@ -1981,6 +2035,19 @@ public class JavacParser implements Parser {
                     if (peekToken(lookahead, LAX_IDENTIFIER)) {
                         // Identifier, Identifier/'_'/'assert'/'enum' -> explicit lambda
                         return ParensResult.EXPLICIT_LAMBDA;
+                    } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COMMA) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, RPAREN, ARROW)) {
+                        // Identifier, '!'/'?', Identifier/'_'/'assert'/'enum', ','/')' -> explicit lambda
+                        return ParensResult.EXPLICIT_LAMBDA;
+                    } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, RPAREN)) {
+                        // this must be a cast with emotional type
+                        return ParensResult.CAST;
+                    } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LT) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA)) {
+                        // Identifier, '!'/'?', '<'/','/'>' -> it's a type, skip the emotional anno and continue
+                        lookahead++;
+                        break;
                     } else if (peekToken(lookahead, RPAREN, ARROW)) {
                         // Identifier, ')' '->' -> implicit lambda
                         return !isMode(NOLAMBDA) ? ParensResult.IMPLICIT_LAMBDA
@@ -2025,6 +2092,7 @@ public class JavacParser implements Parser {
                     depth--;
                     if (depth == 0) {
                         if (peekToken(lookahead, RPAREN) ||
+                                peekToken(lookahead, EMOTIONAL_QUALIFIER, RPAREN) ||
                                 peekToken(lookahead, AMP)) {
                             // '>', ')' -> cast
                             // '>', '&' -> cast
@@ -2084,6 +2152,10 @@ public class JavacParser implements Parser {
 
     /** Accepts all identifier-like tokens */
     protected Predicate<TokenKind> LAX_IDENTIFIER = t -> t == IDENTIFIER || t == UNDERSCORE || t == ASSERT || t == ENUM;
+    protected Predicate<TokenKind> EMOTIONAL_QUALIFIER = t -> t == BANG;
+    protected Predicate<TokenKind> GENERIC_TYPE_END = t -> t == GT || t == GTGT || t == GTGTGT;
+    protected Predicate<TokenKind> INSTANCEOF_INFIX = t -> t == AMPAMP || t == BARBAR ||
+                                                           t == EQEQ || t == BANGEQ;
 
     enum ParensResult {
         CAST,
@@ -3369,6 +3441,18 @@ public class JavacParser implements Parser {
                         } else {
                             pendingResult = PatternResult.PATTERN;
                         }
+                    } else if (typeDepth == 0 &&
+                            (peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COMMA) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, ARROW) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COLON))) {
+                        // this is a type test pattern
+                        return PatternResult.PATTERN;
+                    } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LT) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA)) {
+                        // this is a type - skip the emotional anno and continue
+                        lookahead++;
+                        break;
                     }
                     break;
                 case UNDERSCORE:
@@ -3383,6 +3467,8 @@ public class JavacParser implements Parser {
                         }
                     }
                     break;
+                case BANG:
+                    if (!peekToken(lookahead, LPAREN)) break;
                 case DOT, QUES, EXTENDS, SUPER, COMMA: break;
                 case LT: typeDepth++; break;
                 case GTGTGT: typeDepth--;

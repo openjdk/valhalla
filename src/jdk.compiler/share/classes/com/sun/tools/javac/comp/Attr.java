@@ -61,6 +61,7 @@ import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.tree.JCTree.JCPolyExpression.*;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -726,6 +727,10 @@ public class Attr extends JCTree.Visitor {
      */
     Type attribType(JCTree tree, Env<AttrContext> env, Type pt) {
         Type result = attribTree(tree, env, new ResultInfo(KindSelector.TYP, pt));
+        if (tree instanceof JCNullableTypeExpression nullableTypeExpression &&
+                nullableTypeExpression.getNullMarker() != NullMarker.UNSPECIFIED) {
+            result = tree.type = result.addMetadata(new TypeMetadata.NullMarker(nullableTypeExpression.getNullMarker()));
+        }
         return result;
     }
 
@@ -4393,6 +4398,15 @@ public class Attr extends JCTree.Visitor {
         if (!pkind().contains(KindSelector.TYP_PCK))
             site = capture(site); // Capture field access
 
+        // check nullness of site
+        if (site.isNullable()) {
+            chk.warnBangTypes(tree.selected, Warnings.AccessingMemberOfNullable);
+        }
+
+        if (site.isParametric()) {
+            chk.warnBangTypes(tree.selected, Warnings.AccessingMemberOfParametric);
+        }
+
         // don't allow T.class T[].class, etc
         if (skind == KindSelector.TYP) {
             Type elt = site;
@@ -4716,6 +4730,11 @@ public class Attr extends JCTree.Visitor {
                 // The computed type of a variable is the type of the
                 // variable symbol, taken as a member of the site type.
                 owntype = (sym.owner.kind == TYP &&
+                           /* we shouldn't do a memberType invocation if symbol owner and site are the same
+                            * this has been done in the context of nullness markers due to a loss of the nullness
+                            * markers info when type variables are adapted
+                            */
+                           sym.owner.type != site &&
                            sym.name != names._this && sym.name != names._super)
                     ? types.memberType(site, sym)
                     : sym.type;
