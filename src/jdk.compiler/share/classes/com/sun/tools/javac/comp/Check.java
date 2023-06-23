@@ -37,6 +37,7 @@ import java.util.stream.StreamSupport;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.NestingKind;
+import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileManager;
 
 import com.sun.source.tree.CaseTree;
@@ -2788,8 +2789,14 @@ public class Check {
         }
         checkCompatibleConcretes(pos, c);
 
+        boolean implementsNonAtomic = types.asSuper(c, syms.nonAtomicType.tsym) != null;
         boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
         boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
+        if (c.getKind() == TypeKind.DECLARED && implementsNonAtomic && !c.tsym.isAbstract()) {
+            if (!cIsValue || ((ClassSymbol)c.tsym).getImplicitConstructor() == null) {
+                log.error(pos, Errors.CantImplementNonAtomic(c.tsym));
+            }
+        }
         Type identitySuper = null, valueSuper = null;
         for (Type t : types.closure(c)) {
             if (t != c) {
