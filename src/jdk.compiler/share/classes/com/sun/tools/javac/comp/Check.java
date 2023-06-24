@@ -1346,8 +1346,17 @@ public class Check {
                     // private
                     implicit = PRIVATE;
                     mask = PRIVATE;
-                } else
+                } else if ((flags & IMPLICIT) != 0) {
+                    if ((flags & PUBLIC) == 0) {
+                        log.error(pos, Errors.ImplicitConstMustBePublic);
+                    }
+                    if ((sym.owner.flags_field & VALUE_CLASS) == 0) {
+                        log.error(pos, Errors.ImplicitConstMustBeDeclaredInValueClass);
+                    }
+                    mask = ImplicitConstructorFlags;
+                } else {
                     mask = ConstructorFlags;
+                }
             }  else if ((sym.owner.flags_field & INTERFACE) != 0) {
                 if ((sym.owner.flags_field & ANNOTATION) != 0) {
                     mask = AnnotationTypeElementMask;
@@ -1495,13 +1504,7 @@ public class Check {
                                 ANNOTATION)
                 && checkDisjoint(pos, flags,
                                 VALUE_CLASS,
-                                ANNOTATION)
-                && checkDisjoint(pos, flags,
-                                IMPLICIT,
-                                PRIVATE)
-                && checkDisjoint(pos, flags,
-                                IMPLICIT,
-                                PROTECTED) ) {
+                                ANNOTATION) ) {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;

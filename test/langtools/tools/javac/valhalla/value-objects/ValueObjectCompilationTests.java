@@ -868,4 +868,97 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 """
         );
     }
+
+    public void testImplicitConstructor() {
+        assertOK(
+                """
+                value class V {
+                    public implicit V();
+                }
+                """
+        );
+        assertFail("compiler.err.implicit.const.must.be.public",
+                """
+                value class V {
+                    implicit V();
+                }
+                """
+        );
+        assertFail("compiler.err.implicit.const.must.be.public",
+                """
+                value class V {
+                    private implicit V();
+                }
+                """
+        );
+        assertFail("compiler.err.implicit.const.must.be.public",
+                """
+                value class V {
+                    protected implicit V();
+                }
+                """
+        );
+
+        assertFail("compiler.err.already.defined",
+                """
+                value class V {
+                    public implicit V();
+                    public V() {}
+                }
+                """
+        );
+
+        assertFail("compiler.err.implicit.const.must.be.declared.in.value.class",
+                """
+                class V {
+                    public implicit V();
+                }
+                """
+        );
+        assertFail("compiler.err.value.class.with.implicit.cannot.be.inner",
+                """
+                class Outer {
+                    value class V {
+                        public implicit V();
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.value.class.with.implicit.cannot.be.inner",
+                """
+                class Outer {
+                    new value class V() {
+                        public implicit V();
+                    };
+                }
+                """
+        );
+        assertFail("compiler.err.cyclic.primitive.class.membership",
+                """
+                value class V {
+                    V! v;
+                    public implicit V();
+                }
+                """
+        );
+        assertFail("compiler.err.value.class.with.implicit.instance.field.initializer",
+                """
+                value class V {
+                    String s = "";
+                    public implicit V();
+                }
+                """
+        );
+        assertFail("compiler.err.value.class.with.implicit.declares.init.block",
+                """
+                value class V {
+                    String s;
+                    {
+                        s = "";
+                    }
+                    public implicit V();
+                }
+                """
+        );
+    }
 }
