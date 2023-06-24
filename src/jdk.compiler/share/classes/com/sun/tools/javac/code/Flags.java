@@ -490,6 +490,7 @@ public class Flags {
             if (0 != (flags & STRICTFP))  modifiers.add(Modifier.STRICTFP);
             if (0 != (flags & DEFAULT))   modifiers.add(Modifier.DEFAULT);
             if (0 != (flags & VALUE_CLASS))     modifiers.add(Modifier.VALUE);
+            if (0 != (flags & IDENTITY_TYPE))   modifiers.add(Modifier.IDENTITY);
             if (0 != (flags & IMPLICIT))        modifiers.add(Modifier.IMPLICIT);
             modifiers = Collections.unmodifiableSet(modifiers);
             modifierSets.put(flags, modifiers);

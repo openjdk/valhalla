@@ -250,7 +250,7 @@ public class TestOptions extends JavadocTester {
 
         checkOutput("linksource/Properties.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
+                    <div class="type-signature"><span class="modifiers">public identity class </span><span cl\
                     ass="element-name"><a href="../src-html/linksource/Properties.html#line-29">Properties</a>""",
                 """
                     <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span c\
@@ -264,7 +264,7 @@ public class TestOptions extends JavadocTester {
 
         checkOutput("linksource/SomeClass.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
+                    <div class="type-signature"><span class="modifiers">public identity class </span><span cl\
                     ass="element-name"><a href="../src-html/linksource/SomeClass.html#line-29">SomeC\
                     lass</a></span>
                     <span class="extends-implements">extends java.lang.Object</span></div>""",

@@ -86,7 +86,7 @@ public class TestHiddenTag extends JavadocTester {
 
         checkOutput("pkg1/A.VisibleInnerExtendsInvisibleInner.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public static class </span><\
+                    <div class="type-signature"><span class="modifiers">public static identity class </span><\
                     span class="element-name type-name-label">A.VisibleInnerExtendsInvisibleInner</span>
                     <span class="extends-implements">extends <a href="A.html" title="class in pkg1">A</a></span></div>""",
                 """

@@ -81,7 +81,7 @@ public class TestDeprecatedDocs extends JavadocTester {
         checkOutput("pkg/DeprecatedClassByAnnotation.html", true,
                 """
                     <div class="type-signature"><span class="annotations">@Deprecated
-                    </span><span class="modifiers">public class </span><span class="element-name type-name-label">DeprecatedClassByAnnotation</span>
+                    </span><span class="modifiers">public identity class </span><span class="element-name type-name-label">DeprecatedClassByAnnotation</span>
                     <span class="extends-implements">extends java.lang.Object</span></div>""",
                 """
                     <div class="member-signature"><span class="annotations">@Deprecated(forRemoval=true)
@@ -137,7 +137,7 @@ public class TestDeprecatedDocs extends JavadocTester {
                 """
                     <hr>
                     <div class="type-signature"><span class="annotations">@Deprecated(forRemoval=true)
-                    </span><span class="modifiers">public class </span><span class="element-name type-name-label">TestClass</span>
+                    </span><span class="modifiers">public identity class </span><span class="element-name type-name-label">TestClass</span>
                     <span class="extends-implements">extends java.lang.Object</span></div>
                     <div class="deprecation-block"><span class="deprecated-label">Deprecated, for re\
                     moval: This API element is subject to removal in a future version.</span>
@@ -235,7 +235,7 @@ public class TestDeprecatedDocs extends JavadocTester {
                 """
                     <hr>
                     <div class="type-signature"><span class="annotations">@Deprecated(forRemoval=true)
-                    </span><span class="modifiers">public class </span><span class="element-name type-name-label">TestError</span>
+                    </span><span class="modifiers">public identity class </span><span class="element-name type-name-label">TestError</span>
                     <span class="extends-implements">extends java.lang.Error</span></div>
                     <div class="deprecation-block"><span class="deprecated-label">Deprecated, for re\
                     moval: This API element is subject to removal in a future version.</span>
@@ -246,7 +246,7 @@ public class TestDeprecatedDocs extends JavadocTester {
                 """
                     <hr>
                     <div class="type-signature"><span class="annotations">@Deprecated(forRemoval=true)
-                    </span><span class="modifiers">public class </span><span class="element-name type-name-label">TestException</span>
+                    </span><span class="modifiers">public identity class </span><span class="element-name type-name-label">TestException</span>
                     <span class="extends-implements">extends java.lang.Exception</span></div>
                     <div class="deprecation-block"><span class="deprecated-label">Deprecated, for re\
                     moval: This API element is subject to removal in a future version.</span>
@@ -257,7 +257,7 @@ public class TestDeprecatedDocs extends JavadocTester {
                 """
                     <hr>
                     <div class="type-signature"><span class="annotations">@Deprecated(forRemoval=true)
-                    </span><span class="modifiers">public class </span><span class="element-name type-name-label">TestInterface</span>
+                    </span><span class="modifiers">public identity class </span><span class="element-name type-name-label">TestInterface</span>
                     <span class="extends-implements">extends java.lang.Object</span></div>
                     <div class="deprecation-block"><span class="deprecated-label">Deprecated, for re\
                     moval: This API element is subject to removal in a future version.</span>

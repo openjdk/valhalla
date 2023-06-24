@@ -191,7 +191,7 @@ public class TestPrivateClasses extends JavadocTester {
                     blicInterface</a></code></dd>
                     </dl>""",
                 """
-                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
+                    <div class="type-signature"><span class="modifiers">public identity class </span><span cl\
                     ass="element-name type-name-label">PublicChild</span>""");
 
         checkOutput("pkg/PublicInterface.html", true,
@@ -236,12 +236,12 @@ public class TestPrivateClasses extends JavadocTester {
                 //Make sure when no modifier appear in the class signature, the
                 //signature is displayed correctly without extra space at the beginning.
                 """
-                    <div class="type-signature"><span class="modifiers">class </span><span class="el\
+                    <div class="type-signature"><span class="modifiers">identity class </span><span class="el\
                     ement-name type-name-label">PrivateParent</span>""");
 
         checkOutput("pkg/PrivateParent.html", false,
                 """
-                    <div class="type-signature"><span class="modifiers"> class </span><span class="el\
+                    <div class="type-signature"><span class="modifiers">class </span><span class="el\
                     ement-name type-name-label">PrivateParent</span>""");
     }
 }

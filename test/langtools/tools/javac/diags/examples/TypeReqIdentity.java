@@ -23,8 +23,7 @@
 
 // key: compiler.misc.type.req.identity
 // key: compiler.err.type.found.req
-// options: -XDenablePrimitiveClasses
 
-primitive class TypeReqIdentity {
+value class TypeReqIdentity {
     { synchronized (this) {} }
 }
