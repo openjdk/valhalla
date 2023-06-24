@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,14 @@
 
 /*
  * @test
- * @bug 8227046
- * @summary Test basic modeling for sealed classes
+ * @bug 8308590
+ * @summary Test basic modeling for value classes
  * @library /tools/lib /tools/javac/lib
  * @modules
  *     jdk.compiler/com.sun.tools.javac.api
  *     jdk.compiler/com.sun.tools.javac.main
  * @build toolbox.ToolBox toolbox.JavacTask JavacTestingAbstractProcessor
- * @run main TestSealed
+ * @run main TestValueClasses
  */
 
 import java.io.*;
@@ -53,17 +53,17 @@ import toolbox.Task.OutputKind;
 import toolbox.TestRunner;
 import toolbox.ToolBox;
 
-public class TestSealed extends TestRunner {
+public class TestValueClasses extends TestRunner {
 
     protected ToolBox tb;
 
-    TestSealed() {
+    TestValueClasses() {
         super(System.err);
         tb = new ToolBox();
     }
 
     public static void main(String... args) throws Exception {
-        new TestSealed().runTests();
+        new TestValueClasses().runTests();
     }
 
     /**
@@ -89,7 +89,7 @@ public class TestSealed extends TestRunner {
     }
 
     @Test
-    public void testSealedClassesProcessor(Path base) throws Exception {
+    public void TestValueClassesProcessor(Path base) throws Exception {
         Path src = base.resolve("src");
         Path r = src.resolve("Test");
 
@@ -98,41 +98,35 @@ public class TestSealed extends TestRunner {
         Files.createDirectories(classes);
 
         tb.writeJavaFiles(r,
-            """
-            sealed interface SealedInterface permits NonSealedClass1, SealedClass {}
+                """
+                value interface ValueInterface {}
 
-            non-sealed class NonSealedClass1 implements SealedInterface {}
+                identity interface IdentityInterface {}
 
-            sealed class SealedClass implements SealedInterface {}
-                final class FinalClass extends SealedClass {}
-                non-sealed class NonSealedClass2 extends SealedClass {}
+                value class ValueClass {}
 
-            class ClassOutOfSealedHierarchy extends NonSealedClass1 {}
-            """
+                identity class IdentityClass {}
+
+                value class ValueClassWithImplicitConst {
+                    public implicit ValueClassWithImplicitConst();
+                }
+                """
         );
 
         List<String> expected = List.of(
-                "- compiler.note.proc.messager: visiting: SealedInterface Modifiers: [abstract, sealed]",
-                "- compiler.note.proc.messager:     this class has: 2, permitted subclasses",
-                "- compiler.note.proc.messager:     permitted subclass: NonSealedClass1",
-                "- compiler.note.proc.messager:     permitted subclass: SealedClass",
-                "- compiler.note.proc.messager: visiting: NonSealedClass1 Modifiers: [non-sealed, identity]",
-                "- compiler.note.proc.messager:     this class has: 0, permitted subclasses",
-                "- compiler.note.proc.messager: visiting: SealedClass Modifiers: [sealed, identity]",
-                "- compiler.note.proc.messager:     this class has: 2, permitted subclasses",
-                "- compiler.note.proc.messager:     permitted subclass: FinalClass",
-                "- compiler.note.proc.messager:     permitted subclass: NonSealedClass2",
-                "- compiler.note.proc.messager: visiting: FinalClass Modifiers: [identity, final]",
-                "- compiler.note.proc.messager:     this class has: 0, permitted subclasses",
-                "- compiler.note.proc.messager: visiting: NonSealedClass2 Modifiers: [non-sealed, identity]",
-                "- compiler.note.proc.messager:     this class has: 0, permitted subclasses",
-                "- compiler.note.proc.messager: visiting: ClassOutOfSealedHierarchy Modifiers: [identity]",
-                "- compiler.note.proc.messager:     this class has: 0, permitted subclasses"
+                "- compiler.note.proc.messager: visiting: ValueInterface Modifiers: [abstract, value]",
+                "- compiler.note.proc.messager: visiting: IdentityInterface Modifiers: [abstract, identity]",
+                "- compiler.note.proc.messager: visiting: ValueClass Modifiers: [value, final]",
+                "- compiler.note.proc.messager:     constructor modifiers: []",
+                "- compiler.note.proc.messager: visiting: IdentityClass Modifiers: [identity]",
+                "- compiler.note.proc.messager:     constructor modifiers: []",
+                "- compiler.note.proc.messager: visiting: ValueClassWithImplicitConst Modifiers: [value, final]",
+                "- compiler.note.proc.messager:     constructor modifiers: [public, implicit]"
         );
 
         for (Mode mode : new Mode[] {Mode.API}) {
             List<String> log = new JavacTask(tb, mode)
-                    .options("-processor", SealedClassesProcessor.class.getName(),
+                    .options("-processor", ValueClassesProcessor.class.getName(),
                             "-XDrawDiagnostics")
                     .files(findJavaFiles(src))
                     .outdir(classes)
@@ -159,13 +153,13 @@ public class TestSealed extends TestRunner {
         }
     }
 
-    public static final class SealedClassesProcessor extends JavacTestingAbstractProcessor {
+    public static final class ValueClassesProcessor extends JavacTestingAbstractProcessor {
 
         @Override
         public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
             if (!roundEnv.processingOver()) {
                 Messager messager = processingEnv.getMessager();
-                ElementScanner scanner = new SealedScanner(messager);
+                ElementScanner scanner = new ValueClassesScanner(messager);
                 for(Element rootElement : roundEnv.getRootElements()) {
                     scanner.visit(rootElement);
                 }
@@ -173,21 +167,27 @@ public class TestSealed extends TestRunner {
             return true;
         }
 
-        class SealedScanner extends ElementScanner<Void, Void> {
+        class ValueClassesScanner extends ElementScanner<Void, Void> {
 
             Messager messager;
 
-            public SealedScanner(Messager messager) {
+            public ValueClassesScanner(Messager messager) {
                 this.messager = messager;
             }
 
             @Override
             public Void visitType(TypeElement element, Void p) {
                 messager.printNote("visiting: " + element.getSimpleName() + " Modifiers: " + element.getModifiers());
-                List<? extends TypeMirror> permittedSubclasses = element.getPermittedSubclasses();
-                messager.printNote(String.format("    this class has: %d, permitted subclasses", permittedSubclasses.size()));
-                for (TypeMirror tm: permittedSubclasses) {
-                    messager.printNote(String.format("    permitted subclass: %s", ((DeclaredType)tm).asElement().getSimpleName()));
+                List<? extends Element> enclosedElements = element.getEnclosedElements();
+                for (Element elem : enclosedElements) {
+                    System.out.println("visiting " + elem.getSimpleName());
+                    switch (elem.getSimpleName().toString()) {
+                        case "<vnew>": case "<init>":
+                            messager.printNote("    constructor modifiers: " + elem.getModifiers());
+                            break;
+                        default:
+                            break;
+                    }
                 }
                 return super.visitType(element, p);
             }

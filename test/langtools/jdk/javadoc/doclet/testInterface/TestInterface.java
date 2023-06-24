@@ -168,7 +168,7 @@ public class TestInterface extends JavadocTester {
 
         checkOutput("pkg/ClassWithStaticMembers.InnerClass.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public static class </span><\
+                    <div class="type-signature"><span class="modifiers">public static identity class </span><\
                     span class="element-name type-name-label">ClassWithStaticMembers.InnerClass</span>
                     <span class="extends-implements">extends java.lang.Object</span></div>
                     <div class="block">A hider inner class</div>""");

@@ -284,6 +284,14 @@ public class Signatures {
                     }
                 }
 
+                void addValue(TypeElement e) {
+                    if (e.getModifiers().contains(Modifier.VALUE)) {
+                        list.add("value");
+                    } else if (e.getModifiers().contains(Modifier.IDENTITY)) {
+                        list.add("identity");
+                    }
+                }
+
                 void addModifiers(Set<Modifier> modifiers) {
                     modifiers.stream()
                             .map(Modifier::toString)
@@ -295,6 +303,7 @@ public class Signatures {
                     addVisibilityModifier(mods);
                     addStatic(mods);
                     addSealed(e);
+                    addValue(e);
                     list.add("interface");
                     return list;
                 }
