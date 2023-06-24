@@ -100,13 +100,13 @@ public class TestValueClasses extends TestRunner {
         tb.writeJavaFiles(r,
                 """
                 value interface ValueInterface {}
-                
+
                 identity interface IdentityInterface {}
-                
+
                 value class ValueClass {}
-                
+
                 identity class IdentityClass {}
-                
+
                 value class ValueClassWithImplicitConst {
                     public implicit ValueClassWithImplicitConst();
                 }
