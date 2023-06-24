@@ -1012,7 +1012,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     String f2;
                     public implicit V1();
                 }
-                
+
                 value class V2 {
                     public V2() {}
                 }
