@@ -277,19 +277,10 @@ InstanceKlass* VectorSupport::get_vector_payload_klass(BasicType elem_bt, int nu
 }
 
 Handle VectorSupport::allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS) {
-  ScopeValue* payload = ov->field_at(0);
   intptr_t is_larval = StackValue::create_stack_value(fr, reg_map, ov->is_larval())->get_int();
   jint larval = (jint)*((jint*)&is_larval);
-
-  if (payload->is_location()) {
-    // Vector payload value in an aligned adjacent tuple (8, 16, 32 or 64 bytes).
-    return allocate_vector_payload_helper(ik, num_elem, elem_bt, larval, THREAD); // safepoint
-  } else if (!payload->is_object() && !payload->is_constant_oop()) {
-    stringStream ss;
-    payload->print_on(&ss);
-    assert(false, "expected 'object' value for scalar-replaced boxed vector but got: %s", ss.freeze());
-  }
-  return Handle(THREAD, nullptr);
+  // Vector payload value in an aligned adjacent tuple (8, 16, 32 or 64 bytes).
+  return allocate_vector_payload_helper(ik, num_elem, elem_bt, larval, THREAD); // safepoint
 }
 
 instanceOop VectorSupport::allocate_vector_payload(InstanceKlass* ik, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS) {
