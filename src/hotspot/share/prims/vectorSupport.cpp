@@ -81,10 +81,6 @@ bool VectorSupport::is_vector_mask(Klass* klass) {
   return klass->is_subclass_of(vmClasses::vector_VectorMask_klass());
 }
 
-bool VectorSupport::is_vector_shuffle(Klass* klass) {
-  return klass->is_subclass_of(vmClasses::vector_VectorShuffle_klass());
-}
-
 bool VectorSupport::skip_value_scalarization(Klass* klass) {
   return VectorSupport::is_vector(klass) ||
          VectorSupport::is_vector_payload_mf(klass);
@@ -124,14 +120,12 @@ jint VectorSupport::klass2length(InstanceKlass* ik) {
 }
 
 Handle VectorSupport::allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, int larval, TRAPS) {
-  // On-heap vector values are represented as primitive class instances with a multi-field payload.
-  InstanceKlass* payload_kls = get_vector_payload_klass(elem_bt, num_elem);
-  assert(payload_kls->is_inline_klass(), "");
-  instanceOop obj = InlineKlass::cast(payload_kls)->allocate_instance(THREAD);
+  assert(ik->is_inline_klass(), "");
+  instanceOop obj = InlineKlass::cast(ik)->allocate_instance(THREAD);
   if (larval) obj->set_mark(obj->mark().enter_larval_state());
 
   fieldDescriptor fd;
-  Klass* def = payload_kls->find_field(vmSymbols::mfield_name(), vmSymbols::type_signature(elem_bt), false, &fd);
+  Klass* def = ik->find_field(vmSymbols::mfield_name(), vmSymbols::type_signature(elem_bt), false, &fd);
   assert(fd.is_multifield_base() && fd.secondary_fields_count(fd.index()) == num_elem, "");
   return Handle(THREAD, obj);
 }
@@ -308,9 +302,13 @@ instanceOop VectorSupport::allocate_vector(InstanceKlass* ik, frame* fr, Registe
 
   int num_elem = klass2length(ik);
   BasicType elem_bt = klass2bt(ik);
-  Handle payload_instance = VectorSupport::allocate_vector_payload(ik, num_elem, elem_bt, fr, reg_map, ov, CHECK_NULL);
 
-  InstanceKlass* payload_class = InstanceKlass::cast(payload_instance()->klass());
+  // On-heap vector values are represented as primitive class instances with a multi-field payload.
+  InstanceKlass* payload_class = get_vector_payload_klass(elem_bt, num_elem);
+  assert(payload_class->is_inline_klass(), "");
+
+  Handle payload_instance = VectorSupport::allocate_vector_payload(payload_class, num_elem, elem_bt, fr, reg_map, ov, CHECK_NULL);
+
   Deoptimization::reassign_fields_by_klass(payload_class, fr, reg_map, ov, 0, payload_instance(), true, 0, CHECK_NULL);
 
   instanceOop vbox = ik->allocate_instance(THREAD);
