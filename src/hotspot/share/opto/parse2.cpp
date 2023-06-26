@@ -2042,6 +2042,50 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   bool left_inline_type = true;
   bool right_inline_type = true;
 
+
+  if (left->is_InlineType() && right->is_InlineType()) {
+    //assume that we already know that left and right are IlnineTypeNodes
+    InlineTypeNode *temp_l = (InlineTypeNode *) left;
+    InlineTypeNode *temp_r = (InlineTypeNode *) right;
+    if (temp_l->type()->inline_klass()->equals(temp_r->type()->inline_klass())) {
+      //same class
+      for (uint i = 0; i < temp_l->field_count(); i++) {
+        Node *input_l = temp_l->field_value(i);
+        Node *input_r = temp_r->field_value(i);
+        ciType *input_type_l = temp_l->field_type(i);
+        ciType *input_type_r = temp_r->field_type(i);
+
+        Node* cmp;
+        if (input_type_l->is_primitive_type()) {
+          BasicType basic_l = input_type_l->basic_type();
+          if (basic_l == T_BOOLEAN | basic_l == T_CHAR |basic_l == T_BYTE |basic_l == T_SHORT |basic_l == T_INT) {
+            cmp = _gvn.transform(new CmpINode(input_l, input_r));
+            do_if(btest, cmp);
+            return;
+          } else if(basic_l == T_FLOAT) {
+            cmp = _gvn.transform(new CmpFNode(input_l, input_r));
+            do_if(btest, cmp);
+            return;
+          } else if(basic_l == T_DOUBLE) {
+            cmp = _gvn.transform(new CmpDNode(input_l, input_r));
+            do_if(btest, cmp);
+            return;
+          } else if(basic_l == T_LONG) {
+            cmp = _gvn.transform(new CmpLNode(input_l, input_r));
+            do_if(btest, cmp);
+            return;
+          } else {
+            // TODO: handle more cases e.g. Object
+          }
+        } else {
+          //TODO: prob do pointer comp
+        }
+      }
+    } else {
+      //TODO: should output not equal
+    }
+  }
+
   // Leverage profiling at acmp
   if (UseACmpProfile) {
     method()->acmp_profiled_type(bci(), left_type, right_type, left_ptr, right_ptr, left_inline_type, right_inline_type);
