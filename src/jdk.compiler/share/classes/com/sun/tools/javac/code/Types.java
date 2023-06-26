@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -42,7 +43,6 @@ import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Lint.LintCategory;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Type.UndetVar.InferenceBound;
 import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.comp.AttrContext;
@@ -50,8 +50,6 @@ import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.jvm.ClassFile;
-import com.sun.tools.javac.resources.CompilerProperties.Errors;
-import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.BoundKind.*;
@@ -1105,10 +1103,8 @@ public class Types {
     }
     public boolean isSubtype(Type t, Type s, boolean capture, Warner warn) {
         if (t.equalsIgnoreMetadata(s)) {
-            Warner warner = !warnStack.isEmpty() ? warnStack.head : warn;
-            if (warner.pos() != null && s.hasNarrowerNullabilityThan(t)) {
-                warner.warn(LintCategory.NULL);
-            }
+            nullabilityComparator.reset((t1, t2) -> t1.hasNarrowerNullabilityThan(t2),
+                    !warnStack.isEmpty() ? warnStack.head : warn).visit(s, t);
             return true;
         }
         if (s.isPartial())
@@ -1164,11 +1160,8 @@ public class Types {
                  case TYPEVAR:
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT: {
-                     /* this method can be invoked even from the backend, and warnings can be printed again, so
-                      * make sure that the caller really wants to warn
-                      */
-                     if (s.isNonNullable() && warnStack.head.pos() != null) {
-                         chk.errBangTypes(warnStack.head.pos(), Errors.NonNullableCannotBeAssignedNull);
+                     if (s.isNonNullable()) {
+                         return false;
                      }
                      return
                              s.hasTag(BOT) || s.hasTag(CLASS) ||
@@ -1243,8 +1236,8 @@ public class Types {
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
                                           s.getEnclosingType());
-                if (result && warnStack.head.pos() != null && s.hasNarrowerNullabilityThan(t)) {
-                    warnStack.head.warn(LintCategory.NULL);
+                if (result) {
+                    nullabilityComparator.reset((t1, t2) -> t1.hasNarrowerNullabilityThan(t2), warnStack.head).visit(s, t);
                 }
                 return result;
             }
@@ -1291,7 +1284,29 @@ public class Types {
             public Boolean visitErrorType(ErrorType t, Type s) {
                 return true;
             }
-        };
+        }
+
+        private NullabilityComparator nullabilityComparator = new NullabilityComparator();
+        class NullabilityComparator extends TypeRelation {
+            BiFunction<Type, Type, Boolean> differentNullability;
+            Warner warner;
+
+            NullabilityComparator reset(BiFunction<Type, Type, Boolean> differentNullability, Warner warner) {
+                this.differentNullability = differentNullability;
+                this.warner = warner;
+                return this;
+            }
+
+            @Override
+            public Boolean visitType(Type t, Type s) {
+                if (differentNullability.apply(t, s)) {
+                    warner.warn(LintCategory.NULL);
+                    return false;
+                } else {
+                    return true;
+                }
+            }
+        }
 
     /**
      * Is t a subtype of every type in given list `ts'?<br>
@@ -1481,9 +1496,9 @@ public class Types {
                 boolean equal = t.tsym == s.tsym
                         && visit(t.getEnclosingType(), s.getEnclosingType())
                         && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
-                Warner warner = !warnStack.isEmpty() ? warnStack.head : noWarnings;
-                if (equal && !s.sameNullabilityAs(t)) {
-                    warner.warn(LintCategory.NULL);
+                if (equal) {
+                    nullabilityComparator.reset((t1, t2) -> !t1.sameNullabilityAs(t2), !warnStack.isEmpty() ? warnStack.head : noWarnings)
+                            .visit(s, t);
                 }
                 return equal;
             }

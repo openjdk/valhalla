@@ -543,6 +543,13 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         if (moreInfo && hasTag(TYPEVAR)) {
             sb.append(hashCode());
         }
+        if (isNullable()) {
+            sb.append("?");
+        } else if (isNonNullable()) {
+            sb.append("!");
+        } else if (isParametric()) {
+            sb.append("*");
+        }
         return sb.toString();
     }
 

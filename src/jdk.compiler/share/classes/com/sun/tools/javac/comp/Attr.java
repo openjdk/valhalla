@@ -4400,11 +4400,11 @@ public class Attr extends JCTree.Visitor {
 
         // check nullness of site
         if (site.isNullable()) {
-            chk.warnBangTypes(tree.selected, Warnings.AccessingMemberOfNullable);
+            chk.warnNullableTypes(tree.selected, Warnings.AccessingMemberOfNullable);
         }
 
         if (site.isParametric()) {
-            chk.warnBangTypes(tree.selected, Warnings.AccessingMemberOfParametric);
+            chk.warnNullableTypes(tree.selected, Warnings.AccessingMemberOfParametric);
         }
 
         // don't allow T.class T[].class, etc

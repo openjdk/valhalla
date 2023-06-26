@@ -131,7 +131,7 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.cannot.be.assigned.null"),
+                                "compiler.err.prob.found.req"),
                         new DiagAndCode(
                                 """
                                 class Foo {
@@ -139,7 +139,7 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.cannot.be.assigned.null")
+                                "compiler.err.prob.found.req")
                 )
         );
     }

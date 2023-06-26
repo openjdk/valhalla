@@ -301,14 +301,10 @@ public class Check {
      *  @param pos        Position to be used for error reporting.
      *  @param warnKey    A warning key.
      */
-    public void warnBangTypes(DiagnosticPosition pos, Warning warnKey) {
+    public void warnNullableTypes(DiagnosticPosition pos, Warning warnKey) {
         if (lint.isEnabled(LintCategory.NULL)) {
             log.warning(LintCategory.NULL, pos, warnKey);
         }
-    }
-
-    public void errBangTypes(DiagnosticPosition pos, Error errKey) {
-        log.error(pos, errKey);
     }
 
     /** Warn about unsafe vararg method decl.
@@ -2026,13 +2022,13 @@ public class Check {
         boolean resultTypesOK =
             types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
         if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-            warnBangTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness1);
+            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness1);
         }
         overrideWarner.remove(LintCategory.NULL);
         // at this point we know this will be true but to gather the warnings
         types.isSubSignature(mt, ot, overrideWarner);
         if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-            warnBangTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness2);
+            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness2);
         }
         if (!resultTypesOK) {
             if ((m.flags() & STATIC) != 0 && (other.flags() & STATIC) != 0) {
@@ -4460,7 +4456,7 @@ public class Check {
             if (warned) return; // suppress redundant diagnostics
             switch (lint) {
                 case NULL:
-                    Check.this.warnBangTypes(pos(), Warnings.UncheckedNullnessConversion);
+                    Check.this.warnNullableTypes(pos(), Warnings.UncheckedNullnessConversion);
                     break;
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);
@@ -4497,7 +4493,7 @@ public class Check {
                     }
                     break;
                 case NULL:
-                    Check.this.warnBangTypes(pos(), Warnings.UncheckedNullnessConversion);
+                    Check.this.warnNullableTypes(pos(), Warnings.UncheckedNullnessConversion);
                     break;
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);
@@ -4519,7 +4515,7 @@ public class Check {
                 if (warned) return;
                 if (expected.isParametric()) {
                     // not sure this is the right warning
-                    Check.this.warnBangTypes(pos(), Warnings.NarrowingNullnessConversion);
+                    Check.this.warnNullableTypes(pos(), Warnings.NarrowingNullnessConversion);
                 }
             }
         }
