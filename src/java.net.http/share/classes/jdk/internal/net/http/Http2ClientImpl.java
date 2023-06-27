@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,8 +57,7 @@ class Http2ClientImpl {
 
     private final HttpClientImpl client;
 
-    // only accessed from within synchronized blocks
-    private boolean stopping;
+    private volatile boolean stopping;
 
     Http2ClientImpl(HttpClientImpl client) {
         this.client = client;
@@ -199,10 +198,10 @@ class Http2ClientImpl {
 
     private EOFException STOPPED;
     void stop() {
-        synchronized (this) {stopping = true;}
         if (debug.on()) debug.log("stopping");
         STOPPED = new EOFException("HTTP/2 client stopped");
         STOPPED.setStackTrace(new StackTraceElement[0]);
+        synchronized (this) {stopping = true;}
         do {
             connections.values().forEach(this::close);
         } while (!connections.isEmpty());
@@ -292,5 +291,9 @@ class Http2ClientImpl {
                 "jdk.httpclient.maxframesize",
                 16 * K, 16 * K * K -1, 16 * K));
         return frame;
+    }
+
+    public boolean stopping() {
+        return stopping;
     }
 }

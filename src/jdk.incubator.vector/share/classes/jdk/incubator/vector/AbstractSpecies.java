@@ -52,6 +52,8 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
     @Stable
     final Class<? extends AbstractMask<E>> maskType;
     @Stable
+    final Class<? extends AbstractShuffle<E>> shuffleType;
+    @Stable
     final Function<Object, ? extends AbstractVector<E>> vectorFactory;
 
     @Stable
@@ -65,11 +67,13 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
                     LaneType laneType,
                     Class<? extends AbstractVector<E>> vectorType,
                     Class<? extends AbstractMask<E>> maskType,
+                    Class<? extends AbstractShuffle<E>> shuffleType,
                     Function<Object, ? extends AbstractVector<E>> vectorFactory) {
         this.vectorShape = vectorShape;
         this.laneType = laneType;
         this.vectorType = vectorType;
         this.maskType = maskType;
+        this.shuffleType = shuffleType;
         this.vectorFactory = vectorFactory;
 
         // derived values:
@@ -167,6 +171,11 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
     @ForceInline
     public final Class<? extends AbstractMask<E>> maskType() {
         return maskType;
+    }
+
+    @ForceInline
+    final Class<? extends AbstractShuffle<E>> shuffleType() {
+        return shuffleType;
     }
 
     @Override

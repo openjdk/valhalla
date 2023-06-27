@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -91,6 +91,9 @@ JNU_ThrowByNameWithMessageAndLastError
  */
 JNIEXPORT void JNICALL
 JNU_ThrowIOExceptionWithLastError(JNIEnv *env, const char *defaultDetail);
+
+JNIEXPORT void JNICALL
+JNU_ThrowIOExceptionWithMessageAndLastError(JNIEnv *env, const char *message);
 
 /* Convert between Java strings and i18n C strings */
 JNIEXPORT const char *
@@ -336,8 +339,7 @@ void* getProcessHandle();
 void buildJniFunctionName(const char *sym, const char *cname,
                           char *jniEntryName);
 
-JNIEXPORT size_t JNICALL
-getLastErrorString(char *buf, size_t len);
+jstring getLastErrorString(JNIEnv *env);
 
 JNIEXPORT int JNICALL
 getErrorString(int err, char *buf, size_t len);

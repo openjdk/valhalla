@@ -40,7 +40,8 @@ class PhaseVector : public Phase {
   Node* expand_vbox_node_helper(Node* vbox_alloc,
                                 Node* vect,
                                 const TypeInstPtr* box_type,
-                                const TypeVect* vect_type);
+                                const TypeVect* vect_type,
+                                VectorSet &visited);
 
   Node* expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
                                Node* vect,

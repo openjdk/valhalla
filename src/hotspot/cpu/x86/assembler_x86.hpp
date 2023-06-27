@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -213,10 +213,7 @@ class Address {
       _isxmmindex(false){
   }
 
-  // No default displacement otherwise Register can be implicitly
-  // converted to 0(Register) which is quite a different animal.
-
-  Address(Register base, int disp)
+  explicit Address(Register base, int disp = 0)
     : _base(base),
       _index(noreg),
       _xmmindex(xnoreg),
@@ -355,7 +352,7 @@ class AddressLiteral {
   // creation
   AddressLiteral()
     : _is_lval(false),
-      _target(NULL)
+      _target(nullptr)
   {}
 
   public:
@@ -678,7 +675,8 @@ private:
   bool _legacy_mode_vlbw;
   NOT_LP64(bool _is_managed;)
 
-  class InstructionAttr *_attributes;
+  InstructionAttr *_attributes;
+  void set_attributes(InstructionAttr* attributes);
 
   // 64bit prefixes
   void prefix(Register reg);
@@ -821,6 +819,7 @@ private:
 
   // These are all easily abused and hence protected
 
+ public:
   // 32BIT ONLY SECTION
 #ifndef _LP64
   // Make these disappear in 64bit mode since they would never be correct
@@ -842,6 +841,7 @@ private:
   void mov_narrow_oop(Address dst, int32_t imm32, RelocationHolder const& rspec);
 #endif // _LP64
 
+ protected:
   // These are unique in that we are ensured by the caller that the 32bit
   // relative in these instructions will always be able to reach the potentially
   // 64bit address described by entry. Since they can take a 64bit address they
@@ -917,9 +917,7 @@ private:
   // belong in macro assembler but there is no need for both varieties to exist
 
   void init_attributes(void);
-
-  void set_attributes(InstructionAttr *attributes) { _attributes = attributes; }
-  void clear_attributes(void) { _attributes = NULL; }
+  void clear_attributes(void) { _attributes = nullptr; }
 
   void set_managed(void) { NOT_LP64(_is_managed = true;) }
   void clear_managed(void) { NOT_LP64(_is_managed = false;) }
@@ -1736,6 +1734,7 @@ private:
   void orq(Address dst, int32_t imm32);
   void orq(Address dst, Register src);
   void orq(Register dst, int32_t imm32);
+  void orq_imm32(Register dst, int32_t imm32);
   void orq(Register dst, Address src);
   void orq(Register dst, Register src);
 
@@ -1761,9 +1760,11 @@ private:
   void vpermw(XMMRegister dst,  XMMRegister nds, XMMRegister src, int vector_len);
   void vpermd(XMMRegister dst,  XMMRegister nds, Address src, int vector_len);
   void vpermd(XMMRegister dst,  XMMRegister nds, XMMRegister src, int vector_len);
+  void vpermps(XMMRegister dst,  XMMRegister nds, XMMRegister src, int vector_len);
   void vperm2i128(XMMRegister dst,  XMMRegister nds, XMMRegister src, int imm8);
   void vperm2f128(XMMRegister dst, XMMRegister nds, XMMRegister src, int imm8);
   void vpermilps(XMMRegister dst, XMMRegister src, int imm8, int vector_len);
+  void vpermilps(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void vpermilpd(XMMRegister dst, XMMRegister src, int imm8, int vector_len);
   void vpermpd(XMMRegister dst, XMMRegister src, int imm8, int vector_len);
   void evpermi2q(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
@@ -1872,6 +1873,8 @@ private:
   void pmovzxdq(XMMRegister dst, XMMRegister src);
   void vpmovzxdq(XMMRegister dst, XMMRegister src, int vector_len);
   void evpmovzxbw(XMMRegister dst, KRegister mask, Address src, int vector_len);
+  void evpmovzxbd(XMMRegister dst, KRegister mask, Address src, int vector_len);
+  void evpmovzxbd(XMMRegister dst, Address src, int vector_len);
 
   // Sign extend moves
   void pmovsxbd(XMMRegister dst, XMMRegister src);
@@ -1973,9 +1976,12 @@ private:
   void vptest(XMMRegister dst, Address src);
 
   void evptestmb(KRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  void evptestmd(KRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  void evptestnmd(KRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
   // Vector compare
   void vptest(XMMRegister dst, XMMRegister src, int vector_len);
+  void vtestps(XMMRegister dst, XMMRegister src, int vector_len);
 
   // Interleave Low Bytes
   void punpcklbw(XMMRegister dst, XMMRegister src);
@@ -2878,13 +2884,12 @@ public:
       _input_size_in_bits(Assembler::EVEX_NObit),
       _evex_encoding(0),
       _embedded_opmask_register_specifier(0), // hard code k0
-      _current_assembler(NULL) { }
+      _current_assembler(nullptr) { }
 
   ~InstructionAttr() {
-    if (_current_assembler != NULL) {
+    if (_current_assembler != nullptr) {
       _current_assembler->clear_attributes();
     }
-    _current_assembler = NULL;
   }
 
 private:

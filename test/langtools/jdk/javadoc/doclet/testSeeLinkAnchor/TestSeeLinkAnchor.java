@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8200337
+ * @bug 8200337 8307377
  * @summary Generalize see and link tags for user-defined anchors
  * @library /tools/lib ../../lib
  * @modules
@@ -50,8 +50,8 @@ public class TestSeeLinkAnchor extends JavadocTester {
     private final Path src;
 
     public static void main(String... args) throws Exception {
-        TestSeeLinkAnchor tester = new TestSeeLinkAnchor();
-        tester.runTests(m -> new Object[]{Paths.get(m.getName())});
+        var tester = new TestSeeLinkAnchor();
+        tester.runTests();
     }
 
     TestSeeLinkAnchor() throws Exception {
@@ -180,7 +180,7 @@ public class TestSeeLinkAnchor extends JavadocTester {
         checkOutput("inv/Class1.html", true, """
                      Invalid link to\s
                      <details class="invalid-tag">
-                     <summary>invalid @link</summary>
+                     <summary>invalid reference</summary>
                      <pre><code>main heading</code></pre>
                      </details>""");
     }

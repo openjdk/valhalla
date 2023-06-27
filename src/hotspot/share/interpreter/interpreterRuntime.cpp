@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -139,9 +139,9 @@ void InterpreterRuntime::set_bcp_and_mdp(address bcp, JavaThread* current) {
   last_frame.set_bcp(bcp);
   if (ProfileInterpreter) {
     // ProfileTraps uses MDOs independently of ProfileInterpreter.
-    // That is why we must check both ProfileInterpreter and mdo != NULL.
+    // That is why we must check both ProfileInterpreter and mdo != nullptr.
     MethodData* mdo = last_frame.method()->method_data();
-    if (mdo != NULL) {
+    if (mdo != nullptr) {
       NEEDS_CLEANUP;
       last_frame.set_mdp(mdo->bci_to_dp(last_frame.bci()));
     }
@@ -191,7 +191,7 @@ JRT_ENTRY(void, InterpreterRuntime::resolve_ldc(JavaThread* current, Bytecodes::
   // Resolve the constant.  This does not do unboxing.
   // But it does replace Universe::the_null_sentinel by null.
   oop result = ldc.resolve_constant(CHECK);
-  assert(result != NULL || is_fast_aldc, "null result only valid for fast_aldc");
+  assert(result != nullptr || is_fast_aldc, "null result only valid for fast_aldc");
 
 #ifdef ASSERT
   {
@@ -201,8 +201,8 @@ JRT_ENTRY(void, InterpreterRuntime::resolve_ldc(JavaThread* current, Bytecodes::
     if (rindex < 0)
       rindex = m->constants()->cp_to_object_index(ldc2.pool_index());
     if (rindex >= 0) {
-      oop coop = m->constants()->resolved_references()->obj_at(rindex);
-      oop roop = (result == NULL ? Universe::the_null_sentinel() : result);
+      oop coop = m->constants()->resolved_reference_at(rindex);
+      oop roop = (result == nullptr ? Universe::the_null_sentinel() : result);
       assert(roop == coop, "expected result for assembly code");
     }
   }
@@ -272,19 +272,19 @@ JRT_ENTRY(void, InterpreterRuntime::aconst_init(JavaThread* current, ConstantPoo
 JRT_END
 
 JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCacheEntry* cpe, uintptr_t ptr))
-  oop obj = NULL;
+  oop obj = nullptr;
   int recv_offset = type2size[as_BasicType(cpe->flag_state())];
   assert(frame::interpreter_frame_expression_stack_direction() == -1, "currently is -1 on all platforms");
   int ret_adj = (recv_offset + type2size[T_OBJECT] )* AbstractInterpreter::stackElementSize;
   int offset = cpe->f2_as_offset();
   obj = (oopDesc*)(((uintptr_t*)ptr)[recv_offset * Interpreter::stackElementWords]);
-  if (obj == NULL) {
+  if (obj == nullptr) {
     THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
   }
   assert(oopDesc::is_oop(obj), "Verifying receiver");
   assert(obj->klass()->is_inline_klass(), "Must have been checked during resolution");
   instanceHandle old_value_h(THREAD, (instanceOop)obj);
-  oop ref = NULL;
+  oop ref = nullptr;
   if (cpe->flag_state() == atos) {
     ref = *(oopDesc**)ptr;
   }
@@ -363,7 +363,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
       {
         if (cpe->is_null_free_inline_type())  {
           if (!cpe->is_inlined()) {
-              if (ref_h() == NULL) {
+              if (ref_h() == nullptr) {
                 THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
               }
               new_value_h()->obj_field_put(offset, ref_h());
@@ -402,12 +402,12 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   if (klass->is_being_initialized() && klass->is_init_thread(THREAD)) {
     int offset = klass->field_offset(index);
     Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
-    if (field_k == NULL) {
+    if (field_k == nullptr) {
       field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index)->fundamental_name(THREAD),
           Handle(THREAD, klass->class_loader()),
           Handle(THREAD, klass->protection_domain()),
           true, CHECK);
-      assert(field_k != NULL, "Should have been loaded or an exception thrown above");
+      assert(field_k != nullptr, "Should have been loaded or an exception thrown above");
       klass->set_inline_type_field_klass(index, field_k);
     }
     field_k->initialize(CHECK);
@@ -424,7 +424,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
     const char* className = klass->external_name();
     size_t msglen = strlen(desc) + strlen(className) + 1;
     char* message = NEW_RESOURCE_ARRAY(char, msglen);
-    if (NULL == message) {
+    if (nullptr == message) {
       // Out of memory: can't create detailed error message
       THROW_MSG(vmSymbols::java_lang_NoClassDefFoundError(), className);
     } else {
@@ -476,7 +476,7 @@ JRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* current, arrayO
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* current, void* val, arrayOopDesc* array, int index))
-  assert(val != NULL, "can't store null into flat array");
+  assert(val != nullptr, "can't store null into flat array");
   ((flatArrayOop)array)->value_copy_to_index(cast_to_oop(val), index);
 JRT_END
 
@@ -565,7 +565,7 @@ void InterpreterRuntime::note_trap_inner(JavaThread* current, int reason,
                                          const methodHandle& trap_method, int trap_bci) {
   if (trap_method.not_null()) {
     MethodData* trap_mdo = trap_method->method_data();
-    if (trap_mdo == NULL) {
+    if (trap_mdo == nullptr) {
       ExceptionMark em(current);
       JavaThread* THREAD = current; // For exception macros.
       Method::build_profiling_method_data(trap_method, THREAD);
@@ -578,7 +578,7 @@ void InterpreterRuntime::note_trap_inner(JavaThread* current, int reason,
       trap_mdo = trap_method->method_data();
       // and fall through...
     }
-    if (trap_mdo != NULL) {
+    if (trap_mdo != nullptr) {
       // Update per-method count of trap events.  The interpreter
       // is updating the MDO to simulate the effect of compiler traps.
       Deoptimization::update_method_data_from_interpreter(trap_mdo, trap_bci, reason);
@@ -754,7 +754,7 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     should_repeat = false;
 
     // assertions
-    assert(h_exception.not_null(), "NULL exceptions should be handled by athrow");
+    assert(h_exception.not_null(), "null exceptions should be handled by athrow");
     // Check that exception is a subclass of Throwable.
     assert(h_exception->is_a(vmClasses::Throwable_klass()),
            "Exception not subclass of Throwable");
@@ -797,10 +797,10 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
   } while (should_repeat == true);
 
 #if INCLUDE_JVMCI
-  if (EnableJVMCI && h_method->method_data() != NULL) {
+  if (EnableJVMCI && h_method->method_data() != nullptr) {
     ResourceMark rm(current);
-    ProfileData* pdata = h_method->method_data()->allocate_bci_to_data(current_bci, NULL);
-    if (pdata != NULL && pdata->is_BitData()) {
+    ProfileData* pdata = h_method->method_data()->allocate_bci_to_data(current_bci, nullptr);
+    if (pdata != nullptr && pdata->is_BitData()) {
       BitData* bit_data = (BitData*) pdata;
       bit_data->set_exception_seen();
     }
@@ -813,8 +813,8 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     JvmtiExport::post_exception_throw(current, h_method(), last_frame.bcp(), h_exception());
   }
 
-  address continuation = NULL;
-  address handler_pc = NULL;
+  address continuation = nullptr;
+  address handler_pc = nullptr;
   if (handler_bci < 0 || !current->stack_overflow_state()->reguard_stack((address) &continuation)) {
     // Forward exception to callee (leaving bci/bcp untouched) because (a) no
     // handler in this method, or (b) after a stack overflow there is not yet
@@ -838,7 +838,7 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
   // notify debugger of an exception catch
   // (this is good for exceptions caught in native methods as well)
   if (JvmtiExport::can_post_on_exceptions()) {
-    JvmtiExport::notice_unwind_due_to_exception(current, h_method(), handler_pc, h_exception(), (handler_pc != NULL));
+    JvmtiExport::notice_unwind_due_to_exception(current, h_method(), handler_pc, h_exception(), (handler_pc != nullptr));
   }
 
   current->set_vm_result(h_exception());
@@ -865,7 +865,7 @@ JRT_END
 JRT_ENTRY(void, InterpreterRuntime::throw_AbstractMethodErrorWithMethod(JavaThread* current,
                                                                         Method* missingMethod))
   ResourceMark rm(current);
-  assert(missingMethod != NULL, "sanity");
+  assert(missingMethod != nullptr, "sanity");
   methodHandle m(current, missingMethod);
   LinkResolver::throw_abstract_method_error(m, THREAD);
 JRT_END
@@ -895,8 +895,8 @@ JRT_ENTRY(void, InterpreterRuntime::throw_IncompatibleClassChangeErrorVerbose(Ja
   buf[0] = '\0';
   jio_snprintf(buf, sizeof(buf),
                "Class %s does not implement the requested interface %s",
-               recvKlass ? recvKlass->external_name() : "NULL",
-               interfaceKlass ? interfaceKlass->external_name() : "NULL");
+               recvKlass ? recvKlass->external_name() : "nullptr",
+               interfaceKlass ? interfaceKlass->external_name() : "nullptr");
   THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
 JRT_END
 
@@ -998,20 +998,37 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
 
 //%note monitor_1
 JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* current, BasicObjectLock* elem))
+  assert(LockingMode != LM_LIGHTWEIGHT, "Should call monitorenter_obj() when using the new lightweight locking");
 #ifdef ASSERT
   current->last_frame().interpreter_frame_verify_monitor(elem);
 #endif
   Handle h_obj(current, elem->obj());
   assert(Universe::heap()->is_in_or_null(h_obj()),
-         "must be NULL or an object");
+         "must be null or an object");
   ObjectSynchronizer::enter(h_obj, elem->lock(), current);
   assert(Universe::heap()->is_in_or_null(elem->obj()),
-         "must be NULL or an object");
+         "must be null or an object");
 #ifdef ASSERT
   current->last_frame().interpreter_frame_verify_monitor(elem);
 #endif
 JRT_END
 
+// NOTE: We provide a separate implementation for the new lightweight locking to workaround a limitation
+// of registers in x86_32. This entry point accepts an oop instead of a BasicObjectLock*.
+// The problem is that we would need to preserve the register that holds the BasicObjectLock,
+// but we are using that register to hold the thread. We don't have enough registers to
+// also keep the BasicObjectLock, but we don't really need it anyway, we only need
+// the object. See also InterpreterMacroAssembler::lock_object().
+// As soon as legacy stack-locking goes away we could remove the other monitorenter() entry
+// point, and only use oop-accepting entries (same for monitorexit() below).
+JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter_obj(JavaThread* current, oopDesc* obj))
+  assert(LockingMode == LM_LIGHTWEIGHT, "Should call monitorenter() when not using the new lightweight locking");
+  Handle h_obj(current, cast_to_oop(obj));
+  assert(Universe::heap()->is_in_or_null(h_obj()),
+         "must be null or an object");
+  ObjectSynchronizer::enter(h_obj, nullptr, current);
+  return;
+JRT_END
 
 JRT_LEAF(void, InterpreterRuntime::monitorexit(BasicObjectLock* elem))
   oop obj = elem->obj();
@@ -1027,7 +1044,7 @@ JRT_LEAF(void, InterpreterRuntime::monitorexit(BasicObjectLock* elem))
   ObjectSynchronizer::exit(obj, elem->lock(), JavaThread::current());
   // Free entry. If it is not cleared, the exception handling code will try to unlock the monitor
   // again at method exit or in the case of an exception.
-  elem->set_obj(NULL);
+  elem->set_obj(nullptr);
 JRT_END
 
 
@@ -1044,8 +1061,8 @@ JRT_ENTRY(void, InterpreterRuntime::new_illegal_monitor_state_exception(JavaThre
 
   assert(!HAS_PENDING_EXCEPTION, "no pending exception");
   Handle exception(current, current->vm_result());
-  assert(exception() != NULL, "vm result should be set");
-  current->set_vm_result(NULL); // clear vm result before continuing (may cause memory leaks and assert failures)
+  assert(exception() != nullptr, "vm result should be set");
+  current->set_vm_result(nullptr); // clear vm result before continuing (may cause memory leaks and assert failures)
   exception = get_preinitialized_exception(vmClasses::IllegalMonitorStateException_klass(), CATCH);
   current->set_vm_result(exception());
 JRT_END
@@ -1069,7 +1086,7 @@ JRT_END
 void InterpreterRuntime::resolve_invoke(JavaThread* current, Bytecodes::Code bytecode) {
   LastFrameAccessor last_frame(current);
   // extract receiver from the outgoing argument list if necessary
-  Handle receiver(current, NULL);
+  Handle receiver(current, nullptr);
   if (bytecode == Bytecodes::_invokevirtual || bytecode == Bytecodes::_invokeinterface ||
       bytecode == Bytecodes::_invokespecial) {
     ResourceMark rm(current);
@@ -1210,8 +1227,7 @@ void InterpreterRuntime::resolve_invokedynamic(JavaThread* current) {
                                  index, bytecode, CHECK);
   } // end JvmtiHideSingleStepping
 
-  ConstantPoolCacheEntry* cp_cache_entry = pool->invokedynamic_cp_cache_entry_at(index);
-  cp_cache_entry->set_dynamic_call(pool, info);
+  pool->cache()->set_dynamic_call(info, pool->decode_invokedynamic_index(index));
 }
 
 // This function is the interface to the assembly code. It returns the resolved
@@ -1255,8 +1271,8 @@ nmethod* InterpreterRuntime::frequency_counter_overflow(JavaThread* current, add
 
   // frequency_counter_overflow_inner can throw async exception.
   nmethod* nm = frequency_counter_overflow_inner(current, branch_bcp);
-  assert(branch_bcp != NULL || nm == NULL, "always returns null for non OSR requests");
-  if (branch_bcp != NULL && nm != NULL) {
+  assert(branch_bcp != nullptr || nm == nullptr, "always returns null for non OSR requests");
+  if (branch_bcp != nullptr && nm != nullptr) {
     // This was a successful request for an OSR nmethod.  Because
     // frequency_counter_overflow_inner ends with a safepoint check,
     // nm could have been unloaded so look it up again.  It's unsafe
@@ -1267,24 +1283,24 @@ nmethod* InterpreterRuntime::frequency_counter_overflow(JavaThread* current, add
     int bci = method->bci_from(last_frame.bcp());
     nm = method->lookup_osr_nmethod_for(bci, CompLevel_none, false);
     BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
-    if (nm != NULL && bs_nm != NULL) {
+    if (nm != nullptr && bs_nm != nullptr) {
       // in case the transition passed a safepoint we need to barrier this again
       if (!bs_nm->nmethod_osr_entry_barrier(nm)) {
-        nm = NULL;
+        nm = nullptr;
       }
     }
   }
-  if (nm != NULL && current->is_interp_only_mode()) {
+  if (nm != nullptr && current->is_interp_only_mode()) {
     // Normally we never get an nm if is_interp_only_mode() is true, because
     // policy()->event has a check for this and won't compile the method when
     // true. However, it's possible for is_interp_only_mode() to become true
     // during the compilation. We don't want to return the nm in that case
     // because we want to continue to execute interpreted.
-    nm = NULL;
+    nm = nullptr;
   }
 #ifndef PRODUCT
   if (TraceOnStackReplacement) {
-    if (nm != NULL) {
+    if (nm != nullptr) {
       tty->print("OSR entry @ pc: " INTPTR_FORMAT ": ", p2i(nm->osr_entry()));
       nm->print();
     }
@@ -1302,15 +1318,15 @@ JRT_ENTRY(nmethod*,
   LastFrameAccessor last_frame(current);
   assert(last_frame.is_interpreted_frame(), "must come from interpreter");
   methodHandle method(current, last_frame.method());
-  const int branch_bci = branch_bcp != NULL ? method->bci_from(branch_bcp) : InvocationEntryBci;
-  const int bci = branch_bcp != NULL ? method->bci_from(last_frame.bcp()) : InvocationEntryBci;
+  const int branch_bci = branch_bcp != nullptr ? method->bci_from(branch_bcp) : InvocationEntryBci;
+  const int bci = branch_bcp != nullptr ? method->bci_from(last_frame.bcp()) : InvocationEntryBci;
 
-  nmethod* osr_nm = CompilationPolicy::event(method, method, branch_bci, bci, CompLevel_none, NULL, CHECK_NULL);
+  nmethod* osr_nm = CompilationPolicy::event(method, method, branch_bci, bci, CompLevel_none, nullptr, CHECK_NULL);
 
   BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (osr_nm != NULL && bs_nm != NULL) {
+  if (osr_nm != nullptr && bs_nm != nullptr) {
     if (!bs_nm->nmethod_osr_entry_barrier(osr_nm)) {
-      osr_nm = NULL;
+      osr_nm = nullptr;
     }
   }
   return osr_nm;
@@ -1320,7 +1336,7 @@ JRT_LEAF(jint, InterpreterRuntime::bcp_to_di(Method* method, address cur_bcp))
   assert(ProfileInterpreter, "must be profiling interpreter");
   int bci = method->bci_from(cur_bcp);
   MethodData* mdo = method->method_data();
-  if (mdo == NULL)  return 0;
+  if (mdo == nullptr)  return 0;
   return mdo->bci_to_di(bci);
 JRT_END
 
@@ -1329,7 +1345,7 @@ JRT_LEAF(void, InterpreterRuntime::verify_mdp(Method* method, address bcp, addre
   assert(ProfileInterpreter, "must be profiling interpreter");
 
   MethodData* mdo = method->method_data();
-  assert(mdo != NULL, "must not be null");
+  assert(mdo != nullptr, "must not be null");
 
   int bci = method->bci_from(bcp);
 
@@ -1367,7 +1383,7 @@ JRT_ENTRY(void, InterpreterRuntime::update_mdp_for_ret(JavaThread* current, int 
   // ProfileData is essentially a wrapper around a derived oop, so we
   // need to take the lock before making any ProfileData structures.
   ProfileData* data = h_mdo->data_at(h_mdo->dp_to_di(last_frame.mdp()));
-  guarantee(data != NULL, "profile data must be valid");
+  guarantee(data != nullptr, "profile data must be valid");
   RetData* rdata = data->as_RetData();
   address new_mdp = rdata->fixup_ret(return_bci, h_mdo);
   last_frame.set_mdp(new_mdp);
@@ -1385,10 +1401,6 @@ JRT_ENTRY(void, InterpreterRuntime::at_safepoint(JavaThread* current))
 
   // JRT_END does an implicit safepoint check, hence we are guaranteed to block
   // if this is called during a safepoint
-
-  if (java_lang_VirtualThread::notify_jvmti_events()) {
-    JvmtiExport::check_vthread_and_suspend_at_safepoint(current);
-  }
 
   if (JvmtiExport::should_post_single_step()) {
     // This function is called by the interpreter when single stepping. Such single
@@ -1423,9 +1435,9 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDe
 
   InstanceKlass* ik = InstanceKlass::cast(cp_entry->f1_as_klass());
   int index = cp_entry->field_index();
-  if ((ik->field_access_flags(index) & JVM_ACC_FIELD_ACCESS_WATCHED) == 0) return;
+  if (!ik->field_status(index).is_access_watched()) return;
 
-  bool is_static = (obj == NULL);
+  bool is_static = (obj == nullptr);
   bool is_inlined = cp_entry->is_inlined();
   HandleMark hm(current);
 
@@ -1449,7 +1461,7 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread* current,
   InstanceKlass* ik = InstanceKlass::cast(k);
   int index = cp_entry->field_index();
   // bail out if field modifications are not watched
-  if ((ik->field_access_flags(index) & JVM_ACC_FIELD_MODIFICATION_WATCHED) == 0) return;
+  if (!ik->field_status(index).is_modification_watched()) return;
 
   char sig_type = '\0';
 
@@ -1471,7 +1483,7 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread* current,
     sig_type = JVM_SIGNATURE_PRIMITIVE_OBJECT;
   }
 
-  bool is_static = (obj == NULL);
+  bool is_static = (obj == nullptr);
   bool is_inlined = cp_entry->is_inlined();
 
   HandleMark hm(current);
@@ -1537,8 +1549,8 @@ uint64_t InterpreterRuntime::normalize_fast_native_fingerprint(uint64_t fingerpr
 
 address SignatureHandlerLibrary::set_handler_blob() {
   BufferBlob* handler_blob = BufferBlob::create("native signature handlers", blob_size);
-  if (handler_blob == NULL) {
-    return NULL;
+  if (handler_blob == nullptr) {
+    return nullptr;
   }
   address handler = handler_blob->code_begin();
   _handler_blob = handler_blob;
@@ -1547,10 +1559,10 @@ address SignatureHandlerLibrary::set_handler_blob() {
 }
 
 void SignatureHandlerLibrary::initialize() {
-  if (_fingerprints != NULL) {
+  if (_fingerprints != nullptr) {
     return;
   }
-  if (set_handler_blob() == NULL) {
+  if (set_handler_blob() == nullptr) {
     vm_exit_out_of_memory(blob_size, OOM_MALLOC_ERROR, "native signature handlers");
   }
 
@@ -1569,7 +1581,7 @@ address SignatureHandlerLibrary::set_handler(CodeBuffer* buffer) {
     // get a new handler blob
     handler = set_handler_blob();
   }
-  if (handler != NULL) {
+  if (handler != nullptr) {
     memcpy(handler, buffer->insts_begin(), insts_size);
     pd_set_handler(handler);
     ICache::invalidate_range(handler, insts_size);
@@ -1579,7 +1591,7 @@ address SignatureHandlerLibrary::set_handler(CodeBuffer* buffer) {
 }
 
 void SignatureHandlerLibrary::add(const methodHandle& method) {
-  if (method->signature_handler() == NULL) {
+  if (method->signature_handler() == nullptr) {
     // use slow signature handler if we can't do better
     int handler_index = -1;
     // check if we can use customized (fast) signature handler
@@ -1602,7 +1614,7 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
         InterpreterRuntime::SignatureHandlerGenerator(method, &buffer).generate(fingerprint);
         // copy into code heap
         address handler = set_handler(&buffer);
-        if (handler == NULL) {
+        if (handler == nullptr) {
           // use slow signature handler (without memorizing it in the fingerprints)
         } else {
           // debugging support
@@ -1665,7 +1677,7 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
     // thread which may change the arrays in the above, mutex protected block, we
     // have to protect this read access here with the same mutex as well!
     MutexLocker mu(SignatureHandlerLibrary_lock);
-    if (_handlers != NULL) {
+    if (_handlers != nullptr) {
       handler_index = _handlers->find(method->signature_handler());
       uint64_t fingerprint = Fingerprinter(method).fingerprint();
       fingerprint = InterpreterRuntime::normalize_fast_native_fingerprint(fingerprint);
@@ -1709,11 +1721,11 @@ void SignatureHandlerLibrary::add(uint64_t fingerprint, address handler) {
 }
 
 
-BufferBlob*              SignatureHandlerLibrary::_handler_blob = NULL;
-address                  SignatureHandlerLibrary::_handler      = NULL;
-GrowableArray<uint64_t>* SignatureHandlerLibrary::_fingerprints = NULL;
-GrowableArray<address>*  SignatureHandlerLibrary::_handlers     = NULL;
-address                  SignatureHandlerLibrary::_buffer       = NULL;
+BufferBlob*              SignatureHandlerLibrary::_handler_blob = nullptr;
+address                  SignatureHandlerLibrary::_handler      = nullptr;
+GrowableArray<uint64_t>* SignatureHandlerLibrary::_fingerprints = nullptr;
+GrowableArray<address>*  SignatureHandlerLibrary::_handlers     = nullptr;
+address                  SignatureHandlerLibrary::_buffer       = nullptr;
 
 
 JRT_ENTRY(void, InterpreterRuntime::prepare_native_call(JavaThread* current, Method* method))
@@ -1765,8 +1777,8 @@ JRT_ENTRY(void, InterpreterRuntime::member_name_arg_or_null(JavaThread* current,
   }
   ConstantPool* cpool = method->constants();
   int cp_index = Bytes::get_native_u2(bcp + 1) + ConstantPool::CPCACHE_INDEX_TAG;
-  Symbol* cname = cpool->klass_name_at(cpool->klass_ref_index_at(cp_index));
-  Symbol* mname = cpool->name_ref_at(cp_index);
+  Symbol* cname = cpool->klass_name_at(cpool->klass_ref_index_at(cp_index, code));
+  Symbol* mname = cpool->name_ref_at(cp_index, code);
 
   if (MethodHandles::has_member_arg(cname, mname)) {
     oop member_name_oop = cast_to_oop(member_name);
@@ -1776,7 +1788,7 @@ JRT_ENTRY(void, InterpreterRuntime::member_name_arg_or_null(JavaThread* current,
     }
     current->set_vm_result(member_name_oop);
   } else {
-    current->set_vm_result(NULL);
+    current->set_vm_result(nullptr);
   }
 JRT_END
 #endif // INCLUDE_JVMTI

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,7 +75,7 @@ public:
   {
     _is_osr        = is_osr;
     _expected_uses = expected_uses;
-    assert(InlineTree::check_can_parse(method) == NULL, "parse must be possible");
+    assert(InlineTree::check_can_parse(method) == nullptr, "parse must be possible");
   }
 
   virtual bool      is_parse() const           { return true; }
@@ -94,7 +94,7 @@ JVMState* ParseGenerator::generate(JVMState* jvms) {
   }
 
   if (C->failing()) {
-    return NULL;  // bailing out of the compile; do not try to parse
+    return nullptr;  // bailing out of the compile; do not try to parse
   }
 
   Parse parser(jvms, method(), _expected_uses);
@@ -102,8 +102,8 @@ JVMState* ParseGenerator::generate(JVMState* jvms) {
   GraphKit& exits = parser.exits();
 
   if (C->failing()) {
-    while (exits.pop_exception_state() != NULL) ;
-    return NULL;
+    while (exits.pop_exception_state() != nullptr) ;
+    return nullptr;
   }
 
   assert(exits.jvms()->same_calls_as(jvms), "sanity");
@@ -128,7 +128,7 @@ protected:
  public:
   DirectCallGenerator(ciMethod* method, bool separate_io_proj)
     : CallGenerator(method),
-      _call_node(NULL),
+      _call_node(nullptr),
       _separate_io_proj(separate_io_proj)
   {
     if (InlineTypeReturnedAsFields && method->is_method_handle_intrinsic()) {
@@ -158,7 +158,7 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   address target = is_static ? SharedRuntime::get_resolve_static_call_stub()
                              : SharedRuntime::get_resolve_opt_virtual_call_stub();
 
-  if (kit.C->log() != NULL) {
+  if (kit.C->log() != nullptr) {
     kit.C->log()->elem("direct_call bci='%d'", jvms->bci());
   }
 
@@ -209,7 +209,7 @@ protected:
 
 public:
   VirtualCallGenerator(ciMethod* method, int vtable_index, bool separate_io_proj)
-    : CallGenerator(method), _vtable_index(vtable_index), _separate_io_proj(separate_io_proj), _call_node(NULL)
+    : CallGenerator(method), _vtable_index(vtable_index), _separate_io_proj(separate_io_proj), _call_node(nullptr)
   {
     assert(vtable_index == Method::invalid_vtable_index ||
            vtable_index >= 0, "either invalid or usable");
@@ -232,7 +232,7 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   Node* receiver = kit.argument(0);
   kit.C->print_inlining_update(this);
 
-  if (kit.C->log() != NULL) {
+  if (kit.C->log() != nullptr) {
     kit.C->log()->elem("virtual_call bci='%d'", jvms->bci());
   }
 
@@ -248,7 +248,7 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
     kit.inc_sp(arg_size);  // restore arguments
     kit.uncommon_trap(Deoptimization::Reason_null_check,
                       Deoptimization::Action_none,
-                      NULL, "null receiver");
+                      nullptr, "null receiver");
     return kit.transfer_exceptions_into_jvms();
   }
 
@@ -257,7 +257,7 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   // However currently the conversion to implicit null checks in
   // Block::implicit_null_check() only looks for loads and stores, not calls.
   ciMethod *caller = kit.method();
-  ciMethodData *caller_md = (caller == NULL) ? NULL : caller->method_data();
+  ciMethodData *caller_md = (caller == nullptr) ? nullptr : caller->method_data();
   if (!UseInlineCaches || !ImplicitNullChecks || !os::zero_page_read_protected() ||
        ((ImplicitNullCheckThreshold > 0) && caller_md &&
        (caller_md->trap_count(Deoptimization::Reason_null_check)
@@ -304,7 +304,7 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
 }
 
 CallGenerator* CallGenerator::for_inline(ciMethod* m, float expected_uses) {
-  if (InlineTree::check_can_parse(m) != NULL)  return NULL;
+  if (InlineTree::check_can_parse(m) != nullptr)  return nullptr;
   return new ParseGenerator(m, expected_uses);
 }
 
@@ -312,7 +312,7 @@ CallGenerator* CallGenerator::for_inline(ciMethod* m, float expected_uses) {
 // for the method execution already in progress, not just the JVMS
 // of the caller.  Thus, this CallGenerator cannot be mixed with others!
 CallGenerator* CallGenerator::for_osr(ciMethod* m, int osr_bci) {
-  if (InlineTree::check_can_parse(m) != NULL)  return NULL;
+  if (InlineTree::check_can_parse(m) != nullptr)  return nullptr;
   float past_uses = m->interpreter_invocation_count();
   float expected_uses = past_uses;
   return new ParseGenerator(m, expected_uses, true);
@@ -408,7 +408,7 @@ class LateInlineMHCallGenerator : public LateInlineCallGenerator {
 
  public:
   LateInlineMHCallGenerator(ciMethod* caller, ciMethod* callee, bool input_not_const) :
-    LateInlineCallGenerator(callee, NULL), _caller(caller), _input_not_const(input_not_const) {}
+    LateInlineCallGenerator(callee, nullptr), _caller(caller), _input_not_const(input_not_const) {}
 
   virtual bool is_mh_late_inline() const { return true; }
 
@@ -449,13 +449,13 @@ bool LateInlineMHCallGenerator::do_late_inline_check(Compile* C, JVMState* jvms)
   CallGenerator* cg = for_method_handle_inline(jvms, _caller, method(), allow_inline, input_not_const);
   assert(!input_not_const, "sanity"); // shouldn't have been scheduled for inlining in the first place
 
-  if (cg != NULL) {
+  if (cg != nullptr) {
     // AlwaysIncrementalInline causes for_method_handle_inline() to
     // return a LateInlineCallGenerator. Extract the
     // InlineCallGenerator from it.
     if (AlwaysIncrementalInline && cg->is_late_inline() && !cg->is_virtual_late_inline()) {
       cg = cg->inline_cg();
-      assert(cg != NULL, "inline call generator expected");
+      assert(cg != nullptr, "inline call generator expected");
     }
 
     assert(!cg->is_late_inline() || cg->is_mh_late_inline() || AlwaysIncrementalInline, "we're doing late inlining");
@@ -494,7 +494,7 @@ class LateInlineVirtualCallGenerator : public VirtualCallGenerator {
  public:
   LateInlineVirtualCallGenerator(ciMethod* method, int vtable_index, float prof_factor)
   : VirtualCallGenerator(method, vtable_index, true /*separate_io_projs*/),
-    _unique_id(0), _inline_cg(NULL), _callee(NULL), _is_pure_call(false), _prof_factor(prof_factor) {
+    _unique_id(0), _inline_cg(nullptr), _callee(nullptr), _is_pure_call(false), _prof_factor(prof_factor) {
     assert(IncrementalInlineVirtual, "required");
   }
 
@@ -506,7 +506,7 @@ class LateInlineVirtualCallGenerator : public VirtualCallGenerator {
   virtual void do_late_inline();
 
   virtual void set_callee_method(ciMethod* m) {
-    assert(_callee == NULL, "repeated inlining attempt");
+    assert(_callee == nullptr, "repeated inlining attempt");
     _callee = m;
   }
 
@@ -516,7 +516,7 @@ class LateInlineVirtualCallGenerator : public VirtualCallGenerator {
     // through and exceptional uses of the memory and io projections
     // as is done for allocations and macro expansion.
     JVMState* new_jvms = VirtualCallGenerator::generate(jvms);
-    if (call_node() != NULL) {
+    if (call_node() != nullptr) {
       call_node()->set_generator(this);
     }
     return new_jvms;
@@ -576,10 +576,10 @@ bool LateInlineVirtualCallGenerator::do_late_inline_check(Compile* C, JVMState* 
                                         jvms,
                                         allow_inline,
                                         _prof_factor,
-                                        NULL /*speculative_receiver_type*/,
+                                        nullptr /*speculative_receiver_type*/,
                                         true /*allow_intrinsics*/);
 
-  if (cg != NULL) {
+  if (cg != nullptr) {
     assert(!cg->is_late_inline() || cg->is_mh_late_inline() || AlwaysIncrementalInline, "we're doing late inlining");
     _inline_cg = cg;
     return true;
@@ -606,7 +606,7 @@ void LateInlineMHCallGenerator::do_late_inline() {
 }
 
 void LateInlineVirtualCallGenerator::do_late_inline() {
-  assert(_callee != NULL, "required"); // set up in CallDynamicJavaNode::Ideal
+  assert(_callee != nullptr, "required"); // set up in CallDynamicJavaNode::Ideal
   CallGenerator::do_late_inline_helper();
 }
 
@@ -615,8 +615,8 @@ void CallGenerator::do_late_inline_helper() {
 
   // Can't inline it
   CallNode* call = call_node();
-  if (call == NULL || call->outcnt() == 0 ||
-      call->in(0) == NULL || call->in(0)->is_top()) {
+  if (call == nullptr || call->outcnt() == 0 ||
+      call->in(0) == nullptr || call->in(0)->is_top()) {
     return;
   }
 
@@ -647,7 +647,7 @@ void CallGenerator::do_late_inline_helper() {
       (callprojs->catchall_memproj      == call->in(TypeFunc::Memory)) ||
       (callprojs->fallthrough_ioproj    == call->in(TypeFunc::I_O)) ||
       (callprojs->catchall_ioproj       == call->in(TypeFunc::I_O)) ||
-      (callprojs->exobj != NULL && call->find_edge(callprojs->exobj) != -1)) {
+      (callprojs->exobj != nullptr && call->find_edge(callprojs->exobj) != -1)) {
     return;
   }
 
@@ -660,7 +660,7 @@ void CallGenerator::do_late_inline_helper() {
 
   bool result_not_used = true;
   for (uint i = 0; i < callprojs->nb_resproj; i++) {
-    if (callprojs->resproj[i] != NULL) {
+    if (callprojs->resproj[i] != nullptr) {
       if (callprojs->resproj[i]->outcnt() != 0) {
         result_not_used = false;
       }
@@ -710,7 +710,7 @@ void CallGenerator::do_late_inline_helper() {
     int arg_num = 0;
     for (uint i1 = 0; i1 < nargs; i1++) {
       const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
-      if (t->is_inlinetypeptr() && method()->is_scalarized_arg(arg_num)) {
+      if (t->is_inlinetypeptr() && !method()->get_Method()->mismatch() && method()->is_scalarized_arg(arg_num)) {
         // Inline type arguments are not passed by reference: we get an argument per
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
@@ -739,7 +739,7 @@ void CallGenerator::do_late_inline_helper() {
     }
 
     // Check if we are late inlining a method handle call that returns an inline type as fields.
-    Node* buffer_oop = NULL;
+    Node* buffer_oop = nullptr;
     ciMethod* inline_method = inline_cg()->method();
     ciType* return_type = inline_method->return_type();
     if (!call->tf()->returns_inline_type_as_fields() && is_mh_late_inline() &&
@@ -753,14 +753,14 @@ void CallGenerator::do_late_inline_helper() {
         arg_kit.jvms()->set_should_reexecute(true);
         arg_kit.inc_sp(nargs);
         Node* klass_node = arg_kit.makecon(TypeKlassPtr::make(return_type->as_inline_klass()));
-        buffer_oop = arg_kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
+        buffer_oop = arg_kit.new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true);
       }
       jvms = arg_kit.transfer_exceptions_into_jvms();
     }
 
     // Setup default node notes to be picked up by the inlining
     Node_Notes* old_nn = C->node_notes_at(call->_idx);
-    if (old_nn != NULL) {
+    if (old_nn != nullptr) {
       Node_Notes* entry_nn = old_nn->clone(C);
       entry_nn->set_jvms(jvms);
       C->set_default_node_notes(entry_nn);
@@ -768,7 +768,7 @@ void CallGenerator::do_late_inline_helper() {
 
     // Now perform the inlining using the synthesized JVMState
     JVMState* new_jvms = inline_cg()->generate(jvms);
-    if (new_jvms == NULL)  return;  // no change
+    if (new_jvms == nullptr)  return;  // no change
     if (C->failing())      return;
 
     // Capture any exceptional control flow
@@ -792,13 +792,13 @@ void CallGenerator::do_late_inline_helper() {
     InlineTypeNode* vt = result->isa_InlineType();
     // Upfront buffering for VectorBox may cause problems in sweeping allocation
     // graph pallets if boxes are removed during unbox-box optimization.
-    if (vt != NULL && !result->is_VectorBox()) {
+    if (vt != nullptr && !result->is_VectorBox()) {
       if (call->tf()->returns_inline_type_as_fields()) {
         vt->replace_call_results(&kit, call, C, inline_method->signature()->returns_null_free_inline_type());
       } else if (vt->is_InlineType()) {
         // Result might still be allocated (for example, if it has been stored to a non-flattened field)
         if (!vt->is_allocated(&kit.gvn())) {
-          assert(buffer_oop != NULL, "should have allocated a buffer");
+          assert(buffer_oop != nullptr, "should have allocated a buffer");
           RegionNode* region = new RegionNode(3);
 
           // Check if result is null
@@ -817,7 +817,7 @@ void CallGenerator::do_late_inline_helper() {
           // Do not let stores that initialize this buffer be reordered with a subsequent
           // store that would make this buffer accessible by other threads.
           AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop, &kit.gvn());
-          assert(alloc != NULL, "must have an allocation node");
+          assert(alloc != nullptr, "must have an allocation node");
           kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
           region->init_req(2, kit.control());
           oop->init_req(2, buffer_oop);
@@ -825,8 +825,8 @@ void CallGenerator::do_late_inline_helper() {
 
           // Update oop input to buffer
           kit.gvn().hash_delete(vt);
-          vt->set_is_buffered();
           vt->set_oop(kit.gvn().transform(oop));
+          vt->set_is_buffered(kit.gvn());
           vt = kit.gvn().transform(vt)->as_InlineType();
 
           kit.set_control(kit.gvn().transform(region));
@@ -837,11 +837,11 @@ void CallGenerator::do_late_inline_helper() {
         }
         result = vt;
       }
-      DEBUG_ONLY(buffer_oop = NULL);
+      DEBUG_ONLY(buffer_oop = nullptr);
     } else {
       assert(result->is_top() || !call->tf()->returns_inline_type_as_fields(), "Unexpected return value");
     }
-    assert(buffer_oop == NULL, "unused buffer allocation");
+    assert(buffer_oop == nullptr, "unused buffer allocation");
 
     kit.replace_call(call, result, true);
   }
@@ -993,7 +993,7 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
   // We share a map with the caller, so his JVMS gets adjusted.
   Node* receiver = kit.argument(0);
   CompileLog* log = kit.C->log();
-  if (log != NULL) {
+  if (log != nullptr) {
     log->elem("predicted_call bci='%d' exact='%d' klass='%d'",
               jvms->bci(), (_exact_check ? 1 : 0), log->identify(_predicted_receiver));
   }
@@ -1008,7 +1008,7 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
   replaced_nodes.clone();
 
   Node* casted_receiver = receiver;  // will get updated in place...
-  Node* slow_ctl = NULL;
+  Node* slow_ctl = nullptr;
   if (_exact_check) {
     slow_ctl = kit.type_check_receiver(receiver, _predicted_receiver, _hit_prob,
                                        &casted_receiver);
@@ -1017,15 +1017,15 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
                                           &casted_receiver);
   }
 
-  SafePointNode* slow_map = NULL;
-  JVMState* slow_jvms = NULL;
+  SafePointNode* slow_map = nullptr;
+  JVMState* slow_jvms = nullptr;
   { PreserveJVMState pjvms(&kit);
     kit.set_control(slow_ctl);
     if (!kit.stopped()) {
       slow_jvms = _if_missed->generate(kit.sync_jvms());
       if (kit.failing())
-        return NULL;  // might happen because of NodeCountInliningCutoff
-      assert(slow_jvms != NULL, "must be");
+        return nullptr;  // might happen because of NodeCountInliningCutoff
+      assert(slow_jvms != nullptr, "must be");
       kit.add_exception_states_from(slow_jvms);
       kit.set_map(slow_jvms->map());
       if (!kit.stopped())
@@ -1044,7 +1044,7 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
 
   // Make the hot call:
   JVMState* new_jvms = _if_hit->generate(kit.sync_jvms());
-  if (new_jvms == NULL) {
+  if (new_jvms == nullptr) {
     // Inline failed, so make a direct call.
     assert(_if_hit->is_inline(), "must have been a failed inline");
     CallGenerator* cg = CallGenerator::for_direct_call(_if_hit->method());
@@ -1054,7 +1054,7 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
   kit.set_jvms(new_jvms);
 
   // Need to merge slow and fast?
-  if (slow_map == NULL) {
+  if (slow_map == nullptr) {
     // The fast path is the only path remaining.
     return kit.transfer_exceptions_into_jvms();
   }
@@ -1135,7 +1135,7 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   bool input_not_const;
   CallGenerator* cg = CallGenerator::for_method_handle_inline(jvms, caller, callee, allow_inline, input_not_const);
   Compile* C = Compile::current();
-  if (cg != NULL) {
+  if (cg != nullptr) {
     if (AlwaysIncrementalInline) {
       return CallGenerator::for_late_inline(callee, cg);
     } else {
@@ -1191,14 +1191,14 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
       if (receiver->Opcode() == Op_ConP) {
         input_not_const = false;
         const TypeOopPtr* recv_toop = receiver->bottom_type()->isa_oopptr();
-        if (recv_toop != NULL) {
+        if (recv_toop != nullptr) {
           ciMethod* target = recv_toop->const_oop()->as_method_handle()->get_vmtarget();
           const int vtable_index = Method::invalid_vtable_index;
 
           if (!ciMethod::is_consistent_info(callee, target)) {
             print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
                                    "signatures mismatch");
-            return NULL;
+            return nullptr;
           }
 
           CallGenerator *cg = C->call_generator(target, vtable_index,
@@ -1236,7 +1236,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         if (!ciMethod::is_consistent_info(callee, target)) {
           print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
                                  "signatures mismatch");
-          return NULL;
+          return nullptr;
         }
 
         // In lambda forms we erase signature types to avoid resolving issues
@@ -1265,7 +1265,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         int  vtable_index       = Method::invalid_vtable_index;
         bool call_does_dispatch = false;
 
-        ciKlass* speculative_receiver_type = NULL;
+        ciKlass* speculative_receiver_type = nullptr;
         if (is_virtual_or_interface) {
           ciInstanceKlass* klass = target->holder();
           Node*             receiver_node = kit.argument(0);
@@ -1280,7 +1280,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
                                             false /* check_access */);
           // We lack profiling at this call but type speculation may
           // provide us with a type
-          speculative_receiver_type = (receiver_type != NULL) ? receiver_type->speculative_type() : NULL;
+          speculative_receiver_type = (receiver_type != nullptr) ? receiver_type->speculative_type() : nullptr;
         }
         CallGenerator* cg = C->call_generator(target, vtable_index, call_does_dispatch, jvms,
                                               allow_inline,
@@ -1304,7 +1304,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
     fatal("unexpected intrinsic %d: %s", vmIntrinsics::as_int(iid), vmIntrinsics::name_at(iid));
     break;
   }
-  return NULL;
+  return nullptr;
 }
 
 //------------------------PredicatedIntrinsicGenerator------------------------------
@@ -1338,7 +1338,7 @@ CallGenerator* CallGenerator::for_predicated_intrinsic(CallGenerator* intrinsic,
 
 JVMState* PredicatedIntrinsicGenerator::generate(JVMState* jvms) {
   // The code we want to generate here is:
-  //    if (receiver == NULL)
+  //    if (receiver == nullptr)
   //        uncommon_Trap
   //    if (predicate(0))
   //        do_intrinsic(0)
@@ -1353,7 +1353,7 @@ JVMState* PredicatedIntrinsicGenerator::generate(JVMState* jvms) {
   PhaseGVN& gvn = kit.gvn();
 
   CompileLog* log = kit.C->log();
-  if (log != NULL) {
+  if (log != nullptr) {
     log->elem("predicated_intrinsic bci='%d' method='%d'",
               jvms->bci(), log->identify(method()));
   }
@@ -1397,7 +1397,7 @@ JVMState* PredicatedIntrinsicGenerator::generate(JVMState* jvms) {
       PreserveJVMState pjvms(&kit);
       // Generate intrinsic code:
       JVMState* new_jvms = _intrinsic->generate(kit.sync_jvms());
-      if (new_jvms == NULL) {
+      if (new_jvms == nullptr) {
         // Intrinsic failed, use normal compilation path for this predicate.
         slow_region->add_req(kit.control());
       } else {
@@ -1408,7 +1408,7 @@ JVMState* PredicatedIntrinsicGenerator::generate(JVMState* jvms) {
         }
       }
     }
-    if (else_ctrl == NULL) {
+    if (else_ctrl == nullptr) {
       else_ctrl = kit.C->top();
     }
     kit.set_control(else_ctrl);
@@ -1423,8 +1423,8 @@ JVMState* PredicatedIntrinsicGenerator::generate(JVMState* jvms) {
     kit.set_control(gvn.transform(slow_region));
     JVMState* new_jvms = _cg->generate(kit.sync_jvms());
     if (kit.failing())
-      return NULL;  // might happen because of NodeCountInliningCutoff
-    assert(new_jvms != NULL, "must be");
+      return nullptr;  // might happen because of NodeCountInliningCutoff
+    assert(new_jvms != nullptr, "must be");
     kit.add_exception_states_from(new_jvms);
     kit.set_jvms(new_jvms);
     if (!kit.stopped()) {
@@ -1487,7 +1487,7 @@ JVMState* PredicatedIntrinsicGenerator::generate(JVMState* jvms) {
     for (int j = 1; j < results; j++) {
       JVMState* jvms = result_jvms[j];
       Node* jmap = jvms->map();
-      Node* m = NULL;
+      Node* m = nullptr;
       if (jmap->req() > i) {
         m = jmap->in(i);
         if (m != n) {
@@ -1557,7 +1557,7 @@ JVMState* UncommonTrapCallGenerator::generate(JVMState* jvms) {
     // of a class cast failure for a monomorphic call as it will never let us convert
     // the call to either bi-morphic or megamorphic and can lead to unc-trap loops
     bool keep_exact_action = true;
-    kit.uncommon_trap(_reason, _action, NULL, "monomorphic vcall checkcast", false, keep_exact_action);
+    kit.uncommon_trap(_reason, _action, nullptr, "monomorphic vcall checkcast", false, keep_exact_action);
   } else {
     kit.uncommon_trap(_reason, _action);
   }

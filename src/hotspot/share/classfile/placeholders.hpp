@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,11 @@
 #ifndef SHARE_CLASSFILE_PLACEHOLDERS_HPP
 #define SHARE_CLASSFILE_PLACEHOLDERS_HPP
 
+#include "oops/symbolHandle.hpp"
+
 class PlaceholderEntry;
 class Thread;
 class ClassLoaderData;
-class Symbol;
 
 // Placeholder objects. These represent classes currently
 // being loaded, as well as arrays of primitives.
@@ -82,7 +83,7 @@ class SeenThread;
 class PlaceholderEntry {
   friend class PlaceholderTable;
  private:
-  Symbol*           _supername;
+  SymbolHandle      _supername;
   JavaThread*       _definer;       // owner of define token
   InstanceKlass*    _instanceKlass; // InstanceKlass from successful define
   SeenThread*       _superThreadQ;  // doubly-linked queue of Threads loading a superclass for this class
@@ -101,29 +102,6 @@ class PlaceholderEntry {
   void add_seen_thread(JavaThread* thread, PlaceholderTable::classloadAction action);
   bool remove_seen_thread(JavaThread* thread, PlaceholderTable::classloadAction action);
 
- public:
-  PlaceholderEntry() :
-     _supername(nullptr), _definer(nullptr), _instanceKlass(nullptr),
-     _superThreadQ(nullptr), _loadInstanceThreadQ(nullptr), _defineThreadQ(nullptr),
-     _inlineTypeFieldQ(nullptr) { }
-
-  Symbol*            supername()           const { return _supername; }
-  void               set_supername(Symbol* supername) {
-    Symbol::maybe_decrement_refcount(_supername);
-    _supername = supername;
-    Symbol::maybe_increment_refcount(_supername);
-  }
-  void               clear_supername() {
-    Symbol::maybe_decrement_refcount(_supername);
-    _supername = nullptr;
-  }
-
-  JavaThread*        definer()             const {return _definer; }
-  void               set_definer(JavaThread* definer) { _definer = definer; }
-
-  InstanceKlass*     instance_klass()      const {return _instanceKlass; }
-  void               set_instance_klass(InstanceKlass* ik) { _instanceKlass = ik; }
-
   SeenThread*        superThreadQ()        const { return _superThreadQ; }
   void               set_superThreadQ(SeenThread* SeenThread) { _superThreadQ = SeenThread; }
 
@@ -132,24 +110,38 @@ class PlaceholderEntry {
 
   SeenThread*        defineThreadQ()       const { return _defineThreadQ; }
   void               set_defineThreadQ(SeenThread* SeenThread) { _defineThreadQ = SeenThread; }
+ public:
+  PlaceholderEntry() :
+     _definer(nullptr), _instanceKlass(nullptr),
+     _superThreadQ(nullptr), _loadInstanceThreadQ(nullptr), _defineThreadQ(nullptr),
+     _inlineTypeFieldQ(nullptr) { }
+
+  Symbol*            supername()           const { return _supername; }
+  void               set_supername(Symbol* supername);
+
+  JavaThread*        definer()             const {return _definer; }
+  void               set_definer(JavaThread* definer) { _definer = definer; }
+
+  InstanceKlass*     instance_klass()      const {return _instanceKlass; }
+  void               set_instance_klass(InstanceKlass* ik) { _instanceKlass = ik; }
 
   SeenThread*        inlineTypeFieldQ()    const { return _inlineTypeFieldQ; }
   void               set_inlineTypeFieldQ(SeenThread* SeenThread) { _inlineTypeFieldQ = SeenThread; }
 
   bool super_load_in_progress() {
-     return (_superThreadQ != NULL);
+     return (_superThreadQ != nullptr);
   }
 
   bool instance_load_in_progress() {
-    return (_loadInstanceThreadQ != NULL);
+    return (_loadInstanceThreadQ != nullptr);
   }
 
   bool define_class_in_progress() {
-    return (_defineThreadQ != NULL);
+    return (_defineThreadQ != nullptr);
   }
 
   bool inline_type_field_in_progress() {
-    return (_inlineTypeFieldQ != NULL);
+    return (_inlineTypeFieldQ != nullptr);
   }
 
   // Used for ClassCircularityError checking

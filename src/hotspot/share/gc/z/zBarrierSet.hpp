@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,14 @@
 #define SHARE_GC_Z_ZBARRIERSET_HPP
 
 #include "gc/shared/barrierSet.hpp"
+#include "gc/z/zAddress.hpp"
 
 class ZBarrierSetAssembler;
 
 class ZBarrierSet : public BarrierSet {
+private:
+  static zpointer store_good(oop obj);
+
 public:
   ZBarrierSet();
 
@@ -40,7 +44,15 @@ public:
   virtual void on_thread_attach(Thread* thread);
   virtual void on_thread_detach(Thread* thread);
 
+  virtual void on_slowpath_allocation_exit(JavaThread* thread, oop new_obj);
+
   virtual void print_on(outputStream* st) const;
+
+  enum OopCopyCheckStatus {
+    oop_copy_check_ok = 0,         // oop array copy sucessful
+    oop_copy_check_class_cast = 1, // oop array copy failed subtype check (ARRAYCOPY_CHECKCAST)
+    oop_copy_check_null = 2        // oop array copy failed null check (ARRAYCOPY_NOTNULL)
+  };
 
   template <DecoratorSet decorators, typename BarrierSetT = ZBarrierSet>
   class AccessBarrier : public BarrierSet::AccessBarrier<decorators, BarrierSetT> {
@@ -53,34 +65,77 @@ public:
     template <DecoratorSet expected>
     static void verify_decorators_absent();
 
-    static oop* field_addr(oop base, ptrdiff_t offset);
+    static zpointer* field_addr(oop base, ptrdiff_t offset);
 
-    template <typename T>
-    static oop load_barrier_on_oop_field_preloaded(T* addr, oop o);
+    static zaddress load_barrier(zpointer* p, zpointer o);
+    static zaddress load_barrier_on_unknown_oop_ref(oop base, ptrdiff_t offset, zpointer* p, zpointer o);
 
-    template <typename T>
-    static oop load_barrier_on_unknown_oop_field_preloaded(oop base, ptrdiff_t offset, T* addr, oop o);
+    static void store_barrier_heap_with_healing(zpointer* p);
+    static void store_barrier_heap_without_healing(zpointer* p);
+    static void no_keep_alive_store_barrier_heap(zpointer* p);
+
+    static void store_barrier_native_with_healing(zpointer* p);
+    static void store_barrier_native_without_healing(zpointer* p);
+
+    static void unsupported();
+    static zaddress load_barrier(narrowOop* p, zpointer o) { unsupported(); return zaddress::null; }
+    static zaddress load_barrier_on_unknown_oop_ref(oop base, ptrdiff_t offset, narrowOop* p, zpointer o) { unsupported(); return zaddress::null; }
+    static void store_barrier_heap_with_healing(narrowOop* p) { unsupported(); }
+    static void store_barrier_heap_without_healing(narrowOop* p)  { unsupported(); }
+    static void no_keep_alive_store_barrier_heap(narrowOop* p)  { unsupported(); }
+    static void store_barrier_native_with_healing(narrowOop* p)  { unsupported(); }
+    static void store_barrier_native_without_healing(narrowOop* p)  { unsupported(); }
+
+    static zaddress oop_copy_one_barriers(zpointer* dst, zpointer* src);
+    static OopCopyCheckStatus oop_copy_one_check_cast(zpointer* dst, zpointer* src, Klass* dst_klass);
+    static OopCopyCheckStatus oop_copy_one(zpointer* dst, zpointer* src);
+
+    static OopCopyCheckStatus oop_arraycopy_in_heap_check_cast(zpointer* dst, zpointer* src, size_t length, Klass* dst_klass);
+    static OopCopyCheckStatus oop_arraycopy_in_heap_no_check_cast(zpointer* dst, zpointer* src, size_t length);
 
   public:
     //
     // In heap
     //
-    template <typename T>
-    static oop oop_load_in_heap(T* addr);
+    static oop oop_load_in_heap(zpointer* p);
+    static oop oop_load_in_heap(oop* p)       { return oop_load_in_heap((zpointer*)p); };
+    static oop oop_load_in_heap(narrowOop* p) { unsupported(); return nullptr; }
+
     static oop oop_load_in_heap_at(oop base, ptrdiff_t offset);
 
-    template <typename T>
-    static oop oop_atomic_cmpxchg_in_heap(T* addr, oop compare_value, oop new_value);
+    static void oop_store_in_heap(zpointer* p, oop value);
+    static void oop_store_in_heap(oop* p, oop value)       { oop_store_in_heap((zpointer*)p, value); }
+    static void oop_store_in_heap(narrowOop* p, oop value) { unsupported(); }
+    static void oop_store_in_heap_at(oop base, ptrdiff_t offset, oop value);
+
+    static void oop_store_not_in_heap(zpointer* p, oop value);
+    static void oop_store_not_in_heap(oop* p, oop value)       { oop_store_not_in_heap((zpointer*)p, value); }
+    static void oop_store_not_in_heap(narrowOop* p, oop value) { unsupported(); }
+    static void oop_store_not_in_heap_at(oop base, ptrdiff_t offset, oop value);
+
+    static oop oop_atomic_cmpxchg_in_heap(zpointer* p, oop compare_value, oop new_value);
+    static oop oop_atomic_cmpxchg_in_heap(oop* p, oop compare_value, oop new_value)       { return oop_atomic_cmpxchg_in_heap((zpointer*)p, compare_value, new_value); }
+    static oop oop_atomic_cmpxchg_in_heap(narrowOop* p, oop compare_value, oop new_value) { unsupported(); return nullptr; }
     static oop oop_atomic_cmpxchg_in_heap_at(oop base, ptrdiff_t offset, oop compare_value, oop new_value);
 
-    template <typename T>
-    static oop oop_atomic_xchg_in_heap(T* addr, oop new_value);
+    static oop oop_atomic_xchg_in_heap(zpointer* p, oop new_value);
+    static oop oop_atomic_xchg_in_heap(oop* p, oop new_value)       { return oop_atomic_xchg_in_heap((zpointer*)p, new_value); }
+    static oop oop_atomic_xchg_in_heap(narrowOop* p, oop new_value) { unsupported(); return nullptr; }
     static oop oop_atomic_xchg_in_heap_at(oop base, ptrdiff_t offset, oop new_value);
 
-    template <typename T>
-    static void oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
-                                      arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+    static void oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, zpointer* src_raw,
+                                      arrayOop dst_obj, size_t dst_offset_in_bytes, zpointer* dst_raw,
                                       size_t length);
+    static void oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, oop* src_raw,
+                                      arrayOop dst_obj, size_t dst_offset_in_bytes, oop* dst_raw,
+                                      size_t length) {
+      oop_arraycopy_in_heap(src_obj, src_offset_in_bytes, (zpointer*)src_raw,
+                            dst_obj, dst_offset_in_bytes, (zpointer*)dst_raw,
+                            length);
+    }
+    static void oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, narrowOop* src_raw,
+                                      arrayOop dst_obj, size_t dst_offset_in_bytes, narrowOop* dst_raw,
+                                      size_t length) { unsupported(); }
 
     static void clone_in_heap(oop src, oop dst, size_t size);
 
@@ -89,14 +144,19 @@ public:
     //
     // Not in heap
     //
-    template <typename T>
-    static oop oop_load_not_in_heap(T* addr);
+    static oop oop_load_not_in_heap(zpointer* p);
+    static oop oop_load_not_in_heap(oop* p);
+    static oop oop_load_not_in_heap(narrowOop* p) { unsupported(); return nullptr; }
 
-    template <typename T>
-    static oop oop_atomic_cmpxchg_not_in_heap(T* addr, oop compare_value, oop new_value);
+    static oop oop_atomic_cmpxchg_not_in_heap(zpointer* p, oop compare_value, oop new_value);
+    static oop oop_atomic_cmpxchg_not_in_heap(oop* p, oop compare_value, oop new_value) {
+      return oop_atomic_cmpxchg_not_in_heap((zpointer*)p, compare_value, new_value);
+    }
+    static oop oop_atomic_cmpxchg_not_in_heap(narrowOop* addr, oop compare_value, oop new_value) { unsupported(); return nullptr; }
 
-    template <typename T>
-    static oop oop_atomic_xchg_not_in_heap(T* addr, oop new_value);
+    static oop oop_atomic_xchg_not_in_heap(zpointer* p, oop new_value);
+    static oop oop_atomic_xchg_not_in_heap(oop* p, oop new_value)       { return oop_atomic_xchg_not_in_heap((zpointer*)p, new_value); }
+    static oop oop_atomic_xchg_not_in_heap(narrowOop* p, oop new_value) { unsupported(); return nullptr; }
   };
 };
 

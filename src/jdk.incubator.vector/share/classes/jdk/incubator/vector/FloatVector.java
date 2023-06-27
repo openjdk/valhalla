@@ -57,7 +57,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
      */
     public FloatVector() {}
 
-    static final ValueLayout.OfFloat ELEMENT_LAYOUT = ValueLayout.JAVA_FLOAT.withBitAlignment(8);
+    static final ValueLayout.OfFloat ELEMENT_LAYOUT = ValueLayout.JAVA_FLOAT.withByteAlignment(1);
 
     @ForceInline
     static int opCode(Operator op) {
@@ -1060,7 +1060,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
     // and broadcast, but it would be more surprising not to continue
     // the obvious pattern started by unary and binary.
 
-   /**
+    /**
      * {@inheritDoc} <!--workaround-->
      * @see #lanewise(VectorOperators.Ternary,float,float,VectorMask)
      * @see #lanewise(VectorOperators.Ternary,Vector,float,VectorMask)
@@ -2441,26 +2441,14 @@ public abstract class FloatVector extends AbstractVector<Float> {
     }
 
     @ForceInline
-    private final
-    VectorShuffle<Float> toShuffle0(FloatSpecies dsp) {
+    final <F>
+    VectorShuffle<F> toShuffle0(AbstractSpecies<F> dsp) {
         float[] a = toArray();
         int[] sa = new int[a.length];
         for (int i = 0; i < a.length; i++) {
             sa[i] = (int) a[i];
         }
         return VectorShuffle.fromArray(dsp, sa, 0);
-    }
-
-    /*package-private*/
-    @ForceInline
-    final
-    VectorShuffle<Float> toShuffleTemplate(Class<?> shuffleType) {
-        FloatSpecies vsp = vspecies();
-        return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                                     getClass(), float.class, length(),
-                                     shuffleType, byte.class, length(),
-                                     this, vsp,
-                                     FloatVector::toShuffle0);
     }
 
     /**
@@ -3110,7 +3098,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
      * float[] ar = new float[species.length()];
      * for (int n = 0; n < ar.length; n++) {
      *     if (m.laneIsSet(n)) {
-     *         ar[n] = slice.getAtIndex(ValuaLayout.JAVA_FLOAT.withBitAlignment(8), n);
+     *         ar[n] = slice.getAtIndex(ValuaLayout.JAVA_FLOAT.withByteAlignment(1), n);
      *     }
      * }
      * FloatVector r = FloatVector.fromArray(species, ar, 0);
@@ -3757,9 +3745,10 @@ public abstract class FloatVector extends AbstractVector<Float> {
         private FloatSpecies(VectorShape shape,
                 Class<? extends FloatVector> vectorType,
                 Class<? extends AbstractMask<Float>> maskType,
+                Class<? extends AbstractShuffle<Float>> shuffleType,
                 Function<Object, FloatVector> vectorFactory) {
             super(shape, LaneType.of(float.class),
-                  vectorType, maskType,
+                  vectorType, maskType, shuffleType,
                   vectorFactory);
             assert(this.elementSize() == Float.SIZE);
         }
@@ -4055,6 +4044,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         = new FloatSpecies(VectorShape.S_64_BIT,
                             Float64Vector.class,
                             Float64Vector.Float64Mask.class,
+                            Float64Vector.Float64Shuffle.class,
                             Float64Vector::new);
 
     /** Species representing {@link FloatVector}s of {@link VectorShape#S_128_BIT VectorShape.S_128_BIT}. */
@@ -4062,6 +4052,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         = new FloatSpecies(VectorShape.S_128_BIT,
                             Float128Vector.class,
                             Float128Vector.Float128Mask.class,
+                            Float128Vector.Float128Shuffle.class,
                             Float128Vector::new);
 
     /** Species representing {@link FloatVector}s of {@link VectorShape#S_256_BIT VectorShape.S_256_BIT}. */
@@ -4069,6 +4060,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         = new FloatSpecies(VectorShape.S_256_BIT,
                             Float256Vector.class,
                             Float256Vector.Float256Mask.class,
+                            Float256Vector.Float256Shuffle.class,
                             Float256Vector::new);
 
     /** Species representing {@link FloatVector}s of {@link VectorShape#S_512_BIT VectorShape.S_512_BIT}. */
@@ -4076,6 +4068,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         = new FloatSpecies(VectorShape.S_512_BIT,
                             Float512Vector.class,
                             Float512Vector.Float512Mask.class,
+                            Float512Vector.Float512Shuffle.class,
                             Float512Vector::new);
 
     /** Species representing {@link FloatVector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
@@ -4084,6 +4077,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         = new FloatSpecies(VectorShape.S_Max_BIT,
                             FloatMaxVector.class,
                             FloatMaxVector.FloatMaxMask.class,
+                            FloatMaxVector.FloatMaxShuffle.class,
                             FloatMaxVector::new);
      */
 

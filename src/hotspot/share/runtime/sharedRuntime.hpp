@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,9 +50,9 @@ class SharedRuntime: AllStatic {
 
  private:
   static bool resolve_sub_helper_internal(methodHandle callee_method, const frame& caller_frame,
-                                          CompiledMethod* caller_nm, bool is_virtual, bool is_optimized,
+                                          CompiledMethod* caller_nm, bool is_virtual, bool is_optimized, bool& caller_is_c1,
                                           Handle receiver, CallInfo& call_info, Bytecodes::Code invoke_code, TRAPS);
-  static methodHandle resolve_sub_helper(bool is_virtual, bool is_optimized, bool* caller_is_c1, TRAPS);
+  static methodHandle resolve_sub_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS);
 
   // Shared stub locations
 
@@ -129,8 +129,6 @@ class SharedRuntime: AllStatic {
   static jfloat  d2f (jdouble x);
   static jfloat  l2f (jlong   x);
   static jdouble l2d (jlong   x);
-  static jfloat  hf2f(jshort  x);
-  static jshort  f2hf(jfloat  x);
   static jfloat  i2f (jint    x);
 
 #ifdef __SOFTFP__
@@ -218,17 +216,17 @@ class SharedRuntime: AllStatic {
   static address get_poll_stub(address pc);
 
   static address get_ic_miss_stub() {
-    assert(_ic_miss_blob!= NULL, "oops");
+    assert(_ic_miss_blob!= nullptr, "oops");
     return _ic_miss_blob->entry_point();
   }
 
   static address get_handle_wrong_method_stub() {
-    assert(_wrong_method_blob!= NULL, "oops");
+    assert(_wrong_method_blob!= nullptr, "oops");
     return _wrong_method_blob->entry_point();
   }
 
   static address get_handle_wrong_method_abstract_stub() {
-    assert(_wrong_method_abstract_blob!= NULL, "oops");
+    assert(_wrong_method_abstract_blob!= nullptr, "oops");
     return _wrong_method_abstract_blob->entry_point();
   }
 
@@ -238,15 +236,15 @@ class SharedRuntime: AllStatic {
 #endif // COMPILER2
 
   static address get_resolve_opt_virtual_call_stub() {
-    assert(_resolve_opt_virtual_call_blob != NULL, "oops");
+    assert(_resolve_opt_virtual_call_blob != nullptr, "oops");
     return _resolve_opt_virtual_call_blob->entry_point();
   }
   static address get_resolve_virtual_call_stub() {
-    assert(_resolve_virtual_call_blob != NULL, "oops");
+    assert(_resolve_virtual_call_blob != nullptr, "oops");
     return _resolve_virtual_call_blob->entry_point();
   }
   static address get_resolve_static_call_stub() {
-    assert(_resolve_static_call_blob != NULL, "oops");
+    assert(_resolve_static_call_blob != nullptr, "oops");
     return _resolve_static_call_blob->entry_point();
   }
 
@@ -266,7 +264,15 @@ class SharedRuntime: AllStatic {
 
   // Helper routine for full-speed JVMTI exception throwing support
   static void throw_and_post_jvmti_exception(JavaThread* current, Handle h_exception);
-  static void throw_and_post_jvmti_exception(JavaThread* current, Symbol* name, const char *message = NULL);
+  static void throw_and_post_jvmti_exception(JavaThread* current, Symbol* name, const char *message = nullptr);
+
+#if INCLUDE_JVMTI
+  // Functions for JVMTI notifications
+  static void notify_jvmti_vthread_start(oopDesc* vt, jboolean hide, JavaThread* current);
+  static void notify_jvmti_vthread_end(oopDesc* vt, jboolean hide, JavaThread* current);
+  static void notify_jvmti_vthread_mount(oopDesc* vt, jboolean hide, JavaThread* current);
+  static void notify_jvmti_vthread_unmount(oopDesc* vt, jboolean hide, JavaThread* current);
+#endif
 
   // RedefineClasses() tracing support for obsolete method entry
   static int rc_trace_method_entry(JavaThread* thread, Method* m);
@@ -317,11 +323,11 @@ class SharedRuntime: AllStatic {
   // The caller (or one of it's callers) must use a ResourceMark
   // in order to correctly free the result.
   //
-  static char* generate_class_cast_message(Klass* caster_klass, Klass* target_klass, Symbol* target_klass_name = NULL);
+  static char* generate_class_cast_message(Klass* caster_klass, Klass* target_klass, Symbol* target_klass_name = nullptr);
 
   // Resolves a call site- may patch in the destination of the call into the
   // compiled code.
-  static methodHandle resolve_helper(bool is_virtual, bool is_optimized, bool* caller_is_c1, TRAPS);
+  static methodHandle resolve_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS);
 
  private:
   // deopt blob
@@ -342,16 +348,16 @@ class SharedRuntime: AllStatic {
   static methodHandle handle_ic_miss_helper(bool& is_optimized, bool& caller_is_c1, TRAPS);
 
   // Find the method that called us.
-  static methodHandle find_callee_method(TRAPS);
+  static methodHandle find_callee_method(bool is_optimized, bool& caller_is_c1, TRAPS);
 
   static void monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 
   static void monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
   static address entry_for_handle_wrong_method(methodHandle callee_method, bool is_static_call, bool is_optimized, bool caller_is_c1) {
-    assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
-    assert(callee_method->verified_inline_code_entry() != NULL, "Jump to zero!");
-    assert(callee_method->verified_inline_ro_code_entry() != NULL, "Jump to zero!");
+    assert(callee_method->verified_code_entry() != nullptr, "Jump to zero!");
+    assert(callee_method->verified_inline_code_entry() != nullptr, "Jump to zero!");
+    assert(callee_method->verified_inline_ro_code_entry() != nullptr, "Jump to zero!");
     if (caller_is_c1) {
       return callee_method->verified_inline_code_entry();
     } else if (is_static_call || is_optimized) {
@@ -402,7 +408,7 @@ class SharedRuntime: AllStatic {
   // Some architectures require that an argument must be passed in a register
   // AND in a stack slot. These architectures provide a second VMRegPair array
   // to be filled by the c_calling_convention method. On other architectures,
-  // NULL is being passed as the second VMRegPair array, so arguments are either
+  // null is being passed as the second VMRegPair array, so arguments are either
   // passed in a register OR in a stack slot.
   static int c_calling_convention(const BasicType *sig_bt, VMRegPair *regs, VMRegPair *regs2,
                                   int total_args_passed);
@@ -677,7 +683,7 @@ class AdapterHandlerEntry : public CHeapObj<mtCode> {
     _c2i_unverified_entry(c2i_unverified_entry),
     _c2i_unverified_inline_entry(c2i_unverified_inline_entry),
     _c2i_no_clinit_check_entry(c2i_no_clinit_check_entry),
-    _sig_cc(NULL)
+    _sig_cc(nullptr)
 #ifdef ASSERT
     , _saved_code_length(0)
 #endif
@@ -736,7 +742,7 @@ class AdapterHandlerLibrary: public AllStatic {
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint,
                                         address i2c_entry, address c2i_entry, address c2i_inline_entry, address c2i_inline_ro_entry,
-                                        address c2i_unverified_entry, address c2i_unverified_inline_entry, address c2i_no_clinit_check_entry = NULL);
+                                        address c2i_unverified_entry, address c2i_unverified_inline_entry, address c2i_no_clinit_check_entry = nullptr);
   static void create_native_wrapper(const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
 
@@ -758,9 +764,9 @@ class CompiledEntrySignature : public StackObj {
   Method* _method;
   int  _num_inline_args;
   bool _has_inline_recv;
-  GrowableArray<SigEntry> *_sig;
-  GrowableArray<SigEntry> *_sig_cc;
-  GrowableArray<SigEntry> *_sig_cc_ro;
+  GrowableArray<SigEntry>* _sig;
+  GrowableArray<SigEntry>* _sig_cc;
+  GrowableArray<SigEntry>* _sig_cc_ro;
   VMRegPair* _regs;
   VMRegPair* _regs_cc;
   VMRegPair* _regs_cc_ro;
@@ -772,17 +778,19 @@ class CompiledEntrySignature : public StackObj {
   bool _c1_needs_stack_repair;
   bool _c2_needs_stack_repair;
 
+  GrowableArray<Method*>* _supers;
+
 public:
   Method* method()                     const { return _method; }
 
   // Used by Method::_from_compiled_inline_entry
-  GrowableArray<SigEntry>& sig()       const { return *_sig; }
+  GrowableArray<SigEntry>* sig()       const { return _sig; }
 
   // Used by Method::_from_compiled_entry
-  GrowableArray<SigEntry>& sig_cc()    const { return *_sig_cc; }
+  GrowableArray<SigEntry>* sig_cc()    const { return _sig_cc; }
 
   // Used by Method::_from_compiled_inline_ro_entry
-  GrowableArray<SigEntry>& sig_cc_ro() const { return *_sig_cc_ro; }
+  GrowableArray<SigEntry>* sig_cc_ro() const { return _sig_cc_ro; }
 
   VMRegPair* regs()                    const { return _regs; }
   VMRegPair* regs_cc()                 const { return _regs_cc; }
@@ -800,7 +808,9 @@ public:
   bool c2_needs_stack_repair()         const { return _c2_needs_stack_repair; }
   CodeOffsets::Entries c1_inline_ro_entry_type() const;
 
-  CompiledEntrySignature(Method* method = NULL);
+  GrowableArray<Method*>* get_supers();
+
+  CompiledEntrySignature(Method* method = nullptr);
   void compute_calling_conventions(bool init = true);
 };
 

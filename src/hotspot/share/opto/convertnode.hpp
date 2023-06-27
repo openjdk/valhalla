@@ -109,7 +109,6 @@ class ConvF2HFNode : public Node {
   virtual int Opcode() const;
   virtual const Type *bottom_type() const { return TypeInt::SHORT; }
   virtual const Type* Value(PhaseGVN* phase) const;
-  virtual Node* Identity(PhaseGVN* phase);
   virtual uint  ideal_reg() const { return Op_RegI; }
 };
 
@@ -192,6 +191,7 @@ class ConvI2LNode : public TypeNode {
   virtual int Opcode() const;
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
+  virtual Node* Identity(PhaseGVN* phase);
   virtual uint  ideal_reg() const { return Op_RegL; }
 };
 

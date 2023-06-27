@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,13 +74,15 @@ private:
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.
 
   // The possible values of the _implementor fall into following three cases:
-  //   NULL: no implementor.
+  //   null: no implementor.
   //   A ciInstanceKlass that's not itself: one implementor.
   //   Itself: more than one implementor.
   ciInstanceKlass*       _implementor;
+  GrowableArray<ciInstanceKlass*>* _transitive_interfaces;
 
   void compute_injected_fields();
   bool compute_injected_fields_helper();
+  void compute_transitive_interfaces();
 
 protected:
   ciInstanceKlass(Klass* k);
@@ -183,7 +185,7 @@ public:
     ciInstanceKlass* impl;
     assert(is_loaded(), "must be loaded");
     impl = implementor();
-    if (impl == NULL) {
+    if (impl == nullptr) {
       return 0;
     } else if (impl != this) {
       return 1;
@@ -212,7 +214,7 @@ public:
 
   // total number of nonstatic fields (including inherited):
   int nof_nonstatic_fields() {
-    if (_nonstatic_fields == NULL) {
+    if (_nonstatic_fields == nullptr) {
       return compute_nonstatic_fields();
     } else {
       return _nonstatic_fields->length();
@@ -230,7 +232,7 @@ public:
 
   // nth nonstatic field (presented by ascending address)
   ciField* nonstatic_field_at(int i) {
-    assert(_nonstatic_fields != NULL, "");
+    assert(_nonstatic_fields != nullptr, "");
     return _nonstatic_fields->at(i);
   }
 
@@ -260,7 +262,7 @@ public:
   ciInstanceKlass* unique_implementor() {
     assert(is_loaded(), "must be loaded");
     ciInstanceKlass* impl = implementor();
-    return (impl != this ? impl : NULL);
+    return (impl != this ? impl : nullptr);
   }
 
   virtual bool can_be_inline_klass(bool is_exact = false);
@@ -287,7 +289,7 @@ public:
     if (is_loaded() && is_final() && !is_interface()) {
       return this;
     }
-    return NULL;
+    return nullptr;
   }
 
   bool can_be_instantiated() {
@@ -298,6 +300,7 @@ public:
   bool has_trusted_loader() const {
     return _has_trusted_loader;
   }
+  GrowableArray<ciInstanceKlass*>* transitive_interfaces() const;
 
   // Replay support
 

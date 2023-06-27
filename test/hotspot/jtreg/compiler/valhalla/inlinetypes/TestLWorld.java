@@ -3797,7 +3797,7 @@ public class TestLWorld {
     // Variant with non-scalarized inline type
     @Test
     @IR(failOn = {ALLOC_G})
-    public static void test134(boolean b) {
+    public void test134(boolean b) {
         Object obj = null;
         if (b) {
             obj = MyValue2.createWithFieldsInline(rI, rD);
@@ -3820,7 +3820,7 @@ public class TestLWorld {
     // Test that acmp of the same inline object is removed
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
-    public static boolean test135() {
+    public boolean test135() {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         return val == val;
     }
@@ -3833,7 +3833,7 @@ public class TestLWorld {
     // Same as test135 but with .ref
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
-    public static boolean test136(boolean b) {
+    public boolean test136(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
             val = null;
@@ -3851,7 +3851,7 @@ public class TestLWorld {
     @Test
     // TODO 8228361
     // @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
-    public static boolean test137(int i) {
+    public boolean test137(int i) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
         return val1 == val2;
@@ -3866,7 +3866,7 @@ public class TestLWorld {
     @Test
     // TODO 8228361
     // @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
-    public static boolean test138(int i, boolean b) {
+    public boolean test138(int i, boolean b) {
         MyValue2.ref val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2.ref val2 = MyValue2.createWithFieldsInline(i, rD);
         if (b) {

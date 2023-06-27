@@ -27,6 +27,7 @@ package java.lang;
 
 import java.lang.annotation.Annotation;
 import java.lang.constant.ClassDesc;
+import java.lang.constant.ConstantDescs;
 import java.lang.invoke.TypeDescriptor;
 import java.lang.invoke.MethodHandles;
 import java.lang.module.ModuleReader;
@@ -38,6 +39,7 @@ import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Array;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
@@ -69,10 +71,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import jdk.internal.javac.PreviewFeature;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.misc.Unsafe;
-import jdk.internal.misc.ValhallaFeatures;
 import jdk.internal.module.Resources;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
@@ -648,6 +650,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since Valhalla
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     public native boolean isIdentity();
 
     /**
@@ -659,6 +662,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since Valhalla
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     public boolean isValue() {
         return (this.getModifiers() & Modifier.VALUE) != 0;
     }
@@ -1491,6 +1495,7 @@ public final class Class<T> implements java.io.Serializable,
    /**
      * {@return an unmodifiable set of the {@linkplain AccessFlag access
      * flags} for this class, possibly empty}
+     * The {@code AccessFlags} may depend on the class file format version of the class.
      *
      * <p> If the underlying class is an array class:
      * <ul>
@@ -1520,10 +1525,14 @@ public final class Class<T> implements java.io.Serializable,
                         isAnonymousClass() || isArray()) ?
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
-        return AccessFlag.maskToAccessFlags((location == AccessFlag.Location.CLASS) ?
-                                            getClassAccessFlagsRaw() & (~0x800) :
-                                            getModifiers() & (~0x800), // suppress unspecified bit
-                                            location);
+        int accessFlags = (location == AccessFlag.Location.CLASS) ?
+                getClassAccessFlagsRaw() : getModifiers();
+        var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
+        if (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0) {
+            // Ignore unspecified (0x800) access flag for current version
+            accessFlags &= ~0x0800;
+        }
+        return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
     }
 
    /**
@@ -1681,13 +1690,13 @@ public final class Class<T> implements java.io.Serializable,
             return enclosingClass == null || name == null || descriptor == null;
         }
 
-        boolean isObjectConstructor() { return !isPartial() && "<init>".equals(name); }
+        boolean isObjectConstructor() { return !isPartial() && ConstantDescs.INIT_NAME.equals(name); }
 
-        boolean isValueFactoryMethod() { return !isPartial() && "<vnew>".equals(name); }
+        boolean isValueFactoryMethod() { return !isPartial() && ConstantDescs.VNEW_NAME.equals(name); }
 
         boolean isMethod() { return !isPartial() && !isObjectConstructor()
                                         && !isValueFactoryMethod()
-                                        && !"<clinit>".equals(name); }
+                                        && !ConstantDescs.CLASS_INIT_NAME.equals(name); }
 
         Class<?> getEnclosingClass() { return enclosingClass; }
 
@@ -2206,8 +2215,8 @@ public final class Class<T> implements java.io.Serializable,
      * has length 0. (Note that a {@code Class} object which represents a class
      * always has public methods, inherited from {@code Object}.)
      *
-     * <p> The returned array never contains methods with names "{@code <init>}"
-     * or "{@code <clinit>}".
+     * <p> The returned array never contains methods with names {@value
+     * ConstantDescs#INIT_NAME} or {@value ConstantDescs#CLASS_INIT_NAME}.
      *
      * <p> The elements in the returned array are not sorted and are not in any
      * particular order.
@@ -2400,8 +2409,8 @@ public final class Class<T> implements java.io.Serializable,
      * this interface or any of its superinterfaces, then this method does not
      * find any method.
      *
-     * <p> This method does not find any method with name "{@code <init>}" or
-     * "{@code <clinit>}".
+     * <p> This method does not find any method with name {@value
+     * ConstantDescs#INIT_NAME} or {@value ConstantDescs#CLASS_INIT_NAME}.
      *
      * <p> Generally, the method to be reflected is determined by the 4 step
      * algorithm that follows.
@@ -2459,7 +2468,8 @@ public final class Class<T> implements java.io.Serializable,
      * @return the {@code Method} object that matches the specified
      *         {@code name} and {@code parameterTypes}
      * @throws NoSuchMethodException if a matching method is not found
-     *         or if the name is "&lt;init&gt;"or "&lt;clinit&gt;".
+     *         or if the name is {@value ConstantDescs#INIT_NAME} or
+     *         {@value ConstantDescs#CLASS_INIT_NAME}.
      * @throws NullPointerException if {@code name} is {@code null}
      * @throws SecurityException
      *         If a security manager, <i>s</i>, is present and
@@ -2715,8 +2725,9 @@ public final class Class<T> implements java.io.Serializable,
      * object for each such method.
      *
      * <p> If this {@code Class} object represents a class or interface that
-     * has a class initialization method {@code <clinit>}, then the returned
-     * array does <em>not</em> have a corresponding {@code Method} object.
+     * has a class initialization method {@value ConstantDescs#CLASS_INIT_NAME},
+     * then the returned array does <em>not</em> have a corresponding {@code
+     * Method} object.
      *
      * <p> If this {@code Class} object represents a class or interface with no
      * declared methods, then the returned array has length 0.
@@ -2887,7 +2898,8 @@ public final class Class<T> implements java.io.Serializable,
      * parameter types is declared in a class, and one of these methods has a
      * return type that is more specific than any of the others, that method is
      * returned; otherwise one of the methods is chosen arbitrarily.  If the
-     * name is "&lt;init&gt;"or "&lt;clinit&gt;" a {@code NoSuchMethodException}
+     * name is {@value ConstantDescs#INIT_NAME} or {@value
+     * ConstantDescs#CLASS_INIT_NAME} a {@code NoSuchMethodException}
      * is raised.
      *
      * <p> If this {@code Class} object represents an array type, then this
@@ -4859,7 +4871,8 @@ public final class Class<T> implements java.io.Serializable,
      * type is returned.  If the class is a primitive type then the latest class
      * file major version is returned and zero is returned for the minor version.
      */
-    private int getClassFileVersion() {
+    /* package-private */
+    int getClassFileVersion() {
         Class<?> c = isArray() ? elementType() : this;
         return c.getClassFileVersion0();
     }

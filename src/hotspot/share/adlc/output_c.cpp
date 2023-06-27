@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
 
 #include "adlc.hpp"
 
+#define remaining_buflen(buffer, position) (sizeof(buffer) - (position - buffer))
+
 // Utilities to characterize effect statements
 static bool is_def(int usedef) {
   switch(usedef) {
@@ -33,6 +35,16 @@ static bool is_def(int usedef) {
   case Component::USE_DEF: return true; break;
   }
   return false;
+}
+
+int snprintf_checked(char* buf, size_t len, const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int result = vsnprintf(buf, len, fmt, args);
+  va_end(args);
+  assert(result >= 0, "snprintf error");
+  assert(static_cast<size_t>(result) < len, "snprintf truncated");
+  return result;
 }
 
 // Define  an array containing the machine register names, strings.
@@ -197,7 +209,8 @@ static int pipeline_reads_initializer(FILE *fp_cpp, NameList &pipeline_reads, Pi
     return -1;
   }
 
-  char *operand_stages = new char [templen];
+  const size_t operand_stages_size = templen;
+  char *operand_stages = new char [operand_stages_size];
   operand_stages[0] = 0;
   int i = 0;
   templen = 0;
@@ -211,7 +224,7 @@ static int pipeline_reads_initializer(FILE *fp_cpp, NameList &pipeline_reads, Pi
   while ( (paramname = pipeclass->_parameters.iter()) != NULL ) {
     const PipeClassOperandForm *tmppipeopnd =
         (const PipeClassOperandForm *)pipeclass->_localUsage[paramname];
-    templen += sprintf(&operand_stages[templen], "  stage_%s%c\n",
+    templen += snprintf_checked(&operand_stages[templen], operand_stages_size - templen, "  stage_%s%c\n",
       tmppipeopnd ? tmppipeopnd->_stage : "undefined",
       (++i < paramcount ? ',' : ' ') );
   }
@@ -259,36 +272,45 @@ static int pipeline_res_stages_initializer(
   }
 
   // Compute the length needed for the resource list
+  const char* resource;
   int commentlen = 0;
   int max_stage = 0;
-  for (i = 0; i < pipeline->_rescount; i++) {
-    if (res_stages[i] == 0) {
-      if (max_stage < 9)
-        max_stage = 9;
-    }
-    else {
-      int stagelen = (int)strlen(pipeline->_stages.name(res_stages[i]-1));
-      if (max_stage < stagelen)
-        max_stage = stagelen;
-    }
+  i = 0;
+  for (pipeline->_reslist.reset(); (resource = pipeline->_reslist.iter()) != NULL;) {
+    if (pipeline->_resdict[resource]->is_resource()->is_discrete()) {
+      if (res_stages[i] == 0) {
+        if (max_stage < 9) {
+          max_stage = 9;
+        }
+      } else {
+        int stagelen = (int)strlen(pipeline->_stages.name(res_stages[i]-1));
+        if (max_stage < stagelen) {
+          max_stage = stagelen;
+        }
+      }
 
-    commentlen += (int)strlen(pipeline->_reslist.name(i));
+      commentlen += (int)strlen(resource);
+      i++;
+    }
   }
 
   int templen = 1 + commentlen + pipeline->_rescount * (max_stage + 14);
 
   // Allocate space for the resource list
+  const size_t resource_stages_size = templen;
   char * resource_stages = new char [templen];
 
   templen = 0;
-  for (i = 0; i < pipeline->_rescount; i++) {
-    const char * const resname =
-      res_stages[i] == 0 ? "undefined" : pipeline->_stages.name(res_stages[i]-1);
+  i = 0;
+  for (pipeline->_reslist.reset(); (resource = pipeline->_reslist.iter()) != NULL;) {
+    if (pipeline->_resdict[resource]->is_resource()->is_discrete()) {
+      const char* const resname = res_stages[i] == 0 ? "undefined" : pipeline->_stages.name(res_stages[i] - 1);
 
-    templen += sprintf(&resource_stages[templen], "  stage_%s%-*s // %s\n",
-      resname, max_stage - (int)strlen(resname) + 1,
-      (i < pipeline->_rescount-1) ? "," : "",
-      pipeline->_reslist.name(i));
+      templen += snprintf_checked(&resource_stages[templen], resource_stages_size - templen,"  stage_%s%-*s // %s\n",
+          resname, max_stage - (int)strlen(resname) + 1,
+          (i < pipeline->_rescount - 1) ? "," : "", resource);
+      i++;
+    }
   }
 
   // See if the same string is in the table
@@ -341,25 +363,39 @@ static int pipeline_res_cycles_initializer(
   int max_cycles = 0;
   char temp[32];
 
-  for (i = 0; i < pipeline->_rescount; i++) {
-    if (max_cycles < res_cycles[i])
-      max_cycles = res_cycles[i];
-    templen = sprintf(temp, "%d", res_cycles[i]);
-    if (cyclelen < templen)
-      cyclelen = templen;
-    commentlen += (int)strlen(pipeline->_reslist.name(i));
+  const char* resource;
+  i = 0;
+  for (pipeline->_reslist.reset(); (resource = pipeline->_reslist.iter()) != NULL;) {
+    if (pipeline->_resdict[resource]->is_resource()->is_discrete()) {
+      if (max_cycles < res_cycles[i]) {
+        max_cycles = res_cycles[i];
+      }
+
+      templen = snprintf_checked(temp, sizeof(temp), "%d", res_cycles[i]);
+      if (cyclelen < templen) {
+        cyclelen = templen;
+      }
+
+      commentlen += (int)strlen(resource);
+      i++;
+    }
   }
 
   templen = 1 + commentlen + (cyclelen + 8) * pipeline->_rescount;
 
   // Allocate space for the resource list
-  char * resource_cycles = new char [templen];
+  const size_t resource_cycles_size = templen;
+  char * resource_cycles = new char [resource_cycles_size];
 
   templen = 0;
 
-  for (i = 0; i < pipeline->_rescount; i++) {
-    templen += sprintf(&resource_cycles[templen], "  %*d%c // %s\n",
-      cyclelen, res_cycles[i], (i < pipeline->_rescount-1) ? ',' : ' ', pipeline->_reslist.name(i));
+  i = 0;
+  for (pipeline->_reslist.reset(); (resource = pipeline->_reslist.iter()) != NULL;) {
+    if (pipeline->_resdict[resource]->is_resource()->is_discrete()) {
+      templen += snprintf_checked(&resource_cycles[templen], resource_cycles_size - templen, "  %*d%c // %s\n",
+      cyclelen, res_cycles[i], (i < pipeline->_rescount-1) ? ',' : ' ', resource);
+      i++;
+    }
   }
 
   // See if the same string is in the table
@@ -431,7 +467,8 @@ static int pipeline_res_mask_initializer(
      (cyclemasksize * 12) + masklen + (cycledigit * 2) + 30) * element_count;
 
   // Allocate space for the resource list
-  char * resource_mask = new char [templen];
+  const size_t resource_mask_size = templen;
+  char * resource_mask = new char [resource_mask_size];
   char * last_comma = NULL;
 
   templen = 0;
@@ -456,7 +493,7 @@ static int pipeline_res_mask_initializer(
     }
 
     int formatlen =
-      sprintf(&resource_mask[templen], "  %s(0x%0*x, %*d, %*d, %s %s(",
+      snprintf_checked(&resource_mask[templen], resource_mask_size - templen, "  %s(0x%0*x, %*d, %*d, %s %s(",
         pipeline_use_element,
         masklen, used_mask,
         cycledigit, lb, cycledigit, ub,
@@ -496,7 +533,7 @@ static int pipeline_res_mask_initializer(
 
     for (j = cyclemasksize-1; j >= 0; j--) {
       formatlen =
-        sprintf(&resource_mask[templen], "0x%08x%s", res_mask[j], j > 0 ? ", " : "");
+        snprintf_checked(&resource_mask[templen], resource_mask_size - templen, "0x%08x%s", res_mask[j], j > 0 ? ", " : "");
       templen += formatlen;
     }
 
@@ -527,9 +564,8 @@ static int pipeline_res_mask_initializer(
     // "0x012345678, 0x012345678, 4294967295"
     char* args = new char [36 + 1];
 
-    int printed = sprintf(args, "0x%x, 0x%x, %u",
-      resources_used, resources_used_exclusively, element_count);
-    assert(printed <= 36, "overflow");
+    snprintf_checked(args, 36 + 1, "0x%x, 0x%x, %u",
+        resources_used, resources_used_exclusively, element_count);
 
     pipeline_res_args.addName(args);
   }
@@ -967,8 +1003,15 @@ void ArchDesc::build_pipe_classes(FILE *fp_cpp) {
   fprintf(fp_cpp, "  };\n\n");
 
   fprintf(fp_cpp, "  static const char *resource_names[%d] = {", _pipeline->_rescount);
-  for (i = 0; i < _pipeline->_rescount; i++)
-    fprintf(fp_cpp, " \"%s\"%c", _pipeline->_reslist.name(i), i < _pipeline->_rescount-1 ? ',' : ' ');
+  // Don't add compound resources to the list of resource names
+  const char* resource;
+  i = 0;
+  for (_pipeline->_reslist.reset(); (resource = _pipeline->_reslist.iter()) != NULL;) {
+    if (_pipeline->_resdict[resource]->is_resource()->is_discrete()) {
+      fprintf(fp_cpp, " \"%s\"%c", resource, i < _pipeline->_rescount - 1 ? ',' : ' ');
+      i++;
+    }
+  }
   fprintf(fp_cpp, "};\n\n");
 
   // See if the same string is in the table
@@ -1066,9 +1109,9 @@ static void build_instruction_index_mapping( FILE *fp, FormDict &globals, PeepMa
       InstructForm *inst = globals[inst_name]->is_instruction();
       if( inst != NULL ) {
         char inst_prefix[]  = "instXXXX_";
-        sprintf(inst_prefix, "inst%d_",   inst_position);
+        snprintf_checked(inst_prefix, sizeof(inst_prefix), "inst%d_",   inst_position);
         char receiver[]     = "instXXXX->";
-        sprintf(receiver,    "inst%d->", inst_position);
+        snprintf_checked(receiver, sizeof(receiver), "inst%d->", inst_position);
         inst->index_temps( fp, globals, inst_prefix, receiver );
       }
     }
@@ -1162,7 +1205,7 @@ static void check_peepconstraints(FILE *fp, FormDict &globals, PeepMatch *pmatch
         char left_reg_index[] = ",inst4294967295_idx4294967295";
         if( left_op_index != 0 ) {
           // Must have index into operands
-          sprintf(left_reg_index,",inst%u_idx%u", (unsigned)left_index, (unsigned)left_op_index);
+          snprintf_checked(left_reg_index, sizeof(left_reg_index), ",inst%u_idx%u", (unsigned)left_index, (unsigned)left_op_index);
         } else {
           strcpy(left_reg_index, "");
         }
@@ -1174,7 +1217,7 @@ static void check_peepconstraints(FILE *fp, FormDict &globals, PeepMatch *pmatch
           char right_reg_index[] = ",inst4294967295_idx4294967295";
           if( right_op_index != 0 ) {
             // Must have index into operands
-            sprintf(right_reg_index,",inst%u_idx%u", (unsigned)right_index, (unsigned)right_op_index);
+            snprintf_checked(right_reg_index, sizeof(right_reg_index), ",inst%u_idx%u", (unsigned)right_index, (unsigned)right_op_index);
           } else {
             strcpy(right_reg_index, "");
           }
@@ -2563,19 +2606,19 @@ void ArchDesc::define_postalloc_expand(FILE *fp, InstructForm &inst) {
     const char* arg_name = ins_encode->rep_var_name(inst, param_no);
     int idx = inst.operand_position_format(arg_name);
     if (strcmp(arg_name, "constanttablebase") == 0) {
-      ib += sprintf(ib, "  unsigned idx_%-5s = mach_constant_base_node_input(); \t// %s, \t%s\n",
+      ib += snprintf_checked(ib, remaining_buflen(idxbuf, ib), "  unsigned idx_%-5s = mach_constant_base_node_input(); \t// %s, \t%s\n",
                     name, type, arg_name);
-      nb += sprintf(nb, "  Node    *n_%-7s = lookup(idx_%s);\n", name, name);
+      nb += snprintf_checked(nb, remaining_buflen(nbuf, nb), "  Node    *n_%-7s = lookup(idx_%s);\n", name, name);
       // There is no operand for the constanttablebase.
     } else if (inst.is_noninput_operand(idx)) {
       globalAD->syntax_err(inst._linenum,
                            "In %s: you can not pass the non-input %s to a postalloc expand encoding.\n",
                            inst._ident, arg_name);
     } else {
-      ib += sprintf(ib, "  unsigned idx_%-5s = idx%d; \t// %s, \t%s\n",
+      ib += snprintf_checked(ib, remaining_buflen(idxbuf, ib), "  unsigned idx_%-5s = idx%d; \t// %s, \t%s\n",
                     name, idx, type, arg_name);
-      nb += sprintf(nb, "  Node    *n_%-7s = lookup(idx_%s);\n", name, name);
-      ob += sprintf(ob, "  %sOper *op_%s = (%sOper *)opnd_array(%d);\n", type, name, type, idx);
+      nb += snprintf_checked(nb, remaining_buflen(nbuf, nb), "  Node    *n_%-7s = lookup(idx_%s);\n", name, name);
+      ob += snprintf_checked(ob, remaining_buflen(opbuf, ob), "  %sOper *op_%s = (%sOper *)opnd_array(%d);\n", type, name, type, idx);
     }
     param_no++;
   }
@@ -3970,7 +4013,8 @@ void ArchDesc::buildMachNode(FILE *fp_cpp, InstructForm *inst, const char *inden
 
   // Fill in the bottom_type where requested
   if (inst->captures_bottom_type(_globalNames)) {
-    if (strncmp("MachCall", inst->mach_base_class(_globalNames), strlen("MachCall"))) {
+    if (strncmp("MachCall", inst->mach_base_class(_globalNames), strlen("MachCall")) != 0
+      && strncmp("MachIf", inst->mach_base_class(_globalNames), strlen("MachIf")) != 0) {
       fprintf(fp_cpp, "%s node->_bottom_type = _leaf->bottom_type();\n", indent);
     }
   }

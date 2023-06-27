@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,7 @@ import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Type.UndetVar.InferenceBound;
-import com.sun.tools.javac.code.TypeMetadata.Entry.Kind;
+import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
@@ -108,6 +108,7 @@ public class Types {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected Types(Context context) {
         context.put(typesKey, this);
         syms = Symtab.instance(context);
@@ -121,7 +122,6 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
-        qualifiedSymbolCache = new HashMap<>();
     }
     // </editor-fold>
 
@@ -1455,9 +1455,6 @@ public class Types {
 
                     Map<Symbol,Type> tMap = new HashMap<>();
                     for (Type ti : interfaces(t)) {
-                        if (tMap.containsKey(ti)) {
-                            throw new AssertionError("Malformed intersection");
-                        }
                         tMap.put(ti.tsym, ti);
                     }
                     for (Type si : interfaces(s)) {
@@ -2522,7 +2519,7 @@ public class Types {
         private TypeMapping<Boolean> erasure = new StructuralTypeMapping<Boolean>() {
             private Type combineMetadata(final Type s,
                                          final Type t) {
-                if (t.getMetadata() != TypeMetadata.EMPTY) {
+                if (t.getMetadata().nonEmpty()) {
                     switch (s.getKind()) {
                         case OTHER:
                         case UNION:
@@ -2533,7 +2530,7 @@ public class Types {
                         case VOID:
                         case ERROR:
                             return s;
-                        default: return s.cloneWithMetadata(s.getMetadata().without(Kind.ANNOTATIONS));
+                        default: return s.dropMetadata(Annotations.class);
                     }
                 } else {
                     return s;
@@ -2571,7 +2568,7 @@ public class Types {
                     Type erased = t.tsym.erasure(Types.this);
                     if (recurse) {
                         erased = new ErasedClassType(erased.getEnclosingType(), erased.tsym,
-                                t.getMetadata().without(Kind.ANNOTATIONS));
+                                                     t.dropMetadata(Annotations.class).getMetadata());
                         return erased;
                     } else {
                         return combineMetadata(erased, t);
@@ -2996,8 +2993,8 @@ public class Types {
 
     /**
      * Merge multiple abstract methods. The preferred method is a method that is a subsignature
-     * of all the other signatures and whose return type is more specific {@see MostSpecificReturnCheck}.
-     * The resulting preferred method has a thrown clause that is the intersection of the merged
+     * of all the other signatures and whose return type is more specific {@link MostSpecificReturnCheck}.
+     * The resulting preferred method has a throws clause that is the intersection of the merged
      * methods' clauses.
      */
     public Optional<Symbol> mergeAbstracts(List<Symbol> ambiguousInOrder, Type site, boolean sigCheck) {
@@ -3748,56 +3745,6 @@ public class Types {
     }
     // </editor-fold>
 
-    /** Cache the symbol to reflect the qualifying type.
-     *  key: corresponding type
-     *  value: qualified symbol
-     */
-    private Map<Type, Symbol> qualifiedSymbolCache;
-
-    public void clearQualifiedSymbolCache() {
-        qualifiedSymbolCache.clear();
-    }
-
-    /** Construct a symbol to reflect the qualifying type that should
-     *  appear in the byte code as per JLS 13.1.
-     *
-     *  For {@literal target >= 1.2}: Clone a method with the qualifier as owner (except
-     *  for those cases where we need to work around VM bugs).
-     *
-     *  For {@literal target <= 1.1}: If qualified variable or method is defined in a
-     *  non-accessible class, clone it with the qualifier class as owner.
-     *
-     *  @param sym    The accessed symbol
-     *  @param site   The qualifier's type.
-     */
-    public Symbol binaryQualifier(Symbol sym, Type site) {
-
-        if (site.hasTag(ARRAY)) {
-            if (sym == syms.lengthVar ||
-                    sym.owner != syms.arrayClass)
-                return sym;
-            // array clone can be qualified by the array type in later targets
-            Symbol qualifier;
-            if ((qualifier = qualifiedSymbolCache.get(site)) == null) {
-                qualifier = new ClassSymbol(Flags.PUBLIC, site.tsym.name, site, syms.noSymbol);
-                qualifiedSymbolCache.put(site, qualifier);
-            }
-            return sym.clone(qualifier);
-        }
-
-        if (sym.owner == site.tsym ||
-                (sym.flags() & (STATIC | SYNTHETIC)) == (STATIC | SYNTHETIC)) {
-            return sym;
-        }
-
-        // leave alone methods inherited from Object
-        // JLS 13.1.
-        if (sym.owner == syms.objectType.tsym)
-            return sym;
-
-        return sym.clone(site.tsym);
-    }
-
     /**
      * Helper method for generating a string representation of a given type
      * accordingly to a given locale
@@ -3876,7 +3823,7 @@ public class Types {
      *
      * <p>A closure is a list of all the supertypes and interfaces of
      * a class or interface type, ordered by ClassSymbol.precedes
-     * (that is, subclasses come first, arbitrary but fixed
+     * (that is, subclasses come first, arbitrarily but fixed
      * otherwise).
      */
     private Map<Type,List<Type>> closureCache = new HashMap<>();
@@ -3907,7 +3854,7 @@ public class Types {
     }
 
     /**
-     * Collect types into a new closure (using a @code{ClosureHolder})
+     * Collect types into a new closure (using a {@code ClosureHolder})
      */
     public Collector<Type, ClosureHolder, List<Type>> closureCollector(boolean minClosure, BiPredicate<Type, Type> shouldSkip) {
         return Collector.of(() -> new ClosureHolder(minClosure, shouldSkip),
@@ -4067,7 +4014,7 @@ public class Types {
             // There is no spec detailing how type annotations are to
             // be inherited.  So set it to noAnnotations for now
             return new ClassType(class1.getEnclosingType(), merged.toList(),
-                                 class1.tsym, TypeMetadata.EMPTY, class1.getFlavor());
+                                 class1.tsym, List.nil(), class1.getFlavor());
         }
 
     /**

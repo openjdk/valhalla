@@ -1,4 +1,4 @@
 - compiler.warn.source.no.system.modules.path: 10
-CastNoNullCheckTest.java:11:9: compiler.err.cant.access: Point, (compiler.misc.bad.class.file.header: Point.class, (compiler.misc.bad.class.signature: QPoint;LPo))
+CastNoNullCheckTest.java:11:9: compiler.err.cant.access: Point, (compiler.misc.bad.class.file.header: Point.class, (compiler.misc.bad.class.signature: "QPoint;"))
 1 error
 1 warning

@@ -40,6 +40,7 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/stackValue.hpp"
+#include "runtime/deoptimization.hpp"
 #include "utilities/debug.hpp"
 #ifdef COMPILER2
 #include "opto/matcher.hpp"
@@ -80,10 +81,6 @@ bool VectorSupport::is_vector_mask(Klass* klass) {
   return klass->is_subclass_of(vmClasses::vector_VectorMask_klass());
 }
 
-bool VectorSupport::is_vector_shuffle(Klass* klass) {
-  return klass->is_subclass_of(vmClasses::vector_VectorShuffle_klass());
-}
-
 bool VectorSupport::skip_value_scalarization(Klass* klass) {
   return VectorSupport::is_vector(klass) ||
          VectorSupport::is_vector_payload_mf(klass);
@@ -95,13 +92,11 @@ BasicType VectorSupport::klass2bt(InstanceKlass* ik) {
   // static final Class<?> ETYPE;
   Klass* holder = ik->find_field(vmSymbols::ETYPE_name(), vmSymbols::class_signature(), &fd);
 
-  assert(holder != NULL, "sanity");
+  assert(holder != nullptr, "sanity");
   assert(fd.is_static(), "");
   assert(fd.offset() > 0, "");
 
-  if (is_vector_shuffle(ik)) {
-    return T_BYTE;
-  } else if (is_vector_mask(ik)) {
+  if (is_vector_mask(ik)) {
     return T_BOOLEAN;
   } else { // vector and mask
     oop value = ik->java_mirror()->obj_field(fd.offset());
@@ -115,7 +110,7 @@ jint VectorSupport::klass2length(InstanceKlass* ik) {
   // static final int VLENGTH;
   Klass* holder = ik->find_field(vmSymbols::VLENGTH_name(), vmSymbols::int_signature(), &fd);
 
-  assert(holder != NULL, "sanity");
+  assert(holder != nullptr, "sanity");
   assert(fd.is_static(), "");
   assert(fd.offset() > 0, "");
 
@@ -124,37 +119,14 @@ jint VectorSupport::klass2length(InstanceKlass* ik) {
   return vlen;
 }
 
-Handle VectorSupport::allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, Location location, int larval, TRAPS) {
-  // On-heap vector values are represented as primitive class instances with a multi-field payload.
-  InstanceKlass* payload_kls = get_vector_payload_klass(elem_bt, num_elem);
-  assert(payload_kls->is_inline_klass(), "");
-  instanceOop obj = InlineKlass::cast(payload_kls)->allocate_instance(THREAD);
+Handle VectorSupport::allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, int larval, TRAPS) {
+  assert(ik->is_inline_klass(), "");
+  instanceOop obj = InlineKlass::cast(ik)->allocate_instance(THREAD);
   if (larval) obj->set_mark(obj->mark().enter_larval_state());
 
   fieldDescriptor fd;
-  Klass* def = payload_kls->find_field(vmSymbols::mfield_name(), vmSymbols::type_signature(elem_bt), false, &fd);
+  Klass* def = ik->find_field(vmSymbols::mfield_name(), vmSymbols::type_signature(elem_bt), false, &fd);
   assert(fd.is_multifield_base() && fd.secondary_fields_count(fd.index()) == num_elem, "");
-
-  int ffo = InlineKlass::cast(payload_kls)->first_field_offset();
-  int elem_size = type2aelembytes(elem_bt);
-
-  if (location.is_register()) {
-    // Value was in a callee-saved register.
-    VMReg vreg = VMRegImpl::as_VMReg(location.register_number());
-    int vec_size = num_elem * elem_size;
-    for (int i = 0; i < vec_size; i++) {
-      int vslot = i / VMRegImpl::stack_slot_size;
-      int off   = i % VMRegImpl::stack_slot_size;
-      address elem_addr = reg_map->location(vreg, vslot) + off; // assumes little endian element order
-      obj->byte_field_put(ffo + i, *(jbyte*)elem_addr);
-    }
-  } else {
-    // Value was directly saved on the stack.
-    address base_addr = ((address)fr->unextended_sp()) + location.stack_offset();
-    for (int i = 0; i < elem_size * num_elem; i++) {
-      obj->byte_field_put(ffo + i, *(jbyte*)(base_addr + i));
-    }
-  }
   return Handle(THREAD, obj);
 }
 
@@ -299,36 +271,14 @@ InstanceKlass* VectorSupport::get_vector_payload_klass(BasicType elem_bt, int nu
 }
 
 Handle VectorSupport::allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS) {
-  ScopeValue* payload = ov->field_at(0);
   intptr_t is_larval = StackValue::create_stack_value(fr, reg_map, ov->is_larval())->get_int();
   jint larval = (jint)*((jint*)&is_larval);
-
-  if (payload->is_location()) {
-    Location location = payload->as_LocationValue()->location();
-    if (location.type() == Location::vector) {
-      // Vector payload value in an aligned adjacent tuple (8, 16, 32 or 64 bytes).
-      return allocate_vector_payload_helper(ik, num_elem, elem_bt, fr, reg_map, location, larval, THREAD); // safepoint
-    }
-#ifdef ASSERT
-    // Other payload values are: 'oop' type location and scalar-replaced boxed vector representation.
-    // They will be processed in Deoptimization::reassign_fields() after all objects are reallocated.
-    else {
-      Location::Type loc_type = location.type();
-      assert(loc_type == Location::oop || loc_type == Location::narrowoop,
-             "expected 'oop'(%d) or 'narrowoop'(%d) types location but got: %d", Location::oop, Location::narrowoop, loc_type);
-    }
-  } else if (!payload->is_object() && !payload->is_constant_oop()) {
-    stringStream ss;
-    payload->print_on(&ss);
-    assert(false, "expected 'object' value for scalar-replaced boxed vector but got: %s", ss.freeze());
-#endif
-  }
-  return Handle(THREAD, nullptr);
+  // Vector payload value in an aligned adjacent tuple (8, 16, 32 or 64 bytes).
+  return allocate_vector_payload_helper(ik, num_elem, elem_bt, larval, THREAD); // safepoint
 }
 
 instanceOop VectorSupport::allocate_vector_payload(InstanceKlass* ik, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS) {
   assert(is_vector_payload_mf(ik), "%s not a vector payload", ik->name()->as_C_string());
-  assert(ov->field_size() == 1, "%s not a vector", ik->name()->as_C_string());
   assert(ik->is_inline_klass(), "");
 
   int num_elem = 0;
@@ -348,12 +298,19 @@ instanceOop VectorSupport::allocate_vector_payload(InstanceKlass* ik, frame* fr,
 
 instanceOop VectorSupport::allocate_vector(InstanceKlass* ik, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS) {
   assert(is_vector(ik), "%s not a vector", ik->name()->as_C_string());
-  assert(ov->field_size() == 1, "%s not a vector", ik->name()->as_C_string());
   assert(ik->is_inline_klass(), "");
 
   int num_elem = klass2length(ik);
   BasicType elem_bt = klass2bt(ik);
-  Handle payload_instance = VectorSupport::allocate_vector_payload(ik, num_elem, elem_bt, fr, reg_map, ov, CHECK_NULL);
+
+  // On-heap vector values are represented as primitive class instances with a multi-field payload.
+  InstanceKlass* payload_class = get_vector_payload_klass(elem_bt, num_elem);
+  assert(payload_class->is_inline_klass(), "");
+
+  Handle payload_instance = VectorSupport::allocate_vector_payload(payload_class, num_elem, elem_bt, fr, reg_map, ov, CHECK_NULL);
+
+  Deoptimization::reassign_fields_by_klass(payload_class, fr, reg_map, ov, 0, payload_instance(), true, 0, CHECK_NULL);
+
   instanceOop vbox = ik->allocate_instance(THREAD);
   Handle vbox_h = Handle(THREAD, vbox);
 

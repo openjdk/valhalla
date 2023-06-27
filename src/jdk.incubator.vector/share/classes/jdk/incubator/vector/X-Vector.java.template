@@ -61,7 +61,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
      */
     public $abstractvectortype$() {}
 
-    static final ValueLayout.Of$Type$ ELEMENT_LAYOUT = ValueLayout.JAVA_$TYPE$.withBitAlignment(8);
+    static final ValueLayout.Of$Type$ ELEMENT_LAYOUT = ValueLayout.JAVA_$TYPE$.withByteAlignment(1);
 
     @ForceInline
     static int opCode(Operator op) {
@@ -1337,7 +1337,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     // and broadcast, but it would be more surprising not to continue
     // the obvious pattern started by unary and binary.
 
-   /**
+    /**
      * {@inheritDoc} <!--workaround-->
      * @see #lanewise(VectorOperators.Ternary,$type$,$type$,VectorMask)
      * @see #lanewise(VectorOperators.Ternary,Vector,$type$,VectorMask)
@@ -2990,26 +2990,14 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     }
 
     @ForceInline
-    private final
-    VectorShuffle<$Boxtype$> toShuffle0($Type$Species dsp) {
+    final <F>
+    VectorShuffle<F> toShuffle0(AbstractSpecies<F> dsp) {
         $type$[] a = toArray();
         int[] sa = new int[a.length];
         for (int i = 0; i < a.length; i++) {
             sa[i] = (int) a[i];
         }
         return VectorShuffle.fromArray(dsp, sa, 0);
-    }
-
-    /*package-private*/
-    @ForceInline
-    final
-    VectorShuffle<$Boxtype$> toShuffleTemplate(Class<?> shuffleType) {
-        $Type$Species vsp = vspecies();
-        return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                                     getClass(), $type$.class, length(),
-                                     shuffleType, byte.class, length(),
-                                     this, vsp,
-                                     $Type$Vector::toShuffle0);
     }
 
     /**
@@ -4245,7 +4233,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
      * $type$[] ar = new $type$[species.length()];
      * for (int n = 0; n < ar.length; n++) {
      *     if (m.laneIsSet(n)) {
-     *         ar[n] = slice.getAtIndex(ValuaLayout.JAVA_$TYPE$.withBitAlignment(8), n);
+     *         ar[n] = slice.getAtIndex(ValuaLayout.JAVA_$TYPE$.withByteAlignment(1), n);
      *     }
      * }
      * $abstractvectortype$ r = $abstractvectortype$.fromArray(species, ar, 0);
@@ -5491,9 +5479,10 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         private $Type$Species(VectorShape shape,
                 Class<? extends $abstractvectortype$> vectorType,
                 Class<? extends AbstractMask<$Boxtype$>> maskType,
+                Class<? extends AbstractShuffle<$Boxtype$>> shuffleType,
                 Function<Object, $abstractvectortype$> vectorFactory) {
             super(shape, LaneType.of($type$.class),
-                  vectorType, maskType,
+                  vectorType, maskType, shuffleType,
                   vectorFactory);
             assert(this.elementSize() == $Boxtype$.SIZE);
         }
@@ -5796,6 +5785,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         = new $Type$Species(VectorShape.S_64_BIT,
                             $Type$64Vector.class,
                             $Type$64Vector.$Type$64Mask.class,
+                            $Type$64Vector.$Type$64Shuffle.class,
                             $Type$64Vector::new);
 
     /** Species representing {@link $Type$Vector}s of {@link VectorShape#S_128_BIT VectorShape.S_128_BIT}. */
@@ -5803,6 +5793,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         = new $Type$Species(VectorShape.S_128_BIT,
                             $Type$128Vector.class,
                             $Type$128Vector.$Type$128Mask.class,
+                            $Type$128Vector.$Type$128Shuffle.class,
                             $Type$128Vector::new);
 
     /** Species representing {@link $Type$Vector}s of {@link VectorShape#S_256_BIT VectorShape.S_256_BIT}. */
@@ -5810,6 +5801,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         = new $Type$Species(VectorShape.S_256_BIT,
                             $Type$256Vector.class,
                             $Type$256Vector.$Type$256Mask.class,
+                            $Type$256Vector.$Type$256Shuffle.class,
                             $Type$256Vector::new);
 
     /** Species representing {@link $Type$Vector}s of {@link VectorShape#S_512_BIT VectorShape.S_512_BIT}. */
@@ -5817,6 +5809,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         = new $Type$Species(VectorShape.S_512_BIT,
                             $Type$512Vector.class,
                             $Type$512Vector.$Type$512Mask.class,
+                            $Type$512Vector.$Type$512Shuffle.class,
                             $Type$512Vector::new);
 
     /** Species representing {@link $Type$Vector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
@@ -5825,6 +5818,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         = new $Type$Species(VectorShape.S_Max_BIT,
                             $Type$MaxVector.class,
                             $Type$MaxVector.$Type$MaxMask.class,
+                            $Type$MaxVector.$Type$MaxShuffle.class,
                             $Type$MaxVector::new);
      */
 

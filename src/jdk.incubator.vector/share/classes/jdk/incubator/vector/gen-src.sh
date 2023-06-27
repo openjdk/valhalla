@@ -58,6 +58,7 @@ do
   Type="$(tr '[:lower:]' '[:upper:]' <<< ${type:0:1})${type:1}"
   TYPE="$(tr '[:lower:]' '[:upper:]' <<< ${type})"
   Boxinitials="$(tr '[:lower:]' '[:upper:]' <<< ${type:0:1})"
+  Boxbitsinitials=$Boxinitials
   args=$globalArgs
   args="$args -K$type -Dtype=$type -DType=$Type -DTYPE=$TYPE"
 
@@ -107,6 +108,7 @@ do
       bitstype=int
       Bitstype=Int
       Boxbitstype=Integer
+      Boxbitsinitials=I
       sizeInBytes=4
       args="$args -KintOrFP -KintOrFloat"
       ;;
@@ -115,12 +117,13 @@ do
       bitstype=long
       Bitstype=Long
       Boxbitstype=Long
+      Boxbitsinitials=L
       sizeInBytes=8
       args="$args -KintOrFP -KlongOrDouble"
       ;;
   esac
 
-  args="$args -K$kind -DBoxtype=$Boxtype -DBoxinitials=$Boxinitials -DWideboxtype=$Wideboxtype"
+  args="$args -K$kind -DBoxtype=$Boxtype -DBoxinitials=$Boxinitials -DBoxbitsinitials=$Boxbitsinitials -DWideboxtype=$Wideboxtype"
   args="$args -Dbitstype=$bitstype -DBitstype=$Bitstype -DBoxbitstype=$Boxbitstype"
   args="$args -Dfptype=$fptype -DFptype=$Fptype -DBoxfptype=$Boxfptype"
   args="$args -DsizeInBytes=$sizeInBytes"

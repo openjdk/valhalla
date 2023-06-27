@@ -136,24 +136,9 @@ value class Long512Vector extends LongVector {
     @ForceInline
     Long512Shuffle iotaShuffle() { return Long512Shuffle.IOTA; }
 
-    @ForceInline
-    Long512Shuffle iotaShuffle(int start, int step, boolean wrap) {
-      if (wrap) {
-        return (Long512Shuffle)VectorSupport.shuffleIota(ETYPE, Long512Shuffle.class, VSPECIES, VLENGTH, start, step, 1,
-                (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (VectorIntrinsics.wrapToRange(i*lstep + lstart, l))));
-      } else {
-        return (Long512Shuffle)VectorSupport.shuffleIota(ETYPE, Long512Shuffle.class, VSPECIES, VLENGTH, start, step, 0,
-                (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (i*lstep + lstart)));
-      }
-    }
-
     @Override
     @ForceInline
-    Long512Shuffle shuffleFromBytes(VectorPayloadMF reorder) { return new Long512Shuffle(reorder); }
-
-    @Override
-    @ForceInline
-    Long512Shuffle shuffleFromArray(int[] indexes, int i) { return new Long512Shuffle(indexes, i); }
+    Long512Shuffle shuffleFromArray(int[] indices, int i) { return new Long512Shuffle(indices, i); }
 
     @Override
     @ForceInline
@@ -352,9 +337,11 @@ value class Long512Vector extends LongVector {
         return (long) super.reduceLanesTemplate(op, Long512Mask.class, (Long512Mask) m);  // specialized
     }
 
+    @Override
     @ForceInline
-    public VectorShuffle<Long> toShuffle() {
-        return super.toShuffleTemplate(Long512Shuffle.class); // specialize
+    public final
+    <F> VectorShuffle<F> toShuffle(AbstractSpecies<F> dsp) {
+        return super.toShuffleTemplate(dsp);
     }
 
     // Specialized unary testing
@@ -598,10 +585,11 @@ value class Long512Vector extends LongVector {
 
         @Override
         @ForceInline
-        public Long512Mask eq(VectorMask<Long> mask) {
-            Objects.requireNonNull(mask);
-            Long512Mask m = (Long512Mask)mask;
-            return xor(m.not());
+        /*package-private*/
+        Long512Mask indexPartiallyInUpperRange(long offset, long limit) {
+            return (Long512Mask) VectorSupport.indexPartiallyInUpperRange(
+                Long512Mask.class, long.class, VLENGTH, offset, limit,
+                (o, l) -> (Long512Mask) TRUE_MASK.indexPartiallyInRange(o, l));
         }
 
         // Unary operations
@@ -643,9 +631,9 @@ value class Long512Vector extends LongVector {
                                           (m1, m2, vm) -> (Long512Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
+        @Override
         @ForceInline
-        /* package-private */
-        Long512Mask xor(VectorMask<Long> mask) {
+        public Long512Mask xor(VectorMask<Long> mask) {
             Objects.requireNonNull(mask);
             Long512Mask m = (Long512Mask)mask;
             return VectorSupport.binaryOp(VECTOR_OP_XOR, Long512Mask.class, null,
@@ -722,33 +710,30 @@ value class Long512Vector extends LongVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Long> ETYPE = long.class; // used by the JVM
 
-        private final VectorPayloadMF64B payload;
+        private final VectorPayloadMF512L payload;
 
-        Long512Shuffle(VectorPayloadMF reorder) {
-            this.payload = (VectorPayloadMF64B) reorder;
-            assert(VLENGTH == reorder.length());
-            assert(indexesInRange(reorder));
+        Long512Shuffle(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF512L) payload;
+            assert(VLENGTH == payload.length());
+            assert(indicesInRange(payload));
         }
 
-        public Long512Shuffle(int[] reorder) {
-            this(reorder, 0);
+        Long512Shuffle(int[] indices, int i) {
+            this(prepare(indices, i));
         }
 
-        public Long512Shuffle(int[] reorder, int i) {
-            this(prepare(VLENGTH, reorder, i));
-        }
-
-        public Long512Shuffle(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
+        Long512Shuffle(IntUnaryOperator fn) {
+            this(prepare(fn));
         }
 
         @ForceInline
         @Override
-        protected final VectorPayloadMF reorder() {
+        protected final VectorPayloadMF indices() {
             return payload;
         }
 
         @Override
+        @ForceInline
         public LongSpecies vspecies() {
             return VSPECIES;
         }
@@ -756,44 +741,103 @@ value class Long512Vector extends LongVector {
         static {
             // There must be enough bits in the shuffle lanes to encode
             // VLENGTH valid indexes and VLENGTH exceptional ones.
-            assert(VLENGTH < Byte.MAX_VALUE);
-            assert(Byte.MIN_VALUE <= -VLENGTH);
+            assert(VLENGTH < Long.MAX_VALUE);
+            assert(Long.MIN_VALUE <= -VLENGTH);
         }
         static final Long512Shuffle IOTA = new Long512Shuffle(IDENTITY);
 
         @Override
         @ForceInline
-        public Long512Vector toVector() {
-            return VectorSupport.shuffleToVector(VCLASS, ETYPE, Long512Shuffle.class, this, VLENGTH,
-                                                    (s) -> ((Long512Vector)(((AbstractShuffle<Long>)(s)).toVectorTemplate())));
+        Long512Vector toBitsVector() {
+            return (Long512Vector) super.toBitsVectorTemplate();
         }
 
         @Override
         @ForceInline
-        public <F> VectorShuffle<F> cast(VectorSpecies<F> s) {
-            AbstractSpecies<F> species = (AbstractSpecies<F>) s;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorShuffle length and species length differ");
-            int[] shuffleArray = toArray();
-            return s.shuffleFromArray(shuffleArray, 0).check(s);
+        LongVector toBitsVector0() {
+            return Long512Vector.VSPECIES.dummyVectorMF().vectorFactory(indices());
         }
 
-        @ForceInline
         @Override
-        public Long512Shuffle rearrange(VectorShuffle<Long> shuffle) {
-            Long512Shuffle s = (Long512Shuffle) shuffle;
-            VectorPayloadMF reorder1 = reorder();
-            VectorPayloadMF reorder2 = s.reorder();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
-            r = Unsafe.getUnsafe().makePrivateBuffer(r);
-            long offset = r.multiFieldOffset();
-            for (int i = 0; i < VLENGTH; i++) {
-                int ssi = Unsafe.getUnsafe().getByte(reorder2, offset + i * Byte.BYTES);
-                int si = Unsafe.getUnsafe().getByte(reorder1, offset + ssi * Byte.BYTES);
-                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
+        @ForceInline
+        public int laneSource(int i) {
+            return (int)toBitsVector().lane(i);
+        }
+
+        @Override
+        @ForceInline
+        public void intoArray(int[] a, int offset) {
+            switch (length()) {
+                case 1 -> a[offset] = laneSource(0);
+                case 2 -> toBitsVector()
+                        .convertShape(VectorOperators.L2I, IntVector.SPECIES_64, 0)
+                        .reinterpretAsInts()
+                        .intoArray(a, offset);
+                case 4 -> toBitsVector()
+                        .convertShape(VectorOperators.L2I, IntVector.SPECIES_128, 0)
+                        .reinterpretAsInts()
+                        .intoArray(a, offset);
+                case 8 -> toBitsVector()
+                        .convertShape(VectorOperators.L2I, IntVector.SPECIES_256, 0)
+                        .reinterpretAsInts()
+                        .intoArray(a, offset);
+                case 16 -> toBitsVector()
+                        .convertShape(VectorOperators.L2I, IntVector.SPECIES_512, 0)
+                        .reinterpretAsInts()
+                        .intoArray(a, offset);
+                default -> {
+                    VectorIntrinsics.checkFromIndexSize(offset, length(), a.length);
+                    for (int i = 0; i < length(); i++) {
+                        a[offset + i] = laneSource(i);
+                    }
+                }
             }
-            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
-            return new Long512Shuffle(r);
+        }
+
+        private static VectorPayloadMF prepare(int[] indices, int offset) {
+            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(long.class, VLENGTH);
+            payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
+            long mfOffset = payload.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int si = indices[offset + i];
+                si = partiallyWrapIndex(si, VLENGTH);
+                Unsafe.getUnsafe().putLong(payload, mfOffset + i * Long.BYTES, (long) si);
+            }
+            payload = Unsafe.getUnsafe().finishPrivateBuffer(payload);
+            return payload;
+        }
+
+        private static VectorPayloadMF prepare(IntUnaryOperator f) {
+            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(long.class, VLENGTH);
+            payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
+            long offset = payload.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int si = f.applyAsInt(i);
+                si = partiallyWrapIndex(si, VLENGTH);
+                Unsafe.getUnsafe().putLong(payload, offset + i * Long.BYTES, (long) si);
+            }
+            payload = Unsafe.getUnsafe().finishPrivateBuffer(payload);
+            return payload;
+        }
+
+
+        private static boolean indicesInRange(VectorPayloadMF indices) {
+            int length = indices.length();
+            long offset = indices.multiFieldOffset();
+            for (int i = 0; i < length; i++) {
+                long si = Unsafe.getUnsafe().getLong(indices, offset + i * Long.BYTES);
+                if (si >= length || si < -length) {
+                    boolean assertsEnabled = false;
+                    assert(assertsEnabled = true);
+                    if (assertsEnabled) {
+                        String msg = ("index "+si+"out of range ["+length+"] in "+
+                                indices.toString());
+                        throw new AssertionError(msg);
+                    }
+                    return false;
+                }
+            }
+            return true;
         }
     }
 

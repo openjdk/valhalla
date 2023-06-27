@@ -34,6 +34,7 @@
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/klass.hpp"
 #include "oops/oop.inline.hpp"
+#include "utilities/devirtualizer.inline.hpp"
 #include "utilities/macros.hpp"
 
 /*

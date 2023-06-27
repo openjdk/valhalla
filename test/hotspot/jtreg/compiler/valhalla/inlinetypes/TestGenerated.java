@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
 
 /**
  * @test
- * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831
- * @summary Generated inline type tests.
+ * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986
+ * @summary A selection of generated tests that triggered bugs not covered by other tests.
  * @compile -XDenablePrimitiveClasses TestGenerated.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
@@ -34,7 +34,11 @@
 
 package compiler.valhalla.inlinetypes;
 
-primitive class EmptyValue {
+primitive class EmptyPrimitive {
+
+}
+
+value class EmptyValue {
 
 }
 
@@ -71,11 +75,15 @@ primitive class MyValue5 {
     int b = 2;
 }
 
-public class TestGenerated {
-    EmptyValue f1 = new EmptyValue();
-    EmptyValue f2 = new EmptyValue();
+value class MyValue6 {
+    int x = 42;
+}
 
-    void test1(EmptyValue[] array) {
+public class TestGenerated {
+    EmptyPrimitive f1 = new EmptyPrimitive();
+    EmptyPrimitive f2 = new EmptyPrimitive();
+
+    void test1(EmptyPrimitive[] array) {
         for (int i = 0; i < 10; ++i) {
             f1 = array[0];
             f2 = array[0];
@@ -254,9 +262,38 @@ public class TestGenerated {
         }
     }
 
+    static MyValue6 test17Field = new MyValue6();
+
+    void test17() {
+        for (int i = 0; i < 10; ++i) {
+            MyValue6 val = new MyValue6();
+            for (int j = 0; j < 10; ++j) {
+                test17Field = val;
+            }
+        }
+    }
+
+    EmptyValue test18Field;
+
+    EmptyValue test18() {
+        EmptyValue val = new EmptyValue();
+        test18Field = val;
+        return test18Field;
+    }
+
+    MyValue1 test19Field = new MyValue1();
+
+    public void test19() {
+        for (int i = 0; i < 10; ++i) {
+            MyValue1 val = new MyValue1();
+            for (int j = 0; j < 10; ++j)
+                test19Field = val;
+        }
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
-        EmptyValue[] array1 = { new EmptyValue() };
+        EmptyPrimitive[] array1 = { new EmptyPrimitive() };
         MyValue1[] array2 = new MyValue1[10];
         MyValue1[] array3 = { new MyValue1() };
         MyValue3[] array4 = { new MyValue3() };
@@ -280,6 +317,9 @@ public class TestGenerated {
             t.test14(false, MyValue4.default);
             t.test15();
             t.test16();
+            t.test17();
+            t.test18();
+            t.test19();
         }
     }
 }
