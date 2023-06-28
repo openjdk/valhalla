@@ -1037,33 +1037,38 @@ public class Types {
     }
     //where
         private boolean isSubtypeUncheckedInternal(Type t, Type s, boolean capture, Warner warn) {
-            if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
-                if (((ArrayType)t).elemtype.isPrimitive()) {
-                    return isSameType(elemtype(t), elemtype(s));
-                } else {
-                    // if T.ref <: S, then T[] <: S[]
-                    Type es = elemtype(s);
-                    Type et = elemtype(t);
-                    if (!isSubtypeUncheckedInternal(et, es, false, warn))
-                        return false;
-                    return true;
-                }
-            } else if (isSubtype(t, s, capture, warn)) {
-                return true;
-            } else if (t.hasTag(TYPEVAR)) {
-                return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
-            } else if (!s.isRaw()) {
-                Type t2 = asSuper(t, s.tsym);
-                if (t2 != null && t2.isRaw()) {
-                    if (isReifiable(s)) {
-                        warn.silentWarn(LintCategory.UNCHECKED);
+            try {
+                nullabilityComparator.setWarner(warn);
+                if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
+                    if (((ArrayType)t).elemtype.isPrimitive()) {
+                        return isSameType(elemtype(t), elemtype(s));
                     } else {
-                        warn.warn(LintCategory.UNCHECKED);
+                        // if T.ref <: S, then T[] <: S[]
+                        Type es = elemtype(s);
+                        Type et = elemtype(t);
+                        if (!isSubtypeUncheckedInternal(et, es, false, warn))
+                            return false;
+                        return true;
                     }
+                } else if (isSubtype(t, s, capture)) {
                     return true;
+                } else if (t.hasTag(TYPEVAR)) {
+                    return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
+                } else if (!s.isRaw()) {
+                    Type t2 = asSuper(t, s.tsym);
+                    if (t2 != null && t2.isRaw()) {
+                        if (isReifiable(s)) {
+                            warn.silentWarn(LintCategory.UNCHECKED);
+                        } else {
+                            warn.warn(LintCategory.UNCHECKED);
+                        }
+                        return true;
+                    }
                 }
+                return false;
+            } finally {
+                nullabilityComparator.clearWarner();
             }
-            return false;
         }
 
         private void checkUnsafeVarargsConversion(Type t, Type s, Warner warn) {
@@ -1099,12 +1104,8 @@ public class Types {
         return isSubtype(t, s, false);
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
-        return isSubtype(t, s, capture, noWarnings);
-    }
-    public boolean isSubtype(Type t, Type s, boolean capture, Warner warn) {
         if (t.equalsIgnoreMetadata(s)) {
-            nullabilityComparator.reset((t1, t2) -> t1.hasNarrowerNullabilityThan(t2),
-                    !warnStack.isEmpty() ? warnStack.head : warn).visit(s, t);
+            nullabilityComparator.reset((t1, t2) -> t1.hasNarrowerNullabilityThan(t2)).visit(s, t);
             return true;
         }
         if (s.isPartial())
@@ -1127,20 +1128,7 @@ public class Types {
             if (s != lower && !lower.hasTag(BOT))
                 return isSubtype(capture ? capture(t) : t, lower, false);
         }
-
-        if (warn == warnStack.head ||
-                // if warn is noWarnings, then we should be reentering this method while computing the subtype of a,
-                // possibly, compound type, so keep the current top of the warnStack
-                (!warnStack.isEmpty() && warn == noWarnings)) {
-            return isSubtype.visit(capture ? capture(t) : t, s);
-        } else {
-            try {
-                warnStack = warnStack.prepend(warn);
-                return isSubtype.visit(capture ? capture(t) : t, s);
-            } finally {
-                warnStack = warnStack.tail;
-            }
-        }
+        return isSubtype.visit(capture ? capture(t) : t, s);
     }
     // where
         private IsSubtype isSubtype = new IsSubtype();
@@ -1237,7 +1225,7 @@ public class Types {
                     && isSubtypeNoCapture(sup.getEnclosingType(),
                                           s.getEnclosingType());
                 if (result) {
-                    nullabilityComparator.reset((t1, t2) -> t1.hasNarrowerNullabilityThan(t2), warnStack.head).visit(s, t);
+                    nullabilityComparator.reset((t1, t2) -> t1.hasNarrowerNullabilityThan(t2)).visit(s, t);
                 }
                 return result;
             }
@@ -1286,14 +1274,26 @@ public class Types {
             }
         }
 
-        private NullabilityComparator nullabilityComparator = new NullabilityComparator();
-        class NullabilityComparator extends TypeRelation {
+        public NullabilityComparator nullabilityComparator = new NullabilityComparator();
+        public class NullabilityComparator extends TypeRelation {
             BiFunction<Type, Type, Boolean> differentNullability;
             Warner warner;
 
-            NullabilityComparator reset(BiFunction<Type, Type, Boolean> differentNullability, Warner warner) {
+            NullabilityComparator reset(BiFunction<Type, Type, Boolean> differentNullability) {
                 this.differentNullability = differentNullability;
+                if (this.warner == null || this.warner == noWarnings) {
+                    this.warner = !warnStack.isEmpty() ? warnStack.head : noWarnings;
+                }
+                return this;
+            }
+
+            public NullabilityComparator setWarner(Warner warner) {
                 this.warner = warner;
+                return this;
+            }
+
+            public NullabilityComparator clearWarner() {
+                this.warner = null;
                 return this;
             }
 
@@ -1497,7 +1497,7 @@ public class Types {
                         && visit(t.getEnclosingType(), s.getEnclosingType())
                         && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
                 if (equal) {
-                    nullabilityComparator.reset((t1, t2) -> !t1.sameNullabilityAs(t2), !warnStack.isEmpty() ? warnStack.head : noWarnings)
+                    nullabilityComparator.reset((t1, t2) -> !t1.sameNullabilityAs(t2))
                             .visit(s, t);
                 }
                 return equal;
@@ -4380,7 +4380,7 @@ public class Types {
                 return covariantReturnType(r1.getReturnType(), r2res, warner);
             if (isSubtypeUnchecked(r1.getReturnType(), r2res, warner))
                 return true;
-            if (!isSubtype(r1.getReturnType(), erasure(r2res), false, warner))
+            if (!isSubtype(r1.getReturnType(), erasure(r2res), false))
                 return false;
             warner.warn(LintCategory.UNCHECKED);
             return true;

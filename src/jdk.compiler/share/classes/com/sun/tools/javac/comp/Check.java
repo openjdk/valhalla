@@ -725,9 +725,17 @@ public class Check {
              return true;
          } else if (!a.hasTag(WILDCARD)) {
              a = types.cvarUpperBound(a);
-             return pos != null ?
-                     types.isSubtype(a, bound, true, new NullnessWarner(pos)) :
-                     types.isSubtype(a, bound, true);
+             try {
+                 if (pos != null) {
+                     types.nullabilityComparator.setWarner(new NullnessWarner(pos));
+                 }
+                 return types.isSubtype(a, bound, true);
+             } finally {
+                 if (pos != null) {
+                     types.nullabilityComparator.clearWarner();
+                 }
+             }
+
          } else if (a.isExtendsBound()) {
              return types.isCastable(bound, types.wildUpperBound(a), types.noWarnings);
          } else if (a.isSuperBound()) {
