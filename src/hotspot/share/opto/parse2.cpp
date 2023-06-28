@@ -1838,7 +1838,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
 
   if (tst->is_Bool()) {
     // Refresh c from the transformed bool node, since it may be
-    // simpler than the original c.  Also re-canonicalize btest.
+    // simpler than the original c. Also re-canonicalize btest.
     // This wins when (Bool ne (Conv2B p) 0) => (Bool ne (CmpP p null)).
     // That can arise from statements like: if (x instanceof C) ...
     if (tst != tst0) {
@@ -2042,45 +2042,53 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   bool left_inline_type = true;
   bool right_inline_type = true;
 
-
   if (left->is_InlineType() && right->is_InlineType()) {
     //assume that we already know that left and right are IlnineTypeNodes
     InlineTypeNode *temp_l = (InlineTypeNode *) left;
     InlineTypeNode *temp_r = (InlineTypeNode *) right;
     if (temp_l->type()->inline_klass()->equals(temp_r->type()->inline_klass())) {
       //same class
+      // idx 1..n represent the false cases for eq (as soon as one field is not eq the value object is not eq -> you can abort)
+      // and the true cases for ne (as soon as one field is ne, the value object is ne -> you can abort)
+      Node* old_control= control();
+      Node* region = new RegionNode(temp_l->field_count()+1);
       for (uint i = 0; i < temp_l->field_count(); i++) {
         Node *input_l = temp_l->field_value(i);
         Node *input_r = temp_r->field_value(i);
         ciType *input_type_l = temp_l->field_type(i);
         ciType *input_type_r = temp_r->field_type(i);
-
         Node* cmp;
         if (input_type_l->is_primitive_type()) {
           BasicType basic_l = input_type_l->basic_type();
-          if (basic_l == T_BOOLEAN | basic_l == T_CHAR |basic_l == T_BYTE |basic_l == T_SHORT |basic_l == T_INT) {
+          if (basic_l == T_BOOLEAN | basic_l == T_CHAR | basic_l == T_BYTE | basic_l == T_SHORT | basic_l == T_INT) {
             cmp = _gvn.transform(new CmpINode(input_l, input_r));
-            do_if(btest, cmp);
-            return;
           } else if(basic_l == T_FLOAT) {
             cmp = _gvn.transform(new CmpFNode(input_l, input_r));
-            do_if(btest, cmp);
-            return;
           } else if(basic_l == T_DOUBLE) {
             cmp = _gvn.transform(new CmpDNode(input_l, input_r));
-            do_if(btest, cmp);
-            return;
           } else if(basic_l == T_LONG) {
             cmp = _gvn.transform(new CmpLNode(input_l, input_r));
-            do_if(btest, cmp);
-            return;
           } else {
-            // TODO: handle more cases e.g. Object
+            assert(false, "T_OBJ not handled");
+            // TODO: handle more cases e.g. Object. Probably still fails
+            // for the case, where one field is T_INT and other is T_OBJECT
           }
+          Node* res = Bool(cmp, btest);
+          IfNode* ifnode = (IfNode*) _gvn.transform(new IfNode(old_control, res, 0.5, 1));
+          region->set_req(i+1, IfTrue(ifnode));
+          old_control = IfFalse(ifnode);
         } else {
           //TODO: prob do pointer comp
         }
       }
+      region = _gvn.transform(region);
+      { PreserveJVMState pjvms(this);
+        set_control(region);
+        int target_bci = iter().get_dest();
+        merge(target_bci);
+      }
+      set_control(old_control);
+      return;
     } else {
       //TODO: should output not equal
     }
