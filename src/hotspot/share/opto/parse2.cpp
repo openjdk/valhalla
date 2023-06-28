@@ -1838,7 +1838,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
 
   if (tst->is_Bool()) {
     // Refresh c from the transformed bool node, since it may be
-    // simpler than the original c. Also re-canonicalize btest.
+    // simpler than the original c.  Also re-canonicalize btest.
     // This wins when (Bool ne (Conv2B p) 0) => (Bool ne (CmpP p null)).
     // That can arise from statements like: if (x instanceof C) ...
     if (tst != tst0) {
@@ -2043,20 +2043,30 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   bool right_inline_type = true;
 
   if (left->is_InlineType() && right->is_InlineType()) {
-    //assume that we already know that left and right are IlnineTypeNodes
+    // assume that we already know that left and right are IlnineTypeNodes
     InlineTypeNode *temp_l = (InlineTypeNode *) left;
     InlineTypeNode *temp_r = (InlineTypeNode *) right;
+    // check if the left and right nodes have the same class.
+    // If yes, compare the fields
+    // If no, we know that they can't be equal
     if (temp_l->type()->inline_klass()->equals(temp_r->type()->inline_klass())) {
-      //same class
-      // idx 1..n represent the false cases for eq (as soon as one field is not eq the value object is not eq -> you can abort)
-      // and the true cases for ne (as soon as one field is ne, the value object is ne -> you can abort)
-      Node* old_control= control();
+      //old_control will contain the slow path
+      //for eq the slow path is where all comparisons return true
+      //for ne the slow path is where all comparisons return false
+      Node* old_control = control();
+      bool is_eq = (btest == BoolTest::eq);
+      assert((btest == BoolTest::eq)||(btest == BoolTest::ne), "only eq and ne are supported for acmp");
+      //the tof (true or false Oracle) function returns the ifnode's true branch rsp false branch if select is set to true resp false
+      auto tof = [this](bool select, IfNode* ifnode) -> Node* {return select ? IfTrue(ifnode) : IfFalse(ifnode); };
+      // the region nodes combines all the fast paths
+      // for eq the fast paths are the false cases (as soon as one compare is false, the field is ne -> the value object is not eq -> you can abort)
+      // for ne the fast paths are the true cases (as soon as one compare is true, the field object is ne -> the value object is ne -> you can abort)
       Node* region = new RegionNode(temp_l->field_count()+1);
       for (uint i = 0; i < temp_l->field_count(); i++) {
         Node *input_l = temp_l->field_value(i);
         Node *input_r = temp_r->field_value(i);
+        //since we have already checked that the types are the same, it is enough to only use the types from one side
         ciType *input_type_l = temp_l->field_type(i);
-        ciType *input_type_r = temp_r->field_type(i);
         Node* cmp;
         if (input_type_l->is_primitive_type()) {
           BasicType basic_l = input_type_l->basic_type();
@@ -2075,19 +2085,27 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
           }
           Node* res = Bool(cmp, btest);
           IfNode* ifnode = (IfNode*) _gvn.transform(new IfNode(old_control, res, 0.5, 1));
-          region->set_req(i+1, IfTrue(ifnode));
-          old_control = IfFalse(ifnode);
+          region->set_req(i+1, tof(!is_eq, ifnode));
+          old_control = tof(is_eq, ifnode);
         } else {
           //TODO: prob do pointer comp
         }
       }
       region = _gvn.transform(region);
+      //swap region and old_control
+      //this is necessary as for
+      if (!is_eq){
+        Node* tmp = region;
+        region = old_control;
+        old_control = tmp;
+      }
+
       { PreserveJVMState pjvms(this);
-        set_control(region);
+        set_control(old_control);
         int target_bci = iter().get_dest();
         merge(target_bci);
       }
-      set_control(old_control);
+      set_control(region);
       return;
     } else {
       //TODO: should output not equal
