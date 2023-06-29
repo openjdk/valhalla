@@ -38,10 +38,13 @@ extern "C" {
 
 class VectorSupport : AllStatic {
  private:
+
+#ifdef COMPILER2
   static Handle allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, int larval, TRAPS);
   static Handle allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS);
-
-  static void init_payload_element(typeArrayOop arr, BasicType elem_bt, int index, address addr);
+  static InstanceKlass* get_vector_payload_klass(BasicType elem_bt, int num_elem);
+  static Symbol* get_vector_payload_field_signature(BasicType elem_bt, int num_elem);
+#endif // COMPILER2
 
   static BasicType klass2bt(InstanceKlass* ik);
   static jint klass2length(InstanceKlass* ik);
@@ -143,11 +146,10 @@ class VectorSupport : AllStatic {
 
   static int vop2ideal(jint vop, BasicType bt);
 
+#ifdef COMPILER2
   static instanceOop allocate_vector(InstanceKlass* holder, frame* fr, RegisterMap* reg_map, ObjectValue* sv, TRAPS);
   static instanceOop allocate_vector_payload(InstanceKlass* ik, frame* fr, RegisterMap* reg_map, ObjectValue* sv, TRAPS);
-
-  static InstanceKlass* get_vector_payload_klass(BasicType elem_bt, int num_elem);
-  static Symbol* get_vector_payload_field_signature(BasicType elem_bt, int num_elem);
+#endif // COMPILER2
 
   static bool is_vector(Klass* klass);
   static bool is_vector_payload_mf(Klass* klass);

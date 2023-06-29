@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -506,6 +506,7 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
 
 // CDS support
 
+#if INCLUDE_CDS
 void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   InstanceKlass::metaspace_pointers_do(it);
 
@@ -544,6 +545,7 @@ void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle 
     value_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
   }
 }
+#endif
 
 // oop verify
 

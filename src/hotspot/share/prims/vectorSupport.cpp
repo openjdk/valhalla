@@ -119,6 +119,7 @@ jint VectorSupport::klass2length(InstanceKlass* ik) {
   return vlen;
 }
 
+#ifdef COMPILER2
 Handle VectorSupport::allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, int larval, TRAPS) {
   assert(ik->is_inline_klass(), "");
   instanceOop obj = InlineKlass::cast(ik)->allocate_instance(THREAD);
@@ -327,6 +328,7 @@ instanceOop VectorSupport::allocate_vector(InstanceKlass* ik, frame* fr, Registe
   }
   return vbox;
 }
+#endif // COMPILER2
 
 #ifdef COMPILER2
 int VectorSupport::vop2ideal(jint id, BasicType bt) {
