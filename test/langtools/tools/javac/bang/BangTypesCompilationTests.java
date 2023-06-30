@@ -139,6 +139,18 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
+                                "compiler.err.prob.found.req"),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test<T> {
+                                    void m() {
+                                        Supplier<? extends T> factory = nullFactory();
+                                    }
+                                    Supplier<? extends T!> nullFactory() { return () -> null; }
+                                }
+                                """,
+                                Result.Error,
                                 "compiler.err.prob.found.req")
                 )
         );
@@ -280,6 +292,100 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 1),
                         new DiagAndCode(
                                 """
+                                class Wrapper<T> {}
+                                class Test<T> {
+                                    Wrapper<T> newWrapper() { return null; }
+                                    void m() {
+                                        Wrapper<T!> w = newWrapper();
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test {
+                                    void plot(Function<String, String> f) {}
+                                    void m(Function<String!, String> gradient) {
+                                        plot(gradient);
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test {
+                                    void plot(Function<String!, String> f) {}
+                                    void m(Function<String, String> gradient) {
+                                        plot(gradient);
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                2),  // this needs to be reviewed, the warning is printed twice, should be once only
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test<T> {
+                                    void m() {
+                                        Supplier<? extends T!> factory = nullFactory();
+                                    }
+                                    Supplier<? extends T> nullFactory() { return () -> null; }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.*;
+                                class Test<T> {
+                                    Set<Map.Entry<String, T>> allEntries() { return null; }
+                                    void m() {
+                                        Set<Map.Entry<String, T!>> entries = allEntries();
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                2),
+                        new DiagAndCode(
+                                """
+                                import java.util.*;
+                                class Test<T> {
+                                    Set<Map.Entry<String, T!>> allEntries() { return null; }
+                                    void m() {
+                                        Set<Map.Entry<String, T>> entries = allEntries();
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    class Box<X> {}
+                                    @SafeVarargs
+                                    private <Z> Z! make_box_uni(Z!... bs) {
+                                        return bs[0];
+                                    }
+                                    void test(Box<String!> bref, Box<String> bval) {
+                                        Box<? extends String!> res = make_box_uni(bref, bval);
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                2),
+
+                        new DiagAndCode(
+                                """
                                 import java.util.*;
                                 class Foo {
                                     void test(List<? extends String!> ls1, List<? extends String> ls3) {
@@ -318,7 +424,35 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
-                                "" /* no warnings in this case */)
+                                ""),
+                        new DiagAndCode(
+                                """
+                                interface Shape {}
+                                value class Point implements Shape {}
+                                class Box<T> {}
+                                class Test {
+                                    void m(Box<Point!> lp) {
+                                        foo(lp);
+                                    }
+                                    void foo(Box<? extends Shape> ls) {}
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                interface Shape {}
+                                value class Point implements Shape {}
+                                class Box<T> {}
+                                class Test {
+                                    void m(Box<Shape!> lp) {
+                                        foo(lp);
+                                    }
+                                    void foo(Box<? super Point!> ls) {}
+                                }
+                                """,
+                                Result.Clean,
+                                "")
                 )
         );
     }

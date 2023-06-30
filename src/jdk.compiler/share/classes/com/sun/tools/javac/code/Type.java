@@ -784,17 +784,34 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     }
 
     public boolean sameNullabilityAs(Type t) {
-        if (isNullUnspecified()) return t.isNullUnspecified();
-        if (isNonNullable()) return t.isNonNullable();
-        if (isNullable()) return t.isNullable();
-        if (isParametric()) return t.isParametric();
+        if (t == null) {
+            return isNullUnspecified();
+        }
+        if (isNullUnspecified()) {
+            return t.isNullUnspecified();
+        }
+        if (isNonNullable()) {
+            return t.isNonNullable();
+        }
+        if (isNullable()) {
+            return t.isNullable();
+        }
+        if (isParametric()) {
+            return t.isParametric();
+        }
         throw new AssertionError("shouldn't get here");
     }
 
     public boolean hasNarrowerNullabilityThan(Type t) {
-        if (isNonNullable()) return !t.isNonNullable();
-        if (isParametric()) return t.isNonNullable() || t.isNullUnspecified();
-        if (isNullable()) return t.isNullUnspecified();
+        if (isNonNullable()) {
+            return !t.isNonNullable();
+        }
+        if (isParametric()) {
+            return t.isNonNullable() || t.isNullUnspecified();
+        }
+        if (isNullable()) {
+            return t.isNullUnspecified();
+        }
         return false;
     }
 

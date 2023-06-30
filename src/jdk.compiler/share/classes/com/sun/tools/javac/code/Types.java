@@ -1301,10 +1301,36 @@ public class Types {
             public Boolean visitType(Type t, Type s) {
                 if (differentNullability.apply(t, s)) {
                     warner.warn(LintCategory.NULL);
-                    return false;
-                } else {
                     return true;
+                } else {
+                    return false;
                 }
+            }
+
+            @Override
+            public Boolean visitClassType(ClassType t, Type s) {
+                if (differentNullability.apply(t, s)) {
+                    warner.warn(LintCategory.NULL);
+                    return true;
+                } else {
+                    return s != null && (!s.isParameterized() || compareTypeArgsRecursive(t, s))
+                            && visit(t.getEnclosingType(), s.getEnclosingType());
+                }
+            }
+            // where
+            boolean compareTypeArgsRecursive(Type t, Type s) {
+                return compareTypeArgs(t.getTypeArguments(), s.getTypeArguments());
+            }
+
+            boolean compareTypeArgs(List<Type> ts, List<Type> ss) {
+                while (ts.nonEmpty() && ss.nonEmpty()) {
+                    if (visit(ts.head, ss.head)) {
+                        return true;
+                    }
+                    ts = ts.tail;
+                    ss = ss.tail;
+                }
+                return false;
             }
         }
 
