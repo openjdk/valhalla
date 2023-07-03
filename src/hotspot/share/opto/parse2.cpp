@@ -2034,6 +2034,51 @@ void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* ti
   }
 }
 
+void Parse::cmp_fields(BoolTest::mask btest, InlineTypeNode* left, InlineTypeNode* right, Node* region){
+  Node *ctrl = control();
+  for (uint i = 0; i < left->field_count(); i++) {
+    Node *input_l = left->field_value(i);
+    Node *input_r = right->field_value(i);
+    //since we have already checked that the types are the same, it is enough to only use the types from one side
+    ciType *input_type_l = left->field_type(i);
+    Node* cmp;
+    if (input_type_l->is_primitive_type()) {
+      BasicType basic_l = input_type_l->basic_type();
+      if (basic_l == T_BOOLEAN | basic_l == T_CHAR | basic_l == T_BYTE | basic_l == T_SHORT | basic_l == T_INT) {
+        cmp = _gvn.transform(new CmpINode(input_l, input_r));
+      } else if(basic_l == T_FLOAT) {
+        cmp = _gvn.transform(new CmpFNode(input_l, input_r));
+      } else if(basic_l == T_DOUBLE) {
+        cmp = _gvn.transform(new CmpDNode(input_l, input_r));
+      } else if(basic_l == T_LONG) {
+        cmp = _gvn.transform(new CmpLNode(input_l, input_r));
+      } else {
+        assert(false, "Basic type not handled");
+        // TODO: check which additional Basic Types can occur
+      }
+    } else {
+      //if it is not a primitive type do a pointer compairison
+      if (input_l->is_InlineType()){
+        InlineTypeNode *tmp_l = (InlineTypeNode *) input_l;
+        InlineTypeNode *tmp_r = (InlineTypeNode *) input_r;
+        Node* next_region = new RegionNode(tmp_l->field_count()+1);
+        set_control(ctrl);
+        cmp_fields(btest, tmp_l,  tmp_r, next_region);
+        region->set_req(i+1, _gvn.transform(next_region));
+        ctrl = control();
+        continue;
+      }else{
+        cmp = _gvn.transform(new CmpPNode(input_l, input_r));
+      }
+    }
+    Node* res = Bool(cmp, BoolTest::mask::eq);
+    IfNode* ifnode = (IfNode*) _gvn.transform(new IfNode(ctrl, res, 0.5, 1));
+    region->set_req(i+1, IfFalse(ifnode));
+    ctrl = IfTrue(ifnode);
+  }
+  set_control(ctrl);
+}
+
 void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   ciKlass* left_type = NULL;
   ciKlass* right_type = NULL;
@@ -2042,7 +2087,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   bool left_inline_type = true;
   bool right_inline_type = true;
 
-  if (left->is_InlineType() && right->is_InlineType()) {
+  bool experimental = true;
+  if (left->is_InlineType() && right->is_InlineType() && experimental) {
     // assume that we already know that left and right are IlnineTypeNodes
     InlineTypeNode *temp_l = (InlineTypeNode *) left;
     InlineTypeNode *temp_r = (InlineTypeNode *) right;
@@ -2053,55 +2099,29 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       //old_control will contain the slow path
       //for eq the slow path is where all comparisons return true
       //for ne the slow path is where all comparisons return false
-      Node* old_control = control();
       bool is_eq = (btest == BoolTest::eq);
       assert((btest == BoolTest::eq)||(btest == BoolTest::ne), "only eq and ne are supported for acmp");
-      //the tof (true or false Oracle) function returns the ifnode's true branch rsp false branch if select is set to true resp false
-      auto tof = [this](bool select, IfNode* ifnode) -> Node* {return select ? IfTrue(ifnode) : IfFalse(ifnode); };
+      /*
+      //the tof (true or false Oracle) returns the ifnode's true branch rsp false branch if select is set to true resp false
+      //auto tof = [this](bool select, IfNode* ifnode) -> Node* {return select ? IfTrue(ifnode) : IfFalse(ifnode); };
+      */
       // the region nodes combines all the fast paths
       // for eq the fast paths are the false cases (as soon as one compare is false, the field is ne -> the value object is not eq -> you can abort)
       // for ne the fast paths are the true cases (as soon as one compare is true, the field object is ne -> the value object is ne -> you can abort)
       Node* region = new RegionNode(temp_l->field_count()+1);
-      for (uint i = 0; i < temp_l->field_count(); i++) {
-        Node *input_l = temp_l->field_value(i);
-        Node *input_r = temp_r->field_value(i);
-        //since we have already checked that the types are the same, it is enough to only use the types from one side
-        ciType *input_type_l = temp_l->field_type(i);
-        Node* cmp;
-        if (input_type_l->is_primitive_type()) {
-          BasicType basic_l = input_type_l->basic_type();
-          if (basic_l == T_BOOLEAN | basic_l == T_CHAR | basic_l == T_BYTE | basic_l == T_SHORT | basic_l == T_INT) {
-            cmp = _gvn.transform(new CmpINode(input_l, input_r));
-          } else if(basic_l == T_FLOAT) {
-            cmp = _gvn.transform(new CmpFNode(input_l, input_r));
-          } else if(basic_l == T_DOUBLE) {
-            cmp = _gvn.transform(new CmpDNode(input_l, input_r));
-          } else if(basic_l == T_LONG) {
-            cmp = _gvn.transform(new CmpLNode(input_l, input_r));
-          } else {
-            assert(false, "T_OBJ not handled");
-            // TODO: handle more cases e.g. Object. Probably still fails
-            // for the case, where one field is T_INT and other is T_OBJECT
-          }
-          Node* res = Bool(cmp, btest);
-          IfNode* ifnode = (IfNode*) _gvn.transform(new IfNode(old_control, res, 0.5, 1));
-          region->set_req(i+1, tof(!is_eq, ifnode));
-          old_control = tof(is_eq, ifnode);
-        } else {
-          //TODO: prob do pointer comp
-        }
-      }
+      cmp_fields(btest, temp_l, temp_r, region);
+      Node* ctrl = control();
       region = _gvn.transform(region);
       //swap region and old_control
       //this is necessary as for
       if (!is_eq){
         Node* tmp = region;
-        region = old_control;
-        old_control = tmp;
+        region = ctrl;
+        ctrl = tmp;
       }
 
       { PreserveJVMState pjvms(this);
-        set_control(old_control);
+        set_control(ctrl);
         int target_bci = iter().get_dest();
         merge(target_bci);
       }
