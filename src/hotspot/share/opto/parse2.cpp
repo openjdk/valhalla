@@ -2034,8 +2034,10 @@ void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* ti
   }
 }
 
-void Parse::cmp_fields(BoolTest::mask btest, InlineTypeNode* left, InlineTypeNode* right, Node* region){
+void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region){
+  //get current control
   Node *ctrl = control();
+  //iterate and compare all the fields
   for (uint i = 0; i < left->field_count(); i++) {
     Node *input_l = left->field_value(i);
     Node *input_r = right->field_value(i);
@@ -2057,17 +2059,22 @@ void Parse::cmp_fields(BoolTest::mask btest, InlineTypeNode* left, InlineTypeNod
         // TODO: check which additional Basic Types can occur
       }
     } else {
-      //if it is not a primitive type do a pointer compairison
+      //if the field is inline type, call cmp_fields, else do a normal pointer comparison
       if (input_l->is_InlineType()){
         InlineTypeNode *tmp_l = (InlineTypeNode *) input_l;
         InlineTypeNode *tmp_r = (InlineTypeNode *) input_r;
         Node* next_region = new RegionNode(tmp_l->field_count()+1);
+        //set sontrol, so cmp_fields can get the current ctrl
         set_control(ctrl);
-        cmp_fields(btest, tmp_l,  tmp_r, next_region);
+        //recursively call cmp_fields
+        cmp_fields(tmp_l, tmp_r, next_region);
+        //update region and control
         region->set_req(i+1, _gvn.transform(next_region));
         ctrl = control();
+        //skip the rest of the loop body
         continue;
       }else{
+        //do a pointer comparison
         cmp = _gvn.transform(new CmpPNode(input_l, input_r));
       }
     }
@@ -2076,6 +2083,7 @@ void Parse::cmp_fields(BoolTest::mask btest, InlineTypeNode* left, InlineTypeNod
     region->set_req(i+1, IfFalse(ifnode));
     ctrl = IfTrue(ifnode);
   }
+  //set control and exit
   set_control(ctrl);
 }
 
@@ -2093,28 +2101,19 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     InlineTypeNode *temp_l = (InlineTypeNode *) left;
     InlineTypeNode *temp_r = (InlineTypeNode *) right;
     // check if the left and right nodes have the same class.
-    // If yes, compare the fields
-    // If no, we know that they can't be equal
+    // If yes, compare the fields. If no, we know that they can't be equal
     if (temp_l->type()->inline_klass()->equals(temp_r->type()->inline_klass())) {
-      //old_control will contain the slow path
-      //for eq the slow path is where all comparisons return true
-      //for ne the slow path is where all comparisons return false
-      bool is_eq = (btest == BoolTest::eq);
       assert((btest == BoolTest::eq)||(btest == BoolTest::ne), "only eq and ne are supported for acmp");
-      /*
-      //the tof (true or false Oracle) returns the ifnode's true branch rsp false branch if select is set to true resp false
-      //auto tof = [this](bool select, IfNode* ifnode) -> Node* {return select ? IfTrue(ifnode) : IfFalse(ifnode); };
-      */
       // the region nodes combines all the fast paths
-      // for eq the fast paths are the false cases (as soon as one compare is false, the field is ne -> the value object is not eq -> you can abort)
-      // for ne the fast paths are the true cases (as soon as one compare is true, the field object is ne -> the value object is ne -> you can abort)
+      // as soon as one field is not equal, we know that the value objects are not equal -> abort through the region node
       Node* region = new RegionNode(temp_l->field_count()+1);
-      cmp_fields(btest, temp_l, temp_r, region);
+      cmp_fields(temp_l, temp_r, region);
       Node* ctrl = control();
       region = _gvn.transform(region);
-      //swap region and old_control
-      //this is necessary as for
-      if (!is_eq){
+
+      // swap region and control if btest is not eq, as cmp_fields checks for equality
+      if (btest != BoolTest::eq){
+        // swap region and control
         Node* tmp = region;
         region = ctrl;
         ctrl = tmp;
