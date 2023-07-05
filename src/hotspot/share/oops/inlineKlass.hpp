@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -133,10 +133,14 @@ class InlineKlass: public InstanceKlass {
 
   int first_field_offset_old();
 
+// CDS support
+
+#if INCLUDE_CDS
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
   virtual void metaspace_pointers_do(MetaspaceClosure* it);
+#endif
 
  private:
   int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0);

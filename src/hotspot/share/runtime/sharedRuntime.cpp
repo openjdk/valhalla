@@ -551,8 +551,8 @@ JRT_LEAF(address, SharedRuntime::exception_handler_for_return_address(JavaThread
   return raw_exception_handler_for_return_address(current, return_address);
 JRT_END
 
-JRT_LEAF(jint, SharedRuntime::skip_value_scalarization(InlineKlass* klass))
-  return (jint)VectorSupport::skip_value_scalarization(klass);
+JRT_LEAF(int, SharedRuntime::skip_value_scalarization(InlineKlass* klass))
+  return (int) VectorSupport::skip_value_scalarization(klass);
 JRT_END
 
 address SharedRuntime::get_poll_stub(address pc) {

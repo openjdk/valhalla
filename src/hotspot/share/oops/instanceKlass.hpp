@@ -135,22 +135,6 @@ struct JvmtiCachedClassFileData;
 
 class SigEntry;
 
-class MultiFieldInfo : public MetaspaceObj {
- private:
-  Symbol* _name;
-  u2 _base_index;
-  jbyte _multifield_index;
- public:
-  MultiFieldInfo() : _name(nullptr), _base_index(0), _multifield_index(-1) {}
-  MultiFieldInfo(Symbol* name, u2 base, jbyte index) : _name(name), _base_index(base), _multifield_index(index) {}
-  Symbol* name() const { return _name; }
-  u2 base_index() const { return _base_index; }
-  jbyte multifield_index() const { return _multifield_index; }
-  FieldInfo base_field_info(InstanceKlass* ik);
-  void metaspace_pointers_do(MetaspaceClosure* it);
-  MetaspaceObj::Type type() const { return MultiFieldInfoType; }
-};
-
 class InlineKlassFixedBlock : public MetaspaceObj {
    Array<SigEntry>** _extended_sig;
    Array<VMRegPair>** _return_regs;
