@@ -151,6 +151,20 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
+                                "compiler.err.prob.found.req"),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class MyList<T> {
+                                    void add(T! e) {}
+                                }
+                                class Test {
+                                    void m(MyList<? super Point!> ls) {
+                                        ls.add(null);
+                                    }
+                                }
+                                """,
+                                Result.Error,
                                 "compiler.err.prob.found.req")
                 )
         );
@@ -292,6 +306,20 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 1),
                         new DiagAndCode(
                                 """
+                                class Test {
+                                    static value class Atom {}
+                                    static class Box<X> {}
+                                    void test(Box<? extends Atom!> t1, Box<Atom> t2) {
+                                        t1 = t2;
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+
+                        new DiagAndCode(
+                                """
                                 class Wrapper<T> {}
                                 class Test<T> {
                                     Wrapper<T> newWrapper() { return null; }
@@ -355,6 +383,19 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 Result.Warning,
                                 "compiler.warn.unchecked.nullness.conversion",
                                 2),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test<T> {
+                                    T field;
+                                    void foo(Consumer<? super T!> action) {
+                                        action.accept(field);
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
                         new DiagAndCode(
                                 """
                                 import java.util.*;
@@ -449,6 +490,85 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                         foo(lp);
                                     }
                                     void foo(Box<? super Point!> ls) {}
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class C<T> {
+                                    T x = null;
+                                    void m() {
+                                        String r = new C<String>().x;
+                                        Point p = new C<Point>().x;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class C<T> {
+                                    T x = null;
+                                    void m() {
+                                        String r = new C<String>().x;
+                                        Point p = new C<Point>().x;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class C<T> {
+                                    T x = null;
+                                    void set(T! arg) { x = arg; }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class MyList<T> {
+                                    static <E> MyList<E!> of(E! e1) {
+                                        return null;
+                                    }
+                                }
+                                class Test {
+                                    void m() {
+                                        MyList.of(new Point!());
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class MyCollection<T> {}
+                                class MyList<T> extends MyCollection<T!> {
+                                    static <E> MyList<E!> of(E! e1) {
+                                        return null;
+                                    }
+                                }
+                                class Test {
+                                    void m() {
+                                        MyCollection<Point> mpc = MyList.of(new Point!());
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test<T> {
+                                    T field;
+                                    void foo(T! t) {
+                                        field = t;
+                                    }
                                 }
                                 """,
                                 Result.Clean,
