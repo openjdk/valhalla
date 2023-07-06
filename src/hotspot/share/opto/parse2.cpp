@@ -2036,35 +2036,40 @@ void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* ti
 
 void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region){
   //get current control
-  Node *ctrl = control();
+  Node* ctrl = control();
   //iterate and compare all the fields
   for (uint i = 0; i < left->field_count(); i++) {
-    Node *input_l = left->field_value(i);
-    Node *input_r = right->field_value(i);
+    Node* left_field = left->field_value(i);
+    Node* right_field = right->field_value(i);
     //since we have already checked that the types are the same, it is enough to only use the types from one side
-    ciType *input_type_l = left->field_type(i);
+    ciType* input_type_l = left->field_type(i);
     Node* cmp;
     if (input_type_l->is_primitive_type()) {
       BasicType basic_l = input_type_l->basic_type();
       if (basic_l == T_BOOLEAN | basic_l == T_CHAR | basic_l == T_BYTE | basic_l == T_SHORT | basic_l == T_INT) {
-        cmp = _gvn.transform(new CmpINode(input_l, input_r));
+        cmp = _gvn.transform(new CmpINode(left_field, right_field));
       } else if(basic_l == T_FLOAT) {
-        cmp = _gvn.transform(new CmpFNode(input_l, input_r));
+        cmp = _gvn.transform(new CmpFNode(left_field, right_field));
       } else if(basic_l == T_DOUBLE) {
-        cmp = _gvn.transform(new CmpDNode(input_l, input_r));
+        cmp = _gvn.transform(new CmpDNode(left_field, right_field));
       } else if(basic_l == T_LONG) {
-        cmp = _gvn.transform(new CmpLNode(input_l, input_r));
+        cmp = _gvn.transform(new CmpLNode(left_field, right_field));
       } else {
         assert(false, "Basic type not handled");
         // TODO: check which additional Basic Types can occur
       }
     } else {
       //if the field is inline type, call cmp_fields, else do a normal pointer comparison
-      if (input_l->is_InlineType()){
-        InlineTypeNode *tmp_l = (InlineTypeNode *) input_l;
-        InlineTypeNode *tmp_r = (InlineTypeNode *) input_r;
+      //TODO: check left for object and null
+      const TypeOopPtr* tleft = _gvn.type(left_field)->is_oopptr();
+      const TypeOopPtr* tright = _gvn.type(right_field)->is_oopptr();
+      if(tleft == NULL || !tleft->can_be_inline_type() || tright == NULL || !tright->can_be_inline_type()){
+        cmp = _gvn.transform(new CmpPNode(left_field, right_field));
+      }else if (left_field->is_InlineType() && right_field->is_InlineType()){ //also check right
+        InlineTypeNode* tmp_l = left_field->isa_InlineType();
+        InlineTypeNode* tmp_r = right_field->isa_InlineType();
         Node* next_region = new RegionNode(tmp_l->field_count()+1);
-        //set sontrol, so cmp_fields can get the current ctrl
+        //set control, so cmp_fields can get the current ctrl
         set_control(ctrl);
         //recursively call cmp_fields
         cmp_fields(tmp_l, tmp_r, next_region);
@@ -2074,12 +2079,13 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         //skip the rest of the loop body
         continue;
       }else{
-        //do a pointer comparison
-        cmp = _gvn.transform(new CmpPNode(input_l, input_r));
+        //TODO: should be acmp or similar
+        cmp = _gvn.transform(new CmpPNode(left_field, right_field));
       }
     }
     Node* res = Bool(cmp, BoolTest::mask::eq);
-    IfNode* ifnode = (IfNode*) _gvn.transform(new IfNode(ctrl, res, 0.5, 1));
+    IfNode* ifnode = _gvn.transform(new IfNode(ctrl, res, PROB_FAIR, 1))->isa_If();
+    //do_if(BoolTest::mask::eq, cmp, false, &ctrl);
     region->set_req(i+1, IfFalse(ifnode));
     ctrl = IfTrue(ifnode);
   }
@@ -2098,8 +2104,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   bool experimental = true;
   if (left->is_InlineType() && right->is_InlineType() && experimental) {
     // assume that we already know that left and right are IlnineTypeNodes
-    InlineTypeNode *temp_l = (InlineTypeNode *) left;
-    InlineTypeNode *temp_r = (InlineTypeNode *) right;
+    InlineTypeNode *temp_l = left->isa_InlineType();
+    InlineTypeNode *temp_r = right->isa_InlineType();
     // check if the left and right nodes have the same class.
     // If yes, compare the fields. If no, we know that they can't be equal
     if (temp_l->type()->inline_klass()->equals(temp_r->type()->inline_klass())) {
