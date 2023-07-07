@@ -1295,6 +1295,14 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       failures = true;
     }
 
+    if (k->is_inline_klass()) {
+      intptr_t is_larval = StackValue::create_stack_value(fr, reg_map, sv->is_larval())->get_int();
+      jint larval = (jint)*((jint*)&is_larval);
+      if (larval == 1) {
+        obj->set_mark(obj->mark().enter_larval_state());
+      }
+    }
+
     assert(sv->value().is_null(), "redundant reallocation");
     assert(obj != nullptr || HAS_PENDING_EXCEPTION || cache_init_error, "allocation should succeed or we should get an exception");
     CLEAR_PENDING_EXCEPTION;
