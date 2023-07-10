@@ -1128,9 +1128,14 @@ oop java_lang_Class::create_secondary_mirror(Klass* k, Handle mirror, TRAPS) {
 // latter may contain dumptime-specific information that cannot be archived
 // (e.g., ClassLoaderData*, or static fields that are modified by Java code execution).
 void java_lang_Class::create_scratch_mirror(Klass* k, TRAPS) {
-  if (k->class_loader() != nullptr &&
-      k->class_loader() != SystemDictionary::java_platform_loader() &&
-      k->class_loader() != SystemDictionary::java_system_loader()) {
+  // Inline classes encapsulate two mirror objects, a value mirror (primitive value mirror)
+  // and a reference mirror (primitive class mirror), skip over scratch mirror allocation
+  // for inline classes, they will not be part of shared archive and will be created while
+  // restoring unshared fileds. Refer Klass::restore_unshareable_info() for more details.
+  if (k->is_inline_klass() ||
+      (k->class_loader() != nullptr &&
+       k->class_loader() != SystemDictionary::java_platform_loader() &&
+       k->class_loader() != SystemDictionary::java_system_loader())) {
     // We only archive the mirrors of classes loaded by the built-in loaders
     return;
   }
