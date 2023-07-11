@@ -1558,7 +1558,7 @@ static void reassign_multi_fields(frame* fr, RegisterMap* reg_map, Location loca
 
 // Restore fields of an eliminated instance object using the same field order
 // returned by HotSpotResolvedObjectTypeImpl.getInstanceFields(true)
-int Deoptimization::reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
+static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
   GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
   InstanceKlass* ik = klass;
   while (ik != nullptr) {
@@ -1612,12 +1612,12 @@ int Deoptimization::reassign_fields_by_klass(InstanceKlass* klass, frame* fr, Re
       intptr_t val;
       ScopeValue* scope_field = sv->field_at(svIndex);
       StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
-      offset += j * type2aelembytes(type);
+      int sec_offset = offset + j * type2aelembytes(type);
       switch (type) {
         case T_OBJECT:
         case T_ARRAY:
           assert(value->type() == T_OBJECT, "Agreement.");
-          obj->obj_field_put(offset, value->get_obj()());
+          obj->obj_field_put(sec_offset, value->get_obj()());
           break;
 
         // Have to cast to INT (32 bits) pointer to avoid little/big-endian problem.
@@ -1645,7 +1645,7 @@ int Deoptimization::reassign_fields_by_klass(InstanceKlass* klass, frame* fr, Re
             assert(fields->at(i)._type == T_INT, "T_INT field needed");
           } else {
             val = value->get_int();
-            obj->int_field_put(offset, (jint)*((jint*)&val));
+            obj->int_field_put(sec_offset, (jint)*((jint*)&val));
             break;
           }
         }
@@ -1659,32 +1659,32 @@ int Deoptimization::reassign_fields_by_klass(InstanceKlass* klass, frame* fr, Re
   #else
           jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
   #endif
-          obj->long_field_put(offset, res);
+          obj->long_field_put(sec_offset, res);
           break;
         }
 
         case T_SHORT:
           assert(value->type() == T_INT, "Agreement.");
           val = value->get_int();
-          obj->short_field_put(offset, (jshort)*((jint*)&val));
+          obj->short_field_put(sec_offset, (jshort)*((jint*)&val));
           break;
 
         case T_CHAR:
           assert(value->type() == T_INT, "Agreement.");
           val = value->get_int();
-          obj->char_field_put(offset, (jchar)*((jint*)&val));
+          obj->char_field_put(sec_offset, (jchar)*((jint*)&val));
           break;
 
         case T_BYTE:
           assert(value->type() == T_INT, "Agreement.");
           val = value->get_int();
-          obj->byte_field_put(offset, (jbyte)*((jint*)&val));
+          obj->byte_field_put(sec_offset, (jbyte)*((jint*)&val));
           break;
 
         case T_BOOLEAN:
           assert(value->type() == T_INT, "Agreement.");
           val = value->get_int();
-          obj->bool_field_put(offset, (jboolean)*((jint*)&val));
+          obj->bool_field_put(sec_offset, (jboolean)*((jint*)&val));
           break;
 
         default:
