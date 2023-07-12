@@ -28,7 +28,6 @@ package com.sun.tools.javac.comp;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.ToIntBiFunction;
@@ -80,11 +79,8 @@ import static com.sun.tools.javac.code.TypeTag.WILDCARD;
 
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.ElementKindVisitor14;
 
 /** Type checking helper class for the attribution phase.
@@ -689,7 +685,7 @@ public class Check {
                 && !is292targetTypeCast(tree)) {
             deferredLintHandler.report(() -> {
                 if (lint.isEnabled(LintCategory.CAST)) {
-                    if (!lint.isEnabled(LintCategory.NULL) || !tree.clazz.type.hasNarrowerNullabilityThan(tree.expr.type)) {
+                    if (!lint.isEnabled(LintCategory.NULL) || !types.hasNarrowerNullability(tree.clazz.type, tree.expr.type)) {
                         log.warning(LintCategory.CAST,
                                 tree.pos(), Warnings.RedundantCast(tree.clazz.type));
                     }
@@ -727,12 +723,12 @@ public class Check {
              a = types.cvarUpperBound(a);
              try {
                  if (pos != null) {
-                     types.nullabilityComparator.setWarner(new NullnessWarner(pos));
+                     types.pushWarner(new NullnessWarner(pos));
                  }
                  return types.isSubtype(a, bound, true);
              } finally {
                  if (pos != null) {
-                     types.nullabilityComparator.clearWarner();
+                     types.popWarner();
                  }
              }
 
@@ -4491,6 +4487,7 @@ public class Check {
             switch (lint) {
                 case UNCHECKED:
                     Check.this.warnUnchecked(pos(), Warnings.ProbFoundReq(diags.fragment(uncheckedKey), found, expected));
+                    this.warned = true;
                     break;
                 case VARARGS:
                     if (method != null &&
@@ -4499,9 +4496,11 @@ public class Check {
                             !types.isReifiable(method.type.getParameterTypes().last())) {
                         Check.this.warnUnsafeVararg(pos(), Warnings.VarargsUnsafeUseVarargsParam(method.params.last()));
                     }
+                    this.warned = true;
                     break;
                 case NULL:
                     Check.this.warnNullableTypes(pos(), Warnings.UncheckedNullnessConversion);
+                    this.warned = true;
                     break;
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);

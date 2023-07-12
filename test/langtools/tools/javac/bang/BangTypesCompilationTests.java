@@ -356,7 +356,7 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.unchecked.nullness.conversion",
-                                2),  // this needs to be reviewed, the warning is printed twice, should be once only
+                                1),
                         new DiagAndCode(
                                 """
                                 import java.util.function.*;
@@ -382,7 +382,7 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.unchecked.nullness.conversion",
-                                2),
+                                1),
                         new DiagAndCode(
                                 """
                                 import java.util.function.*;
@@ -423,7 +423,7 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.unchecked.nullness.conversion",
-                                2),
+                                1),
 
                         new DiagAndCode(
                                 """

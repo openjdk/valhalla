@@ -1038,7 +1038,7 @@ public class Types {
     //where
         private boolean isSubtypeUncheckedInternal(Type t, Type s, boolean capture, Warner warn) {
             try {
-                nullabilityComparator.setWarner(warn);
+                warnStack = warnStack.prepend(warn);
                 if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
                     if (((ArrayType)t).elemtype.isPrimitive()) {
                         return isSameType(elemtype(t), elemtype(s));
@@ -1067,7 +1067,7 @@ public class Types {
                 }
                 return false;
             } finally {
-                nullabilityComparator.clearWarner();
+                warnStack = warnStack.tail;
             }
         }
 
@@ -1105,7 +1105,7 @@ public class Types {
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
         if (t.equalsIgnoreMetadata(s)) {
-            nullabilityComparator.reset((t1, t2) -> t1.hasNarrowerNullabilityThan(t2)).visit(s, t);
+            nullabilityComparator.reset((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
             return true;
         }
         if (s.isPartial())
@@ -1225,7 +1225,7 @@ public class Types {
                     && isSubtypeNoCapture(sup.getEnclosingType(),
                                           s.getEnclosingType());
                 if (result) {
-                    nullabilityComparator.reset((t1, t2) -> t1.hasNarrowerNullabilityThan(t2)).visit(s, t);
+                    nullabilityComparator.reset((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
                 }
                 return result;
             }
@@ -1277,28 +1277,15 @@ public class Types {
         public NullabilityComparator nullabilityComparator = new NullabilityComparator();
         public class NullabilityComparator extends TypeRelation {
             BiFunction<Type, Type, Boolean> differentNullability;
-            Warner warner;
 
             NullabilityComparator reset(BiFunction<Type, Type, Boolean> differentNullability) {
                 this.differentNullability = differentNullability;
-                if (this.warner == null || this.warner == noWarnings) {
-                    this.warner = !warnStack.isEmpty() ? warnStack.head : noWarnings;
-                }
-                return this;
-            }
-
-            public NullabilityComparator setWarner(Warner warner) {
-                this.warner = warner;
-                return this;
-            }
-
-            public NullabilityComparator clearWarner() {
-                this.warner = null;
                 return this;
             }
 
             @Override
             public Boolean visitType(Type t, Type s) {
+                Warner warner = !warnStack.isEmpty() ? warnStack.head : noWarnings;
                 if (differentNullability.apply(t, s)) {
                     warner.warn(LintCategory.NULL);
                     return true;
@@ -1309,6 +1296,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
+                Warner warner = !warnStack.isEmpty() ? warnStack.head : noWarnings;
                 if (differentNullability.apply(t, s)) {
                     warner.warn(LintCategory.NULL);
                     return true;
@@ -1523,7 +1511,7 @@ public class Types {
                         && visit(t.getEnclosingType(), s.getEnclosingType())
                         && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
                 if (equal) {
-                    nullabilityComparator.reset((t1, t2) -> !t1.sameNullabilityAs(t2))
+                    nullabilityComparator.reset((t1, t2) -> !hasSameNullability(t1, t2))
                             .visit(s, t);
                 }
                 return equal;
@@ -2247,6 +2235,16 @@ public class Types {
             result = new ArrayType(result, syms.arrayClass);
         }
         return result;
+    }
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="warn stack">
+    public void pushWarner(Warner warner) {
+        warnStack = warnStack.prepend(warner);
+    }
+
+    public void popWarner() {
+        warnStack = warnStack.tail;
     }
     // </editor-fold>
 
@@ -5397,6 +5395,46 @@ public class Types {
             default:
                 throw new AssertionError("Not a loadable constant: " + c.poolTag());
         }
+    }
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="nullability methods">
+    /**
+     * Do t and s have the same nullability?
+     */
+    public boolean hasSameNullability(Type t, Type s) {
+        if (s == null) {
+            return t.isNullUnspecified();
+        }
+        if (t.isNullUnspecified()) {
+            return s.isNullUnspecified();
+        }
+        if (t.isNonNullable()) {
+            return s.isNonNullable();
+        }
+        if (t.isNullable()) {
+            return s.isNullable();
+        }
+        if (t.isParametric()) {
+            return s.isParametric();
+        }
+        throw new AssertionError("shouldn't get here");
+    }
+
+    /**
+     * Does t has narrower nullability than s?
+     */
+    public boolean hasNarrowerNullability(Type t, Type s) {
+        if (t.isNonNullable()) {
+            return !s.isNonNullable();
+        }
+        if (t.isParametric()) {
+            return s.isNonNullable() || s.isNullUnspecified();
+        }
+        if (t.isNullable()) {
+            return s.isNullUnspecified();
+        }
+        return false;
     }
     // </editor-fold>
 
