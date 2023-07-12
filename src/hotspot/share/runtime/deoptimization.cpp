@@ -1275,17 +1275,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
 
       InstanceKlass* ik = InstanceKlass::cast(k);
       if (obj == nullptr && !cache_init_error) {
-#ifdef COMPILER2
-        if (EnableVectorSupport && VectorSupport::is_vector(ik)) {
-          obj = VectorSupport::allocate_vector(ik, fr, reg_map, sv, THREAD);
-        } else if (EnableVectorSupport && VectorSupport::is_vector_payload_mf(ik)) {
-          obj = VectorSupport::allocate_vector_payload(ik, fr, reg_map, sv, THREAD);
-        } else {
-          obj = ik->allocate_instance(THREAD);
-        }
-#else
         obj = ik->allocate_instance(THREAD);
-#endif // COMPILER2
       }
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* ak = FlatArrayKlass::cast(k);
@@ -1303,6 +1293,14 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
 
     if (obj == nullptr) {
       failures = true;
+    }
+
+    if (k->is_inline_klass()) {
+      intptr_t is_larval = StackValue::create_stack_value(fr, reg_map, sv->is_larval())->get_int();
+      jint larval = (jint)*((jint*)&is_larval);
+      if (larval == 1) {
+        obj->set_mark(obj->mark().enter_larval_state());
+      }
     }
 
     assert(sv->value().is_null(), "redundant reallocation");
@@ -1535,7 +1533,7 @@ static void init_multi_field(oop obj, int offset, BasicType elem_bt, address add
   }
 }
 
-static void reassign_multi_fields(frame* fr, RegisterMap* reg_map, Location location, oop obj, int offset, BasicType elem_bt, int fields_count) {
+static void reassign_vectorized_multi_fields(frame* fr, RegisterMap* reg_map, Location location, oop obj, int offset, BasicType elem_bt, int fields_count) {
   int elem_size = type2aelembytes(elem_bt);
   if (location.is_register()) {
     // Value was in a callee-saved register.
@@ -1560,12 +1558,12 @@ static void reassign_multi_fields(frame* fr, RegisterMap* reg_map, Location loca
 
 // Restore fields of an eliminated instance object using the same field order
 // returned by HotSpotResolvedObjectTypeImpl.getInstanceFields(true)
-int Deoptimization::reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
+static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
   GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
   InstanceKlass* ik = klass;
   while (ik != nullptr) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-      if (!fs.access_flags().is_static() && !fs.field_descriptor().is_multifield() && (!skip_internal || !fs.field_flags().is_injected())) {
+      if (!fs.access_flags().is_static() && !fs.is_multifield() && (!skip_internal || !fs.field_flags().is_injected())) {
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
@@ -1597,16 +1595,15 @@ int Deoptimization::reassign_fields_by_klass(InstanceKlass* klass, frame* fr, Re
       continue; // Continue because we don't need to increment svIndex
     }
 
-    Location location;
-    if (sv->field_at(svIndex)->is_location()) {
-      location = sv->field_at(svIndex)->as_LocationValue()->location();
-    }
     int secondary_fields_count = fields->at(i)._secondary_fields_count;
-    if (secondary_fields_count > 1 && location.type() == Location::vector) {
-      // Re-assign vectorized multi-fields
-      reassign_multi_fields(fr, reg_map, location, obj, offset, type, secondary_fields_count);
-      svIndex++;
-      continue;
+    if (sv->field_at(svIndex)->is_location()) {
+      Location location = sv->field_at(svIndex)->as_LocationValue()->location();
+      if (location.type() == Location::vector) {
+        // Re-assign vectorized multi-fields
+        reassign_vectorized_multi_fields(fr, reg_map, location, obj, offset, type, secondary_fields_count);
+        svIndex++;
+        continue;
+      }
     }
 
     assert(secondary_fields_count <= sv->field_size(), "");
@@ -1614,12 +1611,12 @@ int Deoptimization::reassign_fields_by_klass(InstanceKlass* klass, frame* fr, Re
       intptr_t val;
       ScopeValue* scope_field = sv->field_at(svIndex);
       StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
-      offset += j * type2aelembytes(type);
+      int sec_offset = offset + j * type2aelembytes(type);
       switch (type) {
         case T_OBJECT:
         case T_ARRAY:
           assert(value->type() == T_OBJECT, "Agreement.");
-          obj->obj_field_put(offset, value->get_obj()());
+          obj->obj_field_put(sec_offset, value->get_obj()());
           break;
 
         // Have to cast to INT (32 bits) pointer to avoid little/big-endian problem.
@@ -1647,7 +1644,7 @@ int Deoptimization::reassign_fields_by_klass(InstanceKlass* klass, frame* fr, Re
             assert(fields->at(i)._type == T_INT, "T_INT field needed");
           } else {
             val = value->get_int();
-            obj->int_field_put(offset, (jint)*((jint*)&val));
+            obj->int_field_put(sec_offset, (jint)*((jint*)&val));
             break;
           }
         }
@@ -1661,32 +1658,32 @@ int Deoptimization::reassign_fields_by_klass(InstanceKlass* klass, frame* fr, Re
   #else
           jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
   #endif
-          obj->long_field_put(offset, res);
+          obj->long_field_put(sec_offset, res);
           break;
         }
 
         case T_SHORT:
           assert(value->type() == T_INT, "Agreement.");
           val = value->get_int();
-          obj->short_field_put(offset, (jshort)*((jint*)&val));
+          obj->short_field_put(sec_offset, (jshort)*((jint*)&val));
           break;
 
         case T_CHAR:
           assert(value->type() == T_INT, "Agreement.");
           val = value->get_int();
-          obj->char_field_put(offset, (jchar)*((jint*)&val));
+          obj->char_field_put(sec_offset, (jchar)*((jint*)&val));
           break;
 
         case T_BYTE:
           assert(value->type() == T_INT, "Agreement.");
           val = value->get_int();
-          obj->byte_field_put(offset, (jbyte)*((jint*)&val));
+          obj->byte_field_put(sec_offset, (jbyte)*((jint*)&val));
           break;
 
         case T_BOOLEAN:
           assert(value->type() == T_INT, "Agreement.");
           val = value->get_int();
-          obj->bool_field_put(offset, (jboolean)*((jint*)&val));
+          obj->bool_field_put(sec_offset, (jboolean)*((jint*)&val));
           break;
 
         default:
@@ -1735,22 +1732,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
       continue;
     }
 #endif // INCLUDE_JVMCI
-#ifdef COMPILER2
-    if (EnableVectorSupport && (VectorSupport::is_vector(k) || VectorSupport::is_vector_payload_mf(k))) {
-#ifndef PRODUCT
-        if (PrintDeoptimizationDetails) {
-          tty->print_cr("skip field reassignment for this vector - it should be assigned already");
-          if (Verbose) {
-            Handle obj = sv->value();
-            k->oop_print_on(obj(), tty);
-          }
-        }
-#endif // !PRODUCT
-        continue; // Such vector's value was already restored in VectorSupport::allocate_vector().
-      // Else fall-through to do assignment for scalar-replaced boxed vector representation
-      // which could be restored after vector object allocation.
-    }
-#endif /* !COMPILER2 */
+
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
       reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, CHECK);
