@@ -1533,7 +1533,7 @@ static void init_multi_field(oop obj, int offset, BasicType elem_bt, address add
   }
 }
 
-static void reassign_multi_fields(frame* fr, RegisterMap* reg_map, Location location, oop obj, int offset, BasicType elem_bt, int fields_count) {
+static void reassign_vectorized_multi_fields(frame* fr, RegisterMap* reg_map, Location location, oop obj, int offset, BasicType elem_bt, int fields_count) {
   int elem_size = type2aelembytes(elem_bt);
   if (location.is_register()) {
     // Value was in a callee-saved register.
@@ -1563,7 +1563,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   InstanceKlass* ik = klass;
   while (ik != nullptr) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-      if (!fs.access_flags().is_static() && !fs.field_descriptor().is_multifield() && (!skip_internal || !fs.field_flags().is_injected())) {
+      if (!fs.access_flags().is_static() && !fs.is_multifield() && (!skip_internal || !fs.field_flags().is_injected())) {
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
@@ -1595,16 +1595,15 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       continue; // Continue because we don't need to increment svIndex
     }
 
-    Location location;
-    if (sv->field_at(svIndex)->is_location()) {
-      location = sv->field_at(svIndex)->as_LocationValue()->location();
-    }
     int secondary_fields_count = fields->at(i)._secondary_fields_count;
-    if (secondary_fields_count > 1 && location.type() == Location::vector) {
-      // Re-assign vectorized multi-fields
-      reassign_multi_fields(fr, reg_map, location, obj, offset, type, secondary_fields_count);
-      svIndex++;
-      continue;
+    if (sv->field_at(svIndex)->is_location()) {
+      Location location = sv->field_at(svIndex)->as_LocationValue()->location();
+      if (location.type() == Location::vector) {
+        // Re-assign vectorized multi-fields
+        reassign_vectorized_multi_fields(fr, reg_map, location, obj, offset, type, secondary_fields_count);
+        svIndex++;
+        continue;
+      }
     }
 
     assert(secondary_fields_count <= sv->field_size(), "");
