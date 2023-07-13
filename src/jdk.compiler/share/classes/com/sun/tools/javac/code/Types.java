@@ -5403,20 +5403,16 @@ public class Types {
      * Do t and s have the same nullability?
      */
     public boolean hasSameNullability(Type t, Type s) {
+        // special case for literals, a literal is always != null
+        boolean isLiteral = s != null && s.getMetadata(TypeMetadata.ConstantValue.class) != null;
         if (s == null) {
             return t.isNullUnspecified();
         }
         if (t.isNullUnspecified()) {
-            return s.isNullUnspecified();
+            return s.isNullUnspecified() && !isLiteral;
         }
         if (t.isNonNullable()) {
-            return s.isNonNullable();
-        }
-        if (t.isNullable()) {
-            return s.isNullable();
-        }
-        if (t.isParametric()) {
-            return s.isParametric();
+            return s.isNonNullable() || isLiteral;
         }
         throw new AssertionError("shouldn't get here");
     }
@@ -5425,14 +5421,10 @@ public class Types {
      * Does t has narrower nullability than s?
      */
     public boolean hasNarrowerNullability(Type t, Type s) {
+        // special case for literals, a literal is always != null
+        boolean isLiteral = s != null && s.getMetadata(TypeMetadata.ConstantValue.class) != null;
         if (t.isNonNullable()) {
-            return !s.isNonNullable();
-        }
-        if (t.isParametric()) {
-            return s.isNonNullable() || s.isNullUnspecified();
-        }
-        if (t.isNullable()) {
-            return s.isNullUnspecified();
+            return s != null && !s.isNonNullable() && !isLiteral;
         }
         return false;
     }

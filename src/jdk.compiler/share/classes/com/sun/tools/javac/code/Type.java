@@ -396,7 +396,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     @SuppressWarnings("unchecked")
     public <M extends TypeMetadata, Z> Z getMetadata(Class<M> metadataClass, Function<M, Z> metadataFunc, Z defaultValue) {
         for (TypeMetadata m : metadata) {
-            if (m.getClass() == metadataClass) {
+            if (m.getClass().isAssignableFrom(metadataClass)) {
                 return metadataFunc.apply((M)m);
             }
         }

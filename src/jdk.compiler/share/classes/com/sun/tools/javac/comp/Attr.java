@@ -2895,6 +2895,9 @@ public class Attr extends JCTree.Visitor {
 
             if (tree.constructor != null && tree.constructor.kind == MTH)
                 owntype = clazztype;
+                if (owntype.getMetadata(TypeMetadata.NullMarker.class) == null) {
+                    owntype = owntype.addMetadata(new TypeMetadata.NullMarker(NullMarker.NOT_NULL)); // constructor invocations are always null restricted
+                }
         }
         result = check(tree, owntype, KindSelector.VAL, resultInfo);
         InferenceContext inferenceContext = resultInfo.checkContext.inferenceContext();

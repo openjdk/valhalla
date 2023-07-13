@@ -456,6 +456,26 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                 List.of(
                         new DiagAndCode(
                                 """
+                                class Test {
+                                    void m() {
+                                        String! s = "abc"; // literals are always null restricted
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    void m() {
+                                        Foo! f = new Foo();
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
                                 import java.util.*;
                                 class Foo {
                                      void m(List<? super String!> ls1) {}
@@ -568,6 +588,36 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                     T field;
                                     void foo(T! t) {
                                         field = t;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                import java.lang.invoke.*;
+                                class Cell {
+                                    final void reset() {
+                                        /* we are testing that the compiler won't infer the arguments of
+                                         * VarHandle::setVolatile as (Cell, String!)
+                                         */
+                                        VALUE.setVolatile(this, "");
+                                    }
+                                    final void reset(String identity) {
+                                        /* if that were the case, see comment above, then this invocation would generate
+                                         * a warning, VarHandle::setVolatile is a polymorphic signature method
+                                         */
+                                        VALUE.setVolatile(this, identity);
+                                    }
+                                                                
+                                    private static final VarHandle VALUE;
+                                    static {
+                                        try {
+                                            MethodHandles.Lookup l = MethodHandles.lookup();
+                                            VALUE = l.findVarHandle(Cell.class, "value", long.class);
+                                        } catch (ReflectiveOperationException e) {
+                                            throw new ExceptionInInitializerError(e);
+                                        }
                                     }
                                 }
                                 """,
