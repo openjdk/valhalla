@@ -4487,7 +4487,6 @@ public class Check {
             switch (lint) {
                 case UNCHECKED:
                     Check.this.warnUnchecked(pos(), Warnings.ProbFoundReq(diags.fragment(uncheckedKey), found, expected));
-                    this.warned = true;
                     break;
                 case VARARGS:
                     if (method != null &&
@@ -4496,15 +4495,14 @@ public class Check {
                             !types.isReifiable(method.type.getParameterTypes().last())) {
                         Check.this.warnUnsafeVararg(pos(), Warnings.VarargsUnsafeUseVarargsParam(method.params.last()));
                     }
-                    this.warned = true;
                     break;
                 case NULL:
                     Check.this.warnNullableTypes(pos(), Warnings.UncheckedNullnessConversion);
-                    this.warned = true;
                     break;
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);
             }
+            this.warned = true;
         }
     }
 
