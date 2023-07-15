@@ -1105,7 +1105,7 @@ public class Types {
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
         if (t.equalsIgnoreMetadata(s)) {
-            nullabilityComparator.reset((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
+            new NullabilityComparator((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
             return true;
         }
         if (s.isPartial())
@@ -1225,7 +1225,7 @@ public class Types {
                     && isSubtypeNoCapture(sup.getEnclosingType(),
                                           s.getEnclosingType());
                 if (result) {
-                    nullabilityComparator.reset((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
+                    new NullabilityComparator((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
                 }
                 return result;
             }
@@ -1274,13 +1274,11 @@ public class Types {
             }
         }
 
-        public NullabilityComparator nullabilityComparator = new NullabilityComparator();
         public class NullabilityComparator extends TypeRelation {
             BiFunction<Type, Type, Boolean> differentNullability;
 
-            NullabilityComparator reset(BiFunction<Type, Type, Boolean> differentNullability) {
+            NullabilityComparator(BiFunction<Type, Type, Boolean> differentNullability) {
                 this.differentNullability = differentNullability;
-                return this;
             }
 
             @Override
@@ -1511,8 +1509,7 @@ public class Types {
                         && visit(t.getEnclosingType(), s.getEnclosingType())
                         && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
                 if (equal) {
-                    nullabilityComparator.reset((t1, t2) -> !hasSameNullability(t1, t2))
-                            .visit(s, t);
+                    new NullabilityComparator((t1, t2) -> !hasSameNullability(t1, t2)).visit(s, t);
                 }
                 return equal;
             }
@@ -5403,16 +5400,14 @@ public class Types {
      * Do t and s have the same nullability?
      */
     public boolean hasSameNullability(Type t, Type s) {
-        // special case for literals, a literal is always != null
-        boolean isLiteral = s != null && s.getMetadata(TypeMetadata.ConstantValue.class) != null;
         if (s == null) {
             return t.isNullUnspecified();
         }
         if (t.isNullUnspecified()) {
-            return s.isNullUnspecified() && !isLiteral;
+            return s.isNullUnspecified();
         }
         if (t.isNonNullable()) {
-            return s.isNonNullable() || isLiteral;
+            return s.isNonNullable();
         }
         throw new AssertionError("shouldn't get here");
     }
@@ -5421,10 +5416,8 @@ public class Types {
      * Does t has narrower nullability than s?
      */
     public boolean hasNarrowerNullability(Type t, Type s) {
-        // special case for literals, a literal is always != null
-        boolean isLiteral = s != null && s.getMetadata(TypeMetadata.ConstantValue.class) != null;
         if (t.isNonNullable()) {
-            return s != null && !s.isNonNullable() && !isLiteral;
+            return s != null && !s.isNonNullable();
         }
         return false;
     }

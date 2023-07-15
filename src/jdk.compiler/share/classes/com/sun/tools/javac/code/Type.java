@@ -396,7 +396,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     @SuppressWarnings("unchecked")
     public <M extends TypeMetadata, Z> Z getMetadata(Class<M> metadataClass, Function<M, Z> metadataFunc, Z defaultValue) {
         for (TypeMetadata m : metadata) {
-            if (m.getClass().isAssignableFrom(metadataClass)) {
+            if (m.getClass() == metadataClass) {
                 return metadataFunc.apply((M)m);
             }
         }
@@ -1115,7 +1115,9 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         public Type constType(Object constValue) {
-            return addMetadata(new ConstantValue(constValue));
+            return isPrimitive() ?
+                    addMetadata(new ConstantValue(constValue)) :
+                    addMetadata(new ConstantValue(constValue)).addMetadata(new TypeMetadata.NullMarker(NullMarker.NOT_NULL));
         }
 
         /** The Java source which this type represents.

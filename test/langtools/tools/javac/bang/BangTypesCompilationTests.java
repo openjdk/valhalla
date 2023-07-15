@@ -609,7 +609,31 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                          */
                                         VALUE.setVolatile(this, identity);
                                     }
-                                                                
+
+                                    private static final VarHandle VALUE;
+                                    static {
+                                        try {
+                                            MethodHandles.Lookup l = MethodHandles.lookup();
+                                            VALUE = l.findVarHandle(Cell.class, "value", long.class);
+                                        } catch (ReflectiveOperationException e) {
+                                            throw new ExceptionInInitializerError(e);
+                                        }
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                import java.lang.invoke.*;
+                                class Cell {
+                                    final void reset() {
+                                        VALUE.setVolatile(this, 0L);
+                                    }
+                                    final void reset(long identity) {
+                                        VALUE.setVolatile(this, identity);
+                                    }
+
                                     private static final VarHandle VALUE;
                                     static {
                                         try {
