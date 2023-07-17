@@ -568,6 +568,8 @@ class Parse : public GraphKit {
 
   void    do_ifnull(BoolTest::mask btest, Node* c);
   void    do_if(BoolTest::mask btest, Node* c, bool new_path = false, Node** ctrl_taken = NULL);
+  void    my_if(Node* region, Node* cmp, uint idx);
+  void    can_cmp_fields(InlineTypeNode* node, bool* res);
   void    cmp_fields(InlineTypeNode* temp_l, InlineTypeNode* right, Node* region);
   void    do_acmp(BoolTest::mask btest, Node* left, Node* right);
   void    acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region);
