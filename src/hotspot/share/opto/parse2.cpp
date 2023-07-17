@@ -2215,7 +2215,7 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
         if (btest == BoolTest::eq) {
           //PreserveJVMState pjvms(this);
-          my_if(pointer_region, subst_cmp, 3);
+          my_if(pointer_region, subst_cmp, 2);
           ne_region->set_req(5, _gvn.transform(pointer_region));
         }else{
           assert(false, "we only do eq here");
@@ -2245,7 +2245,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   bool left_inline_type = true;
   bool right_inline_type = true;
 
-  bool experimental = false;
+  bool experimental = true;
   if (left->is_InlineType() && right->is_InlineType() && experimental) {
     // assume that we already know that left and right are IlnineTypeNodes
     InlineTypeNode *temp_l = left->isa_InlineType();
