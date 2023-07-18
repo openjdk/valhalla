@@ -69,13 +69,13 @@ inline InstanceKlass* volatile* InstanceKlass::adr_implementor() const {
 inline address InstanceKlass::adr_inline_type_field_klasses() const {
   if (has_inline_type_fields()) {
     InstanceKlass* volatile* adr_impl = adr_implementor();
-    if (adr_impl != NULL) {
+    if (adr_impl != nullptr) {
       return (address)(adr_impl + 1);
     }
 
     return (address)end_of_nonstatic_oop_maps();
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -83,7 +83,7 @@ inline Klass* InstanceKlass::get_inline_type_field_klass(int idx) const {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
   Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
-  assert(k != NULL, "Should always be set before being read");
+  assert(k != nullptr, "Should always be set before being read");
   assert(k->is_inline_klass(), "Must be an inline type");
   return k;
 }
@@ -92,22 +92,22 @@ inline Klass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) const 
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
   Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
-  assert(k == NULL || k->is_inline_klass(), "Must be an inline type");
+  assert(k == nullptr || k->is_inline_klass(), "Must be an inline type");
   return k;
 }
 
 inline void InstanceKlass::set_inline_type_field_klass(int idx, Klass* k) {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
-  assert(k != NULL, "Should not be set to NULL");
-  assert(((Klass**)adr_inline_type_field_klasses())[idx] == NULL, "Should not be set twice");
+  assert(k != nullptr, "Should not be set to nullptr");
+  assert(((Klass**)adr_inline_type_field_klasses())[idx] == nullptr, "Should not be set twice");
   ((Klass**)adr_inline_type_field_klasses())[idx] = k;
 }
 
 inline void InstanceKlass::reset_inline_type_field_klass(int idx) {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
-  ((Klass**)adr_inline_type_field_klasses())[idx] = NULL;
+  ((Klass**)adr_inline_type_field_klasses())[idx] = nullptr;
 }
 
 

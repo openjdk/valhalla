@@ -412,7 +412,7 @@ public:
   }
   static const JavaPermission permission() {
     JavaPermission p = {"java.lang.management.ManagementPermission",
-                        "monitor", NULL};
+                        "monitor", nullptr};
     return p;
   }
   static int num_arguments();

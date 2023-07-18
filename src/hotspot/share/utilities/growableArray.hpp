@@ -919,7 +919,7 @@ class GrowableArrayFilterIterator : public StackObj {
   }
 
   bool at_end() const {
-    return _array == NULL || _position == _array->end()._position;
+    return _array == nullptr || _position == _array->end()._position;
   }
 };
 

@@ -154,7 +154,7 @@ protected:
 public:
   C2ParseAccess(GraphKit* kit, DecoratorSet decorators,
                 BasicType type, Node* base, C2AccessValuePtr& addr,
-                Node* ctl = NULL) :
+                Node* ctl = nullptr) :
     C2Access(decorators, type, base, addr),
     _kit(kit),
     _ctl(ctl) {

@@ -1766,7 +1766,7 @@ size_t ObjectSynchronizer::deflate_idle_monitors(ObjectMonitorsHashtable* table)
     // After the handshake, safely free the ObjectMonitors that were
     // deflated and unlinked in this cycle.
     if (current->is_Java_thread()) {
-      if (ls != NULL) {
+      if (ls != nullptr) {
         timer.stop();
         ls->print_cr("before setting blocked: unlinked_count=" SIZE_FORMAT
                      ", in_use_list stats: ceiling=" SIZE_FORMAT ", count="
@@ -1777,7 +1777,7 @@ size_t ObjectSynchronizer::deflate_idle_monitors(ObjectMonitorsHashtable* table)
       // Mark the calling JavaThread blocked (safepoint safe) while we free
       // the ObjectMonitors so we don't delay safepoints whilst doing that.
       ThreadBlockInVM tbivm(JavaThread::cast(current));
-      if (ls != NULL) {
+      if (ls != nullptr) {
         ls->print_cr("after setting blocked: in_use_list stats: ceiling="
                      SIZE_FORMAT ", count=" SIZE_FORMAT ", max=" SIZE_FORMAT,
                      in_use_list_ceiling(), _in_use_list.count(), _in_use_list.max());

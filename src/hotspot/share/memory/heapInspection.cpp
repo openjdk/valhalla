@@ -538,11 +538,11 @@ private:
   AccessFlags _access_flags;
  public:
   FieldDesc() {
-    _name = NULL;
-    _signature = NULL;
+    _name = nullptr;
+    _signature = nullptr;
     _offset = -1;
     _index = -1;
-    _holder = NULL;
+    _holder = nullptr;
     _access_flags = AccessFlags();
   }
   FieldDesc(fieldDescriptor& fd) {

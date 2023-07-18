@@ -264,7 +264,7 @@ class VerificationType {
 
   static VerificationType change_ref_to_inline_type(VerificationType ref) {
     assert(ref.is_reference(), "Bad arg");
-    assert(!ref.is_null(), "Unexpected NULL");
+    assert(!ref.is_null(), "Unexpected nullptr");
     return inline_type(ref.name());
   }
 

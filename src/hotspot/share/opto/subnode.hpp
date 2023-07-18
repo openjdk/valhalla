@@ -315,7 +315,7 @@ public:
     C->add_macro_node(this);
   }
   virtual int Opcode() const;
-  virtual const Type* sub(const Type*, const Type*) const { ShouldNotReachHere(); return NULL; }
+  virtual const Type* sub(const Type*, const Type*) const { ShouldNotReachHere(); return nullptr; }
   const Type* Value(PhaseGVN* phase) const;
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };

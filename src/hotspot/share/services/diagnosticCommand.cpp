@@ -934,8 +934,8 @@ void PrintClassLayoutDCmd::execute(DCmdSource source, TRAPS) {
 
 int PrintClassLayoutDCmd::num_arguments() {
   ResourceMark rm;
-  PrintClassLayoutDCmd* dcmd = new PrintClassLayoutDCmd(NULL, false);
-  if (dcmd != NULL) {
+  PrintClassLayoutDCmd* dcmd = new PrintClassLayoutDCmd(nullptr, false);
+  if (dcmd != nullptr) {
     DCmdMark mark(dcmd);
     return dcmd->_dcmdparser.num_arguments();
   } else {
