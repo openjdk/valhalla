@@ -877,8 +877,8 @@ Node *CmpINode::Ideal( PhaseGVN *phase, bool can_reshape ) {
 
 //------------------------------Ideal------------------------------------------
 Node* CmpLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  Node* a = NULL;
-  Node* b = NULL;
+  Node* a = nullptr;
+  Node* b = nullptr;
   if (is_double_null_check(phase, a, b) && (phase->type(a)->is_zero_type() || phase->type(b)->is_zero_type())) {
     // Degraded to a simple null check, use old acmp
     return new CmpPNode(a, b);
@@ -909,10 +909,10 @@ bool CmpLNode::is_double_null_check(PhaseGVN* phase, Node*& a, Node*& b) const {
 
 //------------------------------Value------------------------------------------
 const Type* CmpLNode::Value(PhaseGVN* phase) const {
-  Node* a = NULL;
-  Node* b = NULL;
+  Node* a = nullptr;
+  Node* b = nullptr;
   if (is_double_null_check(phase, a, b) && (!phase->type(a)->maybe_null() || !phase->type(b)->maybe_null())) {
-    // One operand is never NULL, emit constant false
+    // One operand is never nullptr, emit constant false
     return TypeInt::CC_GT;
   }
   return SubNode::Value(phase);
@@ -1227,7 +1227,7 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // the klass for [LMyValue. Do not bypass the klass load from the primary supertype array.
   if (superklass->is_obj_array_klass() && !superklass->as_array_klass()->is_elem_null_free() &&
       superklass->as_array_klass()->element_klass()->is_inlinetype()) {
-    return NULL;
+    return nullptr;
   }
 
   // If 'superklass' has no subklasses and is not an interface, then we are
@@ -1408,7 +1408,7 @@ Node* FlatArrayCheckNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       changed = true;
     }
   }
-  return changed ? this : NULL;
+  return changed ? this : nullptr;
 }
 
 //=============================================================================

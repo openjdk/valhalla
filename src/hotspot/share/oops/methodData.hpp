@@ -463,11 +463,11 @@ public:
   }
   ArrayLoadStoreData* as_ArrayLoadStoreData() const {
     assert(is_ArrayLoadStoreData(), "wrong type");
-    return is_ArrayLoadStoreData() ? (ArrayLoadStoreData*)this : NULL;
+    return is_ArrayLoadStoreData() ? (ArrayLoadStoreData*)this : nullptr;
   }
   ACmpData* as_ACmpData() const {
     assert(is_ACmpData(), "wrong type");
-    return is_ACmpData() ? (ACmpData*)this : NULL;
+    return is_ACmpData() ? (ACmpData*)this : nullptr;
   }
 
 
@@ -1935,7 +1935,7 @@ public:
     return cell_offset(static_cell_count());
   }
 
-  virtual void print_data_on(outputStream* st, const char* extra = NULL) const;
+  virtual void print_data_on(outputStream* st, const char* extra = nullptr) const;
 };
 
 class ACmpData : public BranchData {
@@ -2008,7 +2008,7 @@ public:
     return cell_offset(static_cell_count());
   }
 
-  virtual void print_data_on(outputStream* st, const char* extra = NULL) const;
+  virtual void print_data_on(outputStream* st, const char* extra = nullptr) const;
 };
 
 // MethodData*

@@ -658,9 +658,9 @@ bool ciMethod::parameter_profiled_type(int i, ciKlass*& type, ProfilePtrKind& pt
 }
 
 bool ciMethod::array_access_profiled_type(int bci, ciKlass*& array_type, ciKlass*& element_type, ProfilePtrKind& element_ptr, bool &flat_array, bool &null_free_array) {
-  if (method_data() != NULL && method_data()->is_mature()) {
+  if (method_data() != nullptr && method_data()->is_mature()) {
     ciProfileData* data = method_data()->bci_to_data(bci);
-    if (data != NULL && data->is_ArrayLoadStoreData()) {
+    if (data != nullptr && data->is_ArrayLoadStoreData()) {
       ciArrayLoadStoreData* array_access = (ciArrayLoadStoreData*)data->as_ArrayLoadStoreData();
       array_type = array_access->array()->valid_type();
       element_type = array_access->element()->valid_type();
@@ -674,9 +674,9 @@ bool ciMethod::array_access_profiled_type(int bci, ciKlass*& array_type, ciKlass
 }
 
 bool ciMethod::acmp_profiled_type(int bci, ciKlass*& left_type, ciKlass*& right_type, ProfilePtrKind& left_ptr, ProfilePtrKind& right_ptr, bool &left_inline_type, bool &right_inline_type) {
-  if (method_data() != NULL && method_data()->is_mature()) {
+  if (method_data() != nullptr && method_data()->is_mature()) {
     ciProfileData* data = method_data()->bci_to_data(bci);
-    if (data != NULL && data->is_ACmpData()) {
+    if (data != nullptr && data->is_ACmpData()) {
       ciACmpData* acmp = (ciACmpData*)data->as_ACmpData();
       left_type = acmp->left()->valid_type();
       right_type = acmp->right()->valid_type();
@@ -1535,8 +1535,8 @@ bool ciMethod::has_scalarized_args() const {
 
 const GrowableArray<SigEntry>* ciMethod::get_sig_cc() const {
   VM_ENTRY_MARK;
-  if (get_Method()->adapter() == NULL) {
-    return NULL;
+  if (get_Method()->adapter() == nullptr) {
+    return nullptr;
   }
   return get_Method()->adapter()->get_sig_cc();
 }

@@ -66,7 +66,7 @@ Node* PhaseIdealLoop::split_thru_phi(Node* n, Node* region, int policy) {
   // Inline types should not be split through Phis because they cannot be merged
   // through Phi nodes but each value input needs to be merged individually.
   if (n->is_InlineType()) {
-    return NULL;
+    return nullptr;
   }
 
   if (cannot_split_division(n, region)) {
@@ -707,7 +707,7 @@ Node *PhaseIdealLoop::conditional_move( Node *region ) {
       Node *inp = phi->in(j);
       if (inp->isa_InlineType()) {
         // TODO 8302217 This prevents PhiNode::push_inline_types_through
-        return NULL;
+        return nullptr;
       }
       if (get_ctrl(inp) == proj) { // Found local op
         cost++;
@@ -1414,11 +1414,11 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
   intptr_t offset;
   Node* obj = AddPNode::Ideal_base_and_offset(addr, &_igvn, offset);
 
-  if (obj == NULL) {
+  if (obj == nullptr) {
     return false;
   }
 
-  assert(obj != NULL && addr->in(AddPNode::Base) == addr->in(AddPNode::Address), "malformed AddP?");
+  assert(obj != nullptr && addr->in(AddPNode::Base) == addr->in(AddPNode::Address), "malformed AddP?");
   if (obj->Opcode() == Op_CastPP) {
     obj = obj->in(1);
   }
@@ -1435,7 +1435,7 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
     Node* ctrl = region->in(i);
     if (addr->in(AddPNode::Base) != obj) {
       Node* cast = addr->in(AddPNode::Base);
-      assert(cast->Opcode() == Op_CastPP && cast->in(0) != NULL, "inconsistent subgraph");
+      assert(cast->Opcode() == Op_CastPP && cast->in(0) != nullptr, "inconsistent subgraph");
       Node* cast_clone = cast->clone();
       cast_clone->set_req(0, ctrl);
       cast_clone->set_req(1, in);
@@ -2052,7 +2052,7 @@ Node* PhaseIdealLoop::clone_iff(PhiNode* phi) {
   }
   Node* sample_cmp = sample_bool->in(1);
   const Type* t = Type::TOP;
-  const TypePtr* at = NULL;
+  const TypePtr* at = nullptr;
   if (sample_cmp->is_FlatArrayCheck()) {
     // Left input of a FlatArrayCheckNode is memory, set the (adr) type of the phi accordingly
     assert(sample_cmp->in(1)->bottom_type() == Type::MEMORY, "unexpected input type");

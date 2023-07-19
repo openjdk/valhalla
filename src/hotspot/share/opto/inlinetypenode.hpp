@@ -44,8 +44,8 @@ protected:
 
   enum { Control,    // Control input.
          Oop,        // Oop to heap allocated buffer.
-         IsBuffered, // True if inline type is heap allocated (or NULL), false otherwise.
-         IsInit,     // Needs to be checked for NULL before using the field values.
+         IsBuffered, // True if inline type is heap allocated (or nullptr), false otherwise.
+         IsInit,     // Needs to be checked for nullptr before using the field values.
          Values      // Nodes corresponding to values of the inline type's fields.
                      // Nodes are connected in increasing order of the index of the field they correspond to.
   };
@@ -64,7 +64,7 @@ protected:
   bool is_larval(PhaseGVN* gvn) const;
 
   // Checks if the inline type is loaded from memory and if so returns the oop
-  Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = NULL, Node* base = NULL, int holder_offset = 0);
+  Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = nullptr, Node* base = nullptr, int holder_offset = 0);
 
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
   void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free, Node* null_check_region, GrowableArray<ciType*>& visited);
@@ -84,7 +84,7 @@ public:
   // Create and initialize by loading the field values from an oop
   static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true);
   // Create and initialize by loading the field values from a flattened field or array
-  static InlineTypeNode* make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
+  static InlineTypeNode* make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = nullptr, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
   static InlineTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free = true);
   // Create with null field values
@@ -123,7 +123,7 @@ public:
   void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);
 
   // Store the inline type as a flattened (headerless) representation
-  void store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
+  void store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = nullptr, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
   // Store the field values to memory
   void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
   // Initialize the inline type by loading its field values from memory
