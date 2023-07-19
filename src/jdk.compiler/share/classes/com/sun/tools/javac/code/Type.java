@@ -235,7 +235,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return false;
     }
 
-    public boolean isValueClassWithImplicitConstructor() {
+    public boolean hasImplicitConstructor() {
         return false;
     }
 
@@ -1294,8 +1294,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         @Override
-        public boolean isValueClassWithImplicitConstructor() {
-            return tsym != null && tsym.isValueClassWithImplicitConstructor();
+        public boolean hasImplicitConstructor() {
+            return tsym != null && tsym.kind == TYP && ((ClassSymbol)tsym).getImplicitConstructor() != null;
         }
 
         @Override

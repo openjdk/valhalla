@@ -81,7 +81,6 @@ import static com.sun.tools.javac.jvm.ByteCodes.iadd;
 import static com.sun.tools.javac.jvm.ByteCodes.ishll;
 import static com.sun.tools.javac.jvm.ByteCodes.lushrl;
 import static com.sun.tools.javac.jvm.ByteCodes.lxor;
-import static com.sun.tools.javac.jvm.ByteCodes.ret;
 import static com.sun.tools.javac.jvm.ByteCodes.string_add;
 
 /** Root class for Java symbols. It contains subclasses
@@ -418,10 +417,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
     public boolean isValueClass() {
         return !isInterface() && (flags() & VALUE_CLASS) != 0;
-    }
-
-    public boolean isValueClassWithImplicitConstructor() {
-        return false;
     }
 
     public boolean isConcreteValueClass() {
@@ -1347,8 +1342,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         public boolean isPermittedExplicit = false;
 
-        public boolean isValueClassWithImplicitConstructor = false;
-
         public ClassSymbol(long flags, Name name, Type type, Symbol owner) {
             super(TYP, flags, name, type, owner);
             this.members_field = null;
@@ -1706,12 +1699,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             }
             return null;
         }
-
-        @Override
-        public boolean isValueClassWithImplicitConstructor() {
-            return isValueClassWithImplicitConstructor;
-        }
-
     }
 
 

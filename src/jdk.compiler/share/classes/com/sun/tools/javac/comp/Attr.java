@@ -1168,7 +1168,6 @@ public class Attr extends JCTree.Visitor {
                 chk.checkType(l.head.pos(), l.head.type, syms.throwableType);
 
             if (tree.sym.isImplicitConstructor()) {
-                ((ClassSymbol)tree.sym.owner).isValueClassWithImplicitConstructor = true;
                 if (tree.body == null) {
                     tree.body = make.Block(0, List.nil());
                 } else {

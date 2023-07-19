@@ -5217,7 +5217,7 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    if (types.emitQDesc && type.isValueClassWithImplicitConstructor() && type.isNonNullable())
+                    if (types.emitQDesc && type.hasImplicitConstructor() && type.isNonNullable())
                         append('Q');
                     else
                         append('L');
