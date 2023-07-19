@@ -102,6 +102,7 @@ public class Lower extends TreeTranslator {
     private final PkgInfo pkginfoOpt;
     private final boolean optimizeOuterThis;
     private final boolean useMatchException;
+    private final boolean emitQDesc;
 
     @SuppressWarnings("this-escape")
     protected Lower(Context context) {
@@ -133,6 +134,7 @@ public class Lower extends TreeTranslator {
         Preview preview = Preview.instance(context);
         useMatchException = Feature.PATTERN_SWITCH.allowedInSource(source) &&
                             (preview.isEnabled() || !preview.isPreview(Feature.PATTERN_SWITCH));
+        emitQDesc = options.isSet("emitQDesc");
     }
 
     /** The currently enclosing class.
@@ -4212,7 +4214,7 @@ public class Lower extends TreeTranslator {
             noOfDims++;
         }
         tree.elems = translate(tree.elems, types.elemtype(tree.type));
-        if (tree.elemtype == null || !originalElemType.type.isNonNullable()) {
+        if (emitQDesc || tree.elemtype == null || !originalElemType.type.isNonNullable()) {
             result = tree;
         } else {
             Symbol elemClass = syms.getClassField(tree.elemtype.type, types);

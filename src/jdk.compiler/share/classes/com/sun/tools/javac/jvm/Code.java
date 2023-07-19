@@ -1066,7 +1066,7 @@ public class Code {
             break;
         case checkcast: {
             state.pop(1); // object ref
-            Type t = types.erasure((Type)data);
+            Type t = types.erasure(data instanceof  ConstantPoolQType ? ((ConstantPoolQType)data).type: (Type)data);
             state.push(t);
             break; }
         case ldc2w:

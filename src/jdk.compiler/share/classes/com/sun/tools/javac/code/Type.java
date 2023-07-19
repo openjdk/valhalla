@@ -235,6 +235,10 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return false;
     }
 
+    public boolean isValueClassWithImplicitConstructor() {
+        return false;
+    }
+
     public boolean isValueInterface() {
         return false;
     }
@@ -1052,6 +1056,40 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
     }
 
+    public static class ConstantPoolQType implements PoolConstant {
+
+        public final Type type;
+        final Types types;
+
+        public ConstantPoolQType(Type type, Types types) {
+            this.type = type;
+            this.types = types;
+        }
+
+        @Override
+        public Object poolKey(Types types) {
+            return this;
+        }
+
+        @Override
+        public int poolTag() {
+            return ClassFile.CONSTANT_Class;
+        }
+
+        public int hashCode() {
+            return types.hashCode(type);
+        }
+
+        public boolean equals(Object obj) {
+            return (obj instanceof ConstantPoolQType) &&
+                    types.isSameType(type, ((ConstantPoolQType)obj).type);
+        }
+
+        public String toString() {
+            return type.toString();
+        }
+    }
+
     public static class ClassType extends Type implements DeclaredType, LoadableConstant,
                                                           javax.lang.model.type.ErrorType {
         /** The enclosing type of this type. If this is the type of an inner
@@ -1253,6 +1291,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override
         public boolean isValueClass() {
             return tsym != null && tsym.isValueClass();
+        }
+
+        @Override
+        public boolean isValueClassWithImplicitConstructor() {
+            return tsym != null && tsym.isValueClassWithImplicitConstructor();
         }
 
         @Override

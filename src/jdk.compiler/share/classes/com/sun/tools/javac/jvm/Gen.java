@@ -136,6 +136,7 @@ public class Gen extends JCTree.Visitor {
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
         qualifiedSymbolCache = new HashMap<>();
+        emitQDesc = options.isSet("emitQDesc");
     }
 
     /** Switches
@@ -145,6 +146,7 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private boolean disableVirtualizedPrivateInvoke;
+    private final boolean emitQDesc;
 
     /** Code buffer, set by genMethod.
      */
@@ -274,8 +276,16 @@ public class Gen extends JCTree.Visitor {
      *  @param type   The type for which a reference is inserted.
      */
     int makeRef(DiagnosticPosition pos, Type type) {
+        return makeRef(pos, type, false);
+    }
+
+    int makeRef(DiagnosticPosition pos, Type type, boolean emitQtype) {
         checkDimension(pos, type);
-        return poolWriter.putClass(type);
+        if (emitQtype) {
+            return poolWriter.putClass(new ConstantPoolQType(type, types));
+        } else {
+            return poolWriter.putClass(type);
+        }
     }
 
     /** Check if the given type is an array with too many dimensions.
@@ -2107,7 +2117,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype), type);
+                code.emitAnewarray(makeRef(pos, elemtype, elemtype.isValueClassWithImplicitConstructor() && elemtype.isNonNullable()), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {
@@ -2344,7 +2354,12 @@ public class Gen extends JCTree.Visitor {
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
            types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
-            code.emitop2(checkcast, checkDimension(tree.pos(), tree.clazz.type), PoolWriter::putClass);
+            checkDimension(tree.pos(), tree.clazz.type);
+            if (tree.clazz.type.isValueClassWithImplicitConstructor()) {
+                code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
+            } else {
+                code.emitop2(checkcast, tree.clazz.type, PoolWriter::putClass);
+            }
         }
     }
 
@@ -2406,7 +2421,7 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type));
+            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, tree.selected.type.isValueClassWithImplicitConstructor()));
             result = items.makeStackItem(pt);
             return;
         }

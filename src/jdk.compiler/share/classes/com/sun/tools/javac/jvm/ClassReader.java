@@ -137,6 +137,10 @@ public class ClassReader {
      */
     public boolean hasImplicitConstructor;
 
+    /** Switch: emit Q descriptors
+     */
+    private boolean emitQDesc;
+
     /**
      * The currently selected profile.
      */
@@ -303,6 +307,8 @@ public class ClassReader {
         typevars = WriteableScope.create(syms.noSymbol);
 
         lintClassfile = Lint.instance(context).isEnabled(LintCategory.CLASSFILE);
+
+        emitQDesc = options.isSet("emitQDesc");
 
         initAttributeReaders();
     }
@@ -510,9 +516,14 @@ public class ClassReader {
         case 'J':
             sigp++;
             return syms.longType;
+        case 'Q':
         case 'L':
             {
                 // int oldsigp = sigp;
+                if ((char) signature[sigp] == 'Q' && !emitQDesc) {
+                    throw badClassFile("bad.class.signature",
+                                       quoteBadSignature());
+                }
                 Type t = classSigToType();
                 if (sigp < siglimit && signature[sigp] == '.')
                     throw badClassFile("deprecated inner class signature syntax " +
@@ -571,7 +582,7 @@ public class ClassReader {
      */
     Type classSigToType() {
         byte prefix = signature[sigp];
-        if (prefix != 'L')
+        if (prefix != 'L' && (!emitQDesc || prefix != 'Q'))
             throw badClassFile("bad.class.signature", quoteBadSignature());
         sigp++;
         Type outer = Type.noType;
@@ -2648,6 +2659,11 @@ public class ClassReader {
         long flags = adjustClassFlags(f);
         if (c == syms.objectType.tsym) {
             flags &= ~IDENTITY_TYPE; // jlO lacks identity even while being a concrete class.
+        }
+        if ((flags & PRIMITIVE_CLASS) != 0) {
+            if (!emitQDesc || (flags & (FINAL | PRIMITIVE_CLASS | IDENTITY_TYPE)) != (FINAL | PRIMITIVE_CLASS)) {
+                throw badClassFile("bad.access.flags", Flags.toString(flags));
+            }
         }
         if ((flags & MODULE) == 0) {
             if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
