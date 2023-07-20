@@ -56,7 +56,7 @@ public class Processor extends JavacTestingAbstractProcessor {
 
             checkCorrectException(check::classValue, "java.lang.Class<java.lang.String>");
             checkCorrectException(check::intConstValue, "boolean");
-            checkCorrectException(check::enumValue, "java.lang.String");
+            checkCorrectException(check::enumValue, "java.lang.String!");
             checkCorrectException(check::incorrectAnnotationValue, "java.lang.Deprecated");
             checkCorrectException(check::incorrectArrayValue, "<any>");
             checkCorrectException(check::incorrectClassValue, "<any>");

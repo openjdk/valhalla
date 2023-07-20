@@ -28,7 +28,6 @@ package com.sun.tools.javac.comp;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.ToIntBiFunction;
@@ -80,11 +79,8 @@ import static com.sun.tools.javac.code.TypeTag.WILDCARD;
 
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.ElementKindVisitor14;
 
 /** Type checking helper class for the attribution phase.
@@ -301,14 +297,10 @@ public class Check {
      *  @param pos        Position to be used for error reporting.
      *  @param warnKey    A warning key.
      */
-    public void warnBangTypes(DiagnosticPosition pos, Warning warnKey) {
+    public void warnNullableTypes(DiagnosticPosition pos, Warning warnKey) {
         if (lint.isEnabled(LintCategory.NULL)) {
             log.warning(LintCategory.NULL, pos, warnKey);
         }
-    }
-
-    public void errBangTypes(DiagnosticPosition pos, Error errKey) {
-        log.error(pos, errKey);
     }
 
     /** Warn about unsafe vararg method decl.
@@ -693,7 +685,7 @@ public class Check {
                 && !is292targetTypeCast(tree)) {
             deferredLintHandler.report(() -> {
                 if (lint.isEnabled(LintCategory.CAST)) {
-                    if (!lint.isEnabled(LintCategory.NULL) || !tree.clazz.type.hasNarrowerNullabilityThan(tree.expr.type)) {
+                    if (!lint.isEnabled(LintCategory.NULL) || !types.hasNarrowerNullability(tree.clazz.type, tree.expr.type)) {
                         log.warning(LintCategory.CAST,
                                 tree.pos(), Warnings.RedundantCast(tree.clazz.type));
                     }
@@ -729,9 +721,17 @@ public class Check {
              return true;
          } else if (!a.hasTag(WILDCARD)) {
              a = types.cvarUpperBound(a);
-             return pos != null ?
-                     types.isSubtype(a, bound, true, new NullnessWarner(pos)) :
-                     types.isSubtype(a, bound, true);
+             try {
+                 if (pos != null) {
+                     types.pushWarner(new NullnessWarner(pos));
+                 }
+                 return types.isSubtype(a, bound, true);
+             } finally {
+                 if (pos != null) {
+                     types.popWarner();
+                 }
+             }
+
          } else if (a.isExtendsBound()) {
              return types.isCastable(bound, types.wildUpperBound(a), types.noWarnings);
          } else if (a.isSuperBound()) {
@@ -2026,13 +2026,13 @@ public class Check {
         boolean resultTypesOK =
             types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
         if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-            warnBangTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness1);
+            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness1);
         }
         overrideWarner.remove(LintCategory.NULL);
         // at this point we know this will be true but to gather the warnings
         types.isSubSignature(mt, ot, overrideWarner);
         if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-            warnBangTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness2);
+            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness2);
         }
         if (!resultTypesOK) {
             if ((m.flags() & STATIC) != 0 && (other.flags() & STATIC) != 0) {
@@ -4460,7 +4460,7 @@ public class Check {
             if (warned) return; // suppress redundant diagnostics
             switch (lint) {
                 case NULL:
-                    Check.this.warnBangTypes(pos(), Warnings.UncheckedNullnessConversion);
+                    Check.this.warnNullableTypes(pos(), Warnings.UncheckedNullnessConversion);
                     break;
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);
@@ -4497,11 +4497,12 @@ public class Check {
                     }
                     break;
                 case NULL:
-                    Check.this.warnBangTypes(pos(), Warnings.UncheckedNullnessConversion);
+                    Check.this.warnNullableTypes(pos(), Warnings.UncheckedNullnessConversion);
                     break;
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);
             }
+            this.warned = true;
         }
     }
 
@@ -4519,7 +4520,7 @@ public class Check {
                 if (warned) return;
                 if (expected.isParametric()) {
                     // not sure this is the right warning
-                    Check.this.warnBangTypes(pos(), Warnings.NarrowingNullnessConversion);
+                    Check.this.warnNullableTypes(pos(), Warnings.NarrowingNullnessConversion);
                 }
             }
         }
