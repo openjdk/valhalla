@@ -2060,11 +2060,16 @@ void Parse::my_if(Node* region, Node* cmp, uint idx){
   set_control(IfTrue(ifnode));
 }
 
-void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region){
+void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region, Node* io_phi, Node* mem_phi){
   //get current control
 
   //iterate and compare all the fields
   for (uint i = 0; i < left->field_count(); i++) {
+    io_phi->init_req(i+1, i_o());
+    Node* mem = reset_memory();
+    mem_phi->init_req(i+1, mem);
+    set_all_memory(mem);
+
     Node* left_field = left->field_value(i);
     Node* right_field = right->field_value(i);
     //since we have already checked that the types are the same, it is enough to only use the types from one side
@@ -2097,7 +2102,7 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         InlineTypeNode* tmp_r = right_field->isa_InlineType();
         Node* next_region = new RegionNode(tmp_l->field_count()+1);
         //recursively call cmp_fields
-        cmp_fields(tmp_l, tmp_r, next_region);
+        cmp_fields(tmp_l, tmp_r, next_region, io_phi, mem_phi);
         //update region and control
         region->set_req(i+1, _gvn.transform(next_region));
         //skip the rest of the loop body
@@ -2134,7 +2139,6 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
           right_field = right_field->as_InlineType()->buffer(this)->get_oop();
         }
 
-
         // First, do a normal pointer comparison
         tleft = _gvn.type(left_field)->isa_oopptr();
         tright = _gvn.type(right_field)->isa_oopptr();
@@ -2146,9 +2150,12 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
           my_if(region, cmp, i+1);
           continue;
         }
-        Node* pointer_region = new RegionNode(3);
+        Node* eq_region = new RegionNode(3);
         if (btest == BoolTest::eq) {
-          my_if(pointer_region, cmp, 1);
+          Node* res = Bool(cmp, BoolTest::mask::eq);
+          IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
+          eq_region->set_req(1, IfTrue(ifnode));
+          set_control(IfFalse(ifnode));
           if (stopped()) {
             continue;
           }
@@ -2195,8 +2202,8 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         Node* mem = reset_memory();
         Node* ne_mem_phi = PhiNode::make(ne_region, mem);
 
-        Node* eq_io_phi = NULL;
-        Node* eq_mem_phi = NULL;
+        Node* eq_io_phi = PhiNode::make(eq_region, i_o());
+        Node* eq_mem_phi = PhiNode::make(eq_region, mem);
 
         set_all_memory(mem);
 
@@ -2213,20 +2220,33 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
 
         // Test the return value of ValueObjectMethods::isSubstitutable()
         Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
+        Node* ctl = C->top();
         if (btest == BoolTest::eq) {
-          //PreserveJVMState pjvms(this);
-          my_if(pointer_region, subst_cmp, 2);
-          ne_region->set_req(5, _gvn.transform(pointer_region));
-        }else{
-          assert(false, "we only do eq here");
+          Node* res = Bool(subst_cmp, BoolTest::mask::eq);
+          IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
+          eq_region->init_req(2, _gvn.transform(IfTrue(ifnode)));
+          set_control(_gvn.transform(eq_region));
+          if (!stopped()) {
+            ctl = IfFalse(ifnode);
+          }
+        } else {
+          assert(false, "only eq here");
         }
+        mem = reset_memory();
+        ne_region->init_req(5, _gvn.transform(ctl));
+        ne_io_phi->init_req(5, i_o());
+        ne_mem_phi->init_req(5, _gvn.transform(mem));
+
+        eq_io_phi->init_req(2, i_o());
+        eq_mem_phi->init_req(2, _gvn.transform(mem));
+        set_i_o(_gvn.transform(eq_io_phi));
+        set_all_memory(_gvn.transform(eq_mem_phi));
+
         record_for_igvn(ne_region);
         region->set_req(i+1, _gvn.transform(ne_region));
-        ne_io_phi->init_req(5, i_o());
-        ne_mem_phi->init_req(5, reset_memory());
+        io_phi->set_req(i+1, _gvn.transform(ne_io_phi));
+        mem_phi->set_req(i+1, _gvn.transform(ne_mem_phi));
 
-        set_i_o(_gvn.transform(ne_io_phi));
-        set_all_memory(_gvn.transform(ne_mem_phi));
         continue;
       }
     }
@@ -2260,8 +2280,15 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       // the region nodes combines all the fast paths
       // as soon as one field is not equal, we know that the value objects are not equal -> abort through the region node
       Node *region = new RegionNode(temp_l->field_count() + 1);
-      cmp_fields(temp_l, temp_r, region);
+      Node *io_phi = PhiNode::make(region, i_o());
+      Node* mem = reset_memory();
+      Node* mem_phi = PhiNode::make(region, mem);
+      set_all_memory(mem);
+
+      cmp_fields(temp_l, temp_r, region, io_phi, mem_phi);
       Node *ctrl = control();
+      Node* io = i_o();
+      mem = reset_memory();
       region = _gvn.transform(region);
 
       // swap region and control if btest is not eq, as cmp_fields checks for equality
@@ -2270,15 +2297,27 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
         Node *tmp = region;
         region = ctrl;
         ctrl = tmp;
+
+        tmp = io_phi;
+        io_phi = io;
+        io = tmp;
+
+        tmp = mem_phi;
+        mem_phi = mem;
+        mem = tmp;
       }
 
       {
         PreserveJVMState pjvms(this);
         set_control(ctrl);
+        set_i_o(_gvn.transform(io));
+        set_all_memory(_gvn.transform(mem));
         int target_bci = iter().get_dest();
         merge(target_bci);
       }
       set_control(region);
+      set_i_o(_gvn.transform(io_phi));
+      set_all_memory(_gvn.transform(mem_phi));
       return;
     } else {
       //TODO: should output not equal
