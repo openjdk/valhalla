@@ -131,7 +131,7 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.cannot.be.assigned.null"),
+                                "compiler.err.prob.found.req"),
                         new DiagAndCode(
                                 """
                                 class Foo {
@@ -139,7 +139,33 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.cannot.be.assigned.null")
+                                "compiler.err.prob.found.req"),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test<T> {
+                                    void m() {
+                                        Supplier<? extends T> factory = nullFactory();
+                                    }
+                                    Supplier<? extends T!> nullFactory() { return () -> null; }
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.prob.found.req"),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class MyList<T> {
+                                    void add(T! e) {}
+                                }
+                                class Test {
+                                    void m(MyList<? super Point!> ls) {
+                                        ls.add(null);
+                                    }
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.prob.found.req")
                 )
         );
     }
@@ -280,6 +306,127 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 1),
                         new DiagAndCode(
                                 """
+                                class Test {
+                                    static value class Atom {}
+                                    static class Box<X> {}
+                                    void test(Box<? extends Atom!> t1, Box<Atom> t2) {
+                                        t1 = t2;
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+
+                        new DiagAndCode(
+                                """
+                                class Wrapper<T> {}
+                                class Test<T> {
+                                    Wrapper<T> newWrapper() { return null; }
+                                    void m() {
+                                        Wrapper<T!> w = newWrapper();
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test {
+                                    void plot(Function<String, String> f) {}
+                                    void m(Function<String!, String> gradient) {
+                                        plot(gradient);
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test {
+                                    void plot(Function<String!, String> f) {}
+                                    void m(Function<String, String> gradient) {
+                                        plot(gradient);
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test<T> {
+                                    void m() {
+                                        Supplier<? extends T!> factory = nullFactory();
+                                    }
+                                    Supplier<? extends T> nullFactory() { return () -> null; }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.*;
+                                class Test<T> {
+                                    Set<Map.Entry<String, T>> allEntries() { return null; }
+                                    void m() {
+                                        Set<Map.Entry<String, T!>> entries = allEntries();
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test<T> {
+                                    T field;
+                                    void foo(Consumer<? super T!> action) {
+                                        action.accept(field);
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.*;
+                                class Test<T> {
+                                    Set<Map.Entry<String, T!>> allEntries() { return null; }
+                                    void m() {
+                                        Set<Map.Entry<String, T>> entries = allEntries();
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    class Box<X> {}
+                                    @SafeVarargs
+                                    private <Z> Z! make_box_uni(Z!... bs) {
+                                        return bs[0];
+                                    }
+                                    void test(Box<String!> bref, Box<String> bval) {
+                                        Box<? extends String!> res = make_box_uni(bref, bval);
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
+
+                        new DiagAndCode(
+                                """
                                 import java.util.*;
                                 class Foo {
                                     void test(List<? extends String!> ls1, List<? extends String> ls3) {
@@ -309,6 +456,26 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                 List.of(
                         new DiagAndCode(
                                 """
+                                class Test {
+                                    void m() {
+                                        String! s = "abc"; // literals are always null restricted
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    void m() {
+                                        Foo! f = new Foo();
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
                                 import java.util.*;
                                 class Foo {
                                      void m(List<? super String!> ls1) {}
@@ -318,7 +485,168 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
-                                "" /* no warnings in this case */)
+                                ""),
+                        new DiagAndCode(
+                                """
+                                interface Shape {}
+                                value class Point implements Shape {}
+                                class Box<T> {}
+                                class Test {
+                                    void m(Box<Point!> lp) {
+                                        foo(lp);
+                                    }
+                                    void foo(Box<? extends Shape> ls) {}
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                interface Shape {}
+                                value class Point implements Shape {}
+                                class Box<T> {}
+                                class Test {
+                                    void m(Box<Shape!> lp) {
+                                        foo(lp);
+                                    }
+                                    void foo(Box<? super Point!> ls) {}
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class C<T> {
+                                    T x = null;
+                                    void m() {
+                                        String r = new C<String>().x;
+                                        Point p = new C<Point>().x;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class C<T> {
+                                    T x = null;
+                                    void m() {
+                                        String r = new C<String>().x;
+                                        Point p = new C<Point>().x;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class C<T> {
+                                    T x = null;
+                                    void set(T! arg) { x = arg; }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class MyList<T> {
+                                    static <E> MyList<E!> of(E! e1) {
+                                        return null;
+                                    }
+                                }
+                                class Test {
+                                    void m() {
+                                        MyList.of(new Point!());
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                value class Point {}
+                                class MyCollection<T> {}
+                                class MyList<T> extends MyCollection<T!> {
+                                    static <E> MyList<E!> of(E! e1) {
+                                        return null;
+                                    }
+                                }
+                                class Test {
+                                    void m() {
+                                        MyCollection<Point> mpc = MyList.of(new Point!());
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test<T> {
+                                    T field;
+                                    void foo(T! t) {
+                                        field = t;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                import java.lang.invoke.*;
+                                class Cell {
+                                    final void reset() {
+                                        /* we are testing that the compiler won't infer the arguments of
+                                         * VarHandle::setVolatile as (Cell, String!)
+                                         */
+                                        VALUE.setVolatile(this, "");
+                                    }
+                                    final void reset(String identity) {
+                                        /* if that were the case, see comment above, then this invocation would generate
+                                         * a warning, VarHandle::setVolatile is a polymorphic signature method
+                                         */
+                                        VALUE.setVolatile(this, identity);
+                                    }
+
+                                    private static final VarHandle VALUE;
+                                    static {
+                                        try {
+                                            MethodHandles.Lookup l = MethodHandles.lookup();
+                                            VALUE = l.findVarHandle(Cell.class, "value", long.class);
+                                        } catch (ReflectiveOperationException e) {
+                                            throw new ExceptionInInitializerError(e);
+                                        }
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                import java.lang.invoke.*;
+                                class Cell {
+                                    final void reset() {
+                                        VALUE.setVolatile(this, 0L);
+                                    }
+                                    final void reset(long identity) {
+                                        VALUE.setVolatile(this, identity);
+                                    }
+
+                                    private static final VarHandle VALUE;
+                                    static {
+                                        try {
+                                            MethodHandles.Lookup l = MethodHandles.lookup();
+                                            VALUE = l.findVarHandle(Cell.class, "value", long.class);
+                                        } catch (ReflectiveOperationException e) {
+                                            throw new ExceptionInInitializerError(e);
+                                        }
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                "")
                 )
         );
     }

@@ -547,6 +547,13 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         if (moreInfo && hasTag(TYPEVAR)) {
             sb.append(hashCode());
         }
+        if (isNullable()) {
+            sb.append("?");
+        } else if (isNonNullable()) {
+            sb.append("!");
+        } else if (isParametric()) {
+            sb.append("*");
+        }
         return sb.toString();
     }
 
@@ -778,21 +785,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
     public boolean isNullUnspecified() {
         return getMetadata(TypeMetadata.NullMarker.class) == null;
-    }
-
-    public boolean sameNullabilityAs(Type t) {
-        if (isNullUnspecified()) return t.isNullUnspecified();
-        if (isNonNullable()) return t.isNonNullable();
-        if (isNullable()) return t.isNullable();
-        if (isParametric()) return t.isParametric();
-        throw new AssertionError("shouldn't get here");
-    }
-
-    public boolean hasNarrowerNullabilityThan(Type t) {
-        if (isNonNullable()) return !t.isNonNullable();
-        if (isParametric()) return t.isNonNullable() || t.isNullUnspecified();
-        if (isNullable()) return t.isNullUnspecified();
-        return false;
     }
 
     // end of support for null-marked types
@@ -1161,7 +1153,9 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         public Type constType(Object constValue) {
-            return addMetadata(new ConstantValue(constValue));
+            return isPrimitive() ?
+                    addMetadata(new ConstantValue(constValue)) :
+                    addMetadata(new ConstantValue(constValue)).addMetadata(new TypeMetadata.NullMarker(NullMarker.NOT_NULL));
         }
 
         /** The Java source which this type represents.

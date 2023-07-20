@@ -2895,6 +2895,9 @@ public class Attr extends JCTree.Visitor {
 
             if (tree.constructor != null && tree.constructor.kind == MTH)
                 owntype = clazztype;
+                if (owntype.getMetadata(TypeMetadata.NullMarker.class) == null) {
+                    owntype = owntype.addMetadata(new TypeMetadata.NullMarker(NullMarker.NOT_NULL)); // constructor invocations are always null restricted
+                }
         }
         result = check(tree, owntype, KindSelector.VAL, resultInfo);
         InferenceContext inferenceContext = resultInfo.checkContext.inferenceContext();
@@ -4400,11 +4403,11 @@ public class Attr extends JCTree.Visitor {
 
         // check nullness of site
         if (site.isNullable()) {
-            chk.warnBangTypes(tree.selected, Warnings.AccessingMemberOfNullable);
+            chk.warnNullableTypes(tree.selected, Warnings.AccessingMemberOfNullable);
         }
 
         if (site.isParametric()) {
-            chk.warnBangTypes(tree.selected, Warnings.AccessingMemberOfParametric);
+            chk.warnNullableTypes(tree.selected, Warnings.AccessingMemberOfParametric);
         }
 
         // don't allow T.class T[].class, etc
