@@ -6082,11 +6082,11 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
 #ifdef _LP64
   // The following code is similar to allocate_instance but has some slight differences,
   // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
-  // allocating is not necessary if vk != NULL, etc. allocate_instance is not aware of these.
+  // allocating is not necessary if vk != nullptr, etc. allocate_instance is not aware of these.
   Label slow_case;
   // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
   mov(rscratch1, rax); // save rax for slow_case since *_allocate may corrupt it when allocation failed
-  if (vk != NULL) {
+  if (vk != nullptr) {
     // Called from C1, where the return type is statically known.
     movptr(rbx, (intptr_t)vk->get_InlineKlass());
     jint obj_size = vk->layout_helper();
@@ -6113,13 +6113,13 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
     xorl(r13, r13);
     store_klass_gap(buffer_obj, r13);
-    if (vk == NULL) {
+    if (vk == nullptr) {
       // store_klass corrupts rbx(klass), so save it in r13 for later use (interpreter case only).
       mov(r13, rbx);
     }
     store_klass(buffer_obj, rbx, rscratch1);
     // 3. Initialize its fields with an inline class specific handler
-    if (vk != NULL) {
+    if (vk != nullptr) {
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
       movptr(rbx, Address(r13, InstanceKlass::adr_inlineklass_fixed_block_offset()));
