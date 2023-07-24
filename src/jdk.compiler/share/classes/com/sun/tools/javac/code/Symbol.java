@@ -356,6 +356,12 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
      */
     public Type externalType(Types types) {
         Type t = erasure(types);
+        if (isValueObjectFactory()) {
+            // this is a hack just for the experimental patch
+            if (((MethodType)t).restype.getMetadata(TypeMetadata.NullMarker.class) == null) {
+                ((MethodType)t).restype = ((MethodType)t).restype.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL));
+            }
+        }
         if (isInitOrVNew() && owner.hasOuterInstance()) {
             Type outerThisType = types.erasure(owner.type.getEnclosingType());
             return new MethodType(t.getParameterTypes().prepend(outerThisType),

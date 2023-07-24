@@ -1328,7 +1328,7 @@ public class ClassWriter extends ClassFile {
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
                 databuf.appendByte(7);
-                databuf.appendChar(emitQDesc && t.hasImplicitConstructor() ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
+                databuf.appendChar(emitQDesc && t.hasImplicitConstructor() && t.isNonNullable() ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
                 break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");

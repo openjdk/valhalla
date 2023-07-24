@@ -2117,7 +2117,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype, elemtype.hasImplicitConstructor() && elemtype.isNonNullable()), type);
+                code.emitAnewarray(makeRef(pos, elemtype, emitQDesc && elemtype.hasImplicitConstructor() && elemtype.isNonNullable()), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {
@@ -2355,7 +2355,7 @@ public class Gen extends JCTree.Visitor {
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
            types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
             checkDimension(tree.pos(), tree.clazz.type);
-            if (tree.clazz.type.hasImplicitConstructor()) {
+            if (emitQDesc && tree.clazz.type.hasImplicitConstructor() && tree.clazz.type.isNonNullable()) {
                 code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
             } else {
                 code.emitop2(checkcast, tree.clazz.type, PoolWriter::putClass);
@@ -2421,7 +2421,8 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, tree.selected.type.hasImplicitConstructor()));
+            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type,
+                    emitQDesc && tree.selected.type.hasImplicitConstructor() && tree.selected.type.isNonNullable()));
             result = items.makeStackItem(pt);
             return;
         }
