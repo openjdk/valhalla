@@ -2101,10 +2101,16 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         InlineTypeNode* tmp_l = left_field->isa_InlineType();
         InlineTypeNode* tmp_r = right_field->isa_InlineType();
         Node* next_region = new RegionNode(tmp_l->field_count()+1);
+        Node* next_io_phi = PhiNode::make(next_region, i_o());
+        Node* mem = reset_memory();
+        Node* next_mem_phi = PhiNode::make(next_region, mem);
+        set_all_memory(mem);
         //recursively call cmp_fields
-        cmp_fields(tmp_l, tmp_r, next_region, io_phi, mem_phi);
+        cmp_fields(tmp_l, tmp_r, next_region, next_io_phi, next_mem_phi);
         //update region and control
         region->set_req(i+1, _gvn.transform(next_region));
+        io_phi->set_req(i+1, _gvn.transform(next_io_phi));
+        mem_phi->set_req(i+1, _gvn.transform(next_mem_phi));
         //skip the rest of the loop body
         continue;
       }else{
