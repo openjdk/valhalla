@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8244233
- * @ignore
  * @summary Nested types are not handled properly across projections
  * @compile -XDenablePrimitiveClasses ValueAsEnclosingClass.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueAsEnclosingClass

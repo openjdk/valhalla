@@ -26,9 +26,8 @@
 /*
  * @test
  * @bug 8244712
- * @ignore
  * @summary Javac should switch to reference projection before walking type hierarchy.
- * @compile -XDenablePrimitiveClasses AsSuperTests.java
+ * @compile -XDemitQDesc AsSuperTests.java
  */
 
 /* The following test "covers"/verifies that the asSuper calls in
@@ -50,7 +49,7 @@ abstract class Base<T> {
     static void goo() {}
     void zoo() {}
     interface SAM {
-       String m(Foo f);
+        String m(Foo! f);
     }
 
     static void test() {
@@ -59,10 +58,13 @@ abstract class Base<T> {
 
     String getX() { return null; }
 
-    static primitive class Foo<X> extends Base {}
+    static value class Foo<X> extends Base {
+        public implicit Foo();
+    }
 }
 
-primitive class X extends Base implements I {
+value class X extends Base implements I {
+    public implicit X();
 
     static void goo() {}
 

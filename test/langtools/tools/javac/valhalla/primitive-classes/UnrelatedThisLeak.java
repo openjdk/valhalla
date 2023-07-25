@@ -24,7 +24,6 @@
 /*
  * @test
  * @bug 8205910
- * @ignore
  * @summary Complain when `this' of a value class is leaked from constructor before all instance fields are definitely assigned.
  * @compile -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses UnrelatedThisLeak.java
  */

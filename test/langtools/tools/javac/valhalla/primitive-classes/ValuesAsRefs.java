@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8251116
- * @ignore
  * @summary Test that values code like a class - i.e are accepted in some places where only references used be, when suitable reference projection is used.
  * @compile -XDenablePrimitiveClasses ValuesAsRefs.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValuesAsRefs

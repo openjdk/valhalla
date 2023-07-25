@@ -1,7 +1,6 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8197911
- * @ignore
  * @summary Check that valueness is deduced from class files and has the appropriate effect.
  * @compile -XDenablePrimitiveClasses FlattenableFlagFromClass.java
  * @compile/fail/ref=CheckFlattenableFlagFromClass.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckFlattenableFlagFromClass.java

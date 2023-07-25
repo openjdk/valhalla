@@ -24,7 +24,6 @@
 /*
  * @test
  * @summary Check constant propagation behavior
- * @ignore
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile -XDenablePrimitiveClasses ConstantPropagationTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ConstantPropagationTest

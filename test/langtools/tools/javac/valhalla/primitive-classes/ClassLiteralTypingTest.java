@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8244796 8244799
- * @ignore
  * @summary Temporary typing of inline class literals.
  * @compile -XDenablePrimitiveClasses ClassLiteralTypingTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ClassLiteralTypingTest

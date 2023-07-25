@@ -26,7 +26,6 @@
  *
  * @test
  * @bug 8297207
- * @ignore
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Primitive Classes
  * @library /lib/combo /tools/lib
  * @modules

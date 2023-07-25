@@ -26,7 +26,6 @@
 /*
  * @test
  * @bug 8251504
- * @ignore
  * @summary Test behavior with empty value type.
  * @compile -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses EmptyValueTest.java
  */

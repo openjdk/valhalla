@@ -26,7 +26,6 @@
 /*
  * @test
  * @bug 8211910
- * @ignore
  * @summary [lworld] Reinstate support for local value classes.
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses CheckLocalClasses.java

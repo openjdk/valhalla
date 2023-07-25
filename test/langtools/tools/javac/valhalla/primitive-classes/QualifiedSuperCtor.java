@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8198749
- * @ignore
  * @summary Test value instatiation using new/ctors.
  * @compile -XDenablePrimitiveClasses QualifiedSuperCtor.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses QualifiedSuperCtor
@@ -32,7 +31,7 @@
 
 primitive class A {
     int x = 1000000;
-    class Inner {
+    class Inner { 
         A aDotThis;
         Inner() {
             aDotThis = A.this;

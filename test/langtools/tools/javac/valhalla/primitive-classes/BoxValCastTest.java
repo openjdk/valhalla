@@ -24,7 +24,6 @@
 /*
  * @test
  * @bug 8214421 8221545 8222792
- * @ignore
  * @summary Q<->L mixing should be OK for upcasts and should use checkcasts for downcasts.
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile -XDenablePrimitiveClasses BoxValCastTest.java

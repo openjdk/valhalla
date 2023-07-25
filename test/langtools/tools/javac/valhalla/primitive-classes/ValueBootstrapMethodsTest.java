@@ -24,7 +24,6 @@
 
 /*
  * @test
- * @ignore
  * @summary test value bootstrap methods
  * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses ValueBootstrapMethodsTest.java

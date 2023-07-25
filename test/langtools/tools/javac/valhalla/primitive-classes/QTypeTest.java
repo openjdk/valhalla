@@ -24,7 +24,6 @@
 /*
  * @test
  * bug 8212563
- * @ignore
  * @summary Check that javac emits Q types for values as needed
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile -XDenablePrimitiveClasses QTypedValue.java

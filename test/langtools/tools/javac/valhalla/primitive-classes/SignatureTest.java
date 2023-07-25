@@ -26,7 +26,6 @@
 /*
  * @test
  * @bug 8251940
- * @ignore
  * @summary Incorrect Signature attribute in class file
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses SignatureTest.java

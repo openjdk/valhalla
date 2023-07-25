@@ -2048,8 +2048,10 @@ public class JavacParser implements Parser {
                         return ParensResult.CAST;
                     } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LT) ||
-                            peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA)) {
-                        // Identifier, '!'/'?', '<'/','/'>' -> it's a type, skip the emotional anno and continue
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LBRACKET) ) {
+                        // Identifier, '!'/'?', '<'/','/'>' or
+                        // Identifier, '!'/'?', '[' -> it's a type, skip the emotional anno and continue
                         lookahead++;
                         break;
                     } else if (peekToken(lookahead, RPAREN, ARROW)) {
