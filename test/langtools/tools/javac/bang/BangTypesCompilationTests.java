@@ -646,6 +646,26 @@ public class BangTypesCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void m(Test t1, Test[] t2, Test[][] t3, Test[][][] t4) {
+                                        Test! l1 = (Test!) t1;
+                                        Test![] l2 = (Test![]) t2;
+                                        Test![][] l3 = (Test![][]) t3;
+                                        Test![][][] l4 = (Test![][][]) t4;
+
+                                        Test[]! l5 = (Test[]!) t2;
+                                        Test[][]! l6 = (Test[][]!) t3;
+                                        Test[][][]! l7 = (Test[][][]!) t4;
+
+                                        Test[]![]! l8 = (Test[]![]!) t3;
+                                        Test[]![]![]! l9 = (Test[]![]![]!) t4;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
                                 "")
                 )
         );
