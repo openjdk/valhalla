@@ -1898,8 +1898,12 @@ public class JavacParser implements Parser {
     }
 
     void setNullMarker(JCExpression exp) {
+        setNullMarker(exp, token);
+    }
+
+    void setNullMarker(JCExpression exp, Token tk) {
         ((JCNullableTypeExpression)exp).setNullMarker(
-                token.kind == QUES ?
+                tk.kind == QUES ?
                         NullMarker.NULLABLE :
                         token.kind == BANG ?
                                 NullMarker.NOT_NULL :
@@ -2048,8 +2052,10 @@ public class JavacParser implements Parser {
                         return ParensResult.CAST;
                     } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LT) ||
-                            peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA)) {
-                        // Identifier, '!'/'?', '<'/','/'>' -> it's a type, skip the emotional anno and continue
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LBRACKET) ) {
+                        // Identifier, '!'/'?', '<'/','/'>' or
+                        // Identifier, '!'/'?', '[' -> it's a type, skip the emotional anno and continue
                         lookahead++;
                         break;
                     } else if (peekToken(lookahead, RPAREN, ARROW)) {
@@ -2074,10 +2080,18 @@ public class JavacParser implements Parser {
                         // '[', ']', Identifier/'_'/'assert'/'enum' -> explicit lambda
                         return ParensResult.EXPLICIT_LAMBDA;
                     } else if (peekToken(lookahead, RBRACKET, RPAREN) ||
+                            peekToken(lookahead, RBRACKET, EMOTIONAL_QUALIFIER, RPAREN) ||
                             peekToken(lookahead, RBRACKET, AMP)) {
                         // '[', ']', ')' -> cast
+                        // '[', ']', '!', ')' -> cast
                         // '[', ']', '&' -> cast (intersection type)
                         return ParensResult.CAST;
+                    } else if (peekToken(lookahead, RBRACKET, EMOTIONAL_QUALIFIER)) {
+                        //consume the ']' and the '!' and skip
+                        type = true;
+                        lookahead++;
+                        lookahead++;
+                        break;
                     } else if (peekToken(lookahead, RBRACKET)) {
                         //consume the ']' and skip
                         type = true;
@@ -2499,6 +2513,12 @@ public class JavacParser implements Parser {
             int pos = token.pos;
             nextToken();
             t = bracketsOptCont(t, pos, nextLevelAnnotations);
+        } else if (EMOTIONAL_QUALIFIER.test(token.kind) && peekToken(LBRACKET)) {
+            Token nullMarker = token;
+            nextToken();
+            int pos = token.pos;
+            nextToken();
+            t = bracketsOptCont(t, pos, nextLevelAnnotations, nullMarker);
         } else if (!nextLevelAnnotations.isEmpty()) {
             if (permitTypeAnnotationsPushBack) {
                 this.typeAnnotationsPushedBack = nextLevelAnnotations;
@@ -2521,9 +2541,17 @@ public class JavacParser implements Parser {
 
     private JCExpression bracketsOptCont(JCExpression t, int pos,
             List<JCAnnotation> annotations) {
+        return bracketsOptCont(t, pos, annotations, null);
+    }
+
+    private JCExpression bracketsOptCont(JCExpression t, int pos,
+                                         List<JCAnnotation> annotations, Token nullMarker) {
         accept(RBRACKET);
         t = bracketsOpt(t);
         t = toP(F.at(pos).TypeArray(t));
+        if (nullMarker != null) {
+            setNullMarker(t, nullMarker);
+        }
         if (annotations.nonEmpty()) {
             t = toP(F.at(pos).AnnotatedType(annotations, t));
         }
