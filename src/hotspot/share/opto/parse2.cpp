@@ -2034,25 +2034,6 @@ void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* ti
   }
 }
 
-void Parse::can_cmp_fields(InlineTypeNode* node, bool* res){
-  for (uint i = 0; i < node->field_count(); i++) {
-    Node* field = node->field_value(i);
-    ciType* field_type = node->field_type(i);
-    if(field_type->is_primitive_type()){
-      *res &= true;
-    }else{
-      const TypeOopPtr* t = _gvn.type(field)->isa_oopptr();
-      if(t == nullptr || !t->can_be_inline_type()){
-        *res &= true;
-      }else if(field->is_InlineType()){
-        can_cmp_fields(field->isa_InlineType(), res);
-      }else{
-        *res &= false;
-      }
-    }
-  }
-}
-
 void Parse::my_if(Node* region, Node* cmp, uint idx){
   Node* res = Bool(cmp, BoolTest::mask::eq);
   IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
@@ -2061,8 +2042,28 @@ void Parse::my_if(Node* region, Node* cmp, uint idx){
 }
 
 void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region, Node* io_phi, Node* mem_phi){
-  //get current control
+  /*
+  // First, do a normal pointer comparison
+  const TypeOopPtr* type_left = _gvn.type(left)->isa_oopptr();
+  const TypeOopPtr* type_right = _gvn.type(right)->isa_oopptr();
+  Node* cmp = CmpP(left, right);
+  cmp = optimize_cmp_with_klass(cmp);
+  if (type_left == NULL || !type_left->can_be_inline_type() ||
+          type_right == NULL || !type_right->can_be_inline_type()) {
+    // This is sufficient, if one of the operands can't be an inline type
+    my_if(region, cmp, i+1);
+    continue;
+  }
+  Node* eq_region = new RegionNode(3);
 
+  Node* res = Bool(cmp, BoolTest::mask::eq);
+  IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
+  eq_region->set_req(1, IfTrue(ifnode));
+  set_control(IfFalse(ifnode));
+  if (stopped()) {
+    continue;
+  }
+   */
   //iterate and compare all the fields
   for (uint i = 0; i < left->field_count(); i++) {
     io_phi->init_req(i+1, i_o());
@@ -2088,7 +2089,6 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         cmp = _gvn.transform(new CmpLNode(left_field, right_field));
       } else {
         assert(false, "Basic type not handled");
-        // TODO: check which additional Basic Types can occur
       }
     } else {
       //if the field is inline type, call cmp_fields, else do a normal pointer comparison
@@ -2115,7 +2115,6 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         continue;
       }else{
         BoolTest::mask btest = BoolTest::mask::eq;
-
         // Check for equality before potentially allocating
         if (left_field == right_field) {
           my_if(region, makecon(TypeInt::CC_EQ), i+1);
@@ -2273,61 +2272,95 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   bool experimental = true;
   if (left->is_InlineType() && right->is_InlineType() && experimental) {
-    // assume that we already know that left and right are IlnineTypeNodes
-    InlineTypeNode *temp_l = left->isa_InlineType();
-    InlineTypeNode *temp_r = right->isa_InlineType();
-    // check if the left and right nodes have the same class.
-    // If yes, compare the fields. If no, we know that they can't be equal
-    if (temp_l->type()->inline_klass()->equals(temp_r->type()->inline_klass())) {
-      bool check = true;
-      can_cmp_fields(temp_l, &check);
+    assert((btest == BoolTest::eq) || (btest == BoolTest::ne), "only eq and ne are supported for acmp");
 
-      assert((btest == BoolTest::eq) || (btest == BoolTest::ne), "only eq and ne are supported for acmp");
-      // the region nodes combines all the fast paths
-      // as soon as one field is not equal, we know that the value objects are not equal -> abort through the region node
-      Node *region = new RegionNode(temp_l->field_count() + 1);
-      Node *io_phi = PhiNode::make(region, i_o());
-      Node* mem = reset_memory();
-      Node* mem_phi = PhiNode::make(region, mem);
-      set_all_memory(mem);
+    Node* null_ctl;
+    Node* not_null_left = acmp_null_check(left,_gvn.type(left)->isa_oopptr(),ProfileUnknownNull, null_ctl);
+    Node* region_left = new RegionNode(3);
+    region_left->init_req(1, _gvn.transform(null_ctl));
+    region_left->init_req(2, _gvn.transform(control()));
+    region_left = _gvn.transform(region_left);
+    set_control(region_left);
+    Node* phi_left = PhiNode::make(region_left, intcon(0));
+    phi_left->set_req(1, _gvn.transform(intcon(0)));
+    phi_left->set_req(2, _gvn.transform(intcon(1)));
 
-      cmp_fields(temp_l, temp_r, region, io_phi, mem_phi);
-      Node *ctrl = control();
-      Node* io = i_o();
-      mem = reset_memory();
-      region = _gvn.transform(region);
+    Node* not_null_right = acmp_null_check(right, _gvn.type(right)->isa_oopptr(), ProfileUnknownNull, null_ctl);
+    Node* region_right = new RegionNode(3);
+    region_right->init_req(1, _gvn.transform(null_ctl));
+    region_right->init_req(2, _gvn.transform(control()));
+    region_right = _gvn.transform(region_right);
+    Node* phi_right = PhiNode::make(region_right, intcon(0));
+    phi_right->set_req(1, _gvn.transform(intcon(0)));
+    phi_right->set_req(2, _gvn.transform(intcon(1)));
 
-      // swap region and control if btest is not eq, as cmp_fields checks for equality
-      if (btest != BoolTest::eq) {
-        // swap region and control
-        Node *tmp = region;
-        region = ctrl;
-        ctrl = tmp;
+    Node* cmp = _gvn.transform(new CmpINode( _gvn.transform(phi_left),  _gvn.transform(phi_right)));
+    Node* res = Bool(cmp, BoolTest::mask::eq);
+    IfNode* ifnode = _gvn.transform(new IfNode(null_ctl, res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
 
-        tmp = io_phi;
-        io_phi = io;
-        io = tmp;
+    Node* eq_region = new RegionNode(3);
+    Node* ne_region = new RegionNode(3);
+    ne_region->init_req(1, IfFalse(ifnode));
+    eq_region->init_req(1, IfTrue(ifnode));
+    Node* io = i_o();
+    Node* eq_io_phi = PhiNode::make(eq_region, io);
+    eq_io_phi->set_req(1, io);
+    Node* ne_io_phi = PhiNode::make(ne_region, io);
 
-        tmp = mem_phi;
-        mem_phi = mem;
-        mem = tmp;
-      }
+    // assume that we already know that left and right are InlineTypeNodes
+    InlineTypeNode *temp_l = not_null_left->isa_InlineType();
+    InlineTypeNode *temp_r = not_null_right->isa_InlineType();
+    // the region nodes combines all the fast paths
+    // as soon as one field is not equal, we know that the value objects are not equal -> abort through the region node
+    Node *fields_region = new RegionNode(temp_l->field_count() + 1);
+    Node *fields_io_phi = PhiNode::make(fields_region, i_o());
 
-      {
-        PreserveJVMState pjvms(this);
-        set_control(ctrl);
-        set_i_o(_gvn.transform(io));
-        set_all_memory(_gvn.transform(mem));
-        int target_bci = iter().get_dest();
-        merge(target_bci);
-      }
-      set_control(region);
-      set_i_o(_gvn.transform(io_phi));
-      set_all_memory(_gvn.transform(mem_phi));
-      return;
-    } else {
-      //TODO: should output not equal
+    Node* mem = reset_memory();
+    Node* fields_mem_phi = PhiNode::make(fields_region, mem);
+    Node* eq_mem_phi = PhiNode::make(eq_region, mem);
+    eq_mem_phi->set_req(1, _gvn.transform(mem));
+    Node* ne_mem_phi = PhiNode::make(ne_region, mem);
+    ne_mem_phi->set_req(1, _gvn.transform(mem));
+    set_all_memory(mem);
+
+    //fields are compared for equality
+    cmp_fields(temp_l, temp_r, fields_region, fields_io_phi, fields_mem_phi);
+
+    //add current control to the eq region
+    eq_region->init_req(2, control());
+    //get current io and memory
+    eq_io_phi->init_req(2, i_o());
+    mem = reset_memory();
+    eq_mem_phi->init_req(2, _gvn.transform(mem));
+    set_all_memory(mem);
+
+    ne_region->init_req(2, _gvn.transform(fields_region));
+    ne_io_phi->init_req(2, _gvn.transform(fields_io_phi));
+    ne_mem_phi->init_req(2, _gvn.transform(fields_mem_phi));
+
+    // as we have compared the fields for equality, we need to invert the result if btest == not equal
+    // This can be done by swapping fields_region, fields_io_phi and fields_mem_phi with current eq_region, io and memory
+    if (btest == BoolTest::ne) {
+      // swap region and control
+      swap(ne_region, eq_region);
+      swap(ne_io_phi, eq_io_phi);
+      swap(ne_mem_phi, eq_mem_phi);
     }
+
+    //merge taken path
+    {
+      PreserveJVMState pjvms(this);
+      set_control(_gvn.transform(eq_region));
+      set_i_o(_gvn.transform(eq_io_phi));
+      set_all_memory(_gvn.transform(eq_mem_phi));
+      int target_bci = iter().get_dest();
+      merge(target_bci);
+    }
+    //set untaken path
+    set_control(_gvn.transform(ne_region));
+    set_i_o(_gvn.transform(ne_io_phi));
+    set_all_memory(_gvn.transform(ne_mem_phi));
+    return;
   }
 
   // Leverage profiling at acmp
