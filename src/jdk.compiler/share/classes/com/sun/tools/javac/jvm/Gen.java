@@ -136,7 +136,7 @@ public class Gen extends JCTree.Visitor {
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
         qualifiedSymbolCache = new HashMap<>();
-        emitQDesc = options.isSet("emitQDesc");
+        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
     }
 
     /** Switches
@@ -922,7 +922,7 @@ public class Gen extends JCTree.Visitor {
     public void genArgs(List<JCExpression> trees, List<Type> pts) {
         for (List<JCExpression> l = trees; l.nonEmpty(); l = l.tail) {
             genExpr(l.head, pts.head).load();
-            if (pts.head.isNonNullable()) {
+            if (pts.head.isNonNullable() && !l.head.type.isNonNullable()) {
                 code.emitop0(dup);
                 genNullCheck(l.head);
             }
@@ -1076,11 +1076,15 @@ public class Gen extends JCTree.Visitor {
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
                 Type selfType = meth.owner.type;
+                boolean shouldBeQDesc = emitQDesc && selfType.hasImplicitConstructor();
+                selfType = shouldBeQDesc ? selfType.addMetadata(new TypeMetadata.NullMarker(JCNullableTypeExpression.NullMarker.NOT_NULL)) : selfType;
                 if (meth.isInitOrVNew() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
                         code.newLocal(
-                            new VarSymbol(FINAL, names._this, selfType, meth.owner)));
+                            new VarSymbol(FINAL, names._this,
+                                    selfType,
+                                    meth.owner)));
             }
 
             // Mark all parameters as defined from the beginning of
@@ -1108,7 +1112,7 @@ public class Gen extends JCTree.Visitor {
                 Assert.check(code.isStatementStart());
                 code.newLocal(v);
                 genExpr(tree.init, v.erasure(types)).load();
-                if (tree.type.isNonNullable()) {
+                if (tree.type.isNonNullable() && !tree.init.type.isNonNullable()) {
                     code.emitop0(dup);
                     genNullCheck(tree.init);
                 }
@@ -2133,7 +2137,7 @@ public class Gen extends JCTree.Visitor {
     public void visitAssign(JCAssign tree) {
         Item l = genExpr(tree.lhs, tree.lhs.type);
         genExpr(tree.rhs, tree.lhs.type).load();
-        if (tree.lhs.type.isNonNullable()) {
+        if (tree.lhs.type.isNonNullable() && !tree.rhs.type.isNonNullable()) {
             code.emitop0(dup);
             genNullCheck(tree.rhs);
         }
@@ -2342,7 +2346,7 @@ public class Gen extends JCTree.Visitor {
 
     public void visitTypeCast(JCTypeCast tree) {
         result = genExpr(tree.expr, tree.clazz.type).load();
-        if (tree.clazz.type.isNonNullable()) {
+        if (tree.clazz.type.isNonNullable() && !tree.expr.type.isNonNullable()) {
             code.emitop0(dup);
             genNullCheck(tree.expr);
         }

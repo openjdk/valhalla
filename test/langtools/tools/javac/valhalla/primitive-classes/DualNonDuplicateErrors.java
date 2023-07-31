@@ -5,7 +5,7 @@
  * @compile/fail/ref=DualNonDuplicateErrors.out -XDrawDiagnostics -XDenablePrimitiveClasses DualNonDuplicateErrors.java
  */
 
-public primitive class DualNonDuplicateErrors {
+public value class DualNonDuplicateErrors {
 
     int x;
 

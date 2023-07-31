@@ -5,9 +5,10 @@
  * @compile/fail/ref=CheckFinal.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckFinal.java
  */
 
-primitive class CheckFinal { // implicitly final
+value class CheckFinal { // implicitly final
     int fi;  // implicitly final
     final int fe; // explicitly final
+    public implicit CheckFinal();
     void f(int x) {
         int y;
         x = y = 0;
@@ -16,7 +17,7 @@ primitive class CheckFinal { // implicitly final
         this.xs = 100; // OK.
         this.xsf = 100; // Error
 
-        CheckFinal cf = new CheckFinal() {}; // Error, final class cannot be extended.
+        CheckFinal! cf = new CheckFinal!() {}; // Error, final class cannot be extended.
     }
     final Object o = new Object() { int i;
                          void foo() {

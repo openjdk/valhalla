@@ -5,13 +5,14 @@
  */
 
 public class CheckMultiDimensionalArrayStore {
-    primitive final class V {
-        final int x = 10;
+    static value final class V {
+        public implicit V();
         class Y {
-            V [][][] va = new V[][][] {{{ null }}};
-            V [][] va2 =  {{ null }};
+            V! []![]![]! va = new V![][][] {{{ null }}};
+            V! []![]![]! vb = new V[][][] {{{ null }}};  // OK?
+            V! []![]! va2 =  {{ null }};
             void foo() {
-                va = new V[][][] {{{ null }}};
+                va = new V![][][] {{{ null }}};
                 va[0][0][0] = null;
             }
         }

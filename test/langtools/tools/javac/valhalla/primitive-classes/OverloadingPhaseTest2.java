@@ -34,15 +34,15 @@ public class OverloadingPhaseTest2 {
     interface A {}
     interface B extends A {}
 
-    static primitive class X {
+    static value class X {
 
         int x = 42;
 
-        static int m(X.ref xr, A a) {
+        static int m(X xr, A a) {
             return 0;
         }
 
-        static int m(X.ref xr, B b) {
+        static int m(X xr, B b) {
             return 1;
         }
     }

@@ -22,6 +22,7 @@
  */
 
 /*
+ * @test
  * @bug 8267910
  * @summary Javac fails to implicitly type abstract classes as having identity
  * @modules jdk.jdeps/com.sun.tools.classfile

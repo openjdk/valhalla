@@ -1,0 +1,2 @@
+ConsumeUnifiedClass.java:40:28: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, Point)
+1 error

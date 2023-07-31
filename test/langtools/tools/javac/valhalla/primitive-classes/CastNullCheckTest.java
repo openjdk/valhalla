@@ -35,8 +35,13 @@
 
 public class CastNullCheckTest {
 
-    final primitive class XX {
-        final int x = 10;
+    static final value class XX {
+        final int x;
+
+        public implicit XX();
+        XX(boolean dummy) {
+            x = 10;
+        }
     }
 
     public static void main(String... args) {
@@ -44,20 +49,20 @@ public class CastNullCheckTest {
 
         Object o = null;
         try {
-            XX x = (XX) o;
+            XX! x = (XX!) o;
         } catch (NullPointerException npe) {
             caught++;
         }
 
         try {
-            Point p = (Point) o;
+            Point! p = (Point!) o;
         } catch (NullPointerException npe) {
             caught++;
         }
 
         o = Point.default;
         try {
-            Point p = (Point) o;
+            Point! p = (Point!) o;
         } catch (NullPointerException npe) {
             caught++;
         }

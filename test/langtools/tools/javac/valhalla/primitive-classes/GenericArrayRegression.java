@@ -31,15 +31,15 @@
 
 public class GenericArrayRegression {
 
-   static primitive class Entry<E> {
+   static value class Entry<E> {
      private final int value;
-
+     public implicit Entry();
      public Entry(int value) {
        this.value = value;
      }
 
-     public static <E> Entry<E>[] of() {
-       return (Entry<E>[])new Entry<?>[0];
+     public static <E> Entry!<E>[] of() {
+       return (Entry!<E>[])new Entry!<?>[0];
      }
    }
 

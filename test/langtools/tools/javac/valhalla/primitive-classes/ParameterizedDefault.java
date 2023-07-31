@@ -29,7 +29,7 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ParameterizedDefault
  */
 
-public primitive class ParameterizedDefault<E> {
+public value class ParameterizedDefault<E> {
     E value;
     ParameterizedDefault(E value) { this.value = value; }
     static String foo (Object p) {

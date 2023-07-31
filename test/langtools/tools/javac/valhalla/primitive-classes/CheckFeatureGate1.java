@@ -7,7 +7,7 @@
 
 public class CheckFeatureGate1 {
 
-    static primitive class Val {
+    static value class Val {
         public int v = 42;
     }
 }

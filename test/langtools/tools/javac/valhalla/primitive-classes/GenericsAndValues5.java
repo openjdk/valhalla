@@ -37,7 +37,7 @@ import java.util.function.Function;
 import java.util.List;
 import java.util.ArrayList;
 
-primitive class Optional<T> {
+value class Optional<T> {
     private T value;
 
     @SuppressWarnings("unchecked")
@@ -87,16 +87,16 @@ public final class GenericsAndValues5 {
 
    public static void main(String[] args) {
 
-       List<Optional.ref<Integer>> opts = new ArrayList<>();
+       List<Optional<Integer>> opts = new ArrayList<>();
        for (int i=0; i < 6; i++) {
            Optional<Integer> oi = Optional.of(i);
-           opts.add((Optional.ref<Integer>)oi);
+           opts.add((Optional<Integer>)oi);
            Optional<Integer> oe = Optional.empty();
-           opts.add((Optional.ref<Integer>)oe);
+           opts.add((Optional<Integer>)oe);
        }
 
        Integer total = opts.stream()
-           .map((Optional.ref<Integer> o) -> {
+           .map((Optional<Integer> o) -> {
                Optional<Integer> op = (Optional<Integer>)o;
                return op.orElse(0);
            })

@@ -49,13 +49,14 @@ import java.util.stream.StreamSupport;
 
 public class NoUnnecessaryCast {
 
-    static primitive class Point {
-        int x = 0, y = 0;
+    static value class Point {
+        int x, y;
+        public implicit Point();
         void foo() {
-            Point p0 = new Point();
+            Point! p0 = new Point();
             int x0 = p0.x;
             p0.foo();
-            Point.ref p1 = null;
+            Point p1 = null;
             int x1 = p1.x;
             p1.foo();
         }

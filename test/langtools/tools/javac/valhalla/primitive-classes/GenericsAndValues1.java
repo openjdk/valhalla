@@ -30,16 +30,16 @@
  * @compile -XDenablePrimitiveClasses GenericsAndValues1.java
  */
 
- primitive class Foo implements Comparable<Foo.ref>{
+value class Foo implements Comparable<Foo>{
     final int value;
-  
+
     public Foo(int value) {
       this.value = value;
     }
 
     @Override
-    public int compareTo(Foo.ref o) {
+    public int compareTo(Foo o) {
       return Integer.compare(value, o.value);
     }
- }
+}
 

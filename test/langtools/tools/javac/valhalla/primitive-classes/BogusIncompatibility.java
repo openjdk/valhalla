@@ -25,11 +25,11 @@
  * @test
  * @bug 8214299
  * @summary Strange errors from javac when mixing box and val types.
- * @compile -XDenablePrimitiveClasses BogusIncompatibility.java
- * @compile -XDenablePrimitiveClasses BogusIncompatibility.java
+ * @compile -XDemitQDesc BogusIncompatibility.java
+ * @compile -XDemitQDesc BogusIncompatibility.java
  */
 
 public class BogusIncompatibility {
-  MyValue.ref field = MyValue.create();
-  MyValue.ref field2 = MyValue.create();
+  MyValue field = MyValue.create();
+  MyValue field2 = MyValue.create();
 }

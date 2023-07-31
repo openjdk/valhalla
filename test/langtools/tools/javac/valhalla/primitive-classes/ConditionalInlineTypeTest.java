@@ -33,25 +33,27 @@
 
 public class ConditionalInlineTypeTest {
 
-    static primitive class V {}
+    static value class V {
+        public implicit V();
+    }
 
     public static void main(String [] args) {
 
         var r1 = args.length == 0 ? new V() : new V();
         System.out.println(r1.getClass());
 
-        var r2 = args.length == 0 ? (V.ref) new V() : (V.ref) new V();
+        var r2 = args.length == 0 ? (V) new V!() : (V) new V!();
         System.out.println(r2.getClass());
 
         int npe = 0;
         try {
-            var r3 = args.length != 0 ? new V() : (V.ref) null;
+            var r3 = args.length != 0 ? new V!() : (V) null;
             System.out.println(r3.getClass());
         } catch (NullPointerException e) {
             npe++;
         }
         try {
-            var r4 = args.length == 0 ? (V.ref) null : new V();
+            var r4 = args.length == 0 ? (V) null : new V!();
             System.out.println(r4.getClass());
         } catch (NullPointerException e) {
             npe++;

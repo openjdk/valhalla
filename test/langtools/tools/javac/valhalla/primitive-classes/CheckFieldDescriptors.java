@@ -34,10 +34,9 @@
 
 import com.sun.tools.classfile.*;
 
-public primitive class CheckFieldDescriptors {
+public value class CheckFieldDescriptors {
 
-    int x = 10;
-
+    public implicit CheckFieldDescriptors();
 
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(CheckFieldDescriptors.class.getResourceAsStream("CheckFieldDescriptorsAuxilliary.class"));
@@ -83,12 +82,12 @@ public primitive class CheckFieldDescriptors {
 
 class CheckFieldDescriptorsAuxilliary {
 
-    CheckFieldDescriptors f1;
-    CheckFieldDescriptors.ref f2;
-    CheckFieldDescriptors.ref f3;
+    CheckFieldDescriptors! f1;
+    CheckFieldDescriptors f2;
+    CheckFieldDescriptors f3;
 
-    CheckFieldDescriptors.ref[] a1 = new CheckFieldDescriptors.ref[42];
-    CheckFieldDescriptors.ref[] a2 = new CheckFieldDescriptors.ref[42];
-    CheckFieldDescriptors[] a3 = new CheckFieldDescriptors[42];
-    CheckFieldDescriptors[] a4 = new CheckFieldDescriptors[42];
+    CheckFieldDescriptors[] a1 = new CheckFieldDescriptors[42];
+    CheckFieldDescriptors[] a2 = new CheckFieldDescriptors[42];
+    CheckFieldDescriptors![] a3 = new CheckFieldDescriptors![42];
+    CheckFieldDescriptors![] a4 = new CheckFieldDescriptors![42];
 }

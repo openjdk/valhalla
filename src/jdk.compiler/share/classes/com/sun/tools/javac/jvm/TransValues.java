@@ -33,6 +33,7 @@ import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.MethodType;
+import com.sun.tools.javac.code.TypeMetadata;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAssign;
@@ -54,6 +55,7 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
+import com.sun.tools.javac.util.Options;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -90,6 +92,8 @@ public class TransValues extends TreeTranslator {
     private Types types;
     private Names names;
 
+    private boolean emitQDesc;
+
     /* Is an assignment undergoing translation just an assignment statement ?
        Or is also a value ??
     */
@@ -121,6 +125,8 @@ public class TransValues extends TreeTranslator {
         make = TreeMaker.instance(context);
         types = Types.instance(context);
         names = Names.instance(context);
+        Options options = Options.instance(context);
+        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
     }
 
     @SuppressWarnings("unchecked")
@@ -192,7 +198,13 @@ public class TransValues extends TreeTranslator {
                    is passed as an argument into the <init> method, the value static factory must allocate the
                    instance that forms the `product' by itself. We do that by injecting a prologue here.
                 */
-                VarSymbol product = currentMethod.factoryProduct = new VarSymbol(0, names.dollarValue, currentClass.sym.type, currentMethod.sym); // TODO: owner needs rewiring
+                boolean emitQ = emitQDesc && currentClass.sym.type.hasImplicitConstructor();
+                VarSymbol product = currentMethod.factoryProduct =
+                        new VarSymbol(0, names.dollarValue,
+                                emitQ ?
+                                        currentClass.sym.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL)) :
+                                        currentClass.sym.type,
+                                currentMethod.sym); // TODO: owner needs rewiring
                 JCExpression rhs;
 
                 final Name name = TreeInfo.name(call.meth);
@@ -200,9 +212,15 @@ public class TransValues extends TreeTranslator {
                 if (names._super.equals(name)) { // "initial" constructor.
                     // Synthesize code to allocate factory "product" via: V $this = V.default;
                     Assert.check(symbol.type.getParameterTypes().size() == 0);
-                    final JCExpression type = make.Type(currentClass.type);
+                    final JCExpression type = make.Type(
+                            emitQ ?
+                                    currentClass.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL)) :
+                                    currentClass.type
+                            );
                     rhs = make.DefaultValue(type);
-                    rhs.type = currentClass.type;
+                    rhs.type = emitQ ?
+                            currentClass.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL)) :
+                            currentClass.type;
                 } else {
                     // This must be a chained call of form `this(args)'; Mutate it into a factory invocation i.e V $this = V.init(args);
                     Assert.check(TreeInfo.name(TreeInfo.firstConstructorCall(tree).meth) == names._this);
@@ -221,7 +239,9 @@ public class TransValues extends TreeTranslator {
                 tree.body = translate(tree.body);
 
                 MethodSymbol factorySym = getValueObjectFactory(tree.sym);
-                currentMethod.setType(factorySym.type);
+                MethodType mt = (MethodType) factorySym.type;
+                mt.restype = mt.restype.addMetadata((new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL)));
+                currentMethod.setType(mt);
                 currentMethod.factoryProduct = product;
                 currentClass.sym.members().remove(tree.sym);
                 tree.sym = factorySym;
@@ -274,7 +294,11 @@ public class TransValues extends TreeTranslator {
             }
             if (isInstanceMemberAccess(symbol)) {
                 final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
-                result = make.Assign(facHandle, make.WithField(make.Select(facHandle, symbol), translate(tree.rhs)).setType(currentClass.type)).setType(currentClass.type);
+                JCTree.JCWithField withField = (JCTree.JCWithField) make.WithField(make.Select(facHandle, symbol), translate(tree.rhs)).setType(currentClass.type);
+                if (emitQDesc && withField.type.hasImplicitConstructor()) {
+                    withField.type = withField.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL));
+                }
+                result = make.Assign(facHandle, withField).setType(currentClass.type);
                 if (requireRVal) {
                     result = make.Select(make.Parens((JCExpression) result).setType(currentClass.type), symbol);
                 }
@@ -350,6 +374,7 @@ public class TransValues extends TreeTranslator {
             final JCMethodInvocation apply = make.Apply(tree.typeargs, meth, tree.args);
             apply.varargsElement = tree.varargsElement;
             apply.type = meth.type.getReturnType();
+            //apply.type = apply.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL));
             result = apply;
             return;
         }

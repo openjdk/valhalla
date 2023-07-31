@@ -5,8 +5,8 @@
  * @compile/fail/ref=CheckBadSelector.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckBadSelector.java
  */
 
-primitive final class Point {
-
+value final class Point {
+    public implicit Point();
     void badSelector() {
         Class<?> c = int.class;
         int i = int.default;

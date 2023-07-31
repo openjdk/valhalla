@@ -127,7 +127,7 @@ public class Types {
             }
         };
         Options options = Options.instance(context);
-        emitQDesc = options.isSet("emitQDesc");
+        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
     }
     // </editor-fold>
 
@@ -1829,7 +1829,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || s.hasTag(BOT))
+                if (s.hasTag(ERROR) || s.hasTag(BOT) && !t.isNonNullable())
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {

@@ -36,17 +36,20 @@ import com.sun.tools.classfile.*;
 
 public class CheckFlattenableSyntheticFields {
     public class RefOuter {
-        primitive  class Inner {
+        static value class Inner {
             private final int value2;
+            public implicit Inner();
             public Inner(int value2) {
                 this.value2 = value2;
             }
         }
     }
-    public primitive class ValueOuter {
-        int x = 10;
-        primitive  class Inner {
+    static public value class ValueOuter {
+        int x; //10
+        public implicit ValueOuter();
+        static value class Inner {
             private final int value2;
+            public implicit Inner();
             public Inner(int value2) {
                 this.value2 = value2;
             }
@@ -69,6 +72,5 @@ public class CheckFlattenableSyntheticFields {
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
             throw new Exception("Final flag not set");
-
     }
 }

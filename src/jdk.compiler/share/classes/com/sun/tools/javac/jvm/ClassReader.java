@@ -308,7 +308,7 @@ public class ClassReader {
 
         lintClassfile = Lint.instance(context).isEnabled(LintCategory.CLASSFILE);
 
-        emitQDesc = options.isSet("emitQDesc");
+        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
 
         initAttributeReaders();
     }

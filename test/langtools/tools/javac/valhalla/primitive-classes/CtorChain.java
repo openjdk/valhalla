@@ -29,7 +29,7 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CtorChain
  */
 
-public primitive class CtorChain {
+public value class CtorChain {
     int x1, x2, x3, x4, x5;
     CtorChain() {
         this(10);

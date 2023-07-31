@@ -21,8 +21,9 @@
  * questions.
  */
 
-primitive public final class MyValue {
-  final int f = 0;
+value public final class MyValue {
+  final int f;
+  public implicit MyValue();
   static MyValue create() {
     return MyValue.default;
   }

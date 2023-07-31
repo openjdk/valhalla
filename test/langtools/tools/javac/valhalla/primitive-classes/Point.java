@@ -30,16 +30,19 @@
  * @compile -XDenablePrimitiveClasses Point.java
  */
 
-primitive class Point {
-    static final Point.ref origin = makePoint(10, 20);
-    static final Point.ref origin2 = makePoint(10, 20);
+value class Point {
+    static final Point origin = makePoint(10, 20);
+    static final Point origin2 = makePoint(10, 20);
     int x;
     int y;
+
+    public implicit Point();
+
     public Point (int x, int y) {
         this.x = x;
         this.y = y;
     }
-    static Point makePoint(int x, int y) {
+    static Point! makePoint(int x, int y) {
         return new Point(x, y);
     }
 }

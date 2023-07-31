@@ -199,7 +199,7 @@ public class ClassWriter extends ClassFile {
             dumpInnerClassModifiers = modifierFlags.indexOf('i') != -1;
             dumpMethodModifiers = modifierFlags.indexOf('m') != -1;
         }
-        emitQDesc = options.isSet("emitQDesc");
+        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
     }
 
     public void addExtraAttributes(ToIntFunction<Symbol> addExtraAttributes) {

@@ -31,17 +31,17 @@
  */
 
 
-public primitive class InstanceofProjectionArray {
+public value class InstanceofProjectionArray {
 
     int value;
     public InstanceofProjectionArray() { this.value = 0; }
 
     public static void main(String[] args) throws Throwable {
-        InstanceofProjectionArray.ref[] foos = new InstanceofProjectionArray.ref[1];
-        if (!(foos instanceof InstanceofProjectionArray.ref[])) {
+        InstanceofProjectionArray[] foos = new InstanceofProjectionArray[1];
+        if (!(foos instanceof InstanceofProjectionArray[])) {
             throw new RuntimeException("Thought that should work");
         }
-        InstanceofProjectionArray.ref[][] xx = null;
-        if (xx instanceof InstanceofProjectionArray.ref[][]) {}
+        InstanceofProjectionArray[][] xx = null;
+        if (xx instanceof InstanceofProjectionArray[][]) {}
     }
 }

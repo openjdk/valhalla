@@ -31,7 +31,7 @@
 
 public class CheckSeparateCompile {
     public static void main(String[] args) {
-        if (new CheckSeparateCompile0().new O().new M().new I().foo().i != 890)
+        if (new CheckSeparateCompile0.O.M.I(false).foo().i != 890)
             throw new AssertionError("Broken");
     }
 }

@@ -36,19 +36,23 @@ public class NoCrashTest {
 
     interface I {}
     static class C implements I {}
-    static primitive final class V implements I { int x = 0; }
+    static value final class V implements I {
+        public implicit V();
+    }
 
-    static void triggerNPE(V.ref [] vra) {
+    static void triggerNPE(V [] vra) {
         vra[0] = null;
     }
 
-    static String foo(V[] va) {
+    /*
+    static String foo(V![] va) {
         return "array of nonnull v's";
     }
 
     static String foo(Object [] oa) {
         return "array of nullable o's";
     }
+    */
 
     static public void main(String[] args) {
         I arg = args.length == 0 ? new V() : new C();
@@ -57,18 +61,19 @@ public class NoCrashTest {
         Object [] o = args.length == 0 ? xs : os;
         Object o2 = (o == null) ? new V()  : new Object();
 
-        triggerNPE(new V.ref[1]); // NO NPE.
+        triggerNPE(new V[1]); // NO NPE.
         try {
-            triggerNPE(new V[1]);
+            triggerNPE(new V![1]);
             throw new RuntimeException("Should not get here!");
         } catch (NullPointerException npe) {
             // all is well.
         }
-
-        V [] v = new V[0];
-        if (!foo((V.ref []) v).equals("array of nullable o's"))
+/*
+        V! [] v = new V![0];  //nullability is not considered during overload resolution
+        if (!foo((V []) v).equals("array of nullable o's"))
             throw new AssertionError("Broken");
+ */
 
-        ArrayList<V.ref> vList = new ArrayList<V.ref>(Arrays.asList(new V.ref[10]));
+        ArrayList<V> vList = new ArrayList<V>(Arrays.asList(new V[10]));
     }
 }

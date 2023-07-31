@@ -28,16 +28,17 @@
  * @compile -XDenablePrimitiveClasses CheckIdentityHash.java
  */
 
-final primitive class CheckIdentityHash {
-    int identityHashCode(CheckIdentityHash x) {
+final value class CheckIdentityHash {
+    public implicit CheckIdentityHash();
+    int identityHashCode(CheckIdentityHash! x) {
         return 0;
     }
-    void test(CheckIdentityHash v) {
+    void test(CheckIdentityHash! v) {
         this.identityHashCode(v);
         System.identityHashCode(v);
         System.identityHashCode(this);
         java.lang.System.identityHashCode(v);
         java.lang.System.identityHashCode(this);
     }
-    int x = 10;
+    int x;
 }

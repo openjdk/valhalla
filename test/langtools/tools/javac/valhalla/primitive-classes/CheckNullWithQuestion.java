@@ -30,19 +30,19 @@
  * @compile -XDenablePrimitiveClasses CheckNullWithQuestion.java
  */
 
-primitive class CheckNullWithQuestion {
-    final int x = 0;
+value class CheckNullWithQuestion {
+    public implicit CheckNullWithQuestion();
     void foo(boolean flag) {
-        CheckNullWithQuestion.ref vBox = null;
+        CheckNullWithQuestion vBox = null;
         if (vBox != null) {}
-        CheckNullWithQuestion.ref val = flag ? vBox : null;
+        CheckNullWithQuestion val = flag ? vBox : null;
     }
 }
 
 class X {
     void foo(boolean flag) {
-        CheckNullWithQuestion.ref vBox = null;
+        CheckNullWithQuestion vBox = null;
         if (vBox != null) {}
-        CheckNullWithQuestion.ref val = flag ? vBox : null;
+        CheckNullWithQuestion val = flag ? vBox : null;
     }
 }

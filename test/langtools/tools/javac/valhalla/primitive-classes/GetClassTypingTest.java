@@ -33,9 +33,9 @@
 
 public class GetClassTypingTest {
 
-    static primitive class Primitive {}
+    static value class Primitive {}
 
-    static void foo(Class<? extends Primitive.ref> c) {}
+    static void foo(Class<? extends Primitive> c) {}
 
     public static void main(String [] args) {
        foo(new Primitive().getClass());

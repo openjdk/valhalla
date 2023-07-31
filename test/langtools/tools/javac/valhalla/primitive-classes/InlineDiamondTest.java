@@ -32,7 +32,6 @@
  */
 
 public class InlineDiamondTest<E> {
-
     interface I<T> {
     }
 
@@ -40,8 +39,9 @@ public class InlineDiamondTest<E> {
         return new Y<>();
     }
 
-    private primitive class Y<U> implements I<U> {
-        int x = 42;
+    private static value class Y<U> implements I<U> {
+        int x;
+        public implicit Y();
     }
 
     public static void main(String [] args) {

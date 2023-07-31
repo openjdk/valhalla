@@ -31,27 +31,29 @@
 
 public class ChainedAssignmentTest {
 
-    static primitive class Point {
+    static value class Point {
         int x;
         int y;
-        Point() {
+        public implicit Point();
+        Point(boolean foo) {
             x = y = 1234; // Problematic
         }
     }
 
-    static primitive class LongPoint {
+    static value class LongPoint {
         long x;
         long y;
-        LongPoint() {
+        public implicit LongPoint();
+        LongPoint(boolean foo) {
             x = y = 1234; // Problematic
         }
     }
     public static void main(String[] args) {
-        Point p = new Point();
+        Point! p = new Point(false);
         if (p.x != 1234 || p.y != 1234)
             throw new AssertionError("Broken");
 
-        LongPoint lp = new LongPoint();
+        LongPoint! lp = new LongPoint(false);
         if (lp.x != 1234 || lp.y != 1234)
             throw new AssertionError("Broken");
     }

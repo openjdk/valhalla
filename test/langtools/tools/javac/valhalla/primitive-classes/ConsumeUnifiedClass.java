@@ -26,12 +26,14 @@
 /*
  * @test
  * @bug 8266466
- * @summary Enhance javac to consume unified primitive class files
+ * @summary Enhance javac to consume unified primitive class files, also see that we lose nullability information with separate compilation
+ * @compile/fail/ref=ConsumeUnifiedClass.out -XDrawDiagnostics -XDenablePrimitiveClasses Point.java Rectangle.java ConsumeUnifiedClass.java
  * @compile -XDallowWithFieldOperator -XDenablePrimitiveClasses Point.java Rectangle.java
- * @compile/fail/ref=ConsumeUnifiedClass.out -XDrawDiagnostics -XDenablePrimitiveClasses ConsumeUnifiedClass.java
+ * @compile/fail/ref=ConsumeUnifiedClass2.out -XDrawDiagnostics -XDenablePrimitiveClasses ConsumeUnifiedClass.java
  */
 
-public primitive class ConsumeUnifiedClass {
+public value class ConsumeUnifiedClass {
+    public implicit ConsumeUnifiedClass();
     public static void main(String [] args) {
         Rectangle r = new Rectangle(null, null); // Check method type decoding, should error
         r = Rectangle.from(null, null); // OK.

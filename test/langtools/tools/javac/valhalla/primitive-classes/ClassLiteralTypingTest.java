@@ -44,13 +44,13 @@ public class ClassLiteralTypingTest {
         return 1;
     }
 
-    static primitive class V implements I {
-        int x = 42;
+    static value class V implements I {
+        public implicit V();
     }
 
     public static void main(String[] args) {
-        if (size(V.class) != 0 || size(new V().getClass()) != 0 ||
-             foo(V.class) != 1 ||  foo(new V().getClass()) != 1)
+        if (size(V.class) != 0 || size(new V!().getClass()) != 0 ||
+             foo(V.class) != 1 ||  foo(new V!().getClass()) != 1)
             throw new AssertionError("Unexpected behavior");
     }
 }

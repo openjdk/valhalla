@@ -34,9 +34,9 @@ import com.sun.tools.classfile.AccessFlags;
 
 public class InnerClassAttributeValuenessTest {
 
-    static primitive class Inner {
+    static value class Inner {
         int f;
-        private Inner() { f=0; }
+        public implicit Inner();
         private Inner(int v) { f=v; }
 
         public static Inner create(int v) {
@@ -44,8 +44,8 @@ public class InnerClassAttributeValuenessTest {
         }
 
         // Uncomment the next line, and Inner ceases to be a value type
-        public static final Inner.ref ZERO = Inner.create(0);
-        public static final Inner.ref ZERO2 = Inner.create(0);
+        public static final Inner ZERO = Inner.create(0);
+        public static final Inner ZERO2 = Inner.create(0);
     }
 
     public static void main(String[] args) {

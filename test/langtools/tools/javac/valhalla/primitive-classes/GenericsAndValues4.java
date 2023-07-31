@@ -30,11 +30,11 @@
  * @compile -XDenablePrimitiveClasses GenericsAndValues4.java
  */
 
-primitive class InlineType<E> {
+value class InlineType<E> {
 
     interface Sample<K extends Comparable<? super K>, V> {
         void doesCompile(InlineType<? extends K> argument);
-        void doesNotCompile(java.util.Map.Entry<InlineType.ref<? extends K>, ? extends V> arg);
+        void doesNotCompile(java.util.Map.Entry<InlineType<? extends K>, ? extends V> arg);
     }
 
     private E element;

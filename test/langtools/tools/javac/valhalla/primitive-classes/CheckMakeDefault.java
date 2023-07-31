@@ -4,38 +4,49 @@
  *
  * @compile/fail/ref=CheckMakeDefault.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckMakeDefault.java
  */
-primitive final class Point {
-
-    primitive interface I { int x = 10; } // Error
-    primitive abstract class A { int x = 10; } // Error
+value final class Point {
+    value interface I { int x = 10; } // Error
+    value abstract class A { int x = 10; } // Error
     static final class Sinner {
         static Sinner make() {
             return Sinner.default;
         }
     }
 
-    primitive static final class SinnerValue {
+    value static final class SinnerValue {
+        public implicit SinnerValue();
         static SinnerValue make() {
             return SinnerValue.default;
-        } int x = 10;
+        }
     }
 
     final int x;
     final int y;
 
-    final int nonbool = boolean.default;
-    final boolean nonbyte = byte.default;
-    final boolean nonchar = char.default;
-    final boolean nonint = int.default;
-    final boolean nonshort = short.default;
-    final boolean nonlong = long.default;
-    final boolean nonfloat = float.default;
-    final boolean nondouble = double.default;
-    final int nonString = String.default;
-    final int nonbyteArray = byte[].default;
+    final int nonbool;
+    final boolean nonbyte;
+    final boolean nonchar;
+    final boolean nonint;
+    final boolean nonshort;
+    final boolean nonlong;
+    final boolean nonfloat;
+    final boolean nondouble;
+    final int nonString;
+    final int nonbyteArray;
 
-    Point() {}
-    Point (int x, int y) {}
+    public implicit Point();
+    Point (int x, int y) {
+        final int nonbool = boolean.default;
+        final boolean nonbyte = byte.default;
+        final boolean nonchar = char.default;
+        final boolean nonint = int.default;
+        final boolean nonshort = short.default;
+        final boolean nonlong = long.default;
+        final boolean nonfloat = float.default;
+        final boolean nondouble = double.default;
+        final int nonString = String.default;
+        final int nonbyteArray = byte[].default;
+    }
 
     static Point make(int x, int y) {
        Point p = Point.default;

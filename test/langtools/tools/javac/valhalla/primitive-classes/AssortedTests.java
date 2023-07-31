@@ -27,36 +27,35 @@
  * @test
  * @bug 8222634
  * @summary Check various code snippets that were incorrectly failing to compile.
- * @compile -XDenablePrimitiveClasses AssortedTests.java
+ * @compile -XDemitQDesc AssortedTests.java
  */
 
-primitive class MyValue1 {
-    final int x = 0;
+value class MyValue1 {
+    final int x;
+    public implicit MyValue1();
 }
 
 class X {
-    static final MyValue1 vField = new MyValue1();
+    static final MyValue1! vField = new MyValue1();
 
-    primitive class MyValue2 {
-        final MyValue1.ref vBoxField;
-
-        public MyValue2() {
-            vBoxField = new MyValue1();
-        }
+    static value class MyValue2 {
+        final MyValue1! vBoxField;
+        public implicit MyValue2();
     }
 
     public static void main(String[] args) { }
 }
 
-primitive class MyValue3 {
-    final int x = 0;
+value class MyValue3 {
+    final int x;
+    public implicit MyValue3();
     public int hash() { return 0; }
 }
 
 class Y {
 
-    primitive class MyValue4 {
-        final MyValue3.ref vBoxField = null;
+    value class MyValue4 {
+        final MyValue3 vBoxField = null;
 
         public int test() {
             return vBoxField.hash();
@@ -67,12 +66,14 @@ class Y {
 }
 
 interface MyInterface {
-    public void test(MyValue5.ref vt);
+    public void test(MyValue5 vt);
 }
 
-primitive class MyValue5 implements MyInterface {
-    final int x = 0;
+value class MyValue5 implements MyInterface {
+    final int x;
+
+    public implicit MyValue5();
 
     @Override
-    public void test(MyValue5.ref vt) { }
+    public void test(MyValue5 vt) { }
 }

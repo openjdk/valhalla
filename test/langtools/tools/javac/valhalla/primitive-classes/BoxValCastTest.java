@@ -26,7 +26,7 @@
  * @bug 8214421 8221545 8222792
  * @summary Q<->L mixing should be OK for upcasts and should use checkcasts for downcasts.
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile -XDenablePrimitiveClasses BoxValCastTest.java
+ * @compile -XDemitQDesc BoxValCastTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses BoxValCastTest
  * @modules jdk.compiler
  */
@@ -37,16 +37,18 @@ import java.nio.file.Paths;
 
 public class BoxValCastTest {
 
-    static primitive class VT {
-        int f = 0;
-        static final VT.ref vtbox = (VT.ref) new VT(); // no binary cast
-        static VT vt = (VT) vtbox; // binary cast
-        static VT.ref box = vt; // no binary cast
-        static VT.ref box2 = (VT) box; // binary cast
-        static VT.ref box3 = id(new VT()); // no binary cast + no binary cast
+    static value class VT {
+        int f;
+        static final VT vtbox = (VT) new VT(); // no binary cast
+        static VT! vt = (VT!) vtbox; // binary cast
+        static VT box = vt; // no binary cast
+        static VT box2 = (VT!) box; // binary cast
+        static VT box3 = id(new VT!()); // no binary cast + no binary cast
 
-        static VT id(VT.ref vtb) {
-            return (VT) vtb; // binary
+        public implicit VT();
+
+        static VT! id(VT vtb) {
+            return (VT!) vtb; // binary
         }
     }
 

@@ -29,9 +29,9 @@
  */
 import static java.lang.System.*;
 
-public final primitive class CheckIdentityHash01 {
-    void test(CheckIdentityHash01 v) {
-
+public final value class CheckIdentityHash01 {
+    public implicit CheckIdentityHash01();
+    void test(CheckIdentityHash01! v) {
         identityHashCode(v);      // <- error
         identityHashCode(this);   // <- error
 
@@ -45,5 +45,4 @@ public final primitive class CheckIdentityHash01 {
         java.lang.System.identityHashCode(v);    // <- error
         java.lang.System.identityHashCode(this); // <- error
     }
-    int x = 10;
 }

@@ -28,7 +28,7 @@
  * @summary V.ref class should not inadvertently carry over attributes from V.class
  * @bug 8244713
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @compile -XDenablePrimitiveClasses AttributesTest.java
+ * @compile -XDemitQDesc AttributesTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses AttributesTest
  */
 
@@ -39,7 +39,9 @@ public class AttributesTest {
 
     void foo() {
         @Deprecated
-        primitive class V<T> {}
+        static value class V<T> {
+            public implicit V();
+        }
     }
 
     public static void main(String[] args) throws Exception {

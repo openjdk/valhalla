@@ -5,13 +5,13 @@
  * @compile/fail/ref=CheckNullAssign.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckNullAssign.java
  */
 
-final primitive class CheckNullAssign {
-    CheckNullAssign foo(CheckNullAssign cna) {
+final value class CheckNullAssign {
+    CheckNullAssign! foo(CheckNullAssign! cna) {
         // All of the below involve subtype/assignability checks and should be rejected.
         cna = null;
         foo(null);
-        if (null instanceof CheckNullAssign) {}
+        if (null instanceof CheckNullAssign!) {}
         return null;
     }
-    int x = 10;
+    public implicit CheckNullAssign();
 }

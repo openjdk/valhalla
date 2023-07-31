@@ -31,7 +31,7 @@
 
 
 public class InnerValueNew {
-    final primitive class Y {
+    final value class Y {
         final int x;
         final int p = 123456;
         Y() {
