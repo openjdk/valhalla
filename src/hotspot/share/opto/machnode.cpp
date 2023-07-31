@@ -739,7 +739,7 @@ bool MachCallNode::returns_scalarized() const {
 const RegMask &MachCallNode::in_RegMask(uint idx) const {
   // Values in the domain use the users calling convention, embodied in the
   // _in_rms array of RegMasks.
-  if (entry_point() == NULL && idx == TypeFunc::Parms) {
+  if (entry_point() == nullptr && idx == TypeFunc::Parms) {
     // Null entry point is a special cast where the target of the call
     // is in a register.
     return MachNode::in_RegMask(idx);

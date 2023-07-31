@@ -572,18 +572,18 @@ public:
   Node* resproj[1]; // at least one projection
 
   CallProjections(uint nbres) {
-    fallthrough_proj      = NULL;
-    fallthrough_catchproj = NULL;
-    fallthrough_memproj   = NULL;
-    fallthrough_ioproj    = NULL;
-    catchall_catchproj    = NULL;
-    catchall_memproj      = NULL;
-    catchall_ioproj       = NULL;
-    exobj                 = NULL;
+    fallthrough_proj      = nullptr;
+    fallthrough_catchproj = nullptr;
+    fallthrough_memproj   = nullptr;
+    fallthrough_ioproj    = nullptr;
+    catchall_catchproj    = nullptr;
+    catchall_memproj      = nullptr;
+    catchall_ioproj       = nullptr;
+    exobj                 = nullptr;
     nb_resproj            = nbres;
-    resproj[0]            = NULL;
+    resproj[0]            = nullptr;
     for (uint i = 1; i < nb_resproj; i++) {
-      resproj[i]          = NULL;
+      resproj[i]          = nullptr;
     }
   }
 
@@ -748,7 +748,7 @@ public:
     }
     const TypeTuple *r = tf->range_sig();
     if (InlineTypeReturnedAsFields &&
-        method != NULL &&
+        method != nullptr &&
         method->is_method_handle_intrinsic() &&
         r->cnt() > TypeFunc::Parms &&
         r->field_at(TypeFunc::Parms)->isa_oopptr() &&
@@ -947,7 +947,7 @@ public:
   virtual uint size_of() const; // Size is bigger
   AllocateNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
                Node *size, Node *klass_node, Node *initial_test,
-               InlineTypeNode* inline_type_node = NULL);
+               InlineTypeNode* inline_type_node = nullptr);
   // Expansion modifies the JVMState, so we need to deep clone it
   virtual bool needs_deep_clone_jvms(Compile* C) { return true; }
   virtual int Opcode() const;

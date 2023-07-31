@@ -111,7 +111,7 @@
 //  are placed lowest next to lock bits to more easily decode forwarding pointers.
 //  G1 for example, implicitly clears age bits ("G1FullGCCompactionPoint::forward()")
 //  using "oopDesc->forwardee()", so it necessary for "markWord::decode_pointer()"
-//  to return a non-NULL for this case, but not confuse the static type bits for
+//  to return a non-nullptr for this case, but not confuse the static type bits for
 //  a pointer.
 //
 //  Static types bits are recorded in the "klass->prototype_header()", displaced
@@ -412,7 +412,7 @@ class markWord {
 
   // Recover address of oop from encoded form used in mark
   inline void* decode_pointer() {
-    return (EnableValhalla && _value < static_prototype_value_max) ? NULL :
+    return (EnableValhalla && _value < static_prototype_value_max) ? nullptr :
       (void*) (clear_lock_bits().value());
   }
 };

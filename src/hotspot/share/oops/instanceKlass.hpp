@@ -295,7 +295,7 @@ class InstanceKlass: public Klass {
   Array<u1>*          _fieldinfo_stream;
   Array<FieldStatus>* _fields_status;
 
-  const Klass**   _inline_type_field_klasses; // For "inline class" fields, NULL if none present
+  const Klass**   _inline_type_field_klasses; // For "inline class" fields, null if none present
   Array<u2>* _preload_classes;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 

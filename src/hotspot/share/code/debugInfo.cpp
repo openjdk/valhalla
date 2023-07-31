@@ -168,7 +168,7 @@ void ObjectValue::write_on(DebugInfoWriteStream* stream) {
     stream->write_int(is_auto_box() ? AUTO_BOX_OBJECT_CODE : OBJECT_CODE);
     stream->write_int(_id);
     _klass->write_on(stream);
-    if (_is_init == NULL) {
+    if (_is_init == nullptr) {
       // MarkerValue is used for null-free objects
       _is_init = new MarkerValue();
     }

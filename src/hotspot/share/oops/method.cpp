@@ -1269,7 +1269,8 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
       SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
       !native_bind_event_is_interesting);
   }
-  if (InlineTypeReturnedAsFields && returns_inline_type(THREAD)) {
+  if (InlineTypeReturnedAsFields && returns_inline_type(THREAD) && !has_scalarized_return()) {
+    assert(!constMethod()->is_shared(), "Cannot update shared const objects");
     set_has_scalarized_return();
   }
 

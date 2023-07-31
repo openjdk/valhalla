@@ -435,7 +435,7 @@ public:
   // Returns null is it couldn't improve the type.
   static const TypeInt* filtered_int_type(PhaseGVN* phase, Node* val, Node* if_proj);
 
-  bool is_flat_array_check(PhaseTransform* phase, Node** array = NULL);
+  bool is_flat_array_check(PhaseTransform* phase, Node** array = nullptr);
 
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
