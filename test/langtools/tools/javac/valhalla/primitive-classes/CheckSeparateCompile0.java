@@ -31,10 +31,11 @@ public class CheckSeparateCompile0 {
         int o = 456;
         public class M {
             int m = 789;
-            public primitive class I {
-                int i = 890;
-                I() {
-
+            static public value class I {
+                int i;
+                public implicit I();
+                public I(boolean dummy) {
+                    this.i = 890;
                 }
                 I foo() {
                     return this;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,55 @@
 
 /*
  * @test
- * @bug 8268671
- * @ignore
- * @summary Wrong code generated for PrimitiveClass.ref.default
- * @compile -XDenablePrimitiveClasses DefaultOfPrimitiveReference.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses DefaultOfPrimitiveReference
+ * @bug 8222634
+ * @summary Check various code snippets that were incorrectly failing to compile.
+ * @compile -XDemitQDesc AssortedTests.java
  */
 
-public primitive class DefaultOfPrimitiveReference {
-    public static void main(String [] args) {
-        Object o = DefaultOfPrimitiveReference.ref.default;
-        if (o != null)
-            throw new AssertionError("Expected NPE is missing");
+value class MyValue1 {
+    final int x;
+    public implicit MyValue1();
+}
+
+class X {
+    static final MyValue1! vField = new MyValue1();
+
+    static value class MyValue2 {
+        final MyValue1! vBoxField;
+        public implicit MyValue2();
     }
+
+    public static void main(String[] args) { }
+}
+
+value class MyValue3 {
+    final int x;
+    public implicit MyValue3();
+    public int hash() { return 0; }
+}
+
+class Y {
+
+    value class MyValue4 {
+        final MyValue3 vBoxField = null;
+
+        public int test() {
+            return vBoxField.hash();
+        }
+    }
+
+    public static void main(String[] args) { }
+}
+
+interface MyInterface {
+    public void test(MyValue5 vt);
+}
+
+value class MyValue5 implements MyInterface {
+    final int x;
+
+    public implicit MyValue5();
+
+    @Override
+    public void test(MyValue5 vt) { }
 }

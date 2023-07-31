@@ -27,16 +27,21 @@
  * @test
  * @bug 8244711
  * @summary Test that primitive classes work well with TWR
- * @ignore
- * @compile -XDenablePrimitiveClasses AutoCloseableTest.java
+ * @compile -XDemitQDesc AutoCloseableTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses AutoCloseableTest
  */
 
 public class AutoCloseableTest {
 
-    primitive static class Foo implements AutoCloseable {
+    value static class Foo implements AutoCloseable {
 
-        String s = "Exception while closing AutoCloseable";
+        String s;
+
+        public implicit Foo();
+
+        public Foo(boolean dummy) {
+            s = "Exception while closing AutoCloseable";
+        }
 
         @Override
         public void close() throws Exception {
@@ -48,7 +53,7 @@ public class AutoCloseableTest {
     public static void main(String[] args) {
         String expected = "";
         String found = "";
-        try (Foo foo = new Foo()) {
+        try (Foo! foo = new Foo(false)) {
             expected = foo.s;
         } catch (Exception e) {
             found = e.getMessage();

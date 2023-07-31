@@ -26,14 +26,12 @@
 /*
  * @test
  * @bug 8244458 8244414
- * @ignore
  * @summary Diamond inference does not work with value classes
  * @compile -XDenablePrimitiveClasses InlineDiamondTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InlineDiamondTest
  */
 
 public class InlineDiamondTest<E> {
-
     interface I<T> {
     }
 
@@ -41,8 +39,9 @@ public class InlineDiamondTest<E> {
         return new Y<>();
     }
 
-    private primitive class Y<U> implements I<U> {
-        int x = 42;
+    private static value class Y<U> implements I<U> {
+        int x;
+        public implicit Y();
     }
 
     public static void main(String [] args) {

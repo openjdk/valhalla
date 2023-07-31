@@ -99,6 +99,13 @@ public class Flags {
     /** Added in SE8, represents constructs implicitly declared in source. */
     public static final int MANDATED     = 1<<15;
 
+    /** Marks a type as a primitive class. We can't reuse the class file encoding (ACC_PRIMITIVE)
+     * since the latter shares its value (0x800) with ACC_STRICT (javac speak: STRICT_FP) and while
+     * STRICT_FP is not a valid flag for a class in the class file level, javac's ASTs flag a class
+     * as being STRICT_FP so as to propagate the FP strictness to methods of the class thereby causing
+     * a clash */
+    public static final int PRIMITIVE_CLASS  = 1<<16;
+
     public static final int StandardFlags = 0x0fff;
 
     // Because the following access flags are overloaded with other
@@ -111,6 +118,7 @@ public class Flags {
     public static final int ACC_VALUE      = 0x0040;
     public static final int ACC_BRIDGE     = 0x0040;
     public static final int ACC_VARARGS    = 0x0080;
+    public static final int ACC_PRIMITIVE = 0x0800;
     public static final int ACC_MODULE     = 0x8000;
 
     /*****************************************
@@ -542,11 +550,12 @@ public class Flags {
         },
         IMPLICIT(Flags.IMPLICIT),
         UNNAMED_CLASS(Flags.UNNAMED_CLASS),
+        PRIMITIVE(Flags.PRIMITIVE_CLASS),
+        VALUE(Flags.VALUE_CLASS),
         BLOCK(Flags.BLOCK),
         FROM_SOURCE(Flags.FROM_SOURCE),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),
-        VALUE(Flags.VALUE_CLASS),
         NOOUTERTHIS(Flags.NOOUTERTHIS),
         EXISTS(Flags.EXISTS),
         COMPOUND(Flags.COMPOUND),

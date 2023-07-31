@@ -23,10 +23,11 @@
 
 public class FlattenableFlagFromClass {
 
-    public primitive final class V {
-        final int x = 10;
+    static public value final class V {
+        final int x;
+        public implicit V();
     }
 
-    public V v;
-    public V[] va;
+    public V! v;
+    public V[]! va;
 }

@@ -1,4 +1,0 @@
-ClassLiteralNegativeTest.java:9:11: compiler.err.type.found.req: ClassLiteralNegativeTest, (compiler.misc.type.req.ref)
-ClassLiteralNegativeTest.java:10:11: compiler.err.type.found.req: ClassLiteralNegativeTest, (compiler.misc.type.req.ref)
-ClassLiteralNegativeTest.java:11:11: compiler.err.type.found.req: ClassLiteralNegativeTest, (compiler.misc.type.req.ref)
-3 errors

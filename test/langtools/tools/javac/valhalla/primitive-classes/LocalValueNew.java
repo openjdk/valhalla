@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8198749
- * @ignore
  * @summary Test value instatiation using new/ctors.
  * @compile -XDenablePrimitiveClasses LocalValueNew.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LocalValueNew
@@ -35,7 +34,7 @@ public class LocalValueNew {
     int xf = 1234;
     void foo() {
         int xl = 10; int yl = 20;
-        final primitive class Y {
+        final value class Y {
             final int x;
             final int p = 123456;
             Y() {

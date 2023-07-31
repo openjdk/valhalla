@@ -24,17 +24,16 @@
 /**
  * @test
  * @bug 8217875
- * @ignore
  * @summary [lworld] Javac does not allow express casts between value types and their light weight box types
  * @compile -XDenablePrimitiveClasses IntercastTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses IntercastTest
  */
 
-public primitive class IntercastTest {
+public value class IntercastTest {
 
     int ARRAY[] = { 10, 20, 30 };
 
-    static primitive class Tuple {
+    static value class Tuple {
         private final int index;
         private final int element;
 
@@ -44,7 +43,7 @@ public primitive class IntercastTest {
         }
     }
 
-    static primitive class Cursor {
+    static value class Cursor {
         private final int[] array;
         private final int index;
 
@@ -57,7 +56,7 @@ public primitive class IntercastTest {
             return new Tuple(index, array[index]);
         }
 
-        Cursor.ref next() {
+        Cursor next() {
             if (index + 1 == array.length) {
                 return null;
             }
@@ -65,7 +64,7 @@ public primitive class IntercastTest {
         }
     }
 
-    private static Cursor.ref indexedElements(int[] array) {
+    private static Cursor indexedElements(int[] array) {
         if (array.length == 0) {
             return null;
         }
@@ -74,7 +73,7 @@ public primitive class IntercastTest {
 
     public int sum() {
         int sum = 0;
-        for (Cursor.ref cursor = indexedElements(ARRAY); cursor != null; cursor = cursor.next()) {
+        for (Cursor cursor = indexedElements(ARRAY); cursor != null; cursor = cursor.next()) {
             Tuple tuple = cursor.current();
             sum += tuple.index + tuple.element;
         }
@@ -86,7 +85,7 @@ public primitive class IntercastTest {
         if (x.sum() != 63 || x.ARRAY.length != 3) {
             throw new AssertionError("Broken");
         }
-        IntercastTest.ref xbox = (IntercastTest.ref) x;
+        IntercastTest xbox = (IntercastTest) x;
         if (xbox.sum() != 63 || xbox.ARRAY.length != 3) {
             throw new AssertionError("Broken");
         }

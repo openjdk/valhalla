@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Compiler should reject value modifier when it features in illegal contexts.
- * @ignore
+ *
  * @compile/fail/ref=CheckValueModifier.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckValueModifier.java
  */
 
@@ -12,11 +12,11 @@
    All uses of value below should trigger errors.
 */
 class CheckValueModifier {
-   primitive int x;
-   primitive int foo() {
+   value int x;
+   value int foo() {
    }
-   primitive interface IFace {}
-   primitive @interface Annot {}
-   primitive enum Enum {}
-   primitive abstract class Inner {}
+   value interface IFace {}
+   value @interface Annot {}
+   value enum Enum {}
+   value abstract class Inner {}
 }

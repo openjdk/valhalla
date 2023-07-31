@@ -24,7 +24,6 @@
 /*
  * @test
  * @summary Check constant propagation behavior
- * @ignore
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile -XDenablePrimitiveClasses ConstantPropagationTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ConstantPropagationTest
@@ -37,9 +36,13 @@ import java.nio.file.Paths;
 
 public class ConstantPropagationTest {
 
-    static final primitive class X {
+    static final value class X {
         static final int sfif = 8888;
-        final int ifif = 9999;
+        final int ifif;
+        public implicit X();
+        X(boolean dummy) {
+            ifif = 9999;
+        }
         static void foo(X x) {
             System.out.println(sfif);
             System.out.println(x.ifif);

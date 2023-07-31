@@ -26,7 +26,6 @@
 /*
  * @test
  * @bug 8222792
- * @ignore
  * @summary Javac should enforce the latest relationship rules between an inline type and its nullable projection
  * @compile -XDenablePrimitiveClasses TypeRelationsTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses TypeRelationsTest

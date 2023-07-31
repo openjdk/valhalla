@@ -99,6 +99,8 @@ public class Types {
 
     public final Warner noWarnings;
 
+    private boolean emitQDesc;
+
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
     public static Types instance(Context context) {
         Types instance = context.get(typesKey);
@@ -124,6 +126,8 @@ public class Types {
                 return "NO_WARNINGS";
             }
         };
+        Options options = Options.instance(context);
+        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
     }
     // </editor-fold>
 
@@ -1825,7 +1829,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || s.hasTag(BOT))
+                if (s.hasTag(ERROR) || s.hasTag(BOT) && !t.isNonNullable())
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
@@ -5249,7 +5253,10 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    append('L');
+                    if (types.emitQDesc && type.hasImplicitConstructor() && type.isNonNullable())
+                        append('Q');
+                    else
+                        append('L');
                     assembleClassSig(type);
                     append(';');
                     break;

@@ -50,7 +50,7 @@ public class ArrayCreationWithQuestion {
                                                 "ArrayCreationWithQuestion$VT.class").toString() };
         runCheck(params, new String [] {
         "         6: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
-        "        17: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
+        "        22: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
          });
      }
 

@@ -1,15 +1,15 @@
 /*
  * @test /nodynamiccopyright/
  * @summary null cannot be casted to and compared with value types.
- * @ignore
+ *
  * @compile/fail/ref=CheckNullCastable.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckNullCastable.java
  */
 
-primitive final class CheckNullCastable {
-    void foo(CheckNullCastable cnc) {
-        CheckNullCastable cncl = (CheckNullCastable) null;
+value final class CheckNullCastable {
+    void foo(CheckNullCastable! cnc) {
+        CheckNullCastable! cncl = (CheckNullCastable!) null;
         if (cnc != null) {};
         if (null != cnc) {};
     }
-    int x = 10;
+    public implicit CheckNullCastable();
 }

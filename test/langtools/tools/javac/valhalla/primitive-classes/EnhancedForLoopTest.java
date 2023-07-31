@@ -26,7 +26,6 @@
 /*
  * @test
  * @bug 8244711 8244712
- * @ignore
  * @summary Test that inline types work well with enhanced for loop.
  * @compile -XDenablePrimitiveClasses EnhancedForLoopTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses EnhancedForLoopTest
@@ -46,7 +45,7 @@ import java.util.ArrayList;
 
 public class EnhancedForLoopTest {
 
-    static primitive class PrimitiveIterator<V> implements Iterator<V> {
+    static value class PrimitiveIterator<V> implements Iterator<V> {
 
         Iterator<V> iv;
 
@@ -66,7 +65,7 @@ public class EnhancedForLoopTest {
 
     }
 
-    primitive static class Foo<V> implements Iterable<V> {
+    value static class Foo<V> implements Iterable<V> {
 
         List<V> lv;
 
@@ -78,7 +77,7 @@ public class EnhancedForLoopTest {
             lv.add(v);
         }
 
-       public PrimitiveIterator<V> iterator() {
+        public PrimitiveIterator<V> iterator() {
             return new PrimitiveIterator<V>(lv);
         }
     }

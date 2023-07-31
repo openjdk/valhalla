@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check that a concrete class is not allowed to be the super class of a primitive class
- * @ignore
+ *
  * @compile/fail/ref=CheckExtends.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckExtends.java
  */
 

@@ -136,6 +136,7 @@ public class Gen extends JCTree.Visitor {
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
         qualifiedSymbolCache = new HashMap<>();
+        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
     }
 
     /** Switches
@@ -145,6 +146,7 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private boolean disableVirtualizedPrivateInvoke;
+    private final boolean emitQDesc;
 
     /** Code buffer, set by genMethod.
      */
@@ -274,8 +276,16 @@ public class Gen extends JCTree.Visitor {
      *  @param type   The type for which a reference is inserted.
      */
     int makeRef(DiagnosticPosition pos, Type type) {
+        return makeRef(pos, type, false);
+    }
+
+    int makeRef(DiagnosticPosition pos, Type type, boolean emitQtype) {
         checkDimension(pos, type);
-        return poolWriter.putClass(type);
+        if (emitQtype) {
+            return poolWriter.putClass(new ConstantPoolQType(type, types));
+        } else {
+            return poolWriter.putClass(type);
+        }
     }
 
     /** Check if the given type is an array with too many dimensions.
@@ -912,7 +922,7 @@ public class Gen extends JCTree.Visitor {
     public void genArgs(List<JCExpression> trees, List<Type> pts) {
         for (List<JCExpression> l = trees; l.nonEmpty(); l = l.tail) {
             genExpr(l.head, pts.head).load();
-            if (pts.head.isNonNullable()) {
+            if (pts.head.isNonNullable() && !l.head.type.isNonNullable()) {
                 code.emitop0(dup);
                 genNullCheck(l.head);
             }
@@ -1066,11 +1076,15 @@ public class Gen extends JCTree.Visitor {
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
                 Type selfType = meth.owner.type;
+                boolean shouldBeQDesc = emitQDesc && selfType.hasImplicitConstructor();
+                selfType = shouldBeQDesc ? selfType.addMetadata(new TypeMetadata.NullMarker(JCNullableTypeExpression.NullMarker.NOT_NULL)) : selfType;
                 if (meth.isInitOrVNew() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
                         code.newLocal(
-                            new VarSymbol(FINAL, names._this, selfType, meth.owner)));
+                            new VarSymbol(FINAL, names._this,
+                                    selfType,
+                                    meth.owner)));
             }
 
             // Mark all parameters as defined from the beginning of
@@ -1098,7 +1112,7 @@ public class Gen extends JCTree.Visitor {
                 Assert.check(code.isStatementStart());
                 code.newLocal(v);
                 genExpr(tree.init, v.erasure(types)).load();
-                if (tree.type.isNonNullable()) {
+                if (tree.type.isNonNullable() && !tree.init.type.isNonNullable()) {
                     code.emitop0(dup);
                     genNullCheck(tree.init);
                 }
@@ -2107,7 +2121,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype), type);
+                code.emitAnewarray(makeRef(pos, elemtype, emitQDesc && elemtype.hasImplicitConstructor() && elemtype.isNonNullable()), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {
@@ -2123,7 +2137,7 @@ public class Gen extends JCTree.Visitor {
     public void visitAssign(JCAssign tree) {
         Item l = genExpr(tree.lhs, tree.lhs.type);
         genExpr(tree.rhs, tree.lhs.type).load();
-        if (tree.lhs.type.isNonNullable()) {
+        if (tree.lhs.type.isNonNullable() && !tree.rhs.type.isNonNullable()) {
             code.emitop0(dup);
             genNullCheck(tree.rhs);
         }
@@ -2332,7 +2346,7 @@ public class Gen extends JCTree.Visitor {
 
     public void visitTypeCast(JCTypeCast tree) {
         result = genExpr(tree.expr, tree.clazz.type).load();
-        if (tree.clazz.type.isNonNullable()) {
+        if (tree.clazz.type.isNonNullable() && !tree.expr.type.isNonNullable()) {
             code.emitop0(dup);
             genNullCheck(tree.expr);
         }
@@ -2344,7 +2358,12 @@ public class Gen extends JCTree.Visitor {
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
            types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
-            code.emitop2(checkcast, checkDimension(tree.pos(), tree.clazz.type), PoolWriter::putClass);
+            checkDimension(tree.pos(), tree.clazz.type);
+            if (emitQDesc && tree.clazz.type.hasImplicitConstructor() && tree.clazz.type.isNonNullable()) {
+                code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
+            } else {
+                code.emitop2(checkcast, tree.clazz.type, PoolWriter::putClass);
+            }
         }
     }
 
@@ -2406,7 +2425,8 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type));
+            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type,
+                    emitQDesc && tree.selected.type.hasImplicitConstructor() && tree.selected.type.isNonNullable()));
             result = items.makeStackItem(pt);
             return;
         }

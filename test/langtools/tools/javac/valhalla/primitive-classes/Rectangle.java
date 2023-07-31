@@ -23,17 +23,18 @@
  * questions.
  */
 
-public primitive class Rectangle {
+public value class Rectangle {
 
-    Point topLeft, bottomRight;
+    Point! topLeft, bottomRight;
 
-    static Point origin;
+    static Point! origin;
 
-    static Rectangle from (Point.ref topLeft, Point.ref bottomRight) {
+    static Rectangle! from (Point topLeft, Point bottomRight) {
         return new Rectangle(topLeft, bottomRight);
     }
 
-    Rectangle (Point topLeft, Point bottomRight) {
+    public implicit Rectangle();
+    Rectangle (Point! topLeft, Point! bottomRight) {
         this.topLeft = topLeft;
         this.bottomRight = bottomRight;
     }

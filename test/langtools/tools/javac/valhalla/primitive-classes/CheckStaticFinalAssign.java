@@ -1,11 +1,10 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check that a static final field may not be modified in a value factory
- * @ignore
  * @compile/fail/ref=CheckStaticFinalAssign.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses CheckStaticFinalAssign.java
  */
 
-primitive final class CheckStaticFinalAssign {
+value final class CheckStaticFinalAssign {
     static final int x;
     static {
         x = 10;
@@ -16,5 +15,5 @@ primitive final class CheckStaticFinalAssign {
        x.x = 100;
        return x;
     }
-    int ix = 10;
+    public implicit CheckStaticFinalAssign();
 }

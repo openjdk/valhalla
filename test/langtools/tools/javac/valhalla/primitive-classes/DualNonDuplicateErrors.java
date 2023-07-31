@@ -1,12 +1,11 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8267843
- * @ignore
  * @summary Check that javac diagnoses `this` being passed around and instance method being invoked before primitive class instance is fully initialized.
  * @compile/fail/ref=DualNonDuplicateErrors.out -XDrawDiagnostics -XDenablePrimitiveClasses DualNonDuplicateErrors.java
  */
 
-public primitive class DualNonDuplicateErrors {
+public value class DualNonDuplicateErrors {
 
     int x;
 

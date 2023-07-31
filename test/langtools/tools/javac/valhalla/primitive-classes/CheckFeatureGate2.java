@@ -1,7 +1,6 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8237067
- * @ignore
  * @summary Check that .default is not allowed in previous versions.
  * @compile/fail/ref=CheckFeatureGate2.out --release=13 -XDrawDiagnostics CheckFeatureGate2.java
  */

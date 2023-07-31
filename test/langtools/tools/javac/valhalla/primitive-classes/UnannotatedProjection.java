@@ -27,7 +27,6 @@
  * @test
  * @summary Verify that primitive class declarations can be annotated
  * @bug 8244713
- * @ignore
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses UnannotatedProjection.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses UnannotatedProjection

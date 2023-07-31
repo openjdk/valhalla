@@ -1,15 +1,14 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8197911
- * @ignore
  * @summary Check that valueness is deduced from class files and has the appropriate effect.
  * @compile -XDenablePrimitiveClasses FlattenableFlagFromClass.java
  * @compile/fail/ref=CheckFlattenableFlagFromClass.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckFlattenableFlagFromClass.java
  */
 
 public class CheckFlattenableFlagFromClass {
-    void foo(FlattenableFlagFromClass f) {
+    void foo(FlattenableFlagFromClass! f) {
         f.v = null; // Error.
-        f.va[0] = null; // Error.
+        f.va = null; //f.va[0] = null; // Error.  we currently can't represent that elements inside an array are non-nullable
     }
 }

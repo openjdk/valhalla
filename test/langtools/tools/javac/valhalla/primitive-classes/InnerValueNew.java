@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8198749
- * @ignore
  * @summary Test value instatiation using new/ctors.
  * @compile -XDenablePrimitiveClasses InnerValueNew.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InnerValueNew
@@ -32,7 +31,7 @@
 
 
 public class InnerValueNew {
-    final primitive class Y {
+    final value class Y {
         final int x;
         final int p = 123456;
         Y() {

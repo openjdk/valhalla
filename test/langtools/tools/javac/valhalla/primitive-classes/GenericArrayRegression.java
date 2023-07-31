@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8217958 8217966
- * @ignore
  * @summary Trouble assigning/casting to a value array type with parameterized element type
  * @compile -XDenablePrimitiveClasses -XDenablePrimitiveClasses GenericArrayRegression.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses GenericArrayRegression
@@ -32,15 +31,15 @@
 
 public class GenericArrayRegression {
 
-   static primitive class Entry<E> {
+   static value class Entry<E> {
      private final int value;
-
+     public implicit Entry();
      public Entry(int value) {
        this.value = value;
      }
 
-     public static <E> Entry<E>[] of() {
-       return (Entry<E>[])new Entry<?>[0];
+     public static <E> Entry!<E>[] of() {
+       return (Entry!<E>[])new Entry!<?>[0];
      }
    }
 

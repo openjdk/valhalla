@@ -26,10 +26,8 @@
 /*
  * @test
  * @summary Test various inference scenarios.
- * @ignore
  * @compile -XDenablePrimitiveClasses InferredValueParameterizationTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InferredValueParameterizationTest
- *
  */
 
 import java.util.List;
@@ -37,9 +35,8 @@ import java.util.List;
 // This used to be negative test earlier in LW2.
 // Now no value type V <: T where T is a type variable.
 
-public primitive class InferredValueParameterizationTest {
-    int x = 10;
-
+public value class InferredValueParameterizationTest {
+    public implicit InferredValueParameterizationTest();
     static class Y<T> {
         Y(T t) {}
     }
@@ -49,9 +46,9 @@ public primitive class InferredValueParameterizationTest {
     }
 
     public static void main(String [] args) {
-       var list = List.of(new InferredValueParameterizationTest());
-       Object o = new Y<>(new InferredValueParameterizationTest());
-       o = new Y<>(new InferredValueParameterizationTest()) {};
-       foo(new InferredValueParameterizationTest());
+       var list = List.of(new InferredValueParameterizationTest!());
+       Object o = new Y<>(new InferredValueParameterizationTest!());
+       o = new Y<>(new InferredValueParameterizationTest!()) {};
+       foo(new InferredValueParameterizationTest!());
     }
 }

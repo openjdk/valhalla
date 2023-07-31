@@ -23,27 +23,26 @@
 
 /**
  * @test
- * @bug 8210122
- * @ignore
- * @summary [lworld] javac issues bogus "no comment" doclint warning while compiling primitive class
- * @compile -Xdoclint:all -Werror -XDenablePrimitiveClasses DocLintSyntheticsTest.java
+ * @bug 8212175
+ * @summary Trouble creating an anonymous value class with diamond syntax
+ * @compile -XDemitQDesc AnonymousValue.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses AnonymousValue
  */
 
-/**
- * NOTE: This test is not relevant as we don't inject synthetic methods into primitive
- *       classes anymore, but is still left in just the same.
- */
-public primitive class DocLintSyntheticsTest {
-  /** field */
-  private final int value;
-  /**
-   * Constructor
-   */
-  public DocLintSyntheticsTest() { this.value = 0; }
+import java.util.function.Function;
 
-  /**
-   * test method
-   */
-  public static void test() {
-  }
+public class AnonymousValue {
+    static Function<String, String> capitalizer() {
+        return new value Function<>() {
+            int x = 10;
+            @Override
+            public String apply(String t) {
+                return t.toUpperCase();
+            }
+        };
+    }
+    public static void main(String[] args) {
+        if (!capitalizer().apply("blah").equals("BLAH"))
+            throw new AssertionError("Failed");
+    }
 }

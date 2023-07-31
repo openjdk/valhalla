@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8212615
- * @ignore
  * @summary ClassReader has trouble coping with 'Q' types.
  * @compile -XDenablePrimitiveClasses QPointConsumer.java
  * @compile -XDenablePrimitiveClasses QPointConsumer.java

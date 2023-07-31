@@ -24,17 +24,16 @@
 /**
  * @test
  * @bug 8217872 8221545
- * @ignore
  * @summary [lworld] Javac forbids look ups on the light weight box type of a value type
  * @compile -XDenablePrimitiveClasses LookupOnLoxTest2.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LookupOnLoxTest2
  */
 
-public primitive class LookupOnLoxTest2 {
+public value class LookupOnLoxTest2 {
 
     int ARRAY[] = { 10, 20, 30 };
 
-    static primitive class Tuple {
+    static value class Tuple {
         private final int index;
         private final int element;
 
@@ -44,7 +43,7 @@ public primitive class LookupOnLoxTest2 {
         }
     }
 
-    static primitive class Cursor {
+    static value class Cursor {
         private final int[] array;
         private final int index;
 
@@ -57,7 +56,7 @@ public primitive class LookupOnLoxTest2 {
             return new Tuple(index, array[index]);
         }
 
-        Cursor.ref next() {
+        Cursor next() {
             if (index + 1 == array.length) {
                 return null;
             }
@@ -65,7 +64,7 @@ public primitive class LookupOnLoxTest2 {
         }
     }
 
-    private static Cursor.ref indexedElements(int[] array) {
+    private static Cursor indexedElements(int[] array) {
         if (array.length == 0) {
             return null;
         }
@@ -74,7 +73,7 @@ public primitive class LookupOnLoxTest2 {
 
     public int sum() {
         int sum = 0;
-        for (Cursor.ref cursor = indexedElements(ARRAY); cursor != null; cursor = cursor.next()) {
+        for (Cursor cursor = indexedElements(ARRAY); cursor != null; cursor = cursor.next()) {
             Tuple tuple = cursor.current();
             sum += tuple.index + tuple.element;
         }
@@ -86,7 +85,7 @@ public primitive class LookupOnLoxTest2 {
         if (x.sum() != 63 || x.ARRAY.length != 3) {
             throw new AssertionError("Broken");
         }
-        LookupOnLoxTest2.ref xbox = x;
+        LookupOnLoxTest2 xbox = x;
         if (xbox.sum() != 63 || xbox.ARRAY.length != 3) {
             throw new AssertionError("Broken");
         }

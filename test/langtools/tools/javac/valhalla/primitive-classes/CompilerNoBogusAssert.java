@@ -26,7 +26,6 @@
 /*
  * @test
  * @bug 8222711
- * @ignore
  * @summary Regression test for bogus assertion failure.
  * @compile -XDenablePrimitiveClasses CompilerNoBogusAssert.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CompilerNoBogusAssert
@@ -34,10 +33,11 @@
 
 public class CompilerNoBogusAssert {
 
-    static primitive class Point {
+    static value class Point {
         int x;
         int y;
 
+        public implicit Point();
         public Point(int x, int y) {
             this.x = x;
             this.y = y;
@@ -45,10 +45,10 @@ public class CompilerNoBogusAssert {
     }
 
 
-    static void testCastingFromBoxToVal(Point.ref p) {
+    static void testCastingFromBoxToVal(Point p) {
         boolean npe = false;
         try {
-            Point pv = (Point) p;
+            Point! pv = (Point!) p;
         } catch(NullPointerException e) {
             npe = true;
         }

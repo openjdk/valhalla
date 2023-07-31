@@ -24,7 +24,6 @@
 /*
  * @test Check default values for non-inline types
  * @bug 8237067
- * @ignore
  * @summary [lworld] Provide linguistic support to denote default values.
  * @compile -XDenablePrimitiveClasses DefaultNonInlines.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dtest.compiler.opts=-release=13 DefaultNonInlines
@@ -32,8 +31,10 @@
 
 public class DefaultNonInlines {
 
-    static primitive class Val {
-        public int v = 42;
+    static value class Val {
+        public int v;
+        public implicit Val();
+        Val(int v) { this.v = v; }
     }
 
     static <T> void checkDefaultT(Class<T> clazz) throws Exception {
@@ -46,7 +47,7 @@ public class DefaultNonInlines {
         while (Val.default.v != int.default)
             throw new AssertionError("inline object fields should default to defaults");
 
-        while ((new Val()).v != 42)
+        while ((new Val(42)).v != 42)
             throw new AssertionError("inline object fields should default to whatever constructor says");
 
         // Simple reference default is just null

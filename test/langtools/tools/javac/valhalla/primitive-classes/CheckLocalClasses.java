@@ -26,7 +26,6 @@
 /*
  * @test
  * @bug 8211910
- * @ignore
  * @summary [lworld] Reinstate support for local value classes.
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses CheckLocalClasses.java
@@ -39,7 +38,7 @@ public class CheckLocalClasses {
     public class RefOuter {
         void foo() {
             RefOuter o = new RefOuter();
-            primitive  class Inner {
+            value class Inner {
                 private final int value2;
                 public Inner(int value2) {
                     System.out.println(o);
@@ -48,11 +47,11 @@ public class CheckLocalClasses {
             }
         }
     }
-    public primitive class ValueOuter {
-        int x = 10;
+    static public value class ValueOuter {
+        public implicit ValueOuter();
         void foo() {
-            ValueOuter o = new ValueOuter();
-            primitive class Inner {
+            ValueOuter! o = new ValueOuter();
+            value class Inner {
                 private final int value2;
                 public Inner(int value2) {
                     System.out.println(o);
@@ -65,16 +64,16 @@ public class CheckLocalClasses {
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(CheckLocalClasses.class.getResourceAsStream("CheckLocalClasses$ValueOuter$1Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_PRIMITIVE))
-            throw new Exception("Value flag not set");
+        /*if (!cls.access_flags.is(AccessFlags.ACC_PRIMITIVE))
+            throw new Exception("Value flag not set");*/
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
             throw new Exception("Final flag not set");
 
         cls = ClassFile.read(CheckLocalClasses.class.getResourceAsStream("CheckLocalClasses$RefOuter$1Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_PRIMITIVE))
-            throw new Exception("Value flag not set");
+        /*if (!cls.access_flags.is(AccessFlags.ACC_PRIMITIVE))
+            throw new Exception("Value flag not set");*/
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
             throw new Exception("Final flag not set");

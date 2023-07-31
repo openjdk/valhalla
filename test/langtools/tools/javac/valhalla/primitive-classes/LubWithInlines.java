@@ -26,7 +26,6 @@
 /*
  * @test
  * @bug 8244458 8244414
- * @ignore
  * @summary Check that javac does not crash while computing LUB involving values.
  * @compile -XDenablePrimitiveClasses LubWithInlines.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LubWithInlines
@@ -40,7 +39,7 @@ public class LubWithInlines {
         var ret = (e == null) ? new XNodeWrapper() : e;
         return ret;
     }
-    static primitive class XNodeWrapper implements I {
+    static value class XNodeWrapper implements I {
         int i = 42;
     }
     public static void main(String [] args) {

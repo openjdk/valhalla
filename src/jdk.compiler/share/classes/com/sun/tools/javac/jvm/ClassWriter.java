@@ -83,6 +83,10 @@ public class ClassWriter extends ClassFile {
      */
     private boolean emitSourceFile;
 
+    /** Switch: emit Q descriptors
+     */
+    private boolean emitQDesc;
+
     /** Switch: generate CharacterRangeTable attribute.
      */
     private boolean genCrt;
@@ -195,6 +199,7 @@ public class ClassWriter extends ClassFile {
             dumpInnerClassModifiers = modifierFlags.indexOf('i') != -1;
             dumpMethodModifiers = modifierFlags.indexOf('m') != -1;
         }
+        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
     }
 
     public void addExtraAttributes(ToIntFunction<Symbol> addExtraAttributes) {
@@ -842,7 +847,7 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
-            int flags = adjustFlags(inner.flags_field);
+            int flags = adjustFlags(inner, inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -1007,7 +1012,7 @@ public class ClassWriter extends ClassFile {
     /** Write field symbol, entering all references into constant pool.
      */
     void writeField(VarSymbol v) {
-        int flags = adjustFlags(v.flags());
+        int flags = adjustFlags(v, v.flags());
         databuf.appendChar(flags);
         if (dumpFieldModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -1036,7 +1041,7 @@ public class ClassWriter extends ClassFile {
     /** Write method symbol, entering all references into constant pool.
      */
     void writeMethod(MethodSymbol m) {
-        int flags = adjustFlags(m.flags());
+        int flags = adjustFlags(m, m.flags());
         databuf.appendChar(flags);
         if (dumpMethodModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -1323,7 +1328,7 @@ public class ClassWriter extends ClassFile {
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
                 databuf.appendByte(7);
-                databuf.appendChar(poolWriter.putClass(types.erasure(t)));
+                databuf.appendChar(emitQDesc && t.hasImplicitConstructor() && t.isNonNullable() ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
                 break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
@@ -1636,7 +1641,7 @@ public class ClassWriter extends ClassFile {
         if (c.owner.kind == MDL) {
             flags = ACC_MODULE;
         } else {
-            flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
+            flags = adjustFlags(c, c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
             flags = flags & AdjustedClassFlags;
         }
@@ -1803,7 +1808,7 @@ public class ClassWriter extends ClassFile {
         return i;
     }
 
-    int adjustFlags(final long flags) {
+    int adjustFlags(Symbol sym, final long flags) {
         int result = (int)flags;
 
         // Elide strictfp bit in class files
@@ -1816,6 +1821,12 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
+        if (emitQDesc && sym.kind == TYP) {
+            ClassSymbol csym = (ClassSymbol)sym;
+            if (csym.isValueClass() && csym.getImplicitConstructor() != null) {
+                result |= ACC_PRIMITIVE;
+            }
+        }
         if ((flags & VALUE_CLASS) != 0)
             result |= ACC_VALUE;
         if ((flags & IDENTITY_TYPE) != 0)

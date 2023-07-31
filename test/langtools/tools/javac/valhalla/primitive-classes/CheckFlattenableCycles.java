@@ -1,20 +1,20 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check for cycles through fields declared flattenable.
- * @ignore
+ *
  * @compile/fail/ref=CheckFlattenableCycles.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckFlattenableCycles.java
  */
 
-final primitive class CheckFlattenableCycles {
+final value class CheckFlattenableCycles {
     class InnerRef {
         CheckFlattenableCycles cfc;
     }
-    primitive final class InnerValue {
-        final CheckFlattenableCycles     cfc = CheckFlattenableCycles.default; // Error.
+    static final value class InnerValue {
+        final CheckFlattenableCycles! cfc; // Error.
+        public implicit InnerValue();
     }
-    final CheckFlattenableCycles cfc = CheckFlattenableCycles.default; // Error.
-    final int i = 10;
-    final String s = "blah";
-    final InnerRef ir = new InnerRef(); // OK.
-    final InnerValue     iv = InnerValue.default; // Error
+    final CheckFlattenableCycles! cfc; // Error.
+    final InnerValue! iv; // Error
+
+    public implicit CheckFlattenableCycles();
 }

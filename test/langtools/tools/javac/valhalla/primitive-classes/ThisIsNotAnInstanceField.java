@@ -26,7 +26,6 @@
 /*
  * @test
  * @bug 8244235
- * @ignore
  * @summary Javac mistakenly treats references to _this_ as a reference to an instance field
  * @compile -XDenablePrimitiveClasses ThisIsNotAnInstanceField.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ThisIsNotAnInstanceField

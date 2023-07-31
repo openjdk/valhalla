@@ -26,49 +26,49 @@
 /*
  * @test
  * @bug 8222555 8222553
- * @ignore
  * @summary Prove that code suspected of not compiling actually compiles fine.
  * @compile -XDenablePrimitiveClasses CompilesJustFine.java
  */
 
 class CompilesFine {
 
-    static Point.ref nfspQm;
+    static Point nfspQm;
 
     public static void main(String[] args) {
         nfspQm = null;
     }
 }
-primitive final class Point {
+value final class Point {
     final int x;
     final int y;
 
-    Point() {
-        x = 0;
-        y = 0;
-    }
+    public implicit Point();
 }
 
 class CompilesJustFine {
 
-    static final primitive class Value {
-        final PointBug2.ref nfpQm;
+    static final value class Value {
+        final PointBug2 nfpQm;
 
-        private Value() {
+        public implicit Value();
+
+        private Value(boolean dummy){
             nfpQm = PointBug2.createPoint(0, 0);
         }
     }
 }
-primitive final class PointBug2 {
+value final class PointBug2 {
     final int x;
     final int y;
+
+    public implicit PointBug2();
 
     PointBug2(int x, int y) {
         this.x = x;
         this.y = y;
     }
 
-    public static PointBug2 createPoint(int x, int y) {
+    public static PointBug2! createPoint(int x, int y) {
         return new PointBug2(x, y);
     }
 }

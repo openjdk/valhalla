@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8229537
- * @ignore
  * @summary [lworld] Poor interaction between explicit lambda parameters and nullable projection types.
  * @compile -XDenablePrimitiveClasses ExplicitLambdaWithNullableTypes3.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ExplicitLambdaWithNullableTypes3
@@ -36,9 +35,7 @@ import java.util.function.*;
 import java.util.NoSuchElementException;
 import java.util.stream.*;
 
-primitive class OptionalInt {
-    // private static final OptionalInt EMPTY = OptionalInt.default;
-
+value class OptionalInt {
     private boolean isPresent;
     private int v;
 
@@ -79,15 +76,15 @@ primitive class OptionalInt {
 public final class ExplicitLambdaWithNullableTypes3 {
 
    public static void main(String[] args) {
-       List<OptionalInt.ref> opts = new ArrayList<>();
+       List<OptionalInt> opts = new ArrayList<>();
        for (int i=0; i < 5; i++) {
            opts.add(OptionalInt.of(i));
            opts.add(OptionalInt.empty());
            opts.add(null);
        }
 
-       Stream<OptionalInt.ref> soi = opts.stream();
-       ToIntFunction<OptionalInt.ref> f = o -> {
+       Stream<OptionalInt> soi = opts.stream();
+       ToIntFunction<OptionalInt> f = o -> {
             if (o == null) return 0;
             OptionalInt op = (OptionalInt)o;
             return op.orElse(0);

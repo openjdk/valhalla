@@ -24,12 +24,12 @@
 /*
  * @test
  * @bug 8222722
- * @ignore
  * @summary  Javac fails to compile V?[].class (syntax dead)
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile -XDenablePrimitiveClasses ProjectedArrayDotClass.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ProjectedArrayDotClass
  * @modules jdk.compiler
+ * @ignore
  */
 
 import java.io.PrintWriter;
