@@ -4053,7 +4053,7 @@ address StubGenerator::generate_return_value_stub(address destination, const cha
 
   int frame_complete = __ offset();
 
-  __ set_last_Java_frame(noreg, noreg, NULL, rscratch1);
+  __ set_last_Java_frame(noreg, noreg, nullptr, rscratch1);
 
   __ mov(c_rarg0, r15_thread);
   __ mov(c_rarg1, rax);

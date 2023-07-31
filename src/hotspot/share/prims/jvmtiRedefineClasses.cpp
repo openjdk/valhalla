@@ -2143,7 +2143,7 @@ bool VM_RedefineClasses::rewrite_cp_refs_in_preload_attribute(
        InstanceKlass* scratch_class) {
 
   Array<u2>* preload_classes = scratch_class->preload_classes();
-  assert(preload_classes != NULL, "unexpected null preload_classes");
+  assert(preload_classes != nullptr, "unexpected null preload_classes");
   for (int i = 0; i < preload_classes->length(); i++) {
     u2 cp_index = preload_classes->at(i);
     preload_classes->at_put(i, find_new_index(cp_index));

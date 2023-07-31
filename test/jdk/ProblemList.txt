@@ -767,7 +767,6 @@ jdk/classfile/LowAdaptTest.java                                 8308778 generic-
 jdk/classfile/BuilderBlockTest.java                             8308778 generic-all
 jdk/classfile/BuilderTryCatchTest.java                          8308778 generic-all
 jdk/classfile/PrimitiveClassConstantTest.java                   8310649 generic-all
-valhalla/valuetypes/ValueConstantDesc.java                      8310651 generic-all
 
 ############################################################################
 

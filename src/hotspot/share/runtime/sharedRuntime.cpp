@@ -3173,11 +3173,15 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   CompiledEntrySignature ces(method());
   ces.compute_calling_conventions();
   if (ces.has_scalarized_args()) {
-    method->set_has_scalarized_args();
+    if (!method->has_scalarized_args()) {
+      assert(!method()->constMethod()->is_shared(), "Cannot update shared const object");
+      method->set_has_scalarized_args();
+    }
     if (ces.c1_needs_stack_repair()) {
       method->set_c1_needs_stack_repair();
     }
-    if (ces.c2_needs_stack_repair()) {
+    if (ces.c2_needs_stack_repair() && !method->c2_needs_stack_repair()) {
+      assert(!method->constMethod()->is_shared(), "Cannot update a shared const object");
       method->set_c2_needs_stack_repair();
     }
   } else if (method->is_abstract()) {

@@ -326,7 +326,7 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
   __ bind(_entry);
-  if (_throw_imse_stub != NULL) {
+  if (_throw_imse_stub != nullptr) {
     // When we come here, _obj_reg has already been checked to be non-null.
     const int is_value_mask = markWord::inline_type_pattern;
     Register mark = _scratch_reg->as_register();

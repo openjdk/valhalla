@@ -947,12 +947,12 @@ void ThreadSafepointState::handle_polling_page_exception() {
     HandleMark hm(self);
 
     GrowableArray<Handle> return_values;
-    InlineKlass* vk = NULL;
+    InlineKlass* vk = nullptr;
     if (return_oop && InlineTypeReturnedAsFields &&
         (method->result_type() == T_PRIMITIVE_OBJECT || method->result_type() == T_OBJECT)) {
       // Check if an inline type is returned as fields
       vk = InlineKlass::returned_inline_klass(map);
-      if (vk != NULL) {
+      if (vk != nullptr) {
         // We're at a safepoint at the return of a method that returns
         // multiple values. We must make sure we preserve the oop values
         // across the safepoint.
@@ -984,7 +984,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
     if (return_oop) {
       assert(return_values.length() == 1, "only one return value");
       caller_fr.set_saved_oop_result(&map, return_values.pop()());
-    } else if (vk != NULL) {
+    } else if (vk != nullptr) {
       vk->restore_oop_results(map, return_values);
     }
   }

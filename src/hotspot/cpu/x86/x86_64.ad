@@ -490,7 +490,7 @@ int MachCallDynamicJavaNode::ret_addr_offset()
 }
 
 int MachCallRuntimeNode::ret_addr_offset() {
-  if (_entry_point == NULL) {
+  if (_entry_point == nullptr) {
     // CallLeafNoFPInDirect
     return 3; // callq (register)
   }
@@ -892,7 +892,7 @@ void MachPrologNode::format(PhaseRegAlloc* ra_, outputStream* st) const {
     st->print("# stack alignment check");
 #endif
   }
-  if (C->stub_function() != NULL && BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {
+  if (C->stub_function() != nullptr && BarrierSet::barrier_set()->barrier_set_nmethod() != nullptr) {
     st->print("\n\t");
     st->print("cmpl    [r15_thread + #disarmed_guard_value_offset], #disarmed_guard_value\t");
     st->print("\n\t");
@@ -911,7 +911,7 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
 
   __ verified_entry(C);
 
-  if (ra_->C->stub_function() == NULL) {
+  if (ra_->C->stub_function() == nullptr) {
     __ entry_barrier();
   }
 
@@ -1124,7 +1124,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer* cbuf,
                                        PhaseRegAlloc* ra_,
                                        bool do_size,
                                        outputStream* st) const {
-  assert(cbuf != NULL || st  != NULL, "sanity");
+  assert(cbuf != nullptr || st  != nullptr, "sanity");
   // Get registers to move
   OptoReg::Name src_second = ra_->get_reg_second(in(1));
   OptoReg::Name src_first = ra_->get_reg_first(in(1));
@@ -1143,7 +1143,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer* cbuf,
     // Self copy, no move
     return 0;
   }
-  if (bottom_type()->isa_vect() != NULL && bottom_type()->isa_vectmask() == NULL) {
+  if (bottom_type()->isa_vect() != nullptr && bottom_type()->isa_vectmask() == nullptr) {
     uint ireg = ideal_reg();
     assert((src_first_rc != rc_int && dst_first_rc != rc_int), "sanity");
     assert((ireg == Op_VecS || ireg == Op_VecD || ireg == Op_VecX || ireg == Op_VecY || ireg == Op_VecZ ), "sanity");
@@ -1582,12 +1582,12 @@ uint MachSpillCopyNode::implementation(CodeBuffer* cbuf,
 
 #ifndef PRODUCT
 void MachSpillCopyNode::format(PhaseRegAlloc *ra_, outputStream* st) const {
-  implementation(NULL, ra_, false, st);
+  implementation(nullptr, ra_, false, st);
 }
 #endif
 
 void MachSpillCopyNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
-  implementation(&cbuf, ra_, false, NULL);
+  implementation(&cbuf, ra_, false, nullptr);
 }
 
 uint MachSpillCopyNode::size(PhaseRegAlloc *ra_) const {
@@ -1652,7 +1652,7 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
     __ jump_cc(Assembler::notEqual, RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
   } else {
     // TODO 8284443 Avoid creation of temporary frame
-    if (ra_->C->stub_function() == NULL) {
+    if (ra_->C->stub_function() == nullptr) {
       __ verified_entry(ra_->C, 0);
       __ entry_barrier();
       int initial_framesize = ra_->C->output()->frame_size_in_bytes() - 2*wordSize;
@@ -2135,7 +2135,7 @@ encode %{
 
     MacroAssembler _masm(&cbuf);
     __ check_klass_subtype_slow_path(Rrsi, Rrax, Rrcx, Rrdi,
-                                     NULL, &miss,
+                                     nullptr, &miss,
                                      /*set_cond_codes:*/ true);
     if ($primary) {
       __ xorptr(Rrdi, Rrdi);
@@ -2197,7 +2197,7 @@ encode %{
       } else {
         // Emit stubs for static call.
         address stub = CompiledStaticCall::emit_to_interp_stub(cbuf, mark);
-        if (stub == NULL) {
+        if (stub == nullptr) {
           ciEnv::current()->record_failure("CodeCache is full");
           return;
         }
@@ -3059,7 +3059,7 @@ operand immP()
   interface(CONST_INTER);
 %}
 
-// NULL Pointer Immediate
+// nullptr Pointer Immediate
 operand immP0()
 %{
   predicate(n->get_ptr() == 0);
@@ -3087,7 +3087,7 @@ operand immNKlass() %{
   interface(CONST_INTER);
 %}
 
-// NULL Pointer Immediate
+// nullptr Pointer Immediate
 operand immN0() %{
   predicate(n->get_narrowcon() == 0);
   match(ConN);
@@ -4017,7 +4017,7 @@ operand indCompressedOop(rRegN reg) %{
 
 // Indirect Narrow Oop Plus Offset Operand
 // Note: x86 architecture doesn't support "scale * index + offset" without a base
-// we can't free r12 even with CompressedOops::base() == NULL.
+// we can't free r12 even with CompressedOops::base() == nullptr.
 operand indCompressedOopOffset(rRegN reg, immL32 off) %{
   predicate(UseCompressedOops && (CompressedOops::shift() == Address::times_8));
   constraint(ALLOC_IN_RC(ptr_reg));
@@ -5861,7 +5861,7 @@ instruct loadConF(regF dst, immF con) %{
 instruct loadConN0(rRegN dst, immN0 src, rFlagsReg cr) %{
   match(Set dst src);
   effect(KILL cr);
-  format %{ "xorq    $dst, $src\t# compressed NULL ptr" %}
+  format %{ "xorq    $dst, $src\t# compressed nullptr ptr" %}
   ins_encode %{
     __ xorq($dst$$Register, $dst$$Register);
   %}
@@ -5875,7 +5875,7 @@ instruct loadConN(rRegN dst, immN src) %{
   format %{ "movl    $dst, $src\t# compressed ptr" %}
   ins_encode %{
     address con = (address)$src$$constant;
-    if (con == NULL) {
+    if (con == nullptr) {
       ShouldNotReachHere();
     } else {
       __ set_narrow_oop($dst$$Register, (jobject)$src$$constant);
@@ -5891,7 +5891,7 @@ instruct loadConNKlass(rRegN dst, immNKlass src) %{
   format %{ "movl    $dst, $src\t# compressed klass ptr" %}
   ins_encode %{
     address con = (address)$src$$constant;
-    if (con == NULL) {
+    if (con == nullptr) {
       ShouldNotReachHere();
     } else {
       __ set_narrow_klass($dst$$Register, (Klass*)$src$$constant);
@@ -6114,7 +6114,7 @@ instruct storeP(memory mem, any_RegP src)
 
 instruct storeImmP0(memory mem, immP0 zero)
 %{
-  predicate(UseCompressedOops && (CompressedOops::base() == NULL) && n->as_Store()->barrier_data() == 0);
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr) && n->as_Store()->barrier_data() == 0);
   match(Set mem (StoreP mem zero));
 
   ins_cost(125); // XXX
@@ -6125,7 +6125,7 @@ instruct storeImmP0(memory mem, immP0 zero)
   ins_pipe(ialu_mem_reg);
 %}
 
-// Store NULL Pointer, mark word, or other simple pointer constant.
+// Store nullptr Pointer, mark word, or other simple pointer constant.
 instruct storeImmP(memory mem, immP31 src)
 %{
   predicate(n->as_Store()->barrier_data() == 0);
@@ -6166,7 +6166,7 @@ instruct storeNKlass(memory mem, rRegN src)
 
 instruct storeImmN0(memory mem, immN0 zero)
 %{
-  predicate(CompressedOops::base() == NULL);
+  predicate(CompressedOops::base() == nullptr);
   match(Set mem (StoreN mem zero));
 
   ins_cost(125); // XXX
@@ -6185,7 +6185,7 @@ instruct storeImmN(memory mem, immN src)
   format %{ "movl    $mem, $src\t# compressed ptr" %}
   ins_encode %{
     address con = (address)$src$$constant;
-    if (con == NULL) {
+    if (con == nullptr) {
       __ movl($mem$$Address, 0);
     } else {
       __ set_narrow_oop($mem$$Address, (jobject)$src$$constant);
@@ -6209,7 +6209,7 @@ instruct storeImmNKlass(memory mem, immNKlass src)
 // Store Integer Immediate
 instruct storeImmI0(memory mem, immI_0 zero)
 %{
-  predicate(UseCompressedOops && (CompressedOops::base() == NULL));
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr));
   match(Set mem (StoreI mem zero));
 
   ins_cost(125); // XXX
@@ -6235,7 +6235,7 @@ instruct storeImmI(memory mem, immI src)
 // Store Long Immediate
 instruct storeImmL0(memory mem, immL0 zero)
 %{
-  predicate(UseCompressedOops && (CompressedOops::base() == NULL));
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr));
   match(Set mem (StoreL mem zero));
 
   ins_cost(125); // XXX
@@ -6261,7 +6261,7 @@ instruct storeImmL(memory mem, immL32 src)
 // Store Short/Char Immediate
 instruct storeImmC0(memory mem, immI_0 zero)
 %{
-  predicate(UseCompressedOops && (CompressedOops::base() == NULL));
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr));
   match(Set mem (StoreC mem zero));
 
   ins_cost(125); // XXX
@@ -6288,7 +6288,7 @@ instruct storeImmI16(memory mem, immI16 src)
 // Store Byte Immediate
 instruct storeImmB0(memory mem, immI_0 zero)
 %{
-  predicate(UseCompressedOops && (CompressedOops::base() == NULL));
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr));
   match(Set mem (StoreB mem zero));
 
   ins_cost(125); // XXX
@@ -6314,7 +6314,7 @@ instruct storeImmB(memory mem, immI8 src)
 // Store CMS card-mark Immediate
 instruct storeImmCM0_reg(memory mem, immI_0 zero)
 %{
-  predicate(UseCompressedOops && (CompressedOops::base() == NULL));
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr));
   match(Set mem (StoreCM mem zero));
 
   ins_cost(125); // XXX
@@ -6353,7 +6353,7 @@ instruct storeF(memory mem, regF src)
 // Store immediate Float value (it is faster than store from XMM register)
 instruct storeF0(memory mem, immF0 zero)
 %{
-  predicate(UseCompressedOops && (CompressedOops::base() == NULL));
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr));
   match(Set mem (StoreF mem zero));
 
   ins_cost(25); // XXX
@@ -6392,7 +6392,7 @@ instruct storeD(memory mem, regD src)
 // Store immediate double 0.0 (it is faster than store from XMM register)
 instruct storeD0_imm(memory mem, immD0 src)
 %{
-  predicate(!UseCompressedOops || (CompressedOops::base() != NULL));
+  predicate(!UseCompressedOops || (CompressedOops::base() != nullptr));
   match(Set mem (StoreD mem src));
 
   ins_cost(50);
@@ -6405,7 +6405,7 @@ instruct storeD0_imm(memory mem, immD0 src)
 
 instruct storeD0(memory mem, immD0 zero)
 %{
-  predicate(UseCompressedOops && (CompressedOops::base() == NULL));
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr));
   match(Set mem (StoreD mem zero));
 
   ins_cost(25); // XXX
@@ -12810,7 +12810,7 @@ instruct testP_reg(rFlagsReg cr, rRegP src, immP0 zero)
 // any compare to a zero should be eq/neq.
 instruct testP_mem(rFlagsReg cr, memory op, immP0 zero)
 %{
-  predicate((!UseCompressedOops || (CompressedOops::base() != NULL)) &&
+  predicate((!UseCompressedOops || (CompressedOops::base() != nullptr)) &&
             n->in(1)->as_Load()->barrier_data() == 0);
   match(Set cr (CmpP (LoadP op) zero));
 
@@ -12824,7 +12824,7 @@ instruct testP_mem(rFlagsReg cr, memory op, immP0 zero)
 
 instruct testP_mem_reg0(rFlagsReg cr, memory mem, immP0 zero)
 %{
-  predicate(UseCompressedOops && (CompressedOops::base() == NULL) &&
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr) &&
             n->in(1)->as_Load()->barrier_data() == 0);
   match(Set cr (CmpP (LoadP mem) zero));
 
@@ -12907,7 +12907,7 @@ instruct testN_reg(rFlagsReg cr, rRegN src, immN0 zero) %{
 
 instruct testN_mem(rFlagsReg cr, memory mem, immN0 zero)
 %{
-  predicate(CompressedOops::base() != NULL);
+  predicate(CompressedOops::base() != nullptr);
   match(Set cr (CmpN (LoadN mem) zero));
 
   ins_cost(500); // XXX
@@ -12920,7 +12920,7 @@ instruct testN_mem(rFlagsReg cr, memory mem, immN0 zero)
 
 instruct testN_mem_reg0(rFlagsReg cr, memory mem, immN0 zero)
 %{
-  predicate(CompressedOops::base() == NULL);
+  predicate(CompressedOops::base() == nullptr);
   match(Set cr (CmpN (LoadN mem) zero));
 
   format %{ "cmpl    R12, $mem\t# compressed ptr (R12_heapbase==0)" %}
@@ -13674,7 +13674,7 @@ instruct CallLeafDirectVector(method meth)
 // entry point is null, target holds the address to call
 instruct CallLeafNoFPInDirect(rRegP target)
 %{
-  predicate(n->as_Call()->entry_point() == NULL);
+  predicate(n->as_Call()->entry_point() == nullptr);
   match(CallLeafNoFP target);
 
   ins_cost(300);
@@ -13688,7 +13688,7 @@ instruct CallLeafNoFPInDirect(rRegP target)
 
 instruct CallLeafNoFPDirect(method meth)
 %{
-  predicate(n->as_Call()->entry_point() != NULL);
+  predicate(n->as_Call()->entry_point() != nullptr);
   match(CallLeafNoFP);
   effect(USE meth);
 
