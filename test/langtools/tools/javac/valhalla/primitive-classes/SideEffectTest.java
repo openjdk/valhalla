@@ -43,7 +43,7 @@ public class SideEffectTest {
         }
 
         V(int x) {
-            int l = 1234; 
+            int l = 1234;
             foo(l += this.x = x);
         }
 
