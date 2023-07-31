@@ -31,7 +31,7 @@
 
 primitive class A {
     int x = 1000000;
-    class Inner { 
+    class Inner {
         A aDotThis;
         Inner() {
             aDotThis = A.this;
