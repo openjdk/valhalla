@@ -40,8 +40,8 @@ public primitive class ValueConstructorRef {
     	x = 1234;
     	y = 5678;
     }
-    
-    public static void main(String [] args) {   
+
+    public static void main(String [] args) {
        Supplier<ValueConstructorRef.ref> sx = ValueConstructorRef::new;
     	ValueConstructorRef x = (ValueConstructorRef) sx.get();
         if (x.x != 1234 || x.y != 5678)
