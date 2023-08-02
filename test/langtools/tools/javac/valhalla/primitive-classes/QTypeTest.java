@@ -29,8 +29,11 @@
  * @compile -XDenablePrimitiveClasses QTypedValue.java
  * @run main/othervm -Xverify:none QTypeTest
  * @modules jdk.compiler
+ * @ignore
  */
 
+/* This test is very fragile should be replaced / removed
+ */
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Paths;

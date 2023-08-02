@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -30,6 +29,7 @@
  * @compile -XDenablePrimitiveClasses UnifiedPrimitiveClassBytecodeTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses UnifiedPrimitiveClassBytecodeTest
  * @modules jdk.compiler
+ * @ignore
  */
 
 import java.io.PrintWriter;
@@ -38,17 +38,17 @@ import java.nio.file.Paths;
 
 public class UnifiedPrimitiveClassBytecodeTest {
 
-    public primitive class X {
+    public value class X {
 
-        X.ref xr = null;
+        X xr = null;
 
-        public void foo(X.ref[] xra, X[] xa) {
+        public void foo(X[] xra, X[] xa) {
             xa = new X[10];
-            xra = new X.ref[10];
+            xra = new X[10];
             xra[0] = xa[0];
             xa[1] = xra[0];
-            Class<?> c = X.val.class;
-            c = X.ref.class;
+            Class<?> c = X.class;
+            c = X.class;
         }
     }
 

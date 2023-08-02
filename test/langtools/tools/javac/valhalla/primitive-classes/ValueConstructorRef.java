@@ -31,19 +31,19 @@
 
 import java.util.function.Supplier;
 
-public primitive class ValueConstructorRef {
+public value class ValueConstructorRef {
 
     final int x;
     final int y;
 
     ValueConstructorRef() {
-    	x = 1234;
-    	y = 5678;
+        x = 1234;
+        y = 5678;
     }
 
     public static void main(String [] args) {
-       Supplier<ValueConstructorRef.ref> sx = ValueConstructorRef::new;
-    	ValueConstructorRef x = (ValueConstructorRef) sx.get();
+        Supplier<ValueConstructorRef> sx = ValueConstructorRef::new;
+        ValueConstructorRef! x = (ValueConstructorRef) sx.get();
         if (x.x != 1234 || x.y != 5678)
             throw new AssertionError(x);
     }

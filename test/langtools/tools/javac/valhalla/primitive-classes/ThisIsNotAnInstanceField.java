@@ -31,13 +31,13 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ThisIsNotAnInstanceField
  */
 
-public primitive class ThisIsNotAnInstanceField {
+public value class ThisIsNotAnInstanceField {
 
     int i = 513;
 
-    Inner.ref i2 = new Inner();
+    Inner i2 = new Inner();
 
-    primitive class Inner {
+    value class Inner {
         int c = 511;
     }
 

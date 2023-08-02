@@ -29,7 +29,7 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueNewReadWrite
  */
 
-public primitive class ValueNewReadWrite {
+public value class ValueNewReadWrite {
 
     int y = 10;
     int twice_x_plus_y;

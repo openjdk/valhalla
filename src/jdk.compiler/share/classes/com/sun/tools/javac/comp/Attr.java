@@ -167,6 +167,7 @@ public class Attr extends JCTree.Visitor {
         Options options = Options.instance(context);
 
         Source source = Source.instance(context);
+        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
         allowReifiableTypesInInstanceof = Feature.REIFIABLE_TYPES_INSTANCEOF.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowPatternSwitch = (preview.isEnabled() || !preview.isPreview(Feature.PATTERN_SWITCH)) &&
@@ -184,6 +185,10 @@ public class Attr extends JCTree.Visitor {
         unknownTypeExprInfo = new ResultInfo(KindSelector.VAL_TYP, Type.noType);
         recoveryInfo = new RecoveryInfo(deferredAttr.emptyDeferredAttrContext);
     }
+
+    /** Switch: allow primitive classes ?
+     */
+    boolean allowValueClasses;
 
     /** Switch: reifiable types in instanceof enabled?
      */
@@ -5026,25 +5031,34 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitDefaultValue(JCDefaultValue tree) {
+        if (!allowValueClasses) {
+            log.error(DiagnosticFlag.SOURCE_LEVEL, tree.pos(),
+                    Feature.VALUE_CLASSES.error(sourceName));
+        }
+
         // Attribute the qualifier expression, and determine its symbol (if any).
         Type site = attribTree(tree.clazz, env, new ResultInfo(KindSelector.TYP_PCK, Type.noType));
         if (!pkind().contains(KindSelector.TYP_PCK))
             site = capture(site); // Capture field access
-        Symbol sym = switch (site.getTag()) {
-            case WILDCARD -> throw new AssertionError(tree);
-            case PACKAGE -> {
-                log.error(tree.pos, Errors.CantResolveLocation(Kinds.KindName.CLASS, site.tsym.getQualifiedName(), null, null,
-                        Fragments.Location(Kinds.typeKindName(env.enclClass.type), env.enclClass.type, null)));
-                yield syms.errSymbol;
-            }
-            case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;
-            default -> new VarSymbol(STATIC, names._default, site, site.tsym);
-        };
+        if (!allowValueClasses) {
+            result = types.createErrorType(names._default, site.tsym, site);
+        } else {
+            Symbol sym = switch (site.getTag()) {
+                case WILDCARD -> throw new AssertionError(tree);
+                case PACKAGE -> {
+                    log.error(tree.pos, Errors.CantResolveLocation(Kinds.KindName.CLASS, site.tsym.getQualifiedName(), null, null,
+                            Fragments.Location(Kinds.typeKindName(env.enclClass.type), env.enclClass.type, null)));
+                    yield syms.errSymbol;
+                }
+                case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;
+                default -> new VarSymbol(STATIC, names._default, site, site.tsym);
+            };
 
-        if (site.hasTag(TYPEVAR) && sym.kind != ERR) {
-            site = types.skipTypeVars(site, true);
+            if (site.hasTag(TYPEVAR) && sym.kind != ERR) {
+                site = types.skipTypeVars(site, true);
+            }
+            result = checkId(tree, site, sym, env, resultInfo);
         }
-        result = checkId(tree, site, sym, env, resultInfo);
     }
 
     public void visitLiteral(JCLiteral tree) {

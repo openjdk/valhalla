@@ -23,9 +23,11 @@
  * questions.
  */
 
-public primitive class SmallSet {
+public value class SmallSet {
 
   final int value;
+
+  public implicit SmallSet();
 
   public SmallSet(int value) {
     this.value = value;

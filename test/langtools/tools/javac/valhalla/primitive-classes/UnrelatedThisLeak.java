@@ -29,7 +29,7 @@
  */
 
 public class UnrelatedThisLeak {
-    primitive class V {
+    value class V {
         int f;
         V() {
             UnrelatedThisLeak x = UnrelatedThisLeak.this;

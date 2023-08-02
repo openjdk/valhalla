@@ -30,33 +30,25 @@
  */
 import java.util.ArrayList;
 
-public final primitive class ValuesAsRefs {
+public final value class ValuesAsRefs {
 
-    final ArrayList<? extends ValuesAsRefs.ref> ao = null; // values can be wildcard bounds.
+    final ArrayList<? extends ValuesAsRefs> ao = null; // values can be wildcard bounds.
 
-    final primitive class I implements java.io.Serializable {
-        final int y = 42;
+    static final value class I implements java.io.Serializable {
+        public implicit I();
     }
 
     void foo() {
-        I i = this.new I();  // values can be enclosing instances.
+        I i = new I();  // values can be enclosing instances.
         i = ValuesAsRefs.I.default;
-        Object o = (I.ref & java.io.Serializable) i; // values can be used in intersection casts
+        Object o = (I & java.io.Serializable) i; // values can be used in intersection casts
     }
     <T> void goo() {
-        this.<ValuesAsRefs.ref>goo(); // values can be type arguments to generic method calls
+        this.<ValuesAsRefs>goo(); // values can be type arguments to generic method calls
     }
 
     public static void main(String [] args) {
         Object o = null;
-        ArrayList<ValuesAsRefs.I.ref> aloi = new ArrayList<>(); // values can be type arguments.
-        boolean OK = false;
-        try {
-            aloi.add((ValuesAsRefs.I) o);
-        } catch (NullPointerException npe) {
-            OK = true;
-        }
-        if (!OK)
-            throw new AssertionError("Missing NPE");
+        ArrayList<ValuesAsRefs.I> aloi = new ArrayList<>(); // values can be type arguments.
     }
 }

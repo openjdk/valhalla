@@ -33,7 +33,7 @@
 
 public class SuperHashCodeEqualsToStringTest {
 
-    static primitive class Prime {
+    static value class Prime {
 
         @Override
         public int hashCode() {

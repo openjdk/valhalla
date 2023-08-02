@@ -40,14 +40,16 @@ class ForeignType<X> {
     public Pointer<X> allocate() { return null; }
 }
 
-primitive class Point {
+value class Point {
     final int x;
     final int y;
+
+    public implicit Point();
 
     public Point(int x, int y) {
         this.x = x;
         this.y = y;
     }
 
-    public static ForeignType<Point.ref> TYPE = new ForeignType<>() { };
+    public static ForeignType<Point> TYPE = new ForeignType<>() { };
 }

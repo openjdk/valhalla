@@ -34,7 +34,8 @@
 
 import com.sun.tools.classfile.*;
 
-public primitive class SignatureTest<T> implements java.io.Serializable {
+public value class SignatureTest<T> implements java.io.Serializable {
+    public implicit SignatureTest();
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(SignatureTest.class.getResourceAsStream("SignatureTest.class"));
         Signature_attribute signature = (Signature_attribute) cls.attributes.get(Attribute.Signature);

@@ -29,12 +29,14 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses QualifiedThisTest
  */
 
-public primitive class QualifiedThisTest {
+public value class QualifiedThisTest {
 
     final int x;
     final int y;
 
     final int thrice_x_plus_thrice_y;
+
+    public implicit QualifiedThisTest();
 
     QualifiedThisTest(int xp, int yp) {
         this.y = yp;

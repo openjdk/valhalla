@@ -36,7 +36,7 @@ import jdk.internal.value.PrimitiveClass;
 
 public class ValueBootstrapMethodsTest {
 
-    public static final primitive class Value {
+    public static final value class Value {
         private final int i;
         private final double d;
         private final String s;
@@ -47,6 +47,8 @@ public class ValueBootstrapMethodsTest {
             this.s = s;
             this.l = List.of(items);
         }
+
+        public implicit Value();
 
         private List<Object> values() {
             return List.of(PrimitiveClass.asValueType(Value.class), i, d, s, l);

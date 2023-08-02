@@ -37,7 +37,7 @@ import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
 
 public class UnifiedPrimitiveClassInnerClassesTest {
 
-    primitive class V<T> implements java.io.Serializable {}
+    value class V<T> implements java.io.Serializable {}
 
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(UnifiedPrimitiveClassInnerClassesTest.class.getResourceAsStream("UnifiedPrimitiveClassInnerClassesTest.class"));
