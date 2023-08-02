@@ -113,6 +113,7 @@ containers/docker/TestMemoryAwareness.java 8303470 linux-x64
 
 # Valhalla
 runtime/AccModule/ConstModule.java 8294051 generic-all
+runtime/valhalla/inlinetypes/InlineOops.java 8313607 generic-aarch64
 
 #############################################################################
 
