@@ -2270,61 +2270,76 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   bool left_inline_type = true;
   bool right_inline_type = true;
 
+  // Leverage profiling at acmp
+  if (UseACmpProfile) {
+    method()->acmp_profiled_type(bci(), left_type, right_type, left_ptr, right_ptr, left_inline_type, right_inline_type);
+    if (too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
+      left_type = NULL;
+      right_type = NULL;
+      left_inline_type = true;
+      right_inline_type = true;
+    }
+    if (too_many_traps_or_recompiles(Deoptimization::Reason_null_check)) {
+      left_ptr = ProfileUnknownNull;
+      right_ptr = ProfileUnknownNull;
+    }
+  }
+
+  if (UseTypeSpeculation) {
+    record_profile_for_speculation(left, left_type, left_ptr);
+    record_profile_for_speculation(right, right_type, right_ptr);
+  }
+
+  if (!EnableValhalla) {
+    Node* cmp = CmpP(left, right);
+    cmp = optimize_cmp_with_klass(cmp);
+    do_if(btest, cmp);
+    return;
+  }
+
+  // Check for equality before potentially allocating
+  if (left == right) {
+    do_if(btest, makecon(TypeInt::CC_EQ));
+    return;
+  }
+
   bool experimental = true;
   if (left->is_InlineType() && right->is_InlineType() && experimental) {
     assert((btest == BoolTest::eq) || (btest == BoolTest::ne), "only eq and ne are supported for acmp");
 
-    Node* null_ctl;
-    Node* not_null_left = acmp_null_check(left,_gvn.type(left)->isa_oopptr(),ProfileUnknownNull, null_ctl);
-    Node* region_left = new RegionNode(3);
-    region_left->init_req(1, _gvn.transform(null_ctl));
-    region_left->init_req(2, _gvn.transform(control()));
-    region_left = _gvn.transform(region_left);
-    set_control(region_left);
-    Node* phi_left = PhiNode::make(region_left, intcon(0));
-    phi_left->set_req(1, _gvn.transform(intcon(0)));
-    phi_left->set_req(2, _gvn.transform(intcon(1)));
-
-    Node* not_null_right = acmp_null_check(right, _gvn.type(right)->isa_oopptr(), ProfileUnknownNull, null_ctl);
-    Node* region_right = new RegionNode(3);
-    region_right->init_req(1, _gvn.transform(null_ctl));
-    region_right->init_req(2, _gvn.transform(control()));
-    region_right = _gvn.transform(region_right);
-    Node* phi_right = PhiNode::make(region_right, intcon(0));
-    phi_right->set_req(1, _gvn.transform(intcon(0)));
-    phi_right->set_req(2, _gvn.transform(intcon(1)));
-
-    Node* cmp = _gvn.transform(new CmpINode( _gvn.transform(phi_left),  _gvn.transform(phi_right)));
-    Node* res = Bool(cmp, BoolTest::mask::eq);
-    IfNode* ifnode = _gvn.transform(new IfNode(null_ctl, res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
+    // assume that we already know that left and right are InlineTypeNodes
+    InlineTypeNode *v_left = left->isa_InlineType();
+    InlineTypeNode *v_right = right->isa_InlineType();
 
     Node* eq_region = new RegionNode(3);
     Node* ne_region = new RegionNode(3);
-    ne_region->init_req(1, IfFalse(ifnode));
-    eq_region->init_req(1, IfTrue(ifnode));
-    Node* io = i_o();
-    Node* eq_io_phi = PhiNode::make(eq_region, io);
-    eq_io_phi->set_req(1, io);
-    Node* ne_io_phi = PhiNode::make(ne_region, io);
 
-    // assume that we already know that left and right are InlineTypeNodes
-    InlineTypeNode *temp_l = not_null_left->isa_InlineType();
-    InlineTypeNode *temp_r = not_null_right->isa_InlineType();
+    Node* cmp = _gvn.transform(new CmpINode(v_left->get_is_init(), v_right->get_is_init()));
+    Node* res = Bool(cmp, BoolTest::mask::eq);
+    IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
+    ne_region->init_req(1, IfFalse(ifnode));
+    set_control(IfTrue(ifnode));
+
+    Node* null_ctl_left;
+    acmp_null_check(left,_gvn.type(left)->isa_oopptr(),ProfileUnknownNull, null_ctl_left);
+    eq_region->init_req(1, null_ctl_left);
+
     // the region nodes combines all the fast paths
     // as soon as one field is not equal, we know that the value objects are not equal -> abort through the region node
-    Node *fields_region = new RegionNode(temp_l->field_count() + 1);
-    Node *fields_io_phi = PhiNode::make(fields_region, i_o());
+    Node *fields_region = new RegionNode(v_left->field_count() + 1);
+    Node* io = i_o();
+    Node *fields_io_phi = PhiNode::make(fields_region, io);
+    Node* eq_io_phi = PhiNode::make(eq_region, io);
+    Node* ne_io_phi = PhiNode::make(ne_region, io);
 
     Node* mem = reset_memory();
     Node* fields_mem_phi = PhiNode::make(fields_region, mem);
     Node* eq_mem_phi = PhiNode::make(eq_region, mem);
-    eq_mem_phi->set_req(1, _gvn.transform(mem));
     Node* ne_mem_phi = PhiNode::make(ne_region, mem);
-    ne_mem_phi->set_req(1, _gvn.transform(mem));
     set_all_memory(mem);
 
     //fields are compared for equality
-    cmp_fields(temp_l, temp_r, fields_region, fields_io_phi, fields_mem_phi);
+    cmp_fields(v_left, v_right, fields_region, fields_io_phi, fields_mem_phi);
 
     //add current control to the eq region
     eq_region->init_req(2, control());
@@ -2360,39 +2375,6 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     set_control(_gvn.transform(ne_region));
     set_i_o(_gvn.transform(ne_io_phi));
     set_all_memory(_gvn.transform(ne_mem_phi));
-    return;
-  }
-
-  // Leverage profiling at acmp
-  if (UseACmpProfile) {
-    method()->acmp_profiled_type(bci(), left_type, right_type, left_ptr, right_ptr, left_inline_type, right_inline_type);
-    if (too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
-      left_type = NULL;
-      right_type = NULL;
-      left_inline_type = true;
-      right_inline_type = true;
-    }
-    if (too_many_traps_or_recompiles(Deoptimization::Reason_null_check)) {
-      left_ptr = ProfileUnknownNull;
-      right_ptr = ProfileUnknownNull;
-    }
-  }
-
-  if (UseTypeSpeculation) {
-    record_profile_for_speculation(left, left_type, left_ptr);
-    record_profile_for_speculation(right, right_type, right_ptr);
-  }
-
-  if (!EnableValhalla) {
-    Node* cmp = CmpP(left, right);
-    cmp = optimize_cmp_with_klass(cmp);
-    do_if(btest, cmp);
-    return;
-  }
-
-  // Check for equality before potentially allocating
-  if (left == right) {
-    do_if(btest, makecon(TypeInt::CC_EQ));
     return;
   }
 
