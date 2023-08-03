@@ -38,6 +38,7 @@
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/resolvedIndyEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"

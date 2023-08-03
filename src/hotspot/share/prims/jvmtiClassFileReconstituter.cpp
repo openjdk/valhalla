@@ -27,6 +27,7 @@
 #include "classfile/vmClasses.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "memory/universe.hpp"
+#include "oops/constantPool.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/recordComponent.hpp"
