@@ -198,10 +198,9 @@ public class TransValues extends TreeTranslator {
                    is passed as an argument into the <init> method, the value static factory must allocate the
                    instance that forms the `product' by itself. We do that by injecting a prologue here.
                 */
-                boolean emitQ = emitQDesc && currentClass.sym.type.hasImplicitConstructor();
                 VarSymbol product = currentMethod.factoryProduct =
                         new VarSymbol(0, names.dollarValue,
-                                emitQ ?
+                                currentClass.sym.type.hasImplicitConstructor() ?
                                         currentClass.sym.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL)) :
                                         currentClass.sym.type,
                                 currentMethod.sym); // TODO: owner needs rewiring
@@ -213,12 +212,12 @@ public class TransValues extends TreeTranslator {
                     // Synthesize code to allocate factory "product" via: V $this = V.default;
                     Assert.check(symbol.type.getParameterTypes().size() == 0);
                     final JCExpression type = make.Type(
-                            emitQ ?
+                            currentClass.sym.type.hasImplicitConstructor() ?
                                     currentClass.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL)) :
                                     currentClass.type
                             );
                     rhs = make.DefaultValue(type);
-                    rhs.type = emitQ ?
+                    rhs.type = currentClass.sym.type.hasImplicitConstructor() ?
                             currentClass.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL)) :
                             currentClass.type;
                 } else {
@@ -295,7 +294,7 @@ public class TransValues extends TreeTranslator {
             if (isInstanceMemberAccess(symbol)) {
                 final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
                 JCTree.JCWithField withField = (JCTree.JCWithField) make.WithField(make.Select(facHandle, symbol), translate(tree.rhs)).setType(currentClass.type);
-                if (emitQDesc && withField.type.hasImplicitConstructor()) {
+                if (withField.type.hasImplicitConstructor()) {
                     withField.type = withField.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL));
                 }
                 result = make.Assign(facHandle, withField).setType(currentClass.type);
@@ -374,7 +373,6 @@ public class TransValues extends TreeTranslator {
             final JCMethodInvocation apply = make.Apply(tree.typeargs, meth, tree.args);
             apply.varargsElement = tree.varargsElement;
             apply.type = meth.type.getReturnType();
-            //apply.type = apply.type.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL));
             result = apply;
             return;
         }
