@@ -29,7 +29,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * @test
+ * @test id=Z
  * @summary Test that the ZGC barrier elision optimization does not elide
  *          necessary barriers. The tests use volatile memory accesses and
  *          blackholes to prevent C2 from simply optimizing them away.
@@ -39,7 +39,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 
 /**
- * @test
+ * @test id=ZGen
  * @summary Test that the ZGC barrier elision optimization elides unnecessary
  *          barriers following simple allocation and domination rules.
  * @library /test/lib /
