@@ -73,7 +73,7 @@ compiler/c2/irTests/TestVectorConditionalMove.java 8306922 generic-all
 
 compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
 
-compiler/gcbarriers/TestZGCBarrierElision.java 8313737 generic-all
+compiler/gcbarriers/TestZGCBarrierElision.java#ZGen 8313737 generic-all
 compiler/valhalla/inlinetypes/TestArrays.java 8313667 generic-all
 
 #############################################################################
@@ -116,7 +116,7 @@ containers/docker/TestMemoryAwareness.java 8303470 linux-x64
 
 # Valhalla
 runtime/AccModule/ConstModule.java 8294051 generic-all
-runtime/valhalla/inlinetypes/InlineOops.java 8313607 generic-aarch64
+runtime/valhalla/inlinetypes/InlineOops.java#ZGen 8313607 linux-aarch64,macosx-aarch64
 
 #############################################################################
 

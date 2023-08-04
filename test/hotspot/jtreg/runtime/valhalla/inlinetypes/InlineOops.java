@@ -35,7 +35,7 @@ import jdk.test.whitebox.WhiteBox;
 import test.java.lang.invoke.lib.InstructionHelper;
 
 /**
- * @test InlineOops_int_Serial
+ * @test id=Serial
  * @requires vm.gc.Serial
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
@@ -51,7 +51,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  */
 
 /**
- * @test InlineOops_int_G1
+ * @test id=G1
  * @requires vm.gc.G1
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
@@ -67,7 +67,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  */
 
 /**
- * @test InlineOops_int_Parallel
+ * @test id=Parallel
  * @requires vm.gc.Parallel
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
@@ -83,7 +83,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  */
 
 /**
- * @test InlineOops_int_Z
+ * @test id=Z
  * @requires vm.gc.Z
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
@@ -100,8 +100,8 @@ import test.java.lang.invoke.lib.InstructionHelper;
  */
 
 /**
- * @test InlineOops_int_ZGen
- * @requires vm.gc.Z
+ * @test id=ZGen
+ * @requires vm.gc.Z & vm.opt.final.ZGenerational
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
