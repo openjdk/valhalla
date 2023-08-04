@@ -23,9 +23,11 @@
  * questions.
  */
 
-public primitive class Range<T> {
+public value class Range<T> {
     private final T lower;
     private final T upper;
+
+    public implicit Range();
 
     private Range(T lower, T upper) {
         this.lower = lower;

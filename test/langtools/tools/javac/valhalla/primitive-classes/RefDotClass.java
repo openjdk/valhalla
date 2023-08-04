@@ -31,8 +31,10 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RefDotClass
  */
 
-public primitive class RefDotClass {
+public value class RefDotClass {
     final int value;
+
+    public implicit RefDotClass();
 
     public RefDotClass(int value) {
         this.value = value;
@@ -43,8 +45,12 @@ public primitive class RefDotClass {
     }
 
     public static void main(String[] args) {
-        foo(RefDotClass.ref.class);
-        String tName = RefDotClass.ref.class.getTypeName();
+        foo(RefDotClass.class);
+        String tName = RefDotClass.class.getTypeName();
+        /* this is printing .ref due to code in java.lang.Class, there are several references to primitive classes
+         * that should be removed. Also class: jdk.internal.value.PrimitiveClass
+         */
+
         if (!tName.equals("RefDotClass.ref"))
             throw new AssertionError("Unexpected type name " + tName);
     }

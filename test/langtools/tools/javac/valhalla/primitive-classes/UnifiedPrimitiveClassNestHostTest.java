@@ -35,9 +35,9 @@
 import java.util.Arrays;
 import jdk.internal.value.PrimitiveClass;
 
-public primitive class UnifiedPrimitiveClassNestHostTest implements java.io.Serializable {
+public value class UnifiedPrimitiveClassNestHostTest implements java.io.Serializable {
 
-    primitive class Inner {}
+    value class Inner {}
 
     public static void main(String [] args) {
 

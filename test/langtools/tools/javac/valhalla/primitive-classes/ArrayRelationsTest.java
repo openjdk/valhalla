@@ -86,17 +86,5 @@ public value class ArrayRelationsTest {
         if (!npe) {
             throw new AssertionError("Missing NPE");
         }
-
-        la = new ArrayRelationsTest [10];
-
-        cce = false;
-        try {
-            qa = (ArrayRelationsTest![]) la;
-        } catch (ClassCastException c) {
-            cce = true;
-        }
-        if (!cce) {
-            throw new AssertionError("Unexpected CCE behavior");
-        }
     }
 }

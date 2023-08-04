@@ -29,8 +29,12 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses QualifiedSuperCtor
  */
 
-primitive class A {
-    int x = 1000000;
+value class A {
+    int x;
+    public implicit A();
+    A(boolean dummy) {
+        x = 1000000;
+    }
     class Inner {
         A aDotThis;
         Inner() {
@@ -49,7 +53,7 @@ public class QualifiedSuperCtor extends A.Inner {
     }
 
     public static void main(String [] args) {
-        if (new QualifiedSuperCtor(new A()).getADotThis().x !=1000000)
+        if (new QualifiedSuperCtor(new A(false)).getADotThis().x !=1000000)
             throw new AssertionError("Broken");
     }
 }

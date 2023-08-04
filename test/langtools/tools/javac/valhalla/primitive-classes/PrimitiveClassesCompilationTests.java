@@ -78,7 +78,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 """
                 interface GoodSuperInterface {}
                 abstract class GoodSuper extends Object {}
-                primitive class PC extends GoodSuper implements GoodSuperInterface {}
+                value class PC extends GoodSuper implements GoodSuperInterface {}
                 """);
 
         assertOK(
@@ -89,12 +89,12 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     public long longValue() { return 0; }
                     public int intValue() { return 0; }
                 }
-                primitive class PC extends Integer {}
+                value class PC extends Integer {}
                 """);
 
         assertOK(
                 """
-                primitive class PC extends Number {
+                value class PC extends Number {
                     public double doubleValue() { return 0; }
                     public float floatValue() { return 0; }
                     public long longValue() { return 0; }
@@ -107,7 +107,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class SuperWithStaticField {
                     static int x;
                 }
-                primitive class PC extends SuperWithStaticField {}
+                value class PC extends SuperWithStaticField {}
                 """);
 
         assertOK(
@@ -125,13 +125,13 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class SuperWithEmptyNoArgCtor_02 extends SuperWithEmptyNoArgCtor_01 {
                     // Synthesized chaining no-arg constructor
                 }
-                primitive class PC extends SuperWithEmptyNoArgCtor_02 {}
+                value class PC extends SuperWithEmptyNoArgCtor_02 {}
                 """);
 
         assertFail("compiler.err.concrete.supertype.for.value.class",
                 """
                 class BadSuper {}
-                primitive class PC extends BadSuper {}
+                value class PC extends BadSuper {}
                 """);
 
         assertFail("compiler.err.instance.field.not.allowed",
@@ -140,7 +140,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     int x;
                 }
                 abstract class SuperWithInstanceField_01 extends SuperWithInstanceField {}
-                primitive class PC extends SuperWithInstanceField_01 {}
+                value class PC extends SuperWithInstanceField_01 {}
                 """);
 
         assertFail("compiler.err.abstract.value.class.no.arg.constructor.must.be.empty",
@@ -151,7 +151,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     }
                 }
                 abstract class SuperWithNonEmptyNoArgCtor_01 extends SuperWithNonEmptyNoArgCtor {}
-                primitive class PC extends SuperWithNonEmptyNoArgCtor_01 {}
+                value class PC extends SuperWithNonEmptyNoArgCtor_01 {}
                 """);
 
         assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
@@ -162,7 +162,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     }
                 }
                 abstract class SuperWithArgedCtor_01 extends SuperWithArgedCtor {}
-                primitive class PC extends SuperWithArgedCtor_01 {}
+                value class PC extends SuperWithArgedCtor_01 {}
                 """);
 
         assertFail("compiler.err.abstract.value.class.declares.init.block",
@@ -177,7 +177,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                         // Not disqualified since it is a meaningless empty block.
                     }
                 }
-                primitive class PC extends SuperWithInstanceInit_01 {}
+                value class PC extends SuperWithInstanceInit_01 {}
                 """);
 
         assertFail("compiler.err.super.class.method.cannot.be.synchronized",
@@ -186,7 +186,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     synchronized void foo() {}
                 }
                 abstract class SuperWithSynchronizedMethod_1 extends SuperWithSynchronizedMethod {}
-                primitive class PC extends SuperWithSynchronizedMethod_1 {}
+                value class PC extends SuperWithSynchronizedMethod_1 {}
                 """);
 
         assertFail("compiler.err.abstract.value.class.cannot.be.inner",
@@ -194,14 +194,14 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 class Outer {
                     abstract class InnerSuper {}
                 }
-                primitive class PC extends Outer.InnerSuper {}
+                value class PC extends Outer.InnerSuper {}
                 """);
     }
 
     public void testFinalFields() {
         String[] sources = new String[] {
                 """
-                primitive class Test {
+                value class Test {
                     final int x = 10;
                     Test() {
                         x = 10;
@@ -209,7 +209,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                primitive class Test {
+                value class Test {
                     final int x = 10;
                     void foo() {
                         x = 10;
@@ -223,7 +223,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
 
         assertFail("compiler.err.var.might.already.be.assigned",
                 """
-                primitive class Test {
+                value class Test {
                     final int x;
                     Test() {
                         x = 10;
@@ -237,9 +237,9 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     public void testWithFieldNeg() {
         String[] sources = new String[] {
                 """
-                primitive final class A {
+                value final class A {
                     final int x = 10;
-                    primitive final class B {
+                    value final class B {
                         final A a = A.default;
                         void foo(A a) {
                             a.x = 100;
@@ -248,9 +248,9 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                primitive final class A {
+                value final class A {
                     static final int sx = 10;
-                    primitive final class B {
+                    value final class B {
                         final A a = A.default;
                         void foo(A a) {
                             a.sx = 100;
@@ -259,9 +259,9 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                primitive final class A {
+                value final class A {
                     final int x = 10;
-                    primitive final class B {
+                    value final class B {
                         final A a = A.default;
                     }
                     void withfield(B b) {
@@ -270,7 +270,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                primitive final class A {
+                value final class A {
                     final int x = 10;
                     void foo(A a) {
                         a.x = 100;
@@ -278,7 +278,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                primitive final class A {
+                value final class A {
                     final int x = 10;
                     void foo(A a) {
                         (a).x = 100;
@@ -286,7 +286,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                primitive final class A {
+                value final class A {
                     final int x = 10;
                     void foo(final A fa) {
                         fa.x = 100;
@@ -294,7 +294,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                primitive final class A {
+                value final class A {
                     final int x = 10;
                     void foo() {
                         x = 100;
@@ -302,7 +302,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                primitive final class A {
+                value final class A {
                     final int x = 10;
                     void foo() {
                         this.x = 100;
@@ -310,7 +310,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                primitive final class A {
+                value final class A {
                     final int x = 10;
                     void foo() {
                         A.this.x = 100;
@@ -324,18 +324,17 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     }
 
     public void testIllegalModifiers() {
-        assertFail("compiler.err.illegal.combination.of.modifiers", "primitive interface I {}");
         assertFail("compiler.err.mod.not.allowed.here",
                 """
                 class Test {
-                    primitive public void m() {}
+                    value public void m() {}
                 }
                 """);
         assertFail("compiler.err.mod.not.allowed.here",
                 """
                 class Test {
                     void m() {
-                        int[] ia = new primitive int[10];
+                        int[] ia = new value int[10];
                     }
                 }
                 """);
@@ -343,7 +342,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 """
                 class Test {
                     void m() {
-                        new primitive String("Hello");
+                        new value String("Hello");
                     }
                 }
                 """);
@@ -354,30 +353,30 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 class Test {
                     interface I {}
                     void m() {
-                        new primitive I() {};
+                        new value I() {};
                     }
                 }
                 """);
         */
     }
 
-    public void testPrimitivesAsTypeParams() {
+    public void testValueClassesAsTypeParams() {
         String[] sources = new String[] {
                 """
                 import java.util.ArrayList;
-                primitive class ValueOverGenericsTest {
+                value class ValueOverGenericsTest {
                     ArrayList<ValueOverGenericsTest> ax = null;
                 }
                 """,
                 """
                 import java.util.ArrayList;
-                primitive class ValueOverGenericsTest {
+                value class ValueOverGenericsTest {
                     void foo(ArrayList<? extends ValueOverGenericsTest> p) {}
                 }
                 """,
                 """
                 import java.util.ArrayList;
-                primitive class ValueOverGenericsTest {
+                value class ValueOverGenericsTest {
                     void foo() {
                         new <ValueOverGenericsTest> ArrayList<Object>();
                     }
@@ -385,15 +384,15 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 """,
                 """
                 import java.util.ArrayList;
-                primitive class ValueOverGenericsTest {
+                value class ValueOverGenericsTest {
                     void foo() {
                         this.<ValueOverGenericsTest>foo();
                     }
                 }
                 """,
                 """
-                import java.util.ArrayList;
-                primitive class ValueOverGenericsTest {
+                import java.io.Serializable;
+                value class ValueOverGenericsTest {
                     void foo() {
                         Object o = (ValueOverGenericsTest & Serializable) null;
                     }
@@ -401,7 +400,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 """,
         };
         for (String source : sources) {
-            assertFail("compiler.err.type.found.req", source);
+            assertOK(source);
         }
     }
 
@@ -411,7 +410,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 class ValueModifierTest {
                     interface Value {}
                     void goo() {
-                        primitive class Value {}
+                        value class Value {}
                         new Value() {};
                     }
                 }
@@ -421,8 +420,8 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 class ValueModifierTest {
                     interface Value {}
                     void goo() {
-                        primitive class Value {}
-                        new primitive Value() {};
+                        value class Value {}
+                        new value Value() {};
                     }
                 }
                 """);
@@ -454,7 +453,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
             setCompileOptions(testOptions);
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
-                    primitive class UncheckedDefault<E> {
+                    value class UncheckedDefault<E> {
                         void m() {
                             UncheckedDefault<String> foo = UncheckedDefault.default;
                         }
@@ -465,84 +464,10 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
         }
     }
 
-    public void testRefProjection() {
-        assertFail("compiler.err.prob.found.req",
-                """
-                primitive class PC {
-                    void foo() {
-                        PC x = null;
-                    }
-                }
-                """);
-        assertOK(
-                """
-                primitive class PC {
-                    void foo() {
-                        PC.ref x = null;
-                    }
-                }
-                """);
-        assertOK(
-                """
-                primitive class PC {
-                    void foo(PC x) {
-                        PC.ref xq = null;
-                        xq = x;
-                        xq = (PC.ref) x;
-                        xq = (PC) x;
-                        x = xq;
-                        x = (PC.ref) xq;
-                        x = (PC) xq;
-                    }
-                }
-                """);
-        assertFail("compiler.err.prob.found.req",
-                """
-                primitive class PC {
-                    void foo() {
-                        PC[] xa = new PC[] { null };
-                    }
-                }
-                """);
-        assertOK(
-                """
-                primitive class PC {
-                    void foo() {
-                        PC.ref [] xqa = new PC.ref[] { null };
-                    }
-                }
-                """);
-        assertOK(
-                """
-                primitive class PC {
-                    void foo(PC[] xa) {
-                        PC.ref[] xqa = xa;
-                        xqa = (PC.ref[]) xa;
-                    }
-                }
-                """);
-        assertFail("compiler.err.prob.found.req",
-                """
-                primitive class PC {
-                    void foo(PC[] xa, PC.ref[] xqa) {
-                        xa = xqa;
-                    }
-                }
-                """);
-        assertOK(
-                """
-                primitive class PC {
-                    void foo(PC[] xa, PC.ref[] xqa) {
-                        xa = (PC[]) xqa;
-                    }
-                }
-                """);
-    }
-
     public void testSuperInvocation() {
         assertFail("compiler.err.call.to.super.not.allowed.in.value.ctor",
                 """
-                primitive class PC {
+                value class PC {
                     PC(String s) {
                         super();  // Error.
                     }
@@ -550,64 +475,15 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 """);
     }
 
-    public void testProjectionInstantiation() {
-        assertFail("compiler.err.projection.cant.be.instantiated",
-                """
-                primitive class PC {
-                    void m() {
-                        new PC.ref();
-                    }
-                }
-                """);
-        assertFail("compiler.err.projection.cant.be.instantiated",
-                """
-                primitive class PC {
-                    void m() {
-                        new PC.val();
-                    }
-                }
-                """);
+    public void testOverloadResolution() {
         assertOK(
                 """
-                import java.util.function.Supplier;
-                primitive class PC {
-                    void m() {
-                        foo(PC::new);
-                    }
-                    static void foo(Supplier<PC.ref> sx) {}
-                }
-                """);
-        assertFail("compiler.err.projection.cant.be.instantiated",
-                """
-                import java.util.function.Supplier;
-                primitive class PC {
-                    void m() {
-                        foo(PC.ref::new);
-                    }
-                    static void foo(Supplier<PC.ref> sx) {}
-                }
-                """);
-        assertFail("compiler.err.projection.cant.be.instantiated",
-                """
-                import java.util.function.Supplier;
-                primitive class PC {
-                    void m() {
-                        foo(PC.val::new);
-                    }
-                    static void foo(Supplier<PC.ref> sx) {}
-                }
-                """);
-    }
-
-    public void testOverloadResolution() {
-        assertFail("compiler.err.ref.ambiguous",
-                """
                 class OverloadingPhaseTest {
-                    static primitive class V {}
-                    static String roo(V.ref v, int i) {
+                    static value class V {}
+                    static String roo(V v, int i) {
                         return "";
                     }
-                    static String roo(V.ref v, Integer i) {
+                    static String roo(V v, Integer i) {
                         return "";
                     }
                     void m(V o) {
@@ -615,14 +491,14 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
-        assertFail("compiler.err.ref.ambiguous",
+        assertOK(
                 """
                 class OverloadingPhaseTest {
-                    static primitive class V {}
-                    static String roo(V.ref v, int i) {
+                    static value class V {}
+                    static String roo(V v, int i) {
                         return "";
                     }
-                    static String roo(V.ref v, Integer i) {
+                    static String roo(V v, Integer i) {
                         return "";
                     }
                     void m(V o) {
@@ -635,7 +511,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     public void testNoVolatileFields() {
         assertFail("compiler.err.illegal.combination.of.modifiers",
                 """
-                primitive class Bar {
+                value class Bar {
                     volatile int i = 0;
                 }
                 """);
@@ -644,14 +520,14 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     public void testDualPath() {
         assertFail("compiler.err.already.defined",
                 """
-                primitive class DualPathInnerType  {
+                value class DualPathInnerType  {
                     class Inner { }
 
                     static DualPathInnerType.Inner xi = new DualPathInnerType().new Inner();
-                    DualPathInnerType.ref.Inner xri = xi;
+                    DualPathInnerType.Inner xri = xi;
 
                     void f (DualPathInnerType.Inner xri) {}
-                    void f (DualPathInnerType.ref.Inner xri) {}
+                    void f (DualPathInnerType.Inner xri) {}
                 }
                 """);
     }
@@ -664,7 +540,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
                     class Test {
-                        primitive class Value<T> {
+                        value class Value<T> {
                             T t = null;
                             void foo() {
                                 Value<T>[] v = new Value[1];
@@ -675,7 +551,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
                     class Test {
-                        primitive class Value<T> {
+                        value class Value<T> {
                             T t = null;
                             void foo() {
                                 Value<Test>[] vx = new Value[1];
@@ -686,7 +562,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
                     class Test {
-                        primitive class Value<T> {
+                        value class Value<T> {
                             T t = null;
                             void foo() {
                                 Value<String>[] vs = new Value[1];
@@ -697,7 +573,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
                     class Test {
-                        primitive class Value<T> {
+                        value class Value<T> {
                             T t = null;
                             void foo(Value<T>[] v) {
                                 v = (Value<T> []) new Value[1];
@@ -708,7 +584,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
                     class Test {
-                        primitive class Value<T> {
+                        value class Value<T> {
                             T t = null;
                             void foo(Value<Test>[] vx) {
                                 vx = (Value<Test>[]) new Value[1];
@@ -719,7 +595,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
                     class Test {
-                        primitive class Value<T> {
+                        value class Value<T> {
                             T t = null;
                             void foo(Value<String>[] vs) {
                                 vs = (Value<String>[]) new Value[1];
@@ -730,7 +606,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
             assertFail("compiler.err.prob.found.req",
                     """
                     class Test {
-                        primitive class Value<T> {
+                        value class Value<T> {
                             T t = null;
                             void foo(Value<Test>[] vx, Value<String>[] vs) {
                                 vx = vs;
@@ -750,7 +626,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                value class GenericInlineTest<T, U> extends High<U, T> {
                     void foo() {
                         GenericInlineTest<String, Integer> g = new GenericInlineTest<String, Integer>();
                     }
@@ -762,7 +638,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                value class GenericInlineTest<T, U> extends High<U, T> {
                     void foo(GenericInlineTest<String, Integer> g, High<String, Integer> h1) {
                         h1 = g;
                     }
@@ -774,7 +650,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                value class GenericInlineTest<T, U> extends High<U, T> {
                     void foo(GenericInlineTest<String, Integer> g, High<Integer, String> h2) {
                         h2 = g;
                     }
@@ -786,7 +662,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                value class GenericInlineTest<T, U> extends High<U, T> {
                     void foo(GenericInlineTest<String, Integer> g, Mid<String, Integer> m1) {
                         m1 = g;
                     }
@@ -798,7 +674,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                value class GenericInlineTest<T, U> extends High<U, T> {
                     void foo(GenericInlineTest<String, Integer> g, Mid<Integer, String> m2) {
                         m2 = g;
                     }
@@ -810,7 +686,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                value class GenericInlineTest<T, U> extends High<U, T> {
                     void foo(GenericInlineTest<String, Integer> g, Low<String, Integer> l1) {
                         l1 = g;
                     }
@@ -822,7 +698,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                value class GenericInlineTest<T, U> extends High<U, T> {
                     void foo(GenericInlineTest<String, Integer> g, Low<Integer, String> l2) {
                         l2 = g;
                     }
@@ -834,7 +710,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                value class GenericInlineTest<T, U> extends High<U, T> {
                     void foo(GenericInlineTest<String, Integer> g, Low<Integer, String> l2) {
                         l2 = g;
                         g = l2;
@@ -847,7 +723,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                value class GenericInlineTest<T, U> extends High<U, T> {
                     void foo(GenericInlineTest<String, Integer> g, Low<Integer, String> l2) {
                         l2 = g;
                         g = (GenericInlineTest<String, Integer>) l2;
@@ -860,8 +736,8 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
-                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<String, Integer> r1) {
+                value class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest<String, Integer> r1) {
                         r1 = g;
                     }
                 }
@@ -872,8 +748,8 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
-                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<Integer, String> r2) {
+                value class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest<Integer, String> r2) {
                         r2 = g;
                     }
                 }
@@ -884,8 +760,8 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
-                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<String, Integer> r1) {
+                value class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest<String, Integer> r1) {
                         r1 = g;
                         g = r1;
                     }
@@ -897,8 +773,8 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
-                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<Integer, String> r2) {
+                value class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest<Integer, String> r2) {
                         r2 = g;
                         g = r2;
                     }
@@ -910,68 +786,10 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 abstract class Mid<T, U> extends Low<U, T> {}
                 abstract class High<T, U> extends Mid<U, T> {}
 
-                primitive class GenericInlineTest<T, U> extends High<U, T> {
-                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<Integer, String> r2) {
+                value class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest<Integer, String> r2) {
                         r2 = g;
                         g = (GenericInlineTest<String, Integer>) r2;
-                    }
-                }
-                """);
-    }
-
-    public void testValRefTokensNegative() {
-        assertFail("compiler.err.cant.resolve.location",
-                """
-                class ValRefTokensNegativeTest {
-                    ValRefTokensNegativeTest.ref aa = null;
-                }
-                """);
-        assertFail("compiler.err.cant.resolve.location",
-                """
-                class ValRefTokensNegativeTest {
-                    static ValRefTokensNegativeTest.val bb = ValRefTokensNegativeTest.default;
-                }
-                """);
-        assertOK(
-                """
-                class ValRefTokensNegativeTest {
-                    EmptyValue empty = EmptyValue.default;
-
-                    static class ValRefTokensTestWrapper {
-                        ValRefTokensNegativeTest val = ValRefTokensNegativeTest.default;
-                        ValRefTokensNegativeTest ref = ValRefTokensNegativeTest.default;
-                    }
-
-                    public EmptyValue test(int x) {
-                        ValRefTokensTestWrapper w = new ValRefTokensTestWrapper();
-                        return x == 0 ? w.val.empty : w.ref.empty;
-                    }
-
-                    static class EmptyValue {
-                        static int x = 42;
-                    }
-                }
-                """);
-        assertFail("compiler.err.cant.resolve.location",
-                """
-                class ValRefTokensNegativeTest {
-                    int valx() {
-                        return EmptyValue.val.x;
-                    }
-
-                    static class EmptyValue {
-                        static int x = 42;
-                    }
-                }
-                """);
-        assertFail("compiler.err.cant.resolve.location",
-                """
-                class ValRefTokensNegativeTest {
-                    int refx() {
-                        return EmptyValue.ref.x;
-                    }
-                    static class EmptyValue {
-                        static int x = 42;
                     }
                 }
                 """);
@@ -982,18 +800,18 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
         try {
             String[] testOptions = {"--source", "16"};
             setCompileOptions(testOptions);
-            assertFail("compiler.err.primitive.classes.not.supported",
+            assertFail("compiler.err.feature.not.supported.in.source.plural",
                     """
-                    class primitive {
-                        primitive x;
-                        primitive foo(int l) {}
-                        Object o = new primitive primitive() {};
+                    class value {
+                        value x;
+                        value foo(int l) {}
+                        Object o = new value value() {};
                     }
                     """);
             setCompileOptions(previousOptions);
             assertFail("compiler.err.restricted.type.not.allowed",
                     """
-                    class primitive {}
+                    class value {}
                     """);
         } finally {
             setCompileOptions(previousOptions);
@@ -1007,7 +825,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     interface I {
                         void foo();
                     }
-                    primitive class V {
+                    value class V {
                         int f;
                         V() {
                             I i = this::foo;
@@ -1023,7 +841,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     interface I {
                         void foo();
                     }
-                    primitive class V {
+                    value class V {
                         int f;
                         V() {
                             I i = MiscThisLeak.this::foo;
@@ -1041,7 +859,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     interface I {
                         void foo();
                     }
-                    primitive class V {
+                    value class V {
                         class K {}
                         int f;
                         V() {
@@ -1060,7 +878,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     interface I {
                         void foo();
                     }
-                    primitive class V {
+                    value class V {
                         class K {}
                         int f;
                         V() {
@@ -1079,7 +897,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     interface I {
                         void foo();
                     }
-                    primitive class V {
+                    value class V {
                         class K {}
                         int f;
                         V() {
@@ -1097,7 +915,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.prob.found.req",
                 """
                 class CovariantArrayTest {
-                    primitive class V {
+                    value class V {
                         public final int v1;
                         private V () { v1 = 0; }
                     }
@@ -1109,7 +927,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.prob.found.req",
                 """
                 class CovariantArrayTest {
-                    primitive class V {
+                    value class V {
                         public final int v1;
                         private V () { v1 = 0; }
                     }
@@ -1121,7 +939,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
         assertOK(
                 """
                 class CovariantArrayTest {
-                    primitive class V {
+                    value class V {
                         public final int v1;
                         private V () { v1 = 0; }
                     }
@@ -1135,7 +953,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.prob.found.req",
                 """
                 class CovariantArrayTest {
-                    primitive class V {
+                    value class V {
                         public final int v1;
                         private V () { v1 = 0; }
                     }
@@ -1150,7 +968,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
         assertOK(
                 """
                 class CovariantArrayTest {
-                    primitive class V {
+                    value class V {
                         public final int v1;
                         private V () { v1 = 0; }
                     }
@@ -1170,100 +988,10 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 class ConflictingSuperInterfaceTest {
                     interface I<T> {}
                     static abstract class S implements I<String> {}
-                    primitive static class Foo extends S implements I<Integer> {
+                    value static class Foo extends S implements I<Integer> {
                         String s = "";
                     }
                 }
                 """);
-    }
-
-    public void testClassLiteralTypingNegativeTest() {
-        String[] previousOptions = getCompileOptions();
-        try {
-            String[] testOptions = {"--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED", "-XDenablePrimitiveClasses"};
-            setCompileOptions(testOptions);
-            assertFail("compiler.err.prob.found.req",
-                    """
-                    import jdk.internal.value.PrimitiveClass;
-                    class ClassLiteralTypingNegativeTest {
-                        interface I {}
-                        static primitive class Foo implements I {
-                            final int value = 0;
-                            void m() {
-                                Class<? extends Foo.ref> cFooRef = PrimitiveClass.asValueType(Foo.class);
-                            }
-                        }
-                    }
-                    """);
-            assertOK(
-                    """
-                    import jdk.internal.value.PrimitiveClass;
-                    class ClassLiteralTypingNegativeTest {
-                        interface I {}
-                        static primitive class Foo implements I {
-                            final int value = 0;
-                            void m() {
-                                Class<? extends Foo.ref> cFooRef = new Foo().getClass();
-                            }
-                        }
-                    }
-                    """);
-            assertOK(
-                    """
-                    import jdk.internal.value.PrimitiveClass;
-                    class ClassLiteralTypingNegativeTest {
-                        interface I {}
-                        static primitive class Foo implements I {
-                            final int value = 0;
-                            void m() {
-                                Class<? extends Foo.ref> cFooRef = Foo.ref.class;
-                            }
-                        }
-                    }
-                    """);
-            assertFail("compiler.err.prob.found.req",
-                    """
-                    import jdk.internal.value.PrimitiveClass;
-                    class ClassLiteralTypingNegativeTest {
-                        interface I {}
-                        static primitive class Foo implements I {
-                            final int value = 0;
-                            void m() {
-                                Class<? extends Foo.ref> cFooRef = Foo.val.class;
-                            }
-                        }
-                    }
-                    """);
-            assertOK(
-                    """
-                    import jdk.internal.value.PrimitiveClass;
-                    class ClassLiteralTypingNegativeTest {
-                        interface I {}
-                        static primitive class Foo implements I {
-                            final int value = 0;
-                            void m() {
-                                Foo.val xv = new Foo();
-                                Class<? extends Foo.ref> cFooRef = xv.getClass();
-                            }
-                        }
-                    }
-                    """);
-            assertOK(
-                    """
-                    import jdk.internal.value.PrimitiveClass;
-                    class ClassLiteralTypingNegativeTest {
-                        interface I {}
-                        static primitive class Foo implements I {
-                            final int value = 0;
-                            void m() {
-                                Foo.ref xr = new Foo();
-                                Class<? extends Foo.ref> cFooRef = xr.getClass();
-                            }
-                        }
-                    }
-                    """);
-        } finally {
-            setCompileOptions(previousOptions);
-        }
     }
 }

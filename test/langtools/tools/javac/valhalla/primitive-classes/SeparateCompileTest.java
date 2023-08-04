@@ -34,6 +34,6 @@
 
 public class SeparateCompileTest {
     public static void main(String[] args) {
-        Pointer<Point.ref> p_ref = Point.TYPE.allocate();
+        Pointer<Point> p_ref = Point.TYPE.allocate();
     }
 }

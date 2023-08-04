@@ -28,7 +28,7 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses WithFieldRuntimeTest
  */
 
-public final primitive class WithFieldRuntimeTest {
+public final value class WithFieldRuntimeTest {
 
     final int x;
 

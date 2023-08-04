@@ -32,7 +32,7 @@
  */
 
 
-primitive final class TestValue1 {
+value final class TestValue1 {
     final int x;
     public TestValue1(int x) {
         this.x = x;

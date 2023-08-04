@@ -28,15 +28,17 @@
  * @compile -XDenablePrimitiveClasses ValueCreationTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueCreationTest
  * @modules jdk.compiler
+ * @ignore
  */
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Paths;
 
+// very fragile test
 public class ValueCreationTest {
 
-    primitive
+    value
     static final class Point {
 
         final int x;

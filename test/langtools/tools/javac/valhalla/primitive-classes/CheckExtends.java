@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckExtends.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckExtends.java
  */
 
-final primitive class CheckExtends extends Object {
+final value class CheckExtends extends Object {
     static class NestedConcrete {}
-    static primitive class NestedPrimitive extends NestedConcrete {}
+    static value class NestedPrimitive extends NestedConcrete {}
 }

@@ -29,16 +29,17 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SideEffectTest
  */
 
-
 public class SideEffectTest {
 
-    static primitive class V {
+    static value class V {
 
         static String output = "";
 
         int x;
 
-        V() {
+        public implicit V();
+
+        V(boolean dummy) {
             foo(x = 1234);
         }
 
@@ -53,7 +54,7 @@ public class SideEffectTest {
     }
 
     public static void main(String[] args) {
-        V v = new V();
+        V v = new V(false);
         if (!v.output.equals("1234"))
             throw new AssertionError("Broken");
         if (v.x != 1234)

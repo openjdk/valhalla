@@ -21,7 +21,9 @@
  * questions.
  */
 
-primitive class QPoint {
-    int x = 0;
-    int y = 0;
+value class QPoint {
+    int x;
+    int y;
+
+    public implicit QPoint();
 }

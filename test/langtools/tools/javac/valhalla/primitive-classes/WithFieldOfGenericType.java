@@ -29,7 +29,7 @@
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses WithFieldOfGenericType
  */
 
-public final primitive class WithFieldOfGenericType<E> {
+public final value class WithFieldOfGenericType<E> {
   private final boolean value;
 
   public static <E> WithFieldOfGenericType<E> create() {

@@ -8,7 +8,7 @@
 public class T8279655 {
 
     sealed interface Foo permits Bar { }
-    primitive class Bar implements Foo { }
+    value class Bar implements Foo { }
 
     class Test {
         void test(Object o) {

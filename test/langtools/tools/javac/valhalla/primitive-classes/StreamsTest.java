@@ -33,7 +33,7 @@ import java.util.Arrays;
 
 public class StreamsTest {
 
-    public static primitive class X {
+    public static value class X {
 
         String data;
 
@@ -58,7 +58,7 @@ public class StreamsTest {
                       };
 
             Arrays.stream(xs)
-                        .map(X.ref::data)
+                        .map(X::data)
                         .filter(p -> p != null)
                         .forEach(X::accumulate);
 

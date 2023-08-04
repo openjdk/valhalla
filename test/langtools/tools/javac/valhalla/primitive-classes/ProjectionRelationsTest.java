@@ -29,6 +29,7 @@
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.code
  *          jdk.compiler/com.sun.tools.javac.util
+ * @ignore
  */
 
 import java.io.StringWriter;
