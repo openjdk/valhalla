@@ -1145,7 +1145,7 @@ void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_
 
   // Getting the pre-allocated default value from the mirror
   Address field(obj, offset);
-  load_heap_oop(obj, field, temp_reg, rscratch2);
+  load_heap_oop(obj, field, inline_klass, rscratch2);
 }
 
 void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
