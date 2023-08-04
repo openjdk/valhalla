@@ -73,6 +73,9 @@ compiler/c2/irTests/TestVectorConditionalMove.java 8306922 generic-all
 
 compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
 
+compiler/gcbarriers/TestZGCBarrierElision.java 8313737 generic-all
+compiler/valhalla/inlinetypes/TestArrays.java 8313667 generic-all
+
 #############################################################################
 
 # :hotspot_gc
