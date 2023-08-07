@@ -36,8 +36,19 @@ import java.nio.file.Paths;
 public class ArrayCreationWithQuestion {
 
     static value class VT {
-        VT[] a3 = new VT[42];
-        VT[] a4 = new VT[42];
+        VT[] a1;
+        VT[] a2;
+        VT![] a3;
+        VT![] a4;
+
+        public implicit VT();
+
+        VT(boolean non_implicit) {
+            a1 = new VT[42];
+            a2 = new VT[42];
+            a3 = new VT![42];
+            a4 = new VT![42];
+        }
     }
 
     public static void main(String[] args) {
@@ -46,15 +57,18 @@ public class ArrayCreationWithQuestion {
 
     void run() {
         String [] params = new String [] { "-v",
-                                            Paths.get(System.getProperty("test.classes"),
-                                                "ArrayCreationWithQuestion$VT.class").toString() };
+                Paths.get(System.getProperty("test.classes"),
+                        "ArrayCreationWithQuestion$VT.class").toString() };
         runCheck(params, new String [] {
-        "         6: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
-        "        22: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
-         });
-     }
+                "         6: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
+                "        17: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
+                "        33: invokestatic  #16                 // Method java/lang/reflect/Array.newInstance:(Ljava/lang/Class;I)Ljava/lang/Object;",
+                "        52: invokestatic  #16                 // Method java/lang/reflect/Array.newInstance:(Ljava/lang/Class;I)Ljava/lang/Object;",
+        });
 
-     void runCheck(String [] params, String [] expectedOut) {
+    }
+
+    void runCheck(String [] params, String [] expectedOut) {
         StringWriter s;
         String out;
 
@@ -69,8 +83,8 @@ public class ArrayCreationWithQuestion {
                 errors++;
             }
         }
-         if (errors > 0) {
-             throw new AssertionError("Unexpected javap output: " + out);
-         }
+        if (errors > 0) {
+            throw new AssertionError("Unexpected javap output: " + out);
+        }
     }
 }

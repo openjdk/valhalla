@@ -4218,7 +4218,7 @@ public class Lower extends TreeTranslator {
             result = tree;
         } else {
             Symbol elemClass = syms.getClassField(tree.elemtype.type, types);
-            JCFieldAccess elemClassExpr = make.Select(make.Ident(tree.elemtype.type.tsym.getQualifiedName()).setType(tree.elemtype.type), elemClass);
+            JCFieldAccess elemClassExpr = make.Select(make.Ident(tree.elemtype.type.tsym).setType(tree.elemtype.type), elemClass);
             MethodSymbol asNullRestrictedTypeMeth = lookupMethod(tree.pos(), names.asNullRestrictedType, syms.classType, List.nil());
             JCExpression asNullRestrictedTypeCall = make.Apply(
                         null,
