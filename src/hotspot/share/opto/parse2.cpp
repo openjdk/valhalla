@@ -2042,28 +2042,6 @@ void Parse::my_if(Node* region, Node* cmp, uint idx){
 }
 
 void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region, Node* io_phi, Node* mem_phi){
-  /*
-  // First, do a normal pointer comparison
-  const TypeOopPtr* type_left = _gvn.type(left)->isa_oopptr();
-  const TypeOopPtr* type_right = _gvn.type(right)->isa_oopptr();
-  Node* cmp = CmpP(left, right);
-  cmp = optimize_cmp_with_klass(cmp);
-  if (type_left == NULL || !type_left->can_be_inline_type() ||
-          type_right == NULL || !type_right->can_be_inline_type()) {
-    // This is sufficient, if one of the operands can't be an inline type
-    my_if(region, cmp, i+1);
-    continue;
-  }
-  Node* eq_region = new RegionNode(3);
-
-  Node* res = Bool(cmp, BoolTest::mask::eq);
-  IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
-  eq_region->set_req(1, IfTrue(ifnode));
-  set_control(IfFalse(ifnode));
-  if (stopped()) {
-    continue;
-  }
-   */
   //iterate and compare all the fields
   for (uint i = 0; i < left->field_count(); i++) {
     io_phi->init_req(i+1, i_o());
@@ -2251,7 +2229,6 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         region->set_req(i+1, _gvn.transform(ne_region));
         io_phi->set_req(i+1, _gvn.transform(ne_io_phi));
         mem_phi->set_req(i+1, _gvn.transform(ne_mem_phi));
-
         continue;
       }
     }
