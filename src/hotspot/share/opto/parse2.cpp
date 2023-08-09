@@ -2034,28 +2034,67 @@ void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* ti
   }
 }
 
-void Parse::my_if(Node* region, Node* cmp, uint idx){
+// Perform basic equality check. Set the idx'th region input to the false path and set control to the true path
+void Parse::basic_if_eq(Node* region, Node* cmp, uint idx){
   Node* res = Bool(cmp, BoolTest::mask::eq);
-  IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
+  IfNode* ifnode = _gvn.transform(new IfNode( _gvn.transform(control()), _gvn.transform(res), PROB_FAIR, COUNT_UNKNOWN))->isa_If();
   region->set_req(idx, IfFalse(ifnode));
   set_control(IfTrue(ifnode));
 }
 
-void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region, Node* io_phi, Node* mem_phi){
-  //iterate and compare all the fields
+void Parse::cmp_inline_type_nodes(InlineTypeNode* left, InlineTypeNode* right, Node*& ne_region, Node*& ne_io_phi, Node*& ne_mem_phi){
+  Node* eq_region = new RegionNode(3);
+  ne_region = new RegionNode(3);
+  // Compare the init pointers
+  Node* cmp = _gvn.transform(new CmpINode(left->get_is_init(), right->get_is_init()));
+  Node* res = Bool(cmp, BoolTest::mask::eq);
+  IfNode* ifnode = _gvn.transform(new IfNode(_gvn.transform(control()), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
+  // Init pointers are not equal -> we know one is null and one is not null -> left != right
+  ne_region->init_req(1, IfFalse(ifnode));
+  // Init pointers are equal -> either both are null or both are initialized
+  set_control(IfTrue(ifnode));
+
+  // Null check the left init pointer (checking one pointer is enough as we know that they are equal here)
+  Node* null_ctl_left;
+  acmp_null_check(left,_gvn.type(left)->isa_oopptr(),ProfileUnknownNull, null_ctl_left);
+  // If the left init pointer is null, we know that both are null -> left == right
+  eq_region->init_req(1, null_ctl_left);
+
+  // We now know that both left and right are initialized -> proceed to comparing their fields
+
+  // As soon as one field is not equal, we know that the value objects are not equal
+  // The fields_ne_region node combines all the not equal fast paths
+  // After the loop, control() will contain the slow path, were all fields are equal
+  Node* fields_ne_region = new RegionNode(left->field_count() + 1);
+  Node* io = _gvn.transform(i_o());
+  Node* fields_ne_io_phi = PhiNode::make(fields_ne_region, io);
+  Node* eq_io_phi = PhiNode::make(eq_region, io);
+  ne_io_phi = PhiNode::make(ne_region, io);
+  Node* mem = reset_memory();
+  Node* fields_ne_mem_phi = PhiNode::make(fields_ne_region, mem);
+  Node* eq_mem_phi = PhiNode::make(eq_region, mem);
+  ne_mem_phi = PhiNode::make(ne_region, mem);
+  set_all_memory(mem);
+
+  // Iterate and compare all the fields
   for (uint i = 0; i < left->field_count(); i++) {
-    io_phi->init_req(i+1, i_o());
+    fields_ne_io_phi->init_req(i + 1, _gvn.transform(i_o()));
     Node* mem = reset_memory();
-    mem_phi->init_req(i+1, mem);
+    fields_ne_mem_phi->init_req(i + 1, mem);
     set_all_memory(mem);
 
     Node* left_field = left->field_value(i);
     Node* right_field = right->field_value(i);
+    // Compare the nodes before further analysis
+    if (left_field == right_field) {
+      basic_if_eq(fields_ne_region, makecon(TypeInt::CC_EQ), i + 1);
+      continue;
+    }
     //since we have already checked that the types are the same, it is enough to only use the types from one side
     ciType* input_type_l = left->field_type(i);
-    Node* cmp;
 
     if (input_type_l->is_primitive_type()) {
+      Node* cmp;
       BasicType basic_l = input_type_l->basic_type();
       if (basic_l == T_BOOLEAN | basic_l == T_CHAR | basic_l == T_BYTE | basic_l == T_SHORT | basic_l == T_INT) {
         cmp = _gvn.transform(new CmpINode(left_field, right_field));
@@ -2068,36 +2107,23 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
       } else {
         assert(false, "Basic type not handled");
       }
+      basic_if_eq(fields_ne_region, cmp, i + 1);
     } else {
-      //if the field is inline type, call cmp_fields, else do a normal pointer comparison
-      //TODO: check left for object and null
-      const TypeOopPtr* tleft = _gvn.type(left_field)->isa_oopptr();
-      const TypeOopPtr* tright = _gvn.type(right_field)->isa_oopptr();
-      if(tleft == NULL || !tleft->can_be_inline_type() || tright == NULL || !tright->can_be_inline_type()){
-        cmp = _gvn.transform(new CmpPNode(left_field, right_field));
-      }else if (left_field->is_InlineType() && right_field->is_InlineType()){ //also check right
+      //if the field is inline type, call cmp_inline_type_nodes else do a generic compare
+      if (left_field->is_InlineType() && right_field->is_InlineType()){ //also check right
         InlineTypeNode* tmp_l = left_field->isa_InlineType();
         InlineTypeNode* tmp_r = right_field->isa_InlineType();
-        Node* next_region = new RegionNode(tmp_l->field_count()+1);
-        Node* next_io_phi = PhiNode::make(next_region, i_o());
-        Node* mem = reset_memory();
-        Node* next_mem_phi = PhiNode::make(next_region, mem);
-        set_all_memory(mem);
-        //recursively call cmp_fields
-        cmp_fields(tmp_l, tmp_r, next_region, next_io_phi, next_mem_phi);
-        //update region and control
-        region->set_req(i+1, _gvn.transform(next_region));
-        io_phi->set_req(i+1, _gvn.transform(next_io_phi));
-        mem_phi->set_req(i+1, _gvn.transform(next_mem_phi));
-        //skip the rest of the loop body
-        continue;
+        Node* next_region;
+        Node* next_io_phi;
+        Node* next_mem_phi;
+        //recursively call cmp_inline_type_nodes
+        cmp_inline_type_nodes(tmp_l, tmp_r, next_region, next_io_phi, next_mem_phi);
+        //update fields_ne_region and control
+        fields_ne_region->set_req(i + 1, _gvn.transform(next_region));
+        fields_ne_io_phi->set_req(i + 1, _gvn.transform(next_io_phi));
+        fields_ne_mem_phi->set_req(i + 1, _gvn.transform(next_mem_phi));
       }else{
         BoolTest::mask btest = BoolTest::mask::eq;
-        // Check for equality before potentially allocating
-        if (left_field == right_field) {
-          my_if(region, makecon(TypeInt::CC_EQ), i+1);
-          continue;
-        }
 
         // Allocate inline type operands and re-execute on deoptimization
         if (left_field->is_InlineType()) {
@@ -2105,8 +2131,8 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
               (right_field->is_InlineType() && _gvn.type(right_field->as_InlineType()->get_is_init())->is_zero_type())) {
             // Null checking a scalarized but nullable inline type. Check the IsInit
             // input instead of the oop input to avoid keeping buffer allocations alive.
-            cmp = CmpI(left_field->as_InlineType()->get_is_init(), intcon(0));
-            my_if(region, cmp, i+1);
+            Node* cmp = CmpI(left_field->as_InlineType()->get_is_init(), intcon(0));
+            basic_if_eq(fields_ne_region, cmp, i + 1);
             continue;
           } else {
             PreserveReexecuteState preexecs(this);
@@ -2123,21 +2149,21 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         }
 
         // First, do a normal pointer comparison
-        tleft = _gvn.type(left_field)->isa_oopptr();
-        tright = _gvn.type(right_field)->isa_oopptr();
+        const TypeOopPtr* tleft = _gvn.type(left_field)->isa_oopptr();
+        const TypeOopPtr* tright = _gvn.type(right_field)->isa_oopptr();
         Node* cmp = CmpP(left_field, right_field);
         cmp = optimize_cmp_with_klass(cmp);
         if (tleft == NULL || !tleft->can_be_inline_type() ||
             tright == NULL || !tright->can_be_inline_type()) {
           // This is sufficient, if one of the operands can't be an inline type
-          my_if(region, cmp, i+1);
+          basic_if_eq(fields_ne_region, cmp, i + 1);
           continue;
         }
-        Node* eq_region = new RegionNode(3);
+        Node* substitutable_eq_region = new RegionNode(3);
         if (btest == BoolTest::eq) {
           Node* res = Bool(cmp, BoolTest::mask::eq);
           IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
-          eq_region->set_req(1, IfTrue(ifnode));
+          substitutable_eq_region->set_req(1, IfTrue(ifnode));
           set_control(IfFalse(ifnode));
           if (stopped()) {
             continue;
@@ -2147,21 +2173,21 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         }
 
         // Pointers are not equal, check if first operand is non-null
-        Node* ne_region = new RegionNode(6);
+        Node* substitutable_ne_region = new RegionNode(6);
         Node* null_ctl;
         Node* not_null_right = acmp_null_check(right_field, tright, ProfileUnknownNull, null_ctl);
-        ne_region->init_req(1, null_ctl);
+        substitutable_ne_region->init_req(1, null_ctl);
 
         // First operand is non-null, check if it is an inline type
         Node* is_value = inline_type_test(not_null_right);
         IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
         Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
-        ne_region->init_req(2, not_value);
+        substitutable_ne_region->init_req(2, not_value);
         set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
 
         // The first operand is an inline type, check if the second operand is non-null
         Node* not_null_left = acmp_null_check(left_field, tleft, ProfileUnknownNull, null_ctl);
-        ne_region->init_req(3, null_ctl);
+        substitutable_ne_region->init_req(3, null_ctl);
 
         // Check if both operands are of the same class.
         Node* kls_left = load_object_klass(not_null_left);
@@ -2171,22 +2197,22 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
         Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
         set_control(_gvn.transform(new IfFalseNode(kls_iff)));
-        ne_region->init_req(4, kls_ne);
+        substitutable_ne_region->init_req(4, kls_ne);
 
         if (stopped()) {
-          record_for_igvn(ne_region);
-          region->init_req(i+1, _gvn.transform(ne_region));
+          record_for_igvn(substitutable_ne_region);
+          fields_ne_region->init_req(i + 1, _gvn.transform(substitutable_ne_region));
           continue;
         }
 
         // Both operands are values types of the same class, we need to perform a
         // substitutability test. Delegate to ValueObjectMethods::isSubstitutable().
-        Node* ne_io_phi = PhiNode::make(ne_region, i_o());
+        Node* substitutable_ne_io_phi = PhiNode::make(substitutable_ne_region, i_o());
         Node* mem = reset_memory();
-        Node* ne_mem_phi = PhiNode::make(ne_region, mem);
+        Node* substitutable_ne_mem_phi = PhiNode::make(substitutable_ne_region, mem);
 
-        Node* eq_io_phi = PhiNode::make(eq_region, i_o());
-        Node* eq_mem_phi = PhiNode::make(eq_region, mem);
+        Node* substitutable_eq_io_phi = PhiNode::make(substitutable_eq_region, i_o());
+        Node* substitutable_eq_mem_phi = PhiNode::make(substitutable_eq_region, mem);
 
         set_all_memory(mem);
 
@@ -2207,8 +2233,8 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
         if (btest == BoolTest::eq) {
           Node* res = Bool(subst_cmp, BoolTest::mask::eq);
           IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
-          eq_region->init_req(2, _gvn.transform(IfTrue(ifnode)));
-          set_control(_gvn.transform(eq_region));
+          substitutable_eq_region->init_req(2, _gvn.transform(IfTrue(ifnode)));
+          set_control(_gvn.transform(substitutable_eq_region));
           if (!stopped()) {
             ctl = IfFalse(ifnode);
           }
@@ -2216,27 +2242,35 @@ void Parse::cmp_fields(InlineTypeNode* left, InlineTypeNode* right, Node* region
           assert(false, "only eq here");
         }
         mem = reset_memory();
-        ne_region->init_req(5, _gvn.transform(ctl));
-        ne_io_phi->init_req(5, i_o());
-        ne_mem_phi->init_req(5, _gvn.transform(mem));
+        substitutable_ne_region->init_req(5, _gvn.transform(ctl));
+        substitutable_ne_io_phi->init_req(5, _gvn.transform(i_o()));
+        substitutable_ne_mem_phi->init_req(5, _gvn.transform(mem));
 
-        eq_io_phi->init_req(2, i_o());
-        eq_mem_phi->init_req(2, _gvn.transform(mem));
-        set_i_o(_gvn.transform(eq_io_phi));
-        set_all_memory(_gvn.transform(eq_mem_phi));
+        substitutable_eq_io_phi->init_req(2, _gvn.transform(i_o()));
+        substitutable_eq_mem_phi->init_req(2, _gvn.transform(mem));
+        set_i_o(_gvn.transform(substitutable_eq_io_phi));
+        set_all_memory(_gvn.transform(substitutable_eq_mem_phi));
 
-        record_for_igvn(ne_region);
-        region->set_req(i+1, _gvn.transform(ne_region));
-        io_phi->set_req(i+1, _gvn.transform(ne_io_phi));
-        mem_phi->set_req(i+1, _gvn.transform(ne_mem_phi));
-        continue;
+        record_for_igvn(substitutable_ne_region);
+        fields_ne_region->set_req(i + 1, _gvn.transform(substitutable_ne_region));
+        fields_ne_io_phi->set_req(i + 1, _gvn.transform(substitutable_ne_io_phi));
+        fields_ne_mem_phi->set_req(i + 1, _gvn.transform(substitutable_ne_mem_phi));
       }
     }
-    Node* res = Bool(cmp, BoolTest::mask::eq);
-    IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
-    region->set_req(i+1, IfFalse(ifnode));
-    set_control(IfTrue(ifnode));
   }
+  //add current control to the eq fields_ne_region
+  eq_region->init_req(2, _gvn.transform(control()));
+  set_control(eq_region);
+  //get current io and memory
+  eq_io_phi->init_req(2, i_o());
+  set_i_o(eq_io_phi);
+  mem = reset_memory();
+  eq_mem_phi->init_req(2, _gvn.transform(mem));
+  set_all_memory(mem);
+
+  ne_region->init_req(2, _gvn.transform(fields_ne_region));
+  ne_io_phi->init_req(2, _gvn.transform(fields_ne_io_phi));
+  ne_mem_phi->init_req(2, _gvn.transform(fields_ne_mem_phi));
 }
 
 void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
@@ -2284,53 +2318,21 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   if (left->is_InlineType() && right->is_InlineType() && experimental) {
     assert((btest == BoolTest::eq) || (btest == BoolTest::ne), "only eq and ne are supported for acmp");
 
-    // assume that we already know that left and right are InlineTypeNodes
     InlineTypeNode *v_left = left->isa_InlineType();
     InlineTypeNode *v_right = right->isa_InlineType();
 
-    Node* eq_region = new RegionNode(3);
-    Node* ne_region = new RegionNode(3);
+    Node* ne_region;
+    Node* ne_io_phi;
+    Node* ne_mem_phi;
 
-    Node* cmp = _gvn.transform(new CmpINode(v_left->get_is_init(), v_right->get_is_init()));
-    Node* res = Bool(cmp, BoolTest::mask::eq);
-    IfNode* ifnode = _gvn.transform(new IfNode(control(), res, PROB_FAIR, COUNT_UNKNOWN))->isa_If();
-    ne_region->init_req(1, IfFalse(ifnode));
-    set_control(IfTrue(ifnode));
+    // Inline Nodes are compared for equality
+    cmp_inline_type_nodes(v_left, v_right, ne_region, ne_io_phi, ne_mem_phi);
 
-    Node* null_ctl_left;
-    acmp_null_check(left,_gvn.type(left)->isa_oopptr(),ProfileUnknownNull, null_ctl_left);
-    eq_region->init_req(1, null_ctl_left);
-
-    // the region nodes combines all the fast paths
-    // as soon as one field is not equal, we know that the value objects are not equal -> abort through the region node
-    Node *fields_region = new RegionNode(v_left->field_count() + 1);
-    Node* io = i_o();
-    Node *fields_io_phi = PhiNode::make(fields_region, io);
-    Node* eq_io_phi = PhiNode::make(eq_region, io);
-    Node* ne_io_phi = PhiNode::make(ne_region, io);
-
-    Node* mem = reset_memory();
-    Node* fields_mem_phi = PhiNode::make(fields_region, mem);
-    Node* eq_mem_phi = PhiNode::make(eq_region, mem);
-    Node* ne_mem_phi = PhiNode::make(ne_region, mem);
-    set_all_memory(mem);
-
-    //fields are compared for equality
-    cmp_fields(v_left, v_right, fields_region, fields_io_phi, fields_mem_phi);
-
-    //add current control to the eq region
-    eq_region->init_req(2, control());
-    //get current io and memory
-    eq_io_phi->init_req(2, i_o());
-    mem = reset_memory();
-    eq_mem_phi->init_req(2, _gvn.transform(mem));
-    set_all_memory(mem);
-
-    ne_region->init_req(2, _gvn.transform(fields_region));
-    ne_io_phi->init_req(2, _gvn.transform(fields_io_phi));
-    ne_mem_phi->init_req(2, _gvn.transform(fields_mem_phi));
-
-    // as we have compared the fields for equality, we need to invert the result if btest == not equal
+    // Recover eq path
+    Node* eq_region = control();
+    Node* eq_io_phi = i_o();
+    Node* eq_mem_phi = reset_memory();
+    // As we have compared the fields for equality, we need to invert the result if btest == not equal
     // This can be done by swapping fields_region, fields_io_phi and fields_mem_phi with current eq_region, io and memory
     if (btest == BoolTest::ne) {
       // swap region and control
@@ -2392,7 +2394,6 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   Node* eq_region = NULL;
   if (btest == BoolTest::eq) {
     do_if(btest, cmp, true);
-    //assert(false, "new path");
     if (stopped()) {
       return;
     }

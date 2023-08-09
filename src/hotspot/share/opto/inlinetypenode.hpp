@@ -45,7 +45,7 @@ protected:
   enum { Control,    // Control input.
          Oop,        // Oop to heap allocated buffer.
          IsBuffered, // True if inline type is heap allocated (or NULL), false otherwise.
-         IsInit,     // Needs to be checked for NULL before using the field values.
+         IsInit,     // Needs to be checked for 0 before using the field values.
          Values      // Nodes corresponding to values of the inline type's fields.
                      // Nodes are connected in increasing order of the index of the field they correspond to.
   };
