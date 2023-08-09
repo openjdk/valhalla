@@ -22,7 +22,7 @@
  */
 
 /**
- * BangTypesCompilationTests
+ * NullabilityCompilationTests
  *
  * @test
  * @enablePreview
@@ -33,7 +33,7 @@
  *      jdk.compiler/com.sun.tools.javac.code
  *      jdk.compiler/com.sun.tools.javac.util
  *      jdk.jdeps/com.sun.tools.classfile
- * @run testng/othervm BangTypesCompilationTests
+ * @run testng/othervm NullabilityCompilationTests
  */
 import java.util.List;
 import java.util.function.Consumer;
@@ -46,11 +46,11 @@ import tools.javac.combo.CompilationTestCase;
 import static org.testng.Assert.assertEquals;
 
 @Test
-public class BangTypesCompilationTests extends CompilationTestCase {
+public class NullabilityCompilationTests extends CompilationTestCase {
     private static String[] EMPTY_OPTIONS = {};
     private static String[] LINT_OPTIONS = { "-Xlint:null" };
 
-    public BangTypesCompilationTests() {
+    public NullabilityCompilationTests() {
         setDefaultFilename("Test.java");
     }
 
