@@ -3965,6 +3965,10 @@ void StubGenerator::generate_initial_stubs() {
   }
 
   generate_libm_stubs();
+
+  if ((UseAVX >= 1) && (VM_Version::supports_avx512vlbwdq() || VM_Version::supports_fma())) {
+    StubRoutines::_fmod = generate_libmFmod(); // from stubGenerator_x86_64_fmod.cpp
+  }
 }
 
 // Call here from the interpreter or compiled code to either load

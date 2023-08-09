@@ -48,7 +48,7 @@
 class ValueAbstract {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -204,7 +204,7 @@ class ValueAbstract {
 class ValueEnum {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -360,7 +360,7 @@ class ValueEnum {
 class ValueFieldNotFinal {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -516,7 +516,7 @@ class ValueFieldNotFinal {
 class ValueInterface {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -623,7 +623,7 @@ class ValueInterface {
 class ValueMethodSynch {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [46] { // Constant Pool
     ; // first element is empty
     class #23; // #1     at 0x0A
@@ -878,7 +878,7 @@ class ValueMethodSynch {
 class Circ {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [61] { // Constant Pool
     ; // first element is empty
     class #34; // #1     at 0x0A
@@ -1157,7 +1157,7 @@ class Circ {
 class Circ2 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [60] { // Constant Pool
     ; // first element is empty
     class #33; // #1     at 0x0A
@@ -1471,7 +1471,7 @@ class Circ2 {
 class CircStaticA {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [61] { // Constant Pool
     ; // first element is empty
     class #34; // #1     at 0x0A
@@ -1749,7 +1749,7 @@ class CircStaticA {
 class CircStaticB {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [61] { // Constant Pool
     ; // first element is empty
     class #34; // #1     at 0x0A
@@ -2036,7 +2036,7 @@ class CircStaticB {
 class ValueCloneable {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [46] { // Constant Pool
     ; // first element is empty
     class #22; // #1     at 0x0A
@@ -2497,7 +2497,7 @@ class OldClassWithQArraySig {
 class SuperIsZero {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [15] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
