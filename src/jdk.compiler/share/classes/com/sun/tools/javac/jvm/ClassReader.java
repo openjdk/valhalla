@@ -3178,6 +3178,10 @@ public class ClassReader {
 
     // A value class cannot contain a non-nullable instance field of its own type either directly or indirectly.
     void checkNonCyclicMembership(ClassSymbol csym) {
+        if (!csym.type.hasImplicitConstructor()) {
+            // nothing to see here
+            return;
+        }
         Assert.check((csym.flags_field & LOCKED) == 0);
         try {
             ListBuffer<Symbol> fields = new ListBuffer<>();
@@ -3220,6 +3224,6 @@ public class ClassReader {
     }
     // where
     private boolean cyclePossible(VarSymbol symbol) {
-        return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.isNonNullable();
+        return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && symbol.type.isNonNullable();
     }
 }

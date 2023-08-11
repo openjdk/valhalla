@@ -2513,6 +2513,9 @@ public class Check {
     // A primitive class cannot contain a field of its own type either or indirectly.
     // TODO, update this method once we have null restricted types
     void checkNonCyclicMembership(JCClassDecl tree) {
+        if (!tree.sym.type.hasImplicitConstructor()) {
+            return;
+        }
         Assert.check((tree.sym.flags_field & LOCKED) == 0);
         try {
             tree.sym.flags_field |= LOCKED;
@@ -2545,7 +2548,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.isNonNullable();
+            return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && symbol.type.isNonNullable();
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {
