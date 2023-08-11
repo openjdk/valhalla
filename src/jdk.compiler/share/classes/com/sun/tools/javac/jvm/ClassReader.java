@@ -3178,7 +3178,7 @@ public class ClassReader {
 
     // A value class cannot contain a non-nullable instance field of its own type either directly or indirectly.
     void checkNonCyclicMembership(ClassSymbol csym) {
-        if (!csym.type.hasImplicitConstructor()) {
+        if (!allowValueClasses || !csym.type.hasImplicitConstructor()) {
             // nothing to see here
             return;
         }
