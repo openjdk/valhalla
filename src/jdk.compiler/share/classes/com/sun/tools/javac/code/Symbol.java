@@ -409,7 +409,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     public boolean isInterface() {
-        return (flags() & INTERFACE) != 0;
+        return (flags_field & INTERFACE) != 0;
     }
 
     public boolean isAbstract() {
@@ -421,7 +421,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     public boolean isValueClass() {
-        return !isInterface() && (flags() & VALUE_CLASS) != 0;
+        return !isInterface() && (flags_field & VALUE_CLASS) != 0;
     }
 
     public boolean isConcreteValueClass() {
@@ -429,15 +429,15 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     public boolean isIdentityClass() {
-        return !isInterface() && (flags() & IDENTITY_TYPE) != 0;
+        return !isInterface() && (flags_field & IDENTITY_TYPE) != 0;
     }
 
     public boolean isValueInterface() {
-        return isInterface() && (flags() & VALUE_CLASS) != 0;
+        return isInterface() && (flags_field & VALUE_CLASS) != 0;
     }
 
     public boolean isIdentityInterface() {
-        return isInterface() && (flags() & IDENTITY_TYPE) != 0;
+        return isInterface() && (flags_field & IDENTITY_TYPE) != 0;
     }
 
     public boolean isPublic() {
