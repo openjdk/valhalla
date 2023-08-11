@@ -1,0 +1,2 @@
+CyclicValueClass.class:-:-: compiler.err.cyclic.primitive.class.membership: CyclicValueClass
+1 error
