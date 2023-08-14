@@ -558,7 +558,7 @@ bool MemNode::detect_ptr_independence(Node* p1, AllocateNode* a1,
 // when searching stored value.
 // Otherwise return null.
 Node* LoadNode::find_previous_arraycopy(PhaseValues* phase, Node* ld_alloc, Node*& mem, bool can_see_stored_value) const {
-  ArrayCopyNode* ac = find_array_copy_clone(phase, ld_alloc, mem);
+  ArrayCopyNode* ac = find_array_copy_clone(ld_alloc, mem);
   if (ac != nullptr) {
     Node* ld_addp = in(MemNode::Address);
     Node* src = ac->in(ArrayCopyNode::Src);
@@ -613,7 +613,7 @@ Node* LoadNode::find_previous_arraycopy(PhaseValues* phase, Node* ld_alloc, Node
   return nullptr;
 }
 
-ArrayCopyNode* MemNode::find_array_copy_clone(PhaseValues* phase, Node* ld_alloc, Node* mem) const {
+ArrayCopyNode* MemNode::find_array_copy_clone(Node* ld_alloc, Node* mem) const {
   if (mem->is_Proj() && mem->in(0) != nullptr && (mem->in(0)->Opcode() == Op_MemBarStoreStore ||
                                                mem->in(0)->Opcode() == Op_MemBarCPUOrder)) {
     if (ld_alloc != nullptr) {
@@ -634,7 +634,7 @@ ArrayCopyNode* MemNode::find_array_copy_clone(PhaseValues* phase, Node* ld_alloc
       }
 
       if (ac != nullptr && ac->is_clonebasic()) {
-        AllocateNode* alloc = AllocateNode::Ideal_allocation(ac->in(ArrayCopyNode::Dest), phase);
+        AllocateNode* alloc = AllocateNode::Ideal_allocation(ac->in(ArrayCopyNode::Dest));
         if (alloc != nullptr && alloc == ld_alloc) {
           return ac;
         }
@@ -662,7 +662,7 @@ Node* MemNode::find_previous_store(PhaseValues* phase) {
   Node*         adr    = in(MemNode::Address);
   intptr_t      offset = 0;
   Node*         base   = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-  AllocateNode* alloc  = AllocateNode::Ideal_allocation(base, phase);
+  AllocateNode* alloc  = AllocateNode::Ideal_allocation(base);
 
   if (offset == Type::OffsetBot)
     return nullptr;            // cannot unalias unless there are precise offsets
@@ -710,7 +710,7 @@ Node* MemNode::find_previous_store(PhaseValues* phase) {
       if (st_base != base &&
           detect_ptr_independence(base, alloc,
                                   st_base,
-                                  AllocateNode::Ideal_allocation(st_base, phase),
+                                  AllocateNode::Ideal_allocation(st_base),
                                   phase)) {
         // Success:  The bases are provably independent.
         mem = mem->in(MemNode::Memory);
@@ -1064,7 +1064,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   Node* ld_base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ld_off);
-  Node* ld_alloc = AllocateNode::Ideal_allocation(ld_base, phase);
+  Node* ld_alloc = AllocateNode::Ideal_allocation(ld_base);
   const TypeInstPtr* tp = phase->type(ld_adr)->isa_instptr();
   Compile::AliasType* atp = (tp != nullptr) ? phase->C->alias_type(tp) : nullptr;
   // This is more general than load from boxing objects.
@@ -1172,7 +1172,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       }
       assert(ld_alloc->in(AllocateNode::RawDefaultValue) == nullptr, "default value may not be null");
       if (memory_type() != T_VOID) {
-        if (ReduceBulkZeroing || find_array_copy_clone(phase, ld_alloc, in(MemNode::Memory)) == nullptr) {
+        if (ReduceBulkZeroing || find_array_copy_clone(ld_alloc, in(MemNode::Memory)) == nullptr) {
           // If ReduceBulkZeroing is disabled, we need to check if the allocation does not belong to an
           // ArrayCopyNode clone. If it does, then we cannot assume zero since the initialization is done
           // by the ArrayCopyNode.
@@ -1742,10 +1742,10 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase) {
   return phi;
 }
 
-AllocateNode* LoadNode::is_new_object_mark_load(PhaseGVN *phase) const {
+AllocateNode* LoadNode::is_new_object_mark_load() const {
   if (Opcode() == Op_LoadX) {
     Node* address = in(MemNode::Address);
-    AllocateNode* alloc = AllocateNode::Ideal_allocation(address, phase);
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(address);
     Node* mem = in(MemNode::Memory);
     if (alloc != nullptr && mem->is_Proj() &&
         mem->in(0) != nullptr &&
@@ -2197,7 +2197,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       return Type::get_zero_type(_type->basic_type());
     }
   }
-  Node* alloc = is_new_object_mark_load(phase);
+  Node* alloc = is_new_object_mark_load();
   if (alloc != nullptr) {
     if (EnableValhalla) {
       // The mark word may contain property bits (inline, flat, null-free)
@@ -2456,7 +2456,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
 
       // The array's TypeKlassPtr was declared 'precise' or 'not precise'
       // according to the element type's subclassing.
-      return tkls->is_aryklassptr()->elem();
+      return tkls->is_aryklassptr()->elem()->isa_klassptr()->cast_to_exactness(tkls->klass_is_exact());
     }
     if (tkls->isa_instklassptr() != nullptr && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
@@ -2595,7 +2595,7 @@ Node *LoadRangeNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // We can fetch the length directly through an AllocateArrayNode.
   // This works even if the length is not constant (clone or newArray).
   if (offset == arrayOopDesc::length_offset_in_bytes()) {
-    AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(base, phase);
+    AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(base);
     if (alloc != nullptr) {
       Node* allocated_length = alloc->Ideal_length();
       Node* len = alloc->make_ideal_length(tary, phase);
@@ -2627,7 +2627,7 @@ Node* LoadRangeNode::Identity(PhaseGVN* phase) {
   // We can fetch the length directly through an AllocateArrayNode.
   // This works even if the length is not constant (clone or newArray).
   if (offset == arrayOopDesc::length_offset_in_bytes()) {
-    AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(base, phase);
+    AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(base);
     if (alloc != nullptr) {
       Node* allocated_length = alloc->Ideal_length();
       // Do not allow make_ideal_length to allocate a CastII node.
@@ -3464,7 +3464,7 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       }
     } else if (opc == Op_MemBarRelease) {
       // Final field stores.
-      Node* alloc = AllocateNode::Ideal_allocation(in(MemBarNode::Precedent), phase);
+      Node* alloc = AllocateNode::Ideal_allocation(in(MemBarNode::Precedent));
       if ((alloc != nullptr) && alloc->is_Allocate() &&
           alloc->as_Allocate()->does_not_escape_thread()) {
         // The allocated object does not escape.
