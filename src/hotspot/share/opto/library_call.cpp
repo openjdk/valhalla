@@ -2649,7 +2649,7 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
     return false;
   }
   // TODO 8239003 Why is this needed?
-  if (AllocateNode::Ideal_allocation(vt->get_oop(), &_gvn) == nullptr) {
+  if (AllocateNode::Ideal_allocation(vt->get_oop()) == nullptr) {
     return false;
   }
 
