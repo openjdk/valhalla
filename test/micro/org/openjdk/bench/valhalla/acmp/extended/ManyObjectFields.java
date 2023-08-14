@@ -46,11 +46,10 @@ public class ManyObjectFields {
 			this.y = y;
 		}
 	}
-
 	public value class ManyObjectFields1 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
+		Object field1;
+		Object field2;
+		Object field3;
 
 		public ManyObjectFields1(Object field1, Object field2, Object field3) {
 			this.field1 = field1;
@@ -61,34 +60,24 @@ public class ManyObjectFields {
 
 	ManyObjectFields1 obj1_1 = new ManyObjectFields1(new Point(0, 1), new Point(0, 2), new Point(0, 3));
 	ManyObjectFields1 obj1_2 = new ManyObjectFields1(new Point(0, 1), new Point(0, 2), new Point(0, 3));
-	ManyObjectFields1 obj1_3 = new ManyObjectFields1(new Point (0, 0), new Point(0, 2), new Point(0, 3));
+	ManyObjectFields1 obj1_3 = new ManyObjectFields1(new Point(0, 0), new Point(0, 2), new Point(0, 3));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_01(ManyObjectFields1 a, ManyObjectFields1 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_01(ManyObjectFields1 a, ManyObjectFields1 b) {return a == b;}
+	public boolean test_03(ManyObjectFields1 a, ManyObjectFields1 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_01() {return test_not_inlined_01(obj1_1, obj1_2);}
+	public boolean cmp_eq_03_fields() {return test_03(obj1_1, obj1_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_01() {return test_not_inlined_01(obj1_1, obj1_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_01() {return test_inlined_01(obj1_1, obj1_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_01() {return test_inlined_01(obj1_1, obj1_3);}
+	public boolean cmp_not_eq_03_fields() {return test_03(obj1_1, obj1_3);}
 
 
 	public value class ManyObjectFields2 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
-		private Object field4;
-		private Object field5;
-		private Object field6;
+		Object field1;
+		Object field2;
+		Object field3;
+		Object field4;
+		Object field5;
+		Object field6;
 
 		public ManyObjectFields2(Object field1, Object field2, Object field3, Object field4, Object field5, Object field6) {
 			this.field1 = field1;
@@ -102,37 +91,27 @@ public class ManyObjectFields {
 
 	ManyObjectFields2 obj2_1 = new ManyObjectFields2(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
 	ManyObjectFields2 obj2_2 = new ManyObjectFields2(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
-	ManyObjectFields2 obj2_3 = new ManyObjectFields2(new Point (0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
+	ManyObjectFields2 obj2_3 = new ManyObjectFields2(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_02(ManyObjectFields2 a, ManyObjectFields2 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_02(ManyObjectFields2 a, ManyObjectFields2 b) {return a == b;}
+	public boolean test_06(ManyObjectFields2 a, ManyObjectFields2 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_02() {return test_not_inlined_02(obj2_1, obj2_2);}
+	public boolean cmp_eq_06_fields() {return test_06(obj2_1, obj2_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_02() {return test_not_inlined_02(obj2_1, obj2_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_02() {return test_inlined_02(obj2_1, obj2_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_02() {return test_inlined_02(obj2_1, obj2_3);}
+	public boolean cmp_not_eq_06_fields() {return test_06(obj2_1, obj2_3);}
 
 
 	public value class ManyObjectFields3 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
-		private Object field4;
-		private Object field5;
-		private Object field6;
-		private Object field7;
-		private Object field8;
-		private Object field9;
+		Object field1;
+		Object field2;
+		Object field3;
+		Object field4;
+		Object field5;
+		Object field6;
+		Object field7;
+		Object field8;
+		Object field9;
 
 		public ManyObjectFields3(Object field1, Object field2, Object field3, Object field4, Object field5, Object field6, Object field7, Object field8, Object field9) {
 			this.field1 = field1;
@@ -149,40 +128,30 @@ public class ManyObjectFields {
 
 	ManyObjectFields3 obj3_1 = new ManyObjectFields3(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9));
 	ManyObjectFields3 obj3_2 = new ManyObjectFields3(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9));
-	ManyObjectFields3 obj3_3 = new ManyObjectFields3(new Point (0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9));
+	ManyObjectFields3 obj3_3 = new ManyObjectFields3(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_03(ManyObjectFields3 a, ManyObjectFields3 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_03(ManyObjectFields3 a, ManyObjectFields3 b) {return a == b;}
+	public boolean test_09(ManyObjectFields3 a, ManyObjectFields3 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_03() {return test_not_inlined_03(obj3_1, obj3_2);}
+	public boolean cmp_eq_09_fields() {return test_09(obj3_1, obj3_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_03() {return test_not_inlined_03(obj3_1, obj3_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_03() {return test_inlined_03(obj3_1, obj3_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_03() {return test_inlined_03(obj3_1, obj3_3);}
+	public boolean cmp_not_eq_09_fields() {return test_09(obj3_1, obj3_3);}
 
 
 	public value class ManyObjectFields4 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
-		private Object field4;
-		private Object field5;
-		private Object field6;
-		private Object field7;
-		private Object field8;
-		private Object field9;
-		private Object field10;
-		private Object field11;
-		private Object field12;
+		Object field1;
+		Object field2;
+		Object field3;
+		Object field4;
+		Object field5;
+		Object field6;
+		Object field7;
+		Object field8;
+		Object field9;
+		Object field10;
+		Object field11;
+		Object field12;
 
 		public ManyObjectFields4(Object field1, Object field2, Object field3, Object field4, Object field5, Object field6, Object field7, Object field8, Object field9, Object field10, Object field11, Object field12) {
 			this.field1 = field1;
@@ -202,43 +171,33 @@ public class ManyObjectFields {
 
 	ManyObjectFields4 obj4_1 = new ManyObjectFields4(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12));
 	ManyObjectFields4 obj4_2 = new ManyObjectFields4(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12));
-	ManyObjectFields4 obj4_3 = new ManyObjectFields4(new Point (0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12));
+	ManyObjectFields4 obj4_3 = new ManyObjectFields4(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_04(ManyObjectFields4 a, ManyObjectFields4 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_04(ManyObjectFields4 a, ManyObjectFields4 b) {return a == b;}
+	public boolean test_12(ManyObjectFields4 a, ManyObjectFields4 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_04() {return test_not_inlined_04(obj4_1, obj4_2);}
+	public boolean cmp_eq_12_fields() {return test_12(obj4_1, obj4_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_04() {return test_not_inlined_04(obj4_1, obj4_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_04() {return test_inlined_04(obj4_1, obj4_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_04() {return test_inlined_04(obj4_1, obj4_3);}
+	public boolean cmp_not_eq_12_fields() {return test_12(obj4_1, obj4_3);}
 
 
 	public value class ManyObjectFields5 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
-		private Object field4;
-		private Object field5;
-		private Object field6;
-		private Object field7;
-		private Object field8;
-		private Object field9;
-		private Object field10;
-		private Object field11;
-		private Object field12;
-		private Object field13;
-		private Object field14;
-		private Object field15;
+		Object field1;
+		Object field2;
+		Object field3;
+		Object field4;
+		Object field5;
+		Object field6;
+		Object field7;
+		Object field8;
+		Object field9;
+		Object field10;
+		Object field11;
+		Object field12;
+		Object field13;
+		Object field14;
+		Object field15;
 
 		public ManyObjectFields5(Object field1, Object field2, Object field3, Object field4, Object field5, Object field6, Object field7, Object field8, Object field9, Object field10, Object field11, Object field12, Object field13, Object field14, Object field15) {
 			this.field1 = field1;
@@ -261,46 +220,36 @@ public class ManyObjectFields {
 
 	ManyObjectFields5 obj5_1 = new ManyObjectFields5(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15));
 	ManyObjectFields5 obj5_2 = new ManyObjectFields5(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15));
-	ManyObjectFields5 obj5_3 = new ManyObjectFields5(new Point (0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15));
+	ManyObjectFields5 obj5_3 = new ManyObjectFields5(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_05(ManyObjectFields5 a, ManyObjectFields5 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_05(ManyObjectFields5 a, ManyObjectFields5 b) {return a == b;}
+	public boolean test_15(ManyObjectFields5 a, ManyObjectFields5 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_05() {return test_not_inlined_05(obj5_1, obj5_2);}
+	public boolean cmp_eq_15_fields() {return test_15(obj5_1, obj5_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_05() {return test_not_inlined_05(obj5_1, obj5_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_05() {return test_inlined_05(obj5_1, obj5_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_05() {return test_inlined_05(obj5_1, obj5_3);}
+	public boolean cmp_not_eq_15_fields() {return test_15(obj5_1, obj5_3);}
 
 
 	public value class ManyObjectFields6 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
-		private Object field4;
-		private Object field5;
-		private Object field6;
-		private Object field7;
-		private Object field8;
-		private Object field9;
-		private Object field10;
-		private Object field11;
-		private Object field12;
-		private Object field13;
-		private Object field14;
-		private Object field15;
-		private Object field16;
-		private Object field17;
-		private Object field18;
+		Object field1;
+		Object field2;
+		Object field3;
+		Object field4;
+		Object field5;
+		Object field6;
+		Object field7;
+		Object field8;
+		Object field9;
+		Object field10;
+		Object field11;
+		Object field12;
+		Object field13;
+		Object field14;
+		Object field15;
+		Object field16;
+		Object field17;
+		Object field18;
 
 		public ManyObjectFields6(Object field1, Object field2, Object field3, Object field4, Object field5, Object field6, Object field7, Object field8, Object field9, Object field10, Object field11, Object field12, Object field13, Object field14, Object field15, Object field16, Object field17, Object field18) {
 			this.field1 = field1;
@@ -326,49 +275,39 @@ public class ManyObjectFields {
 
 	ManyObjectFields6 obj6_1 = new ManyObjectFields6(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18));
 	ManyObjectFields6 obj6_2 = new ManyObjectFields6(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18));
-	ManyObjectFields6 obj6_3 = new ManyObjectFields6(new Point (0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18));
+	ManyObjectFields6 obj6_3 = new ManyObjectFields6(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_06(ManyObjectFields6 a, ManyObjectFields6 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_06(ManyObjectFields6 a, ManyObjectFields6 b) {return a == b;}
+	public boolean test_18(ManyObjectFields6 a, ManyObjectFields6 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_06() {return test_not_inlined_06(obj6_1, obj6_2);}
+	public boolean cmp_eq_18_fields() {return test_18(obj6_1, obj6_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_06() {return test_not_inlined_06(obj6_1, obj6_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_06() {return test_inlined_06(obj6_1, obj6_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_06() {return test_inlined_06(obj6_1, obj6_3);}
+	public boolean cmp_not_eq_18_fields() {return test_18(obj6_1, obj6_3);}
 
 
 	public value class ManyObjectFields7 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
-		private Object field4;
-		private Object field5;
-		private Object field6;
-		private Object field7;
-		private Object field8;
-		private Object field9;
-		private Object field10;
-		private Object field11;
-		private Object field12;
-		private Object field13;
-		private Object field14;
-		private Object field15;
-		private Object field16;
-		private Object field17;
-		private Object field18;
-		private Object field19;
-		private Object field20;
-		private Object field21;
+		Object field1;
+		Object field2;
+		Object field3;
+		Object field4;
+		Object field5;
+		Object field6;
+		Object field7;
+		Object field8;
+		Object field9;
+		Object field10;
+		Object field11;
+		Object field12;
+		Object field13;
+		Object field14;
+		Object field15;
+		Object field16;
+		Object field17;
+		Object field18;
+		Object field19;
+		Object field20;
+		Object field21;
 
 		public ManyObjectFields7(Object field1, Object field2, Object field3, Object field4, Object field5, Object field6, Object field7, Object field8, Object field9, Object field10, Object field11, Object field12, Object field13, Object field14, Object field15, Object field16, Object field17, Object field18, Object field19, Object field20, Object field21) {
 			this.field1 = field1;
@@ -397,52 +336,42 @@ public class ManyObjectFields {
 
 	ManyObjectFields7 obj7_1 = new ManyObjectFields7(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21));
 	ManyObjectFields7 obj7_2 = new ManyObjectFields7(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21));
-	ManyObjectFields7 obj7_3 = new ManyObjectFields7(new Point (0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21));
+	ManyObjectFields7 obj7_3 = new ManyObjectFields7(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_07(ManyObjectFields7 a, ManyObjectFields7 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_07(ManyObjectFields7 a, ManyObjectFields7 b) {return a == b;}
+	public boolean test_21(ManyObjectFields7 a, ManyObjectFields7 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_07() {return test_not_inlined_07(obj7_1, obj7_2);}
+	public boolean cmp_eq_21_fields() {return test_21(obj7_1, obj7_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_07() {return test_not_inlined_07(obj7_1, obj7_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_07() {return test_inlined_07(obj7_1, obj7_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_07() {return test_inlined_07(obj7_1, obj7_3);}
+	public boolean cmp_not_eq_21_fields() {return test_21(obj7_1, obj7_3);}
 
 
 	public value class ManyObjectFields8 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
-		private Object field4;
-		private Object field5;
-		private Object field6;
-		private Object field7;
-		private Object field8;
-		private Object field9;
-		private Object field10;
-		private Object field11;
-		private Object field12;
-		private Object field13;
-		private Object field14;
-		private Object field15;
-		private Object field16;
-		private Object field17;
-		private Object field18;
-		private Object field19;
-		private Object field20;
-		private Object field21;
-		private Object field22;
-		private Object field23;
-		private Object field24;
+		Object field1;
+		Object field2;
+		Object field3;
+		Object field4;
+		Object field5;
+		Object field6;
+		Object field7;
+		Object field8;
+		Object field9;
+		Object field10;
+		Object field11;
+		Object field12;
+		Object field13;
+		Object field14;
+		Object field15;
+		Object field16;
+		Object field17;
+		Object field18;
+		Object field19;
+		Object field20;
+		Object field21;
+		Object field22;
+		Object field23;
+		Object field24;
 
 		public ManyObjectFields8(Object field1, Object field2, Object field3, Object field4, Object field5, Object field6, Object field7, Object field8, Object field9, Object field10, Object field11, Object field12, Object field13, Object field14, Object field15, Object field16, Object field17, Object field18, Object field19, Object field20, Object field21, Object field22, Object field23, Object field24) {
 			this.field1 = field1;
@@ -474,55 +403,45 @@ public class ManyObjectFields {
 
 	ManyObjectFields8 obj8_1 = new ManyObjectFields8(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24));
 	ManyObjectFields8 obj8_2 = new ManyObjectFields8(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24));
-	ManyObjectFields8 obj8_3 = new ManyObjectFields8(new Point (0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24));
+	ManyObjectFields8 obj8_3 = new ManyObjectFields8(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_08(ManyObjectFields8 a, ManyObjectFields8 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_08(ManyObjectFields8 a, ManyObjectFields8 b) {return a == b;}
+	public boolean test_24(ManyObjectFields8 a, ManyObjectFields8 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_08() {return test_not_inlined_08(obj8_1, obj8_2);}
+	public boolean cmp_eq_24_fields() {return test_24(obj8_1, obj8_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_08() {return test_not_inlined_08(obj8_1, obj8_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_08() {return test_inlined_08(obj8_1, obj8_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_08() {return test_inlined_08(obj8_1, obj8_3);}
+	public boolean cmp_not_eq_24_fields() {return test_24(obj8_1, obj8_3);}
 
 
 	public value class ManyObjectFields9 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
-		private Object field4;
-		private Object field5;
-		private Object field6;
-		private Object field7;
-		private Object field8;
-		private Object field9;
-		private Object field10;
-		private Object field11;
-		private Object field12;
-		private Object field13;
-		private Object field14;
-		private Object field15;
-		private Object field16;
-		private Object field17;
-		private Object field18;
-		private Object field19;
-		private Object field20;
-		private Object field21;
-		private Object field22;
-		private Object field23;
-		private Object field24;
-		private Object field25;
-		private Object field26;
-		private Object field27;
+		Object field1;
+		Object field2;
+		Object field3;
+		Object field4;
+		Object field5;
+		Object field6;
+		Object field7;
+		Object field8;
+		Object field9;
+		Object field10;
+		Object field11;
+		Object field12;
+		Object field13;
+		Object field14;
+		Object field15;
+		Object field16;
+		Object field17;
+		Object field18;
+		Object field19;
+		Object field20;
+		Object field21;
+		Object field22;
+		Object field23;
+		Object field24;
+		Object field25;
+		Object field26;
+		Object field27;
 
 		public ManyObjectFields9(Object field1, Object field2, Object field3, Object field4, Object field5, Object field6, Object field7, Object field8, Object field9, Object field10, Object field11, Object field12, Object field13, Object field14, Object field15, Object field16, Object field17, Object field18, Object field19, Object field20, Object field21, Object field22, Object field23, Object field24, Object field25, Object field26, Object field27) {
 			this.field1 = field1;
@@ -557,58 +476,48 @@ public class ManyObjectFields {
 
 	ManyObjectFields9 obj9_1 = new ManyObjectFields9(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24), new Point(0, 25), new Point(0, 26), new Point(0, 27));
 	ManyObjectFields9 obj9_2 = new ManyObjectFields9(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24), new Point(0, 25), new Point(0, 26), new Point(0, 27));
-	ManyObjectFields9 obj9_3 = new ManyObjectFields9(new Point (0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24), new Point(0, 25), new Point(0, 26), new Point(0, 27));
+	ManyObjectFields9 obj9_3 = new ManyObjectFields9(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24), new Point(0, 25), new Point(0, 26), new Point(0, 27));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_09(ManyObjectFields9 a, ManyObjectFields9 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_09(ManyObjectFields9 a, ManyObjectFields9 b) {return a == b;}
+	public boolean test_27(ManyObjectFields9 a, ManyObjectFields9 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_09() {return test_not_inlined_09(obj9_1, obj9_2);}
+	public boolean cmp_eq_27_fields() {return test_27(obj9_1, obj9_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_09() {return test_not_inlined_09(obj9_1, obj9_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_09() {return test_inlined_09(obj9_1, obj9_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_09() {return test_inlined_09(obj9_1, obj9_3);}
+	public boolean cmp_not_eq_27_fields() {return test_27(obj9_1, obj9_3);}
 
 
 	public value class ManyObjectFields10 {
-		private Object field1;
-		private Object field2;
-		private Object field3;
-		private Object field4;
-		private Object field5;
-		private Object field6;
-		private Object field7;
-		private Object field8;
-		private Object field9;
-		private Object field10;
-		private Object field11;
-		private Object field12;
-		private Object field13;
-		private Object field14;
-		private Object field15;
-		private Object field16;
-		private Object field17;
-		private Object field18;
-		private Object field19;
-		private Object field20;
-		private Object field21;
-		private Object field22;
-		private Object field23;
-		private Object field24;
-		private Object field25;
-		private Object field26;
-		private Object field27;
-		private Object field28;
-		private Object field29;
-		private Object field30;
+		Object field1;
+		Object field2;
+		Object field3;
+		Object field4;
+		Object field5;
+		Object field6;
+		Object field7;
+		Object field8;
+		Object field9;
+		Object field10;
+		Object field11;
+		Object field12;
+		Object field13;
+		Object field14;
+		Object field15;
+		Object field16;
+		Object field17;
+		Object field18;
+		Object field19;
+		Object field20;
+		Object field21;
+		Object field22;
+		Object field23;
+		Object field24;
+		Object field25;
+		Object field26;
+		Object field27;
+		Object field28;
+		Object field29;
+		Object field30;
 
 		public ManyObjectFields10(Object field1, Object field2, Object field3, Object field4, Object field5, Object field6, Object field7, Object field8, Object field9, Object field10, Object field11, Object field12, Object field13, Object field14, Object field15, Object field16, Object field17, Object field18, Object field19, Object field20, Object field21, Object field22, Object field23, Object field24, Object field25, Object field26, Object field27, Object field28, Object field29, Object field30) {
 			this.field1 = field1;
@@ -646,25 +555,15 @@ public class ManyObjectFields {
 
 	ManyObjectFields10 obj10_1 = new ManyObjectFields10(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24), new Point(0, 25), new Point(0, 26), new Point(0, 27), new Point(0, 28), new Point(0, 29), new Point(0, 30));
 	ManyObjectFields10 obj10_2 = new ManyObjectFields10(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24), new Point(0, 25), new Point(0, 26), new Point(0, 27), new Point(0, 28), new Point(0, 29), new Point(0, 30));
-	ManyObjectFields10 obj10_3 = new ManyObjectFields10(new Point (0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24), new Point(0, 25), new Point(0, 26), new Point(0, 27), new Point(0, 28), new Point(0, 29), new Point(0, 30));
+	ManyObjectFields10 obj10_3 = new ManyObjectFields10(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6), new Point(0, 7), new Point(0, 8), new Point(0, 9), new Point(0, 10), new Point(0, 11), new Point(0, 12), new Point(0, 13), new Point(0, 14), new Point(0, 15), new Point(0, 16), new Point(0, 17), new Point(0, 18), new Point(0, 19), new Point(0, 20), new Point(0, 21), new Point(0, 22), new Point(0, 23), new Point(0, 24), new Point(0, 25), new Point(0, 26), new Point(0, 27), new Point(0, 28), new Point(0, 29), new Point(0, 30));
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined_10(ManyObjectFields10 a, ManyObjectFields10 b) {return a == b;}
-
-	@CompilerControl(CompilerControl.Mode.INLINE)
-	public boolean test_inlined_10(ManyObjectFields10 a, ManyObjectFields10 b) {return a == b;}
+	public boolean test_30(ManyObjectFields10 a, ManyObjectFields10 b) {return a == b;}
 
 	@Benchmark
-	public boolean cmp_not_inlined_10() {return test_not_inlined_10(obj10_1, obj10_2);}
+	public boolean cmp_eq_30_fields() {return test_30(obj10_1, obj10_2);}
 
 	@Benchmark
-	public boolean cmp_not_inlined_not_eq_10() {return test_not_inlined_10(obj10_1, obj10_3);}
-
-	@Benchmark
-	public boolean cmp_inlined_10() {return test_inlined_10(obj10_1, obj10_2);}
-
-	@Benchmark
-	public boolean cmp_inlined_not_eq_10() {return test_inlined_10(obj10_1, obj10_3);}
+	public boolean cmp_not_eq_30_fields() {return test_30(obj10_1, obj10_3);}
 }
 
 
