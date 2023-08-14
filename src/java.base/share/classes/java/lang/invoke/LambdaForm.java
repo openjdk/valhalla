@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -953,8 +953,8 @@ class LambdaForm {
         Object[] arguments = Arrays.copyOf(name.arguments, name.arguments.length, Object[].class);
         for (int i = 0; i < arguments.length; i++) {
             Object a = arguments[i];
-            if (a instanceof Name) {
-                int i2 = ((Name)a).index();
+            if (a instanceof Name n) {
+                int i2 = n.index();
                 assert(names[i2] == a);
                 a = values[i2];
                 arguments[i] = a;
@@ -1065,7 +1065,7 @@ class LambdaForm {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof LambdaForm && equals((LambdaForm)obj);
+        return obj instanceof LambdaForm lf && equals(lf);
     }
     public boolean equals(LambdaForm that) {
         if (this.result != that.result)  return false;
@@ -1366,7 +1366,7 @@ class LambdaForm {
         }
         Name(MethodType functionType, Object... arguments) {
             this(new NamedFunction(functionType), arguments);
-            assert(arguments[0] instanceof Name && ((Name)arguments[0]).type == L_TYPE);
+            assert(arguments[0] instanceof Name name && name.type == L_TYPE);
         }
         Name(MemberName function, Object... arguments) {
             this(new NamedFunction(function), arguments);
@@ -1528,7 +1528,7 @@ class LambdaForm {
             Object c = constraint;
             if (c == null)
                 return s;
-            if (c instanceof Class)  c = ((Class<?>)c).getSimpleName();
+            if (c instanceof Class<?> cl)  c = cl.getSimpleName();
             return s + "/" + c;
         }
         public String exprString() {
@@ -1560,8 +1560,8 @@ class LambdaForm {
         }
 
         private static boolean typesMatch(BasicType parameterType, Object object) {
-            if (object instanceof Name) {
-                return ((Name)object).type == parameterType;
+            if (object instanceof Name name) {
+                return name.type == parameterType;
             }
             switch (parameterType) {
                 case I_TYPE:  return object instanceof Integer;
@@ -1612,7 +1612,7 @@ class LambdaForm {
         }
         @Override
         public boolean equals(Object x) {
-            return x instanceof Name && equals((Name)x);
+            return x instanceof Name n && equals(n);
         }
         @Override
         public int hashCode() {

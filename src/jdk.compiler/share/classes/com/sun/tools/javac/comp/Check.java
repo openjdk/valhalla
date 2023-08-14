@@ -5302,16 +5302,19 @@ public class Check {
              if ((spf.flags() & (PRIVATE | STATIC | FINAL)) !=
                  (PRIVATE | STATIC | FINAL)) {
                  log.warning(LintCategory.SERIAL,
-                             TreeInfo.diagnosticPositionFor(spf, tree), Warnings.ImproperSPF);
+                             TreeInfo.diagnosticPositionFor(spf, tree),
+                             Warnings.ImproperSPF);
              }
 
              if (!types.isSameType(spf.type, OSF_TYPE)) {
                  log.warning(LintCategory.SERIAL,
-                             TreeInfo.diagnosticPositionFor(spf, tree), Warnings.OSFArraySPF);
+                             TreeInfo.diagnosticPositionFor(spf, tree),
+                             Warnings.OSFArraySPF);
              }
 
             if (isExternalizable((Type)(e.asType()))) {
-                log.warning(LintCategory.SERIAL, tree.pos(),
+                log.warning(LintCategory.SERIAL,
+                            TreeInfo.diagnosticPositionFor(spf, tree),
                             Warnings.IneffectualSerialFieldExternalizable);
             }
 
@@ -5419,15 +5422,19 @@ public class Check {
                     String name = enclosed.getSimpleName().toString();
                     switch(enclosed.getKind()) {
                     case FIELD -> {
+                        var field = (VarSymbol)enclosed;
                         if (serialFieldNames.contains(name)) {
-                            log.warning(LintCategory.SERIAL, tree.pos(),
+                            log.warning(LintCategory.SERIAL,
+                                        TreeInfo.diagnosticPositionFor(field, tree),
                                         Warnings.IneffectualSerialFieldEnum(name));
                         }
                     }
 
                     case METHOD -> {
+                        var method = (MethodSymbol)enclosed;
                         if (serialMethodNames.contains(name)) {
-                            log.warning(LintCategory.SERIAL, tree.pos(),
+                            log.warning(LintCategory.SERIAL,
+                                        TreeInfo.diagnosticPositionFor(method, tree),
                                         Warnings.IneffectualSerialMethodEnum(name));
                         }
                     }
@@ -5547,9 +5554,11 @@ public class Check {
                     String name = enclosed.getSimpleName().toString();
                     switch(enclosed.getKind()) {
                     case FIELD -> {
+                        var field = (VarSymbol)enclosed;
                         switch(name) {
                         case "serialPersistentFields" -> {
-                            log.warning(LintCategory.SERIAL, tree.pos(),
+                            log.warning(LintCategory.SERIAL,
+                                        TreeInfo.diagnosticPositionFor(field, tree),
                                         Warnings.IneffectualSerialFieldRecord);
                         }
 
@@ -5557,7 +5566,7 @@ public class Check {
                             // Could generate additional warning that
                             // svuid value is not checked to match for
                             // records.
-                            checkSerialVersionUID(tree, e, (VarSymbol)enclosed);
+                            checkSerialVersionUID(tree, e, field);
                         }
 
                         }
@@ -5568,9 +5577,11 @@ public class Check {
                         switch(name) {
                         case "writeReplace" -> checkWriteReplace(tree, e, method);
                         case "readResolve"  -> checkReadResolve(tree, e, method);
+
                         default -> {
                             if (serialMethodNames.contains(name)) {
-                                log.warning(LintCategory.SERIAL, tree.pos(),
+                                log.warning(LintCategory.SERIAL,
+                                            TreeInfo.diagnosticPositionFor(method, tree),
                                             Warnings.IneffectualSerialMethodRecord(name));
                             }
                         }
@@ -5648,7 +5659,8 @@ public class Check {
         private void checkExternalizable(JCClassDecl tree, Element enclosing, MethodSymbol method) {
             // If the enclosing class is externalizable, warn for the method
             if (isExternalizable((Type)enclosing.asType())) {
-                log.warning(LintCategory.SERIAL, tree.pos(),
+                log.warning(LintCategory.SERIAL,
+                            TreeInfo.diagnosticPositionFor(method, tree),
                             Warnings.IneffectualSerialMethodExternalizable(method.getSimpleName()));
             }
             return;

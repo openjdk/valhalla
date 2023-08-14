@@ -348,9 +348,9 @@ class Instruction: public CompilationResourceObj {
     void set_arg_needs_null_check(int i, bool check) {
       if (i >= 0 && i < (int)sizeof(_nonnull_state) * BitsPerByte) {
         if (check) {
-          _nonnull_state |= nth_bit(i);
+          _nonnull_state |= (int)nth_bit(i);
         } else {
-          _nonnull_state &= ~(nth_bit(i));
+          _nonnull_state &= (int)~(nth_bit(i));
         }
       }
     }
