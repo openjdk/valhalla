@@ -5570,7 +5570,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
 }
 
 // Return offset incremented by field_offset for flattened inline type arrays
-const int TypeAryPtr::flattened_offset() const {
+int TypeAryPtr::flattened_offset() const {
   int offset = _offset.get();
   if (offset != Type::OffsetBot && offset != Type::OffsetTop &&
       _field_offset != Offset::bottom && _field_offset != Offset::top) {

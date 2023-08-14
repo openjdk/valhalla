@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,30 +21,26 @@
  * questions.
  */
 
-package gc.startup_warnings;
-
 /*
- * @test TestG1
- * @bug 8006398
- * @requires vm.gc.G1
- * @summary Test that the G1 collector does not print a warning message
- * @library /test/lib
- * @modules java.base/jdk.internal.misc
- *          java.management
- * @run driver gc.startup_warnings.TestG1
+ * @test
+ * @bug 8307927
+ * @summary C2: "malformed control flow" with irreducible loop
+ * @compile MalformedControlIrreducibleLoop.jasm
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:CompileOnly=TestMalformedControlIrreducibleLoop::test TestMalformedControlIrreducibleLoop
  */
 
-import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.process.OutputAnalyzer;
+public class TestMalformedControlIrreducibleLoop {
+    public static void main(String[] args) {
+        new MalformedControlIrreducibleLoop();
+        test(false);
+    }
 
-public class TestG1 {
-
-  public static void main(String args[]) throws Exception {
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC", "-version");
-    OutputAnalyzer output = new OutputAnalyzer(pb.start());
-    output.shouldNotContain("deprecated");
-    output.shouldNotContain("error");
-    output.shouldHaveExitValue(0);
-  }
-
+    private static void test(boolean flag) {
+        int i;
+        for (i = 1; i < 2; i *= 2) {
+        }
+        if (flag) {
+            MalformedControlIrreducibleLoop.actualTest(i);
+        }
+    }
 }

@@ -555,11 +555,11 @@ private:
   }
   const Symbol* name() { return _name;}
   const Symbol* signature() { return _signature; }
-  const int offset() { return _offset; }
-  const int index() { return _index; }
+  int offset() const { return _offset; }
+  int index() const { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  const bool is_inline_type() { return Signature::basic_type(_signature) == T_PRIMITIVE_OBJECT; }
+  bool is_inline_type() const { return Signature::basic_type(_signature) == T_PRIMITIVE_OBJECT; }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {

@@ -1035,8 +1035,8 @@ public:
   const Offset _offset;         // Offset into oop, with TOP & BOT
   const PTR _ptr;               // Pointer equivalence class
 
-  const int offset() const { return _offset.get(); }
-  const PTR ptr()    const { return _ptr; }
+  int offset() const { return _offset.get(); }
+  PTR ptr()    const { return _ptr; }
 
   static const TypePtr* make(TYPES t, PTR ptr, Offset offset,
                              const TypePtr* speculative = nullptr,
@@ -1050,7 +1050,7 @@ public:
   Type::Offset xadd_offset(intptr_t offset) const;
   virtual const TypePtr* add_offset(intptr_t offset) const;
   virtual const TypePtr* with_offset(intptr_t offset) const;
-  virtual const int flattened_offset() const { return offset(); }
+  virtual int flattened_offset() const { return offset(); }
   virtual bool eq(const Type *t) const;
   virtual uint hash() const;             // Type specific hashing
 
@@ -1562,7 +1562,7 @@ public:
 
   static jint max_array_length(BasicType etype);
 
-  const int flattened_offset() const;
+  int flattened_offset() const;
   const Offset field_offset() const { return _field_offset; }
   const TypeAryPtr* with_field_offset(int offset) const;
   const TypePtr* add_field_offset_and_offset(intptr_t offset) const;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -351,10 +351,10 @@ class MethodHandleNatives {
     }
 
     private static String staticArglistForTrace(Object staticArguments) {
-        if (staticArguments instanceof Object[])
-            return "BSA="+java.util.Arrays.asList((Object[]) staticArguments);
-        if (staticArguments instanceof int[])
-            return "BSA@"+java.util.Arrays.toString((int[]) staticArguments);
+        if (staticArguments instanceof Object[] array)
+            return "BSA="+java.util.Arrays.asList(array);
+        if (staticArguments instanceof int[] array)
+            return "BSA@"+java.util.Arrays.toString(array);
         if (staticArguments == null)
             return "BSA0=null";
         return "BSA1="+staticArguments;
@@ -510,8 +510,8 @@ class MethodHandleNatives {
         throw new LinkageError("no such method "+defc.getName()+"."+name+type);
     }
     private static MethodType fixMethodType(Class<?> callerClass, Object type) {
-        if (type instanceof MethodType)
-            return (MethodType) type;
+        if (type instanceof MethodType mt)
+            return mt;
         else
             return MethodType.fromDescriptor((String)type, callerClass.getClassLoader());
     }
@@ -638,8 +638,8 @@ class MethodHandleNatives {
         LinkageError err;
         if (ex instanceof IllegalAccessException) {
             Throwable cause = ex.getCause();
-            if (cause instanceof AbstractMethodError) {
-                return (AbstractMethodError) cause;
+            if (cause instanceof AbstractMethodError ame) {
+                return ame;
             } else {
                 err = new IllegalAccessError(ex.getMessage());
             }
