@@ -82,13 +82,13 @@ public class MyTest {
 	MyValue b = new MyValue(new Point(1, 0));
 	MyValue c = new MyValue(new Point(1, 1));	
 	
-	public boolean test_inlined(MyValue a, MyValue b) {
+	public boolean test(MyValue a, MyValue b) {
 		return a == b;
 	}
 
     @Benchmark
     public boolean cmp_inlined() {
-        return test_inlined(a, b);
+        return test(a, b);
     }
     
     @Benchmark
@@ -107,15 +107,6 @@ public class MyTest {
 		MyValue v2 = new MyValue(new Point(1, 0));
     	return v1 == v2;
     }
-
-	/*
-	@Benchmark
-	public boolean cmp_foldable1(){
-		MyValue1 v1 = new MyValue1(new Point(1, 0), new Point(1, 1), new Point(1, 2), new Point(1, 3));
-		MyValue1 v2 = new MyValue1(new Point(1, 0), new Point(1, 1), new Point(1, 2), new Point(1, 3));
-		return v1 == v2;
-	}
-	*/
 }
 
 
