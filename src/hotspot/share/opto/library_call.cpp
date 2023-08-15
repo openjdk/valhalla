@@ -4611,11 +4611,11 @@ LibraryCallKit::generate_method_call(vmIntrinsicID method_id, bool is_virtual, b
   const TypeFunc* tf = TypeFunc::make(method);
   if (res_not_null) {
     assert(tf->return_type() == T_OBJECT, "");
-    const TypeTuple* range = tf->range();
+    const TypeTuple* range = tf->range_cc();
     const Type** fields = TypeTuple::fields(range->cnt());
     fields[TypeFunc::Parms] = range->field_at(TypeFunc::Parms)->filter_speculative(TypePtr::NOTNULL);
     const TypeTuple* new_range = TypeTuple::make(range->cnt(), fields);
-    tf = TypeFunc::make(tf->domain(), new_range);
+    tf = TypeFunc::make(tf->domain_cc(), new_range);
   }
   CallJavaNode* slow_call;
   if (is_static) {
