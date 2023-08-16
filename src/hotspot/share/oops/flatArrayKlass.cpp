@@ -102,25 +102,25 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
    *
    */
   // Eagerly allocate the direct array supertype.
-  Klass* super_klass = NULL;
+  Klass* super_klass = nullptr;
   Klass* element_super = element_klass->super();
-  if (element_super != NULL) {
+  if (element_super != nullptr) {
     // The element type has a direct super.  E.g., String[] has direct super of Object[].
     super_klass = element_klass->array_klass_or_null();
-    bool supers_exist = super_klass != NULL;
+    bool supers_exist = super_klass != nullptr;
     // Also, see if the element has secondary supertypes.
     // We need an array type for each.
     const Array<Klass*>* element_supers = element_klass->secondary_supers();
     for( int i = element_supers->length()-1; i >= 0; i-- ) {
       Klass* elem_super = element_supers->at(i);
-      if (elem_super->array_klass_or_null() == NULL) {
+      if (elem_super->array_klass_or_null() == nullptr) {
         supers_exist = false;
         break;
       }
     }
     if (!supers_exist) {
       // Oops.  Not allocated yet.  Back out, allocate it, and retry.
-      Klass* ek = NULL;
+      Klass* ek = nullptr;
       {
         MutexUnlocker mu(MultiArray_lock);
         super_klass = element_klass->array_klass(CHECK_NULL);
@@ -141,7 +141,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
   FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name);
 
   ModuleEntry* module = vak->module();
-  assert(module != NULL, "No module entry for array");
+  assert(module != nullptr, "No module entry for array");
   complete_create_array_klass(vak, super_klass, module, CHECK_NULL);
 
   loader_data->add_class(vak);
@@ -327,7 +327,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
      address dst = (address) da->value_at_addr(dst_pos, layout_helper());
      while (src_pos < src_end) {
        oop se = sa->obj_at(src_pos);
-       if (se == NULL) {
+       if (se == nullptr) {
          THROW(vmSymbols::java_lang_NullPointerException());
        }
        // Check exact type per element
@@ -348,7 +348,7 @@ Klass* FlatArrayKlass::array_klass(int n, TRAPS) {
   if (dim == n) return this;
 
   // lock-free read needs acquire semantics
-  if (higher_dimension_acquire() == NULL) {
+  if (higher_dimension_acquire() == nullptr) {
 
     ResourceMark rm(THREAD);
     {
@@ -356,7 +356,7 @@ Klass* FlatArrayKlass::array_klass(int n, TRAPS) {
       MutexLocker mu(THREAD, MultiArray_lock);
 
       // Check if another thread beat us
-      if (higher_dimension() == NULL) {
+      if (higher_dimension() == nullptr) {
 
         // Create multi-dim klass object and link them together
         Klass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, true, CHECK_NULL);
@@ -381,8 +381,8 @@ Klass* FlatArrayKlass::array_klass_or_null(int n) {
   if (dim == n) return this;
 
   // lock-free read needs acquire semantics
-  if (higher_dimension_acquire() == NULL) {
-    return NULL;
+  if (higher_dimension_acquire() == nullptr) {
+    return nullptr;
   }
 
   ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
@@ -399,13 +399,13 @@ Klass* FlatArrayKlass::array_klass_or_null() {
 
 
 ModuleEntry* FlatArrayKlass::module() const {
-  assert(element_klass() != NULL, "FlatArrayKlass returned unexpected NULL bottom_klass");
+  assert(element_klass() != nullptr, "FlatArrayKlass returned unexpected nullptr bottom_klass");
   // The array is defined in the module of its bottom class
   return element_klass()->module();
 }
 
 PackageEntry* FlatArrayKlass::package() const {
-  assert(element_klass() != NULL, "FlatArrayKlass returned unexpected NULL bottom_klass");
+  assert(element_klass() != nullptr, "FlatArrayKlass returned unexpected nullptr bottom_klass");
   return element_klass()->package();
 }
 
@@ -415,10 +415,10 @@ bool FlatArrayKlass::can_be_primary_super_slow() const {
 
 GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_slots,
                                                                 Array<InstanceKlass*>* transitive_interfaces) {
-  assert(transitive_interfaces == NULL, "sanity");
+  assert(transitive_interfaces == nullptr, "sanity");
   // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
   Array<Klass*>* elem_supers = element_klass()->secondary_supers();
-  int num_elem_supers = elem_supers == NULL ? 0 : elem_supers->length();
+  int num_elem_supers = elem_supers == nullptr ? 0 : elem_supers->length();
   int num_secondaries = num_extra_slots + 2 + num_elem_supers;
   GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+2);
 
@@ -427,7 +427,7 @@ GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_sl
   for (int i = 0; i < num_elem_supers; i++) {
     Klass* elem_super = (Klass*) elem_supers->at(i);
     Klass* array_super = elem_super->array_klass_or_null();
-    assert(array_super != NULL, "must already have been created");
+    assert(array_super != nullptr, "must already have been created");
     secondaries->push(array_super);
   }
   return secondaries;

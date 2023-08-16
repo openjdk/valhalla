@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,7 +60,7 @@ inline oop CompressedOops::decode_not_null(narrowOop v) {
 }
 
 inline oop CompressedOops::decode(narrowOop v) {
-  return is_null(v) ? (oop)NULL : decode_not_null(v);
+  return is_null(v) ? nullptr : decode_not_null(v);
 }
 
 inline narrowOop CompressedOops::encode_not_null(oop v) {
@@ -76,6 +76,11 @@ inline narrowOop CompressedOops::encode_not_null(oop v) {
 
 inline narrowOop CompressedOops::encode(oop v) {
   return is_null(v) ? narrowOop::null : encode_not_null(v);
+}
+
+inline oop CompressedOops::decode_raw_not_null(oop v) {
+  assert(v != nullptr, "object is null");
+  return v;
 }
 
 inline oop CompressedOops::decode_not_null(oop v) {
@@ -118,40 +123,40 @@ static inline bool check_alignment(Klass* v) {
 }
 
 inline Klass* CompressedKlassPointers::decode_raw(narrowKlass v) {
-  return decode_raw(v, base());
+  return decode_raw(v, base(), shift());
 }
 
-inline Klass* CompressedKlassPointers::decode_raw(narrowKlass v, address narrow_base) {
-  return (Klass*)((uintptr_t)narrow_base +((uintptr_t)v << shift()));
+inline Klass* CompressedKlassPointers::decode_raw(narrowKlass v, address narrow_base, int shift) {
+  return (Klass*)((uintptr_t)narrow_base +((uintptr_t)v << shift));
 }
 
 inline Klass* CompressedKlassPointers::decode_not_null(narrowKlass v) {
-  return decode_not_null(v, base());
+  return decode_not_null(v, base(), shift());
 }
 
-inline Klass* CompressedKlassPointers::decode_not_null(narrowKlass v, address narrow_base) {
+inline Klass* CompressedKlassPointers::decode_not_null(narrowKlass v, address narrow_base, int shift) {
   assert(!is_null(v), "narrow klass value can never be zero");
-  Klass* result = decode_raw(v, narrow_base);
+  Klass* result = decode_raw(v, narrow_base, shift);
   assert(check_alignment(result), "address not aligned: " PTR_FORMAT, p2i(result));
   return result;
 }
 
 inline Klass* CompressedKlassPointers::decode(narrowKlass v) {
-  return is_null(v) ? (Klass*)NULL : decode_not_null(v);
+  return is_null(v) ? nullptr : decode_not_null(v);
 }
 
 inline narrowKlass CompressedKlassPointers::encode_not_null(Klass* v) {
-  return encode_not_null(v, base());
+  return encode_not_null(v, base(), shift());
 }
 
-inline narrowKlass CompressedKlassPointers::encode_not_null(Klass* v, address narrow_base) {
+inline narrowKlass CompressedKlassPointers::encode_not_null(Klass* v, address narrow_base, int shift) {
   assert(!is_null(v), "klass value can never be zero");
   assert(check_alignment(v), "Address not aligned");
   uint64_t pd = (uint64_t)(pointer_delta(v, narrow_base, 1));
   assert(KlassEncodingMetaspaceMax > pd, "change encoding max if new encoding");
-  uint64_t result = pd >> shift();
+  uint64_t result = pd >> shift;
   assert((result & CONST64(0xffffffff00000000)) == 0, "narrow klass pointer overflow");
-  assert(decode_not_null(result, narrow_base) == v, "reversibility");
+  assert(decode_not_null((narrowKlass)result, narrow_base, shift) == v, "reversibility");
   return (narrowKlass)result;
 }
 

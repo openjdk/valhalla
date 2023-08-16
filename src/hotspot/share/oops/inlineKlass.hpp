@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
+#include "classfile/classFileParser.hpp"
 #include "classfile/javaClasses.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
@@ -37,6 +38,7 @@
 class InlineKlass: public InstanceKlass {
   friend class VMStructs;
   friend class InstanceKlass;
+  friend class ClassFileParser;
 
  public:
   static const KlassKind Kind = InlineKlassKind;
@@ -48,37 +50,38 @@ class InlineKlass: public InstanceKlass {
   // Constructor
   InlineKlass(const ClassFileParser& parser);
 
+  void init_fixed_block();
   inline InlineKlassFixedBlock* inlineklass_static_block() const;
   inline address adr_return_regs() const;
 
   address adr_extended_sig() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _extended_sig));
   }
 
   // pack and unpack handlers for inline types return
   address adr_pack_handler() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _pack_handler));
   }
 
   address adr_pack_handler_jobject() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _pack_handler_jobject));
   }
 
   address adr_unpack_handler() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _unpack_handler));
   }
 
   address adr_default_value_offset() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
   ArrayKlass* volatile* adr_value_array_klasses() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return (ArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_inline_array_klasses));
   }
 
@@ -87,17 +90,17 @@ class InlineKlass: public InstanceKlass {
   }
 
   address adr_alignment() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _alignment));
   }
 
   address adr_first_field_offset() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _first_field_offset));
   }
 
   address adr_exact_size_in_bytes() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _exact_size_in_bytes));
   }
 

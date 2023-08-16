@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -326,7 +326,7 @@ public:
                                          T* dst,
                                          size_t length) {
     AccessT::arraycopy(src_obj, src_offset_in_bytes, static_cast<const T*>(nullptr),
-                       NULL, 0, dst,
+                       nullptr, 0, dst,
                        length);
   }
 
@@ -334,7 +334,7 @@ public:
   static inline void arraycopy_from_native(const T* src,
                                            arrayOop dst_obj, size_t dst_offset_in_bytes,
                                            size_t length) {
-    AccessT::arraycopy(NULL, 0, src,
+    AccessT::arraycopy(nullptr, 0, src,
                        dst_obj, dst_offset_in_bytes, static_cast<T*>(nullptr),
                        length);
   }
@@ -349,8 +349,8 @@ public:
 
   template <typename T>
   static inline void oop_arraycopy_raw(T* src, T* dst, size_t length) {
-    AccessT::oop_arraycopy(NULL, 0, src,
-                           NULL, 0, dst,
+    AccessT::oop_arraycopy(nullptr, 0, src,
+                           nullptr, 0, dst,
                            length);
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ class ReservedHeapSpace;
 
 struct NarrowPtrStruct {
   // Base address for oop-within-java-object materialization.
-  // NULL if using wide oops or zero based narrow oops.
+  // null if using wide oops or zero based narrow oops.
   address _base;
   // Number of shift bits for encoding/decoding narrow ptrs.
   // 0 if using wide ptrs or zero based unscaled narrow ptrs,
@@ -116,7 +116,7 @@ public:
 
   static void     print_mode(outputStream* st);
 
-  static bool is_null(oop v)       { return v == NULL; }
+  static bool is_null(oop v)       { return v == nullptr; }
   static bool is_null(narrowOop v) { return v == narrowOop::null; }
 
   static inline oop decode_raw_not_null(narrowOop v);
@@ -127,6 +127,7 @@ public:
   static inline narrowOop encode(oop v);
 
   // No conversions needed for these overloads
+  static inline oop decode_raw_not_null(oop v);
   static inline oop decode_not_null(oop v);
   static inline oop decode(oop v);
   static inline narrowOop encode_not_null(narrowOop v);
@@ -154,16 +155,19 @@ class CompressedKlassPointers : public AllStatic {
 
   static void set_base(address base);
   static void set_range(size_t range);
-
-public:
-
   static void set_shift(int shift);
 
+public:
 
   // Given an address p, return true if p can be used as an encoding base.
   //  (Some platforms have restrictions of what constitutes a valid base
   //   address).
   static bool is_valid_base(address p);
+
+  // Given a klass range [addr, addr+len) and a given encoding scheme, assert that this scheme covers the range, then
+  // set this encoding scheme. Used by CDS at runtime to re-instate the scheme used to pre-compute klass ids for
+  // archived heap objects.
+  static void initialize_for_given_encoding(address addr, size_t len, address requested_base, int requested_shift);
 
   // Given an address range [addr, addr+len) which the encoding is supposed to
   //  cover, choose base, shift and range.
@@ -178,16 +182,16 @@ public:
   static size_t   range()              { return  _range; }
   static int      shift()              { return  _narrow_klass._shift; }
 
-  static bool is_null(Klass* v)      { return v == NULL; }
+  static bool is_null(Klass* v)      { return v == nullptr; }
   static bool is_null(narrowKlass v) { return v == 0; }
 
-  static inline Klass* decode_raw(narrowKlass v, address base);
+  static inline Klass* decode_raw(narrowKlass v, address base, int shift);
   static inline Klass* decode_raw(narrowKlass v);
   static inline Klass* decode_not_null(narrowKlass v);
-  static inline Klass* decode_not_null(narrowKlass v, address base);
+  static inline Klass* decode_not_null(narrowKlass v, address base, int shift);
   static inline Klass* decode(narrowKlass v);
   static inline narrowKlass encode_not_null(Klass* v);
-  static inline narrowKlass encode_not_null(Klass* v, address base);
+  static inline narrowKlass encode_not_null(Klass* v, address base, int shift);
   static inline narrowKlass encode(Klass* v);
 
 };

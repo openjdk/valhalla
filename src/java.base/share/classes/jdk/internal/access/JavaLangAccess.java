@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.Stream;
 
+import jdk.internal.javac.PreviewFeature;
 import jdk.internal.misc.CarrierThreadLocal;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.reflect.ConstantPool;
@@ -177,11 +178,6 @@ public interface JavaLangAccess {
     Package definePackage(ClassLoader cl, String name, Module module);
 
     /**
-     * Invokes Long.fastUUID
-     */
-    String fastUUID(long lsb, long msb);
-
-    /**
      * Record the non-exported packages of the modules in the given layer
      */
     void addNonExportedPackages(ModuleLayer layer);
@@ -304,6 +300,11 @@ public interface JavaLangAccess {
     Stream<ModuleLayer> layers(ClassLoader loader);
 
     /**
+     * Count the number of leading positive bytes in the range.
+     */
+    int countPositives(byte[] ba, int off, int len);
+
+    /**
      * Constructs a new {@code String} by decoding the specified subarray of
      * bytes using the specified {@linkplain java.nio.charset.Charset charset}.
      *
@@ -342,6 +343,16 @@ public interface JavaLangAccess {
      * @throws IllegalArgumentException for malformed or unmappable bytes.
      */
     String newStringUTF8NoRepl(byte[] bytes, int off, int len);
+
+    /**
+     * Get the char at index in a byte[] in internal UTF-16 representation,
+     * with no bounds checks.
+     *
+     * @param bytes the UTF-16 encoded bytes
+     * @param index of the char to retrieve, 0 <= index < (bytes.length >> 1)
+     * @return the char value
+     */
+    char getUTF16Char(byte[] bytes, int index);
 
     /**
      * Encode the given string into a sequence of bytes using utf8.
@@ -405,6 +416,24 @@ public interface JavaLangAccess {
      * Update lengthCoder for constant
      */
     long stringConcatMix(long lengthCoder, String constant);
+
+   /**
+    * Get the coder for the supplied character.
+    */
+   @PreviewFeature(feature=PreviewFeature.Feature.STRING_TEMPLATES)
+   long stringConcatCoder(char value);
+
+   /**
+    * Update lengthCoder for StringBuilder.
+    */
+   @PreviewFeature(feature=PreviewFeature.Feature.STRING_TEMPLATES)
+   long stringBuilderConcatMix(long lengthCoder, StringBuilder sb);
+
+    /**
+     * Prepend StringBuilder content.
+     */
+    @PreviewFeature(feature=PreviewFeature.Feature.STRING_TEMPLATES)
+   long stringBuilderConcatPrepend(long lengthCoder, byte[] buf, StringBuilder sb);
 
     /**
      * Join strings
@@ -499,15 +528,6 @@ public interface JavaLangAccess {
     Object scopedValueBindings();
 
     /**
-     * Set the current thread's scoped value bindings.
-     */
-    void setScopedValueBindings(Object bindings);
-
-    Object findScopedValueBindings();
-
-    void ensureMaterializedForStackWalk(Object value);
-
-    /**
      * Returns the innermost mounted continuation
      */
     Continuation getContinuation(Thread thread);
@@ -589,4 +609,9 @@ public interface JavaLangAccess {
      */
     int classFileFormatVersion(Class<?> klass);
 
+    /**
+     * Returns '<loader-name>' @<id> if classloader has a name
+     * explicitly set otherwise <qualified-class-name> @<id>
+     */
+    String getLoaderNameID(ClassLoader loader);
 }

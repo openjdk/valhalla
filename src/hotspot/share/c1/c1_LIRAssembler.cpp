@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -110,8 +110,8 @@ LIR_Assembler::LIR_Assembler(Compilation* c):
    _masm(c->masm())
  , _compilation(c)
  , _frame_map(c->frame_map())
- , _current_block(NULL)
- , _pending_non_safepoint(NULL)
+ , _current_block(nullptr)
+ , _pending_non_safepoint(nullptr)
  , _pending_non_safepoint_offset(0)
  , _immediate_oops_patched(0)
 {
@@ -200,13 +200,13 @@ void LIR_Assembler::emit_exception_entries(ExceptionInfoList* info_list) {
     for (int j = 0; j < handlers->length(); j++) {
       XHandler* handler = handlers->handler_at(j);
       assert(handler->lir_op_id() != -1, "handler not processed by LinearScan");
-      assert(handler->entry_code() == NULL ||
+      assert(handler->entry_code() == nullptr ||
              handler->entry_code()->instructions_list()->last()->code() == lir_branch ||
              handler->entry_code()->instructions_list()->last()->code() == lir_delay_slot, "last operation must be branch");
 
       if (handler->entry_pco() == -1) {
         // entry code not emitted yet
-        if (handler->entry_code() != NULL && handler->entry_code()->instructions_list()->length() > 1) {
+        if (handler->entry_code() != nullptr && handler->entry_code()->instructions_list()->length() > 1) {
           handler->set_entry_pco(code_offset());
           if (CommentedAssembly) {
             _masm->block_comment("Exception adapter block");
@@ -260,7 +260,7 @@ void LIR_Assembler::emit_block(BlockBegin* block) {
   }
 #endif /* PRODUCT */
 
-  assert(block->lir() != NULL, "must have LIR");
+  assert(block->lir() != nullptr, "must have LIR");
   X86_ONLY(assert(_masm->rsp_offset() == 0, "frame size should be fixed"));
 
 #ifndef PRODUCT
@@ -339,7 +339,7 @@ void LIR_Assembler::add_debug_info_for_branch(CodeEmitInfo* info) {
   int pc_offset = code_offset();
   flush_debug_info(pc_offset);
   info->record_debug_info(compilation()->debug_info_recorder(), pc_offset);
-  if (info->exception_handlers() != NULL) {
+  if (info->exception_handlers() != nullptr) {
     compilation()->add_exception_handlers_for_pco(pc_offset, info->exception_handlers());
   }
 }
@@ -347,28 +347,28 @@ void LIR_Assembler::add_debug_info_for_branch(CodeEmitInfo* info) {
 void LIR_Assembler::add_call_info(int pc_offset, CodeEmitInfo* cinfo, bool maybe_return_as_fields) {
   flush_debug_info(pc_offset);
   cinfo->record_debug_info(compilation()->debug_info_recorder(), pc_offset, maybe_return_as_fields);
-  if (cinfo->exception_handlers() != NULL) {
+  if (cinfo->exception_handlers() != nullptr) {
     compilation()->add_exception_handlers_for_pco(pc_offset, cinfo->exception_handlers());
   }
 }
 
 static ValueStack* debug_info(Instruction* ins) {
   StateSplit* ss = ins->as_StateSplit();
-  if (ss != NULL) return ss->state();
+  if (ss != nullptr) return ss->state();
   return ins->state_before();
 }
 
 void LIR_Assembler::process_debug_info(LIR_Op* op) {
   Instruction* src = op->source();
-  if (src == NULL)  return;
+  if (src == nullptr)  return;
   int pc_offset = code_offset();
   if (_pending_non_safepoint == src) {
     _pending_non_safepoint_offset = pc_offset;
     return;
   }
   ValueStack* vstack = debug_info(src);
-  if (vstack == NULL)  return;
-  if (_pending_non_safepoint != NULL) {
+  if (vstack == nullptr)  return;
+  if (_pending_non_safepoint != nullptr) {
     // Got some old debug info.  Get rid of it.
     if (debug_info(_pending_non_safepoint) == vstack) {
       _pending_non_safepoint_offset = pc_offset;
@@ -377,7 +377,7 @@ void LIR_Assembler::process_debug_info(LIR_Op* op) {
     if (_pending_non_safepoint_offset < pc_offset) {
       record_non_safepoint_debug_info();
     }
-    _pending_non_safepoint = NULL;
+    _pending_non_safepoint = nullptr;
   }
   // Remember the debug info.
   if (pc_offset > compilation()->debug_info_recorder()->last_pc_offset()) {
@@ -387,18 +387,18 @@ void LIR_Assembler::process_debug_info(LIR_Op* op) {
 }
 
 // Index caller states in s, where 0 is the oldest, 1 its callee, etc.
-// Return NULL if n is too large.
+// Return null if n is too large.
 // Returns the caller_bci for the next-younger state, also.
 static ValueStack* nth_oldest(ValueStack* s, int n, int& bci_result) {
   ValueStack* t = s;
   for (int i = 0; i < n; i++) {
-    if (t == NULL)  break;
+    if (t == nullptr)  break;
     t = t->caller_state();
   }
-  if (t == NULL)  return NULL;
+  if (t == nullptr)  return nullptr;
   for (;;) {
     ValueStack* tc = t->caller_state();
-    if (tc == NULL)  return s;
+    if (tc == nullptr)  return s;
     t = tc;
     bci_result = tc->bci();
     s = s->caller_state();
@@ -419,7 +419,7 @@ void LIR_Assembler::record_non_safepoint_debug_info() {
   for (int n = 0; ; n++) {
     int s_bci = bci;
     ValueStack* s = nth_oldest(vstack, n, s_bci);
-    if (s == NULL)  break;
+    if (s == nullptr)  break;
     IRScope* scope = s->scope();
     //Always pass false for reexecute since these ScopeDescs are never used for deopt
     methodHandle null_mh;
@@ -491,7 +491,7 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     compilation()->set_has_method_handle_invokes(true);
   }
 
-  ciInlineKlass* vk = NULL;
+  ciInlineKlass* vk = nullptr;
   if (op->maybe_return_as_fields(&vk)) {
     int offset = store_inline_type_fields_to_buf(vk);
     add_call_info(offset, op->info(), true);
@@ -537,10 +537,10 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
     }
 
     case lir_return: {
-      assert(op->as_OpReturn() != NULL, "sanity");
+      assert(op->as_OpReturn() != nullptr, "sanity");
       LIR_OpReturn *ret_op = (LIR_OpReturn*)op;
       return_op(ret_op->in_opr(), ret_op->stub());
-      if (ret_op->stub() != NULL) {
+      if (ret_op->stub() != nullptr) {
         append_code_stub(ret_op->stub());
       }
       break;
@@ -613,9 +613,9 @@ void LIR_Assembler::add_scalarized_entry_info(int pc_offset) {
   // There's no need to build a GC map here.
   OopMap* oop_map = new OopMap(0, 0);
   debug_info->add_safepoint(pc_offset, oop_map);
-  DebugToken* locvals = debug_info->create_scope_values(NULL); // FIXME is this needed (for Java debugging to work properly??)
-  DebugToken* expvals = debug_info->create_scope_values(NULL); // FIXME is this needed (for Java debugging to work properly??)
-  DebugToken* monvals = debug_info->create_monitor_values(NULL); // FIXME: need testing with synchronized method
+  DebugToken* locvals = debug_info->create_scope_values(nullptr); // FIXME is this needed (for Java debugging to work properly??)
+  DebugToken* expvals = debug_info->create_scope_values(nullptr); // FIXME is this needed (for Java debugging to work properly??)
+  DebugToken* monvals = debug_info->create_monitor_values(nullptr); // FIXME: need testing with synchronized method
   bool reexecute = false;
   bool return_oop = false; // This flag will be ignored since it used only for C2 with escape analysis.
   bool rethrow_exception = false;
@@ -685,7 +685,7 @@ void LIR_Assembler::emit_std_entries() {
     }
 
     // VIEP: all value parameters are passed as refs - no packing.
-    emit_std_entry(CodeOffsets::Verified_Inline_Entry, NULL);
+    emit_std_entry(CodeOffsets::Verified_Inline_Entry, nullptr);
 
     if (ro_entry_type != CodeOffsets::Verified_Inline_Entry_RO) {
       // The VIEP(RO) is the same as VEP or VIEP
@@ -701,7 +701,7 @@ void LIR_Assembler::emit_std_entries() {
     if (needs_icache(method())) {
       check_icache();
     }
-    emit_std_entry(CodeOffsets::Verified_Inline_Entry, NULL);
+    emit_std_entry(CodeOffsets::Verified_Inline_Entry, nullptr);
     offsets()->set_value(CodeOffsets::Verified_Entry, offsets()->value(CodeOffsets::Verified_Inline_Entry));
     offsets()->set_value(CodeOffsets::Verified_Inline_Entry_RO, offsets()->value(CodeOffsets::Verified_Inline_Entry));
   }
@@ -742,7 +742,7 @@ void LIR_Assembler::emit_std_entry(CodeOffsets::Entries entry, const CompiledEnt
 void LIR_Assembler::emit_op0(LIR_Op0* op) {
   switch (op->code()) {
     case lir_nop:
-      assert(op->info() == NULL, "not supported");
+      assert(op->info() == nullptr, "not supported");
       _masm->nop();
       break;
 
@@ -819,7 +819,7 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
 void LIR_Assembler::emit_op2(LIR_Op2* op) {
   switch (op->code()) {
     case lir_cmp:
-      if (op->info() != NULL) {
+      if (op->info() != nullptr) {
         assert(op->in_opr1()->is_address() || op->in_opr2()->is_address(),
                "shouldn't be codeemitinfo for non-address operands");
         add_debug_info_for_null_check_here(op->info()); // exception possible
@@ -862,6 +862,8 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
     case lir_sqrt:
     case lir_tan:
     case lir_log10:
+    case lir_f2hf:
+    case lir_hf2f:
       intrinsic_op(op->code(), op->in_opr1(), op->in_opr2(), op->result_opr(), op);
       break;
 
@@ -925,10 +927,10 @@ void LIR_Assembler::roundfp_op(LIR_Opr src, LIR_Opr tmp, LIR_Opr dest, bool pop_
 void LIR_Assembler::move_op(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_PatchCode patch_code, CodeEmitInfo* info, bool pop_fpu_stack, bool wide) {
   if (src->is_register()) {
     if (dest->is_register()) {
-      assert(patch_code == lir_patch_none && info == NULL, "no patching and info allowed here");
+      assert(patch_code == lir_patch_none && info == nullptr, "no patching and info allowed here");
       reg2reg(src,  dest);
     } else if (dest->is_stack()) {
-      assert(patch_code == lir_patch_none && info == NULL, "no patching and info allowed here");
+      assert(patch_code == lir_patch_none && info == nullptr, "no patching and info allowed here");
       reg2stack(src, dest, type, pop_fpu_stack);
     } else if (dest->is_address()) {
       reg2mem(src, dest, type, patch_code, info, pop_fpu_stack, wide);
@@ -937,7 +939,7 @@ void LIR_Assembler::move_op(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     }
 
   } else if (src->is_stack()) {
-    assert(patch_code == lir_patch_none && info == NULL, "no patching and info allowed here");
+    assert(patch_code == lir_patch_none && info == nullptr, "no patching and info allowed here");
     if (dest->is_register()) {
       stack2reg(src, dest, type);
     } else if (dest->is_stack()) {
@@ -950,7 +952,7 @@ void LIR_Assembler::move_op(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     if (dest->is_register()) {
       const2reg(src, dest, patch_code, info); // patching is possible
     } else if (dest->is_stack()) {
-      assert(patch_code == lir_patch_none && info == NULL, "no patching and info allowed here");
+      assert(patch_code == lir_patch_none && info == nullptr, "no patching and info allowed here");
       const2stack(src, dest);
     } else if (dest->is_address()) {
       assert(patch_code == lir_patch_none, "no patching allowed here");

@@ -613,7 +613,7 @@ public enum AccessFlag {
         INNER_CLASS,
 
         /**
-         * Method parameter loccation.
+         * Method parameter location.
          * @jvms 4.7.24. The MethodParameters Attribute
          */
         METHOD_PARAMETER,

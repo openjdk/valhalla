@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,13 +56,13 @@ extern int explicit_null_checks_inserted,
 Node* Parse::record_profile_for_speculation_at_array_load(Node* ld) {
   // Feed unused profile data to type speculation
   if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
-    ciKlass* array_type = NULL;
-    ciKlass* element_type = NULL;
+    ciKlass* array_type = nullptr;
+    ciKlass* element_type = nullptr;
     ProfilePtrKind element_ptr = ProfileMaybeNull;
     bool flat_array = true;
     bool null_free_array = true;
     method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
-    if (element_type != NULL || element_ptr != ProfileMaybeNull) {
+    if (element_type != nullptr || element_ptr != ProfileMaybeNull) {
       ld = record_profile_for_speculation(ld, element_type, element_ptr);
     }
   }
@@ -135,7 +135,7 @@ void Parse::array_load(BasicType bt) {
         // ordered with other unknown and known flattened array accesses.
         insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-        Node* call = NULL;
+        Node* call = nullptr;
         {
           // Re-execute flattened array load if runtime call triggers deoptimization
           PreserveReexecuteState preexecs(this);
@@ -146,7 +146,7 @@ void Parse::array_load(BasicType bt) {
           call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
                                    OptoRuntime::load_unknown_inline_type(),
                                    OptoRuntime::load_unknown_inline_Java(),
-                                   NULL, TypeRawPtr::BOTTOM,
+                                   nullptr, TypeRawPtr::BOTTOM,
                                    ary, idx);
         }
         make_slow_call_ex(call, env()->Throwable_klass(), false);
@@ -177,7 +177,7 @@ void Parse::array_load(BasicType bt) {
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
   ld = record_profile_for_speculation_at_array_load(ld);
   // Loading a non-flattened inline type
-  if (elemptr != NULL && elemptr->is_inlinetypeptr()) {
+  if (elemptr != nullptr && elemptr->is_inlinetypeptr()) {
     assert(!ary_t->is_null_free() || !elemptr->maybe_null(), "inline type array elements should never be null");
     ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), !elemptr->maybe_null());
   }
@@ -190,7 +190,7 @@ void Parse::array_store(BasicType bt) {
   const Type* elemtype = Type::TOP;
   Node* adr = array_addressing(bt, type2size[bt], elemtype);
   if (stopped())  return;     // guaranteed null or range check
-  Node* cast_val = NULL;
+  Node* cast_val = nullptr;
   if (bt == T_OBJECT) {
     cast_val = array_store_check(adr, elemtype);
     if (stopped()) return;
@@ -233,7 +233,7 @@ void Parse::array_store(BasicType bt) {
       PreserveReexecuteState preexecs(this);
       inc_sp(3);
       jvms()->set_should_reexecute(true);
-      cast_val->as_InlineType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      cast_val->as_InlineType()->store_flattened(this, ary, adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (ary_t->is_null_free()) {
       // Store to non-flattened inline type array (elements can never be null)
@@ -243,7 +243,7 @@ void Parse::array_store(BasicType bt) {
         return;
       }
     } else if (!ary_t->is_not_flat() && (tval != TypePtr::NULL_PTR || StressReflectiveCode)) {
-      // Array might be flattened, emit runtime checks (for NULL, a simple inline_array_null_guard is sufficient).
+      // Array might be flattened, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flattened && elemtype->is_oopptr()->can_be_inline_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
       IdealKit ideal(this);
@@ -269,14 +269,14 @@ void Parse::array_store(BasicType bt) {
           dec_sp(3);
         }
         // Try to determine the inline klass
-        ciInlineKlass* vk = NULL;
+        ciInlineKlass* vk = nullptr;
         if (tval->is_inlinetypeptr()) {
           vk = tval->inline_klass();
         } else if (elemtype->is_inlinetypeptr()) {
           vk = elemtype->inline_klass();
         }
         Node* casted_ary = ary;
-        if (vk != NULL && !stopped()) {
+        if (vk != nullptr && !stopped()) {
           // Element type is known, cast and store to flattened representation
           assert(vk->flatten_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
           ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
@@ -291,7 +291,7 @@ void Parse::array_store(BasicType bt) {
           PreserveReexecuteState preexecs(this);
           inc_sp(3);
           jvms()->set_should_reexecute(true);
-          val->as_InlineType()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          val->as_InlineType()->store_flattened(this, casted_ary, casted_adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
         } else if (!stopped()) {
           // Element type is unknown, emit runtime call
 
@@ -359,7 +359,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   bool need_range_check = true;
   if (idxtype->_hi < sizetype->_lo && idxtype->_lo >= 0) {
     need_range_check = false;
-    if (C->log() != NULL)   C->log()->elem("observe that='!need_range_check'");
+    if (C->log() != nullptr)   C->log()->elem("observe that='!need_range_check'");
   }
 
   if (!arytype->is_loaded()) {
@@ -374,7 +374,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   }
 
   // Do the range check
-  if (GenerateRangeChecks && need_range_check) {
+  if (need_range_check) {
     Node* tst;
     if (sizetype->_hi <= 0) {
       // The greatest array bound is negative, so we can conclude that we're
@@ -409,7 +409,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
         // See IfNode::Ideal, is_range_check, adjust_check.
         uncommon_trap(Deoptimization::Reason_range_check,
                       Deoptimization::Action_make_not_entrant,
-                      NULL, "range_check");
+                      nullptr, "range_check");
       } else {
         // If we have already recompiled with the range-check-widening
         // heroic optimization turned off, then we must really be throwing
@@ -428,21 +428,21 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     // First check the speculative type
     Deoptimization::DeoptReason reason = Deoptimization::Reason_speculate_class_check;
     ciKlass* array_type = arytype->speculative_type();
-    if (too_many_traps_or_recompiles(reason) || array_type == NULL) {
+    if (too_many_traps_or_recompiles(reason) || array_type == nullptr) {
       // No speculative type, check profile data at this bci
-      array_type = NULL;
+      array_type = nullptr;
       reason = Deoptimization::Reason_class_check;
       if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
-        ciKlass* element_type = NULL;
+        ciKlass* element_type = nullptr;
         ProfilePtrKind element_ptr = ProfileMaybeNull;
         bool flat_array = true;
         bool null_free_array = true;
         method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
       }
     }
-    if (array_type != NULL) {
+    if (array_type != nullptr) {
       // Speculate that this array has the exact type reported by profile data
-      Node* better_ary = NULL;
+      Node* better_ary = nullptr;
       DEBUG_ONLY(Node* old_control = control();)
       Node* slow_ctl = type_check_receiver(ary, array_type, 1.0, &better_ary);
       if (stopped()) {
@@ -463,13 +463,13 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   } else if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
     // No need to speculate: feed profile data at this bci for the
     // array to type speculation
-    ciKlass* array_type = NULL;
-    ciKlass* element_type = NULL;
+    ciKlass* array_type = nullptr;
+    ciKlass* element_type = nullptr;
     ProfilePtrKind element_ptr = ProfileMaybeNull;
     bool flat_array = true;
     bool null_free_array = true;
     method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
-    if (array_type != NULL) {
+    if (array_type != nullptr) {
       ary = record_profile_for_speculation(ary, array_type, ProfileMaybeNull);
     }
   }
@@ -482,14 +482,14 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   if (!arytype->is_null_free() && !arytype->is_not_null_free()) {
     bool null_free_array = true;
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
-    if (arytype->speculative() != NULL &&
+    if (arytype->speculative() != nullptr &&
         arytype->speculative()->is_aryptr()->is_not_null_free() &&
         !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       null_free_array = false;
       reason = Deoptimization::Reason_speculate_class_check;
     } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
-      ciKlass* array_type = NULL;
-      ciKlass* element_type = NULL;
+      ciKlass* array_type = nullptr;
+      ciKlass* element_type = nullptr;
       ProfilePtrKind element_ptr = ProfileMaybeNull;
       bool flat_array = true;
       method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
@@ -511,14 +511,14 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   if (!arytype->is_flat() && !arytype->is_not_flat()) {
     bool flat_array = true;
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
-    if (arytype->speculative() != NULL &&
+    if (arytype->speculative() != nullptr &&
         arytype->speculative()->is_aryptr()->is_not_flat() &&
         !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       flat_array = false;
       reason = Deoptimization::Reason_speculate_class_check;
     } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
-      ciKlass* array_type = NULL;
-      ciKlass* element_type = NULL;
+      ciKlass* array_type = nullptr;
+      ciKlass* element_type = nullptr;
       ProfilePtrKind element_ptr = ProfileMaybeNull;
       bool null_free_array = true;
       method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
@@ -569,7 +569,7 @@ void Parse::jump_if_true_fork(IfNode *iff, int dest_bci_if_true, bool unc) {
       repush_if_args();
       uncommon_trap(Deoptimization::Reason_unstable_if,
                     Deoptimization::Action_reinterpret,
-                    NULL,
+                    nullptr,
                     "taken always");
     } else {
       assert(dest_bci_if_true != never_reached, "inconsistent dest");
@@ -591,7 +591,7 @@ void Parse::jump_if_false_fork(IfNode *iff, int dest_bci_if_true, bool unc) {
       repush_if_args();
       uncommon_trap(Deoptimization::Reason_unstable_if,
                     Deoptimization::Action_reinterpret,
-                    NULL,
+                    nullptr,
                     "taken never");
     } else {
       assert(dest_bci_if_true != never_reached, "inconsistent dest");
@@ -610,7 +610,7 @@ void Parse::jump_if_always_fork(int dest_bci, bool unc) {
     repush_if_args();
     uncommon_trap(Deoptimization::Reason_unstable_if,
                   Deoptimization::Action_reinterpret,
-                  NULL,
+                  nullptr,
                   "taken never");
   } else {
     assert(dest_bci != never_reached, "inconsistent dest");
@@ -759,10 +759,10 @@ void Parse::do_tableswitch() {
   }
 
   ciMethodData* methodData = method()->method_data();
-  ciMultiBranchData* profile = NULL;
+  ciMultiBranchData* profile = nullptr;
   if (methodData->is_mature() && UseSwitchProfiling) {
     ciProfileData* data = methodData->bci_to_data(bci());
-    if (data != NULL && data->is_MultiBranchData()) {
+    if (data != nullptr && data->is_MultiBranchData()) {
       profile = (ciMultiBranchData*)data;
     }
   }
@@ -770,12 +770,12 @@ void Parse::do_tableswitch() {
 
   // generate decision tree, using trichotomy when possible
   int rnum = len+2;
-  bool makes_backward_branch = false;
+  bool makes_backward_branch = (default_dest <= bci());
   SwitchRange* ranges = NEW_RESOURCE_ARRAY(SwitchRange, rnum);
   int rp = -1;
   if (lo_index != min_jint) {
     float cnt = 1.0F;
-    if (profile != NULL) {
+    if (profile != nullptr) {
       cnt = (float)profile->default_count() / (hi_index != max_jint ? 2.0F : 1.0F);
     }
     ranges[++rp].setRange(min_jint, lo_index-1, default_dest, cnt);
@@ -785,7 +785,7 @@ void Parse::do_tableswitch() {
     int  dest      = iter().get_dest_table(j+3);
     makes_backward_branch |= (dest <= bci());
     float cnt = 1.0F;
-    if (profile != NULL) {
+    if (profile != nullptr) {
       cnt = (float)profile->count_at(j);
     }
     if (rp < 0 || !ranges[rp].adjoin(match_int, dest, cnt, trim_ranges)) {
@@ -796,7 +796,7 @@ void Parse::do_tableswitch() {
   assert(ranges[rp].hi() == highest, "");
   if (highest != max_jint) {
     float cnt = 1.0F;
-    if (profile != NULL) {
+    if (profile != nullptr) {
       cnt = (float)profile->default_count() / (lo_index != min_jint ? 2.0F : 1.0F);
     }
     if (!ranges[rp].adjoinRange(highest+1, max_jint, default_dest, cnt, trim_ranges)) {
@@ -833,10 +833,10 @@ void Parse::do_lookupswitch() {
   }
 
   ciMethodData* methodData = method()->method_data();
-  ciMultiBranchData* profile = NULL;
+  ciMultiBranchData* profile = nullptr;
   if (methodData->is_mature() && UseSwitchProfiling) {
     ciProfileData* data = methodData->bci_to_data(bci());
-    if (data != NULL && data->is_MultiBranchData()) {
+    if (data != nullptr && data->is_MultiBranchData()) {
       profile = (ciMultiBranchData*)data;
     }
   }
@@ -849,19 +849,19 @@ void Parse::do_lookupswitch() {
       table[3*j+0] = iter().get_int_table(2+2*j);
       table[3*j+1] = iter().get_dest_table(2+2*j+1);
       // Handle overflow when converting from uint to jint
-      table[3*j+2] = (profile == NULL) ? 1 : (jint)MIN2<uint>((uint)max_jint, profile->count_at(j));
+      table[3*j+2] = (profile == nullptr) ? 1 : (jint)MIN2<uint>((uint)max_jint, profile->count_at(j));
     }
     qsort(table, len, 3*sizeof(table[0]), jint_cmp);
   }
 
   float default_cnt = 1.0F;
-  if (profile != NULL) {
+  if (profile != nullptr) {
     juint defaults = max_juint - len;
     default_cnt = (float)profile->default_count()/(float)defaults;
   }
 
   int rnum = len*2+1;
-  bool makes_backward_branch = false;
+  bool makes_backward_branch = (default_dest <= bci());
   SwitchRange* ranges = NEW_RESOURCE_ARRAY(SwitchRange, rnum);
   int rp = -1;
   for (int j = 0; j < len; j++) {
@@ -940,12 +940,12 @@ public:
   } _state;
 
   SwitchRanges(SwitchRange *lo, SwitchRange *hi)
-    : _lo(lo), _hi(hi), _mid(NULL),
+    : _lo(lo), _hi(hi), _mid(nullptr),
       _cost(0), _state(Start) {
   }
 
   SwitchRanges()
-    : _lo(NULL), _hi(NULL), _mid(NULL),
+    : _lo(nullptr), _hi(nullptr), _mid(nullptr),
       _cost(0), _state(Start) {}
 };
 
@@ -959,7 +959,7 @@ static float compute_tree_cost(SwitchRange *lo, SwitchRange *hi, float total_cnt
   do {
     SwitchRanges& r = *tree.adr_at(tree.length()-1);
     if (r._hi != r._lo) {
-      if (r._mid == NULL) {
+      if (r._mid == nullptr) {
         float r_cnt = sum_of_cnts(r._lo, r._hi);
 
         if (r_cnt == 0) {
@@ -968,7 +968,7 @@ static float compute_tree_cost(SwitchRange *lo, SwitchRange *hi, float total_cnt
           continue;
         }
 
-        SwitchRange* mid = NULL;
+        SwitchRange* mid = nullptr;
         mid = r._lo;
         for (float cnt = 0; ; ) {
           assert(mid <= r._hi, "out of bounds");
@@ -1017,7 +1017,7 @@ void Parse::linear_search_switch_ranges(Node* key_val, SwitchRange*& lo, SwitchR
   SwitchRange* array1 = lo;
   SwitchRange* array2 = NEW_RESOURCE_ARRAY(SwitchRange, nr);
 
-  SwitchRange* ranges = NULL;
+  SwitchRange* ranges = nullptr;
 
   while (nr >= 2) {
     assert(lo == array1 || lo == array2, "one the 2 already allocated arrays");
@@ -1069,7 +1069,7 @@ void Parse::linear_search_switch_ranges(Node* key_val, SwitchRange*& lo, SwitchR
     // It pays off: emit the test for the most common range
     assert(most_freq.cnt() > 0, "must be taken");
     Node* val = _gvn.transform(new SubINode(key_val, _gvn.intcon(most_freq.lo())));
-    Node* cmp = _gvn.transform(new CmpUNode(val, _gvn.intcon(most_freq.hi() - most_freq.lo())));
+    Node* cmp = _gvn.transform(new CmpUNode(val, _gvn.intcon(java_subtract(most_freq.hi(), most_freq.lo()))));
     Node* tst = _gvn.transform(new BoolNode(cmp, BoolTest::le));
     IfNode* iff = create_and_map_if(control(), tst, if_prob(most_freq.cnt(), total_cnt), if_cnt(most_freq.cnt()));
     jump_if_true_fork(iff, most_freq.dest(), false);
@@ -1213,15 +1213,15 @@ bool Parse::create_jump_tables(Node* key_val, SwitchRange* lo, SwitchRange* hi) 
   }
 
   ciMethodData* methodData = method()->method_data();
-  ciMultiBranchData* profile = NULL;
+  ciMultiBranchData* profile = nullptr;
   if (methodData->is_mature()) {
     ciProfileData* data = methodData->bci_to_data(bci());
-    if (data != NULL && data->is_MultiBranchData()) {
+    if (data != nullptr && data->is_MultiBranchData()) {
       profile = (ciMultiBranchData*)data;
     }
   }
 
-  Node* jtn = _gvn.transform(new JumpNode(control(), key_val, num_cases, probs, profile == NULL ? COUNT_UNKNOWN : total));
+  Node* jtn = _gvn.transform(new JumpNode(control(), key_val, num_cases, probs, profile == nullptr ? COUNT_UNKNOWN : total));
 
   // These are the switch destinations hanging off the jumpnode
   i = 0;
@@ -1275,7 +1275,7 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
     jint min_val = min_jint;
     jint max_val = max_jint;
     const TypeInt* ti = key_val->bottom_type()->isa_int();
-    if (ti != NULL) {
+    if (ti != nullptr) {
       min_val = ti->_lo;
       max_val = ti->_hi;
       assert(min_val <= max_val, "invalid int type");
@@ -1312,7 +1312,7 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
 
     if (create_jump_tables(key_val, lo, hi)) return;
 
-    SwitchRange* mid = NULL;
+    SwitchRange* mid = nullptr;
     float total_cnt = sum_of_cnts(lo, hi);
 
     int nr = hi - lo + 1;
@@ -1436,7 +1436,7 @@ void Parse::modf() {
   Node *f1 = pop();
   Node* c = make_runtime_call(RC_LEAF, OptoRuntime::modf_Type(),
                               CAST_FROM_FN_PTR(address, SharedRuntime::frem),
-                              "frem", NULL, //no memory effects
+                              "frem", nullptr, //no memory effects
                               f1, f2);
   Node* res = _gvn.transform(new ProjNode(c, TypeFunc::Parms + 0));
 
@@ -1448,7 +1448,7 @@ void Parse::modd() {
   Node *d1 = pop_pair();
   Node* c = make_runtime_call(RC_LEAF, OptoRuntime::Math_DD_D_Type(),
                               CAST_FROM_FN_PTR(address, SharedRuntime::drem),
-                              "drem", NULL, //no memory effects
+                              "drem", nullptr, //no memory effects
                               d1, top(), d2, top());
   Node* res_d   = _gvn.transform(new ProjNode(c, TypeFunc::Parms + 0));
 
@@ -1465,7 +1465,7 @@ void Parse::l2f() {
   Node* f1 = pop();
   Node* c = make_runtime_call(RC_LEAF, OptoRuntime::l2f_Type(),
                               CAST_FROM_FN_PTR(address, SharedRuntime::l2f),
-                              "l2f", NULL, //no memory effects
+                              "l2f", nullptr, //no memory effects
                               f1, f2);
   Node* res = _gvn.transform(new ProjNode(c, TypeFunc::Parms + 0));
 
@@ -1527,6 +1527,25 @@ static bool has_injected_profile(BoolTest::mask btest, Node* test, int& taken, i
   }
   return false;
 }
+
+// Give up if too few (or too many, in which case the sum will overflow) counts to be meaningful.
+// We also check that individual counters are positive first, otherwise the sum can become positive.
+// (check for saturation, integer overflow, and immature counts)
+static bool counters_are_meaningful(int counter1, int counter2, int min) {
+  // check for saturation, including "uint" values too big to fit in "int"
+  if (counter1 < 0 || counter2 < 0) {
+    return false;
+  }
+  // check for integer overflow of the sum
+  int64_t sum = (int64_t)counter1 + (int64_t)counter2;
+  STATIC_ASSERT(sizeof(counter1) < sizeof(sum));
+  if (sum > INT_MAX) {
+    return false;
+  }
+  // check if mature
+  return (counter1 + counter2) >= min;
+}
+
 //--------------------------dynamic_branch_prediction--------------------------
 // Try to gather dynamic branch prediction behavior.  Return a probability
 // of the branch being taken and set the "cnt" field.  Returns a -1.0
@@ -1547,12 +1566,14 @@ float Parse::dynamic_branch_prediction(float &cnt, BoolTest::mask btest, Node* t
     ciMethodData* methodData = method()->method_data();
     if (!methodData->is_mature())  return PROB_UNKNOWN;
     ciProfileData* data = methodData->bci_to_data(bci());
-    if (data == NULL) {
+    if (data == nullptr) {
       return PROB_UNKNOWN;
     }
     if (!data->is_JumpData())  return PROB_UNKNOWN;
 
     // get taken and not taken values
+    // NOTE: saturated UINT_MAX values become negative,
+    // as do counts above INT_MAX.
     taken = data->as_JumpData()->taken();
     not_taken = 0;
     if (data->is_BranchData()) {
@@ -1560,14 +1581,17 @@ float Parse::dynamic_branch_prediction(float &cnt, BoolTest::mask btest, Node* t
     }
 
     // scale the counts to be commensurate with invocation counts:
+    // NOTE: overflow for positive values is clamped at INT_MAX
     taken = method()->scale_count(taken);
     not_taken = method()->scale_count(not_taken);
   }
+  // At this point, saturation or overflow is indicated by INT_MAX
+  // or a negative value.
 
   // Give up if too few (or too many, in which case the sum will overflow) counts to be meaningful.
   // We also check that individual counters are positive first, otherwise the sum can become positive.
-  if (taken < 0 || not_taken < 0 || taken + not_taken < 40) {
-    if (C->log() != NULL) {
+  if (!counters_are_meaningful(taken, not_taken, 40)) {
+    if (C->log() != nullptr) {
       C->log()->elem("branch target_bci='%d' taken='%d' not_taken='%d'", iter().get_dest(), taken, not_taken);
     }
     return PROB_UNKNOWN;
@@ -1595,14 +1619,14 @@ float Parse::dynamic_branch_prediction(float &cnt, BoolTest::mask btest, Node* t
   }
 
   assert((cnt > 0.0f) && (prob > 0.0f),
-         "Bad frequency assignment in if");
+         "Bad frequency assignment in if cnt=%g prob=%g taken=%d not_taken=%d", cnt, prob, taken, not_taken);
 
-  if (C->log() != NULL) {
-    const char* prob_str = NULL;
+  if (C->log() != nullptr) {
+    const char* prob_str = nullptr;
     if (prob >= PROB_MAX)  prob_str = (prob == PROB_MAX) ? "max" : "always";
     if (prob <= PROB_MIN)  prob_str = (prob == PROB_MIN) ? "min" : "never";
     char prob_str_buf[30];
-    if (prob_str == NULL) {
+    if (prob_str == nullptr) {
       jio_snprintf(prob_str_buf, sizeof(prob_str_buf), "%20.2f", prob);
       prob_str = prob_str_buf;
     }
@@ -1641,7 +1665,7 @@ float Parse::branch_prediction(float& cnt,
         // of the OSR-ed method, and we want to deopt to gather more stats.
         // If you have ANY counts, then this loop is simply 'cold' relative
         // to the OSR loop.
-        if (data == NULL ||
+        if (data == nullptr ||
             (data->as_BranchData()->taken() +  data->as_BranchData()->not_taken() == 0)) {
           // This is the only way to return PROB_UNKNOWN:
           return PROB_UNKNOWN;
@@ -1691,8 +1715,8 @@ inline int Parse::repush_if_args() {
   int bc_depth = - Bytecodes::depth(iter().cur_bc());
   assert(bc_depth == 1 || bc_depth == 2, "only two kinds of branches");
   DEBUG_ONLY(sync_jvms());   // argument(n) requires a synced jvms
-  assert(argument(0) != NULL, "must exist");
-  assert(bc_depth == 1 || argument(1) != NULL, "two must exist");
+  assert(argument(0) != nullptr, "must exist");
+  assert(bc_depth == 1 || argument(1) != nullptr, "two must exist");
   inc_sp(bc_depth);
   return bc_depth;
 }
@@ -1714,7 +1738,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
     repush_if_args(); // to gather stats on loop
     uncommon_trap(Deoptimization::Reason_unreached,
                   Deoptimization::Action_reinterpret,
-                  NULL, "cold");
+                  nullptr, "cold");
     if (C->eliminate_boxing()) {
       // Mark the successor blocks as parsed
       branch_block->next_path_num();
@@ -1785,7 +1809,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
     repush_if_args(); // to gather stats on loop
     uncommon_trap(Deoptimization::Reason_unreached,
                   Deoptimization::Action_reinterpret,
-                  NULL, "cold");
+                  nullptr, "cold");
     if (C->eliminate_boxing()) {
       // Mark the successor blocks as parsed
       branch_block->next_path_num();
@@ -1815,7 +1839,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
   if (tst->is_Bool()) {
     // Refresh c from the transformed bool node, since it may be
     // simpler than the original c.  Also re-canonicalize btest.
-    // This wins when (Bool ne (Conv2B p) 0) => (Bool ne (CmpP p NULL)).
+    // This wins when (Bool ne (Conv2B p) 0) => (Bool ne (CmpP p null)).
     // That can arise from statements like: if (x instanceof C) ...
     if (tst != tst0) {
       // Canonicalize one more time since transform can change it.
@@ -1862,7 +1886,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
         if (new_path) {
           // Merge by using a new path
           merge_new_path(target_bci);
-        } else if (ctrl_taken != NULL) {
+        } else if (ctrl_taken != nullptr) {
           // Don't merge but save taken branch to be wired by caller
           *ctrl_taken = control();
         } else {
@@ -1876,7 +1900,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
   set_control(untaken_branch);
 
   // Branch not taken.
-  if (stopped() && ctrl_taken == NULL) {
+  if (stopped() && ctrl_taken == nullptr) {
     if (C->eliminate_boxing()) {
       // Mark the successor block as parsed (if caller does not re-wire control flow)
       next_block->next_path_num();
@@ -1888,7 +1912,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
 
 
 static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
-  if (t->speculative() == NULL) {
+  if (t->speculative() == nullptr) {
     return ProfileUnknownNull;
   }
   if (t->speculative_always_null()) {
@@ -1902,7 +1926,7 @@ static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
 
 void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region) {
   inc_sp(2);
-  Node* cast = null_check_common(input, T_OBJECT, true, NULL,
+  Node* cast = null_check_common(input, T_OBJECT, true, nullptr,
                                  !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
                                  speculative_ptr_kind(tinput) == ProfileAlwaysNull);
   dec_sp(2);
@@ -1945,7 +1969,7 @@ void Parse::acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinp
     inc_sp(2);
     set_control(slow_ctl);
     Deoptimization::DeoptReason reason;
-    if (tinput->speculative_type() != NULL && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+    if (tinput->speculative_type() != nullptr && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       reason = Deoptimization::Reason_speculate_class_check;
     } else {
       reason = Deoptimization::Reason_class_check;
@@ -2011,8 +2035,8 @@ void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* ti
 }
 
 void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
-  ciKlass* left_type = NULL;
-  ciKlass* right_type = NULL;
+  ciKlass* left_type = nullptr;
+  ciKlass* right_type = nullptr;
   ProfilePtrKind left_ptr = ProfileUnknownNull;
   ProfilePtrKind right_ptr = ProfileUnknownNull;
   bool left_inline_type = true;
@@ -2022,8 +2046,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   if (UseACmpProfile) {
     method()->acmp_profiled_type(bci(), left_type, right_type, left_ptr, right_ptr, left_inline_type, right_inline_type);
     if (too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
-      left_type = NULL;
-      right_type = NULL;
+      left_type = nullptr;
+      right_type = nullptr;
       left_inline_type = true;
       right_inline_type = true;
     }
@@ -2079,13 +2103,13 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   const TypeOopPtr* tright = _gvn.type(right)->isa_oopptr();
   Node* cmp = CmpP(left, right);
   cmp = optimize_cmp_with_klass(cmp);
-  if (tleft == NULL || !tleft->can_be_inline_type() ||
-      tright == NULL || !tright->can_be_inline_type()) {
+  if (tleft == nullptr || !tleft->can_be_inline_type() ||
+      tright == nullptr || !tright->can_be_inline_type()) {
     // This is sufficient, if one of the operands can't be an inline type
     do_if(btest, cmp);
     return;
   }
-  Node* eq_region = NULL;
+  Node* eq_region = nullptr;
   if (btest == BoolTest::eq) {
     do_if(btest, cmp, true);
     if (stopped()) {
@@ -2093,7 +2117,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     }
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
-    Node* is_not_equal = NULL;
+    Node* is_not_equal = nullptr;
     eq_region = new RegionNode(3);
     {
       PreserveJVMState pjvms(this);
@@ -2102,7 +2126,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
         eq_region->init_req(1, control());
       }
     }
-    if (is_not_equal == NULL || is_not_equal->is_top()) {
+    if (is_not_equal == nullptr || is_not_equal->is_top()) {
       record_for_igvn(eq_region);
       set_control(_gvn.transform(eq_region));
       return;
@@ -2112,10 +2136,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // Prefer speculative types if available
   if (!too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
-    if (tleft->speculative_type() != NULL) {
+    if (tleft->speculative_type() != nullptr) {
       left_type = tleft->speculative_type();
     }
-    if (tright->speculative_type() != NULL) {
+    if (tright->speculative_type() != nullptr) {
       right_type = tright->speculative_type();
     }
   }
@@ -2147,12 +2171,12 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     acmp_always_null_input(right, tright, btest, eq_region);
     return;
   }
-  if (left_type != NULL && !left_type->is_inlinetype()) {
+  if (left_type != nullptr && !left_type->is_inlinetype()) {
     // Comparison with an object of known type
     acmp_known_non_inline_type_input(left, tleft, left_ptr, left_type, btest, eq_region);
     return;
   }
-  if (right_type != NULL && !right_type->is_inlinetype()) {
+  if (right_type != nullptr && !right_type->is_inlinetype()) {
     // Comparison with an object of known type
     acmp_known_non_inline_type_input(right, tright, right_ptr, right_type, btest, eq_region);
     return;
@@ -2216,9 +2240,9 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   Node* mem = reset_memory();
   Node* ne_mem_phi = PhiNode::make(ne_region, mem);
 
-  Node* eq_io_phi = NULL;
-  Node* eq_mem_phi = NULL;
-  if (eq_region != NULL) {
+  Node* eq_io_phi = nullptr;
+  Node* eq_mem_phi = nullptr;
+  if (eq_region != nullptr) {
     eq_io_phi = PhiNode::make(eq_region, i_o());
     eq_mem_phi = PhiNode::make(eq_region, mem);
   }
@@ -2291,7 +2315,7 @@ void Parse::maybe_add_predicate_after_if(Block* path) {
     // Add predicates at bci of if dominating the loop so traps can be
     // recorded on the if's profile data
     int bc_depth = repush_if_args();
-    add_empty_predicates();
+    add_parse_predicates();
     dec_sp(bc_depth);
     path->set_has_predicates();
   }
@@ -2320,7 +2344,7 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block
     repush_if_args();
     Node* call = uncommon_trap(Deoptimization::Reason_unstable_if,
                   Deoptimization::Action_reinterpret,
-                  NULL,
+                  nullptr,
                   (is_fallthrough ? "taken always" : "taken never"));
 
     if (call != nullptr) {
@@ -2362,25 +2386,25 @@ static Node* extract_obj_from_klass_load(PhaseGVN* gvn, Node* n) {
   Node* ldk;
   if (n->is_DecodeNKlass()) {
     if (n->in(1)->Opcode() != Op_LoadNKlass) {
-      return NULL;
+      return nullptr;
     } else {
       ldk = n->in(1);
     }
   } else if (n->Opcode() != Op_LoadKlass) {
-    return NULL;
+    return nullptr;
   } else {
     ldk = n;
   }
-  assert(ldk != NULL && ldk->is_Load(), "should have found a LoadKlass or LoadNKlass node");
+  assert(ldk != nullptr && ldk->is_Load(), "should have found a LoadKlass or LoadNKlass node");
 
   Node* adr = ldk->in(MemNode::Address);
   intptr_t off = 0;
   Node* obj = AddPNode::Ideal_base_and_offset(adr, gvn, off);
-  if (obj == NULL || off != oopDesc::klass_offset_in_bytes()) // loading oopDesc::_klass?
-    return NULL;
+  if (obj == nullptr || off != oopDesc::klass_offset_in_bytes()) // loading oopDesc::_klass?
+    return nullptr;
   const TypePtr* tp = gvn->type(obj)->is_ptr();
-  if (tp == NULL || !(tp->isa_instptr() || tp->isa_aryptr())) // is obj a Java object ptr?
-    return NULL;
+  if (tp == nullptr || !(tp->isa_instptr() || tp->isa_aryptr())) // is obj a Java object ptr?
+    return nullptr;
 
   return obj;
 }
@@ -2393,13 +2417,13 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
   if (btest == BoolTest::eq && tcon->isa_klassptr()) {
     Node* obj = extract_obj_from_klass_load(&_gvn, val);
     const TypeOopPtr* con_type = tcon->isa_klassptr()->as_instance_type();
-    if (obj != NULL && (con_type->isa_instptr() || con_type->isa_aryptr())) {
+    if (obj != nullptr && (con_type->isa_instptr() || con_type->isa_aryptr())) {
        // Found:
        //   Bool(CmpP(LoadKlass(obj._klass), ConP(Foo.klass)), [eq])
        // or the narrowOop equivalent.
        const Type* obj_type = _gvn.type(obj);
        const TypeOopPtr* tboth = obj_type->join_speculative(con_type)->isa_oopptr();
-       if (tboth != NULL && tboth->klass_is_exact() && tboth != obj_type &&
+       if (tboth != nullptr && tboth->klass_is_exact() && tboth != obj_type &&
            tboth->higher_equal(obj_type)) {
           // obj has to be of the exact type Foo if the CmpP succeeds.
           int obj_in_map = map()->find_edge(obj);
@@ -2432,8 +2456,8 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
   // Check for a comparison to a constant, and "know" that the compared
   // value is constrained on this path.
   assert(tcon->singleton(), "");
-  ConstraintCastNode* ccast = NULL;
-  Node* cast = NULL;
+  ConstraintCastNode* ccast = nullptr;
+  Node* cast = nullptr;
 
   switch (btest) {
   case BoolTest::eq:                    // Constant test?
@@ -2470,7 +2494,7 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
     break;
   }
 
-  if (ccast != NULL) {
+  if (ccast != nullptr) {
     const Type* tcc = ccast->as_Type()->type();
     assert(tcc != tval && tcc->higher_equal(tval), "must improve");
     // Delay transform() call to allow recovery of pre-cast value
@@ -2481,7 +2505,7 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
     cast = ccast;
   }
 
-  if (cast != NULL) {                   // Here's the payoff.
+  if (cast != nullptr) {                   // Here's the payoff.
     replace_in_map(val, cast);
   }
 }
@@ -2501,8 +2525,8 @@ Node* Parse::optimize_cmp_with_klass(Node* c) {
   if (c->Opcode() == Op_CmpP &&
       (c->in(1)->Opcode() == Op_LoadKlass || c->in(1)->Opcode() == Op_DecodeNKlass) &&
       c->in(2)->is_Con()) {
-    Node* load_klass = NULL;
-    Node* decode = NULL;
+    Node* load_klass = nullptr;
+    Node* decode = nullptr;
     if (c->in(1)->Opcode() == Op_DecodeNKlass) {
       decode = c->in(1);
       load_klass = c->in(1)->in(1);
@@ -2513,7 +2537,7 @@ Node* Parse::optimize_cmp_with_klass(Node* c) {
       Node* addp = load_klass->in(2);
       Node* obj = addp->in(AddPNode::Address);
       const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
-      if (obj_type->speculative_type_not_null() != NULL) {
+      if (obj_type->speculative_type_not_null() != nullptr) {
         ciKlass* k = obj_type->speculative_type();
         inc_sp(2);
         obj = maybe_cast_profiled_obj(obj, k);
@@ -2527,7 +2551,7 @@ Node* Parse::optimize_cmp_with_klass(Node* c) {
         load_klass = load_klass->clone();
         load_klass->set_req(2, addp);
         load_klass = _gvn.transform(load_klass);
-        if (decode != NULL) {
+        if (decode != nullptr) {
           decode = decode->clone();
           decode->set_req(1, load_klass);
           load_klass = _gvn.transform(decode);
@@ -2614,7 +2638,7 @@ void Parse::do_one_bytecode() {
     ciConstant constant = iter().get_constant();
     if (constant.is_loaded()) {
       const Type* con_type = Type::make_from_constant(constant);
-      if (con_type != NULL) {
+      if (con_type != nullptr) {
         push_node(con_type->basic_type(), makecon(con_type));
       }
     } else {
@@ -2622,14 +2646,14 @@ void Parse::do_one_bytecode() {
       if (iter().is_in_error()) {
         uncommon_trap(Deoptimization::make_trap_request(Deoptimization::Reason_unhandled,
                                                         Deoptimization::Action_none),
-                      NULL, "constant in error state", true /* must_throw */);
+                      nullptr, "constant in error state", true /* must_throw */);
 
       } else {
         int index = iter().get_constant_pool_index();
         uncommon_trap(Deoptimization::make_trap_request(Deoptimization::Reason_unloaded,
                                                         Deoptimization::Action_reinterpret,
                                                         index),
-                      NULL, "unresolved constant", false /* must_throw */);
+                      nullptr, "unresolved constant", false /* must_throw */);
       }
     }
     break;
@@ -3270,17 +3294,17 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_i2b:
     // Sign extend
     a = pop();
-    a = Compile::narrow_value(T_BYTE, a, NULL, &_gvn, true);
+    a = Compile::narrow_value(T_BYTE, a, nullptr, &_gvn, true);
     push(a);
     break;
   case Bytecodes::_i2s:
     a = pop();
-    a = Compile::narrow_value(T_SHORT, a, NULL, &_gvn, true);
+    a = Compile::narrow_value(T_SHORT, a, nullptr, &_gvn, true);
     push(a);
     break;
   case Bytecodes::_i2c:
     a = pop();
-    a = Compile::narrow_value(T_CHAR, a, NULL, &_gvn, true);
+    a = Compile::narrow_value(T_CHAR, a, nullptr, &_gvn, true);
     push(a);
     break;
 
@@ -3304,7 +3328,7 @@ void Parse::do_one_bytecode() {
 
   // Exit points of synchronized methods must have an unlock node
   case Bytecodes::_return:
-    return_current(NULL);
+    return_current(nullptr);
     break;
 
   case Bytecodes::_ireturn:
@@ -3320,7 +3344,7 @@ void Parse::do_one_bytecode() {
     break;
 
   case Bytecodes::_athrow:
-    // null exception oop throws NULL pointer exception
+    // null exception oop throws null pointer exception
     null_check(peek());
     if (stopped())  return;
     // Hook the thrown exception directly to subsequent handlers.
@@ -3354,7 +3378,7 @@ void Parse::do_one_bytecode() {
     ciMethodData* methodData = method()->method_data();
     if (!methodData->is_mature())  break;
     ciProfileData* data = methodData->bci_to_data(bci());
-    assert(data != NULL && data->is_JumpData(), "need JumpData for taken branch");
+    assert(data != nullptr && data->is_JumpData(), "need JumpData for taken branch");
     int taken = ((ciJumpData*)data)->taken();
     taken = method()->scale_count(taken);
     target_block->set_count(taken);

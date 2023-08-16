@@ -79,7 +79,7 @@ void VM_Version::initialize() {
   int dcache_line = VM_Version::dcache_line_size();
 
   // Limit AllocatePrefetchDistance so that it does not exceed the
-  // constraint in AllocatePrefetchDistanceConstraintFunc.
+  // static constraint of 512 defined in runtime/globals.hpp.
   if (FLAG_IS_DEFAULT(AllocatePrefetchDistance))
     FLAG_SET_DEFAULT(AllocatePrefetchDistance, MIN2(512, 3*dcache_line));
 
@@ -246,6 +246,18 @@ void VM_Version::initialize() {
     FLAG_SET_DEFAULT(UseCRC32, false);
   }
 
+  // Neoverse V1
+  if (_cpu == CPU_ARM && (_model == 0xd40 || _model2 == 0xd40)) {
+    if (FLAG_IS_DEFAULT(UseCryptoPmullForCRC32)) {
+      FLAG_SET_DEFAULT(UseCryptoPmullForCRC32, true);
+    }
+  }
+
+  if (UseCryptoPmullForCRC32 && (!VM_Version::supports_pmull() || !VM_Version::supports_sha3() || !VM_Version::supports_crc32())) {
+    warning("UseCryptoPmullForCRC32 specified, but not supported on this CPU");
+    FLAG_SET_DEFAULT(UseCryptoPmullForCRC32, false);
+  }
+
   if (FLAG_IS_DEFAULT(UseAdler32Intrinsics)) {
     FLAG_SET_DEFAULT(UseAdler32Intrinsics, true);
   }
@@ -342,10 +354,14 @@ void VM_Version::initialize() {
   }
 
   if (UseSHA && VM_Version::supports_sha3()) {
-    // Do not auto-enable UseSHA3Intrinsics until it has been fully tested on hardware
-    // if (FLAG_IS_DEFAULT(UseSHA3Intrinsics)) {
-      // FLAG_SET_DEFAULT(UseSHA3Intrinsics, true);
-    // }
+    // Auto-enable UseSHA3Intrinsics on hardware with performance benefit.
+    // Note that the evaluation of UseSHA3Intrinsics shows better performance
+    // on Apple silicon but worse performance on Neoverse V1 and N2.
+    if (_cpu == CPU_APPLE) {  // Apple silicon
+      if (FLAG_IS_DEFAULT(UseSHA3Intrinsics)) {
+        FLAG_SET_DEFAULT(UseSHA3Intrinsics, true);
+      }
+    }
   } else if (UseSHA3Intrinsics) {
     warning("Intrinsics for SHA3-224, SHA3-256, SHA3-384 and SHA3-512 crypto hash functions not available on this CPU.");
     FLAG_SET_DEFAULT(UseSHA3Intrinsics, false);
@@ -436,29 +452,25 @@ void VM_Version::initialize() {
 
   if (UseBranchProtection == nullptr || strcmp(UseBranchProtection, "none") == 0) {
     _rop_protection = false;
-  } else if (strcmp(UseBranchProtection, "standard") == 0) {
+  } else if (strcmp(UseBranchProtection, "standard") == 0 ||
+             strcmp(UseBranchProtection, "pac-ret") == 0) {
     _rop_protection = false;
-    // Enable PAC if this code has been built with branch-protection, the CPU/OS
-    // supports it, and incompatible preview features aren't enabled.
-#ifdef __ARM_FEATURE_PAC_DEFAULT
-    if (VM_Version::supports_paca() && !Arguments::enable_preview()) {
-      _rop_protection = true;
-    }
-#endif
-  } else if (strcmp(UseBranchProtection, "pac-ret") == 0) {
-    _rop_protection = true;
+    // Enable ROP-protection if
+    // 1) this code has been built with branch-protection,
+    // 2) the CPU/OS supports it, and
+    // 3) incompatible VMContinuations isn't enabled.
 #ifdef __ARM_FEATURE_PAC_DEFAULT
     if (!VM_Version::supports_paca()) {
-      warning("ROP-protection specified, but not supported on this CPU.");
       // Disable PAC to prevent illegal instruction crashes.
-      _rop_protection = false;
-    } else if (Arguments::enable_preview()) {
+      warning("ROP-protection specified, but not supported on this CPU. Disabling ROP-protection.");
+    } else if (VMContinuations) {
       // Not currently compatible with continuation freeze/thaw.
-      warning("PAC-RET is incompatible with virtual threads preview feature.");
-      _rop_protection = false;
+      warning("ROP-protection is incompatible with VMContinuations. Disabling ROP-protection.");
+    } else {
+      _rop_protection = true;
     }
 #else
-    warning("ROP-protection specified, but this VM was built without ROP-protection support.");
+    warning("ROP-protection specified, but this VM was built without ROP-protection support. Disabling ROP-protection.");
 #endif
   } else {
     vm_exit_during_initialization(err_msg("Unsupported UseBranchProtection: %s", UseBranchProtection));
@@ -553,9 +565,65 @@ void VM_Version::initialize() {
   if (FLAG_IS_DEFAULT(AlignVector)) {
     AlignVector = AvoidUnalignedAccesses;
   }
+
+  if (FLAG_IS_DEFAULT(UsePoly1305Intrinsics)) {
+    FLAG_SET_DEFAULT(UsePoly1305Intrinsics, true);
+  }
 #endif
 
   _spin_wait = get_spin_wait_desc();
+
+  check_virtualizations();
+}
+
+#if defined(LINUX)
+static bool check_info_file(const char* fpath,
+                            const char* virt1, VirtualizationType vt1,
+                            const char* virt2, VirtualizationType vt2) {
+  char line[500];
+  FILE* fp = os::fopen(fpath, "r");
+  if (fp == nullptr) {
+    return false;
+  }
+  while (fgets(line, sizeof(line), fp) != nullptr) {
+    if (strcasestr(line, virt1) != 0) {
+      Abstract_VM_Version::_detected_virtualization = vt1;
+      fclose(fp);
+      return true;
+    }
+    if (virt2 != nullptr && strcasestr(line, virt2) != 0) {
+      Abstract_VM_Version::_detected_virtualization = vt2;
+      fclose(fp);
+      return true;
+    }
+  }
+  fclose(fp);
+  return false;
+}
+#endif
+
+void VM_Version::check_virtualizations() {
+#if defined(LINUX)
+  const char* pname_file = "/sys/devices/virtual/dmi/id/product_name";
+  const char* tname_file = "/sys/hypervisor/type";
+  if (check_info_file(pname_file, "KVM", KVM, "VMWare", VMWare)) {
+    return;
+  }
+  check_info_file(tname_file, "Xen", XenPVHVM, nullptr, NoDetectedVirtualization);
+#endif
+}
+
+void VM_Version::print_platform_virtualization_info(outputStream* st) {
+#if defined(LINUX)
+  VirtualizationType vrt = VM_Version::get_detected_virtualization();
+  if (vrt == KVM) {
+    st->print_cr("KVM virtualization detected");
+  } else if (vrt == VMWare) {
+    st->print_cr("VMWare virtualization detected");
+  } else if (vrt == XenPVHVM) {
+    st->print_cr("Xen virtualization detected");
+  }
+#endif
 }
 
 void VM_Version::initialize_cpu_information(void) {

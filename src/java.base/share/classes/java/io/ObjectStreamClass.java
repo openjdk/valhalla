@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,6 +62,7 @@ import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.JavaSecurityAccess;
+import jdk.internal.util.ByteArray;
 import sun.reflect.misc.ReflectUtil;
 
 /**
@@ -73,6 +74,7 @@ import sun.reflect.misc.ReflectUtil;
  * <a href="{@docRoot}/../specs/serialization/class.html#stream-unique-identifiers">
  *    <cite>Java Object Serialization Specification</cite>, Section 4.6, "Stream Unique Identifiers"</a>.
  *
+ * @spec serialization/index.html Java Object Serialization Specification
  * @author      Mike Warres
  * @author      Roger Riggs
  * @see ObjectStreamField
@@ -1900,7 +1902,7 @@ public final class ObjectStreamClass implements Serializable {
      * Class for computing and caching field/constructor/method signatures
      * during serialVersionUID calculation.
      */
-    private static class MemberSignature {
+    private static final class MemberSignature {
 
         public final Member member;
         public final String name;
@@ -1931,10 +1933,10 @@ public final class ObjectStreamClass implements Serializable {
      * Class for setting and retrieving serializable field values in batch.
      */
     // REMIND: dynamically generate these?
-    private static class FieldReflector {
+    private static final class FieldReflector {
 
         /** handle for performing unsafe operations */
-        private static final Unsafe unsafe = Unsafe.getUnsafe();
+        private static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
         /** fields to operate on */
         private final ObjectStreamField[] fields;
@@ -1959,8 +1961,8 @@ public final class ObjectStreamClass implements Serializable {
          */
         static Object newValueInstance(Class<?> clazz) throws InstantiationException{
             assert clazz.isValue() : "Should be a value class";
-            Object obj = unsafe.uninitializedDefaultValue(clazz);
-            return unsafe.makePrivateBuffer(obj);
+            Object obj = UNSAFE.uninitializedDefaultValue(clazz);
+            return UNSAFE.makePrivateBuffer(obj);
         }
 
         /**
@@ -1970,7 +1972,7 @@ public final class ObjectStreamClass implements Serializable {
          */
         static Object finishValueInstance(Object obj) {
             assert (obj.getClass().isValue()) : "Should be a value class";
-            return unsafe.finishPrivateBuffer(obj);
+            return UNSAFE.finishPrivateBuffer(obj);
         }
 
         /**
@@ -1995,7 +1997,7 @@ public final class ObjectStreamClass implements Serializable {
                 ObjectStreamField f = fields[i];
                 Field rf = f.getField();
                 long key = (rf != null) ?
-                    unsafe.objectFieldOffset(rf) : Unsafe.INVALID_FIELD_OFFSET;
+                    UNSAFE.objectFieldOffset(rf) : Unsafe.INVALID_FIELD_OFFSET;
                 readKeys[i] = key;
                 writeKeys[i] = usedKeys.add(key) ?
                     key : Unsafe.INVALID_FIELD_OFFSET;
@@ -2037,14 +2039,14 @@ public final class ObjectStreamClass implements Serializable {
                 long key = readKeys[i];
                 int off = offsets[i];
                 switch (typeCodes[i]) {
-                    case 'Z' -> Bits.putBoolean(buf, off, unsafe.getBoolean(obj, key));
-                    case 'B' -> buf[off] = unsafe.getByte(obj, key);
-                    case 'C' -> Bits.putChar(buf, off, unsafe.getChar(obj, key));
-                    case 'S' -> Bits.putShort(buf, off, unsafe.getShort(obj, key));
-                    case 'I' -> Bits.putInt(buf, off, unsafe.getInt(obj, key));
-                    case 'F' -> Bits.putFloat(buf, off, unsafe.getFloat(obj, key));
-                    case 'J' -> Bits.putLong(buf, off, unsafe.getLong(obj, key));
-                    case 'D' -> Bits.putDouble(buf, off, unsafe.getDouble(obj, key));
+                    case 'Z' -> ByteArray.setBoolean(buf, off, UNSAFE.getBoolean(obj, key));
+                    case 'B' -> buf[off] = UNSAFE.getByte(obj, key);
+                    case 'C' -> ByteArray.setChar(buf, off, UNSAFE.getChar(obj, key));
+                    case 'S' -> ByteArray.setShort(buf, off, UNSAFE.getShort(obj, key));
+                    case 'I' -> ByteArray.setInt(buf, off, UNSAFE.getInt(obj, key));
+                    case 'F' -> ByteArray.setFloat(buf, off, UNSAFE.getFloat(obj, key));
+                    case 'J' -> ByteArray.setLong(buf, off, UNSAFE.getLong(obj, key));
+                    case 'D' -> ByteArray.setDouble(buf, off, UNSAFE.getDouble(obj, key));
                     default  -> throw new InternalError();
                 }
             }
@@ -2066,14 +2068,14 @@ public final class ObjectStreamClass implements Serializable {
                 }
                 int off = offsets[i];
                 switch (typeCodes[i]) {
-                    case 'Z' -> unsafe.putBoolean(obj, key, Bits.getBoolean(buf, off));
-                    case 'B' -> unsafe.putByte(obj, key, buf[off]);
-                    case 'C' -> unsafe.putChar(obj, key, Bits.getChar(buf, off));
-                    case 'S' -> unsafe.putShort(obj, key, Bits.getShort(buf, off));
-                    case 'I' -> unsafe.putInt(obj, key, Bits.getInt(buf, off));
-                    case 'F' -> unsafe.putFloat(obj, key, Bits.getFloat(buf, off));
-                    case 'J' -> unsafe.putLong(obj, key, Bits.getLong(buf, off));
-                    case 'D' -> unsafe.putDouble(obj, key, Bits.getDouble(buf, off));
+                    case 'Z' -> UNSAFE.putBoolean(obj, key, ByteArray.getBoolean(buf, off));
+                    case 'B' -> UNSAFE.putByte(obj, key, buf[off]);
+                    case 'C' -> UNSAFE.putChar(obj, key, ByteArray.getChar(buf, off));
+                    case 'S' -> UNSAFE.putShort(obj, key, ByteArray.getShort(buf, off));
+                    case 'I' -> UNSAFE.putInt(obj, key, ByteArray.getInt(buf, off));
+                    case 'F' -> UNSAFE.putFloat(obj, key, ByteArray.getFloat(buf, off));
+                    case 'J' -> UNSAFE.putLong(obj, key, ByteArray.getLong(buf, off));
+                    case 'D' -> UNSAFE.putDouble(obj, key, ByteArray.getDouble(buf, off));
                     default  -> throw new InternalError();
                 }
             }
@@ -2096,9 +2098,9 @@ public final class ObjectStreamClass implements Serializable {
                 Field f = fields[i].getField();
                 vals[offsets[i]] = switch (typeCodes[i]) {
                     case 'L', '[' ->
-                            unsafe.isFlattened(f)
-                                    ? unsafe.getValue(obj, readKeys[i], f.getType())
-                                    : unsafe.getReference(obj, readKeys[i]);
+                            UNSAFE.isFlattened(f)
+                                    ? UNSAFE.getValue(obj, readKeys[i], f.getType())
+                                    : UNSAFE.getReference(obj, readKeys[i]);
                     default       -> throw new InternalError();
                 };
             }
@@ -2149,10 +2151,10 @@ public final class ObjectStreamClass implements Serializable {
                                 obj.getClass().getName());
                         }
                         if (!dryRun) {
-                            if (unsafe.isFlattened(f)) {
-                                unsafe.putValue(obj, key, f.getType(), val);
+                            if (UNSAFE.isFlattened(f)) {
+                                UNSAFE.putValue(obj, key, f.getType(), val);
                             } else {
-                                unsafe.putReference(obj, key, val);
+                                UNSAFE.putReference(obj, key, val);
                             }
                         }
                     }
@@ -2533,16 +2535,16 @@ public final class ObjectStreamClass implements Serializable {
             try {
                 PRIM_VALUE_EXTRACTORS = Map.of(
                     byte.class, MethodHandles.arrayElementGetter(byte[].class),
-                    short.class, lkp.findStatic(Bits.class, "getShort", MethodType.methodType(short.class, byte[].class, int.class)),
-                    int.class, lkp.findStatic(Bits.class, "getInt", MethodType.methodType(int.class, byte[].class, int.class)),
-                    long.class, lkp.findStatic(Bits.class, "getLong", MethodType.methodType(long.class, byte[].class, int.class)),
-                    float.class, lkp.findStatic(Bits.class, "getFloat", MethodType.methodType(float.class, byte[].class, int.class)),
-                    double.class, lkp.findStatic(Bits.class, "getDouble", MethodType.methodType(double.class, byte[].class, int.class)),
-                    char.class, lkp.findStatic(Bits.class, "getChar", MethodType.methodType(char.class, byte[].class, int.class)),
-                    boolean.class, lkp.findStatic(Bits.class, "getBoolean", MethodType.methodType(boolean.class, byte[].class, int.class))
+                    short.class, lkp.findStatic(ByteArray.class, "getShort", MethodType.methodType(short.class, byte[].class, int.class)),
+                    int.class, lkp.findStatic(ByteArray.class, "getInt", MethodType.methodType(int.class, byte[].class, int.class)),
+                    long.class, lkp.findStatic(ByteArray.class, "getLong", MethodType.methodType(long.class, byte[].class, int.class)),
+                    float.class, lkp.findStatic(ByteArray.class, "getFloat", MethodType.methodType(float.class, byte[].class, int.class)),
+                    double.class, lkp.findStatic(ByteArray.class, "getDouble", MethodType.methodType(double.class, byte[].class, int.class)),
+                    char.class, lkp.findStatic(ByteArray.class, "getChar", MethodType.methodType(char.class, byte[].class, int.class)),
+                    boolean.class, lkp.findStatic(ByteArray.class, "getBoolean", MethodType.methodType(boolean.class, byte[].class, int.class))
                 );
             } catch (NoSuchMethodException | IllegalAccessException e) {
-                throw new InternalError("Can't lookup Bits.getXXX", e);
+                throw new InternalError("Can't lookup " + ByteArray.class.getName() + ".getXXX", e);
             }
         }
     }
