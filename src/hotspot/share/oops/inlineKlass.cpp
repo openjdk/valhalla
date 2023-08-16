@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -51,25 +52,28 @@
   // Constructor
 InlineKlass::InlineKlass(const ClassFileParser& parser)
     : InstanceKlass(parser, InlineKlass::Kind) {
-  _adr_inlineklass_fixed_block = inlineklass_static_block();
-  // Addresses used for inline type calling convention
-  *((Array<SigEntry>**)adr_extended_sig()) = NULL;
-  *((Array<VMRegPair>**)adr_return_regs()) = NULL;
-  *((address*)adr_pack_handler()) = NULL;
-  *((address*)adr_pack_handler_jobject()) = NULL;
-  *((address*)adr_unpack_handler()) = NULL;
-  assert(pack_handler() == NULL, "pack handler not null");
-  *((int*)adr_default_value_offset()) = 0;
-  *((address*)adr_value_array_klasses()) = NULL;
   set_prototype_header(markWord::inline_type_prototype());
   assert(is_inline_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
 }
 
+void InlineKlass::init_fixed_block() {
+  _adr_inlineklass_fixed_block = inlineklass_static_block();
+  // Addresses used for inline type calling convention
+  *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
+  *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
+  *((address*)adr_pack_handler()) = nullptr;
+  *((address*)adr_pack_handler_jobject()) = nullptr;
+  *((address*)adr_unpack_handler()) = nullptr;
+  assert(pack_handler() == nullptr, "pack handler not null");
+  *((int*)adr_default_value_offset()) = 0;
+  *((address*)adr_value_array_klasses()) = nullptr;
+}
+
 oop InlineKlass::default_value() {
   assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
   oop val = java_mirror()->obj_field_acquire(default_value_offset());
-  assert(val != NULL, "Sanity check");
+  assert(val != nullptr, "Sanity check");
   assert(oopDesc::is_oop(val), "Sanity check");
   assert(val->is_inline_type(), "Sanity check");
   assert(val->klass() == this, "sanity check");
@@ -119,7 +123,7 @@ int InlineKlass::nonstatic_oop_count() {
 }
 
 oop InlineKlass::read_inlined_field(oop obj, int offset, TRAPS) {
-  oop res = NULL;
+  oop res = nullptr;
   assert(is_initialized() || is_being_initialized()|| is_in_error_state(),
         "Must be initialized, initializing or in a corner case of an escaped instance of a class that failed its initialization");
   if (is_empty_inline_type()) {
@@ -129,12 +133,12 @@ oop InlineKlass::read_inlined_field(oop obj, int offset, TRAPS) {
     res = allocate_instance_buffer(CHECK_NULL);
     inline_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res);
   }
-  assert(res != NULL, "Must be set in one of two paths above");
+  assert(res != nullptr, "Must be set in one of two paths above");
   return res;
 }
 
 void InlineKlass::write_inlined_field(oop obj, int offset, oop value, TRAPS) {
-  if (value == NULL) {
+  if (value == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
   if (!is_empty_inline_type()) {
@@ -169,7 +173,7 @@ bool InlineKlass::flatten_array() {
 }
 
 Klass* InlineKlass::value_array_klass(int n, TRAPS) {
-  if (Atomic::load_acquire(adr_value_array_klasses()) == NULL) {
+  if (Atomic::load_acquire(adr_value_array_klasses()) == nullptr) {
     ResourceMark rm(THREAD);
     JavaThread *jt = JavaThread::cast(THREAD);
     {
@@ -177,7 +181,7 @@ Klass* InlineKlass::value_array_klass(int n, TRAPS) {
       MutexLocker ma(THREAD, MultiArray_lock);
 
       // Check if update has already taken place
-      if (value_array_klasses() == NULL) {
+      if (value_array_klasses() == nullptr) {
         ArrayKlass* k;
         if (flatten_array()) {
           k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
@@ -197,8 +201,8 @@ Klass* InlineKlass::value_array_klass(int n, TRAPS) {
 Klass* InlineKlass::value_array_klass_or_null(int n) {
   // Need load-acquire for lock-free read
   ArrayKlass* ak = Atomic::load_acquire(adr_value_array_klasses());
-  if (ak == NULL) {
-    return NULL;
+  if (ak == nullptr) {
+    return nullptr;
   } else {
     return ak->array_klass_or_null(n);
   }
@@ -298,16 +302,16 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
     }
     if (!can_be_returned_as_fields() && !can_be_passed_as_fields()) {
       MetadataFactory::free_array<SigEntry>(class_loader_data(), extended_sig);
-      assert(return_regs() == NULL, "sanity");
+      assert(return_regs() == nullptr, "sanity");
     }
   }
 }
 
 void InlineKlass::deallocate_contents(ClassLoaderData* loader_data) {
-  if (extended_sig() != NULL) {
+  if (extended_sig() != nullptr) {
     MetadataFactory::free_array<SigEntry>(loader_data, extended_sig());
   }
-  if (return_regs() != NULL) {
+  if (return_regs() != nullptr) {
     MetadataFactory::free_array<VMRegPair>(loader_data, return_regs());
   }
   cleanup_blobs();
@@ -319,13 +323,13 @@ void InlineKlass::cleanup(InlineKlass* ik) {
 }
 
 void InlineKlass::cleanup_blobs() {
-  if (pack_handler() != NULL) {
+  if (pack_handler() != nullptr) {
     CodeBlob* buffered_blob = CodeCache::find_blob(pack_handler());
     assert(buffered_blob->is_buffered_inline_type_blob(), "bad blob type");
     BufferBlob::free((BufferBlob*)buffered_blob);
-    *((address*)adr_pack_handler()) = NULL;
-    *((address*)adr_pack_handler_jobject()) = NULL;
-    *((address*)adr_unpack_handler()) = NULL;
+    *((address*)adr_pack_handler()) = nullptr;
+    *((address*)adr_pack_handler_jobject()) = nullptr;
+    *((address*)adr_unpack_handler()) = nullptr;
   }
 }
 
@@ -336,7 +340,7 @@ bool InlineKlass::can_be_passed_as_fields() const {
 
 // Can this inline type be returned as multiple values?
 bool InlineKlass::can_be_returned_as_fields(bool init) const {
-  return InlineTypeReturnedAsFields && (init || return_regs() != NULL);
+  return InlineTypeReturnedAsFields && (init || return_regs() != nullptr);
 }
 
 // Create handles for all oop fields returned in registers that are going to be live across a safepoint
@@ -352,7 +356,7 @@ void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Hand
       VMRegPair pair = regs->at(j);
       address loc = reg_map.location(pair.first(), nullptr);
       oop v = *(oop*)loc;
-      assert(v == NULL || oopDesc::is_oop(v), "not an oop?");
+      assert(v == nullptr || oopDesc::is_oop(v), "not an oop?");
       assert(Universe::heap()->is_in_or_null(v), "must be heap pointer");
       handles.push(Handle(thread, v));
     }
@@ -374,7 +378,7 @@ void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle
   assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
-  assert(regs != NULL, "inconsistent");
+  assert(regs != nullptr, "inconsistent");
 
   int j = 1;
   for (int i = 0, k = 0; i < sig_vk->length(); i++) {
@@ -496,7 +500,7 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
   // Return value is not tagged, must be a valid oop
   assert(oopDesc::is_oop_or_null(cast_to_oop(ptr), true),
          "Bad oop return: " PTR_FORMAT, ptr);
-  return NULL;
+  return nullptr;
 }
 
 // CDS support
@@ -505,34 +509,37 @@ void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   InstanceKlass::metaspace_pointers_do(it);
 
   InlineKlass* this_ptr = this;
-  it->push_internal_pointer(&this_ptr, (intptr_t*)&_adr_inlineklass_fixed_block);
   it->push((Klass**)adr_value_array_klasses());
 }
 
 void InlineKlass::remove_unshareable_info() {
   InstanceKlass::remove_unshareable_info();
 
-  *((Array<SigEntry>**)adr_extended_sig()) = NULL;
-  *((Array<VMRegPair>**)adr_return_regs()) = NULL;
-  *((address*)adr_pack_handler()) = NULL;
-  *((address*)adr_pack_handler_jobject()) = NULL;
-  *((address*)adr_unpack_handler()) = NULL;
-  assert(pack_handler() == NULL, "pack handler not null");
-  if (value_array_klasses() != NULL) {
+  *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
+  *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
+  *((address*)adr_pack_handler()) = nullptr;
+  *((address*)adr_pack_handler_jobject()) = nullptr;
+  *((address*)adr_unpack_handler()) = nullptr;
+  assert(pack_handler() == nullptr, "pack handler not null");
+  if (value_array_klasses() != nullptr) {
     value_array_klasses()->remove_unshareable_info();
   }
 }
 
 void InlineKlass::remove_java_mirror() {
   InstanceKlass::remove_java_mirror();
-  if (value_array_klasses() != NULL) {
+  if (value_array_klasses() != nullptr) {
     value_array_klasses()->remove_java_mirror();
   }
 }
 
 void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
+  // We are no longer bookkeeping pointer to fixed block during serialization, hence reinitializing
+  // fixed block address since its size was already accounted by InstanceKlass::size() and it will
+  // anyways be part of shared archive.
+  _adr_inlineklass_fixed_block = inlineklass_static_block();
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
-  if (value_array_klasses() != NULL) {
+  if (value_array_klasses() != nullptr) {
     value_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
   }
 }

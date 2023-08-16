@@ -311,6 +311,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                  * If the "-processor" option is used, search the appropriate
                  * path for the named class.  Otherwise, use a service
                  * provider mechanism to create the processor iterator.
+                 *
+                 * Note: if an explicit processor path is not set,
+                 * only the class path and _not_ the module path are
+                 * searched for processors.
                  */
                 String processorNames = options.get(Option.PROCESSOR);
                 if (fileManager.hasLocation(ANNOTATION_PROCESSOR_MODULE_PATH)) {
@@ -1337,7 +1341,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         Kinds.Kind symKind = cs.kind;
                         cs.reset();
                         if (symKind == ERR) {
-                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs, TypeMetadata.EMPTY, Flavor.X_Typeof_X);
+                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs, List.nil(), Flavor.X_Typeof_X);
                         }
                         if (cs.isCompleted()) {
                             cs.completer = initialCompleter;

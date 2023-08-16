@@ -259,7 +259,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     abstract value class AbsValue {}
                 }
                 """);
-        assertFail("compiler.err.cant.assign.val.to.final.var",
+        assertFail("compiler.err.cant.assign.val.to.var",
                 """
                 value class Point {
                     int x = 10;
@@ -270,7 +270,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
-        assertFail("compiler.err.cant.assign.val.to.final.var",
+        assertFail("compiler.err.cant.assign.val.to.var",
                 """
                 value class Point {
                     int x;

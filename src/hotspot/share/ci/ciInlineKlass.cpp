@@ -30,13 +30,13 @@
 
 int ciInlineKlass::compute_nonstatic_fields() {
   int result = ciInstanceKlass::compute_nonstatic_fields();
-  assert(super() == NULL || !super()->has_nonstatic_fields(), "an inline type must not inherit fields from its superclass");
+  assert(super() == nullptr || !super()->has_nonstatic_fields(), "an inline type must not inherit fields from its superclass");
 
   // Compute declared non-static fields (without flattening of inline type fields)
-  GrowableArray<ciField*>* fields = NULL;
-  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(NULL, false /* no flattening */);)
+  GrowableArray<ciField*>* fields = nullptr;
+  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(nullptr, false /* no flattening */);)
   Arena* arena = CURRENT_ENV->arena();
-  _declared_nonstatic_fields = (fields != NULL) ? fields : new (arena) GrowableArray<ciField*>(arena, 0, 0, 0);
+  _declared_nonstatic_fields = (fields != nullptr) ? fields : new (arena) GrowableArray<ciField*>(arena, 0, 0, 0);
   return result;
 }
 
@@ -54,7 +54,7 @@ int ciInlineKlass::field_index_by_offset(int offset) {
   int best_index = -1;
   // Search the field with the given offset
   for (int i = 0; i < nof_declared_nonstatic_fields(); ++i) {
-    int field_offset = _declared_nonstatic_fields->at(i)->offset();
+    int field_offset = _declared_nonstatic_fields->at(i)->offset_in_bytes();
     if (field_offset == offset) {
       // Exact match
       return i;

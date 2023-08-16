@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,29 +21,9 @@
  * questions.
  */
 
-/*
- * @test
- * @summary Basic test for ofFileDownload
- * @bug 8196965
- * @modules java.base/sun.net.www.http
- *          java.net.http/jdk.internal.net.http.common
- *          java.net.http/jdk.internal.net.http.frame
- *          java.net.http/jdk.internal.net.http.hpack
- *          java.logging
- *          jdk.httpserver
- * @library /test/lib http2/server
- * @build Http2TestServer
- * @build jdk.test.lib.net.SimpleSSLContext
- * @build jdk.test.lib.Platform
- * @build jdk.test.lib.util.FileUtils
- * @run testng/othervm AsFileDownloadTest
- * @run testng/othervm/java.security.policy=AsFileDownloadTest.policy AsFileDownloadTest
- */
-
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 import java.io.IOException;
 import java.io.InputStream;
@@ -71,6 +51,11 @@ import java.util.Map;
 import javax.net.ssl.SSLContext;
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.util.FileUtils;
+import jdk.httpclient.test.lib.common.HttpServerAdapters;
+import jdk.httpclient.test.lib.common.TestServerConfigurator;
+import jdk.httpclient.test.lib.http2.Http2TestServer;
+import jdk.httpclient.test.lib.http2.Http2TestExchange;
+import jdk.httpclient.test.lib.http2.Http2Handler;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -83,6 +68,17 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+/*
+ * @test
+ * @summary Basic test for ofFileDownload
+ * @bug 8196965
+ * @library /test/lib /test/jdk/java/net/httpclient/lib
+ * @build jdk.httpclient.test.lib.http2.Http2TestServer jdk.test.lib.net.SimpleSSLContext
+ *        jdk.test.lib.Platform jdk.test.lib.util.FileUtils
+ *        jdk.httpclient.test.lib.common.TestServerConfigurator
+ * @run testng/othervm AsFileDownloadTest
+ * @run testng/othervm/java.security.policy=AsFileDownloadTest.policy AsFileDownloadTest
+ */
 public class AsFileDownloadTest {
 
     SSLContext sslContext;
@@ -291,8 +287,10 @@ public class AsFileDownloadTest {
     // -- Infrastructure
 
     static String serverAuthority(HttpServer server) {
-        return InetAddress.getLoopbackAddress().getHostName() + ":"
-                + server.getAddress().getPort();
+        final String hostIP = InetAddress.getLoopbackAddress().getHostAddress();
+        // escape for ipv6
+        final String h = hostIP.contains(":") ? "[" + hostIP + "]" : hostIP;
+        return h + ":" + server.getAddress().getPort();
     }
 
     @BeforeTest
@@ -325,7 +323,7 @@ public class AsFileDownloadTest {
         httpURI = "http://" + serverAuthority(httpTestServer) + "/http1/afdt";
 
         httpsTestServer = HttpsServer.create(sa, 0);
-        httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
+        httpsTestServer.setHttpsConfigurator(new TestServerConfigurator(sa.getAddress(), sslContext));
         httpsTestServer.createContext("/https1/afdt", new Http1FileDispoHandler());
         httpsURI = "https://" + serverAuthority(httpsTestServer) + "/https1/afdt";
 

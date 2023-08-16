@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -106,7 +106,7 @@ class VtableStubs : AllStatic {
 
   static VtableStub* entry_point(address pc);                        // vtable stub entry point for a pc
   static bool        contains(address pc);                           // is pc within any stub?
-  static VtableStub* stub_containing(address pc);                    // stub containing pc or NULL
+  static VtableStub* stub_containing(address pc);                    // stub containing pc or nullptr
   static int         number_of_vtable_stubs() { return _number_of_vtable_stubs; }
   static void        initialize();
   static void        vtable_stub_do(void f(VtableStub*));            // iterates over all vtable stubs
@@ -132,8 +132,8 @@ class VtableStub {
 
   void* operator new(size_t size, int code_size) throw();
 
-  VtableStub(bool is_vtable_stub, int index, bool caller_is_c1)
-        : _next(NULL), _index(index), _ame_offset(-1), _npe_offset(-1),
+  VtableStub(bool is_vtable_stub, short index, bool caller_is_c1)
+        : _next(nullptr), _index(index), _ame_offset(-1), _npe_offset(-1),
           _is_vtable_stub(is_vtable_stub), _caller_is_c1(caller_is_c1) {}
   VtableStub* next() const                       { return _next; }
   int index() const                              { return _index; }
@@ -153,8 +153,8 @@ class VtableStub {
 
  private:
   void set_exception_points(address npe_addr, address ame_addr) {
-    _npe_offset = npe_addr - code_begin();
-    _ame_offset = ame_addr - code_begin();
+    _npe_offset = checked_cast<short>(npe_addr - code_begin());
+    _ame_offset = checked_cast<short>(ame_addr - code_begin());
     assert(is_abstract_method_error(ame_addr),   "offset must be correct");
     assert(is_null_pointer_exception(npe_addr),  "offset must be correct");
     assert(!is_abstract_method_error(npe_addr),  "offset must be correct");

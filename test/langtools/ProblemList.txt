@@ -36,6 +36,13 @@ jdk/jshell/UserInputTest.java                                                   
 jdk/jshell/ToolBasicTest.java                                                   8265357    macosx-aarch64
 jdk/jshell/HighlightUITest.java                                                 8284144    generic-all
 
+jdk/jshell/UserExecutionControlTest.java                                        8308779    generic-all
+jdk/jshell/ToolLocalSimpleTest.java                                             8308779    generic-all
+jdk/jshell/SimpleRegressionTest.java                                            8308779    generic-all
+jdk/jshell/ExecutionControlSpecTest.java                                        8308779    generic-all
+jdk/jshell/ExceptionMessageTest.java                                            8308779    generic-all
+jdk/jshell/ClassMembersTest.java                                                8308779    generic-all
+
 ###########################################################################
 #
 # javac

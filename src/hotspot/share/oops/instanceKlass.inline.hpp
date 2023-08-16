@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,23 +27,24 @@
 
 #include "oops/instanceKlass.hpp"
 
-#include "classfile/javaClasses.hpp"
-#include "classfile/vmSymbols.hpp"
-#include "memory/resourceArea.hpp"
+#include "memory/memRegion.hpp"
+#include "oops/fieldInfo.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "utilities/debug.hpp"
 #include "utilities/devirtualizer.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "utilities/macros.hpp"
 
 inline intptr_t* InstanceKlass::start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
 inline intptr_t* InstanceKlass::end_of_itable()     const { return start_of_itable() + itable_length(); }
 
-inline int InstanceKlass::itable_offset_in_words() const { return start_of_itable() - (intptr_t*)this; }
-
 inline oop InstanceKlass::static_field_base_raw() { return java_mirror(); }
+
+inline Symbol* InstanceKlass::field_name(int index) const { return field(index).name(constants()); }
+inline Symbol* InstanceKlass::field_signature(int index) const { return field(index).signature(constants()); }
+
+inline int InstanceKlass::java_fields_count() const { return FieldInfoStream::num_java_fields(fieldinfo_stream()); }
+inline int InstanceKlass::total_fields_count() const { return FieldInfoStream::num_total_fields(fieldinfo_stream()); }
 
 inline OopMapBlock* InstanceKlass::start_of_nonstatic_oop_maps() const {
   return (OopMapBlock*)(start_of_itable() + itable_length());
@@ -58,20 +59,20 @@ inline InstanceKlass* volatile* InstanceKlass::adr_implementor() const {
   if (is_interface()) {
     return (InstanceKlass* volatile*)end_of_nonstatic_oop_maps();
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
 inline address InstanceKlass::adr_inline_type_field_klasses() const {
   if (has_inline_type_fields()) {
     InstanceKlass* volatile* adr_impl = adr_implementor();
-    if (adr_impl != NULL) {
+    if (adr_impl != nullptr) {
       return (address)(adr_impl + 1);
     }
 
     return (address)end_of_nonstatic_oop_maps();
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -79,7 +80,7 @@ inline Klass* InstanceKlass::get_inline_type_field_klass(int idx) const {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
   Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
-  assert(k != NULL, "Should always be set before being read");
+  assert(k != nullptr, "Should always be set before being read");
   assert(k->is_inline_klass(), "Must be an inline type");
   return k;
 }
@@ -88,22 +89,22 @@ inline Klass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) const 
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
   Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
-  assert(k == NULL || k->is_inline_klass(), "Must be an inline type");
+  assert(k == nullptr || k->is_inline_klass(), "Must be an inline type");
   return k;
 }
 
 inline void InstanceKlass::set_inline_type_field_klass(int idx, Klass* k) {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
-  assert(k != NULL, "Should not be set to NULL");
-  assert(((Klass**)adr_inline_type_field_klasses())[idx] == NULL, "Should not be set twice");
+  assert(k != nullptr, "Should not be set to nullptr");
+  assert(((Klass**)adr_inline_type_field_klasses())[idx] == nullptr, "Should not be set twice");
   ((Klass**)adr_inline_type_field_klasses())[idx] = k;
 }
 
 inline void InstanceKlass::reset_inline_type_field_klass(int idx) {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
-  ((Klass**)adr_inline_type_field_klasses())[idx] = NULL;
+  ((Klass**)adr_inline_type_field_klasses())[idx] = nullptr;
 }
 
 
@@ -228,18 +229,6 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_bounded(oop obj, OopClosureType
   }
 
   oop_oop_iterate_oop_maps_bounded<T>(obj, closure, mr);
-}
-
-inline instanceOop InstanceKlass::allocate_instance(oop java_class, TRAPS) {
-  Klass* k = java_lang_Class::as_Klass(java_class);
-  if (k == NULL) {
-    ResourceMark rm(THREAD);
-    THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
-  }
-  InstanceKlass* ik = cast(k);
-  ik->check_valid_for_instantiation(false, CHECK_NULL);
-  ik->initialize(CHECK_NULL);
-  return ik->allocate_instance(THREAD);
 }
 
 #endif // SHARE_OOPS_INSTANCEKLASS_INLINE_HPP

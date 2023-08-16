@@ -231,8 +231,8 @@ public sealed interface DirectMethodHandleDesc
 
     /**
      * Returns the name of the method or field described by this nominal descriptor.
-     * For constructors, returns the reserved name {@code "<init>"}.
-     * For static value class instance factory methods, return {@code "<vnew>"}.
+     * For constructors, returns the reserved name {@value ConstantDescs#INIT_NAME}.
+     * For static value class instance factory methods, return {@value ConstantDescs#VNEW_NAME}.
      *
      * @return the name of the method or field
      */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -137,8 +137,8 @@ final class MemberName implements Member, Cloneable {
         {
             // Get a snapshot of type which doesn't get changed by racing threads.
             final Object type = this.type;
-            if (type instanceof MethodType) {
-                return (MethodType) type;
+            if (type instanceof MethodType mt) {
+                return mt;
             }
         }
 
@@ -175,8 +175,8 @@ final class MemberName implements Member, Cloneable {
 
         // Get a snapshot of type which doesn't get changed by racing threads.
         final Object type = this.type;
-        if (type instanceof String) {
-            return (String) type;
+        if (type instanceof String str) {
+            return str;
         } else {
             return getMethodType().toMethodDescriptorString();
         }
@@ -214,8 +214,8 @@ final class MemberName implements Member, Cloneable {
         {
             // Get a snapshot of type which doesn't get changed by racing threads.
             final Object type = this.type;
-            if (type instanceof Class<?>) {
-                return (Class<?>) type;
+            if (type instanceof Class<?> cl) {
+                return cl;
             }
         }
 
@@ -754,7 +754,7 @@ final class MemberName implements Member, Cloneable {
 
     @Override
     public boolean equals(Object that) {
-        return (that instanceof MemberName && this.equals((MemberName)that));
+        return that instanceof MemberName mn && this.equals(mn);
     }
 
     /** Decide if two member names have exactly the same symbolic content.
@@ -838,8 +838,8 @@ final class MemberName implements Member, Cloneable {
     void checkForTypeAlias(Class<?> refc) {
         if (isInvocable()) {
             MethodType type;
-            if (this.type instanceof MethodType)
-                type = (MethodType) this.type;
+            if (this.type instanceof MethodType mt)
+                type = mt;
             else
                 this.type = type = getMethodType();
             if (type.erase() == type)  return;
@@ -847,8 +847,8 @@ final class MemberName implements Member, Cloneable {
             throw new LinkageError("bad method type alias: "+type+" not visible from "+refc);
         } else {
             Class<?> type;
-            if (this.type instanceof Class<?>)
-                type = (Class<?>) this.type;
+            if (this.type instanceof Class<?> cl)
+                type = cl;
             else
                 this.type = type = getFieldType();
             if (VerifyAccess.isTypeVisible(type, refc))  return;
@@ -893,8 +893,8 @@ final class MemberName implements Member, Cloneable {
         return buf.toString();
     }
     private static String getName(Object obj) {
-        if (obj instanceof Class<?>)
-            return ((Class<?>)obj).getName();
+        if (obj instanceof Class<?> cl)
+            return cl.getName();
         return String.valueOf(obj);
     }
 
@@ -945,8 +945,8 @@ final class MemberName implements Member, Cloneable {
             ex = new NoSuchMethodException(message);
         else
             ex = new NoSuchFieldException(message);
-        if (resolution instanceof Throwable)
-            ex.initCause((Throwable) resolution);
+        if (resolution instanceof Throwable res)
+            ex.initCause(res);
         return ex;
     }
 
@@ -1022,7 +1022,7 @@ final class MemberName implements Member, Cloneable {
             if (result.isResolved())
                 return result;
             ReflectiveOperationException ex = result.makeAccessException();
-            if (ex instanceof IllegalAccessException)  throw (IllegalAccessException) ex;
+            if (ex instanceof IllegalAccessException iae) throw iae;
             throw nsmClass.cast(ex);
         }
         /** Produce a resolved version of the given member.

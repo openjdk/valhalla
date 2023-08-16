@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,11 @@
 #ifndef SHARE_OOPS_MARKWORD_HPP
 #define SHARE_OOPS_MARKWORD_HPP
 
-#include "metaprogramming/integralConstant.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
+
+#include <type_traits>
 
 // The markWord describes the header of an object.
 //
@@ -49,11 +50,12 @@
 //
 //  - the two lock bits are used to describe three states: locked/unlocked and monitor.
 //
-//    [ptr             | 00]  locked             ptr points to real header on stack
+//    [ptr             | 00]  locked             ptr points to real header on stack (stack-locking in use)
+//    [header          | 00]  locked             locked regular object header (fast-locking in use)
 //    [header          | 01]  unlocked           regular object header
-//    [ptr             | 10]  monitor            inflated lock (header is wapped out)
+//    [ptr             | 10]  monitor            inflated lock (header is swapped out)
 //    [ptr             | 11]  marked             used to mark an object
-//    [0 ............ 0| 00]  inflating          inflation in progress
+//    [0 ............ 0| 00]  inflating          inflation in progress (stack-locking in use)
 //
 //    We assume that stack/thread pointers have the lowest two bits cleared.
 //
@@ -109,7 +111,7 @@
 //  are placed lowest next to lock bits to more easily decode forwarding pointers.
 //  G1 for example, implicitly clears age bits ("G1FullGCCompactionPoint::forward()")
 //  using "oopDesc->forwardee()", so it necessary for "markWord::decode_pointer()"
-//  to return a non-NULL for this case, but not confuse the static type bits for
+//  to return a non-nullptr for this case, but not confuse the static type bits for
 //  a pointer.
 //
 //  Static types bits are recorded in the "klass->prototype_header()", displaced
@@ -224,7 +226,7 @@ class markWord {
   static const uintptr_t larval_pattern           = larval_bit_in_place | inline_type_pattern;
 
   static const uintptr_t no_hash                  = 0 ;  // no hash value assigned
-  static const uintptr_t no_hash_in_place         = (address_word)no_hash << hash_shift;
+  static const uintptr_t no_hash_in_place         = (uintptr_t)no_hash << hash_shift;
   static const uintptr_t no_lock_in_place         = unlocked_value;
 
   static const uint max_age                       = age_mask;
@@ -263,6 +265,7 @@ class markWord {
   // check for and avoid overwriting a 0 value installed by some
   // other thread.  (They should spin or block instead.  The 0 value
   // is transient and *should* be short-lived).
+  // Fast-locking does not use INFLATING.
   static markWord INFLATING() { return zero(); }    // inflate-in-progress
 
   // Should this header be preserved during GC?
@@ -277,12 +280,23 @@ class markWord {
     return markWord(value() | unlocked_value);
   }
   bool has_locker() const {
-    return ((value() & lock_mask_in_place) == locked_value);
+    assert(LockingMode == LM_LEGACY, "should only be called with legacy stack locking");
+    return (value() & lock_mask_in_place) == locked_value;
   }
   BasicLock* locker() const {
     assert(has_locker(), "check");
     return (BasicLock*) value();
   }
+
+  bool is_fast_locked() const {
+    assert(LockingMode == LM_LIGHTWEIGHT, "should only be called with new lightweight locking");
+    return (value() & lock_mask_in_place) == locked_value;
+  }
+  markWord set_fast_locked() const {
+    // Clear the lock_mask_in_place bits to set locked_value:
+    return markWord(value() & ~lock_mask_in_place);
+  }
+
   bool has_monitor() const {
     return ((value() & lock_mask_in_place) == monitor_value);
   }
@@ -292,7 +306,9 @@ class markWord {
     return (ObjectMonitor*) (value() ^ monitor_value);
   }
   bool has_displaced_mark_helper() const {
-    return ((value() & unlocked_value) == 0);
+    intptr_t lockbits = value() & lock_mask_in_place;
+    return LockingMode == LM_LIGHTWEIGHT  ? lockbits == monitor_value   // monitor?
+                                          : (lockbits & unlocked_value) == 0; // monitor | stack-locked?
   }
   markWord displaced_mark_helper() const;
   void set_displaced_mark_helper(markWord m) const;
@@ -323,7 +339,7 @@ class markWord {
   markWord set_marked()   { return markWord((value() & ~lock_mask_in_place) | marked_value); }
   markWord set_unmarked() { return markWord((value() & ~lock_mask_in_place) | unlocked_value); }
 
-  uint     age()           const { return mask_bits(value() >> age_shift, age_mask); }
+  uint     age()           const { return (uint) mask_bits(value() >> age_shift, age_mask); }
   markWord set_age(uint v) const {
     assert((v & ~age_mask) == 0, "shouldn't overflow age field");
     return markWord((value() & ~age_mask_in_place) | ((v & age_mask) << age_shift));
@@ -396,14 +412,14 @@ class markWord {
 
   // Recover address of oop from encoded form used in mark
   inline void* decode_pointer() {
-    return (EnableValhalla && _value < static_prototype_value_max) ? NULL :
+    return (EnableValhalla && _value < static_prototype_value_max) ? nullptr :
       (void*) (clear_lock_bits().value());
   }
 };
 
 // Support atomic operations.
 template<>
-struct PrimitiveConversions::Translate<markWord> : public TrueType {
+struct PrimitiveConversions::Translate<markWord> : public std::true_type {
   typedef markWord Value;
   typedef uintptr_t Decayed;
 

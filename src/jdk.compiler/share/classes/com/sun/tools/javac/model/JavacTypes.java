@@ -63,6 +63,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected JavacTypes(Context context) {
         context.put(JavacTypes.class, this);
         syms = Symtab.instance(context);
@@ -76,6 +77,8 @@ public class JavacTypes implements javax.lang.model.util.Types {
             case INTERSECTION:
             case ERROR:
             case TYPEVAR:
+            case PACKAGE:
+            case MODULE:
                 Type type = cast(Type.class, t);
                 return type.asElement();
             default:
@@ -274,7 +277,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
             }
             // TODO: Would like a way to check that type args match formals.
 
-            return (DeclaredType) new Type.ClassType(outer, targs.toList(), sym, TypeMetadata.EMPTY, sym.type.getFlavor());
+            return (DeclaredType) new Type.ClassType(outer, targs.toList(), sym, sym.type.getFlavor());
         }
 
     /**

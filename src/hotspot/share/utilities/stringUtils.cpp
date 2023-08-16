@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ int StringUtils::replace_no_expand(char* string, const char* from, const char* t
   size_t to_len = strlen(to);
   assert(from_len >= to_len, "must not expand input");
 
-  for (char* dst = string; *dst && (dst = strstr(dst, from)) != NULL;) {
+  for (char* dst = string; *dst && (dst = strstr(dst, from)) != nullptr;) {
     char* left_over = dst + from_len;
     memmove(dst, to, to_len);                       // does not copy trailing 0 of <to>
     dst += to_len;                                  // skip over the replacement.
@@ -49,7 +49,7 @@ int StringUtils::replace_no_expand(char* string, const char* from, const char* t
 }
 
 double StringUtils::similarity(const char* str1, size_t len1, const char* str2, size_t len2) {
-  assert(str1 != NULL && str2 != NULL, "sanity");
+  assert(str1 != nullptr && str2 != nullptr, "sanity");
 
   // filter out zero-length strings else we will underflow on len-1 below
   if (len1 == 0 || len2 == 0) {
@@ -118,17 +118,17 @@ class StringMatcher {
           char ch = _pattern_getc(patp, pattern_end);
           char mch = _string_getc(anchorp, match_end);
           if (mch != ch) {
-            anchorp = NULL;
+            anchorp = nullptr;
             break;
           }
         }
-        if (anchorp != NULL) {
+        if (anchorp != nullptr) {
           return anchorp;  // Found a full copy of the anchor.
         }
         // That did not work, so restart the search for ch1.
       }
     }
-    return NULL;
+    return nullptr;
   }
 
  public:
@@ -150,7 +150,7 @@ class StringMatcher {
       break;
     }
     patp = pattern;  // Reset after lookahead.
-    const char* matchp = string;  // NULL if failing
+    const char* matchp = string;  // nullptr if failing
     for (;;) {
       int ch = _pattern_getc(patp, pattern_end);
       switch (ch) {
@@ -168,7 +168,7 @@ class StringMatcher {
         return false;  // End of all items.
 
       case string_match_star:
-        if (matchp != NULL) {
+        if (matchp != nullptr) {
           // Wildcard:  Parse out following anchor word and look for it.
           const char* begp = patp;
           const char* endp = patp;
@@ -201,10 +201,10 @@ class StringMatcher {
         continue;
       }
       // Normal character.
-      if (matchp != NULL) {
+      if (matchp != nullptr) {
         int mch = _string_getc(matchp, string_end);
         if (mch != ch) {
-          matchp = NULL;
+          matchp = nullptr;
         }
       }
     }
@@ -279,7 +279,7 @@ class ClassListMatcher : public StringMatcher {
 
 bool StringUtils::class_list_match(const char* class_pattern_list,
                                    const char* class_name) {
-  if (class_pattern_list == NULL || class_name == NULL || class_name[0] == '\0')
+  if (class_pattern_list == nullptr || class_name == nullptr || class_name[0] == '\0')
     return false;
   ClassListMatcher clm;
   return clm.string_match(class_pattern_list, class_name);

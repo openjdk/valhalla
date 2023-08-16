@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -124,8 +124,8 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
     /*non-public*/
     static BoundMethodHandle.SpeciesData speciesDataFor(LambdaForm form) {
         Object c = form.names[0].constraint;
-        if (c instanceof SpeciesData) {
-            return (SpeciesData) c;
+        if (c instanceof SpeciesData sd) {
+            return sd;
         }
         // if there is no BMH constraint, then use the null constraint
         return SPECIALIZER.topSpecies();
@@ -153,8 +153,8 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
         for (int i = 0; i < count; ++i) {
             Object theArg = arg(i);
             sb.append("\n  ").append(prefix).append(i);
-            if (indentLevel >= 0 && theArg instanceof MethodHandle) {
-                sb.append(": MethodHandle = {").append(((MethodHandle)theArg).debugString(indentLevel+1));
+            if (indentLevel >= 0 && theArg instanceof MethodHandle mh) {
+                sb.append(": MethodHandle = {").append(mh.debugString(indentLevel+1));
                 sb.append("\n  ").append(prefix).append("}");
             } else {
                 sb.append(": ( ").append(theArg).append(" )");
@@ -233,7 +233,7 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
         /*non-public*/
         final BoundMethodHandle copyWithExtendL(MethodType mt, LambdaForm lf, Object narg) {
             try {
-                return (BoundMethodHandle) BMH_SPECIES.extendWith(L_TYPE_NUM).factory().invokeBasic(mt, lf, argL0, narg);
+                return (BoundMethodHandle) BMH_SPECIES.extendWith(L_TYPE).factory().invokeBasic(mt, lf, argL0, narg);
             } catch (Throwable ex) {
                 throw uncaughtException(ex);
             }
@@ -242,7 +242,7 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
         /*non-public*/
         final BoundMethodHandle copyWithExtendI(MethodType mt, LambdaForm lf, int narg) {
             try {
-                return (BoundMethodHandle) BMH_SPECIES.extendWith(I_TYPE_NUM).factory().invokeBasic(mt, lf, argL0, narg);
+                return (BoundMethodHandle) BMH_SPECIES.extendWith(I_TYPE).factory().invokeBasic(mt, lf, argL0, narg);
             } catch (Throwable ex) {
                 throw uncaughtException(ex);
             }
@@ -251,7 +251,7 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
         /*non-public*/
         final BoundMethodHandle copyWithExtendJ(MethodType mt, LambdaForm lf, long narg) {
             try {
-                return (BoundMethodHandle) BMH_SPECIES.extendWith(J_TYPE_NUM).factory().invokeBasic(mt, lf, argL0, narg);
+                return (BoundMethodHandle) BMH_SPECIES.extendWith(J_TYPE).factory().invokeBasic(mt, lf, argL0, narg);
             } catch (Throwable ex) {
                 throw uncaughtException(ex);
             }
@@ -260,7 +260,7 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
         /*non-public*/
         final BoundMethodHandle copyWithExtendF(MethodType mt, LambdaForm lf, float narg) {
             try {
-                return (BoundMethodHandle) BMH_SPECIES.extendWith(F_TYPE_NUM).factory().invokeBasic(mt, lf, argL0, narg);
+                return (BoundMethodHandle) BMH_SPECIES.extendWith(F_TYPE).factory().invokeBasic(mt, lf, argL0, narg);
             } catch (Throwable ex) {
                 throw uncaughtException(ex);
             }
@@ -269,7 +269,7 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
         /*non-public*/
         final BoundMethodHandle copyWithExtendD(MethodType mt, LambdaForm lf, double narg) {
             try {
-                return (BoundMethodHandle) BMH_SPECIES.extendWith(D_TYPE_NUM).factory().invokeBasic(mt, lf, argL0, narg);
+                return (BoundMethodHandle) BMH_SPECIES.extendWith(D_TYPE).factory().invokeBasic(mt, lf, argL0, narg);
             } catch (Throwable ex) {
                 throw uncaughtException(ex);
             }
@@ -319,7 +319,7 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
             if (whichtm == Specializer.TN_COPY_NO_EXTEND) {
                 return factory();
             } else if (whichtm < ARG_TYPE_LIMIT) {
-                return extendWith((byte) whichtm).factory();
+                return extendWith(BasicType.basicType((byte) whichtm)).factory();
             } else {
                 throw newInternalError("bad transform");
             }
@@ -353,10 +353,11 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
         }
 
         /*non-public*/
-        SpeciesData extendWith(byte typeNum) {
+        SpeciesData extendWith(BasicType basicType) {
+            int typeNum = basicType.ordinal();
             SpeciesData sd = extensions[typeNum];
             if (sd != null)  return sd;
-            sd = SPECIALIZER.findSpecies(key() + BasicType.basicType(typeNum).basicTypeChar());
+            sd = SPECIALIZER.findSpecies(key() + basicType.basicTypeChar());
             extensions[typeNum] = sd;
             return sd;
         }
@@ -406,7 +407,7 @@ abstract non-sealed class BoundMethodHandle extends MethodHandle {
         }
 
         static final List<MemberName> BMH_TRANSFORMS;
-        static final int TN_COPY_NO_EXTEND = V_TYPE_NUM;
+        static final int TN_COPY_NO_EXTEND = V_TYPE.ordinal();
         static {
             final Class<BoundMethodHandle> BMH = BoundMethodHandle.class;
             // copyWithExtendLIJFD + copyWith

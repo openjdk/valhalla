@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package sun.security.util;
 
+import jdk.internal.util.ArraysSupport;
 import sun.nio.cs.UTF_32BE;
 import sun.util.calendar.CalendarDate;
 import sun.util.calendar.CalendarSystem;
@@ -1060,6 +1061,14 @@ public class DerValue {
     }
 
     /**
+     * Determines whether Date was encoded as UTC or Generalized time and
+     * calls getUTCTime or getGeneralizedTime accordingly
+     */
+    public Date getTime() throws IOException {
+        return (tag == tag_UtcTime) ? getUTCTime() : getGeneralizedTime();
+    }
+
+    /**
      * Returns a Date if the DerValue is UtcTime.
      *
      * @return the Date held in this DER value
@@ -1257,11 +1266,7 @@ public class DerValue {
      */
     @Override
     public int hashCode() {
-        int result = tag;
-        for (int i = start; i < end; i++) {
-            result = 31 * result + buffer[i];
-        }
-        return result;
+        return ArraysSupport.vectorizedHashCode(buffer, start, end - start, tag, ArraysSupport.T_BYTE);
     }
 
     /**
