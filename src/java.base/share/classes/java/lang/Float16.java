@@ -52,6 +52,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * @since 20.00
  */
 
+// Currently Float16 is a primitive class but in future will be aligned with
+// Enhanced Primitive Boxes described by JEP-402 (https://openjdk.org/jeps/402)
 public primitive class Float16 {
    private final short value;
 

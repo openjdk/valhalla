@@ -33,7 +33,7 @@ import java.util.Random;
 
 public class FP16ScalarOperations {
 
-   public static Random r = new Random(1024);
+    public static Random r = new Random(1024);
 
     public static short actual_value(char oper, short val1, short val2) {
         Float16 obj1 = new Float16((short)val1);

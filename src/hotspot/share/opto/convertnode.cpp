@@ -867,6 +867,14 @@ const Type* ReinterpretS2HFNode::Value(PhaseGVN* phase) const {
   return Type::FLOAT;
 }
 
+Node* ReinterpretS2HFNode::Identity(PhaseGVN* phase) {
+  if (in(1)->Opcode() == Op_ReinterpretHF2S) {
+     assert(in(1)->in(1)->bottom_type()->isa_float(), "");
+     return in(1)->in(1);
+  }
+  return this;
+}
+
 const Type* ReinterpretHF2SNode::Value(PhaseGVN* phase) const {
   const Type* type = phase->type( in(1) );
   // Convert Float constant value to FP16 constant value.

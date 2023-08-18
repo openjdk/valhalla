@@ -219,6 +219,8 @@ class ClassFileParser {
 
   bool is_jdk_internal_class(const Symbol* class_name) const;
 
+  bool is_jdk_internal_class_sig(const char* sig) const;
+
   void parse_stream(const ClassFileStream* const stream, TRAPS);
 
   void mangle_hidden_class_name(InstanceKlass* const ik);
