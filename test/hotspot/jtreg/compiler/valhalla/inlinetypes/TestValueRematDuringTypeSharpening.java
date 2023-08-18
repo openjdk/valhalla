@@ -73,12 +73,10 @@ public class TestValueRematDuringTypeSharpening {
        return getUnsafeFieldValue(obj, val);
    }
 
-   @Run(test = {"test"}, mode = RunMode.STANDALONE)
+   @Run(test = {"test"}, mode = RunMode.NORMAL)
    public static void kernel() {
-       int res = 0;
-       for (int i = 0; i < 10000; i++) {
-           res += test((i % 1000) == 1 ? new dummyValue1(i) : new dummyValue2(i));
-       }
+       test(new dummyValue1(10));
+       test(new dummyValue2(20));
    }
 
    public static void main(String [] args) {
