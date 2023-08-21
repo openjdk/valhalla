@@ -509,11 +509,11 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != NULL);
       bool mismatched = (decorators & C2_MISMATCHED) != 0;
-      if (base->is_Con() && !is_array && !mismatched && ft->bundle_size() == 1) {
+      ciField* field = holder->get_field_by_offset(offset, false);
+      if (base->is_Con() && !is_array && !mismatched && !field->is_multifield_base() && ft->bundle_size() == 1) {
         // If the oop to the inline type is constant (static final field), we can
         // also treat the fields as constants because the inline type is immutable.
         ciObject* constant_oop = oop_ptr->const_oop();
-        ciField* field = holder->get_field_by_offset(offset, false);
         assert(field != NULL, "field not found");
         ciConstant constant = constant_oop->as_instance()->field_value(field);
         const Type* con_type = Type::make_from_constant(constant, /*require_const=*/ true);
@@ -527,7 +527,6 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
       } else {
         // Load field value from memory
         BasicType bt = type2field[ft->basic_type()];
-        ciField* field = holder->get_field_by_offset(offset, false);
         const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
         Node* adr = kit->basic_plus_adr(base, ptr, offset);
         assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
@@ -853,11 +852,13 @@ Node* InlineTypeNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
   return gvn.makecon(TypeInstPtr::make(vk->default_instance()));
 }
 
-Node* InlineTypeNode::default_value(PhaseGVN& gvn, ciType* field_type) {
+Node* InlineTypeNode::default_value(PhaseGVN& gvn, ciType* field_type, ciInlineKlass* klass, int index) {
   BasicType bt = field_type->basic_type();
-  Node* value = gvn.zerocon(field_type->basic_type());
   int vec_len = field_type->bundle_size();
-  if (is_java_primitive(bt) &&
+  Node* value = gvn.zerocon(field_type->basic_type());
+  int is_multifield = klass->declared_nonstatic_field_at(index)->is_multifield_base();
+  if (is_multifield &&
+      is_java_primitive(bt) &&
       Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {
       value = gvn.transform(VectorNode::scalar2vector(value, vec_len, Type::get_const_type(field_type), false));
   }
@@ -878,7 +879,7 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
   vt->set_is_init(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* ft = vt->field_type(i);
-    Node* value = default_value(gvn, ft);
+    Node* value = default_value(gvn, ft, vk, i);
     if (!vt->field_is_flattened(i) && visited.contains(ft)) {
       gvn.C->set_has_circular_inline_type(true);
     } else if (ft->is_inlinetype()) {
@@ -1245,7 +1246,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
           parm = field_value(i);
         } else if (multi->is_Start()) {
           assert(in, "return from start?");
-          parm = default_value(gvn, type);
+          parm = default_value(gvn, type, ik, i);
         } else {
           assert(false, "unhandled case");
         }
@@ -1345,7 +1346,7 @@ InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk,
   vt->set_is_init(gvn, false);
   for (uint i = 0; i < vt->field_count(); i++) {
     ciType* ft = vt->field_type(i);
-    Node* value = default_value(gvn, ft);
+    Node* value = default_value(gvn, ft, vk, i);
     if (!vt->field_is_flattened(i) && visited.contains(ft)) {
       gvn.C->set_has_circular_inline_type(true);
     } else if (ft->is_inlinetype()) {

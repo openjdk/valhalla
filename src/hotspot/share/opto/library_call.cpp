@@ -2340,6 +2340,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   if (base->is_InlineType()) {
     InlineTypeNode* vt = base->as_InlineType();
     if (is_store) {
+      ciInlineKlass* vk = vt->type()->inline_klass();
       if (!vt->is_allocated(&_gvn)) {
         return false;
       }
@@ -2361,9 +2362,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         }
 
         ciField* field = vk->get_non_flattened_field_by_offset(off);
-        // Skip over direct field access for VectorPayloadMF* class instancs since
+        // Skip over direct field access for VectorPayloadMF* class instances since
         // multifield is loaded into vector, alternatively we can create a lane
-        // extraction logic.
+        // extraction logic. Given that unsafe put operations over vector payloads are part
+        // of fallback implementation, for the time being suboptimality should not be major
+        // concern.
         if (field != nullptr && !VectorSupport::is_vector_payload_mf(vk->get_InlineKlass())) {
           BasicType bt = type2field[field->type()->basic_type()];
           if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flattened())) {
@@ -2652,7 +2655,7 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
     return false;
   }
   InlineTypeNode* vt = buffer->as_InlineType();
-  if (!vt->is_allocated(&_gvn)) {
+  if (!vt->is_allocated(&_gvn) || VectorSupport::is_vector_payload_mf(vt->inline_klass()->get_InlineKlass())) {
     return false;
   }
   // TODO 8239003 Why is this needed?

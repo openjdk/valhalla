@@ -1867,7 +1867,7 @@ void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off
       assert(!inner_field->is_flattened(), "the iteration over nested fields is handled by the loop itself");
       int off = inner_field->offset_in_bytes() + sec_offset - vk->first_field_offset();
       LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
-      sec_offset += type2aelembytes(as_BasicType(load->type()));
+      sec_offset += type2aelembytes(inner_field->type()->basic_type());
       Value replacement = append(load);
       StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, false);
       store->set_enclosing_field(enclosing_field);
@@ -2197,10 +2197,14 @@ void GraphBuilder::withfield(int field_index) {
             copy_inline_content(vk, obj, offset, new_instance, vk->first_field_offset(), state_before, field);
           }
         } else {
-          LoadField* load = new LoadField(obj, offset, field, false, state_before, false);
-          Value replacement = append(load);
-          StoreField* store = new StoreField(new_instance, offset, field, replacement, false, state_before, false);
-          append(store);
+          for (int i = 0, sec_offset = 0; i < field->secondary_fields_count(); i++) {
+            ciField* temp = i > 0 ? static_cast<ciMultiField*>(field)->secondary_field_at(i-1) : field;
+            LoadField* load = new LoadField(obj, offset + sec_offset, temp, false, state_before, false);
+            sec_offset += type2aelembytes(as_BasicType(load->type()));
+            Value replacement = append(load);
+            StoreField* store = new StoreField(new_instance, offset + sec_offset, temp, replacement, false, state_before, false);
+            append(store);
+          }
         }
       }
     }
@@ -2218,8 +2222,12 @@ void GraphBuilder::withfield(int field_index) {
       copy_inline_content(vk, val, vk->first_field_offset(), new_instance, offset_modify, state_before, field_modify);
     }
   } else {
-    StoreField* store = new StoreField(new_instance, offset_modify, field_modify, val, false, state_before, needs_patching);
-    append(store);
+    int sec_field_size = type2aelembytes(field_type);
+    for (int i = 0; i < field_modify->secondary_fields_count(); i++) {
+      ciField* temp = i > 0 ? static_cast<ciMultiField*>(field_modify)->secondary_field_at(i-1) : field_modify;
+      StoreField* store = new StoreField(new_instance, offset_modify + i * sec_field_size, temp, val, false, state_before, needs_patching);
+      append(store);
+    }
   }
 }
 

@@ -321,6 +321,9 @@ int ciBytecodeStream::get_field_index() {
 // or put_static, get the referenced field.
 ciField* ciBytecodeStream::get_field(bool& will_link) {
   ciField* f = CURRENT_ENV->get_field_by_index(_holder, get_field_index(), _bc);
+  if (f && f->is_multifield_base()) {
+    GUARDED_VM_ENTRY(f = _holder->populate_synthetic_multifields(f);)
+  }
   will_link = f->will_link(_method, _bc);
   return f;
 }

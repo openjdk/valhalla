@@ -1128,9 +1128,14 @@ oop java_lang_Class::create_secondary_mirror(Klass* k, Handle mirror, TRAPS) {
 // latter may contain dumptime-specific information that cannot be archived
 // (e.g., ClassLoaderData*, or static fields that are modified by Java code execution).
 void java_lang_Class::create_scratch_mirror(Klass* k, TRAPS) {
-  if (k->class_loader() != nullptr &&
-      k->class_loader() != SystemDictionary::java_platform_loader() &&
-      k->class_loader() != SystemDictionary::java_system_loader()) {
+  // Inline classes encapsulate two mirror objects, a value mirror (primitive value mirror)
+  // and a reference mirror (primitive class mirror), skip over scratch mirror allocation
+  // for inline classes, they will not be part of shared archive and will be created while
+  // restoring unshared fileds. Refer Klass::restore_unshareable_info() for more details.
+  if (k->is_inline_klass() ||
+      (k->class_loader() != nullptr &&
+       k->class_loader() != SystemDictionary::java_platform_loader() &&
+       k->class_loader() != SystemDictionary::java_system_loader())) {
     // We only archive the mirrors of classes loaded by the built-in loaders
     return;
   }
@@ -4962,30 +4967,6 @@ void java_util_concurrent_locks_AbstractOwnableSynchronizer::serialize_offsets(S
   AOS_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
 }
 #endif
-
-int vector_VectorPayload::_payload_offset;
-
-#define VECTORPAYLOAD_FIELDS_DO(macro) \
-  macro(_payload_offset, k, "payload", object_signature, false)
-
-void vector_VectorPayload::compute_offsets() {
-  InstanceKlass* k = vmClasses::vector_VectorPayload_klass();
-  //FIXME: VectorPayload class no longer holds the Object payload.
-  //Multi-field based payloads have been moved to leaf level
-  //concrete classes. Offset recorded here is used for object
-  //re-construction during de-opt.
-  // VECTORPAYLOAD_FIELDS_DO(FIELD_COMPUTE_OFFSET);
-}
-
-#if INCLUDE_CDS
-void vector_VectorPayload::serialize_offsets(SerializeClosure* f) {
-  VECTORPAYLOAD_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
-}
-#endif
-
-void vector_VectorPayload::set_payload(oop o, oop val) {
-  o->obj_field_put(_payload_offset, val);
-}
 
 bool vector_VectorPayload::is_instance(oop obj) {
   return obj != nullptr && is_subclass(obj->klass());

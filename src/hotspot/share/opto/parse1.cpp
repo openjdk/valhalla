@@ -926,8 +926,11 @@ void Compile::return_values(JVMState* jvms) {
     Node* res = kit.argument(0);
     if (res->isa_InlineType() && VectorSupport::skip_value_scalarization(res->as_InlineType()->inline_klass()->get_InlineKlass())) {
       InlineTypeNode* vt = res->as_InlineType();
-      assert(vt->get_is_buffered() && vt->get_is_buffered()->get_int() == 1, "");
-      ret->add_req(vt->get_oop());
+      // Prevent returning uninitialized VBA, this will make associated box useless and
+      // will be swept by dead code eliminator. Once VBA is expanded and initialized during
+      // PhaseVector box users will be tied to newly allocated and initialized objects.
+      assert(vt->get_is_buffered(), "");
+      ret->add_req(vt->get_is_buffered()->get_int() ? vt->get_oop() : res);
     } else if (tf()->returns_inline_type_as_fields()) {
       // Multiple return values (inline type fields): add as many edges
       // to the Return node as returned values.
@@ -2371,20 +2374,20 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeInstPtr* tr = return_type->isa_instptr();
-    if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
-        return_type->is_inlinetypeptr()) {
+    // Buffer vector return values, for regular inline object caller
+    // expects scalarized fields to be passed back.
+    bool is_vector_value = value->is_InlineType() &&
+                           VectorSupport::skip_value_scalarization(value->as_InlineType()->inline_klass()->get_InlineKlass());
+    // Defer returning VectorBoxAllocation node, they will be expanded and initialized
+    // during box expansion and will replace all uses of box.
+    bool skip_scalarization = is_vector_value && Compile::current()->inlining_incrementally();
+    if (!is_vector_value && ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
+        return_type->is_inlinetypeptr())) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
         value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
       }
-      if (VectorSupport::skip_value_scalarization(value->as_InlineType()->inline_klass()->get_InlineKlass())) {
-        // Buffer the vector return types, for regular inline object caller expects
-        // scalarized fields to be passed back.
-        PreserveReexecuteState preexecs(this);
-        jvms()->set_should_reexecute(true);
-        inc_sp(1);
-        value = value->as_InlineType()->buffer(this);
-      } else if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
+      if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flattened
         // fields are buffered and re-execute if allocation triggers deoptimization.
         PreserveReexecuteState preexecs(this);
@@ -2393,7 +2396,8 @@ void Parse::return_current(Node* value) {
         inc_sp(1);
         value = value->as_InlineType()->allocate_fields(this);
       }
-    } else if (value->is_InlineType()) {
+    } else if ((is_vector_value && skip_scalarization) ||
+               (value->Opcode() != Op_VectorBox && value->is_InlineType())) {
       // Inline type is returned as oop, make sure it is buffered and re-execute
       // if allocation triggers deoptimization.
       PreserveReexecuteState preexecs(this);
