@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -136,6 +136,28 @@ public class TestAcmp {
         Asserts.assertFalse(notequal(new ManyFieldsValueClass(a1, b1), new ManyFieldsValueClass(a1, b1)));
         Asserts.assertFalse(notequal(new ManyFieldsValueClass(a1, b1), new ManyFieldsValueClass(a2, b1)));
         Asserts.assertTrue(notequal(new ManyFieldsValueClass(a1, b1), new ManyFieldsValueClass(a2, b2)));
+    }
+    
+    @Test
+    @IR(failOn = SUBSTITUTABILITY_TEST)
+    public static boolean foldable_eq() {
+    	valuePoint p1 = new valuePoint(1, 2);
+    	valuePoint p2 = new valuePoint(1, 2);
+        return p1 == p2;
+    }
+
+    @Test
+    @IR(failOn = SUBSTITUTABILITY_TEST)
+    public static boolean foldable_ne() {
+    	valuePoint p1 = new valuePoint(1, 2);
+    	valuePoint p2 = new valuePoint(2, 2);
+        return p1 == p2;
+    }
+
+    @Run(test = {"foldable_eq", "foldable_ne"})
+    public void test_foldable() {
+        Asserts.assertTrue(foldable_eq());
+        Asserts.assertFalse(foldable_ne());
     }
 
     public static value class MyValue3{

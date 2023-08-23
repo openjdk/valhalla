@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,15 +38,6 @@ import java.util.concurrent.TimeUnit;
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Thread)
 public class ManyBasicFields {
-	public value class Point{
-		int x;
-		int y;
-		public Point(int x, int y){
-			this.x = x;
-			this.y = y;
-		}
-	}
-
 	public value class ManyObjectFields1 {
 		int field1;
 		int field2;

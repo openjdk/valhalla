@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,24 +47,20 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Thread)
-public class MyTest {
+public class SimpleClassTest {
     public value class MyValue {
 		int a;
-		short b;
-		long c;
-		char d;
-		double e;
-		float f;
-		boolean g;
+		int b;
+		char c;
+		double d;
+		boolean e;
 		Point p1;
 		public MyValue(Point p1){
 		    this.a = 0;
-		    this.b = 0;
-		    this.c = 1;
-		    this.d = 'b';
-		    this.e = 1.892;
-		    this.f = 1.35f;
-		    this.g = true;
+		    this.b = 1;
+		    this.c = 'b';
+		    this.d = 9.81;
+		    this.e = true;
 		    this.p1 = p1;
 		}
 	}
@@ -77,33 +73,34 @@ public class MyTest {
 		    this.y = y;
 		}
 	}
-
-	MyValue a = new MyValue(new Point(1, 0));
-	MyValue b = new MyValue(new Point(1, 0));
-	MyValue c = new MyValue(new Point(1, 1));	
 	
-	public boolean test(MyValue a, MyValue b) {
+	public boolean test_inlined(MyValue a, MyValue b) {
+		return a == b;
+	}
+	
+	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
+	public boolean test_not_inlined(MyValue a, MyValue b) {
 		return a == b;
 	}
 
+	static int counter = 0;
+	MyValue a = new MyValue(new Point(1, 0));
+	MyValue b = new MyValue(new Point(1, 0));
+	MyValue c = new MyValue(new Point(0, 0));
+
     @Benchmark
-    public boolean cmp_inlined() {
-        return test(a, b);
+    public boolean cmp_inlined() {    	
+        return test_inlined(a, (counter++ % 2) == 0 ? b : c);
     }
     
     @Benchmark
-    public boolean cmp_direct(){
-    	return a == b;
+    public boolean cmp_not_inlined() {
+        return test_not_inlined(a, (counter++ % 2) == 0 ? b : c);
     }
-
-	@Benchmark
-	public boolean cmp_direct_not_equal(){
-		return a == c;
-	}
     
     @Benchmark
     public boolean cmp_foldable(){
-		MyValue v1 = new MyValue(new Point(1, 0));
+		MyValue v1 = new MyValue(new Point(counter++ % 2, 0));
 		MyValue v2 = new MyValue(new Point(1, 0));
     	return v1 == v2;
     }

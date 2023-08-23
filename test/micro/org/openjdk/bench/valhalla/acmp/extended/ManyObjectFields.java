@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,6 +62,7 @@ public class ManyObjectFields {
 	ManyObjectFields1 obj1_2 = new ManyObjectFields1(new Point(0, 1), new Point(0, 2), new Point(0, 3));
 	ManyObjectFields1 obj1_3 = new ManyObjectFields1(new Point(0, 0), new Point(0, 2), new Point(0, 3));
 
+	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
 	public boolean test_03(ManyObjectFields1 a, ManyObjectFields1 b) {return a == b;}
 
 	@Benchmark
@@ -92,7 +93,8 @@ public class ManyObjectFields {
 	ManyObjectFields2 obj2_1 = new ManyObjectFields2(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
 	ManyObjectFields2 obj2_2 = new ManyObjectFields2(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
 	ManyObjectFields2 obj2_3 = new ManyObjectFields2(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
-
+	
+	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
 	public boolean test_06(ManyObjectFields2 a, ManyObjectFields2 b) {return a == b;}
 
 	@Benchmark
