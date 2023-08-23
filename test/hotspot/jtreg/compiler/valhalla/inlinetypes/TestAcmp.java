@@ -137,20 +137,20 @@ public class TestAcmp {
         Asserts.assertFalse(notequal(new ManyFieldsValueClass(a1, b1), new ManyFieldsValueClass(a2, b1)));
         Asserts.assertTrue(notequal(new ManyFieldsValueClass(a1, b1), new ManyFieldsValueClass(a2, b2)));
     }
-    
+
     @Test
     @IR(failOn = SUBSTITUTABILITY_TEST)
     public static boolean foldable_eq() {
-    	valuePoint p1 = new valuePoint(1, 2);
-    	valuePoint p2 = new valuePoint(1, 2);
+        valuePoint p1 = new valuePoint(1, 2);
+        valuePoint p2 = new valuePoint(1, 2);
         return p1 == p2;
     }
 
     @Test
     @IR(failOn = SUBSTITUTABILITY_TEST)
     public static boolean foldable_ne() {
-    	valuePoint p1 = new valuePoint(1, 2);
-    	valuePoint p2 = new valuePoint(2, 2);
+        valuePoint p1 = new valuePoint(1, 2);
+        valuePoint p2 = new valuePoint(2, 2);
         return p1 == p2;
     }
 
