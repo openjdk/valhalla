@@ -450,7 +450,7 @@ void ClassLoaderData::classes_do(void f(InstanceKlass*)) {
 
 void ClassLoaderData::inline_classes_do(void f(InlineKlass*)) {
   // Lock-free access requires load_acquire
-  for (Klass* k = Atomic::load_acquire(&_klasses); k != NULL; k = k->next_link()) {
+  for (Klass* k = Atomic::load_acquire(&_klasses); k != nullptr; k = k->next_link()) {
     if (k->is_inline_klass()) {
       f(InlineKlass::cast(k));
     }

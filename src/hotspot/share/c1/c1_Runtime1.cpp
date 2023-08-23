@@ -478,9 +478,9 @@ static void profile_flat_array(JavaThread* current) {
   int bci = vfst.bci();
   Method* method = vfst.method();
   MethodData* md = method->method_data();
-  if (md != NULL) {
+  if (md != nullptr) {
     ProfileData* data = md->bci_to_data(bci);
-    assert(data != NULL && data->is_ArrayLoadStoreData(), "incorrect profiling entry");
+    assert(data != nullptr && data->is_ArrayLoadStoreData(), "incorrect profiling entry");
     ArrayLoadStoreData* load_store = (ArrayLoadStoreData*)data;
     load_store->set_flat_array();
   }
@@ -504,7 +504,7 @@ JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* current, flatArrayOo
   }
 
   NOT_PRODUCT(_store_flattened_array_slowcase_cnt++;)
-  if (value == NULL) {
+  if (value == nullptr) {
     assert(array->klass()->is_flatArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
@@ -1641,6 +1641,19 @@ JRT_ENTRY(void, Runtime1::predicate_failed_trap(JavaThread* current))
 
   Deoptimization::deoptimize_frame(current, caller_frame.id());
 
+JRT_END
+
+// Check exception if AbortVMOnException flag set
+JRT_LEAF(void, Runtime1::check_abort_on_vm_exception(oopDesc* ex))
+  ResourceMark rm;
+  const char* message = nullptr;
+  if (ex->is_a(vmClasses::Throwable_klass())) {
+    oop msg = java_lang_Throwable::message(ex);
+    if (msg != nullptr) {
+      message = java_lang_String::as_utf8_string(msg);
+    }
+  }
+  Exceptions::debug_check_abort(ex->klass()->external_name(), message);
 JRT_END
 
 #ifndef PRODUCT

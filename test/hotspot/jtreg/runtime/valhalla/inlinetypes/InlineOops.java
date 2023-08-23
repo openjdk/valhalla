@@ -35,7 +35,7 @@ import jdk.test.whitebox.WhiteBox;
 import test.java.lang.invoke.lib.InstructionHelper;
 
 /**
- * @test InlineOops_int_Serial
+ * @test id=Serial
  * @requires vm.gc.Serial
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
@@ -51,7 +51,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  */
 
 /**
- * @test InlineOops_int_G1
+ * @test id=G1
  * @requires vm.gc.G1
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
@@ -67,7 +67,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  */
 
 /**
- * @test InlineOops_int_Parallel
+ * @test id=Parallel
  * @requires vm.gc.Parallel
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
@@ -83,7 +83,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  */
 
 /**
- * @test InlineOops_int_Z
+ * @test id=Z
  * @requires vm.gc.Z
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
@@ -94,6 +94,23 @@ import test.java.lang.invoke.lib.InstructionHelper;
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                   -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   runtime.valhalla.inlinetypes.InlineOops
+ */
+
+/**
+ * @test id=ZGen
+ * @requires vm.gc.Z & vm.opt.final.ZGenerational
+ * @summary Test embedding oops into Inline types
+ * @modules java.base/jdk.internal.value
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -XX:+ZGenerational -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops

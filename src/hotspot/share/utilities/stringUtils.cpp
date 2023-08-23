@@ -118,17 +118,17 @@ class StringMatcher {
           char ch = _pattern_getc(patp, pattern_end);
           char mch = _string_getc(anchorp, match_end);
           if (mch != ch) {
-            anchorp = NULL;
+            anchorp = nullptr;
             break;
           }
         }
-        if (anchorp != NULL) {
+        if (anchorp != nullptr) {
           return anchorp;  // Found a full copy of the anchor.
         }
         // That did not work, so restart the search for ch1.
       }
     }
-    return NULL;
+    return nullptr;
   }
 
  public:
@@ -150,7 +150,7 @@ class StringMatcher {
       break;
     }
     patp = pattern;  // Reset after lookahead.
-    const char* matchp = string;  // NULL if failing
+    const char* matchp = string;  // nullptr if failing
     for (;;) {
       int ch = _pattern_getc(patp, pattern_end);
       switch (ch) {
@@ -168,7 +168,7 @@ class StringMatcher {
         return false;  // End of all items.
 
       case string_match_star:
-        if (matchp != NULL) {
+        if (matchp != nullptr) {
           // Wildcard:  Parse out following anchor word and look for it.
           const char* begp = patp;
           const char* endp = patp;
@@ -201,10 +201,10 @@ class StringMatcher {
         continue;
       }
       // Normal character.
-      if (matchp != NULL) {
+      if (matchp != nullptr) {
         int mch = _string_getc(matchp, string_end);
         if (mch != ch) {
-          matchp = NULL;
+          matchp = nullptr;
         }
       }
     }
@@ -279,7 +279,7 @@ class ClassListMatcher : public StringMatcher {
 
 bool StringUtils::class_list_match(const char* class_pattern_list,
                                    const char* class_name) {
-  if (class_pattern_list == NULL || class_name == NULL || class_name[0] == '\0')
+  if (class_pattern_list == nullptr || class_name == nullptr || class_name[0] == '\0')
     return false;
   ClassListMatcher clm;
   return clm.string_match(class_pattern_list, class_name);

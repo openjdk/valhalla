@@ -279,7 +279,7 @@ JNIEXPORT void JNICALL
 JVM_Yield(JNIEnv *env, jclass threadClass);
 
 JNIEXPORT void JNICALL
-JVM_Sleep(JNIEnv *env, jclass threadClass, jlong nanos);
+JVM_SleepNanos(JNIEnv *env, jclass threadClass, jlong nanos);
 
 JNIEXPORT jobject JNICALL
 JVM_CurrentCarrierThread(JNIEnv *env, jclass threadClass);
@@ -423,7 +423,7 @@ JVM_FindPrimitiveClass(JNIEnv *env, const char *utf);
 
 
 /*
- * Find a class from a boot class loader. Returns NULL if class not found.
+ * Find a class from a boot class loader. Returns nullptr if class not found.
  */
 JNIEXPORT jclass JNICALL
 JVM_FindClassFromBootLoader(JNIEnv *env, const char *name);

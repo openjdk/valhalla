@@ -708,8 +708,12 @@ bool LibraryCallKit::try_to_inline(int predicate) {
     return inline_vector_nary_operation(3);
   case vmIntrinsics::_VectorFromBitsCoerced:
     return inline_vector_frombits_coerced();
+  case vmIntrinsics::_VectorShuffleIota:
+    return inline_vector_shuffle_iota();
   case vmIntrinsics::_VectorMaskOp:
     return inline_vector_mask_operation();
+  case vmIntrinsics::_VectorShuffleToVector:
+    return inline_vector_shuffle_to_vector();
   case vmIntrinsics::_VectorLoadOp:
     return inline_vector_mem_operation(/*is_store=*/false);
   case vmIntrinsics::_VectorLoadMaskedOp:
@@ -2645,7 +2649,7 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
     return false;
   }
   // TODO 8239003 Why is this needed?
-  if (AllocateNode::Ideal_allocation(vt->get_oop(), &_gvn) == nullptr) {
+  if (AllocateNode::Ideal_allocation(vt->get_oop()) == nullptr) {
     return false;
   }
 
@@ -3685,7 +3689,7 @@ Node* LibraryCallKit::scopedValueCache_helper() {
 bool LibraryCallKit::inline_native_scopedValueCache() {
   ciKlass *objects_klass = ciObjArrayKlass::make(env()->Object_klass());
   const TypeOopPtr *etype = TypeOopPtr::make_from_klass(env()->Object_klass());
-  const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS);
+  const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
 
   // Because we create the scopedValue cache lazily we have to make the
   // type of the result BotPTR.
@@ -4270,6 +4274,7 @@ bool LibraryCallKit::inline_unsafe_newArray(bool uninitialized) {
   Node* mirror;
   Node* count_val;
   if (uninitialized) {
+    null_check_receiver();
     mirror    = argument(1);
     count_val = argument(2);
   } else {
@@ -4304,9 +4309,9 @@ bool LibraryCallKit::inline_unsafe_newArray(bool uninitialized) {
     CallJavaNode* slow_call = nullptr;
     if (uninitialized) {
       // Generate optimized virtual call (holder class 'Unsafe' is final)
-      slow_call = generate_method_call(vmIntrinsics::_allocateUninitializedArray, false, false);
+      slow_call = generate_method_call(vmIntrinsics::_allocateUninitializedArray, false, false, true);
     } else {
-      slow_call = generate_method_call_static(vmIntrinsics::_newArray);
+      slow_call = generate_method_call_static(vmIntrinsics::_newArray, true);
     }
     Node* slow_result = set_results_for_java_call(slow_call);
     // this->control() comes from set_results_for_java_call
@@ -4329,7 +4334,7 @@ bool LibraryCallKit::inline_unsafe_newArray(bool uninitialized) {
 
     if (uninitialized) {
       // Mark the allocation so that zeroing is skipped
-      AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(obj, &_gvn);
+      AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(obj);
       alloc->maybe_set_complete(&_gvn);
     }
   }
@@ -4595,7 +4600,7 @@ Node* LibraryCallKit::generate_virtual_guard(Node* obj_klass,
 // not another intrinsic.  (E.g., don't use this for making an
 // arraycopy call inside of the copyOf intrinsic.)
 CallJavaNode*
-LibraryCallKit::generate_method_call(vmIntrinsics::ID method_id, bool is_virtual, bool is_static) {
+LibraryCallKit::generate_method_call(vmIntrinsicID method_id, bool is_virtual, bool is_static, bool res_not_null) {
   // When compiling the intrinsic method itself, do not use this technique.
   guarantee(callee() != C->method(), "cannot make slow-call to self");
 
@@ -4604,13 +4609,21 @@ LibraryCallKit::generate_method_call(vmIntrinsics::ID method_id, bool is_virtual
   guarantee(method_id == method->intrinsic_id(), "must match");
 
   const TypeFunc* tf = TypeFunc::make(method);
+  if (res_not_null) {
+    assert(tf->return_type() == T_OBJECT, "");
+    const TypeTuple* range = tf->range_cc();
+    const Type** fields = TypeTuple::fields(range->cnt());
+    fields[TypeFunc::Parms] = range->field_at(TypeFunc::Parms)->filter_speculative(TypePtr::NOTNULL);
+    const TypeTuple* new_range = TypeTuple::make(range->cnt(), fields);
+    tf = TypeFunc::make(tf->domain_cc(), new_range);
+  }
   CallJavaNode* slow_call;
   if (is_static) {
     assert(!is_virtual, "");
     slow_call = new CallStaticJavaNode(C, tf,
                            SharedRuntime::get_resolve_static_call_stub(), method);
   } else if (is_virtual) {
-    null_check_receiver();
+    assert(!gvn().type(argument(0))->maybe_null(), "should not be null");
     int vtable_index = Method::invalid_vtable_index;
     if (UseInlineCaches) {
       // Suppress the vtable call
@@ -4626,7 +4639,7 @@ LibraryCallKit::generate_method_call(vmIntrinsics::ID method_id, bool is_virtual
                           SharedRuntime::get_resolve_virtual_call_stub(),
                           method, vtable_index);
   } else {  // neither virtual nor static:  opt_virtual
-    null_check_receiver();
+    assert(!gvn().type(argument(0))->maybe_null(), "should not be null");
     slow_call = new CallStaticJavaNode(C, tf,
                                 SharedRuntime::get_resolve_opt_virtual_call_stub(), method);
     slow_call->set_optimized_virtual(true);
@@ -4758,7 +4771,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
     // No need for PreserveJVMState, because we're using up the present state.
     set_all_memory(init_mem);
     vmIntrinsics::ID hashCode_id = is_static ? vmIntrinsics::_identityHashCode : vmIntrinsics::_hashCode;
-    CallJavaNode* slow_call = generate_method_call(hashCode_id, is_virtual, is_static);
+    CallJavaNode* slow_call = generate_method_call(hashCode_id, is_virtual, is_static, false);
     Node* slow_result = set_results_for_java_call(slow_call);
     // this->control() comes from set_results_for_java_call
     result_reg->init_req(_slow_path, control());
@@ -5101,7 +5114,7 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
   if (ReduceBulkZeroing) {
     // We will be completely responsible for initializing this object -
     // mark Initialize node as complete.
-    alloc = AllocateNode::Ideal_allocation(alloc_obj, &_gvn);
+    alloc = AllocateNode::Ideal_allocation(alloc_obj);
     // The object was just allocated - there should be no any stores!
     guarantee(alloc != nullptr && alloc->maybe_set_complete(&_gvn), "");
     // Mark as complete_with_arraycopy so that on AllocateNode
@@ -5309,7 +5322,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
     set_control(_gvn.transform(slow_region));
     if (!stopped()) {
       PreserveJVMState pjvms(this);
-      CallJavaNode* slow_call = generate_method_call(vmIntrinsics::_clone, is_virtual);
+      CallJavaNode* slow_call = generate_method_call(vmIntrinsics::_clone, is_virtual, false, true);
       // We need to deoptimize on exception (see comment above)
       Node* slow_result = set_results_for_java_call(slow_call, false, /* deoptimize */ true);
       // this->control() comes from set_results_for_java_call
@@ -5849,7 +5862,7 @@ LibraryCallKit::tightly_coupled_allocation(Node* ptr) {
   if (stopped())             return nullptr;  // no fast path
   if (!C->do_aliasing())     return nullptr;  // no MergeMems around
 
-  AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(ptr, &_gvn);
+  AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(ptr);
   if (alloc == nullptr)  return nullptr;
 
   Node* rawmem = memory(Compile::AliasIdxRaw);

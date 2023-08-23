@@ -23,7 +23,7 @@
  */
 
 public final primitive value class runtime/valhalla/inlinetypes/TestPrimitiveClass
-    version 65:0
+    version 66:0
 {
     final Field nullableField:   "Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
     final Field nullfreeField:   "Qruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;"; // flattened

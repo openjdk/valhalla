@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -111,7 +111,7 @@
 //  are placed lowest next to lock bits to more easily decode forwarding pointers.
 //  G1 for example, implicitly clears age bits ("G1FullGCCompactionPoint::forward()")
 //  using "oopDesc->forwardee()", so it necessary for "markWord::decode_pointer()"
-//  to return a non-NULL for this case, but not confuse the static type bits for
+//  to return a non-nullptr for this case, but not confuse the static type bits for
 //  a pointer.
 //
 //  Static types bits are recorded in the "klass->prototype_header()", displaced
@@ -226,7 +226,7 @@ class markWord {
   static const uintptr_t larval_pattern           = larval_bit_in_place | inline_type_pattern;
 
   static const uintptr_t no_hash                  = 0 ;  // no hash value assigned
-  static const uintptr_t no_hash_in_place         = (address_word)no_hash << hash_shift;
+  static const uintptr_t no_hash_in_place         = (uintptr_t)no_hash << hash_shift;
   static const uintptr_t no_lock_in_place         = unlocked_value;
 
   static const uint max_age                       = age_mask;
@@ -339,7 +339,7 @@ class markWord {
   markWord set_marked()   { return markWord((value() & ~lock_mask_in_place) | marked_value); }
   markWord set_unmarked() { return markWord((value() & ~lock_mask_in_place) | unlocked_value); }
 
-  uint     age()           const { return mask_bits(value() >> age_shift, age_mask); }
+  uint     age()           const { return (uint) mask_bits(value() >> age_shift, age_mask); }
   markWord set_age(uint v) const {
     assert((v & ~age_mask) == 0, "shouldn't overflow age field");
     return markWord((value() & ~age_mask_in_place) | ((v & age_mask) << age_shift));
@@ -412,7 +412,7 @@ class markWord {
 
   // Recover address of oop from encoded form used in mark
   inline void* decode_pointer() {
-    return (EnableValhalla && _value < static_prototype_value_max) ? NULL :
+    return (EnableValhalla && _value < static_prototype_value_max) ? nullptr :
       (void*) (clear_lock_bits().value());
   }
 };

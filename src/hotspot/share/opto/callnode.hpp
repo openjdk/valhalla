@@ -572,18 +572,18 @@ public:
   Node* resproj[1]; // at least one projection
 
   CallProjections(uint nbres) {
-    fallthrough_proj      = NULL;
-    fallthrough_catchproj = NULL;
-    fallthrough_memproj   = NULL;
-    fallthrough_ioproj    = NULL;
-    catchall_catchproj    = NULL;
-    catchall_memproj      = NULL;
-    catchall_ioproj       = NULL;
-    exobj                 = NULL;
+    fallthrough_proj      = nullptr;
+    fallthrough_catchproj = nullptr;
+    fallthrough_memproj   = nullptr;
+    fallthrough_ioproj    = nullptr;
+    catchall_catchproj    = nullptr;
+    catchall_memproj      = nullptr;
+    catchall_ioproj       = nullptr;
+    exobj                 = nullptr;
     nb_resproj            = nbres;
-    resproj[0]            = NULL;
+    resproj[0]            = nullptr;
     for (uint i = 1; i < nb_resproj; i++) {
-      resproj[i]          = NULL;
+      resproj[i]          = nullptr;
     }
   }
 
@@ -619,8 +619,8 @@ public:
   }
 
   const TypeFunc* tf()         const { return _tf; }
-  const address  entry_point() const { return _entry_point; }
-  const float    cnt()         const { return _cnt; }
+  address  entry_point()       const { return _entry_point; }
+  float    cnt()               const { return _cnt; }
   CallGenerator* generator()   const { return _generator; }
 
   void set_tf(const TypeFunc* tf)       { _tf = tf; }
@@ -748,7 +748,7 @@ public:
     }
     const TypeTuple *r = tf->range_sig();
     if (InlineTypeReturnedAsFields &&
-        method != NULL &&
+        method != nullptr &&
         method->is_method_handle_intrinsic() &&
         r->cnt() > TypeFunc::Parms &&
         r->field_at(TypeFunc::Parms)->isa_oopptr() &&
@@ -947,7 +947,7 @@ public:
   virtual uint size_of() const; // Size is bigger
   AllocateNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
                Node *size, Node *klass_node, Node *initial_test,
-               InlineTypeNode* inline_type_node = NULL);
+               InlineTypeNode* inline_type_node = nullptr);
   // Expansion modifies the JVMState, so we need to deep clone it
   virtual bool needs_deep_clone_jvms(Compile* C) { return true; }
   virtual int Opcode() const;
@@ -964,7 +964,7 @@ public:
   // (Note:  This function is defined in file graphKit.cpp, near
   // GraphKit::new_instance/new_array, whose output it recognizes.)
   // The 'ptr' may not have an offset unless the 'offset' argument is given.
-  static AllocateNode* Ideal_allocation(Node* ptr, PhaseValues* phase);
+  static AllocateNode* Ideal_allocation(Node* ptr);
 
   // Fancy version which uses AddPNode::Ideal_base_and_offset to strip
   // an offset, which is reported back to the caller.
@@ -974,7 +974,7 @@ public:
 
   // Dig the klass operand out of a (possible) allocation site.
   static Node* Ideal_klass(Node* ptr, PhaseValues* phase) {
-    AllocateNode* allo = Ideal_allocation(ptr, phase);
+    AllocateNode* allo = Ideal_allocation(ptr);
     return (allo == nullptr) ? nullptr : allo->in(KlassNode);
   }
 
@@ -1046,8 +1046,8 @@ public:
 
   // Pattern-match a possible usage of AllocateArrayNode.
   // Return null if no allocation is recognized.
-  static AllocateArrayNode* Ideal_array_allocation(Node* ptr, PhaseValues* phase) {
-    AllocateNode* allo = Ideal_allocation(ptr, phase);
+  static AllocateArrayNode* Ideal_array_allocation(Node* ptr) {
+    AllocateNode* allo = Ideal_allocation(ptr);
     return (allo == nullptr || !allo->is_AllocateArray())
            ? nullptr : allo->as_AllocateArray();
   }

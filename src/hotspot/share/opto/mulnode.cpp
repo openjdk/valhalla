@@ -200,9 +200,9 @@ const Type* MulNode::Value(PhaseGVN* phase) const {
   // Code pattern on return from a call that returns an __Value.  Can
   // be optimized away if the return value turns out to be an oop.
   if (op == Op_AndX &&
-      in(1) != NULL &&
+      in(1) != nullptr &&
       in(1)->Opcode() == Op_CastP2X &&
-      in(1)->in(1) != NULL &&
+      in(1)->in(1) != nullptr &&
       phase->type(in(1)->in(1))->isa_oopptr() &&
       t2->isa_intptr_t()->_lo >= 0 &&
       t2->isa_intptr_t()->_hi <= MinObjAlignmentInBytesMask) {
@@ -918,7 +918,7 @@ Node *LShiftINode::Ideal(PhaseGVN *phase, bool can_reshape) {
           if (con > add1Con) {
             // Creates "(x << (C2 - C1)) & -(1 << C2)"
             Node* lshift = phase->transform(new LShiftINode(add1->in(1), phase->intcon(con - add1Con)));
-            return new AndINode(lshift, phase->intcon(-(1 << con)));
+            return new AndINode(lshift, phase->intcon(java_negate((jint)(1 << con))));
           } else {
             assert(con < add1Con, "must be (%d < %d)", con, add1Con);
             // Creates "(x >> (C1 - C2)) & -(1 << C2)"

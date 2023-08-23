@@ -1441,7 +1441,7 @@ void PhaseIterGVN::subsume_node( Node *old, Node *nn ) {
 }
 
 void PhaseIterGVN::replace_in_uses(Node* n, Node* m) {
-  assert(n != NULL, "sanity");
+  assert(n != nullptr, "sanity");
   for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
     Node* u = n->fast_out(i);
     if (u != n) {
@@ -1715,8 +1715,8 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
       Node* c = use;
       do {
         c = c->unique_ctrl_out_or_null();
-      } while (c != NULL && c->is_Region());
-      if (c != NULL && c->is_CallStaticJava() && c->as_CallStaticJava()->uncommon_trap_request() != 0) {
+      } while (c != nullptr && c->is_Region());
+      if (c != nullptr && c->is_CallStaticJava() && c->as_CallStaticJava()->uncommon_trap_request() != 0) {
         _worklist.push(c);
       }
     }

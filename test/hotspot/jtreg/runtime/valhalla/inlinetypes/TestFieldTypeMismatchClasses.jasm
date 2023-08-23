@@ -22,7 +22,7 @@
  *
  */
 
-super public class runtime/valhalla/inlinetypes/TestFieldTypeMismatchClass version 65:0 {
+super public class runtime/valhalla/inlinetypes/TestFieldTypeMismatchClass version 66:0 {
 
     Field field:"Qruntime/valhalla/inlinetypes/MyValue;";
 
@@ -42,6 +42,6 @@ super public class runtime/valhalla/inlinetypes/TestFieldTypeMismatchClass versi
     }
 }
 
-super public final class runtime/valhalla/inlinetypes/MyValue version 65:0 {
+super public final class runtime/valhalla/inlinetypes/MyValue version 66:0 {
     Field foo:I = 42;
 }

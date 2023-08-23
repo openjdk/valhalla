@@ -567,7 +567,7 @@ class Parse : public GraphKit {
   bool    seems_stable_comparison() const;
 
   void    do_ifnull(BoolTest::mask btest, Node* c);
-  void    do_if(BoolTest::mask btest, Node* c, bool new_path = false, Node** ctrl_taken = NULL);
+  void    do_if(BoolTest::mask btest, Node* c, bool new_path = false, Node** ctrl_taken = nullptr);
   void    basic_if_eq(Node* region, Node* cmp, uint i);
   void    cmp_inline_type_nodes(InlineTypeNode* left, InlineTypeNode* right, Node*& ne_region, Node*& ne_io_phi, Node*& ne_mem_phi);
   void    do_acmp(BoolTest::mask btest, Node* left, Node* right);
