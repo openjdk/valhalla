@@ -153,7 +153,7 @@ class ObjectValue: public ScopeValue {
   ObjectValue(int id)
      : _id(id)
      , _klass(nullptr)
-     , _is_init(nullptr)
+     , _is_init(new MarkerValue())
      , _field_values()
      , _value()
      , _visited(false)
