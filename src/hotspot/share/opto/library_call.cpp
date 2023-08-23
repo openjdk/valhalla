@@ -2340,7 +2340,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   if (base->is_InlineType()) {
     InlineTypeNode* vt = base->as_InlineType();
     if (is_store) {
-      ciInlineKlass* vk = vt->type()->inline_klass();
       if (!vt->is_allocated(&_gvn)) {
         return false;
       }

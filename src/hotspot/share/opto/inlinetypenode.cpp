@@ -510,7 +510,7 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
       bool is_array = (oop_ptr->isa_aryptr() != NULL);
       bool mismatched = (decorators & C2_MISMATCHED) != 0;
       ciField* field = holder->get_field_by_offset(offset, false);
-      if (base->is_Con() && !is_array && !mismatched && !field->is_multifield_base() && ft->bundle_size() == 1) {
+      if (base->is_Con() && !is_array && !mismatched && !field->is_multifield_base()) {
         // If the oop to the inline type is constant (static final field), we can
         // also treat the fields as constants because the inline type is immutable.
         ciObject* constant_oop = oop_ptr->const_oop();
@@ -856,8 +856,8 @@ Node* InlineTypeNode::default_value(PhaseGVN& gvn, ciType* field_type, ciInlineK
   BasicType bt = field_type->basic_type();
   int vec_len = field_type->bundle_size();
   Node* value = gvn.zerocon(field_type->basic_type());
-  int is_multifield = klass->declared_nonstatic_field_at(index)->is_multifield_base();
-  if (is_multifield &&
+  int is_multifield_base = klass->declared_nonstatic_field_at(index)->is_multifield_base();
+  if (is_multifield_base &&
       is_java_primitive(bt) &&
       Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {
       value = gvn.transform(VectorNode::scalar2vector(value, vec_len, Type::get_const_type(field_type), false));

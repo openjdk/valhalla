@@ -595,15 +595,18 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
     fields->appendAll(super_fields);
   }
 
+  int sec_fields_count = 0;
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static())  continue;
     if (fs.is_multifield()) {
-      assert(fields->last()->is_multifield_base(), "");
+      assert(sec_fields_count && fields->last()->is_multifield_base(), "");
+      sec_fields_count--;
       ciMultiField* multifield_base = static_cast<ciMultiField*>(fields->last());
       fieldDescriptor& fd = fs.field_descriptor();
       multifield_base->secondary_fields()->append(new (arena) ciField(&fd));
       continue;
     }
+    assert(!sec_fields_count, "");
     fieldDescriptor& fd = fs.field_descriptor();
     if (fd.is_inlined() && flatten) {
       // Inline type fields are embedded
@@ -633,8 +636,10 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
       ciField* field = NULL;
       if (fs.is_multifield_base()) {
         field = new (arena) ciMultiField(&fd);
-        GrowableArray<ciField*>* sec_fields = new (arena) GrowableArray<ciField*>(arena, fd.secondary_fields_count(fd.index()), 0, NULL);
+        sec_fields_count = fd.secondary_fields_count(fd.index());
+        GrowableArray<ciField*>* sec_fields = new (arena) GrowableArray<ciField*>(arena, sec_fields_count, 0, NULL);
         static_cast<ciMultiField*>(field)->add_secondary_fields(sec_fields);
+        sec_fields_count--;
       } else {
         field = new (arena) ciField(&fd);
       }

@@ -2396,7 +2396,7 @@ void Parse::return_current(Node* value) {
         inc_sp(1);
         value = value->as_InlineType()->allocate_fields(this);
       }
-    } else if ((is_vector_value && skip_scalarization) ||
+    } else if (skip_scalarization ||
                (value->Opcode() != Op_VectorBox && value->is_InlineType())) {
       // Inline type is returned as oop, make sure it is buffered and re-execute
       // if allocation triggers deoptimization.
