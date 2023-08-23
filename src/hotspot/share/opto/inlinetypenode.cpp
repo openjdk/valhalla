@@ -555,7 +555,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
 
     // Do not let stores that initialize this buffer be reordered with a subsequent
     // store that would make this buffer accessible by other threads.
-    AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
     assert(alloc != nullptr, "must have an allocation node");
     kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
 
@@ -931,7 +931,7 @@ InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const 
     kit->jvms()->set_should_reexecute(true);
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
     Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, true);
-    AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
     alloc->_larval = true;
 
     store(kit, alloc_oop, alloc_oop, vk);
@@ -953,7 +953,7 @@ InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
 
   // Do not let stores that initialize this buffer be reordered with a subsequent
   // store that would make this buffer accessible by other threads.
-  AllocateNode* alloc = AllocateNode::Ideal_allocation(obj, &kit->gvn());
+  AllocateNode* alloc = AllocateNode::Ideal_allocation(obj);
   assert(alloc != nullptr, "must have an allocation node");
   kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
 
@@ -974,7 +974,7 @@ bool InlineTypeNode::is_larval(PhaseGVN* gvn) const {
   }
 
   Node* oop = get_oop();
-  AllocateNode* alloc = AllocateNode::Ideal_allocation(oop, gvn);
+  AllocateNode* alloc = AllocateNode::Ideal_allocation(oop);
   return alloc != nullptr && alloc->_larval;
 }
 

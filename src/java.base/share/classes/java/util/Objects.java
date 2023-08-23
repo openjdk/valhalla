@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,8 +47,8 @@ public final class Objects {
     }
 
     /**
-     * Returns {@code true} if the arguments are equal to each other
-     * and {@code false} otherwise.
+     * {@return {@code true} if the arguments are equal to each other
+     * and {@code false} otherwise}
      * Consequently, if both arguments are {@code null}, {@code true}
      * is returned.  Otherwise, if the first argument is not {@code
      * null}, equality is determined by calling the {@link
@@ -58,8 +58,6 @@ public final class Objects {
      *
      * @param a an object
      * @param b an object to be compared with {@code a} for equality
-     * @return {@code true} if the arguments are equal to each other
-     * and {@code false} otherwise
      * @see Object#equals(Object)
      */
     public static boolean equals(Object a, Object b) {
@@ -67,8 +65,8 @@ public final class Objects {
     }
 
    /**
-    * Returns {@code true} if the arguments are deeply equal to each other
-    * and {@code false} otherwise.
+    * {@return {@code true} if the arguments are deeply equal to each other
+    * and {@code false} otherwise}
     *
     * Two {@code null} values are deeply equal.  If both arguments are
     * arrays, the algorithm in {@link Arrays#deepEquals(Object[],
@@ -78,8 +76,6 @@ public final class Objects {
     *
     * @param a an object
     * @param b an object to be compared with {@code a} for deep equality
-    * @return {@code true} if the arguments are deeply equal to each other
-    * and {@code false} otherwise
     * @see Arrays#deepEquals(Object[], Object[])
     * @see Objects#equals(Object, Object)
     */
@@ -93,12 +89,10 @@ public final class Objects {
     }
 
     /**
-     * Returns the hash code of a non-{@code null} argument and 0 for
-     * a {@code null} argument.
+     * {@return the hash code of a non-{@code null} argument and 0 for
+     * a {@code null} argument}
      *
      * @param o an object
-     * @return the hash code of a non-{@code null} argument and 0 for
-     * a {@code null} argument
      * @see Object#hashCode
      */
     public static int hashCode(Object o) {
@@ -106,7 +100,7 @@ public final class Objects {
     }
 
    /**
-    * Generates a hash code for a sequence of input values. The hash
+    * {@return a hash code for a sequence of input values} The hash
     * code is generated as if all the input values were placed into an
     * array, and that array were hashed by calling {@link
     * Arrays#hashCode(Object[])}.
@@ -127,7 +121,6 @@ public final class Objects {
     * value can be computed by calling {@link #hashCode(Object)}.
     *
     * @param values the values to be hashed
-    * @return a hash value of the sequence of input values
     * @see Arrays#hashCode(Object[])
     * @see List#hashCode
     */
@@ -136,12 +129,11 @@ public final class Objects {
     }
 
     /**
-     * Returns the result of calling {@code toString} for a non-{@code
-     * null} argument and {@code "null"} for a {@code null} argument.
+     * {@return the result of calling {@code toString} for a
+     * non-{@code null} argument and {@code "null"} for a
+     * {@code null} argument}
      *
      * @param o an object
-     * @return the result of calling {@code toString} for a non-{@code
-     * null} argument and {@code "null"} for a {@code null} argument
      * @see Object#toString
      * @see String#valueOf(Object)
      */
@@ -150,16 +142,13 @@ public final class Objects {
     }
 
     /**
-     * Returns the result of calling {@code toString} on the first
-     * argument if the first argument is not {@code null} and returns
-     * the second argument otherwise.
+     * {@return the result of calling {@code toString} on the first
+     * argument if the first argument is not {@code null} and the
+     * second argument otherwise}
      *
      * @param o an object
      * @param nullDefault string to return if the first argument is
      *        {@code null}
-     * @return the result of calling {@code toString} on the first
-     * argument if it is not {@code null} and the second argument
-     * otherwise.
      * @see Objects#toString(Object)
      */
     public static String toString(Object o, String nullDefault) {
@@ -282,8 +271,8 @@ public final class Objects {
     }
 
     /**
-     * Returns 0 if the arguments are identical and {@code
-     * c.compare(a, b)} otherwise.
+     * {@return 0 if the arguments are identical and {@code
+     * c.compare(a, b)} otherwise}
      * Consequently, if both arguments are {@code null} 0
      * is returned.
      *
@@ -296,8 +285,6 @@ public final class Objects {
      * @param a an object
      * @param b an object to be compared with {@code a}
      * @param c the {@code Comparator} to compare the first two arguments
-     * @return 0 if the arguments are identical and {@code
-     * c.compare(a, b)} otherwise.
      * @see Comparable
      * @see Comparator
      */
@@ -354,15 +341,13 @@ public final class Objects {
     }
 
     /**
-     * Returns {@code true} if the provided reference is {@code null} otherwise
-     * returns {@code false}.
+     * {@return {@code true} if the provided reference is {@code
+     * null}; {@code false} otherwise}
      *
      * @apiNote This method exists to be used as a
      * {@link java.util.function.Predicate}, {@code filter(Objects::isNull)}
      *
      * @param obj a reference to be checked against {@code null}
-     * @return {@code true} if the provided reference is {@code null} otherwise
-     * {@code false}
      *
      * @see java.util.function.Predicate
      * @since 1.8
@@ -372,15 +357,13 @@ public final class Objects {
     }
 
     /**
-     * Returns {@code true} if the provided reference is non-{@code null}
-     * otherwise returns {@code false}.
+     * {@return {@code true} if the provided reference is non-{@code null};
+     * {@code false} otherwise}
      *
      * @apiNote This method exists to be used as a
      * {@link java.util.function.Predicate}, {@code filter(Objects::nonNull)}
      *
      * @param obj a reference to be checked against {@code null}
-     * @return {@code true} if the provided reference is non-{@code null}
-     * otherwise {@code false}
      *
      * @see java.util.function.Predicate
      * @since 1.8
@@ -390,15 +373,13 @@ public final class Objects {
     }
 
     /**
-     * Returns the first argument if it is non-{@code null} and
-     * otherwise returns the non-{@code null} second argument.
+     * {@return the first argument if it is non-{@code null} and
+     * otherwise the second argument if it is non-{@code null}}
      *
      * @param obj an object
      * @param defaultObj a non-{@code null} object to return if the first argument
      *                   is {@code null}
      * @param <T> the type of the reference
-     * @return the first argument if it is non-{@code null} and
-     *        otherwise the second argument if it is non-{@code null}
      * @throws NullPointerException if both {@code obj} is null and
      *        {@code defaultObj} is {@code null}
      * @since 9
@@ -408,15 +389,14 @@ public final class Objects {
     }
 
     /**
-     * Returns the first argument if it is non-{@code null} and otherwise
-     * returns the non-{@code null} value of {@code supplier.get()}.
+     * {@return the first argument if it is non-{@code null} and
+     * otherwise the value from {@code supplier.get()} if it is
+     * non-{@code null}}
      *
      * @param obj an object
      * @param supplier of a non-{@code null} object to return if the first argument
      *                 is {@code null}
      * @param <T> the type of the first argument and return type
-     * @return the first argument if it is non-{@code null} and otherwise
-     *         the value from {@code supplier.get()} if it is non-{@code null}
      * @throws NullPointerException if both {@code obj} is null and
      *        either the {@code supplier} is {@code null} or
      *        the {@code supplier.get()} value is {@code null}
