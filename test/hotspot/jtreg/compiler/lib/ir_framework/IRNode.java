@@ -428,6 +428,11 @@ public class IRNode {
         beforeMatchingNameRegex(IF, "If\\b");
     }
 
+    public static final String INLINE_TYPE = PREFIX + "INLINE_TYPE" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(INLINE_TYPE, "InlineType");
+    }
+
     // Does not work for VM builds without JVMCI like x86_32 (a rule containing this regex will be skipped without having JVMCI built).
     public static final String INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP = PREFIX + "INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP" + POSTFIX;
     static {
@@ -1191,6 +1196,11 @@ public class IRNode {
     public static final String SUB_V = PREFIX + "SUB_V" + POSTFIX;
     static {
         beforeMatchingNameRegex(SUB_V, "SubV(B|S|I|L|F|D)");
+    }
+
+    public static final String SUBTYPE_CHECK = PREFIX + "SUBTYPE_CHECK" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(SUBTYPE_CHECK, "SubTypeCheck");
     }
 
     public static final String TRAP = PREFIX + "TRAP" + POSTFIX;
