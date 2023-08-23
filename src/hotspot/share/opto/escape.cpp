@@ -673,7 +673,9 @@ void ConnectionGraph::reduce_phi_on_safepoints(PhiNode* ophi, Unique_Node_List* 
       }
 
       AllocateNode* alloc = ptn->ideal_node()->as_Allocate();
-      SafePointScalarObjectNode* sobj = mexp.create_scalarized_object_description(alloc, sfpt);
+      Unique_Node_List value_worklist;
+      SafePointScalarObjectNode* sobj = mexp.create_scalarized_object_description(alloc, sfpt, &value_worklist);
+      guarantee(value_worklist.size() == 0, "Unimplemented: Valhalla support for 8287061");
       if (sobj == nullptr) {
         _compile->record_failure(C2Compiler::retry_no_reduce_allocation_merges());
         return;
