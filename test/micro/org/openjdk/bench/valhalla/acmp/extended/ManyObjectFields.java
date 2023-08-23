@@ -93,7 +93,7 @@ public class ManyObjectFields {
 	ManyObjectFields2 obj2_1 = new ManyObjectFields2(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
 	ManyObjectFields2 obj2_2 = new ManyObjectFields2(new Point(0, 1), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
 	ManyObjectFields2 obj2_3 = new ManyObjectFields2(new Point(0, 0), new Point(0, 2), new Point(0, 3), new Point(0, 4), new Point(0, 5), new Point(0, 6));
-	
+
 	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
 	public boolean test_06(ManyObjectFields2 a, ManyObjectFields2 b) {return a == b;}
 
