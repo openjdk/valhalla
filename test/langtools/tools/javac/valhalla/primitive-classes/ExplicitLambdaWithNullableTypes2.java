@@ -40,6 +40,8 @@ value class OptionalInt {
     private boolean isPresent;
     private int v;
 
+    public implicit OptionalInt();
+
     public static OptionalInt empty() {
         return OptionalInt.default;
     }

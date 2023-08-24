@@ -1153,9 +1153,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         public Type constType(Object constValue) {
-            return isPrimitive() ?
-                    addMetadata(new ConstantValue(constValue)) :
-                    addMetadata(new ConstantValue(constValue)).addMetadata(new TypeMetadata.NullMarker(NullMarker.NOT_NULL));
+            return addMetadata(new ConstantValue(constValue));
         }
 
         /** The Java source which this type represents.
