@@ -49,59 +49,59 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Thread)
 public class SimpleClassTest {
     public value class MyValue {
-		int a;
-		int b;
-		char c;
-		double d;
-		boolean e;
-		Point p1;
-		public MyValue(Point p1){
-		    this.a = 0;
-		    this.b = 1;
-		    this.c = 'b';
-		    this.d = 9.81;
-		    this.e = true;
-		    this.p1 = p1;
-		}
-	}
+        int a;
+        int b;
+        char c;
+        double d;
+        boolean e;
+        Point p1;
+        public MyValue(Point p1){
+            this.a = 0;
+            this.b = 1;
+            this.c = 'b';
+            this.d = 9.81;
+            this.e = true;
+            this.p1 = p1;
+        }
+    }
 
-	public value class Point{
-		int x;
-		int y;
-		public Point(int x, int y){
-		    this.x = x;
-		    this.y = y;
-		}
-	}
+    public value class Point{
+        int x;
+        int y;
+        public Point(int x, int y){
+            this.x = x;
+            this.y = y;
+        }
+    }
 
-	public boolean test_inlined(MyValue a, MyValue b) {
-		return a == b;
-	}
+    public boolean test_inlined(MyValue a, MyValue b) {
+        return a == b;
+    }
 
-	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
-	public boolean test_not_inlined(MyValue a, MyValue b) {
-		return a == b;
-	}
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public boolean test_not_inlined(MyValue a, MyValue b) {
+        return a == b;
+    }
 
-	static int counter = 0;
-	MyValue a = new MyValue(new Point(1, 0));
-	MyValue b = new MyValue(new Point(1, 0));
-	MyValue c = new MyValue(new Point(0, 0));
+    static int counter = 0;
+    MyValue a = new MyValue(new Point(1, 0));
+    MyValue b = new MyValue(new Point(1, 0));
+    MyValue c = new MyValue(new Point(0, 0));
 
     @Benchmark
     public boolean cmp_inlined() {
-		return test_inlined(a, (counter++ % 2) == 0 ? b : c);
-	}
+        return test_inlined(a, (counter++ % 2) == 0 ? b : c);
+    }
 
-	@Benchmark
+    @Benchmark
     public boolean cmp_not_inlined() {
         return test_not_inlined(a, (counter++ % 2) == 0 ? b : c);
     }
 
-	@Benchmark
+    @Benchmark
     public boolean cmp_foldable(){
-		MyValue v1 = new MyValue(new Point(counter++ % 2, 0));
-		MyValue v2 = new MyValue(new Point(1, 0));
-		return v1 == v2;
+        MyValue v1 = new MyValue(new Point(counter++ % 2, 0));
+        MyValue v2 = new MyValue(new Point(1, 0));
+        return v1 == v2;
     }
 }
