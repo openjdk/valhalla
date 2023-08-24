@@ -61,5 +61,5 @@ package java.lang;
  * @since Valhalla
  */
 
-public interface NonAtomic {
+public interface LooselyConsistentValue {
 }
