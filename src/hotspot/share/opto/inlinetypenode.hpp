@@ -101,7 +101,7 @@ public:
   // Returns the constant oop of the default inline type allocation
   static Node* default_oop(PhaseGVN& gvn, ciInlineKlass* vk);
 
-  static Node* default_value(PhaseGVN& gvn, ciType* field_type);
+  static Node* default_value(PhaseGVN& gvn, ciType* field_type, ciInlineKlass* klass, int index);
 
   // Support for control flow merges
   bool has_phi_inputs(Node* region);

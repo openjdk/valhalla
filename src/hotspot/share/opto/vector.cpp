@@ -333,7 +333,7 @@ Node* PhaseVector::expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
   vector = gvn.transform(vector)->as_InlineType();
 
   Node* klass_node = kit.makecon(TypeKlassPtr::make(vk));
-  Node* alloc_oop  = kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true, vector);
+  Node* alloc_oop  = kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
   vector->store(&kit, alloc_oop, alloc_oop, vk);
 
   C->set_max_vector_size(MAX2(C->max_vector_size(), vect_type->length_in_bytes()));

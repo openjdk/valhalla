@@ -1640,6 +1640,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
         FieldInfo::FieldFlags fflags(0);
         // fflags.update_injected(true);
         AccessFlags aflags;
+        aflags.set_flags(flags);
         FieldInfo fi(aflags, (u2)(mfi_idx), (u2)signature_index, 0, fflags);
         fi.set_index(field_index);
 

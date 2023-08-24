@@ -89,6 +89,8 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
   int sig_index = cpool->signature_ref_index_at(nt_index);
   Symbol* signature = cpool->symbol_at(sig_index);
   _signature = ciEnv::current(THREAD)->get_symbol(signature);
+  _is_multifield = false;
+  _is_multifield_base = false;
 
   BasicType field_type = Signature::basic_type(signature);
 

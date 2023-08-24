@@ -1243,7 +1243,12 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   Node* addr = in(Address);
   intptr_t offset;
   Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
-  if (base != nullptr && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
+  if (base != nullptr && base->is_InlineType() &&
+      // Multifields are loaded into vectors and lane level loads needs
+      // an explicit extraction operation.
+      (bottom_type()->isa_vect() ||
+       !VectorSupport::is_vector_payload_mf(base->as_InlineType()->inline_klass()->get_InlineKlass())) &&
+      offset > oopDesc::klass_offset_in_bytes()) {
     Node* value = base->as_InlineType()->field_value_by_offset((int)offset, true);
     if (value != nullptr) {
       if (Opcode() == Op_LoadN) {

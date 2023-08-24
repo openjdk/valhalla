@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -321,6 +321,9 @@ int ciBytecodeStream::get_field_index() {
 // or put_static, get the referenced field.
 ciField* ciBytecodeStream::get_field(bool& will_link) {
   ciField* f = CURRENT_ENV->get_field_by_index(_holder, get_field_index(), _bc);
+  if (f && f->is_multifield_base()) {
+    GUARDED_VM_ENTRY(f = _holder->populate_synthetic_multifields(f);)
+  }
   will_link = f->will_link(_method, _bc);
   return f;
 }

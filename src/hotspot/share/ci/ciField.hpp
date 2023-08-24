@@ -209,8 +209,19 @@ private:
   ciMultiField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) :
        ciField(field, holder, offset, is_final) {}
 public:
+  void set_secondary_fields(GrowableArray<ciField*>* fields) {
+     Arena* arena = CURRENT_ENV->arena();
+     _secondary_fields = new (arena) GrowableArray<ciField*>(arena, fields->length(), 0, nullptr);
+     for (int i = 0; i < fields->length(); i++) {
+       ciField* field = fields->at(i);
+       _secondary_fields->append(new (arena) ciField(field, field->holder(), field->offset_in_bytes(), field->is_final()));
+     }
+  }
+
   void add_secondary_fields(GrowableArray<ciField*>* fields) { _secondary_fields = fields; }
+
   GrowableArray<ciField*>* secondary_fields() { return _secondary_fields; }
+
   ciField* secondary_field_at(int i) {
     assert(_secondary_fields->length() > i, "");
     return _secondary_fields->at(i);

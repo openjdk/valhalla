@@ -1746,15 +1746,10 @@ class jdk_internal_misc_UnsafeConstants : AllStatic {
 // Interface to jdk.internal.vm.vector.VectorSupport.VectorPayload objects
 
 class vector_VectorPayload : AllStatic {
- private:
-  static int _payload_offset;
  public:
-  static void set_payload(oop o, oop val);
-
-  static void compute_offsets();
-  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
-
   // Testers
+  static void compute_offsets() { }
+  static void serialize_offsets(SerializeClosure* f) { }
   static bool is_subclass(Klass* klass) {
     return klass->is_subclass_of(vmClasses::vector_VectorPayload_klass());
   }

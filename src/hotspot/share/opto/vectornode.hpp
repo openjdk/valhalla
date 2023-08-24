@@ -1719,6 +1719,7 @@ class VectorBoxNode : public InlineTypeNode {
     payload_value = gvn.transform(payload_value);
 
     box_node->set_field_value(0, payload_value);
+    box_node->set_is_buffered(gvn, false);
     box_node->set_is_init(gvn);
 
     return box_node;

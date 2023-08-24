@@ -369,7 +369,8 @@ void Parse::do_withfield() {
 
   BasicType bt = field->type()->basic_type();
   int vec_len = field->secondary_fields_count();
-  bool scalarize_fields = !is_java_primitive(bt) || !Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt);
+  bool scalarize_fields = !field->is_multifield_base() || !is_java_primitive(bt) ||
+                          !Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt);
   if (scalarize_fields) {
     for(int i = 0; i < vec_len; i++) {
       new_vt->set_field_value_by_offset(field->offset_in_bytes() + i * type2aelembytes(bt), val);
