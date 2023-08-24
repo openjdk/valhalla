@@ -40,6 +40,7 @@ import static java.lang.constant.ConstantDescs.*;
 import static java.lang.invoke.MethodHandleProxies.*;
 import static java.lang.invoke.MethodType.methodType;
 import static jdk.internal.classfile.Classfile.*;
+import jdk.internal.misc.ValhallaFeatures;
 import static org.junit.jupiter.api.Assertions.*;
 
 /*
@@ -49,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @modules java.base/jdk.internal.classfile
  *          java.base/jdk.internal.classfile.attribute
  *          java.base/jdk.internal.classfile.constantpool
+ *          java.base/jdk.internal.misc
  * @summary Tests on implementation hidden classes spinned by MethodHandleProxies
  * @build WrapperHiddenClassTest Client jdk.test.lib.util.ForceGC
  * @run junit WrapperHiddenClassTest
@@ -88,7 +90,7 @@ public class WrapperHiddenClassTest {
         var cf = Classfile.of();
         var bytes = cf.build(CD_HostileWrapper, clb -> {
             clb.withSuperclass(CD_Object);
-            clb.withFlags(ACC_FINAL | ACC_SYNTHETIC);
+            clb.withFlags((ValhallaFeatures.isEnabled() ? ACC_IDENTITY : 0) | ACC_FINAL | ACC_SYNTHETIC);
             clb.withInterfaceSymbols(CD_Comparator);
 
             // static and instance fields

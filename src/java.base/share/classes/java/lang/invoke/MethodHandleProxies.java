@@ -52,6 +52,7 @@ import jdk.internal.classfile.ClassHierarchyResolver;
 import jdk.internal.classfile.Classfile;
 import jdk.internal.classfile.CodeBuilder;
 import jdk.internal.classfile.TypeKind;
+import jdk.internal.misc.ValhallaFeatures;
 import jdk.internal.module.Modules;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
@@ -370,7 +371,7 @@ public class MethodHandleProxies {
         return Classfile.of(ClassHierarchyResolverOption.of(ClassHierarchyResolver.ofClassLoading(loader)))
                         .build(proxyDesc, clb -> {
             clb.withSuperclass(CD_Object);
-            clb.withFlags(ACC_FINAL | ACC_SYNTHETIC);
+            clb.withFlags((ValhallaFeatures.isEnabled() ? ACC_IDENTITY : 0) | ACC_FINAL | ACC_SYNTHETIC);
             clb.withInterfaceSymbols(ifaceDesc);
 
             // static and instance fields
