@@ -53,7 +53,7 @@ public class ManyBasicFields {
 	ManyObjectFields1 obj1_1 = new ManyObjectFields1(1, 2, 3);
 	ManyObjectFields1 obj1_2 = new ManyObjectFields1(1, 2, 3);
 	ManyObjectFields1 obj1_3 = new ManyObjectFields1(0, 2, 3);
-	
+
 	public boolean test_03(ManyObjectFields1 a, ManyObjectFields1 b) {return a == b;}
 	
 	@Benchmark
