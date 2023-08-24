@@ -73,6 +73,7 @@ compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
 
 compiler/gcbarriers/TestZGCBarrierElision.java#ZGen 8313737 generic-all
 compiler/valhalla/inlinetypes/TestArrays.java 8313667 generic-all
+compiler/c2/irTests/scalarReplacement/AllocationMergesTests.java 8314923 generic-all
 
 #############################################################################
 
