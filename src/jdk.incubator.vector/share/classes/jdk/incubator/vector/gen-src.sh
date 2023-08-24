@@ -148,8 +148,8 @@ do
   esac
 
   old_args="$args"
-  # for bits in 64 128 256 512 Max
-  for bits in 64 128 256 512
+  for bits in 64 128 256 512 Max
+  #for bits in 64 128 256 512
   do
     vectortype=${typeprefix}${Type}${bits}Vector
     masktype=${typeprefix}${Type}${bits}Mask

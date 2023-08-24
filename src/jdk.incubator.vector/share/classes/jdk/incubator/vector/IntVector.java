@@ -373,8 +373,7 @@ public abstract class IntVector extends AbstractVector<Integer> {
                                   FLdOp<M> f) {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                int.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(createPayloadInstance(vspecies()));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putInt(tpayload, vOffset + i * Integer.BYTES, f.apply(memory, offset, i));
@@ -391,8 +390,7 @@ public abstract class IntVector extends AbstractVector<Integer> {
                                   FLdOp<M> f) {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                int.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(createPayloadInstance(vspecies()));
         VectorPayloadMF mbits = ((AbstractMask<Integer>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -418,8 +416,7 @@ public abstract class IntVector extends AbstractVector<Integer> {
                                   FLdLongOp f) {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                int.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(createPayloadInstance(vspecies()));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putInt(tpayload, vOffset + i * Integer.BYTES, f.apply(memory, offset, i));
@@ -436,8 +433,7 @@ public abstract class IntVector extends AbstractVector<Integer> {
                                   FLdLongOp f) {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                int.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(createPayloadInstance(vspecies()));
         VectorPayloadMF mbits = ((AbstractMask<Integer>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -545,7 +541,7 @@ public abstract class IntVector extends AbstractVector<Integer> {
         int length = vspecies().length();
         VectorPayloadMF vec1 = vec();
         VectorPayloadMF vec2 = ((IntVector)o).vec();
-        VectorPayloadMF mbits = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+        VectorPayloadMF mbits = AbstractMask.createPayloadInstance(vspecies());
         mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -4133,9 +4129,8 @@ public abstract class IntVector extends AbstractVector<Integer> {
         @Override
         @ForceInline
         public final IntVector zero() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == IntMaxVector.class)
-            //    return IntMaxVector.ZERO;
+            if ((Class<?>) vectorType() == IntMaxVector.class)
+                return IntMaxVector.ZERO;
             switch (vectorBitSize()) {
                 case 64: return Int64Vector.ZERO;
                 case 128: return Int128Vector.ZERO;
@@ -4148,9 +4143,8 @@ public abstract class IntVector extends AbstractVector<Integer> {
         @Override
         @ForceInline
         public final IntVector iota() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == IntMaxVector.class)
-            //    return IntMaxVector.IOTA;
+            if ((Class<?>) vectorType() == IntMaxVector.class)
+                return IntMaxVector.IOTA;
             switch (vectorBitSize()) {
                 case 64: return Int64Vector.IOTA;
                 case 128: return Int128Vector.IOTA;
@@ -4164,9 +4158,8 @@ public abstract class IntVector extends AbstractVector<Integer> {
         @Override
         @ForceInline
         public final VectorMask<Integer> maskAll(boolean bit) {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == IntMaxVector.class)
-            //    return IntMaxVector.IntMaxMask.maskAll(bit);
+            if ((Class<?>) vectorType() == IntMaxVector.class)
+                return IntMaxVector.IntMaxMask.maskAll(bit);
             switch (vectorBitSize()) {
                 case 64: return Int64Vector.Int64Mask.maskAll(bit);
                 case 128: return Int128Vector.Int128Mask.maskAll(bit);
@@ -4201,8 +4194,7 @@ public abstract class IntVector extends AbstractVector<Integer> {
             case VectorShape.SK_128_BIT: return (IntSpecies) SPECIES_128;
             case VectorShape.SK_256_BIT: return (IntSpecies) SPECIES_256;
             case VectorShape.SK_512_BIT: return (IntSpecies) SPECIES_512;
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //case VectorShape.SK_Max_BIT: return (IntSpecies) SPECIES_MAX;
+            case VectorShape.SK_Max_BIT: return (IntSpecies) SPECIES_MAX;
             default: throw new IllegalArgumentException("Bad shape: " + s);
         }
     }
@@ -4240,14 +4232,12 @@ public abstract class IntVector extends AbstractVector<Integer> {
                             Int512Vector::new);
 
     /** Species representing {@link IntVector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
-    // FIXME: Enable once multi-field based MaxVector is supported.
-    /*public static final VectorSpecies<Integer> SPECIES_MAX
+    public static final VectorSpecies<Integer> SPECIES_MAX
         = new IntSpecies(VectorShape.S_Max_BIT,
                             IntMaxVector.class,
                             IntMaxVector.IntMaxMask.class,
                             IntMaxVector.IntMaxShuffle.class,
                             IntMaxVector::new);
-     */
 
     /**
      * Preferred species for {@link IntVector}s.

@@ -69,8 +69,9 @@ value class Short64Vector extends ShortVector {
         return payload;
     }
 
-    static final Short64Vector ZERO = new Short64Vector(VectorPayloadMF.newInstanceFactory(short.class, 4));
-    static final Short64Vector IOTA = new Short64Vector(VectorPayloadMF.createVectPayloadInstanceS(4, (short[])(VSPECIES.iotaArray())));
+    static final Short64Vector ZERO = new Short64Vector(createPayloadInstance(VSPECIES));
+
+    static final Short64Vector IOTA = new Short64Vector(VectorPayloadMF.createVectPayloadInstanceS(4, (short[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -549,6 +550,8 @@ value class Short64Vector extends ShortVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
+        static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF32Z.class);
+
         private final VectorPayloadMF32Z payload;
 
         Short64Mask(VectorPayloadMF payload) {
@@ -556,11 +559,11 @@ value class Short64Vector extends ShortVector {
         }
 
         Short64Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Short64Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
 
         @ForceInline
@@ -577,6 +580,10 @@ value class Short64Vector extends ShortVector {
         final VectorPayloadMF getBits() {
             return payload;
         }
+
+        @ForceInline
+        @Override
+        public final long multiFieldOffset() { return MFOFFSET; }
 
         @ForceInline
         @Override
@@ -716,7 +723,7 @@ value class Short64Vector extends ShortVector {
 
         Short64Shuffle(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF64S) payload;
-            assert(VLENGTH == payload.length());
+            //assert(VLENGTH == payload.length());
             assert(indicesInRange(payload));
         }
 
@@ -780,7 +787,7 @@ value class Short64Vector extends ShortVector {
         }
 
         private static VectorPayloadMF prepare(int[] indices, int offset) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(short.class, VLENGTH);
+            VectorPayloadMF payload = createPayloadInstance(VSPECIES);
             payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
             long mfOffset = payload.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -793,7 +800,7 @@ value class Short64Vector extends ShortVector {
         }
 
         private static VectorPayloadMF prepare(IntUnaryOperator f) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(short.class, VLENGTH);
+            VectorPayloadMF payload = createPayloadInstance(VSPECIES);
             payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
             long offset = payload.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -807,7 +814,7 @@ value class Short64Vector extends ShortVector {
 
 
         private static boolean indicesInRange(VectorPayloadMF indices) {
-            int length = indices.length();
+            int length = VLENGTH;
             long offset = indices.multiFieldOffset();
             for (int i = 0; i < length; i++) {
                 short si = Unsafe.getUnsafe().getShort(indices, offset + i * Short.BYTES);

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -49,4 +49,12 @@ public @interface MultiField {
     * @return total number of fields to layout.
     */
    byte value() default 0;
+
+   /**
+    * The log2 of element size in bytes of the field.
+    * This tag is only meaningful for field level annotations.
+    *
+    * @return log2 of element size in bytes.
+    */
+   byte scale() default 0;
 }

@@ -69,8 +69,9 @@ value class Long128Vector extends LongVector {
         return payload;
     }
 
-    static final Long128Vector ZERO = new Long128Vector(VectorPayloadMF.newInstanceFactory(long.class, 2));
-    static final Long128Vector IOTA = new Long128Vector(VectorPayloadMF.createVectPayloadInstanceL(2, (long[])(VSPECIES.iotaArray())));
+    static final Long128Vector ZERO = new Long128Vector(createPayloadInstance(VSPECIES));
+
+    static final Long128Vector IOTA = new Long128Vector(VectorPayloadMF.createVectPayloadInstanceL(2, (long[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -535,6 +536,8 @@ value class Long128Vector extends LongVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Long> ETYPE = long.class; // used by the JVM
 
+        static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF16Z.class);
+
         private final VectorPayloadMF16Z payload;
 
         Long128Mask(VectorPayloadMF payload) {
@@ -542,11 +545,11 @@ value class Long128Vector extends LongVector {
         }
 
         Long128Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Long128Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
 
         @ForceInline
@@ -563,6 +566,10 @@ value class Long128Vector extends LongVector {
         final VectorPayloadMF getBits() {
             return payload;
         }
+
+        @ForceInline
+        @Override
+        public final long multiFieldOffset() { return MFOFFSET; }
 
         @ForceInline
         @Override
@@ -702,7 +709,7 @@ value class Long128Vector extends LongVector {
 
         Long128Shuffle(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF128L) payload;
-            assert(VLENGTH == payload.length());
+            //assert(VLENGTH == payload.length());
             assert(indicesInRange(payload));
         }
 
@@ -783,7 +790,7 @@ value class Long128Vector extends LongVector {
         }
 
         private static VectorPayloadMF prepare(int[] indices, int offset) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(long.class, VLENGTH);
+            VectorPayloadMF payload = createPayloadInstance(VSPECIES);
             payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
             long mfOffset = payload.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -796,7 +803,7 @@ value class Long128Vector extends LongVector {
         }
 
         private static VectorPayloadMF prepare(IntUnaryOperator f) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(long.class, VLENGTH);
+            VectorPayloadMF payload = createPayloadInstance(VSPECIES);
             payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
             long offset = payload.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -810,7 +817,7 @@ value class Long128Vector extends LongVector {
 
 
         private static boolean indicesInRange(VectorPayloadMF indices) {
-            int length = indices.length();
+            int length = VLENGTH;
             long offset = indices.multiFieldOffset();
             for (int i = 0; i < length; i++) {
                 long si = Unsafe.getUnsafe().getLong(indices, offset + i * Long.BYTES);

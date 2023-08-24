@@ -69,8 +69,13 @@ value class $vectortype$ extends $abstractvectortype$ {
         return payload;
     }
 
-    static final $vectortype$ ZERO = new $vectortype$(VectorPayloadMF.newInstanceFactory($type$.class, $numLanes$));
-    static final $vectortype$ IOTA = new $vectortype$(VectorPayloadMF.createVectPayloadInstance$Boxinitials$($numLanes$, ($type$[])(VSPECIES.iotaArray())));
+    static final $vectortype$ ZERO = new $vectortype$(createPayloadInstance(VSPECIES));
+
+#if[!Max]
+    static final $vectortype$ IOTA = new $vectortype$(VectorPayloadMF.createVectPayloadInstance$Boxinitials$($numLanes$, ($type$[])(VSPECIES.iotaArray()), false));
+#else[!Max]
+    static final $vectortype$ IOTA = new $vectortype$(VectorPayloadMF.createVectPayloadInstance$Boxinitials$(VLENGTH, ($type$[])(VSPECIES.iotaArray()), true));
+#end[!Max]
 
     static {
         // Warm up a few species caches.
@@ -820,18 +825,30 @@ value class $vectortype$ extends $abstractvectortype$ {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<$Boxtype$> ETYPE = $type$.class; // used by the JVM
 
+#if[!Max]
+        static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF$vectorsizeinbytes$Z.class);
+
         private final VectorPayloadMF$vectorsizeinbytes$Z payload;
+#else[!Max]
+        static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF$bits$$Boxbitsinitials$Z.class);
+
+        private final VectorPayloadMF$bits$$Boxbitsinitials$Z payload;
+#end[!Max]
 
         $masktype$(VectorPayloadMF payload) {
+#if[!Max]
             this.payload = (VectorPayloadMF$vectorsizeinbytes$Z) payload;
+#else[!Max]
+            this.payload = (VectorPayloadMF$bits$$Boxbitsinitials$Z) payload;
+#end[!Max]
         }
 
         $masktype$(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         $masktype$(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
 
         @ForceInline
@@ -848,6 +865,10 @@ value class $vectortype$ extends $abstractvectortype$ {
         final VectorPayloadMF getBits() {
             return payload;
         }
+
+        @ForceInline
+        @Override
+        public final long multiFieldOffset() { return MFOFFSET; }
 
         @ForceInline
         @Override
@@ -978,7 +999,7 @@ value class $vectortype$ extends $abstractvectortype$ {
 #if[intAndMax]
 
         static VectorPayloadMF maskLowerHalf() {
-            VectorPayloadMF newObj = VectorPayloadMF.newInstanceFactory(boolean.class, VLENGTH);
+            VectorPayloadMF newObj = createPayloadInstance(VSPECIES);
             newObj = Unsafe.getUnsafe().makePrivateBuffer(newObj);
             long mf_offset = newObj.multiFieldOffset();
             int len = VLENGTH >> 1;
@@ -1005,7 +1026,7 @@ value class $vectortype$ extends $abstractvectortype$ {
 
         $shuffletype$(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF$bits$$Boxbitsinitials$) payload;
-            assert(VLENGTH == payload.length());
+            //assert(VLENGTH == payload.length());
             assert(indicesInRange(payload));
         }
 
@@ -1117,7 +1138,7 @@ value class $vectortype$ extends $abstractvectortype$ {
         }
 
         private static VectorPayloadMF prepare(int[] indices, int offset) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory($bitstype$.class, VLENGTH);
+            VectorPayloadMF payload = createPayloadInstance(VSPECIES);
             payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
             long mfOffset = payload.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -1130,7 +1151,7 @@ value class $vectortype$ extends $abstractvectortype$ {
         }
 
         private static VectorPayloadMF prepare(IntUnaryOperator f) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory($bitstype$.class, VLENGTH);
+            VectorPayloadMF payload = createPayloadInstance(VSPECIES);
             payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
             long offset = payload.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -1144,7 +1165,7 @@ value class $vectortype$ extends $abstractvectortype$ {
 
 
         private static boolean indicesInRange(VectorPayloadMF indices) {
-            int length = indices.length();
+            int length = VLENGTH;
             long offset = indices.multiFieldOffset();
             for (int i = 0; i < length; i++) {
                 $bitstype$ si = Unsafe.getUnsafe().get$Bitstype$(indices, offset + i * $Boxbitstype$.BYTES);

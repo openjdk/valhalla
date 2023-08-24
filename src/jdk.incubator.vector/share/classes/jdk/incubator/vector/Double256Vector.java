@@ -69,8 +69,9 @@ value class Double256Vector extends DoubleVector {
         return payload;
     }
 
-    static final Double256Vector ZERO = new Double256Vector(VectorPayloadMF.newInstanceFactory(double.class, 4));
-    static final Double256Vector IOTA = new Double256Vector(VectorPayloadMF.createVectPayloadInstanceD(4, (double[])(VSPECIES.iotaArray())));
+    static final Double256Vector ZERO = new Double256Vector(createPayloadInstance(VSPECIES));
+
+    static final Double256Vector IOTA = new Double256Vector(VectorPayloadMF.createVectPayloadInstanceD(4, (double[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -538,6 +539,8 @@ value class Double256Vector extends DoubleVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Double> ETYPE = double.class; // used by the JVM
 
+        static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF32Z.class);
+
         private final VectorPayloadMF32Z payload;
 
         Double256Mask(VectorPayloadMF payload) {
@@ -545,11 +548,11 @@ value class Double256Vector extends DoubleVector {
         }
 
         Double256Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Double256Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
 
         @ForceInline
@@ -566,6 +569,10 @@ value class Double256Vector extends DoubleVector {
         final VectorPayloadMF getBits() {
             return payload;
         }
+
+        @ForceInline
+        @Override
+        public final long multiFieldOffset() { return MFOFFSET; }
 
         @ForceInline
         @Override
@@ -705,7 +712,7 @@ value class Double256Vector extends DoubleVector {
 
         Double256Shuffle(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF256L) payload;
-            assert(VLENGTH == payload.length());
+            //assert(VLENGTH == payload.length());
             assert(indicesInRange(payload));
         }
 
@@ -786,7 +793,7 @@ value class Double256Vector extends DoubleVector {
         }
 
         private static VectorPayloadMF prepare(int[] indices, int offset) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(long.class, VLENGTH);
+            VectorPayloadMF payload = createPayloadInstance(VSPECIES);
             payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
             long mfOffset = payload.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -799,7 +806,7 @@ value class Double256Vector extends DoubleVector {
         }
 
         private static VectorPayloadMF prepare(IntUnaryOperator f) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(long.class, VLENGTH);
+            VectorPayloadMF payload = createPayloadInstance(VSPECIES);
             payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
             long offset = payload.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -813,7 +820,7 @@ value class Double256Vector extends DoubleVector {
 
 
         private static boolean indicesInRange(VectorPayloadMF indices) {
-            int length = indices.length();
+            int length = VLENGTH;
             long offset = indices.multiFieldOffset();
             for (int i = 0; i < length; i++) {
                 long si = Unsafe.getUnsafe().getLong(indices, offset + i * Long.BYTES);

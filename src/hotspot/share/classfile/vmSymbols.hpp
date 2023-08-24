@@ -547,6 +547,7 @@
   template(isJavaIdentifierPart_name,                 "isJavaIdentifierPart")                     \
   template(cache_field_name,                          "cache")                                    \
   template(value_name,                                "value")                                    \
+  template(scale_name,                                "scale")                                    \
   template(compact_strings_name,                      "COMPACT_STRINGS")                          \
   template(numberOfLeadingZeros_name,                 "numberOfLeadingZeros")                     \
   template(numberOfTrailingZeros_name,                "numberOfTrailingZeros")                    \

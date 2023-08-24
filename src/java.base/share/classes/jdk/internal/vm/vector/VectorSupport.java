@@ -166,7 +166,32 @@ public class VectorSupport {
         public abstract long multiFieldOffset();
 
         @ForceInline
-        public static VectorPayloadMF newInstanceFactory(Class<?> elemType, int length) {
+        public static VectorPayloadMF newInstanceFactory(Class<?> elemType, int length, boolean isMax, boolean isMask) {
+            return isMax ? newMaxSizeInstance(elemType, isMask)
+                         : newInstance(elemType, length);
+        }
+
+        @ForceInline
+        private static VectorPayloadMF newMaxSizeInstance(Class<?> elemType, boolean isMask) {
+            if (elemType == byte.class) {
+                return isMask ? new VectorPayloadMFMaxBZ() : new VectorPayloadMFMaxB();
+            } else if (elemType == short.class) {
+                return isMask ? new VectorPayloadMFMaxSZ() : new VectorPayloadMFMaxS();
+            } else if (elemType == int.class) {
+                return isMask ? new VectorPayloadMFMaxIZ() : new VectorPayloadMFMaxI();
+            } else if (elemType == long.class) {
+                return isMask ? new VectorPayloadMFMaxLZ() : new VectorPayloadMFMaxL();
+            } else if (elemType == float.class) {
+                return isMask ? new VectorPayloadMFMaxIZ() : new VectorPayloadMFMaxF();
+            } else if (elemType == double.class) {
+                return isMask ? new VectorPayloadMFMaxLZ() : new VectorPayloadMFMaxD();
+            }
+            assert false : "Unhandled type";
+            return null;
+        }
+
+        @ForceInline
+        private static VectorPayloadMF newInstance(Class<?> elemType, int length) {
             if (elemType == boolean.class) {
                 switch(length) {
                     case  1: return new VectorPayloadMF8Z();
@@ -235,8 +260,9 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceB(int length, byte [] init) {
-            VectorPayloadMF obj = newInstanceFactory(byte.class, length);
+        public static VectorPayloadMF createVectPayloadInstanceB(int length, byte[] init, boolean isMax) {
+            VectorPayloadMF obj = isMax ? newMaxSizeInstance(byte.class, false)
+                                        : newInstance(byte.class, length);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
             for (int i = 0; i < length; i++) {
@@ -247,8 +273,9 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceS(int length, short [] init) {
-            VectorPayloadMF obj = newInstanceFactory(short.class, length);
+        public static VectorPayloadMF createVectPayloadInstanceS(int length, short[] init, boolean isMax) {
+            VectorPayloadMF obj = isMax ? newMaxSizeInstance(short.class, false)
+                                        : newInstance(short.class, length);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
             for (int i = 0; i < length; i++) {
@@ -259,8 +286,9 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceI(int length, int [] init) {
-            VectorPayloadMF obj = newInstanceFactory(int.class, length);
+        public static VectorPayloadMF createVectPayloadInstanceI(int length, int[] init, boolean isMax) {
+            VectorPayloadMF obj = isMax ? newMaxSizeInstance(int.class, false)
+                                        : newInstance(int.class, length);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
             for (int i = 0; i < length; i++) {
@@ -271,8 +299,9 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceL(int length, long [] init) {
-            VectorPayloadMF obj = newInstanceFactory(long.class, length);
+        public static VectorPayloadMF createVectPayloadInstanceL(int length, long[] init, boolean isMax) {
+            VectorPayloadMF obj = isMax ? newMaxSizeInstance(long.class, false)
+                                        : newInstance(long.class, length);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
             for (int i = 0; i < length; i++) {
@@ -283,8 +312,9 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceF(int length, float [] init) {
-            VectorPayloadMF obj = newInstanceFactory(float.class, length);
+        public static VectorPayloadMF createVectPayloadInstanceF(int length, float[] init, boolean isMax) {
+            VectorPayloadMF obj = isMax ? newMaxSizeInstance(float.class, false)
+                                        : newInstance(float.class, length);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
             for (int i = 0; i < length; i++) {
@@ -295,8 +325,9 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceD(int length, double [] init) {
-            VectorPayloadMF obj = newInstanceFactory(double.class, length);
+        public static VectorPayloadMF createVectPayloadInstanceD(int length, double[] init, boolean isMax) {
+            VectorPayloadMF obj = isMax ? newMaxSizeInstance(double.class, false)
+                                        : newInstance(double.class, length);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
             for (int i = 0; i < length; i++) {
@@ -306,20 +337,20 @@ public class VectorSupport {
             return obj;
         }
 
-        public int length() {
-            try {
-                var field = this.getClass().getDeclaredField("mfield");
-                var msanno = field.getAnnotationsByType(MultiField.class);
+        //public int length() {
+        //    try {
+        //        var field = this.getClass().getDeclaredField("mfield");
+        //        var msanno = field.getAnnotationsByType(MultiField.class);
 
-                Objects.nonNull(msanno);
+        //        Objects.nonNull(msanno);
 
-                assert msanno.length == 1;
-                return msanno[0].value();
-            } catch (Exception e) {
-                System.out.println(e);
-            }
-            return -1;
-        }
+        //        assert msanno.length == 1;
+        //        return msanno[0].value();
+        //    } catch (Exception e) {
+        //        System.out.println(e);
+        //    }
+        //    return -1;
+        //}
 
         public static long multiFieldOffset(Class<? extends VectorPayloadMF> cls) {
             try {
@@ -395,6 +426,42 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
+    public primitive static class VectorPayloadMFMaxBZ extends VectorPayloadMF {
+        @MultiField(scale = 0)
+        boolean mfield = false;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxBZ.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
+    public primitive static class VectorPayloadMFMaxSZ extends VectorPayloadMF {
+        @MultiField(scale = 1)
+        boolean mfield = false;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxSZ.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
+    public primitive static class VectorPayloadMFMaxIZ extends VectorPayloadMF {
+        @MultiField(scale = 2)
+        boolean mfield = false;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxIZ.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
+    public primitive static class VectorPayloadMFMaxLZ extends VectorPayloadMF {
+        @MultiField(scale = 3)
+        boolean mfield = false;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxLZ.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
     public primitive static class VectorPayloadMF8B extends VectorPayloadMF {
         @MultiField(value = 1)
         byte mfield = 0;
@@ -458,6 +525,15 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
+    public primitive static class VectorPayloadMFMaxB extends VectorPayloadMF {
+        @MultiField(scale = 0)
+        byte mfield = 0;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxB.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
     public primitive static class VectorPayloadMF64S extends VectorPayloadMF {
         @MultiField(value = 4)
         short mfield = 0;
@@ -489,6 +565,15 @@ public class VectorSupport {
         @MultiField(value = 32)
         short mfield = 0;
         static long MFOFFSET = multiFieldOffset(VectorPayloadMF512S.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
+    public primitive static class VectorPayloadMFMaxS extends VectorPayloadMF {
+        @MultiField(scale = 1)
+        short mfield = 0;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxS.class);
 
         @Override
         public long multiFieldOffset() { return MFOFFSET; }
@@ -530,6 +615,15 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
+    public primitive static class VectorPayloadMFMaxI extends VectorPayloadMF {
+        @MultiField(scale = 2)
+        int mfield = 0;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxI.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
     public primitive static class VectorPayloadMF64L extends VectorPayloadMF {
         @MultiField(value = 1)
         long mfield = 0;
@@ -561,6 +655,15 @@ public class VectorSupport {
         @MultiField(value = 8)
         long mfield = 0;
         static long MFOFFSET = multiFieldOffset(VectorPayloadMF512L.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
+    public primitive static class VectorPayloadMFMaxL extends VectorPayloadMF {
+        @MultiField(scale = 3)
+        long mfield = 0;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxL.class);
 
         @Override
         public long multiFieldOffset() { return MFOFFSET; }
@@ -602,6 +705,15 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
+    public primitive static class VectorPayloadMFMaxF extends VectorPayloadMF {
+        @MultiField(scale = 2)
+        float mfield = 0.0f;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxF.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
     public primitive static class VectorPayloadMF64D extends VectorPayloadMF {
         @MultiField(value = 1)
         double mfield = 0.0;
@@ -633,6 +745,15 @@ public class VectorSupport {
         @MultiField(value = 8)
         double mfield = 0.0;
         static long MFOFFSET = multiFieldOffset(VectorPayloadMF512D.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET; }
+    }
+
+    public primitive static class VectorPayloadMFMaxD extends VectorPayloadMF {
+        @MultiField(scale = 3)
+        double mfield = 0.0;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxD.class);
 
         @Override
         public long multiFieldOffset() { return MFOFFSET; }

@@ -373,8 +373,7 @@ public abstract class DoubleVector extends AbstractVector<Double> {
                                   FLdOp<M> f) {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                double.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(createPayloadInstance(vspecies()));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putDouble(tpayload, vOffset + i * Double.BYTES, f.apply(memory, offset, i));
@@ -391,8 +390,7 @@ public abstract class DoubleVector extends AbstractVector<Double> {
                                   FLdOp<M> f) {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                double.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(createPayloadInstance(vspecies()));
         VectorPayloadMF mbits = ((AbstractMask<Double>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -418,8 +416,7 @@ public abstract class DoubleVector extends AbstractVector<Double> {
                                   FLdLongOp f) {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                double.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(createPayloadInstance(vspecies()));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putDouble(tpayload, vOffset + i * Double.BYTES, f.apply(memory, offset, i));
@@ -436,8 +433,7 @@ public abstract class DoubleVector extends AbstractVector<Double> {
                                   FLdLongOp f) {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                double.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(createPayloadInstance(vspecies()));
         VectorPayloadMF mbits = ((AbstractMask<Double>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -545,7 +541,7 @@ public abstract class DoubleVector extends AbstractVector<Double> {
         int length = vspecies().length();
         VectorPayloadMF vec1 = vec();
         VectorPayloadMF vec2 = ((DoubleVector)o).vec();
-        VectorPayloadMF mbits = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+        VectorPayloadMF mbits = AbstractMask.createPayloadInstance(vspecies());
         mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -2961,11 +2957,9 @@ public abstract class DoubleVector extends AbstractVector<Double> {
             // indexShape is still S_MAX_BIT, but the lane count of int vector
             // is 64. So when loading index vector (IntVector), only lower half
             // of index data is needed.
-            /*vix = IntVector
+            vix = IntVector
                 .fromArray(isp, indexMap, mapOffset, IntMaxVector.IntMaxMask.LOWER_HALF_TRUE_MASK)
                 .add(offset);
-             */
-             assert false : "Unhandled case for Multi-field based MaxVector";
         } else {
             vix = IntVector
                 .fromArray(isp, indexMap, mapOffset)
@@ -3256,11 +3250,9 @@ public abstract class DoubleVector extends AbstractVector<Double> {
             // indexShape is still S_MAX_BIT, but the lane count of int vector
             // is 64. So when loading index vector (IntVector), only lower half
             // of index data is needed.
-            /*vix = IntVector
+            vix = IntVector
                 .fromArray(isp, indexMap, mapOffset, IntMaxVector.IntMaxMask.LOWER_HALF_TRUE_MASK)
                 .add(offset);
-             */
-             assert false : "Unhandled case for Multi-field based MaxVector";
         } else {
             vix = IntVector
                 .fromArray(isp, indexMap, mapOffset)
@@ -3452,11 +3444,9 @@ public abstract class DoubleVector extends AbstractVector<Double> {
             // indexShape is still S_MAX_BIT, but the lane count of int vector
             // is 64. So when loading index vector (IntVector), only lower half
             // of index data is needed.
-            /*vix = IntVector
+            vix = IntVector
                 .fromArray(isp, indexMap, mapOffset, IntMaxVector.IntMaxMask.LOWER_HALF_TRUE_MASK)
                 .add(offset);
-             */
-            assert false : "Unhandled case for Multi-field based MaxVector";
         } else {
             vix = IntVector
                 .fromArray(isp, indexMap, mapOffset)
@@ -3569,11 +3559,9 @@ public abstract class DoubleVector extends AbstractVector<Double> {
             // indexShape is still S_MAX_BIT, but the lane count of int vector
             // is 64. So when loading index vector (IntVector), only lower half
             // of index data is needed.
-            /*vix = IntVector
-                .fromArray(isp, indexMap, mapOffset, IntMaxVector.IntMaxMask.LOWER_HALF_TRUE_MASK)
-                .add(offset);
-             */
-             assert false : "Unhandled case for Multi-field based MaxVector";
+            vix = IntVector
+                  .fromArray(isp, indexMap, mapOffset, IntMaxVector.IntMaxMask.LOWER_HALF_TRUE_MASK)
+                  .add(offset);
 
         } else {
             vix = IntVector
@@ -4024,9 +4012,8 @@ public abstract class DoubleVector extends AbstractVector<Double> {
         @Override
         @ForceInline
         public final DoubleVector zero() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == DoubleMaxVector.class)
-            //    return DoubleMaxVector.ZERO;
+            if ((Class<?>) vectorType() == DoubleMaxVector.class)
+                return DoubleMaxVector.ZERO;
             switch (vectorBitSize()) {
                 case 64: return Double64Vector.ZERO;
                 case 128: return Double128Vector.ZERO;
@@ -4039,9 +4026,8 @@ public abstract class DoubleVector extends AbstractVector<Double> {
         @Override
         @ForceInline
         public final DoubleVector iota() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == DoubleMaxVector.class)
-            //    return DoubleMaxVector.IOTA;
+            if ((Class<?>) vectorType() == DoubleMaxVector.class)
+                return DoubleMaxVector.IOTA;
             switch (vectorBitSize()) {
                 case 64: return Double64Vector.IOTA;
                 case 128: return Double128Vector.IOTA;
@@ -4055,9 +4041,8 @@ public abstract class DoubleVector extends AbstractVector<Double> {
         @Override
         @ForceInline
         public final VectorMask<Double> maskAll(boolean bit) {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == DoubleMaxVector.class)
-            //    return DoubleMaxVector.DoubleMaxMask.maskAll(bit);
+            if ((Class<?>) vectorType() == DoubleMaxVector.class)
+                return DoubleMaxVector.DoubleMaxMask.maskAll(bit);
             switch (vectorBitSize()) {
                 case 64: return Double64Vector.Double64Mask.maskAll(bit);
                 case 128: return Double128Vector.Double128Mask.maskAll(bit);
@@ -4092,8 +4077,7 @@ public abstract class DoubleVector extends AbstractVector<Double> {
             case VectorShape.SK_128_BIT: return (DoubleSpecies) SPECIES_128;
             case VectorShape.SK_256_BIT: return (DoubleSpecies) SPECIES_256;
             case VectorShape.SK_512_BIT: return (DoubleSpecies) SPECIES_512;
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //case VectorShape.SK_Max_BIT: return (DoubleSpecies) SPECIES_MAX;
+            case VectorShape.SK_Max_BIT: return (DoubleSpecies) SPECIES_MAX;
             default: throw new IllegalArgumentException("Bad shape: " + s);
         }
     }
@@ -4131,14 +4115,12 @@ public abstract class DoubleVector extends AbstractVector<Double> {
                             Double512Vector::new);
 
     /** Species representing {@link DoubleVector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
-    // FIXME: Enable once multi-field based MaxVector is supported.
-    /*public static final VectorSpecies<Double> SPECIES_MAX
+    public static final VectorSpecies<Double> SPECIES_MAX
         = new DoubleSpecies(VectorShape.S_Max_BIT,
                             DoubleMaxVector.class,
                             DoubleMaxVector.DoubleMaxMask.class,
                             DoubleMaxVector.DoubleMaxShuffle.class,
                             DoubleMaxVector::new);
-     */
 
     /**
      * Preferred species for {@link DoubleVector}s.

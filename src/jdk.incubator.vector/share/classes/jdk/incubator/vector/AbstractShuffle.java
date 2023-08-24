@@ -50,6 +50,15 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     }
 
     /*package-private*/
+    @ForceInline
+    static <F> VectorPayloadMF createPayloadInstance(AbstractSpecies<F> species) {
+        boolean isMaxShape = species.vectorShape == VectorShape.S_Max_BIT;
+        Class<?> etype = species.asIntegral().elementType();
+        int length = species.laneCount();
+        return VectorPayloadMF.newInstanceFactory(etype, length, isMaxShape, false);
+    }
+
+    /*package-private*/
     abstract AbstractVector<?> toBitsVector();
 
     final AbstractVector<?> toBitsVectorTemplate() {

@@ -1138,7 +1138,8 @@ static void parse_annotations(const ConstantPool* const cp,
                               const u1* buffer, int limit,
                               AnnotationCollector* coll,
                               ClassLoaderData* loader_data,
-                              const bool can_access_vm_annotations) {
+                              const bool can_access_vm_annotations,
+                              u2 signature_index) {
 
   assert(cp != nullptr, "invariant");
   assert(buffer != nullptr, "invariant");
@@ -1215,12 +1216,15 @@ static void parse_annotations(const ConstantPool* const cp,
       coll->set_contended_group(group_index);
     } else if (AnnotationCollector::_jdk_internal_vm_annotation_MultiField == id) {
       // TODO: change those assertion into a conditional statement to process the value
-      assert(count == 1, "MultiField annotation must have at least one argument");  // Is it true?
-      assert(member == vmSymbols::value_name(), "Must be");
+      assert(count == 1, "MultiField annotation must have at least one arguments");  // Is it true?
       assert(b_tag_val == *(abase + tag_off), "Must be a byte value");
       int arg_index = Bytes::get_Java_u2((address)abase + b_con_off);
       int multifield_arg = cp->int_at(arg_index);
       assert(((jbyte)multifield_arg) == multifield_arg, "Must be");
+
+      if (member == vmSymbols::scale_name()) {
+        multifield_arg = MaxVectorSize >> multifield_arg;
+      }
       coll->set_multifield_arg(multifield_arg);
     }
   }
@@ -1327,7 +1331,8 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
                           runtime_visible_annotations_length,
                           parsed_annotations,
                           _loader_data,
-                          _can_access_vm_annotations);
+                          _can_access_vm_annotations,
+                          signature_index);
         cfs->skip_u1_fast(runtime_visible_annotations_length);
       } else if (attribute_name == vmSymbols::tag_runtime_invisible_annotations()) {
         if (runtime_invisible_annotations_exists) {
@@ -2802,7 +2807,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                           runtime_visible_annotations_length,
                           &parsed_annotations,
                           _loader_data,
-                          _can_access_vm_annotations);
+                          _can_access_vm_annotations, 0);
         cfs->skip_u1_fast(runtime_visible_annotations_length);
       } else if (method_attribute_name == vmSymbols::tag_runtime_invisible_annotations()) {
         if (runtime_invisible_annotations_exists) {
@@ -3918,7 +3923,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
                           runtime_visible_annotations_length,
                           parsed_annotations,
                           _loader_data,
-                          _can_access_vm_annotations);
+                          _can_access_vm_annotations, 0);
         cfs->skip_u1_fast(runtime_visible_annotations_length);
       } else if (tag == vmSymbols::tag_runtime_invisible_annotations()) {
         if (runtime_invisible_annotations_exists) {

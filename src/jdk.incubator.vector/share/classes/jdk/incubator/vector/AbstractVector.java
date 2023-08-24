@@ -183,6 +183,15 @@ abstract class AbstractVector<E> extends Vector<E> {
 
     /*package-private*/
     @ForceInline
+    static <F> VectorPayloadMF createPayloadInstance(AbstractSpecies<F> species) {
+        boolean isMaxShape = species.vectorShape == VectorShape.S_Max_BIT;
+        Class<?> etype = species.elementType();
+        int length = species.laneCount();
+        return VectorPayloadMF.newInstanceFactory(etype, length, isMaxShape, false);
+    }
+
+    /*package-private*/
+    @ForceInline
     ByteVector asByteVectorRawTemplate() {
         return (ByteVector) asVectorRawTemplate(LaneType.BYTE);
     }
