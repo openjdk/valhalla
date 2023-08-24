@@ -73,11 +73,11 @@ public class SimpleClassTest {
 		    this.y = y;
 		}
 	}
-	
+
 	public boolean test_inlined(MyValue a, MyValue b) {
 		return a == b;
 	}
-	
+
 	@CompilerControl(CompilerControl.Mode.DONT_INLINE)
 	public boolean test_not_inlined(MyValue a, MyValue b) {
 		return a == b;
@@ -89,21 +89,19 @@ public class SimpleClassTest {
 	MyValue c = new MyValue(new Point(0, 0));
 
     @Benchmark
-    public boolean cmp_inlined() {    	
-        return test_inlined(a, (counter++ % 2) == 0 ? b : c);
-    }
-    
-    @Benchmark
+    public boolean cmp_inlined() {
+		return test_inlined(a, (counter++ % 2) == 0 ? b : c);
+	}
+
+	@Benchmark
     public boolean cmp_not_inlined() {
         return test_not_inlined(a, (counter++ % 2) == 0 ? b : c);
     }
-    
-    @Benchmark
+
+	@Benchmark
     public boolean cmp_foldable(){
 		MyValue v1 = new MyValue(new Point(counter++ % 2, 0));
 		MyValue v2 = new MyValue(new Point(1, 0));
-    	return v1 == v2;
+		return v1 == v2;
     }
 }
-
-
