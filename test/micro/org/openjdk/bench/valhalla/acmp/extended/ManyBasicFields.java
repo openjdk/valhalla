@@ -42,27 +42,27 @@ public class ManyBasicFields {
 		int field1;
 		int field2;
 		int field3;
-
+		
 		public ManyObjectFields1(int field1, int field2, int field3) {
 			this.field1 = field1;
 			this.field2 = field2;
 			this.field3 = field3;
 		}
 	}
-
+	
 	ManyObjectFields1 obj1_1 = new ManyObjectFields1(1, 2, 3);
 	ManyObjectFields1 obj1_2 = new ManyObjectFields1(1, 2, 3);
 	ManyObjectFields1 obj1_3 = new ManyObjectFields1(0, 2, 3);
-
+	
 	public boolean test_03(ManyObjectFields1 a, ManyObjectFields1 b) {return a == b;}
-
+	
 	@Benchmark
 	public boolean cmp_eq_03_fields() {return test_03(obj1_1, obj1_2);}
-
+	
 	@Benchmark
 	public boolean cmp_not_eq_03_fields() {return test_03(obj1_1, obj1_3);}
-
-
+	
+	
 	public value class ManyObjectFields2 {
 		int field1;
 		int field2;
@@ -70,7 +70,7 @@ public class ManyBasicFields {
 		int field4;
 		int field5;
 		int field6;
-
+		
 		public ManyObjectFields2(int field1, int field2, int field3, int field4, int field5, int field6) {
 			this.field1 = field1;
 			this.field2 = field2;
@@ -80,20 +80,20 @@ public class ManyBasicFields {
 			this.field6 = field6;
 		}
 	}
-
+	
 	ManyObjectFields2 obj2_1 = new ManyObjectFields2(1, 2, 3, 4, 5, 6);
 	ManyObjectFields2 obj2_2 = new ManyObjectFields2(1, 2, 3, 4, 5, 6);
 	ManyObjectFields2 obj2_3 = new ManyObjectFields2(0, 2, 3, 4, 5, 6);
-
+	
 	public boolean test_06(ManyObjectFields2 a, ManyObjectFields2 b) {return a == b;}
-
+	
 	@Benchmark
 	public boolean cmp_eq_06_fields() {return test_06(obj2_1, obj2_2);}
-
+	
 	@Benchmark
 	public boolean cmp_not_eq_06_fields() {return test_06(obj2_1, obj2_3);}
-
-
+	
+	
 	public value class ManyObjectFields3 {
 		int field1;
 		int field2;
