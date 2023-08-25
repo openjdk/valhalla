@@ -51,8 +51,6 @@ protected:
                      // Nodes are connected in increasing order of the index of the field they correspond to.
   };
 
-  void expand_input_edges(ciInlineKlass * vk);
-
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
