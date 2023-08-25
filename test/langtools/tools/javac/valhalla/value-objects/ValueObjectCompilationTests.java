@@ -1008,9 +1008,9 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         String code =
                 """
                 value class V0 {
-                    public implicit V0(); 
+                    public implicit V0();
                 }
-                
+
                 value class V1 {
                     V0! f1;
                     V0 f2;
