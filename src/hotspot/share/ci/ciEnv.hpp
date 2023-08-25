@@ -519,6 +519,7 @@ public:
   void process_invokedynamic(const constantPoolHandle &cp, int index, JavaThread* thread);
   void process_invokehandle(const constantPoolHandle &cp, int index, JavaThread* thread);
   void find_dynamic_call_sites();
+  static bool is_multifield_scalarized(BasicType type, int vec_len);
 };
 
 #endif // SHARE_CI_CIENV_HPP

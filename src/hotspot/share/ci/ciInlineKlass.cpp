@@ -31,13 +31,13 @@
 
 int ciInlineKlass::compute_nonstatic_fields() {
   int result = ciInstanceKlass::compute_nonstatic_fields();
-  assert(super() == NULL || !super()->has_nonstatic_fields(), "an inline type must not inherit fields from its superclass");
+  assert(super() == nullptr || !super()->has_nonstatic_fields(), "an inline type must not inherit fields from its superclass");
 
   // Compute declared non-static fields (without flattening of inline type fields)
-  GrowableArray<ciField*>* fields = NULL;
-  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(NULL, false /* no flattening */);)
+  GrowableArray<ciField*>* fields = nullptr;
+  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(nullptr, false /* no flattening */);)
   Arena* arena = CURRENT_ENV->arena();
-  _declared_nonstatic_fields = (fields != NULL) ? fields : new (arena) GrowableArray<ciField*>(arena, 0, 0, 0);
+  _declared_nonstatic_fields = (fields != nullptr) ? fields : new (arena) GrowableArray<ciField*>(arena, 0, 0, 0);
   return result;
 }
 
@@ -55,23 +55,10 @@ int ciInlineKlass::field_index_by_offset(int offset) {
   int best_index = -1;
   // Search the field with the given offset
   for (int i = 0; i < nof_declared_nonstatic_fields(); ++i) {
-    ciField* field = _declared_nonstatic_fields->at(i);
-    int field_offset = field->offset_in_bytes();
+    int field_offset = _declared_nonstatic_fields->at(i)->offset_in_bytes();
     if (field_offset == offset) {
       // Exact match
       return i;
-    } else if (field->is_multifield_base()) {
-      for (int j = 0; j < field->secondary_fields_count(); j++) {
-        ciField* sec_field = static_cast<ciMultiField*>(field)->secondary_field_at(j);
-        assert(sec_field != NULL, "");
-        int sec_field_offset = sec_field->offset_in_bytes();
-        if (sec_field_offset == offset) {
-          return i + j + 1;
-        } else if (sec_field_offset < offset && sec_field_offset > best_offset) {
-          best_offset = sec_field_offset;
-          best_index = i + j + 1;
-        }
-      }
     } else if (field_offset < offset && field_offset > best_offset) {
       // No exact match. Save the index of the field with the closest offset that
       // is smaller than the given field offset. This index corresponds to the
