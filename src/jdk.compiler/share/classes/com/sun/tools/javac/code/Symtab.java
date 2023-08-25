@@ -52,7 +52,6 @@ import com.sun.tools.javac.code.Type.JCPrimitiveType;
 import com.sun.tools.javac.code.Type.JCVoidType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.UnknownType;
-import com.sun.tools.javac.code.Type.WildcardType;
 import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.comp.Modules;
 import com.sun.tools.javac.jvm.Target;
@@ -66,7 +65,6 @@ import com.sun.tools.javac.util.JavacMessages;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
-import com.sun.tools.javac.util.Options;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
@@ -246,7 +244,7 @@ public class Symtab {
     public final Type linkageType;
 
     // for value objects
-    public final Type nonAtomicType;
+    public final Type looselyConsistentValueType;
     public final Type reflectArrayType;
 
     /** The symbol representing the length field of an array.
@@ -645,7 +643,7 @@ public class Symtab {
         linkageType = enterClass("java.lang.StringTemplate$Processor$Linkage");
 
         // for value objects
-        nonAtomicType = enterClass("java.lang.NonAtomic");
+        looselyConsistentValueType = enterClass("java.lang.LooselyConsistentValue");
         reflectArrayType = enterClass("java.lang.reflect.Array");
 
         // Enter a synthetic class that is used to mark internal
