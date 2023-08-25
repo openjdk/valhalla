@@ -77,45 +77,50 @@ public class RuntimeNullChecks extends TestRunner {
     public void testRuntimeChecks(Path base) throws Exception {
         for (String code: new String[] {
                 """
+                value class Point { public implicit Point(); }
                 class Test {
                     public static void main(String... args) {
-                        String s = null;
-                        String! o = s; // NPE at runtime, variable initialization
+                        Point s = null;
+                        Point! o = s; // NPE at runtime, variable initialization
                     }
                 }
                 """,
                 """
+                value class Point { public implicit Point(); }
                 class Test {
                     public static void main(String... args) {
-                        String s = null;
-                        String! o;
+                        Point s = null;
+                        Point! o;
                         o = s; // NPE at runtime, assignment, it doesn't stress the same code path as the case above
                     }
                 }
                 """,
                 """
+                value class Point { public implicit Point(); }
                 class Test {
                     public static void main(String... args) {
-                        String s = null;
-                        String![] sr = new String![10];
+                        Point s = null;
+                        Point![] sr = new Point![10];
                         sr[0] = s; // NPE at runtime, assignment
                     }
                 }
                 """,
                 """
+                value class Point { public implicit Point(); }
                 class Test {
-                    static String id(String! arg) { return arg; }
+                    static Point id(Point! arg) { return arg; }
                     public static void main(String... args) {
-                        String s = null;
+                        Point s = null;
                         Object o = id(s); // NPE at runtime, method invocation
                     }
                 }
                 """,
                 """
+                value class Point { public implicit Point(); }
                 class Test {
                     public static void main(String... args) {
-                        String s = null;
-                        Object o = (String!) s; // NPE, cast
+                        Point s = null;
+                        Object o = (Point!) s; // NPE, cast
                     }
                 }
                 """

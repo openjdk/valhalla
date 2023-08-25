@@ -35,14 +35,14 @@ import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
 
 public class PreloadAttributeTest {
 
-    public value class P1 {}
-    public value class P2 {}
-    public value class P3 {}
-    public value class P4 {}
-    public value class P5 {}
-    public value class P6 {}
-    public value class P7 {}
-    public value class P8 {}
+    public static value class P1 { public implicit P1(); }
+    public static value class P2 { public implicit P2(); }
+    public static value class P3 { public implicit P3(); }
+    public static value class P4 { public implicit P4(); }
+    public static value class P5 { public implicit P5(); }
+    public static value class P6 { public implicit P6(); }
+    public static value class P7 { public implicit P7(); }
+    public static value class P8 { public implicit P8(); }
 
     // We expect NO Preload Entries for ANY of P1 .. P4
     P1! p1;

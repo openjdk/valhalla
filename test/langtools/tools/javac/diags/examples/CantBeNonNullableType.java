@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,30 +21,10 @@
  * questions.
  */
 
-/**
- * @test
- * @bug 8198749
- * @summary Test that qualified this based access to instance fields works ok.
- * @compile -XDenablePrimitiveClasses ValueConstructorRef.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueConstructorRef
- */
+// key: compiler.err.type.cant.be.null.restricted
+// key: compiler.err.type.cant.be.null.restricted.2
 
-import java.util.function.Supplier;
-
-public value class ValueConstructorRef {
-
-    final int x;
-    final int y;
-
-    ValueConstructorRef() {
-        x = 1234;
-        y = 5678;
-    }
-
-    public static void main(String [] args) {
-        Supplier<ValueConstructorRef> sx = ValueConstructorRef::new;
-        ValueConstructorRef x = (ValueConstructorRef) sx.get();
-        if (x.x != 1234 || x.y != 5678)
-            throw new AssertionError(x);
-    }
+public class CantBeNonNullableType {
+    String! s;
+    String[]! sa;
 }

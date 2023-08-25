@@ -34,79 +34,81 @@ import java.util.function.*;
 import java.util.*;
 
 class NullabilityParsingTest {
+    static value class Point { public implicit Point(); }
+    static value class Shape { public implicit Shape(); }
     // fields
-    Object! o2;
+    Point! o2;
 
     // method parameters
-    void m2(Object! o) { }
+    void m2(Point! o) { }
 
     // method returns
-    Object! m2() { return new Object(); }
+    Point! m2() { return new Point(); }
 
     // locals
     void testLocals() {
-        Object! o2;
+        Point! o2;
     }
 
     // generics - field
-    Consumer<Object!> co2;
+    Consumer<Point!> co2;
 
     // generics - method param
-    void m4(Consumer<Object!> co) { }
+    void m4(Consumer<Point!> co) { }
 
     // generics - method return
-    Consumer<Object!> m4() { return null; }
+    Consumer<Point!> m4() { return null; }
 
     // generics - local
     void testGenericLocals() {
-        Consumer<Object!> co2;
+        Consumer<Point!> co2;
     }
 
     // lambdas
     void testLambdas() {
-        Consumer<Object!> co2 = (Object! co) -> {};
+        Consumer<Point!> co2 = (Point! co) -> {};
     }
 
     void testGenericLambdas() {
-        Consumer<Consumer<Object!>> co2 = (Consumer<Object!> co) -> {};
-        Consumer<Function<Object!, Object!>> co3 = (Function<Object!, Object!> co) -> {};
-        Consumer<Consumer<Consumer<Consumer<Object!>>>> co6 = (Consumer<Consumer<Consumer<Object!>>> co) -> {};
+        Consumer<Consumer<Point!>> co2 = (Consumer<Point!> co) -> {};
+        Consumer<Function<Point!, Point!>> co3 = (Function<Point!, Point!> co) -> {};
+        Consumer<Consumer<Consumer<Consumer<Point!>>>> co6 = (Consumer<Consumer<Consumer<Point!>>> co) -> {};
     }
 
     // type test patterns
 
     void testTypeTestPatterns(Object o) {
         switch (o) {
-            case Integer! i -> throw new AssertionError();
-            case String! s -> throw new AssertionError();
+            case Point! i -> throw new AssertionError();
+            case Shape! s -> throw new AssertionError();
             default -> throw new AssertionError();
         }
     }
 
     sealed interface I<X> {}
-    final class A implements I<Integer> { }
+    final class A implements I<Point> { }
 
     void genericTypeTestPatterns(A o) {
         switch (o) {
-            case I<Integer!> i -> { }
+            case I<Point!> i -> { }
         }
     }
 
     sealed interface I2<X> {}
-    final class A2 implements I2<I<Integer>> { }
+    final class A2 implements I2<I<Point>> { }
 
     void genericTypeTestPatterns(A2 o) {
         switch (o) {
-            case I2<I<Integer!>> i -> { }
+            case I2<I<Point!>> i -> { }
         }
     }
 
     sealed interface I3<X> {}
-    final class A3 implements I3<I2<I<Integer>>> { }
+    final class A3 implements I3<I2<I<Point>>> { }
 
     void genericTypeTestPatterns(A3 o) {
         switch (o) {
-            case I3<I2<I<Integer!>>> i -> { }
+            case I3<I2<I<Point!>>> i -> { }
         }
     }
 
@@ -116,7 +118,7 @@ class NullabilityParsingTest {
 
     void genericRecordPatterns(R o) {
         switch (o) {
-            case R!(I<Integer!> i) -> { }
+            case R!(I<Point!> i) -> { }
         }
     }
 
@@ -124,7 +126,7 @@ class NullabilityParsingTest {
 
     void genericRecordPatterns(R2 o) {
         switch (o) {
-            case R2!(I2<I<Integer!>> i) -> { }
+            case R2!(I2<I<Point!>> i) -> { }
         }
     }
 
@@ -132,66 +134,66 @@ class NullabilityParsingTest {
 
     void genericRecordPatterns(R3 o) {
         switch (o) {
-            case R3!(I3<I2<I<Integer!>>> i) -> { }
+            case R3!(I3<I2<I<Point!>>> i) -> { }
         }
     }
 
     // instanceof/cast
 
     void testInstanceOf(Object o) {
-        boolean r2 = o instanceof String!;
+        boolean r2 = o instanceof Point!;
     }
 
     void testInstanceRecord(R r) {
-        boolean r2 = r instanceof R(I<Integer!> i);
+        boolean r2 = r instanceof R(I<Point!> i);
     }
 
     void testCast(Object o) {
-        String! s2 = (String!)o;
+        Point! s2 = (Point!)o;
     }
 
     void testGenericCast(A a) {
-        I<Integer!> i2 = (I<Integer!>)a;
+        I<Point!> i2 = (I<Point!>)a;
     }
-
+/*
     void testGenericCast2(A a) {
-        I!<Integer!> i2 = (I!<Integer!>)a;
+        I<Point!> i2 = (I<Point!>)a;
     }
-
+*/
     // arrays
 
-    Object![]![]![]! oarr;
-    Function!<Object![]![]!, Function<Object![]![]!, Object![]![]!>>[]![]! garr;
+    Point![]![]![]! oarr;
+    Function<Point![]![]!, Function<Point![]![]!, Point![]![]!>>[][] garr;
 
     void mBad1(Object o) {
-        String s1 = o instanceof String ? (String)o : null;
-        String s2 = o instanceof String! ? (String)o : null;
+        Point s1 = o instanceof Point ? (Point)o : null;
+        Point s2 = o instanceof Point! ? (Point)o : null;
     }
 
     void mBad2(Object o) {
-        String s1 = o instanceof String ? "" : null;
-        String s2 = o instanceof String! ? "" : null;
+        Point s1 = o instanceof Point ? null : null;
+        Point s2 = o instanceof Point! ? null : null;
     }
 
     void testPatternRule(Object o) {
         switch (o) {
-            case String! s -> { }
+            case Point! s -> { }
                 default -> { }
         }
     }
 
     void testPatternCol(Object o) {
         switch (o) {
-            case String! s: { }
+            case Point! s: { }
             default: { }
         }
     }
 
     void testInstanceOfAndInfix1(Object a, boolean b) {
-        boolean x2 = a instanceof String! && b;
+        boolean x2 = a instanceof Point! && b;
     }
 
     void testInstanceOfAndInfix2(Object a, boolean b) {
-        boolean x2 = a instanceof String! s && b;
+        boolean x2 = a instanceof Point! s && b;
     }
 }

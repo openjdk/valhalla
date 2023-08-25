@@ -1007,9 +1007,13 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
     public void testClassAttributes() throws Exception {
         String code =
                 """
+                value class V0 {
+                    public implicit V0();
+                }
+
                 value class V1 {
-                    String! f1;
-                    String f2;
+                    V0! f1;
+                    V0 f2;
                     public implicit V1();
                 }
 
