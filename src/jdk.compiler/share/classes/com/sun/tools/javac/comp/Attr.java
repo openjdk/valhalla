@@ -1773,6 +1773,8 @@ public class Attr extends JCTree.Visitor {
                                     Symbol enumSym = TreeInfo.symbol(expr);
                                     if (enumSym == null || !enumSym.isEnum() || enumSym.kind != VAR) {
                                         log.error(expr.pos(), Errors.EnumLabelMustBeEnumConstant);
+                                    } else if (!constants.add(enumSym)) {
+                                        log.error(label.pos(), Errors.DuplicateCaseLabel);
                                     }
                                 } else {
                                     log.error(expr.pos(), Errors.EnumLabelMustBeUnqualifiedEnum);
@@ -1804,6 +1806,8 @@ public class Attr extends JCTree.Visitor {
                                                   (stringSwitch ? Errors.StringConstReq
                                                                 : intSwitch ? Errors.ConstExprReq
                                                                             : Errors.PatternOrEnumReq));
+                                    } else if (!constants.add(s)) {
+                                        log.error(label.pos(), Errors.DuplicateCaseLabel);
                                     }
                                 } else if (!stringSwitch && !intSwitch) {
                                     log.error(label.pos(), Errors.ConstantLabelNotCompatible(pattype, seltype));
