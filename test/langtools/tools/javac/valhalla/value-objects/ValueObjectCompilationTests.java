@@ -1047,20 +1047,20 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         }
     }
 
-    public void testImplementingNonAtomic() {
-        assertFail("compiler.err.cant.implement.non.atomic",
+    public void testImplementingLooselyConsistentValue() {
+        assertFail("compiler.err.cant.implement.interface",
                 """
-                class V implements NonAtomic {}
+                class V implements LooselyConsistentValue {}
                 """
         );
-        assertFail("compiler.err.cant.implement.non.atomic",
+        assertFail("compiler.err.cant.implement.interface",
                 """
-                value class V implements NonAtomic {}
+                value class V implements LooselyConsistentValue {}
                 """
         );
         assertOK(
                 """
-                abstract class V implements NonAtomic {}
+                abstract class V implements LooselyConsistentValue {}
                 """
         );
     }

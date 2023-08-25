@@ -40,8 +40,6 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Directive.*;
-import com.sun.tools.javac.code.Scope.WriteableScope;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Types.SignatureGenerator.InvalidSignatureException;
@@ -962,7 +960,7 @@ public class ClassWriter extends ClassFile {
     int writeImplicitCreationIfNeeded(ClassSymbol csym) {
         if (csym.isValueClass() && csym.getImplicitConstructor() != null) {
             int alenIdx = writeAttr(names.ImplicitCreation);
-            int flags = ACC_DEFAULT | (csym.isSubClass(syms.nonAtomicType.tsym, types) ? ACC_NON_ATOMIC : 0);
+            int flags = ACC_DEFAULT | (csym.isSubClass(syms.looselyConsistentValueType.tsym, types) ? ACC_NON_ATOMIC : 0);
             databuf.appendChar(flags);
             endAttr(alenIdx);
             return 1;

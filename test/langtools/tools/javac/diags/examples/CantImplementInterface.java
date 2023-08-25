@@ -21,7 +21,7 @@
  * questions.
  */
 
-// key: compiler.err.cant.implement.non.atomic
+// key: compiler.err.cant.implement.interface
 
-class CantImplementNonAtomic implements NonAtomic {
+class CantImplementInterface implements LooselyConsistentValue {
 }

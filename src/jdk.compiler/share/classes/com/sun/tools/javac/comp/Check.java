@@ -2800,17 +2800,17 @@ public class Check {
         }
         checkCompatibleConcretes(pos, c);
 
-        boolean implementsNonAtomic = false;
+        boolean implementsLooselyConsistentValue = false;
         try {
-            implementsNonAtomic = allowValueClasses ? types.asSuper(c, syms.nonAtomicType.tsym) != null : false;
+            implementsLooselyConsistentValue = allowValueClasses ? types.asSuper(c, syms.looselyConsistentValueType.tsym) != null : false;
         } catch (CompletionFailure cf) {
             // ignore
         }
         boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
         boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
-        if (c.getKind() == TypeKind.DECLARED && implementsNonAtomic && !c.tsym.isAbstract()) {
+        if (c.getKind() == TypeKind.DECLARED && implementsLooselyConsistentValue && !c.tsym.isAbstract()) {
             if (!cIsValue || ((ClassSymbol)c.tsym).getImplicitConstructor() == null) {
-                log.error(pos, Errors.CantImplementNonAtomic(c.tsym));
+                log.error(pos, Errors.CantImplementInterface(c.tsym));
             }
         }
         Type identitySuper = null, valueSuper = null;
