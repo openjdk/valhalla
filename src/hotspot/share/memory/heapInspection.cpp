@@ -538,11 +538,11 @@ private:
   AccessFlags _access_flags;
  public:
   FieldDesc() {
-    _name = NULL;
-    _signature = NULL;
+    _name = nullptr;
+    _signature = nullptr;
     _offset = -1;
     _index = -1;
-    _holder = NULL;
+    _holder = nullptr;
     _access_flags = AccessFlags();
   }
   FieldDesc(fieldDescriptor& fd) {
@@ -555,11 +555,11 @@ private:
   }
   const Symbol* name() { return _name;}
   const Symbol* signature() { return _signature; }
-  const int offset() { return _offset; }
-  const int index() { return _index; }
+  int offset() const { return _offset; }
+  int index() const { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  const bool is_inline_type() { return Signature::basic_type(_signature) == T_PRIMITIVE_OBJECT; }
+  bool is_inline_type() const { return Signature::basic_type(_signature) == T_PRIMITIVE_OBJECT; }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {

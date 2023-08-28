@@ -22,7 +22,7 @@
  *
  */
 public final primitive value class runtime/valhalla/inlinetypes/WithFieldOwner
-    version 65:0
+    version 66:0
 {
     NestHost runtime/valhalla/inlinetypes/WithFieldNestHost;
 
@@ -106,7 +106,7 @@ public final primitive value class runtime/valhalla/inlinetypes/WithFieldOwner
 }
 
 public final primitive value class runtime/valhalla/inlinetypes/WithFieldNestmate
-    version 65:0
+    version 66:0
 {
     NestHost runtime/valhalla/inlinetypes/WithFieldNestHost;
 
@@ -149,7 +149,7 @@ public final primitive value class runtime/valhalla/inlinetypes/WithFieldNestmat
 }
 
 public final primitive value class runtime/valhalla/inlinetypes/WithFieldNestHost
-    version 65:0
+    version 66:0
 {
     NestMembers runtime/valhalla/inlinetypes/WithFieldOwner, runtime/valhalla/inlinetypes/WithFieldNestmate;
 
@@ -191,7 +191,7 @@ public final primitive value class runtime/valhalla/inlinetypes/WithFieldNestHos
 }
 
 public final primitive value class runtime/valhalla/inlinetypes/WithFieldSamePackage
-    version 65:0
+    version 66:0
 {
 
     public static Method withC:"(Qruntime/valhalla/inlinetypes/WithFieldOwner;C)Qruntime/valhalla/inlinetypes/WithFieldOwner;"

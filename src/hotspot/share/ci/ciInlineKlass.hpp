@@ -48,7 +48,7 @@ private:
   }
 
 protected:
-  ciInlineKlass(Klass* h_k) : ciInstanceKlass(h_k), _declared_nonstatic_fields(NULL) {
+  ciInlineKlass(Klass* h_k) : ciInstanceKlass(h_k), _declared_nonstatic_fields(nullptr) {
     assert(is_final(), "InlineKlass must be final");
   };
 
@@ -62,7 +62,7 @@ public:
   bool is_inlinetype() const { return true; }
 
   int nof_declared_nonstatic_fields() {
-    if (_declared_nonstatic_fields == NULL) {
+    if (_declared_nonstatic_fields == nullptr) {
       compute_nonstatic_fields();
     }
     return _declared_nonstatic_fields->length();
@@ -70,7 +70,7 @@ public:
 
   // ith non-static declared field (presented by ascending address)
   ciField* declared_nonstatic_field_at(int i) {
-    assert(_declared_nonstatic_fields != NULL, "should be initialized");
+    assert(_declared_nonstatic_fields != nullptr, "should be initialized");
     // Look for field in preceding multi-field bundle;
     for (int j = 0; j <= i; j++) {
       int bundle_size = _declared_nonstatic_fields->at(j)->secondary_fields_count();
@@ -86,7 +86,7 @@ public:
         return _declared_nonstatic_fields->at(i);
       }
     }
-    return NULL;
+    return nullptr;
   }
 
   // Inline type fields

@@ -25,9 +25,11 @@
 #include "precompiled.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
+#include "opto/connode.hpp"
 #include "opto/convertnode.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/matcher.hpp"
+#include "opto/movenode.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/subnode.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -69,6 +71,26 @@ Node* Conv2BNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     // input instead of the oop input to avoid keeping buffer allocations alive.
     set_req_X(1, in(1)->as_InlineType()->get_is_init(), phase);
     return this;
+  }
+  if (!Matcher::match_rule_supported(Op_Conv2B)) {
+    if (phase->C->post_loop_opts_phase()) {
+      // Get type of comparison to make
+      const Type* t = phase->type(in(1));
+      Node* cmp = nullptr;
+      if (t->isa_int()) {
+        cmp = phase->transform(new CmpINode(in(1), phase->intcon(0)));
+      } else if (t->isa_ptr()) {
+        cmp = phase->transform(new CmpPNode(in(1), phase->zerocon(BasicType::T_OBJECT)));
+      } else {
+        assert(false, "Unrecognized comparison for Conv2B: %s", NodeClassNames[in(1)->Opcode()]);
+      }
+
+      // Replace Conv2B with the cmove
+      Node* bol = phase->transform(new BoolNode(cmp, BoolTest::eq));
+      return new CMoveINode(bol, phase->intcon(1), phase->intcon(0), TypeInt::BOOL);
+    } else {
+      phase->C->record_for_post_loop_opts_igvn(this);
+    }
   }
   return nullptr;
 }

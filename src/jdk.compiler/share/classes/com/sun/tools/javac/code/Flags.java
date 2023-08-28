@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -152,6 +152,10 @@ public class Flags {
      * stipulations (d) older class files with ACC_SUPER bit set
      */
     public static final int IDENTITY_TYPE            = 1<<19;
+
+    /** Class is a unnamed top level class.
+     */
+    public static final int UNNAMED_CLASS    = 1<<23;
 
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
@@ -536,6 +540,7 @@ public class Flags {
                 return "identity";
             }
         },
+        UNNAMED_CLASS(Flags.UNNAMED_CLASS),
         BLOCK(Flags.BLOCK),
         FROM_SOURCE(Flags.FROM_SOURCE),
         ENUM(Flags.ENUM),

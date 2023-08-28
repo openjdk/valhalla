@@ -29,21 +29,21 @@ import java.lang.invoke.MethodHandles;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * @test
+ * @test id=Z
  * @summary Test that the ZGC barrier elision optimization does not elide
  *          necessary barriers. The tests use volatile memory accesses and
  *          blackholes to prevent C2 from simply optimizing them away.
  * @library /test/lib /
- * @requires vm.gc.Z & vm.opt.final.ZGenerational
+ * @requires vm.gc.ZGenerational
  * @run driver compiler.gcbarriers.TestZGCBarrierElision test-correctness
  */
 
 /**
- * @test
+ * @test id=ZGen
  * @summary Test that the ZGC barrier elision optimization elides unnecessary
  *          barriers following simple allocation and domination rules.
  * @library /test/lib /
- * @requires vm.gc.Z & vm.opt.final.ZGenerational & (vm.simpleArch == "x64" | vm.simpleArch == "aarch64")
+ * @requires vm.gc.ZGenerational & (vm.simpleArch == "x64" | vm.simpleArch == "aarch64")
  * @run driver compiler.gcbarriers.TestZGCBarrierElision test-effectiveness
  */
 
@@ -99,7 +99,7 @@ public class TestZGCBarrierElision {
         }
         String commonName = Common.class.getName();
         TestFramework test = new TestFramework(testClass);
-        test.addFlags("-XX:+UseZGC", "-XX:+UnlockExperimentalVMOptions",
+        test.addFlags("-XX:+UseZGC", "-XX:+ZGenerational", "-XX:+UnlockExperimentalVMOptions",
                       "-XX:CompileCommand=blackhole," + commonName + "::blackhole",
                       "-XX:CompileCommand=dontinline," + commonName + "::nonInlinedMethod",
                       "-XX:LoopMaxUnroll=0");

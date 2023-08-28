@@ -338,7 +338,7 @@ int Method::bci_from(address bcp) const {
   assert(is_native() && bcp == code_base() || contains(bcp) || VMError::is_error_reported(),
          "bcp doesn't belong to this method. bcp: " PTR_FORMAT, p2i(bcp));
 
-  return bcp - code_base();
+  return int(bcp - code_base());
 }
 
 
@@ -358,7 +358,7 @@ int Method::validate_bci_from_bcp(address bcp) const {
     // the method may be native
     bci = 0;
   } else if (contains(bcp)) {
-    bci = bcp - code_base();
+    bci = int(bcp - code_base());
   }
   // Assert that if we have dodged any asserts, bci is negative.
   assert(bci == -1 || bci == bci_from(bcp_from(bci)), "sane bci if >=0");
@@ -660,19 +660,6 @@ bool Method::init_method_counters(MethodCounters* counters) {
 int Method::extra_stack_words() {
   // not an inline function, to avoid a header dependency on Interpreter
   return extra_stack_entries() * Interpreter::stackElementSize;
-}
-
-// Derive size of parameters, return type, and fingerprint,
-// all in one pass, which is run at load time.
-// We need the first two, and might as well grab the third.
-void Method::compute_from_signature(Symbol* sig) {
-  // At this point, since we are scanning the signature,
-  // we might as well compute the whole fingerprint.
-  Fingerprinter fp(sig, is_static());
-  set_size_of_parameters(fp.size_of_parameters());
-  set_num_stack_arg_slots(fp.num_stack_arg_slots());
-  constMethod()->set_result_type(fp.return_type());
-  constMethod()->set_fingerprint(fp.fingerprint());
 }
 
 // InlineKlass the method is declared to return. This must not
@@ -1282,7 +1269,11 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
       SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
       !native_bind_event_is_interesting);
   }
-  if (InlineTypeReturnedAsFields && returns_inline_type(THREAD) && returns_inline_type(THREAD)->can_be_returned_as_fields()) {
+  if (InlineTypeReturnedAsFields &&
+      returns_inline_type(THREAD) &&
+      !has_scalarized_return() &&
+      returns_inline_type(THREAD)->can_be_returned_as_fields()) {
+    assert(!constMethod()->is_shared(), "Cannot update shared const objects");
     set_has_scalarized_return();
   }
 
@@ -1548,7 +1539,7 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
   m->set_signature_index(_imcp_invoke_signature);
   assert(MethodHandles::is_signature_polymorphic_name(m->name()), "");
   assert(m->signature() == signature, "");
-  m->compute_from_signature(signature);
+  m->constMethod()->compute_from_signature(signature, must_be_static);
   m->init_intrinsic_id(klass_id_for_intrinsics(m->method_holder()));
   assert(m->is_method_handle_intrinsic(), "");
 #ifdef ASSERT
@@ -1832,7 +1823,7 @@ void Method::sort_methods(Array<Method*>* methods, bool set_idnums, method_compa
     }
     // Reset method ordering
     if (set_idnums) {
-      for (int i = 0; i < length; i++) {
+      for (u2 i = 0; i < length; i++) {
         Method* m = methods->at(i);
         m->set_method_idnum(i);
         m->set_orig_method_idnum(i);

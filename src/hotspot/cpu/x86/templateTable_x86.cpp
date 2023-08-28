@@ -37,6 +37,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/resolvedIndyEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"
@@ -4351,7 +4352,7 @@ void TemplateTable::_new() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InlineKlassKind);
+  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), Klass::InlineKlassKind);
   __ jcc(Assembler::notEqual, is_not_value);
 
   __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));
@@ -4400,7 +4401,7 @@ void TemplateTable::aconst_init() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InlineKlassKind);
+  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), Klass::InlineKlassKind);
   __ jcc(Assembler::equal, is_value);
 
   // in the future, aconst_init will just return null instead of throwing an exception

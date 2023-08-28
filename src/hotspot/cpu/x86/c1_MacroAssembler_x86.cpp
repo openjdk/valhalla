@@ -64,7 +64,6 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   movptr(hdr, Address(obj, hdr_offset));
 
   if (LockingMode == LM_LIGHTWEIGHT) {
-    assert(!EnableValhalla, "LM_LIGHTWEIGHT not yet compatible with EnableValhalla");
 #ifdef _LP64
     const Register thread = r15_thread;
 #else

@@ -628,7 +628,7 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
            (Deoptimization::Reason_unloaded,
             Deoptimization::Action_reinterpret));
     } else {
-      // VM's interpreter will not load 'klass' if object is NULL.
+      // VM's interpreter will not load 'klass' if object is nullptr.
       // Type flow after this block may still be needed in two situations:
       // 1) C2 uses do_null_assert() and continues compilation for later blocks
       // 2) C2 does an OSR compile in a later block (see bug 4778368).

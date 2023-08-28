@@ -50,7 +50,7 @@ ciFlatArrayKlass::ciFlatArrayKlass(Klass* h_k) : ciArrayKlass(h_k) {
   if (dimension() == 1) {
     _element_klass = _base_element_klass;
   } else {
-    _element_klass = NULL;
+    _element_klass = nullptr;
   }
   if (!ciObjectFactory::is_initialized()) {
     assert(_element_klass->is_java_lang_Object(), "only arrays of object are shared");
@@ -62,8 +62,8 @@ ciFlatArrayKlass::ciFlatArrayKlass(Klass* h_k) : ciArrayKlass(h_k) {
 //
 // What is the one-level element type of this array?
 ciKlass* ciFlatArrayKlass::element_klass() {
-  if (_element_klass == NULL) {
-    assert(dimension() > 1, "_element_klass should not be NULL");
+  if (_element_klass == nullptr) {
+    assert(dimension() > 1, "_element_klass should not be nullptr");
     assert(is_loaded(), "FlatArrayKlass must be loaded");
     // Produce the element klass.
     VM_ENTRY_MARK;
@@ -74,6 +74,6 @@ ciKlass* ciFlatArrayKlass::element_klass() {
 }
 
 ciKlass* ciFlatArrayKlass::exact_klass() {
-  assert(element_klass()->is_loaded() && element_klass()->as_inline_klass()->exact_klass() != NULL, "must have exact klass");
+  assert(element_klass()->is_loaded() && element_klass()->as_inline_klass()->exact_klass() != nullptr, "must have exact klass");
   return this;
 }

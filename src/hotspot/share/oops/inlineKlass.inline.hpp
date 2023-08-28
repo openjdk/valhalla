@@ -34,12 +34,12 @@
 
 inline InlineKlassFixedBlock* InlineKlass::inlineklass_static_block() const {
   address adr_jf = adr_inline_type_field_klasses();
-  if (adr_jf != NULL) {
+  if (adr_jf != nullptr) {
     return (InlineKlassFixedBlock*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
   }
 
   InstanceKlass* volatile* adr_impl = adr_implementor();
-  if (adr_impl != NULL) {
+  if (adr_impl != nullptr) {
     return (InlineKlassFixedBlock*)(adr_impl + 1);
   }
 
