@@ -3962,8 +3962,8 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
         // but that changes after parsing. Prepare the memory graph so
         // it can optimize flattened array accesses properly once they
         // don't share a single slice.
-        assert(C->flattened_accesses_share_alias(), "should be set at parse time");
-        C->set_flattened_accesses_share_alias(false);
+        assert(C->flat_accesses_share_alias(), "should be set at parse time");
+        C->set_flat_accesses_share_alias(false);
         ciInlineKlass* vk = arytype->elem()->inline_klass();
         for (int i = 0, len = vk->nof_nonstatic_fields(); i < len; i++) {
           ciField* field = vk->nonstatic_field_at(i);
@@ -3974,10 +3974,10 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
           int fieldidx = C->get_alias_index(adr_type, true);
           // Pass nullptr for init_out. Having per flat array element field memory edges as uses of the Initialize node
           // can result in per flat array field Phis to be created which confuses the logic of
-          // Compile::adjust_flattened_array_access_aliases().
+          // Compile::adjust_flat_array_access_aliases().
           hook_memory_on_init(*this, fieldidx, minit_in, nullptr);
         }
-        C->set_flattened_accesses_share_alias(true);
+        C->set_flat_accesses_share_alias(true);
         hook_memory_on_init(*this, C->get_alias_index(TypeAryPtr::INLINES), minit_in, minit_out);
       } else {
         const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);

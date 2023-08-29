@@ -285,7 +285,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
   }
 }
 
-void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
+void InterpreterMacroAssembler::read_flat_field(Register holder_klass,
                                                    Register field_index, Register field_offset,
                                                    Register temp, Register obj) {
   Label alloc_failed, empty_value, done;
@@ -325,7 +325,7 @@ void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
   bind(alloc_failed);
   pop(obj);
   pop(holder_klass);
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_inlined_field),
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, field_index, holder_klass);
 
   bind(done);
@@ -1642,7 +1642,7 @@ void InterpreterMacroAssembler::profile_array(Register mdp,
     profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::array_offset())));
 
     Label not_flat;
-    test_non_flattened_array_oop(array, tmp, not_flat);
+    test_non_flat_array_oop(array, tmp, not_flat);
 
     set_mdp_flag_at(mdp, ArrayLoadStoreData::flat_array_byte_constant());
 

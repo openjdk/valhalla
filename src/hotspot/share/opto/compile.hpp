@@ -318,7 +318,7 @@ class Compile : public Phase {
   bool                  _has_stringbuilder;     // True StringBuffers or StringBuilders are allocated
   bool                  _has_boxed_value;       // True if a boxed object is allocated
   bool                  _has_reserved_stack_access; // True if the method or an inlined method is annotated with ReservedStackAccess
-  bool                  _has_circular_inline_type; // True if method loads an inline type with a circular, non-flattened field
+  bool                  _has_circular_inline_type; // True if method loads an inline type with a circular, non-flat field
   uint                  _max_vector_size;       // Maximum size of generated vectors
   bool                  _clear_upper_avx;       // Clear upper bits of ymm registers using vzeroupper
   uint                  _trap_hist[trapHistLength];  // Cumulative traps
@@ -345,8 +345,8 @@ class Compile : public Phase {
   bool                  _clinit_barrier_on_entry; // True if clinit barrier is needed on nmethod entry
   RTMState              _rtm_state;             // State of Restricted Transactional Memory usage
   int                   _loop_opts_cnt;         // loop opts round
-  bool                  _has_flattened_accesses; // Any known flattened array accesses?
-  bool                  _flattened_accesses_share_alias; // Initially all flattened array share a single slice
+  bool                  _has_flat_accesses;     // Any known flat array accesses?
+  bool                  _flat_accesses_share_alias; // Initially all flat array share a single slice
   bool                  _scalarize_in_safepoints; // Scalarize inline types in safepoint debug info
   uint                  _stress_seed;           // Seed for stress testing
 
@@ -660,9 +660,9 @@ private:
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
   bool              clinit_barrier_on_entry()       { return _clinit_barrier_on_entry; }
   void          set_clinit_barrier_on_entry(bool z) { _clinit_barrier_on_entry = z; }
-  void          set_flattened_accesses()         { _has_flattened_accesses = true; }
-  bool          flattened_accesses_share_alias() const { return _flattened_accesses_share_alias; }
-  void          set_flattened_accesses_share_alias(bool z) { _flattened_accesses_share_alias = z; }
+  void          set_flat_accesses()              { _has_flat_accesses = true; }
+  bool          flat_accesses_share_alias() const { return _flat_accesses_share_alias; }
+  void          set_flat_accesses_share_alias(bool z) { _flat_accesses_share_alias = z; }
   bool          scalarize_in_safepoints() const { return _scalarize_in_safepoints; }
   void          set_scalarize_in_safepoints(bool z) { _scalarize_in_safepoints = z; }
 
@@ -787,7 +787,7 @@ private:
   void remove_inline_type(Node* n);
   void process_inline_types(PhaseIterGVN &igvn, bool remove = false);
 
-  void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
+  void adjust_flat_array_access_aliases(PhaseIterGVN& igvn);
 
   void record_unstable_if_trap(UnstableIfTrap* trap);
   bool remove_unstable_if_trap(CallStaticJavaNode* unc, bool yield);

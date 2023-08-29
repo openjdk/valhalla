@@ -813,7 +813,7 @@ void TemplateTable::aaload()
   if (UseFlatArray) {
     Label is_flat_array, done;
 
-    __ test_flattened_array_oop(r0, r8 /*temp*/, is_flat_array);
+    __ test_flat_array_oop(r0, r8 /*temp*/, is_flat_array);
     __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
     do_oop_load(_masm, Address(r0, r1, Address::uxtw(LogBytesPerHeapOop)), r0, IS_ARRAY);
 
@@ -1136,7 +1136,7 @@ void TemplateTable::aastore() {
 
   if (UseFlatArray) {
     __ ldrw(r6, Address(r5, Klass::layout_helper_offset()));
-    __ test_flattened_array_layout(r6, is_flat_array);
+    __ test_flat_array_layout(r6, is_flat_array);
   }
 
   // Move subklass into r1
@@ -2701,7 +2701,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ push(atos);
           __ b(Done);
     } else {
-      Label is_inlined, nonnull, is_inline_type, rewrite_inline;
+      Label is_flat, nonnull, is_inline_type, rewrite_inline;
       __ test_field_is_null_free_inline_type(raw_flags, noreg /*temp*/, is_inline_type);
         // Non-inline field case
         __ load_heap_oop(r0, field, rscratch1, rscratch2);
@@ -2711,8 +2711,8 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         }
         __ b(Done);
       __ bind(is_inline_type);
-        __ test_field_is_inlined(raw_flags, noreg /* temp */, is_inlined);
-         // field is not inlined
+        __ test_field_is_flat(raw_flags, noreg /* temp */, is_flat);
+         // field is not flat
           __ load_heap_oop(r0, field, rscratch1, rscratch2);
           __ cbnz(r0, nonnull);
             __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
@@ -2722,11 +2722,11 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ verify_oop(r0);
           __ push(atos);
           __ b(rewrite_inline);
-        __ bind(is_inlined);
-        // field is inlined
+        __ bind(is_flat);
+        // field is flat
           __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
           __ mov(r0, obj);
-          __ read_inlined_field(klass, raw_flags, off, inline_klass /* temp */, r0);
+          __ read_flat_field(klass, raw_flags, off, inline_klass /* temp */, r0);
           __ verify_oop(r0);
           __ push(atos);
       __ bind(rewrite_inline);
@@ -2992,7 +2992,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
          do_oop_store(_masm, field, r0, IN_HEAP);
          __ b(Done);
       } else {
-        Label is_inline_type, is_inlined, rewrite_not_inline, rewrite_inline;
+        Label is_inline_type, is_flat, rewrite_not_inline, rewrite_inline;
         __ test_field_is_null_free_inline_type(flags2, noreg /*temp*/, is_inline_type);
         // Not an inline type
         pop_and_check_object(obj);
@@ -3006,14 +3006,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         // Implementation of the inline type semantic
         __ bind(is_inline_type);
         __ null_check(r0);
-        __ test_field_is_inlined(flags2, noreg /*temp*/, is_inlined);
-        // field is not inlined
+        __ test_field_is_flat(flags2, noreg /*temp*/, is_flat);
+        // field is not flat
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, r0, IN_HEAP);
         __ b(rewrite_inline);
-        __ bind(is_inlined);
-        // field is inlined
+        __ bind(is_flat);
+        // field is flat
         pop_and_check_object(obj);
         assert_different_registers(r0, inline_klass, obj, off);
         __ load_klass(inline_klass, r0);
@@ -3249,14 +3249,14 @@ void TemplateTable::fast_storefield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_qputfield: //fall through
    {
-      Label is_inlined, done;
+      Label is_flat, done;
       __ null_check(r0);
-      __ test_field_is_inlined(r3, noreg /* temp */, is_inlined);
-      // field is not inlined
+      __ test_field_is_flat(r3, noreg /* temp */, is_flat);
+      // field is not flat
       do_oop_store(_masm, field, r0, IN_HEAP);
       __ b(done);
-      __ bind(is_inlined);
-      // field is inlined
+      __ bind(is_flat);
+      // field is flat
       __ load_klass(r4, r0);
       __ data_for_oop(r0, r0, r4);
       __ lea(rscratch1, field);
@@ -3364,9 +3364,9 @@ void TemplateTable::fast_accessfield(TosState state)
   case Bytecodes::_fast_qgetfield:
     {
       Register index = r4, klass = r5, inline_klass = r6, tmp = r7;
-      Label is_inlined, nonnull, Done;
-      __ test_field_is_inlined(r3, noreg /* temp */, is_inlined);
-        // field is not inlined
+      Label is_flat, nonnull, Done;
+      __ test_field_is_flat(r3, noreg /* temp */, is_flat);
+        // field is not flat
         __ load_heap_oop(r0, field, rscratch1, rscratch2);
         __ cbnz(r0, nonnull);
           __ andw(index, r3, ConstantPoolCacheEntry::field_index_mask);
@@ -3377,12 +3377,12 @@ void TemplateTable::fast_accessfield(TosState state)
         __ bind(nonnull);
         __ verify_oop(r0);
         __ b(Done);
-      __ bind(is_inlined);
-      // field is inlined
+      __ bind(is_flat);
+      // field is flat
         __ andw(index, r3, ConstantPoolCacheEntry::field_index_mask);
         __ ldr(klass, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
                                            ConstantPoolCacheEntry::f1_offset())));
-        __ read_inlined_field(klass, index, r1, tmp /* temp */, r0);
+        __ read_flat_field(klass, index, r1, tmp /* temp */, r0);
         __ verify_oop(r0);
       __ bind(Done);
     }

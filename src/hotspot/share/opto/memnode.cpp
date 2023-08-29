@@ -3024,7 +3024,7 @@ Node *StoreCMNode::Ideal(PhaseGVN *phase, bool can_reshape){
   Node* my_store = in(MemNode::OopStore);
   if (my_store->is_MergeMem()) {
     if (oop_alias_idx() != phase->C->get_alias_index(TypeAryPtr::INLINES) ||
-        phase->C->flattened_accesses_share_alias()) {
+        phase->C->flat_accesses_share_alias()) {
       // The alias that was recorded is no longer accurate enough.
       Node* mem = my_store->as_MergeMem()->memory_at(oop_alias_idx());
       set_req_X(MemNode::OopStore, mem, phase);

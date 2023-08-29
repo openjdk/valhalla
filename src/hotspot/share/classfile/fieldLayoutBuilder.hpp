@@ -56,8 +56,8 @@ class LayoutRawBlock : public ResourceObj {
     EMPTY,            // empty slot, space is taken from this to allocate fields
     RESERVED,         // reserved for JVM usage (for instance object header)
     PADDING,          // padding (because of alignment constraints or @Contended)
-    REGULAR,          // primitive or oop field (including inline type fields not inlined)
-    INLINED,          // field inlined
+    REGULAR,          // primitive or oop field (including not flat inline type fields)
+    FLAT,             // flat field
     INHERITED         // field(s) inherited from super classes
   };
 
@@ -123,7 +123,7 @@ class LayoutRawBlock : public ResourceObj {
 // A Field group represents a set of fields that have to be allocated together,
 // this is the way the @Contended annotation is supported.
 // Inside a FieldGroup, fields are sorted based on their kind: primitive,
-// oop, or inlined.
+// oop, or flat.
 //
 class FieldGroup : public ResourceObj {
 
@@ -150,7 +150,7 @@ class FieldGroup : public ResourceObj {
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
-  void add_inlined_field(int idx, InlineKlass* vk);
+  void add_flat_field(int idx, InlineKlass* vk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -294,7 +294,7 @@ class FieldLayoutBuilder : public ResourceObj {
   void epilogue();
   void regular_field_sorting();
   void inline_class_field_sorting(TRAPS);
-  void add_inlined_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, InlineKlass* vk, int offset);
+  void add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, InlineKlass* vk, int offset);
   void register_embedded_oops_from_list(OopMapBlocksBuilder* nonstatic_oop_maps, GrowableArray<LayoutRawBlock*>* list);
   void register_embedded_oops(OopMapBlocksBuilder* nonstatic_oop_maps, FieldGroup* group);
 };

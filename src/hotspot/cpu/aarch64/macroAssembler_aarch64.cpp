@@ -1744,9 +1744,9 @@ void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Reg
   tbz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, not_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened) {
+void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_inlined_shift, is_flattened);
+  tbnz(flags, ConstantPoolCacheEntry::is_flat_shift, is_flat);
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
@@ -1768,13 +1768,13 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
   }
 }
 
-void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg, Label& is_flattened_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flattened_array);
+void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
 }
 
-void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_reg,
-                                                  Label&is_non_flattened_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flattened_array);
+void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg,
+                                                  Label&is_non_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array) {
@@ -1785,14 +1785,14 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
   test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
 }
 
-void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
+void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
   tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  br(Assembler::NE, is_flattened_array);
+  br(Assembler::NE, is_flat_array);
 }
 
-void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
+void MacroAssembler::test_non_flat_array_layout(Register lh, Label& is_non_flat_array) {
   tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  br(Assembler::EQ, is_non_flattened_array);
+  br(Assembler::EQ, is_non_flat_array);
 }
 
 void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {

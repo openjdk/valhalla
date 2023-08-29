@@ -1301,7 +1301,7 @@ class java_lang_invoke_MemberName: AllStatic {
     MN_IS_TYPE               = 0x00080000, // nested type
     MN_CALLER_SENSITIVE      = 0x00100000, // @CallerSensitive annotation detected
     MN_TRUSTED_FINAL         = 0x00200000, // trusted final field
-    MN_FLATTENED             = 0x00400000, // flattened field
+    MN_FLAT_FIELD            = 0x00400000, // flat field
     MN_REFERENCE_KIND_SHIFT  = 24, // refKind
     MN_REFERENCE_KIND_MASK   = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT,
     MN_NESTMATE_CLASS        = 0x00000001,

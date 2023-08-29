@@ -321,7 +321,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
       if (memcmp(old_value_h()->field_addr<jdouble>(offset), (jdouble*)ptr, sizeof(jdouble)) == 0) can_skip = true;
       break;
     case atos:
-      if (!cpe->is_inlined() && old_value_h()->obj_field(offset) == ref_h()) can_skip = true;
+      if (!cpe->is_flat() && old_value_h()->obj_field(offset) == ref_h()) can_skip = true;
       break;
     default:
       break;
@@ -362,7 +362,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
     case atos:
       {
         if (cpe->is_null_free_inline_type())  {
-          if (!cpe->is_inlined()) {
+          if (!cpe->is_flat()) {
               if (ref_h() == nullptr) {
                 THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
               }
@@ -370,7 +370,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
             } else {
               int field_index = cpe->field_index();
               InlineKlass* field_ik = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
-              field_ik->write_inlined_field(new_value_h(), offset, ref_h(), CHECK_(ret_adj));
+              field_ik->write_flat_field(new_value_h(), offset, ref_h(), CHECK_(ret_adj));
             }
         } else {
           new_value_h()->obj_field_put(offset, ref_h());
@@ -398,7 +398,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   // If the class is being initialized, the default value is returned.
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
-  assert(klass->field_signature(index)->is_Q_signature(), "Sanity check");
+  assert(klass->field_is_null_free_inline_type(index), "Sanity check");
   if (klass->is_being_initialized() && klass->is_init_thread(THREAD)) {
     int offset = klass->field_offset(index);
     Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
@@ -434,7 +434,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   }
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_inlined_field(JavaThread* current, oopDesc* obj, int index, Klass* field_holder))
+JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, int index, Klass* field_holder))
   Handle obj_h(THREAD, obj);
 
   assert(oopDesc::is_oop(obj), "Sanity check");
@@ -442,11 +442,11 @@ JRT_ENTRY(void, InterpreterRuntime::read_inlined_field(JavaThread* current, oopD
   assert(field_holder->is_instance_klass(), "Sanity check");
   InstanceKlass* klass = InstanceKlass::cast(field_holder);
 
-  assert(klass->field_is_inlined(index), "Sanity check");
+  assert(klass->field_is_flat(index), "Sanity check");
 
   InlineKlass* field_vklass = InlineKlass::cast(klass->get_inline_type_field_klass(index));
 
-  oop res = field_vklass->read_inlined_field(obj_h(), klass->field_offset(index), CHECK);
+  oop res = field_vklass->read_flat_field(obj_h(), klass->field_offset(index), CHECK);
   current->set_vm_result(res);
 JRT_END
 
@@ -983,8 +983,8 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
     state,
     info.access_flags().is_final(),
     info.access_flags().is_volatile(),
-    info.is_inlined(),
-    info.signature()->is_Q_signature() && info.is_inline_type()
+    info.is_flat(),
+    info.is_null_free_inline_type()
   );
 }
 
@@ -1438,7 +1438,7 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDe
   if (!ik->field_status(index).is_access_watched()) return;
 
   bool is_static = (obj == nullptr);
-  bool is_inlined = cp_entry->is_inlined();
+  bool is_flat = cp_entry->is_flat();
   HandleMark hm(current);
 
   Handle h_obj;
@@ -1447,7 +1447,7 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDe
     h_obj = Handle(current, obj);
   }
   InstanceKlass* cp_entry_f1 = InstanceKlass::cast(cp_entry->f1_as_klass());
-  jfieldID fid = jfieldIDWorkaround::to_jfieldID(cp_entry_f1, cp_entry->f2_as_index(), is_static, is_inlined);
+  jfieldID fid = jfieldIDWorkaround::to_jfieldID(cp_entry_f1, cp_entry->f2_as_index(), is_static, is_flat);
   LastFrameAccessor last_frame(current);
   JvmtiExport::post_field_access(current, last_frame.method(), last_frame.bcp(), cp_entry_f1, h_obj, fid);
 JRT_END
@@ -1479,15 +1479,16 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread* current,
   }
 
   // Both Q-signatures and L-signatures are mapped to atos
-  if (cp_entry->flag_state() == atos && ik->field_signature(index)->is_Q_signature()) {
+  ik->field_is_null_free_inline_type(index);
+  if (cp_entry->flag_state() == atos && ik->field_is_null_free_inline_type(index)) {
     sig_type = JVM_SIGNATURE_PRIMITIVE_OBJECT;
   }
 
   bool is_static = (obj == nullptr);
-  bool is_inlined = cp_entry->is_inlined();
+  bool is_flat = cp_entry->is_flat();
 
   HandleMark hm(current);
-  jfieldID fid = jfieldIDWorkaround::to_jfieldID(ik, cp_entry->f2_as_index(), is_static, is_inlined);
+  jfieldID fid = jfieldIDWorkaround::to_jfieldID(ik, cp_entry->f2_as_index(), is_static, is_flat);
   jvalue fvalue;
 #ifdef _LP64
   fvalue = *value;

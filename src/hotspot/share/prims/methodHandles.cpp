@@ -137,7 +137,7 @@ enum {
   IS_TYPE               = java_lang_invoke_MemberName::MN_IS_TYPE,
   CALLER_SENSITIVE      = java_lang_invoke_MemberName::MN_CALLER_SENSITIVE,
   TRUSTED_FINAL         = java_lang_invoke_MemberName::MN_TRUSTED_FINAL,
-  FLATTENED             = java_lang_invoke_MemberName::MN_FLATTENED,
+  FLATTENED             = java_lang_invoke_MemberName::MN_FLAT_FIELD,
   REFERENCE_KIND_SHIFT  = java_lang_invoke_MemberName::MN_REFERENCE_KIND_SHIFT,
   REFERENCE_KIND_MASK   = java_lang_invoke_MemberName::MN_REFERENCE_KIND_MASK,
   LM_UNCONDITIONAL      = java_lang_invoke_MemberName::MN_UNCONDITIONAL_MODE,
@@ -355,7 +355,7 @@ oop MethodHandles::init_field_MemberName(Handle mname, fieldDescriptor& fd, bool
   int flags = (jushort)( fd.access_flags().as_short() & JVM_RECOGNIZED_FIELD_MODIFIERS );
   flags |= IS_FIELD | ((fd.is_static() ? JVM_REF_getStatic : JVM_REF_getField) << REFERENCE_KIND_SHIFT);
   if (fd.is_trusted_final()) flags |= TRUSTED_FINAL;
-  if (fd.is_inlined()) flags |= FLATTENED;;
+  if (fd.is_flat()) flags |= FLATTENED;;
   if (is_setter)  flags += ((JVM_REF_putField - JVM_REF_getField) << REFERENCE_KIND_SHIFT);
   int vmindex        = fd.offset();  // determines the field uniquely when combined with static bit
 
@@ -1007,7 +1007,7 @@ void MethodHandles::trace_method_handle_interpreter_entry(MacroAssembler* _masm,
     template(java_lang_invoke_MemberName,MN_IS_TYPE) \
     template(java_lang_invoke_MemberName,MN_CALLER_SENSITIVE) \
     template(java_lang_invoke_MemberName,MN_TRUSTED_FINAL) \
-    template(java_lang_invoke_MemberName,MN_FLATTENED) \
+    template(java_lang_invoke_MemberName,MN_FLAT_FIELD) \
     template(java_lang_invoke_MemberName,MN_REFERENCE_KIND_SHIFT) \
     template(java_lang_invoke_MemberName,MN_REFERENCE_KIND_MASK) \
     template(java_lang_invoke_MemberName,MN_NESTMATE_CLASS) \

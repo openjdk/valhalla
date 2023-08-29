@@ -61,7 +61,7 @@ class oopFactory: AllStatic {
   //    - Q-type signature allocation should use this path.
   //    - L-type signature allocation should use new_objArray
   //
-  // Method specifically null free and possibly flattened if possible
+  // Method specifically null free and possibly flat if possible
   // i.e. flatArrayOop if flattening can be done, else "null free" objArrayOop
   static arrayOop        new_valueArray(Klass* klass, int length, TRAPS);
 

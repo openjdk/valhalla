@@ -240,16 +240,16 @@ class InterpreterMacroAssembler: public MacroAssembler {
   //     will return new instance via the same reg
   //   - assumes holder_klass and valueKlass field klass have both been resolved
   //   - 32 bits: kills rdi and rsi
-  void read_inlined_field(Register holder_klass,
+  void read_flat_field(Register holder_klass,
                             Register field_index, Register field_offset,
                             Register obj = rax);
 
-  // Allocate value buffer in "obj" and read in flattened element at the given index
+  // Allocate value buffer in "obj" and read in flat element at the given index
   // NOTES:
   //   - Return via "obj" must be rax
   //   - kills all given regs
   //   - 32 bits: kills rdi and rsi
-  void read_flattened_element(Register array, Register index,
+  void read_flat_element(Register array, Register index,
                               Register t1, Register t2,
                               Register obj = rax);
 

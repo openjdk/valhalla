@@ -1043,7 +1043,7 @@ class CompileReplay : public StackObj {
 
     void do_field(fieldDescriptor* fd) {
       BasicType bt = fd->field_type();
-      const char* string_value = bt != T_PRIMITIVE_OBJECT ? _replay->parse_escaped_string() : nullptr;
+      const char* string_value = fd->is_null_free_inline_type() ? nullptr : _replay->parse_escaped_string();
       switch (bt) {
       case T_BYTE: {
         int value = atoi(string_value);
@@ -1090,25 +1090,26 @@ class CompileReplay : public StackObj {
         break;
       }
       case T_ARRAY:
-      case T_OBJECT: {
-        JavaThread* THREAD = JavaThread::current();
-        bool res = _replay->process_staticfield_reference(string_value, _vt, fd, THREAD);
-        assert(res, "should succeed for arrays & objects");
-        break;
-      }
-      case T_PRIMITIVE_OBJECT: {
-        InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
-        if (fd->is_inlined()) {
-          int field_offset = fd->offset() - vk->first_field_offset();
-          oop obj = cast_to_oop(cast_from_oop<address>(_vt) + field_offset);
-          InlineTypeFieldInitializer init_fields(obj, _replay);
-          vk->do_nonstatic_fields(&init_fields);
+      case T_OBJECT:
+      case T_PRIMITIVE_OBJECT:
+        if (!fd->is_null_free_inline_type()) {
+          JavaThread* THREAD = JavaThread::current();
+          bool res = _replay->process_staticfield_reference(string_value, _vt, fd, THREAD);
+          assert(res, "should succeed for arrays & objects");
+          break;
         } else {
-          oop value = vk->allocate_instance(JavaThread::current());
-          _vt->obj_field_put(fd->offset(), value);
+          InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
+          if (fd->is_flat()) {
+            int field_offset = fd->offset() - vk->first_field_offset();
+            oop obj = cast_to_oop(cast_from_oop<address>(_vt) + field_offset);
+            InlineTypeFieldInitializer init_fields(obj, _replay);
+            vk->do_nonstatic_fields(&init_fields);
+          } else {
+            oop value = vk->allocate_instance(JavaThread::current());
+            _vt->obj_field_put(fd->offset(), value);
+          }
+          break;
         }
-        break;
-      }
       default: {
         fatal("Unhandled type: %s", type2name(bt));
       }
