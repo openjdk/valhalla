@@ -1779,6 +1779,6 @@ bool ciEnv::is_multifield_scalarized(BasicType bt, int vec_length) {
 #if COMPILER2
   return InlineTypeNode::is_multifield_scalarized(bt, vec_length);
 #else
-  return false;
+  return true;
 #endif
 }

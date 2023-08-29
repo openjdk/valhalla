@@ -831,7 +831,7 @@ Node* InlineTypeNode::default_value(PhaseGVN& gvn, ciType* field_type, ciInlineK
   BasicType bt = field_type->basic_type();
   int vec_len = field_type->bundle_size();
   Node* value = gvn.zerocon(field_type->basic_type());
-  int is_multifield_base = klass->declared_nonstatic_field_at(index)->is_multifield_base();
+  bool is_multifield_base = klass->declared_nonstatic_field_at(index)->is_multifield_base();
   if (is_multifield_base &&
       is_java_primitive(bt) &&
       Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {

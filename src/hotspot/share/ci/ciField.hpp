@@ -56,6 +56,7 @@ private:
   bool             _is_null_free;
   bool             _is_multifield;
   bool             _is_multifield_base;
+  bool             _is_transiant_multifield_base;
   ciMethod*        _known_to_link_with_put;
   ciInstanceKlass* _known_to_link_with_get;
   ciConstant       _constant_value;
@@ -64,7 +65,7 @@ private:
   ciType* compute_type_impl();
 
   ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc);
-  ciField(fieldDescriptor* fd);
+  ciField(fieldDescriptor* fd, bool bundled = false);
   ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final);
 
   // shared constructor code
@@ -111,6 +112,7 @@ public:
 
   bool is_multifield() { return _is_multifield; }
   bool is_multifield_base() { return _is_multifield_base; }
+  bool is_transiant_multifield_base() { return _is_transiant_multifield_base; }
   int secondary_fields_count() { return type()->bundle_size(); } const
 
   // How is this field actually stored in memory?
@@ -205,17 +207,19 @@ private:
   GrowableArray<ciField*>* _secondary_fields;
 
   ciMultiField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) : ciField(klass, index, bc) {}
-  ciMultiField(fieldDescriptor* fd) : ciField(fd) {}
+  ciMultiField(fieldDescriptor* fd, bool bundled) : ciField(fd, bundled) {
+    _is_multifield_base = true;
+  }
   ciMultiField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) :
        ciField(field, holder, offset, is_final) {}
 public:
   void set_secondary_fields(GrowableArray<ciField*>* fields) {
-     Arena* arena = CURRENT_ENV->arena();
-     _secondary_fields = new (arena) GrowableArray<ciField*>(arena, fields->length(), 0, nullptr);
-     for (int i = 0; i < fields->length(); i++) {
-       ciField* field = fields->at(i);
-       _secondary_fields->append(new (arena) ciField(field, field->holder(), field->offset_in_bytes(), field->is_final()));
-     }
+    Arena* arena = CURRENT_ENV->arena();
+    _secondary_fields = new (arena) GrowableArray<ciField*>(arena, fields->length(), 0, nullptr);
+    for (int i = 0; i < fields->length(); i++) {
+      ciField* field = fields->at(i);
+      _secondary_fields->append(new (arena) ciField(field, field->holder(), field->offset_in_bytes(), field->is_final()));
+    }
   }
 
   void add_secondary_fields(GrowableArray<ciField*>* fields) { _secondary_fields = fields; }

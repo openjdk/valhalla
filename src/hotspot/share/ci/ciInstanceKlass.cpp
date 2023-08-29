@@ -529,7 +529,7 @@ int ciInstanceKlass::compute_nonstatic_fields() {
 // and non-static base multifields.
 ciField* ciInstanceKlass::populate_synthetic_multifields(ciField* field) {
   ASSERT_IN_VM;
-  if (!field->is_multifield_base()) {
+  if (!field->is_transiant_multifield_base()) {
     return field;
   }
   int sec_fields_count = 0;
@@ -542,7 +542,8 @@ ciField* ciInstanceKlass::populate_synthetic_multifields(ciField* field) {
       assert(mfield == field, "Duplicate multifield for a given offset");
       fieldDescriptor& fd = fs.field_descriptor();
       assert(fd.is_multifield_base(), "");
-      mfield = new (arena) ciMultiField(&fd);
+      mfield = new (arena) ciMultiField(&fd, true);
+
       sec_fields_count = fd.secondary_fields_count(fd.index()) - 1;
       mfield->add_secondary_fields(new (arena) GrowableArray<ciField*>(arena, sec_fields_count, 0, nullptr));
       if (sec_fields_count == 0) {
@@ -633,7 +634,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
       sec_fields_count = fd.secondary_fields_count(fd.index());
       bool scalarize_multifield = ciEnv::is_multifield_scalarized(bt, sec_fields_count);
       if (fs.is_multifield_base() && !scalarize_multifield) {
-        field = new (arena) ciMultiField(&fd);
+        field = new (arena) ciMultiField(&fd, true);
         GrowableArray<ciField*>* sec_fields = new (arena) GrowableArray<ciField*>(arena, sec_fields_count, 0, nullptr);
         static_cast<ciMultiField*>(field)->add_secondary_fields(sec_fields);
         sec_fields_count--;
