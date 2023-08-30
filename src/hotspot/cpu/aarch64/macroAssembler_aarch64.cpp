@@ -46,6 +46,7 @@
 #include "memory/universe.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/accessDecorators.hpp"
+#include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "runtime/continuation.hpp"
@@ -6272,12 +6273,12 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
 
   // The following code is similar to allocate_instance but has some slight differences,
   // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
-  // allocating is not necessary if vk != NULL, etc. allocate_instance is not aware of these.
+  // allocating is not necessary if vk != nullptr, etc. allocate_instance is not aware of these.
   Label slow_case;
   // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
   mov(r0_preserved, r0); // save r0 for slow_case since *_allocate may corrupt it when allocation failed
 
-  if (vk != NULL) {
+  if (vk != nullptr) {
     // Called from C1, where the return type is statically known.
     movptr(klass, (intptr_t)vk->get_InlineKlass());
     jint obj_size = vk->layout_helper();
@@ -6303,13 +6304,13 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     mov(rscratch1, (intptr_t)markWord::inline_type_prototype().value());
     str(rscratch1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
     store_klass_gap(buffer_obj, zr);
-    if (vk == NULL) {
+    if (vk == nullptr) {
       // store_klass corrupts klass, so save it for later use (interpreter case only).
       mov(tmp1, klass);
     }
     store_klass(buffer_obj, klass);
     // 3. Initialize its fields with an inline class specific handler
-    if (vk != NULL) {
+    if (vk != nullptr) {
       far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
       // tmp1 holds klass preserved above

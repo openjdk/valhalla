@@ -337,7 +337,7 @@ static bool rematerialize_objects(JavaThread* thread, int exec_mode, CompiledMet
   assert(exec_mode == Deoptimization::Unpack_none || (deoptee_thread == thread),
          "a frame can only be deoptimized by the owner thread");
 
-  GrowableArray<ScopeValue*>* objects = chunk->at(0)->scope()->objects();
+  GrowableArray<ScopeValue*>* objects = chunk->at(0)->scope()->objects_to_rematerialize(deoptee, map);
 
   // The flag return_oop() indicates call sites which return oop
   // in compiled code. Such sites include java method calls,
@@ -1656,6 +1656,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
 // restore fields of all eliminated objects and arrays
 void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, bool realloc_failures, bool skip_internal, TRAPS) {
   for (int i = 0; i < objects->length(); i++) {
+    assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
     Handle obj = sv->value();
