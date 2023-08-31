@@ -569,6 +569,7 @@ public sealed interface Classfile
     int ACC_ENUM = 0x4000;
     int ACC_ANNOTATION = 0x2000;
     int ACC_SUPER = 0x0020;
+    int ACC_IDENTITY = 0x0020;
     int ACC_ABSTRACT = 0x0400;
     int ACC_VOLATILE = 0x0040;
     int ACC_TRANSIENT = 0x0080;

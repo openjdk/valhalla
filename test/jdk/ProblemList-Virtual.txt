@@ -76,3 +76,6 @@ java/util/PluggableLocale/PermissionTest.java 0000000 generic-all
 java/util/Properties/StoreReproducibilityTest.java 0000000 generic-all
 java/util/Properties/StoreReproducibilityTest.java 0000000 generic-all
 javax/management/remote/mandatory/subjectDelegation/SubjectDelegation1Test.java 0000000 generic-all
+
+# Valhalla
+java/lang/Thread/virtual/stress/PingPong.java 8314996 macosx-all
