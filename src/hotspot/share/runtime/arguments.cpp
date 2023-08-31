@@ -87,7 +87,6 @@ char*  Arguments::_java_command                 = nullptr;
 SystemProperty* Arguments::_system_properties   = nullptr;
 size_t Arguments::_conservative_max_heap_alignment = 0;
 Arguments::Mode Arguments::_mode                = _mixed;
-bool   Arguments::_xdebug_mode                  = false;
 const char*  Arguments::_java_vendor_url_bug    = nullptr;
 const char*  Arguments::_sun_java_launcher      = DEFAULT_JAVA_LAUNCHER;
 bool   Arguments::_sun_java_launcher_is_altjvm  = false;
@@ -2724,8 +2723,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
       }
     // -Xdebug
     } else if (match_option(option, "-Xdebug")) {
-      // note this flag has been used, then ignore
-      set_xdebug_mode(true);
+      warning("Option -Xdebug was deprecated in JDK 22 and will likely be removed in a future release.");
     // -Xnoagent
     } else if (match_option(option, "-Xnoagent")) {
       warning("Option -Xnoagent was deprecated in JDK 22 and will likely be removed in a future release.");
