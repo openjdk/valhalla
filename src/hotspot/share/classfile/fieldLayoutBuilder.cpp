@@ -694,7 +694,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
  *     constraining alignment, this value is then used as the alignment
  *     constraint when flattening this inline type into another container
  *   - field flattening decisions are taken in this method (those decisions are
- *     currently only based in the size of the fields to be flatten, the size
+ *     currently only based in the size of the fields to be flattened, the size
  *     of the resulting instance is not considered)
  */
 void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {

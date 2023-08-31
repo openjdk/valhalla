@@ -133,7 +133,7 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
   set_field_flags(field_type,
                   ((is_volatile ? 1 : 0) << is_volatile_shift) |
                   ((is_final    ? 1 : 0) << is_final_shift) |
-                  ((is_flat  ? 1 : 0) << is_flat_shift) |
+                  ((is_flat     ? 1 : 0) << is_flat_shift) |
                   ((is_null_free_inline_type ? 1 : 0) << is_null_free_inline_type_shift),
                   field_index);
   set_bytecode_1(get_code);
