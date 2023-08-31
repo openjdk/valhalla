@@ -36,10 +36,10 @@ public class FP16ScalarOperations {
     public static Random r = new Random(1024);
 
     public static short actual_value(char oper, short val1, short val2) {
-        Float16 obj1 = new Float16((short)val1);
-        Float16 obj2 = new Float16((short)val2);
+        Float16 obj1 = Float16.valueOf(val1);
+        Float16 obj2 = Float16.valueOf(val2);
         switch ((int)oper) {
-            case '+' : return obj1.add(obj2).float16ToRawShortBits();
+            case '+' : return Float16.sum(obj1, obj2).float16ToRawShortBits();
             default  : throw new AssertionError("Unsupported Operation!");
         }
     }

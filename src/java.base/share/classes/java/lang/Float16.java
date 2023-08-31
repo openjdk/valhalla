@@ -54,51 +54,127 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 // Currently Float16 is a primitive class but in future will be aligned with
 // Enhanced Primitive Boxes described by JEP-402 (https://openjdk.org/jeps/402)
-public primitive class Float16 {
-   private final short value;
-
-  /**
-   * Returns a {@code Float16} instance wrapping IEEE 754 binary16
-   * encoded {@code short} value.
-   *
-   * @param  value a short value.
-   * @since  20
-   */
-   public Float16 (short value ) {
-       this.value = value;
-   }
-
-  /**
-   * Returns a {@code Float16} instance wrapping IEEE 754 binary16
-   * encoded {@code short} value.
-   *
-   * @param  value a short value.
-   * @return a {@code Float16} instance representing {@code value}.
-   * @since  20
-   */
-   public static Float16 valueOf(short value) {
-      return new Float16(value);
-   }
+public primitive class Float16 extends Number {
+    private final short value;
 
    /**
-    * Adds two {@code Float16} values together as per the + operator semantics.
+    * Returns a {@code Float16} instance wrapping IEEE 754 binary16
+    * encoded {@code short} value.
     *
-    * @apiNote This method corresponds to the addition operation
-    * defined in IEEE 754.
-    *
-    * @param value the first operand
-    * @return sum of receiver and {@code value)}.
-    * @since 20
+    * @param  value a short value.
+    * @since  20
     */
-   @IntrinsicCandidate
-   public Float16 add(Float16 value) {
-      return Float16.valueOf(Float.floatToFloat16(Float.float16ToFloat(this.value) + Float.float16ToFloat(value.value)));
-   }
+    private Float16 (short value ) {
+        this.value = value;
+    }
 
    /**
-    * Return raw short value.
-    * @return raw short value {@code value)}.
-    * @since 20
+    * Returns a {@code Float16} instance wrapping IEEE 754 binary16
+    * encoded {@code short} value.
+    *
+    * @param  value a short value.
+    * @return a {@code Float16} instance representing {@code value}.
+    * @since  20
     */
-   public short float16ToRawShortBits() { return value; }
+    public static Float16 valueOf(short value) {
+       return new Float16(value);
+    }
+
+    /**
+     * Returns the value of this {@code Float16} as a {@code byte} after
+     * a narrowing primitive conversion.
+     *
+     * @return  the binary16 encoded {@code short} value represented by this object
+     *          converted to type {@code byte}
+     * @jls 5.1.3 Narrowing Primitive Conversion
+     */
+    public byte byteValue() {
+        return (byte)Float.float16ToFloat(value);
+    }
+
+    /**
+     * Returns the value of this {@code Float16} as a {@code short}
+     * after a narrowing primitive conversion.
+     *
+     * @return  the binary16 encoded {@code short} value represented by this object
+     *          converted to type {@code short}
+     * @jls 5.1.3 Narrowing Primitive Conversion
+     * @since 1.1
+     */
+    public short shortValue() {
+        return (short)Float.float16ToFloat(value);
+    }
+
+    /**
+     * Returns the value of this {@code Float16} as an {@code int} after
+     * a widening primitive conversion.
+     *
+     * @return  the binary16 encoded {@code short} value represented by this object
+     *          converted to type {@code int}
+     * @jls 5.1.3 Widening Primitive Conversion
+     */
+    public int intValue() {
+        return (int)Float.float16ToFloat(value);
+    }
+
+    /**
+     * Returns value of this {@code Float16} as a {@code long} after a
+     * widening conversion.
+     *
+     * @return  the binary16 encoded {@code short} value represented by this object
+     *          converted to type {@code long}
+     * @jls 5.1.3 Widening Primitive Conversion
+     */
+    public long longValue() {
+        return (long)Float.float16ToFloat(value);
+    }
+
+    /**
+     * Returns the {@code float} value of this {@code Float16} object.
+     *
+     * @return the binary16 encoded {@code short} value represented by this object
+     *         converted to type {@code float}
+     */
+    public float floatValue() {
+        return Float.float16ToFloat(value);
+    }
+
+    /**
+     * Returns the value of this {@code Float16} as a {@code double}
+     * after a widening primitive conversion.
+     *
+     * @apiNote
+     * This method corresponds to the convertFormat operation defined
+     * in IEEE 754.
+     *
+     * @return the binary16 encoded {@code short} value represented by this
+     *         object converted to type {@code double}
+     * @jls 5.1.2 Widening Primitive Conversion
+     */
+    public double doubleValue() {
+        return (double)Float.float16ToFloat(value);
+    }
+
+    /**
+     * Adds two {@code Float16} values together as per the + operator semantics.
+     *
+     * @apiNote This method corresponds to the addition operation
+     * defined in IEEE 754.
+     *
+     * @param a the first operand
+     * @param b the second operand
+     * @return the sum of {@code a} and {@code b}
+     * @since 20
+     */
+    @IntrinsicCandidate
+    public static Float16 sum(Float16 a, Float16 b) {
+       return Float16.valueOf(Float.floatToFloat16(Float.float16ToFloat(a.float16ToRawShortBits()) + Float.float16ToFloat(b.float16ToRawShortBits())));
+    }
+
+    /**
+     * Return raw short value.
+     * @return raw binary16 encoded {@code short} value represented by this object.
+     * @since 20
+     */
+    public short float16ToRawShortBits() { return value; }
 }

@@ -175,9 +175,9 @@ class ConvI2FNode : public Node {
 
 class ReinterpretS2HFNode : public Node {
   public:
-  ReinterpretS2HFNode( Node *in1 ) : Node(0,in1) {}
+  ReinterpretS2HFNode(Node* in1) : Node(0, in1) {}
   virtual int Opcode() const;
-  virtual const Type *bottom_type() const { return Type::FLOAT; }
+  virtual const Type* bottom_type() const { return Type::FLOAT; }
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
   virtual uint  ideal_reg() const { return Op_RegF; }
@@ -188,7 +188,7 @@ class ReinterpretHF2SNode : public Node {
   ReinterpretHF2SNode( Node *in1 ) : Node(0,in1) {}
   virtual int Opcode() const;
   virtual const Type* Value(PhaseGVN* phase) const;
-  virtual const Type *bottom_type() const { return TypeInt::SHORT; }
+  virtual const Type* bottom_type() const { return TypeInt::SHORT; }
   virtual uint  ideal_reg() const { return Op_RegI; }
 };
 

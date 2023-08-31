@@ -749,7 +749,7 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method) {
   case vmIntrinsics::_Preconditions_checkLongIndex:
   case vmIntrinsics::_getObjectSize:
     break;
-  case vmIntrinsics::_add_float16:
+  case vmIntrinsics::_sum_float16:
     if (!Matcher::match_rule_supported(Op_AddHF)) return false;
     break;
   case vmIntrinsics::_VectorCompressExpand:

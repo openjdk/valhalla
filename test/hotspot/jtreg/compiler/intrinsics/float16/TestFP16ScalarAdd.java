@@ -57,9 +57,9 @@ public class TestFP16ScalarAdd {
     @Test
     @IR(applyIfCPUFeature = {"avx512_fp16", "true"}, counts = {IRNode.ADD_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"})
     public void test1() {
-        Float16 res = new Float16((short)0);
+        Float16 res = Float16.valueOf((short)0);
         for (int i = 0; i < count; i++) {
-            res = res.add(Float16.valueOf(src[i]));
+            res = Float16.sum(res, Float16.valueOf(src[i]));
             dst[i] = res.float16ToRawShortBits();
         }
     }
@@ -72,6 +72,6 @@ public class TestFP16ScalarAdd {
         Float16 hf2 = Float16.valueOf((short)16384);
         Float16 hf3 = Float16.valueOf((short)16896);
         Float16 hf4 = Float16.valueOf((short)17408);
-        res = hf0.add(hf1).add(hf2).add(hf3).add(hf4).float16ToRawShortBits();
+        res = Float16.sum(Float16.sum(Float16.sum(Float16.sum(hf0, hf1), hf2), hf3), hf4).float16ToRawShortBits();
     }
 }

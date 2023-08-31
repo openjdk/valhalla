@@ -41,7 +41,7 @@ public class FP16ReductionOperations {
         Float16 hf2 = Float16.valueOf((short)16384);
         Float16 hf3 = Float16.valueOf((short)16896);
         Float16 hf4 = Float16.valueOf((short)17408);
-        return hf0.add(hf1).add(hf2).add(hf3).add(hf4).float16ToRawShortBits();
+        return Float16.sum(Float16.sum(Float16.sum(Float16.sum(hf0, hf1), hf2), hf3), hf4).float16ToRawShortBits();
     }
 
     public static short expected_reduction_add_constants() {
@@ -75,7 +75,7 @@ public class FP16ReductionOperations {
     public static short test_reduction_add(short [] arr) {
         Float16 res = Float16.valueOf((short)0);
         for (int i = 0; i < arr.length; i++) {
-            res = res.add(Float16.valueOf(arr[i]));
+            res = Float16.sum(res, Float16.valueOf(arr[i]));
         }
         return res.float16ToRawShortBits();
     }
