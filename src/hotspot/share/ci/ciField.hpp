@@ -56,7 +56,6 @@ private:
   bool             _is_null_free;
   bool             _is_multifield;
   bool             _is_multifield_base;
-  bool             _is_transiant_multifield_base;
   ciMethod*        _known_to_link_with_put;
   ciInstanceKlass* _known_to_link_with_get;
   ciConstant       _constant_value;
@@ -112,7 +111,6 @@ public:
 
   bool is_multifield() { return _is_multifield; }
   bool is_multifield_base() { return _is_multifield_base; }
-  bool is_transiant_multifield_base() { return _is_transiant_multifield_base; }
   int secondary_fields_count() { return type()->bundle_size(); } const
 
   // How is this field actually stored in memory?

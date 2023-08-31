@@ -91,7 +91,6 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
   _signature = ciEnv::current(THREAD)->get_symbol(signature);
   _is_multifield = false;
   _is_multifield_base = false;
-  _is_transiant_multifield_base = false;
 
   BasicType field_type = Signature::basic_type(signature);
 
@@ -301,9 +300,9 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   _is_null_free = fd->signature()->is_Q_signature();
   _original_holder = nullptr;
 
-  _is_multifield_base = false;
+  _is_multifield_base = fd->is_multifield_base() &&
+     !ciEnv::is_multifield_scalarized(fd->field_type(), fd->secondary_fields_count(fd->index()));
   _is_multifield = fd->is_multifield();
-  _is_transiant_multifield_base = fd->is_multifield_base();
 
   // Check to see if the field is constant.
   Klass* k = _holder->get_Klass();

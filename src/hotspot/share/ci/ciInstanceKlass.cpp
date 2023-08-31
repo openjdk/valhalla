@@ -529,7 +529,7 @@ int ciInstanceKlass::compute_nonstatic_fields() {
 // and non-static base multifields.
 ciField* ciInstanceKlass::populate_synthetic_multifields(ciField* field) {
   ASSERT_IN_VM;
-  if (!field->is_transiant_multifield_base()) {
+  if (!field->is_multifield_base()) {
     return field;
   }
   int sec_fields_count = 0;
