@@ -230,7 +230,7 @@ public:
 
   void put(T x) {
     GuardUnsafeAccess guard(_thread);
-    assert(_obj == NULL || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
+    assert(_obj == nullptr || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
     *addr() = normalize_for_write(x);
   }
 

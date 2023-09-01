@@ -452,7 +452,7 @@ class ClassVerifier : public StackObj {
     Symbol* name = cp->klass_name_at(index);
     if (name->is_Q_signature()) {
       // Remove the Q and ;
-      // TBD need error msg if fundamental_name() returns NULL?
+      // TBD need error msg if fundamental_name() returns nullptr?
       Symbol* fund_name = name->fundamental_name(CHECK_(VerificationType::bogus_type()));
       return VerificationType::inline_type(fund_name);
     }

@@ -93,7 +93,7 @@ int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
   assert(C->has_scalarized_args(), "inline type argument scalarization is disabled");
   Method* method = C->method()->get_Method();
   const GrowableArray<SigEntry>* sig = method->adapter()->get_sig_cc();
-  assert(sig != NULL, "must have scalarized signature");
+  assert(sig != nullptr, "must have scalarized signature");
 
   // Get unscalarized calling convention
   BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, 256);

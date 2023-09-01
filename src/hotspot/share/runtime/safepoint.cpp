@@ -233,7 +233,7 @@ int SafepointSynchronize::synchronize_threads(jlong safepoint_limit_time, int no
   ThreadSafepointState **p_prev = &tss_head;
   for (; JavaThread *cur = jtiwh.next(); ) {
     ThreadSafepointState *cur_tss = cur->safepoint_state();
-    assert(cur_tss->get_next() == nullptr, "Must be nullptr");
+    assert(cur_tss->get_next() == nullptr, "Must be null");
     if (thread_not_running(cur_tss)) {
       --still_running;
     } else {
@@ -380,7 +380,7 @@ void SafepointSynchronize::begin() {
   if (SafepointTimeout) {
     // Set the limit time, so that it can be compared to see if this has taken
     // too long to complete.
-    safepoint_limit_time = SafepointTracing::start_of_safepoint() + (jlong)SafepointTimeoutDelay * (NANOUNITS / MILLIUNITS);
+    safepoint_limit_time = SafepointTracing::start_of_safepoint() + (jlong)(SafepointTimeoutDelay * NANOSECS_PER_MILLISEC);
     timeout_error_printed = false;
   }
 
@@ -820,7 +820,7 @@ void SafepointSynchronize::print_safepoint_timeout() {
         os::naked_sleep(3000);
       }
     }
-    fatal("Safepoint sync time longer than " INTX_FORMAT "ms detected when executing %s.",
+    fatal("Safepoint sync time longer than %.6f ms detected when executing %s.",
           SafepointTimeoutDelay, VMThread::vm_operation()->name());
   }
 }
@@ -947,12 +947,12 @@ void ThreadSafepointState::handle_polling_page_exception() {
     HandleMark hm(self);
 
     GrowableArray<Handle> return_values;
-    InlineKlass* vk = NULL;
+    InlineKlass* vk = nullptr;
     if (return_oop && InlineTypeReturnedAsFields &&
         (method->result_type() == T_PRIMITIVE_OBJECT || method->result_type() == T_OBJECT)) {
       // Check if an inline type is returned as fields
       vk = InlineKlass::returned_inline_klass(map);
-      if (vk != NULL) {
+      if (vk != nullptr) {
         // We're at a safepoint at the return of a method that returns
         // multiple values. We must make sure we preserve the oop values
         // across the safepoint.
@@ -984,7 +984,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
     if (return_oop) {
       assert(return_values.length() == 1, "only one return value");
       caller_fr.set_saved_oop_result(&map, return_values.pop()());
-    } else if (vk != NULL) {
+    } else if (vk != nullptr) {
       vk->restore_oop_results(map, return_values);
     }
   }

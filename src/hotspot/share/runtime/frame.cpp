@@ -776,7 +776,7 @@ class InterpreterFrameClosure : public OffsetClosure {
     if (offset < _max_locals) {
       addr = (oop*) _fr->interpreter_frame_local_at(offset);
       assert((intptr_t*)addr >= _fr->sp(), "must be inside the frame");
-      if (_f != NULL) {
+      if (_f != nullptr) {
         _f->do_oop(addr);
       }
     } else {
@@ -790,7 +790,7 @@ class InterpreterFrameClosure : public OffsetClosure {
         in_stack = (intptr_t*)addr >= _fr->interpreter_frame_tos_address();
       }
       if (in_stack) {
-        if (_f != NULL) {
+        if (_f != nullptr) {
           _f->do_oop(addr);
         }
       }
@@ -967,7 +967,7 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool quer
     }
   }
 
-  InterpreterFrameClosure blk(this, max_locals, m->max_stack(), f, NULL);
+  InterpreterFrameClosure blk(this, max_locals, m->max_stack(), f, nullptr);
 
   // process locals & expression stack
   InterpreterOopMap mask;
@@ -989,7 +989,7 @@ void frame::buffered_values_interpreted_do(BufferedValueClosure* f) {
   assert(!m->is_native() && bci >= 0 && bci < m->code_size(),
          "invalid bci value");
 
-  InterpreterFrameClosure blk(this, m->max_locals(), m->max_stack(), NULL, f);
+  InterpreterFrameClosure blk(this, m->max_locals(), m->max_stack(), nullptr, f);
 
   // process locals & expression stack
   InterpreterOopMap mask;
@@ -1057,7 +1057,7 @@ class CompiledArgumentOopFinder: public SignatureIterator {
       }
       tty->print_cr("Error walking frame oops:");
       _fr.print_on(tty);
-      assert(loc != nullptr, "missing register map entry reg: " INTPTR_FORMAT " %s loc: " INTPTR_FORMAT, reg->value(), reg->name(), p2i(loc));
+      assert(loc != nullptr, "missing register map entry reg: %d %s loc: " INTPTR_FORMAT, reg->value(), reg->name(), p2i(loc));
     }
   #endif
     _f->do_oop(loc);
@@ -1482,7 +1482,7 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
         assert(t == sig_bt[sig_index], "sigs in sync");
         VMReg fst = regs[sig_index].first();
         if (fst->is_stack()) {
-          assert(((int)fst->reg2stack()) >= 0, "reg2stack: " INTPTR_FORMAT, fst->reg2stack());
+          assert(((int)fst->reg2stack()) >= 0, "reg2stack: %d", fst->reg2stack());
           int offset = (fst->reg2stack() + out_preserve) * VMRegImpl::stack_slot_size + stack_slot_offset;
           intptr_t* stack_address = (intptr_t*)((address)unextended_sp() + offset);
           if (at_this) {

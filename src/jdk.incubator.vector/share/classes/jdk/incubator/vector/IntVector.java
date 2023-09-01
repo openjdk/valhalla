@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1193,7 +1193,7 @@ public abstract class IntVector extends AbstractVector<Integer> {
     // and broadcast, but it would be more surprising not to continue
     // the obvious pattern started by unary and binary.
 
-    /**
+   /**
      * {@inheritDoc} <!--workaround-->
      * @see #lanewise(VectorOperators.Ternary,int,int,VectorMask)
      * @see #lanewise(VectorOperators.Ternary,Vector,int,VectorMask)
@@ -2584,14 +2584,26 @@ public abstract class IntVector extends AbstractVector<Integer> {
     }
 
     @ForceInline
-    final <F>
-    VectorShuffle<F> toShuffle0(AbstractSpecies<F> dsp) {
+    private final
+    VectorShuffle<Integer> toShuffle0(IntSpecies dsp) {
         int[] a = toArray();
         int[] sa = new int[a.length];
         for (int i = 0; i < a.length; i++) {
             sa[i] = (int) a[i];
         }
         return VectorShuffle.fromArray(dsp, sa, 0);
+    }
+
+    /*package-private*/
+    @ForceInline
+    final
+    VectorShuffle<Integer> toShuffleTemplate(Class<?> shuffleType) {
+        IntSpecies vsp = vspecies();
+        return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
+                                     getClass(), int.class, length(),
+                                     shuffleType, byte.class, length(),
+                                     this, vsp,
+                                     IntVector::toShuffle0);
     }
 
     /**
@@ -3913,10 +3925,9 @@ public abstract class IntVector extends AbstractVector<Integer> {
         private IntSpecies(VectorShape shape,
                 Class<? extends IntVector> vectorType,
                 Class<? extends AbstractMask<Integer>> maskType,
-                Class<? extends AbstractShuffle<Integer>> shuffleType,
                 Function<Object, IntVector> vectorFactory) {
             super(shape, LaneType.of(int.class),
-                  vectorType, maskType, shuffleType,
+                  vectorType, maskType,
                   vectorFactory);
             assert(this.elementSize() == Integer.SIZE);
         }
@@ -4212,7 +4223,6 @@ public abstract class IntVector extends AbstractVector<Integer> {
         = new IntSpecies(VectorShape.S_64_BIT,
                             Int64Vector.class,
                             Int64Vector.Int64Mask.class,
-                            Int64Vector.Int64Shuffle.class,
                             Int64Vector::new);
 
     /** Species representing {@link IntVector}s of {@link VectorShape#S_128_BIT VectorShape.S_128_BIT}. */
@@ -4220,7 +4230,6 @@ public abstract class IntVector extends AbstractVector<Integer> {
         = new IntSpecies(VectorShape.S_128_BIT,
                             Int128Vector.class,
                             Int128Vector.Int128Mask.class,
-                            Int128Vector.Int128Shuffle.class,
                             Int128Vector::new);
 
     /** Species representing {@link IntVector}s of {@link VectorShape#S_256_BIT VectorShape.S_256_BIT}. */
@@ -4228,7 +4237,6 @@ public abstract class IntVector extends AbstractVector<Integer> {
         = new IntSpecies(VectorShape.S_256_BIT,
                             Int256Vector.class,
                             Int256Vector.Int256Mask.class,
-                            Int256Vector.Int256Shuffle.class,
                             Int256Vector::new);
 
     /** Species representing {@link IntVector}s of {@link VectorShape#S_512_BIT VectorShape.S_512_BIT}. */
@@ -4236,7 +4244,6 @@ public abstract class IntVector extends AbstractVector<Integer> {
         = new IntSpecies(VectorShape.S_512_BIT,
                             Int512Vector.class,
                             Int512Vector.Int512Mask.class,
-                            Int512Vector.Int512Shuffle.class,
                             Int512Vector::new);
 
     /** Species representing {@link IntVector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
@@ -4245,7 +4252,6 @@ public abstract class IntVector extends AbstractVector<Integer> {
         = new IntSpecies(VectorShape.S_Max_BIT,
                             IntMaxVector.class,
                             IntMaxVector.IntMaxMask.class,
-                            IntMaxVector.IntMaxShuffle.class,
                             IntMaxVector::new);
      */
 

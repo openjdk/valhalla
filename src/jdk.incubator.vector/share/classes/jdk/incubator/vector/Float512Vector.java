@@ -141,9 +141,24 @@ value class Float512Vector extends FloatVector {
     @ForceInline
     Float512Shuffle iotaShuffle() { return Float512Shuffle.IOTA; }
 
+    @ForceInline
+    Float512Shuffle iotaShuffle(int start, int step, boolean wrap) {
+      if (wrap) {
+        return (Float512Shuffle)VectorSupport.shuffleIota(ETYPE, Float512Shuffle.class, VSPECIES, VLENGTH, start, step, 1,
+                (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (VectorIntrinsics.wrapToRange(i*lstep + lstart, l))));
+      } else {
+        return (Float512Shuffle)VectorSupport.shuffleIota(ETYPE, Float512Shuffle.class, VSPECIES, VLENGTH, start, step, 0,
+                (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (i*lstep + lstart)));
+      }
+    }
+
     @Override
     @ForceInline
-    Float512Shuffle shuffleFromArray(int[] indices, int i) { return new Float512Shuffle(indices, i); }
+    Float512Shuffle shuffleFromBytes(VectorPayloadMF indexes) { return new Float512Shuffle(indexes); }
+
+    @Override
+    @ForceInline
+    Float512Shuffle shuffleFromArray(int[] indexes, int i) { return new Float512Shuffle(indexes, i); }
 
     @Override
     @ForceInline
@@ -329,11 +344,9 @@ value class Float512Vector extends FloatVector {
         return (long) super.reduceLanesTemplate(op, Float512Mask.class, (Float512Mask) m);  // specialized
     }
 
-    @Override
     @ForceInline
-    public final
-    <F> VectorShuffle<F> toShuffle(AbstractSpecies<F> dsp) {
-        return super.toShuffleTemplate(dsp);
+    public VectorShuffle<Float> toShuffle() {
+        return super.toShuffleTemplate(Float512Shuffle.class); // specialize
     }
 
     // Specialized unary testing
@@ -689,6 +702,16 @@ value class Float512Vector extends FloatVector {
                                                       (m) -> ((Float512Mask) m).toLongHelper());
         }
 
+        // laneIsSet
+
+        @Override
+        @ForceInline
+        public boolean laneIsSet(int i) {
+            Objects.checkIndex(i, length());
+            return VectorSupport.extract(Float512Mask.class, float.class, VLENGTH,
+                                         this, i, (m, idx) -> (((Float512Mask) m).laneIsSetHelper(idx) ? 1L : 0L)) == 1L;
+        }
+
         // Reductions
 
         @Override
@@ -723,22 +746,26 @@ value class Float512Vector extends FloatVector {
 
     static final value class Float512Shuffle extends AbstractShuffle<Float> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
-        static final Class<Integer> ETYPE = int.class; // used by the JVM
+        static final Class<Float> ETYPE = float.class; // used by the JVM
 
-        private final VectorPayloadMF512I payload;
+        private final VectorPayloadMF128B payload;
 
         Float512Shuffle(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF512I) payload;
+            this.payload = (VectorPayloadMF128B) payload;
             assert(VLENGTH == payload.length());
-            assert(indicesInRange(payload));
+            assert(indexesInRange(payload));
         }
 
-        Float512Shuffle(int[] indices, int i) {
-            this(prepare(indices, i));
+        public Float512Shuffle(int[] indexes) {
+            this(indexes, 0);
         }
 
-        Float512Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn));
+        public Float512Shuffle(int[] indexes, int i) {
+            this(prepare(VLENGTH, indexes, i));
+        }
+
+        public Float512Shuffle(IntUnaryOperator fn) {
+            this(prepare(VLENGTH, fn));
         }
 
         @ForceInline
@@ -748,7 +775,6 @@ value class Float512Vector extends FloatVector {
         }
 
         @Override
-        @ForceInline
         public FloatSpecies vspecies() {
             return VSPECIES;
         }
@@ -756,79 +782,44 @@ value class Float512Vector extends FloatVector {
         static {
             // There must be enough bits in the shuffle lanes to encode
             // VLENGTH valid indexes and VLENGTH exceptional ones.
-            assert(VLENGTH < Integer.MAX_VALUE);
-            assert(Integer.MIN_VALUE <= -VLENGTH);
+            assert(VLENGTH < Byte.MAX_VALUE);
+            assert(Byte.MIN_VALUE <= -VLENGTH);
         }
         static final Float512Shuffle IOTA = new Float512Shuffle(IDENTITY);
 
         @Override
         @ForceInline
-        Int512Vector toBitsVector() {
-            return (Int512Vector) super.toBitsVectorTemplate();
+        public Float512Vector toVector() {
+            return VectorSupport.shuffleToVector(VCLASS, ETYPE, Float512Shuffle.class, this, VLENGTH,
+                                                    (s) -> ((Float512Vector)(((AbstractShuffle<Float>)(s)).toVectorTemplate())));
         }
 
         @Override
         @ForceInline
-        IntVector toBitsVector0() {
-            return Int512Vector.VSPECIES.dummyVectorMF().vectorFactory(indices());
+        public <F> VectorShuffle<F> cast(VectorSpecies<F> s) {
+            AbstractSpecies<F> species = (AbstractSpecies<F>) s;
+            if (length() != species.laneCount())
+                throw new IllegalArgumentException("VectorShuffle length and species length differ");
+            int[] shuffleArray = toArray();
+            return s.shuffleFromArray(shuffleArray, 0).check(s);
         }
 
-        @Override
         @ForceInline
-        public int laneSource(int i) {
-            return (int)toBitsVector().lane(i);
-        }
-
         @Override
-        @ForceInline
-        public void intoArray(int[] a, int offset) {
-            toBitsVector().intoArray(a, offset);
-        }
-
-        private static VectorPayloadMF prepare(int[] indices, int offset) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(int.class, VLENGTH);
-            payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
-            long mfOffset = payload.multiFieldOffset();
+        public Float512Shuffle rearrange(VectorShuffle<Float> shuffle) {
+            Float512Shuffle s = (Float512Shuffle) shuffle;
+            VectorPayloadMF indices1 = indices();
+            VectorPayloadMF indices2 = s.indices();
+            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
-                int si = indices[offset + i];
-                si = partiallyWrapIndex(si, VLENGTH);
-                Unsafe.getUnsafe().putInt(payload, mfOffset + i * Integer.BYTES, (int) si);
+                int ssi = Unsafe.getUnsafe().getByte(indices2, offset + i * Byte.BYTES);
+                int si = Unsafe.getUnsafe().getByte(indices1, offset + ssi * Byte.BYTES);
+                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
-            payload = Unsafe.getUnsafe().finishPrivateBuffer(payload);
-            return payload;
-        }
-
-        private static VectorPayloadMF prepare(IntUnaryOperator f) {
-            VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(int.class, VLENGTH);
-            payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
-            long offset = payload.multiFieldOffset();
-            for (int i = 0; i < VLENGTH; i++) {
-                int si = f.applyAsInt(i);
-                si = partiallyWrapIndex(si, VLENGTH);
-                Unsafe.getUnsafe().putInt(payload, offset + i * Integer.BYTES, (int) si);
-            }
-            payload = Unsafe.getUnsafe().finishPrivateBuffer(payload);
-            return payload;
-        }
-
-
-        private static boolean indicesInRange(VectorPayloadMF indices) {
-            int length = indices.length();
-            long offset = indices.multiFieldOffset();
-            for (int i = 0; i < length; i++) {
-                int si = Unsafe.getUnsafe().getInt(indices, offset + i * Integer.BYTES);
-                if (si >= length || si < -length) {
-                    boolean assertsEnabled = false;
-                    assert(assertsEnabled = true);
-                    if (assertsEnabled) {
-                        String msg = ("index "+si+"out of range ["+length+"] in "+
-                                indices.toString());
-                        throw new AssertionError(msg);
-                    }
-                    return false;
-                }
-            }
-            return true;
+            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
+            return new Float512Shuffle(r);
         }
     }
 

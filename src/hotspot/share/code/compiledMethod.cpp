@@ -387,7 +387,7 @@ void CompiledMethod::preserve_callee_argument_oops(frame fr, const RegisterMap *
       // which contains the types of all (oop) fields of the inline type.
       if (is_compiled_by_c2() && callee->has_scalarized_args()) {
         const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
-        assert(sig != NULL, "sig should never be null");
+        assert(sig != nullptr, "sig should never be null");
         TempNewSymbol tmp_sig = SigEntry::create_symbol(sig);
         has_receiver = false; // The extended signature contains the receiver type
         fr.oops_compiled_arguments_do(tmp_sig, has_receiver, has_appendix, reg_map, f);
@@ -690,7 +690,7 @@ bool CompiledMethod::cleanup_inline_caches_impl(bool unloading_occurred, bool cl
 address CompiledMethod::continuation_for_implicit_exception(address pc, bool for_div0_check) {
   // Exception happened outside inline-cache check code => we are inside
   // an active nmethod => use cpc to determine a return address
-  int exception_offset = pc - code_begin();
+  int exception_offset = int(pc - code_begin());
   int cont_offset = ImplicitExceptionTable(this).continuation_offset( exception_offset );
 #ifdef ASSERT
   if (cont_offset == 0) {
