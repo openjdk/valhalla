@@ -48,7 +48,7 @@ private:
   }
 
 protected:
-  ciInlineKlass(Klass* h_k) : ciInstanceKlass(h_k), _declared_nonstatic_fields(NULL) {
+  ciInlineKlass(Klass* h_k) : ciInstanceKlass(h_k), _declared_nonstatic_fields(nullptr) {
     assert(is_final(), "InlineKlass must be final");
   };
 

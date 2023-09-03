@@ -375,7 +375,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st, const char* extra = NULL) const;
+  void print_data_on(outputStream* st, const char* extra = nullptr) const;
 #endif
 };
 
@@ -392,7 +392,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st, const char* extra = NULL) const;
+  void print_data_on(outputStream* st, const char* extra = nullptr) const;
 #endif
 };
 
@@ -535,7 +535,7 @@ public:
 
   // Convert a dp (data pointer) to a di (data index).
   int dp_to_di(address dp) {
-    return dp - ((address)_data);
+    return pointer_delta_as_int(dp, ((address)_data));
   }
 
   // Get the data at an arbitrary (sort of) data index.

@@ -111,7 +111,7 @@ public:
 
   bool is_multifield() { return _is_multifield; }
   bool is_multifield_base() { return _is_multifield_base; }
-  int secondary_fields_count() { return type()->bundle_size(); } const
+  int secondary_fields_count() { return type()->bundle_size(); }
 
   // How is this field actually stored in memory?
   BasicType layout_type() { return type2field[(_type == nullptr) ? T_OBJECT : _type->basic_type()]; }

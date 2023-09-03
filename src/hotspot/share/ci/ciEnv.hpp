@@ -205,7 +205,7 @@ private:
     return get_object(o)->as_instance();
   }
   ciFlatArrayKlass* get_flat_array_klass(Klass* o) {
-    if (o == NULL) return NULL;
+    if (o == nullptr) return nullptr;
     return get_metadata(o)->as_flat_array_klass();
   }
   ciObjArrayKlass* get_obj_array_klass(Klass* o) {
@@ -502,6 +502,7 @@ public:
   void dump_replay_data_unsafe(outputStream* out);
   void dump_replay_data_helper(outputStream* out);
   void dump_compile_data(outputStream* out);
+  void dump_replay_data_version(outputStream* out);
 
   ciWrapper* make_null_free_wrapper(ciType* type) {
     return _factory->make_null_free_wrapper(type);

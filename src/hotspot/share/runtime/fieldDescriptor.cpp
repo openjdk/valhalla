@@ -178,7 +178,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       if (obj->obj_field(offset()) != nullptr) {
         obj->obj_field(offset())->print_value_on(st);
       } else {
-        st->print("nullptr");
+        st->print("null");
       }
       break;
     default:

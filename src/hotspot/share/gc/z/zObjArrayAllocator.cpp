@@ -28,6 +28,7 @@
 #include "oops/arrayKlass.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 ZObjArrayAllocator::ZObjArrayAllocator(Klass* klass, size_t word_size, int length, bool do_zero, Thread* thread)
   : ObjArrayAllocator(klass, word_size, length, do_zero, thread) {}
@@ -53,7 +54,7 @@ oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
   const size_t header = arrayOopDesc::header_size(element_type);
   const size_t payload_size = _word_size - header;
 
-  if (payload_size <= segment_max) {
+  if (payload_size <= segment_max || ArrayKlass::cast(_klass)->is_flatArray_klass()) {
     // To small to use segmented clearing
     return ObjArrayAllocator::initialize(mem);
   }
@@ -135,7 +136,7 @@ oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
   ZThreadLocalData::clear_invisible_root(_thread);
 
   // Signal to the ZIterator that this is no longer an invisible root
-  oopDesc::release_set_mark(mem, markWord::prototype());
+  oopDesc::release_set_mark(mem, Klass::default_prototype_header(_klass));
 
   return cast_to_oop(mem);
 }

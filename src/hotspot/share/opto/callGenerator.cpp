@@ -781,6 +781,10 @@ void CallGenerator::do_late_inline_helper() {
       result = (result_size == 1) ? kit.pop() : kit.pop_pair();
     }
 
+    if (call->is_CallStaticJava() && call->as_CallStaticJava()->is_boxing_method()) {
+      result = kit.must_be_not_null(result, false);
+    }
+
     if (inline_cg()->is_inline()) {
       C->set_has_loops(C->has_loops() || inline_method->has_loops());
       C->env()->notice_inlined_method(inline_method);
@@ -816,7 +820,7 @@ void CallGenerator::do_late_inline_helper() {
           vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass());
           // Do not let stores that initialize this buffer be reordered with a subsequent
           // store that would make this buffer accessible by other threads.
-          AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop, &kit.gvn());
+          AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop);
           assert(alloc != nullptr, "must have an allocation node");
           kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
           region->init_req(2, kit.control());
@@ -1169,7 +1173,7 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit, bool 
     kit.set_argument(arg_nb, arg);
   }
   if (sig_type->is_inlinetypeptr()) {
-    arg = InlineTypeNode::make_from_oop(&kit, arg, t->as_inline_klass(), !kit.gvn().type(arg)->maybe_null());
+    arg = InlineTypeNode::make_from_oop(&kit, arg, sig_type->inline_klass(), !kit.gvn().type(arg)->maybe_null());
     kit.set_argument(arg_nb, arg);
   }
 }

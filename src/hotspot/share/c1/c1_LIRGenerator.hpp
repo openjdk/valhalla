@@ -277,7 +277,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_blackhole(Intrinsic* x);
 
   bool inline_type_field_access_prolog(AccessField* x);
-  void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = NULL, int offset = 0);
+  void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = nullptr, int offset = 0);
   void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset);
   LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
   bool needs_flattened_array_store_check(StoreIndexed* x);
@@ -485,10 +485,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   SwitchRangeArray* create_lookup_ranges(TableSwitch* x);
   SwitchRangeArray* create_lookup_ranges(LookupSwitch* x);
   void do_SwitchRanges(SwitchRangeArray* x, LIR_Opr value, BlockBegin* default_sux);
-
-#ifdef JFR_HAVE_INTRINSICS
-  void do_getEventWriter(Intrinsic* x);
-#endif
 
   void do_RuntimeCall(address routine, Intrinsic* x);
 
