@@ -71,22 +71,7 @@ public:
   // ith non-static declared field (presented by ascending address)
   ciField* declared_nonstatic_field_at(int i) {
     assert(_declared_nonstatic_fields != nullptr, "should be initialized");
-    // Look for field in preceding multi-field bundle;
-    for (int j = 0; j <= i; j++) {
-      int bundle_size = _declared_nonstatic_fields->at(j)->secondary_fields_count();
-      if (bundle_size > 1 && ((j + bundle_size) > i)) {
-        if (j == i) {
-          // Multifield base.
-          return _declared_nonstatic_fields->at(i);
-        } else {
-          // Secondary multifield.
-          return static_cast<ciMultiField*>(_declared_nonstatic_fields->at(j))->secondary_fields()->at(i - (j + 1));
-        }
-      } else if (j == i) {
-        return _declared_nonstatic_fields->at(i);
-      }
-    }
-    return nullptr;
+    return _declared_nonstatic_fields->at(i);
   }
 
   // Inline type fields

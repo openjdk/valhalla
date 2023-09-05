@@ -39,7 +39,6 @@ protected:
   InlineTypeNode(ciInlineKlass* vk, Node* oop, bool null_free)
       : TypeNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_InlineType);
-    expand_input_edges(vk);
     init_req(Oop, oop);
     Compile::current()->add_inline_type(this);
   }
@@ -51,8 +50,6 @@ protected:
          Values      // Nodes corresponding to values of the inline type's fields.
                      // Nodes are connected in increasing order of the index of the field they correspond to.
   };
-
-  void expand_input_edges(ciInlineKlass * vk);
 
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
@@ -95,6 +92,7 @@ public:
   static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
 
   static bool is_multifield_scalarized(ciField* field);
+  static bool is_multifield_scalarized(BasicType bt, int vec_len);
 
   static int stack_size_for_field(ciField* field);
 

@@ -40,34 +40,23 @@ int  InlineTypeNode::stack_size_for_field(ciField* field) {
              : field->type()->size();
 }
 
+bool InlineTypeNode::is_multifield_scalarized(BasicType bt, int vec_len) {
+  if (!is_java_primitive(bt) ||
+      !Matcher::match_rule_supported_vector(Op_LoadVector, vec_len, bt)  ||
+      !Matcher::match_rule_supported_vector(Op_StoreVector, vec_len, bt) ||
+      !Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {
+    return true;
+  }
+  return false;
+}
+
 bool InlineTypeNode::is_multifield_scalarized(ciField* field) {
   if (!field->is_multifield_base()) {
     return true;
   }
   int field_count = field->secondary_fields_count();
   BasicType bt = field->type()->basic_type();
-  if (!Matcher::match_rule_supported_vector(Op_LoadVector, field_count, bt)  ||
-      !Matcher::match_rule_supported_vector(Op_StoreVector, field_count, bt) ||
-      !Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), field_count, bt)) {
-    return true;
-  }
-  return false;
-}
-
-void InlineTypeNode::expand_input_edges(ciInlineKlass* vk) {
-  // We generally perform three operations on multi-field bundle, load its contents into vector,
-  // store the contents of vector to multi-field bundle or broadcast a value into a vector equivalent
-  // in size to a multi-field bundle. If any of these operations are not supported by target platform
-  // scalarize the multi-fields into individual fields.
-  for (int i = 0; i < vk->nof_declared_nonstatic_fields(); i++) {
-    ciField* field = vk->declared_nonstatic_field_at(i);
-    if (is_multifield_scalarized(field)) {
-      int field_count = field->secondary_fields_count();
-      while(--field_count) {
-        add_req(NULL);
-      }
-    }
-  }
+  return is_multifield_scalarized(bt, field_count);
 }
 
 // Clones the inline type to handle control flow merges involving multiple inline types.
@@ -320,14 +309,10 @@ static bool is_vector_payload_mf(ciKlass* klass) {
 void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
-  // Number of fields for VectorPayload* class which a safepoint node tracks
-  // should depend on actual field_count of InlineTypeNode, this is because
-  // we may scalarize multifield bundle if corresponding vector size is not
-  // supported by target.
   if (is_vector_payload_mf(vk)) {
-     nfields = field_count();
+     assert(field_count() == nfields, "");
   } else if (is_vector_payload(vk)) {
-     nfields = field_value(0)->as_InlineType()->field_count();
+     assert(field_value(0)->as_InlineType()->field_count() == nfields, "");
   }
   JVMState* jvms = sfpt->jvms();
   // Replace safepoint edge by SafePointScalarObjectNode and add field values
@@ -350,18 +335,8 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
 
   // Iterate over the inline type fields in order of increasing
   // offset and add the field values to the safepoint.
-  int cnt = 0;
-  ciMultiField* mfield = nullptr;
   for (uint j = 0; j < nfields; ++j) {
-    ciField* field = mfield != nullptr ? mfield->secondary_field_at(cnt++) : vk->nonstatic_field_at(j);
-    if (field->is_multifield_base()) {
-      mfield = static_cast<ciMultiField*>(field);
-    }
-    if (mfield && ((mfield->secondary_fields_count() - 1) == cnt)) {
-      mfield = nullptr;
-      cnt = 0;
-    }
-    int offset = field->offset_in_bytes();
+    int offset = vk->nonstatic_field_at(j)->offset_in_bytes();
     Node* value = field_value_by_offset(offset, true /* include flattened inline type fields */);
     if (value->is_InlineType()) {
       // Add inline type field to the worklist to process later
@@ -853,7 +828,7 @@ Node* InlineTypeNode::default_value(PhaseGVN& gvn, ciType* field_type, ciInlineK
   BasicType bt = field_type->basic_type();
   int vec_len = field_type->bundle_size();
   Node* value = gvn.zerocon(field_type->basic_type());
-  int is_multifield_base = klass->declared_nonstatic_field_at(index)->is_multifield_base();
+  bool is_multifield_base = klass->declared_nonstatic_field_at(index)->is_multifield_base();
   if (is_multifield_base &&
       is_java_primitive(bt) &&
       Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {

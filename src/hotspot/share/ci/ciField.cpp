@@ -168,11 +168,6 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
     return;
   }
 
-  int bundle_size = field_desc.secondary_fields_count(field_desc.index());
-  if (bundle_size > 1) {
-    _type = ciType::make(field_type, bundle_size);
-  }
-
   // Access check based on declared_holder. canonical_holder should not be used
   // to check access because it can erroneously succeed. If this check fails,
   // propagate the declared holder to will_link() which in turn will bail out
@@ -200,7 +195,7 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
   initialize_from(&field_desc);
 }
 
-ciField::ciField(fieldDescriptor *fd) :
+ciField::ciField(fieldDescriptor *fd, bool bundled) :
     _known_to_link_with_put(nullptr), _known_to_link_with_get(nullptr) {
   ASSERT_IN_VM;
 
@@ -218,7 +213,8 @@ ciField::ciField(fieldDescriptor *fd) :
   if (is_reference_type(field_type)) {
     _type = nullptr;  // must call compute_type on first access
   } else {
-    _type = ciType::make(field_type, fd->secondary_fields_count(fd->index()));
+    int bundle_size = bundled ? fd->secondary_fields_count(fd->index()) : 1;
+    _type = ciType::make(field_type, bundle_size);
   }
 
   // Either (a) it is marked shared, or else (b) we are done bootstrapping.
@@ -249,8 +245,8 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _is_flattened = false;
   _is_null_free = field->_is_null_free;
   _original_holder = (field->_original_holder != nullptr) ? field->_original_holder : field->_holder;
-  _is_multifield = field->_is_multifield;
   _is_multifield_base = field->_is_multifield_base;
+  _is_multifield = field->_is_multifield;
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -304,8 +300,9 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   _is_null_free = fd->signature()->is_Q_signature();
   _original_holder = nullptr;
 
+  _is_multifield_base = fd->is_multifield_base() &&
+     !ciEnv::is_multifield_scalarized(fd->field_type(), fd->secondary_fields_count(fd->index()));
   _is_multifield = fd->is_multifield();
-  _is_multifield_base = fd->is_multifield_base();
 
   // Check to see if the field is constant.
   Klass* k = _holder->get_Klass();
