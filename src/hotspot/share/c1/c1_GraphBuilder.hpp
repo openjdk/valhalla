@@ -207,7 +207,7 @@ class GraphBuilder {
   Instruction*      _last;                       // the last instruction added
   bool              _skip_block;                 // skip processing of the rest of this block
 
-  // support for optimization of accesses to flattened fields and arrays
+  // support for optimization of accesses to flat fields and flat arrays
   DelayedFieldAccess* _pending_field_access;
   DelayedLoadIndexed* _pending_load_indexed;
 

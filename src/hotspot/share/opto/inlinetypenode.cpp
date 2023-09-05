@@ -241,14 +241,14 @@ ciType* InlineTypeNode::field_type(uint index) const {
 bool InlineTypeNode::field_is_flattened(uint index) const {
   assert(index < field_count(), "index out of bounds");
   ciField* field = inline_klass()->declared_nonstatic_field_at(index);
-  assert(!field->is_flattened() || field->type()->is_inlinetype(), "must be an inline type");
-  return field->is_flattened();
+  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+  return field->is_flat();
 }
 
 bool InlineTypeNode::field_is_null_free(uint index) const {
   assert(index < field_count(), "index out of bounds");
   ciField* field = inline_klass()->declared_nonstatic_field_at(index);
-  assert(!field->is_flattened() || field->type()->is_inlinetype(), "must be an inline type");
+  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
   return field->is_null_free();
 }
 
@@ -459,7 +459,7 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
 
 void InlineTypeNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
   if (kit->gvn().type(base)->isa_aryptr()) {
-    kit->C->set_flattened_accesses();
+    kit->C->set_flat_accesses();
   }
   // The inline type is embedded into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when storing the values.
@@ -890,7 +890,7 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
 // GraphKit wrapper for the 'make_from_flattened' method
 InlineTypeNode* InlineTypeNode::make_from_flattened_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited) {
   if (kit->gvn().type(obj)->isa_aryptr()) {
-    kit->C->set_flattened_accesses();
+    kit->C->set_flat_accesses();
   }
   // Create and initialize an InlineTypeNode by loading all field values from
   // a flattened inline type field at 'holder_offset' or from an inline type array.

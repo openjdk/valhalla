@@ -862,7 +862,7 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
       offset = field->offset_in_bytes();
       ciType* elem_type = field->type();
       basic_elem_type = field->layout_type();
-      assert(!field->is_flattened(), "flattened inline type fields should not have safepoint uses");
+      assert(!field->is_flat(), "flat inline type fields should not have safepoint uses");
 
       // The next code is taken from Parse::do_get_xxx().
       if (is_reference_type(basic_elem_type)) {
