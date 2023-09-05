@@ -286,8 +286,8 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 }
 
 void InterpreterMacroAssembler::read_flat_field(Register holder_klass,
-                                                   Register field_index, Register field_offset,
-                                                   Register temp, Register obj) {
+                                                Register field_index, Register field_offset,
+                                                Register temp, Register obj) {
   Label alloc_failed, empty_value, done;
   const Register src = field_offset;
   const Register alloc_temp = rscratch1;

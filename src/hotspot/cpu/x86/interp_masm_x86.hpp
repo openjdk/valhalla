@@ -241,8 +241,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   //   - assumes holder_klass and valueKlass field klass have both been resolved
   //   - 32 bits: kills rdi and rsi
   void read_flat_field(Register holder_klass,
-                            Register field_index, Register field_offset,
-                            Register obj = rax);
+                       Register field_index, Register field_offset,
+                       Register obj = rax);
 
   // Allocate value buffer in "obj" and read in flat element at the given index
   // NOTES:
@@ -250,8 +250,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   //   - kills all given regs
   //   - 32 bits: kills rdi and rsi
   void read_flat_element(Register array, Register index,
-                              Register t1, Register t2,
-                              Register obj = rax);
+                         Register t1, Register t2,
+                         Register obj = rax);
 
   // Object locking
   void lock_object  (Register lock_reg);

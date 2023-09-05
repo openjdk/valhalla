@@ -2941,7 +2941,7 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
 }
 
 void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg,
-                                              Label& is_flat_array) {
+                                         Label& is_flat_array) {
 #ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
 #else
@@ -2952,7 +2952,7 @@ void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg,
 }
 
 void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg,
-                                                  Label& is_non_flat_array) {
+                                             Label& is_non_flat_array) {
 #ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
 #else

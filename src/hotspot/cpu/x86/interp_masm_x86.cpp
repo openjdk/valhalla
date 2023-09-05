@@ -1247,8 +1247,8 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 
 
 void InterpreterMacroAssembler::read_flat_field(Register holder_klass,
-                                                     Register field_index, Register field_offset,
-                                                     Register obj) {
+                                                Register field_index, Register field_offset,
+                                                Register obj) {
   Label alloc_failed, empty_value, done;
   const Register src = field_offset;
   const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
@@ -1293,8 +1293,8 @@ void InterpreterMacroAssembler::read_flat_field(Register holder_klass,
 }
 
 void InterpreterMacroAssembler::read_flat_element(Register array, Register index,
-                                                       Register t1, Register t2,
-                                                       Register obj) {
+                                                  Register t1, Register t2,
+                                                  Register obj) {
   assert_different_registers(array, index, t1, t2);
   Label alloc_failed, empty_value, done;
   const Register array_klass = t2;

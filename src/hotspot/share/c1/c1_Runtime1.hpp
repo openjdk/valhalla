@@ -54,8 +54,8 @@ class StubAssembler;
   stub(new_object_array)             \
   stub(new_flat_array)               \
   stub(new_multi_array)              \
-  stub(load_flat_array)         \
-  stub(store_flat_array)        \
+  stub(load_flat_array)              \
+  stub(store_flat_array)             \
   stub(substitutability_check)       \
   stub(buffer_inline_args)           \
   stub(buffer_inline_args_no_receiver)\

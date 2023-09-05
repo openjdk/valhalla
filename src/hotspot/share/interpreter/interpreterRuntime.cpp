@@ -363,15 +363,15 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
       {
         if (cpe->is_null_free_inline_type())  {
           if (!cpe->is_flat()) {
-              if (ref_h() == nullptr) {
-                THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
-              }
-              new_value_h()->obj_field_put(offset, ref_h());
-            } else {
-              int field_index = cpe->field_index();
-              InlineKlass* field_ik = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
-              field_ik->write_flat_field(new_value_h(), offset, ref_h(), CHECK_(ret_adj));
+            if (ref_h() == nullptr) {
+              THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
             }
+            new_value_h()->obj_field_put(offset, ref_h());
+          } else {
+            int field_index = cpe->field_index();
+            InlineKlass* field_ik = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
+            field_ik->write_flat_field(new_value_h(), offset, ref_h(), CHECK_(ret_adj));
+          }
         } else {
           new_value_h()->obj_field_put(offset, ref_h());
         }
