@@ -39,24 +39,9 @@ package compiler.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 
-import java.lang.invoke.CallSite;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.util.Random;
-
 public class TestWrongFlatArrayCopyStubWithZGC {
 
     public static void main(String[] args) {
-        Random random = new Random();
-        C;
-        int i = Math.abs(random.nextInt()) * - 1;
-        int[] iarr = {34, 34};
-        CallSite c;
-        c.dynamicInvoker()
-        MethodHandle constant = MethodHandles.constant(int.class, mask);
-        constant.invok
-        MASK_CS.setTarget(constant);
-        constant.invokeExact();
         ValueWithLong[] arrWithLong = new ValueWithLong[3];
         arrWithLong[0] = new ValueWithLong(0x408BE000000fffffL);
         arrWithLong[1] = new ValueWithLong(0x408BE0000000000L);
@@ -98,7 +83,7 @@ final primitive class ValueWithLong {
 
     public ValueWithLong(long l) {
         this.l = l;
-}
+    }
 }
 
 final primitive class ValueWithOop {
