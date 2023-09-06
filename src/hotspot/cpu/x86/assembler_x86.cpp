@@ -3144,6 +3144,22 @@ void Assembler::vmovdqu(XMMRegister dst, XMMRegister src) {
   emit_int16(0x6F, (0xC0 | encode));
 }
 
+void Assembler::vmovw(XMMRegister dst, Register src) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(AVX_128bit, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ false);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), 0, src->encoding(), VEX_SIMD_66, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x6E, (0xC0 | encode));
+}
+
+void Assembler::vmovw(Register dst, XMMRegister src) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(AVX_128bit, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ false);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(src->encoding(), 0, dst->encoding(), VEX_SIMD_66, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x7E, (0xC0 | encode));
+}
+
 void Assembler::vmovdqu(XMMRegister dst, Address src) {
   assert(UseAVX > 0, "");
   InstructionMark im(this);

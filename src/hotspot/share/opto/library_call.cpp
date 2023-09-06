@@ -4897,6 +4897,11 @@ bool LibraryCallKit::inline_native_Reflection_getCallerClass() {
 }
 
 bool LibraryCallKit::inline_fp16_operations(vmIntrinsics::ID id) {
+  if (!Matcher::match_rule_supported(Op_ReinterpretS2HF) ||
+      !Matcher::match_rule_supported(Op_ReinterpretHF2S)) {
+    return false;
+  }
+
   Node* result = nullptr;
   Node* val1 = argument(0);  // receiver
   Node* val2 = argument(1);  // argument

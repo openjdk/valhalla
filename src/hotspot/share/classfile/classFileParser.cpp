@@ -4699,7 +4699,7 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 // an explict JVM flag EnablePrimitiveClasses.
 bool ClassFileParser::is_jdk_internal_class(const Symbol* class_name) const {
   if (vmSymbols::java_lang_Float16() == class_name) {
-    return true;
+    return (EnablePrimitiveClasses = true);
   }
   return false;
 }

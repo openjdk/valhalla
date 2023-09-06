@@ -1452,6 +1452,8 @@ bool Matcher::match_rule_supported(int opcode) {
       }
       break;
     case Op_AddHF:
+    case Op_ReinterpretS2HF:
+    case Op_ReinterpretHF2S:
       if (!VM_Version::supports_avx512_fp16()) {
         return false;
       }
@@ -10154,15 +10156,12 @@ instruct DoubleClassCheck_reg_reg_vfpclass(rRegI dst, regD src, kReg ktmp, rFlag
   ins_pipe(pipe_slow);
 %}
 
-instruct reinterpretS2H (regF dst, rRegI src, rRegI tmp)
+instruct reinterpretS2H (regF dst, rRegI src)
 %{
   match(Set dst (ReinterpretS2HF src));
-  effect(TEMP tmp);
-  format %{ "movdl $dst, $src\t! using $tmp as TEMP" %}
+  format %{ "vmovw $dst, $src" %}
   ins_encode %{
-    __ movl($tmp$$Register, $src$$Register);
-    __ andl($tmp$$Register, 0xFFFF);
-    __ movdl($dst$$XMMRegister, $tmp$$Register);
+    __ vmovw($dst$$XMMRegister, $src$$Register);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -10170,9 +10169,9 @@ instruct reinterpretS2H (regF dst, rRegI src, rRegI tmp)
 instruct reinterpretH2S (rRegI dst, regF src)
 %{
   match(Set dst (ReinterpretHF2S src));
-  format %{ "movdl $dst, $src" %}
+  format %{ "vmovw $dst, $src" %}
   ins_encode %{
-    __ movdl($dst$$Register, $src$$XMMRegister);
+    __ vmovw($dst$$Register, $src$$XMMRegister);
     __ movswl($dst$$Register, $dst$$Register);
   %}
   ins_pipe(pipe_slow);

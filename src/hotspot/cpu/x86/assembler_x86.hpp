@@ -1650,6 +1650,9 @@ private:
   void movsbl(Register dst, Address src);
   void movsbl(Register dst, Register src);
 
+  void vmovw(XMMRegister dst, Register src);
+  void vmovw(Register dst, XMMRegister src);
+
 #ifdef _LP64
   void movsbq(Register dst, Address src);
   void movsbq(Register dst, Register src);
