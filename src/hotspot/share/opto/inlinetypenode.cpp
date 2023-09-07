@@ -879,7 +879,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
 //    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineType ||
 //           AllocateNode::Ideal_allocation(oop, &gvn) != nullptr || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
   }
-  assert(!null_free || vt->is_allocated(&gvn), "inline type should be allocated");
+  assert(vt->is_allocated(&gvn) || (null_free && !vk->is_initialized()), "inline type should be allocated");
   kit->record_for_igvn(vt);
   return gvn.transform(vt)->as_InlineType();
 }
