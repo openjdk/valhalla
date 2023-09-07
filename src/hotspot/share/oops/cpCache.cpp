@@ -46,6 +46,7 @@
 #include "oops/cpCache.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/resolvedIndyEntry.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
@@ -122,17 +123,17 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
                                        TosState field_type,
                                        bool is_final,
                                        bool is_volatile,
-                                       bool is_inlined,
+                                       bool is_flat,
                                        bool is_null_free_inline_type) {
   set_f1(field_holder);
   set_f2(field_offset);
   assert((field_index & field_index_mask) == field_index,
          "field index does not fit in low flag bits");
-  assert(!is_inlined || is_null_free_inline_type, "Sanity check");
+  assert(!is_flat || is_null_free_inline_type, "Sanity check");
   set_field_flags(field_type,
                   ((is_volatile ? 1 : 0) << is_volatile_shift) |
                   ((is_final    ? 1 : 0) << is_final_shift) |
-                  ((is_inlined  ? 1 : 0) << is_inlined_shift) |
+                  ((is_flat     ? 1 : 0) << is_flat_shift) |
                   ((is_null_free_inline_type ? 1 : 0) << is_null_free_inline_type_shift),
                   field_index);
   set_bytecode_1(get_code);
@@ -946,6 +947,12 @@ void ConstantPoolCache::print_value_on(outputStream* st) const {
   constant_pool()->print_value_on(st);
 }
 
+
+void ConstantPoolCache::print_resolved_indy_entries(outputStream* st)   const {
+  for (int i = 0; i < _resolved_indy_entries->length(); i++) {
+    _resolved_indy_entries->at(i).print_on(st);
+  }
+}
 
 // Verification
 

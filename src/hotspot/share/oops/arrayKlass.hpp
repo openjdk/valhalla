@@ -45,7 +45,7 @@ class ArrayKlass: public Klass {
   Klass* _element_klass;            // The klass of the elements of this array type
                                     // The element type must be registered for both object arrays
                                     // (incl. object arrays with value type elements) and value type
-                                    // arrays containing flattened value types. However, the element
+                                    // arrays containing flat value types. However, the element
                                     // type must not be registered for arrays of primitive types.
                                     // TODO: Update the class hierarchy so that element klass appears
                                     // only in array that contain non-primitive types.
@@ -142,6 +142,7 @@ class ArrayKlass: public Klass {
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
   void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
+  void cds_print_value_on(outputStream* st) const;
 #endif
 
   // Printing

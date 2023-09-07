@@ -34,6 +34,7 @@
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/resolvedIndyEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
@@ -1155,6 +1156,8 @@ void InterpreterMacroAssembler::remove_activation(
 
     NOT_LP64(get_thread(rthread);)
 
+    // check if already enabled - if so no re-enabling needed
+    assert(sizeof(StackOverflow::StackGuardState) == 4, "unexpected size");
     cmpl(Address(rthread, JavaThread::stack_guard_state_offset()), StackOverflow::stack_guard_enabled);
     jcc(Assembler::equal, no_reserved_zone_enabling);
 
@@ -1243,9 +1246,9 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 }
 
 
-void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
-                                                     Register field_index, Register field_offset,
-                                                     Register obj) {
+void InterpreterMacroAssembler::read_flat_field(Register holder_klass,
+                                                Register field_index, Register field_offset,
+                                                Register obj) {
   Label alloc_failed, empty_value, done;
   const Register src = field_offset;
   const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
@@ -1283,15 +1286,15 @@ void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
   bind(alloc_failed);
   pop(obj);
   pop(holder_klass);
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_inlined_field),
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, field_index, holder_klass);
 
   bind(done);
 }
 
-void InterpreterMacroAssembler::read_flattened_element(Register array, Register index,
-                                                       Register t1, Register t2,
-                                                       Register obj) {
+void InterpreterMacroAssembler::read_flat_element(Register array, Register index,
+                                                  Register t1, Register t2,
+                                                  Register obj) {
   assert_different_registers(array, index, t1, t2);
   Label alloc_failed, empty_value, done;
   const Register array_klass = t2;
@@ -2166,7 +2169,7 @@ void InterpreterMacroAssembler::profile_array(Register mdp,
     profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::array_offset())));
 
     Label not_flat;
-    test_non_flattened_array_oop(array, tmp, not_flat);
+    test_non_flat_array_oop(array, tmp, not_flat);
 
     set_mdp_flag_at(mdp, ArrayLoadStoreData::flat_array_byte_constant());
 

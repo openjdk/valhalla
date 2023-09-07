@@ -1226,7 +1226,7 @@ Node* GraphKit::load_object_klass(Node* obj) {
 //-------------------------load_array_length-----------------------------------
 Node* GraphKit::load_array_length(Node* array) {
   // Special-case a fresh allocation to avoid building nodes:
-  AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(array, &_gvn);
+  AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(array);
   Node *alen;
   if (alloc == nullptr) {
     Node *r_adr = basic_plus_adr(array, arrayOopDesc::length_offset_in_bytes());
@@ -1262,8 +1262,8 @@ Node* GraphKit::array_ideal_length(AllocateArrayNode* alloc,
 // the incoming address with null casted away.  You are allowed to use the
 // not-null value only if you are control dependent on the test.
 #ifndef PRODUCT
-extern int explicit_null_checks_inserted,
-           explicit_null_checks_elided;
+extern uint explicit_null_checks_inserted,
+            explicit_null_checks_elided;
 #endif
 Node* GraphKit::null_check_common(Node* value, BasicType type,
                                   // optional arguments for variations:
@@ -3962,8 +3962,8 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
         // but that changes after parsing. Prepare the memory graph so
         // it can optimize flattened array accesses properly once they
         // don't share a single slice.
-        assert(C->flattened_accesses_share_alias(), "should be set at parse time");
-        C->set_flattened_accesses_share_alias(false);
+        assert(C->flat_accesses_share_alias(), "should be set at parse time");
+        C->set_flat_accesses_share_alias(false);
         ciInlineKlass* vk = arytype->elem()->inline_klass();
         for (int i = 0, len = vk->nof_nonstatic_fields(); i < len; i++) {
           ciField* field = vk->nonstatic_field_at(i);
@@ -3974,10 +3974,10 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
           int fieldidx = C->get_alias_index(adr_type, true);
           // Pass nullptr for init_out. Having per flat array element field memory edges as uses of the Initialize node
           // can result in per flat array field Phis to be created which confuses the logic of
-          // Compile::adjust_flattened_array_access_aliases().
+          // Compile::adjust_flat_array_access_aliases().
           hook_memory_on_init(*this, fieldidx, minit_in, nullptr);
         }
-        C->set_flattened_accesses_share_alias(true);
+        C->set_flat_accesses_share_alias(true);
         hook_memory_on_init(*this, C->get_alias_index(TypeAryPtr::INLINES), minit_in, minit_out);
       } else {
         const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
@@ -4006,14 +4006,14 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
 
 #ifdef ASSERT
   { // Verify that the AllocateNode::Ideal_allocation recognizers work:
-    assert(AllocateNode::Ideal_allocation(rawoop, &_gvn) == alloc,
+    assert(AllocateNode::Ideal_allocation(rawoop) == alloc,
            "Ideal_allocation works");
-    assert(AllocateNode::Ideal_allocation(javaoop, &_gvn) == alloc,
+    assert(AllocateNode::Ideal_allocation(javaoop) == alloc,
            "Ideal_allocation works");
     if (alloc->is_AllocateArray()) {
-      assert(AllocateArrayNode::Ideal_array_allocation(rawoop, &_gvn) == alloc->as_AllocateArray(),
+      assert(AllocateArrayNode::Ideal_array_allocation(rawoop) == alloc->as_AllocateArray(),
              "Ideal_allocation works");
-      assert(AllocateArrayNode::Ideal_array_allocation(javaoop, &_gvn) == alloc->as_AllocateArray(),
+      assert(AllocateArrayNode::Ideal_array_allocation(javaoop) == alloc->as_AllocateArray(),
              "Ideal_allocation works");
     } else {
       assert(alloc->in(AllocateNode::ALength)->is_top(), "no length, please");
@@ -4359,7 +4359,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
 //---------------------------Ideal_allocation----------------------------------
 // Given an oop pointer or raw pointer, see if it feeds from an AllocateNode.
-AllocateNode* AllocateNode::Ideal_allocation(Node* ptr, PhaseValues* phase) {
+AllocateNode* AllocateNode::Ideal_allocation(Node* ptr) {
   if (ptr == nullptr) {     // reduce dumb test in callers
     return nullptr;
   }
@@ -4390,7 +4390,7 @@ AllocateNode* AllocateNode::Ideal_allocation(Node* ptr, PhaseValues* phase,
                                              intptr_t& offset) {
   Node* base = AddPNode::Ideal_base_and_offset(ptr, phase, offset);
   if (base == nullptr)  return nullptr;
-  return Ideal_allocation(base, phase);
+  return Ideal_allocation(base);
 }
 
 // Trace Initialize <- Proj[Parm] <- Allocate

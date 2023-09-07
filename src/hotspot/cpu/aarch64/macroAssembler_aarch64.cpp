@@ -46,6 +46,7 @@
 #include "memory/universe.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/accessDecorators.hpp"
+#include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "runtime/continuation.hpp"
@@ -1022,7 +1023,7 @@ void MacroAssembler::call_VM(Register oop_result,
                              Register arg_1,
                              Register arg_2,
                              bool check_exceptions) {
-  assert(arg_1 != c_rarg2, "smashed arg");
+  assert_different_registers(arg_1, c_rarg2);
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
   call_VM_helper(oop_result, entry_point, 2, check_exceptions);
@@ -1034,11 +1035,10 @@ void MacroAssembler::call_VM(Register oop_result,
                              Register arg_2,
                              Register arg_3,
                              bool check_exceptions) {
-  assert(arg_1 != c_rarg3, "smashed arg");
-  assert(arg_2 != c_rarg3, "smashed arg");
+  assert_different_registers(arg_1, c_rarg2, c_rarg3);
+  assert_different_registers(arg_2, c_rarg3);
   pass_arg3(this, arg_3);
 
-  assert(arg_1 != c_rarg2, "smashed arg");
   pass_arg2(this, arg_2);
 
   pass_arg1(this, arg_1);
@@ -1069,7 +1069,7 @@ void MacroAssembler::call_VM(Register oop_result,
                              Register arg_2,
                              bool check_exceptions) {
 
-  assert(arg_1 != c_rarg2, "smashed arg");
+  assert_different_registers(arg_1, c_rarg2);
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
   call_VM(oop_result, last_java_sp, entry_point, 2, check_exceptions);
@@ -1082,10 +1082,9 @@ void MacroAssembler::call_VM(Register oop_result,
                              Register arg_2,
                              Register arg_3,
                              bool check_exceptions) {
-  assert(arg_1 != c_rarg3, "smashed arg");
-  assert(arg_2 != c_rarg3, "smashed arg");
+  assert_different_registers(arg_1, c_rarg2, c_rarg3);
+  assert_different_registers(arg_2, c_rarg3);
   pass_arg3(this, arg_3);
-  assert(arg_1 != c_rarg2, "smashed arg");
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
   call_VM(oop_result, last_java_sp, entry_point, 3, check_exceptions);
@@ -1145,7 +1144,7 @@ void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_
 
   // Getting the pre-allocated default value from the mirror
   Address field(obj, offset);
-  load_heap_oop(obj, field, temp_reg, rscratch2);
+  load_heap_oop(obj, field, inline_klass, rscratch2);
 }
 
 void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
@@ -1659,31 +1658,27 @@ void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0) {
 
 void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0, Register arg_1) {
 
-  assert(arg_0 != c_rarg1, "smashed arg");
+  assert_different_registers(arg_0, c_rarg1);
   pass_arg1(this, arg_1);
   pass_arg0(this, arg_0);
   MacroAssembler::call_VM_leaf_base(entry_point, 2);
 }
 
 void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0, Register arg_1, Register arg_2) {
-  assert(arg_0 != c_rarg2, "smashed arg");
-  assert(arg_1 != c_rarg2, "smashed arg");
+  assert_different_registers(arg_0, c_rarg1, c_rarg2);
+  assert_different_registers(arg_1, c_rarg2);
   pass_arg2(this, arg_2);
-  assert(arg_0 != c_rarg1, "smashed arg");
   pass_arg1(this, arg_1);
   pass_arg0(this, arg_0);
   MacroAssembler::call_VM_leaf_base(entry_point, 3);
 }
 
 void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0, Register arg_1, Register arg_2, Register arg_3) {
-  assert(arg_0 != c_rarg3, "smashed arg");
-  assert(arg_1 != c_rarg3, "smashed arg");
-  assert(arg_2 != c_rarg3, "smashed arg");
+  assert_different_registers(arg_0, c_rarg1, c_rarg2, c_rarg3);
+  assert_different_registers(arg_1, c_rarg2, c_rarg3);
+  assert_different_registers(arg_2, c_rarg3);
   pass_arg3(this, arg_3);
-  assert(arg_0 != c_rarg2, "smashed arg");
-  assert(arg_1 != c_rarg2, "smashed arg");
   pass_arg2(this, arg_2);
-  assert(arg_0 != c_rarg1, "smashed arg");
   pass_arg1(this, arg_1);
   pass_arg0(this, arg_0);
   MacroAssembler::call_VM_leaf_base(entry_point, 4);
@@ -1750,9 +1745,9 @@ void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Reg
   tbz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, not_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened) {
+void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_inlined_shift, is_flattened);
+  tbnz(flags, ConstantPoolCacheEntry::is_flat_shift, is_flat);
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
@@ -1774,13 +1769,13 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
   }
 }
 
-void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg, Label& is_flattened_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flattened_array);
+void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
 }
 
-void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_reg,
-                                                  Label&is_non_flattened_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flattened_array);
+void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg,
+                                                  Label&is_non_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array) {
@@ -1791,14 +1786,14 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
   test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
 }
 
-void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
+void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
   tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  br(Assembler::NE, is_flattened_array);
+  br(Assembler::NE, is_flat_array);
 }
 
-void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
+void MacroAssembler::test_non_flat_array_layout(Register lh, Label& is_non_flat_array) {
   tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  br(Assembler::EQ, is_non_flattened_array);
+  br(Assembler::EQ, is_non_flat_array);
 }
 
 void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
@@ -6278,12 +6273,12 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
 
   // The following code is similar to allocate_instance but has some slight differences,
   // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
-  // allocating is not necessary if vk != NULL, etc. allocate_instance is not aware of these.
+  // allocating is not necessary if vk != nullptr, etc. allocate_instance is not aware of these.
   Label slow_case;
   // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
   mov(r0_preserved, r0); // save r0 for slow_case since *_allocate may corrupt it when allocation failed
 
-  if (vk != NULL) {
+  if (vk != nullptr) {
     // Called from C1, where the return type is statically known.
     movptr(klass, (intptr_t)vk->get_InlineKlass());
     jint obj_size = vk->layout_helper();
@@ -6309,13 +6304,13 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     mov(rscratch1, (intptr_t)markWord::inline_type_prototype().value());
     str(rscratch1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
     store_klass_gap(buffer_obj, zr);
-    if (vk == NULL) {
+    if (vk == nullptr) {
       // store_klass corrupts klass, so save it for later use (interpreter case only).
       mov(tmp1, klass);
     }
     store_klass(buffer_obj, klass);
     // 3. Initialize its fields with an inline class specific handler
-    if (vk != NULL) {
+    if (vk != nullptr) {
       far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
       // tmp1 holds klass preserved above

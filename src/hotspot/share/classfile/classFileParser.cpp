@@ -149,7 +149,9 @@
 
 #define JAVA_21_VERSION                   65
 
-#define CONSTANT_CLASS_DESCRIPTORS        65
+#define JAVA_22_VERSION                   66
+
+#define CONSTANT_CLASS_DESCRIPTORS        66
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -1585,6 +1587,12 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
     // Update FieldAllocationCount for this kind of field
     fac->update(is_static, type, type == T_PRIMITIVE_OBJECT);
+
+    // Here, we still detect that the field's type is an inline type by checking if it has
+    // a Q-descriptor. This test will be replaced later by something not relying on Q-desriptors.
+    // From this point forward, checking if a field's type is an inline type should be performed
+    // using the inline_type flag of FieldFlags, and not by looking for a Q-descriptor in its signature
+    if (type == T_PRIMITIVE_OBJECT) fieldFlags.update_null_free_inline_type(true);
 
     FieldInfo fi(access_flags, name_index, signature_index, constantvalue_index, fieldFlags);
     fi.set_index(n);
@@ -4402,8 +4410,8 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 
 bool ClassFileParser::supports_inline_types() const {
   // Inline types are only supported by class file version 61.65535 and later
-  return _major_version > JAVA_21_VERSION ||
-         (_major_version == JAVA_21_VERSION /*&& _minor_version == JAVA_PREVIEW_MINOR_VERSION*/); // JAVA_PREVIEW_MINOR_VERSION not yet implemented by javac, check JVMS draft
+  return _major_version > JAVA_22_VERSION ||
+         (_major_version == JAVA_22_VERSION /*&& _minor_version == JAVA_PREVIEW_MINOR_VERSION*/); // JAVA_PREVIEW_MINOR_VERSION not yet implemented by javac, check JVMS draft
 }
 
 // utility methods for appending an array with check for duplicates
@@ -5338,7 +5346,7 @@ void ClassFileParser::verify_legal_field_signature(const Symbol* name,
     throwIllegalSignature("Field", name, signature, CHECK);
   }
 
-  const char* const bytes = (const char* const)signature->bytes();
+  const char* const bytes = (const char*)signature->bytes();
   const unsigned int length = signature->utf8_length();
   const char* const p = skip_over_field_signature(bytes, false, length, CHECK);
 
@@ -5765,7 +5773,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   bool all_fields_empty = true;
   for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
     if (!fs.access_flags().is_static()) {
-      if (fs.field_descriptor().is_inline_type()) {
+      if (fs.field_descriptor().is_null_free_inline_type()) {
         Klass* k = _inline_type_field_klasses->at(fs.index());
         ik->set_inline_type_field_klass(fs.index(), k);
         if (!InlineKlass::cast(k)->is_empty_inline_type()) { all_fields_empty = false; }
@@ -6113,7 +6121,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
 
   parse_constant_pool(stream, cp, _orig_cp_size, CHECK);
 
-  assert(cp_size == (const u2)cp->length(), "invariant");
+  assert(cp_size == (u2)cp->length(), "invariant");
 
   // ACCESS FLAGS
   stream->guarantee_more(8, CHECK);  // flags, this_class, super_class, infs_len
@@ -6501,7 +6509,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       FieldInfo fieldinfo = *it;
       Symbol* sig = fieldinfo.signature(cp);
 
-      if (Signature::basic_type(sig) == T_PRIMITIVE_OBJECT && !fieldinfo.access_flags().is_static()) {
+      if (fieldinfo.field_flags().is_null_free_inline_type() && !fieldinfo.access_flags().is_static()) {
         // Pre-load inline class
         Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(sig,
             Handle(THREAD, _loader_data->class_loader()),

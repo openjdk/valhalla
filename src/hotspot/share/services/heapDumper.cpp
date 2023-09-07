@@ -1057,7 +1057,7 @@ class DumperSupport : AllStatic {
 
   // helper methods for inlined fields.
   static bool is_inlined_field(const FieldStream& fld) {
-    return fld.field_descriptor().is_inlined();
+    return fld.field_descriptor().is_flat();
   }
   static InlineKlass* get_inlined_field_klass(const FieldStream &fld) {
     assert(is_inlined_field(fld), "must be inlined field");
@@ -1344,10 +1344,10 @@ u2 DumperSupport::get_instance_fields_count(InstanceKlass* ik) {
 }
 
 // dumps the definition of the instance fields for a given class
-// inlined_fields_id is not-NULL for inlined fields (to get synthetic field name IDs
+// inlined_fields_id is not-nullptr for inlined fields (to get synthetic field name IDs
 // by using InlinedObjects::get_next_string_id()).
 void DumperSupport::dump_instance_field_descriptors(AbstractDumpWriter* writer, InstanceKlass* ik, uintx* inlined_fields_id) {
-  // inlined_fields_id != NULL means ik is a class of inlined field.
+  // inlined_fields_id != nullptr means ik is a class of inlined field.
   // Inlined field id pointer for this class; lazyly initialized
   // if the class has inlined field(s) and the caller didn't provide inlined_fields_id.
   uintx *this_klass_inlined_fields_id = inlined_fields_id;

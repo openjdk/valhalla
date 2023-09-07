@@ -56,7 +56,7 @@ public:
   bool is_array_klass() const { return true; }
 
   // The one-level type of the array elements.
-  virtual ciKlass* element_klass() { return NULL; }
+  virtual ciKlass* element_klass() { return nullptr; }
 
   static ciArrayKlass* make(ciType* klass, bool null_free = false);
 

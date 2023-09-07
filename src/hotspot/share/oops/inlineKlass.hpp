@@ -55,33 +55,33 @@ class InlineKlass: public InstanceKlass {
   inline address adr_return_regs() const;
 
   address adr_extended_sig() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _extended_sig));
   }
 
   // pack and unpack handlers for inline types return
   address adr_pack_handler() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _pack_handler));
   }
 
   address adr_pack_handler_jobject() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _pack_handler_jobject));
   }
 
   address adr_unpack_handler() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _unpack_handler));
   }
 
   address adr_default_value_offset() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
   ArrayKlass* volatile* adr_value_array_klasses() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return (ArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_inline_array_klasses));
   }
 
@@ -90,17 +90,17 @@ class InlineKlass: public InstanceKlass {
   }
 
   address adr_alignment() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _alignment));
   }
 
   address adr_first_field_offset() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _first_field_offset));
   }
 
   address adr_exact_size_in_bytes() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _exact_size_in_bytes));
   }
 
@@ -203,7 +203,7 @@ class InlineKlass: public InstanceKlass {
   // General store methods
   //
   // Normally loads and store methods would be found in *Oops classes, but since values can be
-  // "in-lined" (flattened) into containing oops, these methods reside here in InlineKlass.
+  // "in-lined" (flat layout) into containing oops, these methods reside here in InlineKlass.
   //
   // "inline_copy_*_to_new_*" assume new memory (i.e. IS_DEST_UNINITIALIZED for write barriers)
 
@@ -212,8 +212,8 @@ class InlineKlass: public InstanceKlass {
   void inline_copy_oop_to_new_payload(oop src, void* dst);
   void inline_copy_oop_to_payload(oop src, void* dst);
 
-  oop read_inlined_field(oop obj, int offset, TRAPS);
-  void write_inlined_field(oop obj, int offset, oop value, TRAPS);
+  oop read_flat_field(oop obj, int offset, TRAPS);
+  void write_flat_field(oop obj, int offset, oop value, TRAPS);
 
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>

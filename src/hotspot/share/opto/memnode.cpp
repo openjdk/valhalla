@@ -558,7 +558,7 @@ bool MemNode::detect_ptr_independence(Node* p1, AllocateNode* a1,
 // when searching stored value.
 // Otherwise return null.
 Node* LoadNode::find_previous_arraycopy(PhaseValues* phase, Node* ld_alloc, Node*& mem, bool can_see_stored_value) const {
-  ArrayCopyNode* ac = find_array_copy_clone(phase, ld_alloc, mem);
+  ArrayCopyNode* ac = find_array_copy_clone(ld_alloc, mem);
   if (ac != nullptr) {
     Node* ld_addp = in(MemNode::Address);
     Node* src = ac->in(ArrayCopyNode::Src);
@@ -613,7 +613,7 @@ Node* LoadNode::find_previous_arraycopy(PhaseValues* phase, Node* ld_alloc, Node
   return nullptr;
 }
 
-ArrayCopyNode* MemNode::find_array_copy_clone(PhaseValues* phase, Node* ld_alloc, Node* mem) const {
+ArrayCopyNode* MemNode::find_array_copy_clone(Node* ld_alloc, Node* mem) const {
   if (mem->is_Proj() && mem->in(0) != nullptr && (mem->in(0)->Opcode() == Op_MemBarStoreStore ||
                                                mem->in(0)->Opcode() == Op_MemBarCPUOrder)) {
     if (ld_alloc != nullptr) {
@@ -634,7 +634,7 @@ ArrayCopyNode* MemNode::find_array_copy_clone(PhaseValues* phase, Node* ld_alloc
       }
 
       if (ac != nullptr && ac->is_clonebasic()) {
-        AllocateNode* alloc = AllocateNode::Ideal_allocation(ac->in(ArrayCopyNode::Dest), phase);
+        AllocateNode* alloc = AllocateNode::Ideal_allocation(ac->in(ArrayCopyNode::Dest));
         if (alloc != nullptr && alloc == ld_alloc) {
           return ac;
         }
@@ -662,7 +662,7 @@ Node* MemNode::find_previous_store(PhaseValues* phase) {
   Node*         adr    = in(MemNode::Address);
   intptr_t      offset = 0;
   Node*         base   = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-  AllocateNode* alloc  = AllocateNode::Ideal_allocation(base, phase);
+  AllocateNode* alloc  = AllocateNode::Ideal_allocation(base);
 
   if (offset == Type::OffsetBot)
     return nullptr;            // cannot unalias unless there are precise offsets
@@ -710,7 +710,7 @@ Node* MemNode::find_previous_store(PhaseValues* phase) {
       if (st_base != base &&
           detect_ptr_independence(base, alloc,
                                   st_base,
-                                  AllocateNode::Ideal_allocation(st_base, phase),
+                                  AllocateNode::Ideal_allocation(st_base),
                                   phase)) {
         // Success:  The bases are provably independent.
         mem = mem->in(MemNode::Memory);
@@ -1064,7 +1064,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   Node* ld_base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ld_off);
-  Node* ld_alloc = AllocateNode::Ideal_allocation(ld_base, phase);
+  Node* ld_alloc = AllocateNode::Ideal_allocation(ld_base);
   const TypeInstPtr* tp = phase->type(ld_adr)->isa_instptr();
   Compile::AliasType* atp = (tp != nullptr) ? phase->C->alias_type(tp) : nullptr;
   // This is more general than load from boxing objects.
@@ -1172,7 +1172,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       }
       assert(ld_alloc->in(AllocateNode::RawDefaultValue) == nullptr, "default value may not be null");
       if (memory_type() != T_VOID) {
-        if (ReduceBulkZeroing || find_array_copy_clone(phase, ld_alloc, in(MemNode::Memory)) == nullptr) {
+        if (ReduceBulkZeroing || find_array_copy_clone(ld_alloc, in(MemNode::Memory)) == nullptr) {
           // If ReduceBulkZeroing is disabled, we need to check if the allocation does not belong to an
           // ArrayCopyNode clone. If it does, then we cannot assume zero since the initialization is done
           // by the ArrayCopyNode.
@@ -1546,9 +1546,38 @@ static bool stable_phi(PhiNode* phi, PhaseGVN *phase) {
   }
   return true;
 }
+
+//------------------------------split_through_phi------------------------------
+// Check whether a call to 'split_through_phi' would split this load through the
+// Phi *base*. This method is essentially a copy of the validations performed
+// by 'split_through_phi'. The first use of this method was in EA code as part
+// of simplification of allocation merges.
+bool LoadNode::can_split_through_phi_base(PhaseGVN* phase) {
+  Node* mem        = in(Memory);
+  Node* address    = in(Address);
+  intptr_t ignore  = 0;
+  Node*    base    = AddPNode::Ideal_base_and_offset(address, phase, ignore);
+  bool base_is_phi = (base != nullptr) && base->is_Phi();
+
+  if (req() > 3 || !base_is_phi) {
+    return false;
+  }
+
+  if (!mem->is_Phi()) {
+    if (!MemNode::all_controls_dominate(mem, base->in(0)))
+      return false;
+  } else if (base->in(0) != mem->in(0)) {
+    if (!MemNode::all_controls_dominate(mem, base->in(0))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 //------------------------------split_through_phi------------------------------
 // Split instance or boxed field load through Phi.
-Node* LoadNode::split_through_phi(PhaseGVN* phase) {
+Node* LoadNode::split_through_phi(PhaseGVN* phase, bool ignore_missing_instance_id) {
   if (req() > 3) {
     assert(is_LoadVector() && Opcode() != Op_LoadVector, "load has too many inputs");
     // LoadVector subclasses such as LoadVectorMasked have extra inputs that the logic below doesn't take into account
@@ -1559,7 +1588,8 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase) {
   const TypeOopPtr *t_oop = phase->type(address)->isa_oopptr();
 
   assert((t_oop != nullptr) &&
-         (t_oop->is_known_instance_field() ||
+         (ignore_missing_instance_id ||
+          t_oop->is_known_instance_field() ||
           t_oop->is_ptr_to_boxed_value()), "invalid conditions");
 
   Compile* C = phase->C;
@@ -1571,8 +1601,8 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase) {
                            phase->type(base)->higher_equal(TypePtr::NOTNULL);
 
   if (!((mem->is_Phi() || base_is_phi) &&
-        (load_boxed_values || t_oop->is_known_instance_field()))) {
-    return nullptr; // memory is not Phi
+        (ignore_missing_instance_id || load_boxed_values || t_oop->is_known_instance_field()))) {
+    return nullptr; // Neither memory or base are Phi
   }
 
   if (mem->is_Phi()) {
@@ -1616,7 +1646,7 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase) {
   }
 
   // Split through Phi (see original code in loopopts.cpp).
-  assert(C->have_alias_type(t_oop), "instance should have alias type");
+  assert(ignore_missing_instance_id || C->have_alias_type(t_oop), "instance should have alias type");
 
   // Do nothing here if Identity will find a value
   // (to avoid infinite chain of value phis generation).
@@ -1652,16 +1682,20 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase) {
     region = mem->in(0);
   }
 
+  Node* phi = nullptr;
   const Type* this_type = this->bottom_type();
-  int this_index  = C->get_alias_index(t_oop);
-  int this_offset = t_oop->offset();
-  int this_iid    = t_oop->instance_id();
-  if (!t_oop->is_known_instance() && load_boxed_values) {
-    // Use _idx of address base for boxed values.
-    this_iid = base->_idx;
-  }
   PhaseIterGVN* igvn = phase->is_IterGVN();
-  Node* phi = new PhiNode(region, this_type, nullptr, mem->_idx, this_iid, this_index, this_offset);
+  if (t_oop != nullptr && (t_oop->is_known_instance_field() || load_boxed_values)) {
+    int this_index = C->get_alias_index(t_oop);
+    int this_offset = t_oop->offset();
+    int this_iid = t_oop->is_known_instance_field() ? t_oop->instance_id() : base->_idx;
+    phi = new PhiNode(region, this_type, nullptr, mem->_idx, this_iid, this_index, this_offset);
+  } else if (ignore_missing_instance_id) {
+    phi = new PhiNode(region, this_type, nullptr, mem->_idx);
+  } else {
+    return nullptr;
+  }
+
   for (uint i = 1; i < region->req(); i++) {
     Node* x;
     Node* the_clone = nullptr;
@@ -1742,10 +1776,10 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase) {
   return phi;
 }
 
-AllocateNode* LoadNode::is_new_object_mark_load(PhaseGVN *phase) const {
+AllocateNode* LoadNode::is_new_object_mark_load() const {
   if (Opcode() == Op_LoadX) {
     Node* address = in(MemNode::Address);
-    AllocateNode* alloc = AllocateNode::Ideal_allocation(address, phase);
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(address);
     Node* mem = in(MemNode::Memory);
     if (alloc != nullptr && mem->is_Proj() &&
         mem->in(0) != nullptr &&
@@ -2197,7 +2231,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       return Type::get_zero_type(_type->basic_type());
     }
   }
-  Node* alloc = is_new_object_mark_load(phase);
+  Node* alloc = is_new_object_mark_load();
   if (alloc != nullptr) {
     if (EnableValhalla) {
       // The mark word may contain property bits (inline, flat, null-free)
@@ -2456,7 +2490,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
 
       // The array's TypeKlassPtr was declared 'precise' or 'not precise'
       // according to the element type's subclassing.
-      return tkls->is_aryklassptr()->elem();
+      return tkls->is_aryklassptr()->elem()->isa_klassptr()->cast_to_exactness(tkls->klass_is_exact());
     }
     if (tkls->isa_instklassptr() != nullptr && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
@@ -2595,7 +2629,7 @@ Node *LoadRangeNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // We can fetch the length directly through an AllocateArrayNode.
   // This works even if the length is not constant (clone or newArray).
   if (offset == arrayOopDesc::length_offset_in_bytes()) {
-    AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(base, phase);
+    AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(base);
     if (alloc != nullptr) {
       Node* allocated_length = alloc->Ideal_length();
       Node* len = alloc->make_ideal_length(tary, phase);
@@ -2627,7 +2661,7 @@ Node* LoadRangeNode::Identity(PhaseGVN* phase) {
   // We can fetch the length directly through an AllocateArrayNode.
   // This works even if the length is not constant (clone or newArray).
   if (offset == arrayOopDesc::length_offset_in_bytes()) {
-    AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(base, phase);
+    AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(base);
     if (alloc != nullptr) {
       Node* allocated_length = alloc->Ideal_length();
       // Do not allow make_ideal_length to allocate a CastII node.
@@ -3024,7 +3058,7 @@ Node *StoreCMNode::Ideal(PhaseGVN *phase, bool can_reshape){
   Node* my_store = in(MemNode::OopStore);
   if (my_store->is_MergeMem()) {
     if (oop_alias_idx() != phase->C->get_alias_index(TypeAryPtr::INLINES) ||
-        phase->C->flattened_accesses_share_alias()) {
+        phase->C->flat_accesses_share_alias()) {
       // The alias that was recorded is no longer accurate enough.
       Node* mem = my_store->as_MergeMem()->memory_at(oop_alias_idx());
       set_req_X(MemNode::OopStore, mem, phase);
@@ -3097,10 +3131,22 @@ uint LoadStoreNode::ideal_reg() const {
   return _type->ideal_reg();
 }
 
+// This method conservatively checks if the result of a LoadStoreNode is
+// used, that is, if it returns true, then it is definitely the case that
+// the result of the node is not needed.
+// For example, GetAndAdd can be matched into a lock_add instead of a
+// lock_xadd if the result of LoadStoreNode::result_not_used() is true
 bool LoadStoreNode::result_not_used() const {
-  for( DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++ ) {
+  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     Node *x = fast_out(i);
-    if (x->Opcode() == Op_SCMemProj) continue;
+    if (x->Opcode() == Op_SCMemProj) {
+      continue;
+    }
+    if (x->bottom_type() == TypeTuple::MEMBAR &&
+        !x->is_Call() &&
+        x->Opcode() != Op_Blackhole) {
+      continue;
+    }
     return false;
   }
   return true;
@@ -3452,7 +3498,7 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       }
     } else if (opc == Op_MemBarRelease) {
       // Final field stores.
-      Node* alloc = AllocateNode::Ideal_allocation(in(MemBarNode::Precedent), phase);
+      Node* alloc = AllocateNode::Ideal_allocation(in(MemBarNode::Precedent));
       if ((alloc != nullptr) && alloc->is_Allocate() &&
           alloc->as_Allocate()->does_not_escape_thread()) {
         // The allocated object does not escape.

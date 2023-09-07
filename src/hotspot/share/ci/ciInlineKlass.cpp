@@ -30,13 +30,13 @@
 
 int ciInlineKlass::compute_nonstatic_fields() {
   int result = ciInstanceKlass::compute_nonstatic_fields();
-  assert(super() == NULL || !super()->has_nonstatic_fields(), "an inline type must not inherit fields from its superclass");
+  assert(super() == nullptr || !super()->has_nonstatic_fields(), "an inline type must not inherit fields from its superclass");
 
   // Compute declared non-static fields (without flattening of inline type fields)
-  GrowableArray<ciField*>* fields = NULL;
-  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(NULL, false /* no flattening */);)
+  GrowableArray<ciField*>* fields = nullptr;
+  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(nullptr, false /* no flattening */);)
   Arena* arena = CURRENT_ENV->arena();
-  _declared_nonstatic_fields = (fields != NULL) ? fields : new (arena) GrowableArray<ciField*>(arena, 0, 0, 0);
+  _declared_nonstatic_fields = (fields != nullptr) ? fields : new (arena) GrowableArray<ciField*>(arena, 0, 0, 0);
   return result;
 }
 
@@ -46,8 +46,7 @@ int ciInlineKlass::first_field_offset() const {
 }
 
 // Returns the index of the field with the given offset. If the field at 'offset'
-// belongs to a flattened inline type field, return the index of the field
-// in the flattened inline type.
+// belongs to a flat field, return the index of the field in the inline type of the flat field.
 int ciInlineKlass::field_index_by_offset(int offset) {
   assert(contains_field_offset(offset), "invalid field offset");
   int best_offset = 0;
@@ -61,7 +60,7 @@ int ciInlineKlass::field_index_by_offset(int offset) {
     } else if (field_offset < offset && field_offset > best_offset) {
       // No exact match. Save the index of the field with the closest offset that
       // is smaller than the given field offset. This index corresponds to the
-      // flattened inline type field that holds the field we are looking for.
+      // flat field that holds the field we are looking for.
       best_offset = field_offset;
       best_index = i;
     }
@@ -71,7 +70,7 @@ int ciInlineKlass::field_index_by_offset(int offset) {
   return best_index;
 }
 
-// Are arrays containing this inline type flattened?
+// Are arrays containing this inline type flat arrays?
 bool ciInlineKlass::flatten_array() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->flatten_array();)
 }
@@ -89,7 +88,7 @@ bool ciInlineKlass::can_be_returned_as_fields() const {
 bool ciInlineKlass::is_empty() {
   // Do not use InlineKlass::is_empty_inline_type here because it does
   // consider the container empty even if fields of empty inline types
-  // are not flattened
+  // are not flat
   return nof_nonstatic_fields() == 0;
 }
 

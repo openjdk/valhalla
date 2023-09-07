@@ -29,7 +29,6 @@
 #include "memory/allocation.hpp"
 #include "oops/array.hpp"
 #include "oops/oopHandle.hpp"
-#include "oops/resolvedIndyEntry.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/align.hpp"
 #include "utilities/constantTag.hpp"
@@ -77,7 +76,7 @@
 // The flags after TosState have the following interpretation:
 // bit 27: 0 for fields, 1 for methods
 // I  flag true if field is a null free inline type (must never be null)
-// i  flag true if field is inlined
+// i  flag true if field is flat
 // f  flag true if field is marked final
 // v  flag true if field is volatile (only for fields)
 // f2 flag true if f2 contains an oop (e.g., virtual final method)
@@ -131,6 +130,7 @@
 // source code.  The _indices field with the bytecode must be written last.
 
 class CallInfo;
+class ResolvedIndyEntry;
 
 class ConstantPoolCacheEntry {
   friend class VMStructs;
@@ -186,7 +186,7 @@ class ConstantPoolCacheEntry {
     has_appendix_shift         = 24,  // (A) does the call site have an appendix argument?
     is_null_free_inline_type_shift = 24,  // (I) is the field a null free inline type (must never be null)
     is_forced_virtual_shift    = 23,  // (I) is the interface reference forced to virtual mode?
-    is_inlined_shift           = 23,  // (i) is the field inlined?
+    is_flat_shift              = 23,  // (i) is the field flat?
     is_final_shift             = 22,  // (f) is the field or method final?
     is_volatile_shift          = 21,  // (v) is the field volatile?
     is_vfinal_shift            = 20,  // (vf) did the call resolve to a final method?
@@ -226,7 +226,7 @@ class ConstantPoolCacheEntry {
     TosState        field_type,                  // the (machine) field type
     bool            is_final,                    // the field is final
     bool            is_volatile,                 // the field is volatile
-    bool            is_inlined,                  // the field is inlined
+    bool            is_flat,                     // the field is flat
     bool            is_null_free_inline_type     // the field is an inline type (must never be null)
   );
 
@@ -338,7 +338,7 @@ class ConstantPoolCacheEntry {
   int  parameter_size() const                    { assert(is_method_entry(), ""); return (_flags & parameter_size_mask); }
   bool is_volatile() const                       { return (_flags & (1 << is_volatile_shift))       != 0; }
   bool is_final() const                          { return (_flags & (1 << is_final_shift))          != 0; }
-  bool is_inlined() const                        { return (_flags & (1 << is_inlined_shift))        != 0; }
+  bool is_flat() const                           { return (_flags & (1 << is_flat_shift))           != 0; }
   bool is_forced_virtual() const                 { return (_flags & (1 << is_forced_virtual_shift)) != 0; }
   bool is_vfinal() const                         { return (_flags & (1 << is_vfinal_shift))         != 0; }
   bool indy_resolution_failed() const;
@@ -453,13 +453,9 @@ class ConstantPoolCache: public MetaspaceObj {
   void set_reference_map(Array<u2>* o)    { _reference_map = o; }
 
   Array<ResolvedIndyEntry>* resolved_indy_entries()          { return _resolved_indy_entries; }
-  ResolvedIndyEntry* resolved_indy_entry_at(int index) const { return _resolved_indy_entries->adr_at(index); }
-  int resolved_indy_entries_length()                   const { return _resolved_indy_entries->length();      }
-  void print_resolved_indy_entries(outputStream* st)   const {
-    for (int i = 0; i < _resolved_indy_entries->length(); i++) {
-        _resolved_indy_entries->at(i).print_on(st);
-    }
-  }
+  inline ResolvedIndyEntry* resolved_indy_entry_at(int index) const;
+  inline int resolved_indy_entries_length() const;
+  void print_resolved_indy_entries(outputStream* st)   const;
 
   // Assembly code support
   static ByteSize resolved_references_offset()   { return byte_offset_of(ConstantPoolCache, _resolved_references); }

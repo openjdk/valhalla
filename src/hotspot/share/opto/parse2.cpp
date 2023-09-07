@@ -49,20 +49,20 @@
 #include "runtime/sharedRuntime.hpp"
 
 #ifndef PRODUCT
-extern int explicit_null_checks_inserted,
-           explicit_null_checks_elided;
+extern uint explicit_null_checks_inserted,
+            explicit_null_checks_elided;
 #endif
 
 Node* Parse::record_profile_for_speculation_at_array_load(Node* ld) {
   // Feed unused profile data to type speculation
   if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
-    ciKlass* array_type = NULL;
-    ciKlass* element_type = NULL;
+    ciKlass* array_type = nullptr;
+    ciKlass* element_type = nullptr;
     ProfilePtrKind element_ptr = ProfileMaybeNull;
     bool flat_array = true;
     bool null_free_array = true;
     method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
-    if (element_type != NULL || element_ptr != ProfileMaybeNull) {
+    if (element_type != nullptr || element_ptr != ProfileMaybeNull) {
       ld = record_profile_for_speculation(ld, element_type, element_ptr);
     }
   }
@@ -135,7 +135,7 @@ void Parse::array_load(BasicType bt) {
         // ordered with other unknown and known flattened array accesses.
         insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-        Node* call = NULL;
+        Node* call = nullptr;
         {
           // Re-execute flattened array load if runtime call triggers deoptimization
           PreserveReexecuteState preexecs(this);
@@ -146,7 +146,7 @@ void Parse::array_load(BasicType bt) {
           call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
                                    OptoRuntime::load_unknown_inline_type(),
                                    OptoRuntime::load_unknown_inline_Java(),
-                                   NULL, TypeRawPtr::BOTTOM,
+                                   nullptr, TypeRawPtr::BOTTOM,
                                    ary, idx);
         }
         make_slow_call_ex(call, env()->Throwable_klass(), false);
@@ -177,7 +177,7 @@ void Parse::array_load(BasicType bt) {
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
   ld = record_profile_for_speculation_at_array_load(ld);
   // Loading a non-flattened inline type
-  if (elemptr != NULL && elemptr->is_inlinetypeptr()) {
+  if (elemptr != nullptr && elemptr->is_inlinetypeptr()) {
     assert(!ary_t->is_null_free() || !elemptr->maybe_null(), "inline type array elements should never be null");
     ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), !elemptr->maybe_null());
   }
@@ -190,7 +190,7 @@ void Parse::array_store(BasicType bt) {
   const Type* elemtype = Type::TOP;
   Node* adr = array_addressing(bt, type2size[bt], elemtype);
   if (stopped())  return;     // guaranteed null or range check
-  Node* cast_val = NULL;
+  Node* cast_val = nullptr;
   if (bt == T_OBJECT) {
     cast_val = array_store_check(adr, elemtype);
     if (stopped()) return;
@@ -233,7 +233,7 @@ void Parse::array_store(BasicType bt) {
       PreserveReexecuteState preexecs(this);
       inc_sp(3);
       jvms()->set_should_reexecute(true);
-      cast_val->as_InlineType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      cast_val->as_InlineType()->store_flattened(this, ary, adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (ary_t->is_null_free()) {
       // Store to non-flattened inline type array (elements can never be null)
@@ -243,7 +243,7 @@ void Parse::array_store(BasicType bt) {
         return;
       }
     } else if (!ary_t->is_not_flat() && (tval != TypePtr::NULL_PTR || StressReflectiveCode)) {
-      // Array might be flattened, emit runtime checks (for NULL, a simple inline_array_null_guard is sufficient).
+      // Array might be flattened, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flattened && elemtype->is_oopptr()->can_be_inline_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
       IdealKit ideal(this);
@@ -269,14 +269,14 @@ void Parse::array_store(BasicType bt) {
           dec_sp(3);
         }
         // Try to determine the inline klass
-        ciInlineKlass* vk = NULL;
+        ciInlineKlass* vk = nullptr;
         if (tval->is_inlinetypeptr()) {
           vk = tval->inline_klass();
         } else if (elemtype->is_inlinetypeptr()) {
           vk = elemtype->inline_klass();
         }
         Node* casted_ary = ary;
-        if (vk != NULL && !stopped()) {
+        if (vk != nullptr && !stopped()) {
           // Element type is known, cast and store to flattened representation
           assert(vk->flatten_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
           ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
@@ -291,7 +291,7 @@ void Parse::array_store(BasicType bt) {
           PreserveReexecuteState preexecs(this);
           inc_sp(3);
           jvms()->set_should_reexecute(true);
-          val->as_InlineType()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          val->as_InlineType()->store_flattened(this, casted_ary, casted_adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
         } else if (!stopped()) {
           // Element type is unknown, emit runtime call
 
@@ -428,21 +428,21 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     // First check the speculative type
     Deoptimization::DeoptReason reason = Deoptimization::Reason_speculate_class_check;
     ciKlass* array_type = arytype->speculative_type();
-    if (too_many_traps_or_recompiles(reason) || array_type == NULL) {
+    if (too_many_traps_or_recompiles(reason) || array_type == nullptr) {
       // No speculative type, check profile data at this bci
-      array_type = NULL;
+      array_type = nullptr;
       reason = Deoptimization::Reason_class_check;
       if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
-        ciKlass* element_type = NULL;
+        ciKlass* element_type = nullptr;
         ProfilePtrKind element_ptr = ProfileMaybeNull;
         bool flat_array = true;
         bool null_free_array = true;
         method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
       }
     }
-    if (array_type != NULL) {
+    if (array_type != nullptr) {
       // Speculate that this array has the exact type reported by profile data
-      Node* better_ary = NULL;
+      Node* better_ary = nullptr;
       DEBUG_ONLY(Node* old_control = control();)
       Node* slow_ctl = type_check_receiver(ary, array_type, 1.0, &better_ary);
       if (stopped()) {
@@ -463,13 +463,13 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   } else if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
     // No need to speculate: feed profile data at this bci for the
     // array to type speculation
-    ciKlass* array_type = NULL;
-    ciKlass* element_type = NULL;
+    ciKlass* array_type = nullptr;
+    ciKlass* element_type = nullptr;
     ProfilePtrKind element_ptr = ProfileMaybeNull;
     bool flat_array = true;
     bool null_free_array = true;
     method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
-    if (array_type != NULL) {
+    if (array_type != nullptr) {
       ary = record_profile_for_speculation(ary, array_type, ProfileMaybeNull);
     }
   }
@@ -482,14 +482,14 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   if (!arytype->is_null_free() && !arytype->is_not_null_free()) {
     bool null_free_array = true;
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
-    if (arytype->speculative() != NULL &&
+    if (arytype->speculative() != nullptr &&
         arytype->speculative()->is_aryptr()->is_not_null_free() &&
         !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       null_free_array = false;
       reason = Deoptimization::Reason_speculate_class_check;
     } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
-      ciKlass* array_type = NULL;
-      ciKlass* element_type = NULL;
+      ciKlass* array_type = nullptr;
+      ciKlass* element_type = nullptr;
       ProfilePtrKind element_ptr = ProfileMaybeNull;
       bool flat_array = true;
       method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
@@ -511,14 +511,14 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   if (!arytype->is_flat() && !arytype->is_not_flat()) {
     bool flat_array = true;
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
-    if (arytype->speculative() != NULL &&
+    if (arytype->speculative() != nullptr &&
         arytype->speculative()->is_aryptr()->is_not_flat() &&
         !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       flat_array = false;
       reason = Deoptimization::Reason_speculate_class_check;
     } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
-      ciKlass* array_type = NULL;
-      ciKlass* element_type = NULL;
+      ciKlass* array_type = nullptr;
+      ciKlass* element_type = nullptr;
       ProfilePtrKind element_ptr = ProfileMaybeNull;
       bool null_free_array = true;
       method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
@@ -1886,7 +1886,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
         if (new_path) {
           // Merge by using a new path
           merge_new_path(target_bci);
-        } else if (ctrl_taken != NULL) {
+        } else if (ctrl_taken != nullptr) {
           // Don't merge but save taken branch to be wired by caller
           *ctrl_taken = control();
         } else {
@@ -1900,7 +1900,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
   set_control(untaken_branch);
 
   // Branch not taken.
-  if (stopped() && ctrl_taken == NULL) {
+  if (stopped() && ctrl_taken == nullptr) {
     if (C->eliminate_boxing()) {
       // Mark the successor block as parsed (if caller does not re-wire control flow)
       next_block->next_path_num();
@@ -1912,7 +1912,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
 
 
 static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
-  if (t->speculative() == NULL) {
+  if (t->speculative() == nullptr) {
     return ProfileUnknownNull;
   }
   if (t->speculative_always_null()) {
@@ -1926,7 +1926,7 @@ static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
 
 void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region) {
   inc_sp(2);
-  Node* cast = null_check_common(input, T_OBJECT, true, NULL,
+  Node* cast = null_check_common(input, T_OBJECT, true, nullptr,
                                  !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
                                  speculative_ptr_kind(tinput) == ProfileAlwaysNull);
   dec_sp(2);
@@ -1969,7 +1969,7 @@ void Parse::acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinp
     inc_sp(2);
     set_control(slow_ctl);
     Deoptimization::DeoptReason reason;
-    if (tinput->speculative_type() != NULL && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+    if (tinput->speculative_type() != nullptr && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       reason = Deoptimization::Reason_speculate_class_check;
     } else {
       reason = Deoptimization::Reason_class_check;
@@ -2035,8 +2035,8 @@ void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* ti
 }
 
 void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
-  ciKlass* left_type = NULL;
-  ciKlass* right_type = NULL;
+  ciKlass* left_type = nullptr;
+  ciKlass* right_type = nullptr;
   ProfilePtrKind left_ptr = ProfileUnknownNull;
   ProfilePtrKind right_ptr = ProfileUnknownNull;
   bool left_inline_type = true;
@@ -2046,8 +2046,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   if (UseACmpProfile) {
     method()->acmp_profiled_type(bci(), left_type, right_type, left_ptr, right_ptr, left_inline_type, right_inline_type);
     if (too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
-      left_type = NULL;
-      right_type = NULL;
+      left_type = nullptr;
+      right_type = nullptr;
       left_inline_type = true;
       right_inline_type = true;
     }
@@ -2103,13 +2103,13 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   const TypeOopPtr* tright = _gvn.type(right)->isa_oopptr();
   Node* cmp = CmpP(left, right);
   cmp = optimize_cmp_with_klass(cmp);
-  if (tleft == NULL || !tleft->can_be_inline_type() ||
-      tright == NULL || !tright->can_be_inline_type()) {
+  if (tleft == nullptr || !tleft->can_be_inline_type() ||
+      tright == nullptr || !tright->can_be_inline_type()) {
     // This is sufficient, if one of the operands can't be an inline type
     do_if(btest, cmp);
     return;
   }
-  Node* eq_region = NULL;
+  Node* eq_region = nullptr;
   if (btest == BoolTest::eq) {
     do_if(btest, cmp, true);
     if (stopped()) {
@@ -2117,7 +2117,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     }
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
-    Node* is_not_equal = NULL;
+    Node* is_not_equal = nullptr;
     eq_region = new RegionNode(3);
     {
       PreserveJVMState pjvms(this);
@@ -2126,7 +2126,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
         eq_region->init_req(1, control());
       }
     }
-    if (is_not_equal == NULL || is_not_equal->is_top()) {
+    if (is_not_equal == nullptr || is_not_equal->is_top()) {
       record_for_igvn(eq_region);
       set_control(_gvn.transform(eq_region));
       return;
@@ -2136,10 +2136,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // Prefer speculative types if available
   if (!too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
-    if (tleft->speculative_type() != NULL) {
+    if (tleft->speculative_type() != nullptr) {
       left_type = tleft->speculative_type();
     }
-    if (tright->speculative_type() != NULL) {
+    if (tright->speculative_type() != nullptr) {
       right_type = tright->speculative_type();
     }
   }
@@ -2171,12 +2171,12 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     acmp_always_null_input(right, tright, btest, eq_region);
     return;
   }
-  if (left_type != NULL && !left_type->is_inlinetype()) {
+  if (left_type != nullptr && !left_type->is_inlinetype()) {
     // Comparison with an object of known type
     acmp_known_non_inline_type_input(left, tleft, left_ptr, left_type, btest, eq_region);
     return;
   }
-  if (right_type != NULL && !right_type->is_inlinetype()) {
+  if (right_type != nullptr && !right_type->is_inlinetype()) {
     // Comparison with an object of known type
     acmp_known_non_inline_type_input(right, tright, right_ptr, right_type, btest, eq_region);
     return;
@@ -2240,9 +2240,9 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   Node* mem = reset_memory();
   Node* ne_mem_phi = PhiNode::make(ne_region, mem);
 
-  Node* eq_io_phi = NULL;
-  Node* eq_mem_phi = NULL;
-  if (eq_region != NULL) {
+  Node* eq_io_phi = nullptr;
+  Node* eq_mem_phi = nullptr;
+  if (eq_region != nullptr) {
     eq_io_phi = PhiNode::make(eq_region, i_o());
     eq_mem_phi = PhiNode::make(eq_region, mem);
   }
@@ -2437,6 +2437,9 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
             // at the control merge.
             _gvn.set_type_bottom(ccast);
             record_for_igvn(ccast);
+            if (tboth->is_inlinetypeptr()) {
+              ccast = InlineTypeNode::make_from_oop(this, ccast, tboth->exact_klass(true)->as_inline_klass());
+            }
             // Here's the payoff.
             replace_in_map(obj, ccast);
           }

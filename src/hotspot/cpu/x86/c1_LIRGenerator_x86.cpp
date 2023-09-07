@@ -340,7 +340,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   CodeStub* throw_imse_stub = x->maybe_inlinetype() ?
       new SimpleExceptionStub(Runtime1::throw_illegal_monitor_state_exception_id,
                               LIR_OprFact::illegalOpr, state_for(x))
-    : NULL;
+    : nullptr;
 
   // this CodeEmitInfo must not have the xhandlers because here the
   // object is already locked (xhandlers expect object to be unlocked)
@@ -993,7 +993,7 @@ void LIRGenerator::do_LibmIntrinsic(Intrinsic* x) {
       break;
     case vmIntrinsics::_dpow:
        if (StubRoutines::dpow() != nullptr) {
-      __ call_runtime_leaf(StubRoutines::dpow(), getThreadTemp(), result_reg, cc->args());
+        __ call_runtime_leaf(StubRoutines::dpow(), getThreadTemp(), result_reg, cc->args());
       } else {
         __ call_runtime_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dpow), getThreadTemp(), result_reg, cc->args());
       }

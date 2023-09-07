@@ -348,9 +348,9 @@ class Instruction: public CompilationResourceObj {
     void set_arg_needs_null_check(int i, bool check) {
       if (i >= 0 && i < (int)sizeof(_nonnull_state) * BitsPerByte) {
         if (check) {
-          _nonnull_state |= nth_bit(i);
+          _nonnull_state |= (int)nth_bit(i);
         } else {
-          _nonnull_state &= ~(nth_bit(i));
+          _nonnull_state &= (int)~(nth_bit(i));
         }
       }
     }
@@ -518,8 +518,8 @@ class Instruction: public CompilationResourceObj {
     return _next;
   }
 
-  bool is_loaded_flattened_array() const;
-  bool maybe_flattened_array();
+  bool is_loaded_flat_array() const;
+  bool maybe_flat_array();
   bool maybe_null_free_array();
 
   Instruction *insert_after_same_bci(Instruction *i) {
@@ -868,7 +868,7 @@ LEAF(LoadField, AccessField)
 LEAF(StoreField, AccessField)
  private:
   Value _value;
-  ciField* _enclosing_field;   // enclosing field (the flattened one) for nested fields
+  ciField* _enclosing_field;   // enclosing field (the flat one) for nested fields
 
  public:
   // creation
@@ -1053,7 +1053,7 @@ LEAF(StoreIndexed, AccessIndexed)
   bool check_boolean() const                     { return _check_boolean; }
 
   // Flattened array support
-  bool is_exact_flattened_array_store() const;
+  bool is_exact_flat_array_store() const;
   // generic
   virtual void input_values_do(ValueVisitor* f)   { AccessIndexed::input_values_do(f); f->visit(&_value); }
 };

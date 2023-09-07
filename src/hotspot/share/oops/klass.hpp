@@ -711,7 +711,7 @@ protected:
     return _prototype_header;
   }
   static inline markWord default_prototype_header(Klass* k) {
-    return (k == NULL) ? markWord::prototype() : k->prototype_header();
+    return (k == nullptr) ? markWord::prototype() : k->prototype_header();
   }
 
   inline void set_prototype_header(markWord header);

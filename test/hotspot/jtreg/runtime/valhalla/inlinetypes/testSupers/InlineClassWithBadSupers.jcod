@@ -39,7 +39,7 @@
 class PrimitiveSuperNotAbstract {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -299,7 +299,7 @@ class PrimitiveSuperNotAbstract {
 class PrimitiveSuperHasNonStaticFields {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -559,7 +559,7 @@ class PrimitiveSuperHasNonStaticFields {
 class PrimitiveSuperHasSynchMethod {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -818,7 +818,7 @@ class PrimitiveSuperHasSynchMethod {
 class PrimitiveSuperCtorHasArgs {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1079,7 +1079,7 @@ class PrimitiveSuperCtorHasArgs {
 class PrimitiveSuperCtorIsNotEmpty {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1339,7 +1339,7 @@ class PrimitiveSuperCtorIsNotEmpty {
 class ValueSuperNotAbstract {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1599,7 +1599,7 @@ class ValueSuperNotAbstract {
 class ValueSuperHasNonStaticFields {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1859,7 +1859,7 @@ class ValueSuperHasNonStaticFields {
 class ValueSuperHasSynchMethod {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -2118,7 +2118,7 @@ class ValueSuperHasSynchMethod {
 class ValueSuperCtorHasArgs {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -2379,7 +2379,7 @@ class ValueSuperCtorHasArgs {
 class ValueSuperCtorIsNotEmpty {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A

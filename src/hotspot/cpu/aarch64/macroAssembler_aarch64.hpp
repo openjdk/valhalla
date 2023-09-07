@@ -30,6 +30,7 @@
 #include "code/vmreg.hpp"
 #include "metaprogramming/enableIf.hpp"
 #include "oops/compressedOops.hpp"
+#include "oops/compressedKlass.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -634,18 +635,18 @@ public:
 
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
-  void test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened);
+  void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
 
-  // Check oops for special arrays, i.e. flattened and/or null-free
+  // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
-  void test_flattened_array_oop(Register klass, Register temp_reg, Label& is_flattened_array);
-  void test_non_flattened_array_oop(Register oop, Register temp_reg, Label&is_non_flattened_array);
+  void test_flat_array_oop(Register klass, Register temp_reg, Label& is_flat_array);
+  void test_non_flat_array_oop(Register oop, Register temp_reg, Label&is_non_flat_array);
   void test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array);
   void test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array);
 
-  // Check array klass layout helper for flatten or null-free arrays...
-  void test_flattened_array_layout(Register lh, Label& is_flattened_array);
-  void test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array);
+  // Check array klass layout helper for flat or null-free arrays...
+  void test_flat_array_layout(Register lh, Label& is_flat_array);
+  void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
   void test_null_free_array_layout(Register lh, Label& is_null_free_array);
   void test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array);
 

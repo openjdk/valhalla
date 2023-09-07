@@ -110,8 +110,12 @@ class FieldStreamBase : public StackObj {
     return field()->offset();
   }
 
-  bool is_inlined() {
-    return field()->field_flags().is_inlined();
+  bool is_null_free_inline_type() {
+    return field()->field_flags().is_null_free_inline_type();
+  }
+
+  bool is_flat() {
+    return field()->field_flags().is_flat();
   }
 
   bool is_contended() const {
@@ -145,18 +149,18 @@ class JavaFieldStream : public FieldStreamBase {
  public:
   JavaFieldStream(const InstanceKlass* k): FieldStreamBase(k->fieldinfo_stream(), k->constants(), 0, k->java_fields_count()) {}
 
-  int name_index() const {
+  u2 name_index() const {
     assert(!field()->field_flags().is_injected(), "regular only");
     return field()->name_index();
   }
 
-  int signature_index() const {
+  u2 signature_index() const {
     assert(!field()->field_flags().is_injected(), "regular only");
     return field()->signature_index();
     return -1;
   }
 
-  int generic_signature_index() const {
+  u2 generic_signature_index() const {
     assert(!field()->field_flags().is_injected(), "regular only");
     if (field()->field_flags().is_generic()) {
       return field()->generic_signature_index();
@@ -164,7 +168,7 @@ class JavaFieldStream : public FieldStreamBase {
     return 0;
   }
 
-  int initval_index() const {
+  u2 initval_index() const {
     assert(!field()->field_flags().is_injected(), "regular only");
     return field()->initializer_index();
   }

@@ -66,7 +66,7 @@ Node* PhaseIdealLoop::split_thru_phi(Node* n, Node* region, int policy) {
   // Inline types should not be split through Phis because they cannot be merged
   // through Phi nodes but each value input needs to be merged individually.
   if (n->is_InlineType()) {
-    return NULL;
+    return nullptr;
   }
 
   if (cannot_split_division(n, region)) {
@@ -707,7 +707,7 @@ Node *PhaseIdealLoop::conditional_move( Node *region ) {
       Node *inp = phi->in(j);
       if (inp->isa_InlineType()) {
         // TODO 8302217 This prevents PhiNode::push_inline_types_through
-        return NULL;
+        return nullptr;
       }
       if (get_ctrl(inp) == proj) { // Found local op
         cost++;
@@ -1414,11 +1414,11 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
   intptr_t offset;
   Node* obj = AddPNode::Ideal_base_and_offset(addr, &_igvn, offset);
 
-  if (obj == NULL) {
+  if (obj == nullptr) {
     return false;
   }
 
-  assert(obj != NULL && addr->in(AddPNode::Base) == addr->in(AddPNode::Address), "malformed AddP?");
+  assert(obj != nullptr && addr->in(AddPNode::Base) == addr->in(AddPNode::Address), "malformed AddP?");
   if (obj->Opcode() == Op_CastPP) {
     obj = obj->in(1);
   }
@@ -1435,7 +1435,7 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
     Node* ctrl = region->in(i);
     if (addr->in(AddPNode::Base) != obj) {
       Node* cast = addr->in(AddPNode::Base);
-      assert(cast->Opcode() == Op_CastPP && cast->in(0) != NULL, "inconsistent subgraph");
+      assert(cast->Opcode() == Op_CastPP && cast->in(0) != nullptr, "inconsistent subgraph");
       Node* cast_clone = cast->clone();
       cast_clone->set_req(0, ctrl);
       cast_clone->set_req(1, in);
@@ -1869,7 +1869,13 @@ void PhaseIdealLoop::try_sink_out_of_loop(Node* n) {
                 cast = ConstraintCastNode::make_cast_for_type(x_ctrl, in, in_t, ConstraintCastNode::UnconditionalDependency);
               }
               if (cast != nullptr) {
-                register_new_node(cast, x_ctrl);
+                Node* prev = _igvn.hash_find_insert(cast);
+                if (prev != nullptr) {
+                  cast->destruct(&_igvn);
+                  cast = prev;
+                } else {
+                  register_new_node(cast, x_ctrl);
+                }
                 x->replace_edge(in, cast);
                 // Chain of AddP:
                 // 2- A CastPP of the base is only added now that both AddP nodes are sunk
@@ -2052,7 +2058,7 @@ Node* PhaseIdealLoop::clone_iff(PhiNode* phi) {
   }
   Node* sample_cmp = sample_bool->in(1);
   const Type* t = Type::TOP;
-  const TypePtr* at = NULL;
+  const TypePtr* at = nullptr;
   if (sample_cmp->is_FlatArrayCheck()) {
     // Left input of a FlatArrayCheckNode is memory, set the (adr) type of the phi accordingly
     assert(sample_cmp->in(1)->bottom_type() == Type::MEMORY, "unexpected input type");
@@ -4405,7 +4411,8 @@ void PhaseIdealLoop::move_unordered_reduction_out_of_loop(IdealLoopTree* loop) {
           if (use != phi && ctrl_or_self(use) == cl) {
             DEBUG_ONLY( current->dump(-1); )
             assert(false, "reduction has use inside loop");
-            break; // Chain traversal fails.
+            // Should not be allowed by SuperWord::mark_reductions
+            return; // bail out of optimization
           }
         }
       } else {
@@ -4426,8 +4433,9 @@ void PhaseIdealLoop::move_unordered_reduction_out_of_loop(IdealLoopTree* loop) {
         current = nullptr;
         break; // Success.
       } else {
-        DEBUG_ONLY( current->dump(1); )
-        assert(false, "scalar_input is neither phi nor a matchin reduction");
+        // scalar_input is neither phi nor a matching reduction
+        // Can for example be scalar reduction when we have
+        // partial vectorization.
         break; // Chain traversal fails.
       }
     }

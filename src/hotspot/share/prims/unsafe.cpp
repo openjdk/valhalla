@@ -230,7 +230,7 @@ public:
 
   void put(T x) {
     GuardUnsafeAccess guard(_thread);
-    assert(_obj == NULL || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
+    assert(_obj == nullptr || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
     *addr() = normalize_for_write(x);
   }
 
@@ -277,7 +277,7 @@ static void assert_and_log_unsafe_value_access(oop p, jlong offset, InlineKlass*
     bool found = get_field_descriptor(p, offset, &fd);
     if (found) {
       assert(found, "value field not found");
-      assert(fd.is_inlined(), "field not flat");
+      assert(fd.is_flat(), "field not flat");
     } else {
       if (log_is_enabled(Trace, valuetypes)) {
         log_trace(valuetypes)("not a field in %s at offset " UINT64_FORMAT_X,
@@ -336,7 +336,7 @@ UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedField(JNIEnv *env, jobject unsafe, jobj
   oop f = JNIHandles::resolve_non_null(o);
   Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
   int slot = java_lang_reflect_Field::slot(f);
-  return InstanceKlass::cast(k)->field_is_inlined(slot);
+  return InstanceKlass::cast(k)->field_is_flat(slot);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedArray(JNIEnv *env, jobject unsafe, jclass c)) {
@@ -357,7 +357,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
   InlineKlass* vk = InlineKlass::cast(k);
   assert_and_log_unsafe_value_access(base, offset, vk);
   Handle base_h(THREAD, base);
-  oop v = vk->read_inlined_field(base_h(), offset, CHECK_NULL);
+  oop v = vk->read_flat_field(base_h(), offset, CHECK_NULL);
   return JNIHandles::make_local(THREAD, v);
 } UNSAFE_END
 
@@ -368,7 +368,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   assert(!base->is_inline_type() || base->mark().is_larval_state(), "must be an object instance or a larval inline type");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
-  vk->write_inlined_field(base, offset, v, CHECK);
+  vk->write_flat_field(base, offset, v, CHECK);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {

@@ -41,6 +41,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/resolvedIndyEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
@@ -470,7 +471,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 
   if (state == atos && InlineTypeReturnedAsFields) {
-    __ store_inline_type_fields_to_buf(NULL, true);
+    __ store_inline_type_fields_to_buf(nullptr, true);
   }
 
   __ restore_bcp();

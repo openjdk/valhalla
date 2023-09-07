@@ -575,7 +575,7 @@ JvmtiEnv::SetEventNotificationMode(jvmtiEventMode mode, jvmtiEvent event_type, j
   if (event_type == JVMTI_EVENT_CLASS_FILE_LOAD_HOOK && enabled) {
     record_class_file_load_hook_enabled();
   }
-  JvmtiVTMSTransitionDisabler disabler(event_thread);
+  JvmtiVTMSTransitionDisabler disabler;
 
   if (event_thread == nullptr) {
     // Can be called at Agent_OnLoad() time with event_thread == nullptr
@@ -3032,7 +3032,7 @@ JvmtiEnv::GetClassFields(oop k_mirror, jint* field_count_ptr, jfieldID** fields_
     result_list[id_index--] = jfieldIDWorkaround::to_jfieldID(
                                             ik, src_st.offset(),
                                             src_st.access_flags().is_static(),
-                                            src_st.field_descriptor().is_inlined());
+                                            src_st.field_descriptor().is_flat());
   }
   assert(id_index == -1, "just checking");
   // Fill in the results

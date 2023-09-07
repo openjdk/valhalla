@@ -121,18 +121,18 @@ class MacroAssembler: public Assembler {
 
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
-  void test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined);
+  void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
 
-  // Check oops for special arrays, i.e. flattened and/or null-free
+  // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
-  void test_flattened_array_oop(Register oop, Register temp_reg, Label&is_flattened_array);
-  void test_non_flattened_array_oop(Register oop, Register temp_reg, Label&is_non_flattened_array);
-  void test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array);
-  void test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array);
+  void test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array);
+  void test_non_flat_array_oop(Register oop, Register temp_reg, Label& is_non_flat_array);
+  void test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array);
+  void test_non_null_free_array_oop(Register oop, Register temp_reg, Label& is_non_null_free_array);
 
   // Check array klass layout helper for flatten or null-free arrays...
-  void test_flattened_array_layout(Register lh, Label& is_flattened_array);
-  void test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array);
+  void test_flat_array_layout(Register lh, Label& is_flat_array);
+  void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
   void test_null_free_array_layout(Register lh, Label& is_null_free_array);
   void test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array);
 
@@ -151,13 +151,13 @@ class MacroAssembler: public Assembler {
     if (op == 0xEB || (op & 0xF0) == 0x70) {
       // short offset operators (jmp and jcc)
       char* disp = (char*) &branch[1];
-      int imm8 = target - (address) &disp[1];
+      int imm8 = checked_cast<int>(target - (address) &disp[1]);
       guarantee(this->is8bit(imm8), "Short forward jump exceeds 8-bit offset at %s:%d",
                 file == nullptr ? "<null>" : file, line);
-      *disp = imm8;
+      *disp = (char)imm8;
     } else {
       int* disp = (int*) &branch[(op == 0x0F || op == 0xC7)? 2: 1];
-      int imm32 = target - (address) &disp[1];
+      int imm32 = checked_cast<int>(target - (address) &disp[1]);
       *disp = imm32;
     }
   }
@@ -808,7 +808,7 @@ public:
   void addptr(Register dst, int32_t src);
   void addptr(Register dst, Register src);
   void addptr(Register dst, RegisterOrConstant src) {
-    if (src.is_constant()) addptr(dst, src.as_constant());
+    if (src.is_constant()) addptr(dst, checked_cast<int>(src.as_constant()));
     else                   addptr(dst, src.as_register());
   }
 
@@ -1847,6 +1847,9 @@ public:
 
   using Assembler::evpandq;
   void evpandq(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len, Register rscratch = noreg);
+
+  using Assembler::evpaddq;
+  void evpaddq(XMMRegister dst, KRegister mask, XMMRegister nds, AddressLiteral src, bool merge, int vector_len, Register rscratch = noreg);
 
   using Assembler::evporq;
   void evporq(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len, Register rscratch = noreg);

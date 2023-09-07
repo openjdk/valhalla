@@ -207,7 +207,7 @@ class GraphBuilder {
   Instruction*      _last;                       // the last instruction added
   bool              _skip_block;                 // skip processing of the rest of this block
 
-  // support for optimization of accesses to flattened fields and arrays
+  // support for optimization of accesses to flat fields and flat arrays
   DelayedFieldAccess* _pending_field_access;
   DelayedLoadIndexed* _pending_load_indexed;
 
@@ -228,10 +228,10 @@ class GraphBuilder {
   Bytecodes::Code   code() const                 { return stream()->cur_bc(); }
   int               bci() const                  { return stream()->cur_bci(); }
   int               next_bci() const             { return stream()->next_bci(); }
-  bool              has_pending_field_access()   { return _pending_field_access != NULL; }
+  bool              has_pending_field_access()   { return _pending_field_access != nullptr; }
   DelayedFieldAccess* pending_field_access()     { return _pending_field_access; }
   void              set_pending_field_access(DelayedFieldAccess* delayed) { _pending_field_access = delayed; }
-  bool              has_pending_load_indexed()   { return _pending_load_indexed != NULL; }
+  bool              has_pending_load_indexed()   { return _pending_load_indexed != nullptr; }
   DelayedLoadIndexed* pending_load_indexed()     { return _pending_load_indexed; }
   void              set_pending_load_indexed(DelayedLoadIndexed* delayed) { _pending_load_indexed = delayed; }
 
@@ -296,7 +296,7 @@ class GraphBuilder {
   // inline types
   void default_value(int klass_index);
   void withfield(int field_index);
-  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* encloding_field = NULL);
+  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* encloding_field = nullptr);
 
   // stack/code manipulation helpers
   Instruction* append_with_bci(Instruction* instr, int bci);
@@ -393,12 +393,12 @@ class GraphBuilder {
 
   // Inline type support
   void update_larval_state(Value v) {
-    if (v != NULL && v->as_NewInlineTypeInstance() != NULL) {
+    if (v != nullptr && v->as_NewInlineTypeInstance() != nullptr) {
       v->as_NewInlineTypeInstance()->set_not_larva_anymore();
     }
   }
   void update_larva_stack_count(Value v) {
-    if (v != NULL && v->as_NewInlineTypeInstance() != NULL &&
+    if (v != nullptr && v->as_NewInlineTypeInstance() != nullptr &&
         v->as_NewInlineTypeInstance()->in_larval_state()) {
       v->as_NewInlineTypeInstance()->decrement_on_stack_count();
     }

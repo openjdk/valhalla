@@ -28,7 +28,7 @@
 class MyValue1 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -146,7 +146,7 @@ class MyValue1 {
 class MyValue2 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -264,7 +264,7 @@ class MyValue2 {
 class MyValue3 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -382,7 +382,7 @@ class MyValue3 {
 class MyValue4 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -527,7 +527,7 @@ class MyValue4 {
 class MyValue5 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -675,7 +675,7 @@ class MyValue5 {
 class MyValue6 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -823,7 +823,7 @@ class MyValue6 {
 class MyValue7 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -941,7 +941,7 @@ class MyValue7 {
 class Verifiable {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -983,7 +983,7 @@ class Verifiable {
 file "B.class" {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1084,7 +1084,7 @@ file "B.class" {
 class I3 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -1135,7 +1135,7 @@ class I3 {
 class I4 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -1189,7 +1189,7 @@ class I4 {
 class E {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1293,7 +1293,7 @@ class E {
 class G {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1400,7 +1400,7 @@ class G {
 class J {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1501,7 +1501,7 @@ class J {
 class K {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1602,7 +1602,7 @@ class K {
 file "L.class" {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1706,7 +1706,7 @@ file "L.class" {
 class P {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1810,7 +1810,7 @@ class P {
 class Q {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1911,7 +1911,7 @@ class Q {
 class R {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -2012,7 +2012,7 @@ class R {
 class S {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -2116,7 +2116,7 @@ class S {
 class TestMismatchHandlingHelper {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -2711,7 +2711,7 @@ class TestMismatchHandlingHelper {
 class A {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -2805,7 +2805,7 @@ class A {
 class C {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -2899,7 +2899,7 @@ class C {
 class I1 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -2941,7 +2941,7 @@ class I1 {
 class I2 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -2986,7 +2986,7 @@ class I2 {
 file "D.class" {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3083,7 +3083,7 @@ file "D.class" {
 file "F.class" {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3183,7 +3183,7 @@ file "F.class" {
 class H {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3280,7 +3280,7 @@ class H {
 class I5 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -3322,7 +3322,7 @@ class I5 {
 class M {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3448,7 +3448,7 @@ class M {
 file "N.class" {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3552,7 +3552,7 @@ file "N.class" {
 file "O.class" {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3656,7 +3656,7 @@ file "O.class" {
 class I6 {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -3716,7 +3716,7 @@ class I6 {
 class P {
   0xCAFEBABE;
   0; // minor version
-  65; // version
+  66; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1

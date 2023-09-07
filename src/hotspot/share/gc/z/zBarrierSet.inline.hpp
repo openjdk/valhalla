@@ -364,7 +364,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap_check_cast(zpointer* dst, zpointer* src, size_t length, Klass* dst_klass) {
   // Check cast and copy each elements
   OopCopyCheckStatus check_status = oop_copy_check_ok;
-  for (const zpointer* const end = src + length; (check_status = oop_copy_check_ok) && (src < end); src++, dst++) {
+  for (const zpointer* const end = src + length; (check_status == oop_copy_check_ok) && (src < end); src++, dst++) {
     check_status = oop_copy_one_check_cast(dst, src, dst_klass);
   }
   return check_status;

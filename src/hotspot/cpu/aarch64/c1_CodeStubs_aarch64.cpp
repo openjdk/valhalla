@@ -135,7 +135,7 @@ void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   ce->store_parameter(_array->as_register(), 1);
   ce->store_parameter(_index->as_register(), 0);
-  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::load_flattened_array_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::load_flat_array_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   if (_result->as_register() != r0) {
@@ -162,7 +162,7 @@ void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   ce->store_parameter(_array->as_register(), 2);
   ce->store_parameter(_index->as_register(), 1);
   ce->store_parameter(_value->as_register(), 0);
-  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::store_flattened_array_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::store_flat_array_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ b(_continuation);

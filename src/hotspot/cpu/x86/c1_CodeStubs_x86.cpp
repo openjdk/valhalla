@@ -187,7 +187,7 @@ void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   ce->store_parameter(_array->as_register(), 1);
   ce->store_parameter(_index->as_register(), 0);
-  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::load_flattened_array_id)));
+  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::load_flat_array_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   if (_result->as_register() != rax) {
@@ -215,7 +215,7 @@ void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   ce->store_parameter(_array->as_register(), 2);
   ce->store_parameter(_index->as_register(), 1);
   ce->store_parameter(_value->as_register(), 0);
-  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::store_flattened_array_id)));
+  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::store_flat_array_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ jmp(_continuation);
@@ -326,7 +326,7 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
   __ bind(_entry);
-  if (_throw_imse_stub != NULL) {
+  if (_throw_imse_stub != nullptr) {
     // When we come here, _obj_reg has already been checked to be non-null.
     const int is_value_mask = markWord::inline_type_pattern;
     Register mark = _scratch_reg->as_register();
