@@ -756,7 +756,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
           if (vk->is_naturally_atomic()) {
             too_atomic_to_flatten = false;
             //too_volatile_to_flatten = false; //FIXME
-            // Currently, olatile fields are never flat, this could change in the future
+            // Currently, volatile fields are never flat, this could change in the future
           }
           if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
             group->add_flat_field(fieldinfo.index(), vk);
