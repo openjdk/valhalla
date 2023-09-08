@@ -1387,7 +1387,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     // For arrays indexed by constant indices, we flatten the alias
     // space to include all of the array body.  Only the header, klass
     // and array length can be accessed un-aliased.
-    // For flattened inline type array, each field has its own slice so
+    // For flat inline type array, each field has its own slice so
     // we must include the field offset.
     if( offset != Type::OffsetBot ) {
       if( ta->const_oop() ) { // MethodData* or Method*
@@ -2040,7 +2040,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
         else if (u->is_InlineType()) {
           InlineTypeNode* vt2 = u->as_InlineType();
           for (uint i = 0; i < vt2->field_count(); ++i) {
-            if (vt2->field_value(i) == vt && !vt2->field_is_flattened(i)) {
+            if (vt2->field_value(i) == vt && !vt2->field_is_flat(i)) {
               // Use in non-flat field
               must_be_buffered = true;
             }
@@ -2067,11 +2067,11 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
   if (!_has_flat_accesses) {
     return;
   }
-  // Initially, all flattened array accesses share the same slice to
+  // Initially, all flat array accesses share the same slice to
   // keep dependencies with Object[] array accesses (that could be
-  // to a flattened array) correct. We're done with parsing so we
-  // now know all flattened array accesses in this compile
-  // unit. Let's move flattened array accesses to their own slice,
+  // to a flat array) correct. We're done with parsing so we
+  // now know all flat array accesses in this compile
+  // unit. Let's move flat array accesses to their own slice,
   // one per element field. This should help memory access
   // optimizations.
   ResourceMark rm;
@@ -2081,10 +2081,10 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
   Node_List mergememnodes;
   Node_List memnodes;
 
-  // Alias index currently shared by all flattened memory accesses
+  // Alias index currently shared by all flat memory accesses
   int index = get_alias_index(TypeAryPtr::INLINES);
 
-  // Find MergeMem nodes and flattened array accesses
+  // Find MergeMem nodes and flat array accesses
   for (uint i = 0; i < wq.size(); i++) {
     Node* n = wq.at(i);
     if (n->is_Mem()) {
@@ -2114,7 +2114,7 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
   if (memnodes.size() > 0) {
     _flat_accesses_share_alias = false;
 
-    // We are going to change the slice for the flattened array
+    // We are going to change the slice for the flat array
     // accesses so we need to clear the cache entries that refer to
     // them.
     for (uint i = 0; i < AliasCacheSize; i++) {
@@ -2160,7 +2160,7 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
 #ifdef ASSERT
     VectorSet seen(Thread::current()->resource_area());
 #endif
-    // Now let's fix the memory graph so each flattened array access
+    // Now let's fix the memory graph so each flat array access
     // is moved to the right slice. Start from the MergeMem nodes.
     uint last = unique();
     for (uint i = 0; i < mergememnodes.size(); i++) {
@@ -2266,11 +2266,11 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
             } else {
               // This is a MemBarCPUOrder node from
               // Parse::array_load()/Parse::array_store(), in the
-              // branch that handles flattened arrays hidden under
+              // branch that handles flat arrays hidden under
               // an Object[] array. We also need one new membar per
               // new alias to keep the unknown access that the
               // membars protect properly ordered with accesses to
-              // known flattened array.
+              // known flat array.
               assert(m->is_Proj(), "projection expected");
               Node* ctrl = m->in(0)->in(TypeFunc::Control);
               igvn.replace_input_of(m->in(0), TypeFunc::Control, top());

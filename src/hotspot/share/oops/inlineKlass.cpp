@@ -148,7 +148,7 @@ void InlineKlass::write_flat_field(oop obj, int offset, oop value, TRAPS) {
 
 // Arrays of...
 
-bool InlineKlass::flatten_array() {
+bool InlineKlass::flat_array() {
   if (!UseFlatArray) {
     return false;
   }
@@ -183,7 +183,7 @@ Klass* InlineKlass::value_array_klass(int n, TRAPS) {
       // Check if update has already taken place
       if (value_array_klasses() == nullptr) {
         ArrayKlass* k;
-        if (flatten_array()) {
+        if (flat_array()) {
           k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
         } else {
           k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, true, CHECK_NULL);

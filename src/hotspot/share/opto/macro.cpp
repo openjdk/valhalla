@@ -201,7 +201,7 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
       int adr_idx = phase->C->get_alias_index(atype);
       if (adr_idx == alias_idx) {
         assert(atype->isa_oopptr(), "address type must be oopptr");
-        int adr_offset = atype->flattened_offset();
+        int adr_offset = atype->flat_offset();
         uint adr_iid = atype->is_oopptr()->instance_id();
         // Array elements references have the same alias_idx
         // but different offset and different instance_id.
@@ -319,7 +319,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
 
         Node* off = _igvn.transform(new AddXNode(_igvn.MakeConX(offset), diff));
         adr = _igvn.transform(new AddPNode(base, base, off));
-        // In the case of a flattened inline type array, each field has its
+        // In the case of a flat inline type array, each field has its
         // own slice so we need to extract the field being accessed from
         // the address computation
         adr_type = adr_type->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot)->is_aryptr();
@@ -349,7 +349,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
 Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *phi_type, const TypeOopPtr *adr_t, AllocateNode *alloc, Node_Stack *value_phis, int level) {
   assert(mem->is_Phi(), "sanity");
   int alias_idx = C->get_alias_index(adr_t);
-  int offset = adr_t->flattened_offset();
+  int offset = adr_t->flat_offset();
   int instance_id = adr_t->instance_id();
 
   // Check if an appropriate value phi already exists.
@@ -464,7 +464,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   assert((uint)instance_id == alloc->_idx, "wrong allocation");
 
   int alias_idx = C->get_alias_index(adr_t);
-  int offset = adr_t->flattened_offset();
+  int offset = adr_t->flat_offset();
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
   Node *alloc_mem = alloc->in(TypeFunc::Memory);
   VectorSet visited;
@@ -491,7 +491,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
       const TypeOopPtr* atype = mem->as_Store()->adr_type()->isa_oopptr();
       assert(atype != nullptr, "address type must be oopptr");
       assert(C->get_alias_index(atype) == alias_idx &&
-             atype->is_known_instance_field() && atype->flattened_offset() == offset &&
+             atype->is_known_instance_field() && atype->flat_offset() == offset &&
              atype->instance_id() == instance_id, "store is correct memory slice");
       done = true;
     } else if (mem->is_Phi()) {
@@ -575,7 +575,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
     ciType* field_type = vt->field_type(i);
     int field_offset = offset + vt->field_offset(i);
     Node* value = nullptr;
-    if (vt->field_is_flattened(i)) {
+    if (vt->field_is_flat(i)) {
       value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), adr_type, field_offset, alloc);
     } else {
       const Type* ft = Type::get_const_type(field_type);
@@ -697,8 +697,8 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
             // Use in flat field can be eliminated
             InlineTypeNode* vt = u->as_InlineType();
             for (uint i = 0; i < vt->field_count(); ++i) {
-              if (vt->field_value(i) == use && !vt->field_is_flattened(i)) {
-                can_eliminate = false; // Use in non-flattened field
+              if (vt->field_value(i) == use && !vt->field_is_flat(i)) {
+                can_eliminate = false; // Use in non-flat field
                 break;
               }
             }
@@ -843,7 +843,7 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
       element_size = type2aelembytes(basic_elem_type);
       field_type = res_type->is_aryptr()->elem();
       if (res_type->is_flat()) {
-        // Flattened inline type array
+        // Flat inline type array
         element_size = res_type->is_aryptr()->flat_elem_size();
       }
     }
@@ -892,7 +892,7 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
     if (res_type->is_flat()) {
       ciInlineKlass* vk = res_type->is_aryptr()->elem()->inline_klass();
-      assert(vk->flatten_array(), "must be flattened");
+      assert(vk->flat_array(), "must be flat");
       field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), vk, field_addr_type->isa_aryptr(), 0, alloc);
     } else {
       field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);

@@ -1679,8 +1679,8 @@ void Runtime1::print_statistics() {
   tty->print_cr(" _new_flat_array_slowcase_cnt:    %u", _new_flat_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %u", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %u", _new_multi_array_slowcase_cnt);
-  tty->print_cr(" _load_flattened_array_slowcase_cnt:   %u", _load_flat_array_slowcase_cnt);
-  tty->print_cr(" _store_flattened_array_slowcase_cnt:  %u", _store_flat_array_slowcase_cnt);
+  tty->print_cr(" _load_flat_array_slowcase_cnt:   %u", _load_flat_array_slowcase_cnt);
+  tty->print_cr(" _store_flat_array_slowcase_cnt:  %u", _store_flat_array_slowcase_cnt);
   tty->print_cr(" _substitutability_check_slowcase_cnt: %u", _substitutability_check_slowcase_cnt);
   tty->print_cr(" _buffer_inline_args_slowcase_cnt:%u", _buffer_inline_args_slowcase_cnt);
   tty->print_cr(" _buffer_inline_args_no_receiver_slowcase_cnt:%u", _buffer_inline_args_no_receiver_slowcase_cnt);

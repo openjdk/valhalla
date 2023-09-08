@@ -2126,7 +2126,7 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   // "known" unless they are initialized by arraycopy/clone.
   if (alloc->is_Allocate() && !pta->arraycopy_dst()) {
     if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != nullptr) {
-      // Non-flattened inline type arrays are initialized with
+      // Non-flat inline type arrays are initialized with
       // the default value instead of null. Handle them here.
       init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::DefaultValue)->_idx);
       assert(init_val != nullptr, "default value should be registered");
@@ -2981,7 +2981,7 @@ int ConnectionGraph::address_offset(Node* adr, PhaseValues* phase) {
            "offset must be a constant or it is initialization of array");
     return offs;
   }
-  return adr_type->is_ptr()->flattened_offset();
+  return adr_type->is_ptr()->flat_offset();
 }
 
 Node* ConnectionGraph::get_addp_base(Node *addp) {
@@ -3136,7 +3136,7 @@ bool ConnectionGraph::split_AddP(Node *addp, Node *base) {
     intptr_t offs = (int)igvn->find_intptr_t_con(addp->in(AddPNode::Offset), Type::OffsetBot);
     assert(offs != Type::OffsetBot, "offset must be a constant");
     if (base_t->isa_aryptr() != nullptr) {
-      // In the case of a flattened inline type array, each field has its
+      // In the case of a flat inline type array, each field has its
       // own slice so we need to extract the field being accessed from
       // the address computation
       t = base_t->isa_aryptr()->add_field_offset_and_offset(offs)->is_oopptr();
@@ -3170,7 +3170,7 @@ bool ConnectionGraph::split_AddP(Node *addp, Node *base) {
   }
   const TypePtr* tinst = base_t->add_offset(t->offset());
   if (tinst->isa_aryptr() && t->isa_aryptr()) {
-    // In the case of a flattened inline type array, each field has its
+    // In the case of a flat inline type array, each field has its
     // own slice so we need to keep track of the field being accessed.
     tinst = tinst->is_aryptr()->with_field_offset(t->is_aryptr()->field_offset().get());
     // Keep array properties (not flat/null-free)

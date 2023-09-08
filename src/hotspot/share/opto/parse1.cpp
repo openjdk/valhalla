@@ -616,7 +616,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       set_local(i, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
-      // Speculate on varargs Object array being not null-free (and therefore also not flattened)
+      // Speculate on varargs Object array being not null-free (and therefore also not flat)
       const TypePtr* spec_type = t->speculative();
       spec_type = (spec_type != nullptr && spec_type->isa_aryptr() != nullptr) ? spec_type : t->is_aryptr();
       spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
@@ -2374,7 +2374,7 @@ void Parse::return_current(Node* value) {
         value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
-        // Returning from root or an incrementally inlined method. Make sure all non-flattened
+        // Returning from root or an incrementally inlined method. Make sure all non-flat
         // fields are buffered and re-execute if allocation triggers deoptimization.
         PreserveReexecuteState preexecs(this);
         assert(tf()->returns_inline_type_as_fields(), "must be returned as fields");

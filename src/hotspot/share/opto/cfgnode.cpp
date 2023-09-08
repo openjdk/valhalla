@@ -1025,7 +1025,7 @@ Node *Node::nonnull_req() const {
 
 
 //=============================================================================
-// note that these functions assume that the _adr_type field is flattened
+// note that these functions assume that the _adr_type field is flat
 uint PhiNode::hash() const {
   const Type* at = _adr_type;
   return TypeNode::hash() + (at ? at->hash() : 0);
