@@ -2038,16 +2038,10 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
 #ifdef ASSERT
         // Verify that inline type is buffered when replacing by oop
         else if (u->is_InlineType()) {
-          InlineTypeNode* vt2 = u->as_InlineType();
-          for (uint i = 0; i < vt2->field_count(); ++i) {
-            if (vt2->field_value(i) == vt && !vt2->field_is_flat(i)) {
-              // Use in non-flat field
-              must_be_buffered = true;
-            }
-          }
+          // InlineType uses don't need buffering because they are about to be replaced as well
         } else if (u->is_Phi()) {
           // TODO 8302217 Remove this once InlineTypeNodes are reliably pushed through
-        } else if (u->Opcode() != Op_Return || !tf()->returns_inline_type_as_fields()) {
+        } else {
           must_be_buffered = true;
         }
         if (must_be_buffered && !vt->is_allocated(&igvn)) {

@@ -351,7 +351,7 @@ void Parse::do_withfield() {
     // Scalarize inline type field value
     assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to null-free field");
     val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
-  } else if (val->is_InlineType() && !field->is_null_free()) {
+  } else if (val->is_InlineType() && !field->is_flat()) {
     // Field value needs to be allocated because it can be merged with an oop.
     // Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);

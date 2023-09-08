@@ -1123,7 +1123,7 @@ void GraphBuilder::load_indexed(BasicType type) {
     if (s.cur_bc() == Bytecodes::_getfield) {
       bool will_link;
       ciField* next_field = s.get_field(will_link);
-      bool next_needs_patching = !next_field->holder()->is_loaded() ||
+      bool next_needs_patching = !next_field->holder()->is_initialized() ||
                                  !next_field->will_link(method(), Bytecodes::_getfield) ||
                                  PatchALot;
       can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching;
