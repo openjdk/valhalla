@@ -143,6 +143,9 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
     Node* val1 =        field_value(i);
     Node* val2 = other->field_value(i);
     if (val1->is_InlineType()) {
+      if (val2->is_Phi()) {
+        val2 = gvn->transform(val2);
+      }
       val1->as_InlineType()->merge_with(gvn, val2->as_InlineType(), pnum, transform);
     } else {
       assert(val1->is_Phi(), "must be a phi node");
@@ -876,7 +879,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
 //    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineType ||
 //           AllocateNode::Ideal_allocation(oop, &gvn) != nullptr || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
   }
-  assert(!null_free || vt->is_allocated(&gvn), "inline type should be allocated");
+  assert(vt->is_allocated(&gvn) || (null_free && !vk->is_initialized()), "inline type should be allocated");
   kit->record_for_igvn(vt);
   return gvn.transform(vt)->as_InlineType();
 }
