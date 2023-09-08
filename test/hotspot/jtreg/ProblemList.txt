@@ -71,7 +71,6 @@ compiler/vectorapi/VectorLogicalOpIdentityTest.java 8302459 linux-x64,windows-x6
 
 compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
 
-compiler/gcbarriers/TestZGCBarrierElision.java#ZGen 8313737 generic-all
 #############################################################################
 
 # :hotspot_gc
