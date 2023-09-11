@@ -2399,6 +2399,7 @@ private:
   void vpaddd(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
   void vpaddq(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
   void evaddsh(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void evaddph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
   // Leaf level assembler routines for masked operations.
   void evpaddb(XMMRegister dst, KRegister mask, XMMRegister nds, XMMRegister src, bool merge, int vector_len);

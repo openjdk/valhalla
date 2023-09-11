@@ -106,6 +106,8 @@ class VectorNode : public TypeNode {
   static bool is_muladds2i(Node* n);
   static bool is_roundopD(Node* n);
   static bool is_scalar_rotate(Node* n);
+  static bool is_float16_node(int opc);
+
   static bool is_vector_rotate_supported(int opc, uint vlen, BasicType bt);
   static bool is_vector_integral_negate_supported(int opc, uint vlen, BasicType bt, bool use_predicate);
   static bool is_populate_index_supported(BasicType bt);
@@ -183,6 +185,14 @@ public:
 class AddVFNode : public VectorNode {
 public:
   AddVFNode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
+  virtual int Opcode() const;
+};
+
+//------------------------------AddVHFNode--------------------------------------
+// Vector add float
+class AddVHFNode : public VectorNode {
+public:
+  AddVHFNode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
   virtual int Opcode() const;
 };
 
@@ -1544,6 +1554,8 @@ class VectorReinterpretNode : public VectorNode {
   virtual Node* Identity(PhaseGVN* phase);
 
   virtual int Opcode() const;
+
+  static VectorNode* make(Node* n, const TypeVect* dst_vt, const TypeVect* src_vt);
 };
 
 class VectorCastNode : public VectorNode {

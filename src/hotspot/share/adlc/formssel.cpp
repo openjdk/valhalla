@@ -4201,7 +4201,7 @@ Form::DataType MatchRule::is_ideal_load() const {
 
 bool MatchRule::is_vector() const {
   static const char *vector_list[] = {
-    "AddVB","AddVS","AddVI","AddVL","AddVF","AddVD",
+    "AddVB","AddVHF", "AddVS","AddVI","AddVL","AddVF","AddVD",
     "SubVB","SubVS","SubVI","SubVL","SubVF","SubVD",
     "MulVB","MulVS","MulVI","MulVL","MulVF","MulVD",
     "DivVF","DivVD",

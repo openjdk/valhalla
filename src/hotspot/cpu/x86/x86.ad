@@ -1729,6 +1729,11 @@ bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType bt) {
   //   * 128bit vroundpd instruction is present only in AVX1
   int size_in_bits = vlen * type2aelembytes(bt) * BitsPerByte;
   switch (opcode) {
+    case Op_AddVHF:
+      if (!VM_Version::supports_avx512_fp16()) {
+        return false;
+      }
+      break;
     case Op_AbsVF:
     case Op_NegVF:
       if ((vlen == 16) && (VM_Version::supports_avx512dq() == false)) {
@@ -10183,6 +10188,17 @@ instruct addFP16_scalar (regF dst, regF src1, regF src2)
   format %{ "vaddsh $dst, $src1, $src2" %}
   ins_encode %{
     __ evaddsh($dst$$XMMRegister, $src1$$XMMRegister, $src2$$XMMRegister);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct vaddVHF (vec dst, vec src1, vec src2)
+%{
+  match(Set dst (AddVHF src1 src2));
+  format %{ "vaddph $dst, $src1, $src2" %}
+  ins_encode %{
+    int vlen_enc = vector_length_encoding(this);
+    __ evaddph($dst$$XMMRegister, $src1$$XMMRegister, $src2$$XMMRegister, vlen_enc);
   %}
   ins_pipe(pipe_slow);
 %}

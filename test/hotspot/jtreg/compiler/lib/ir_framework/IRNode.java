@@ -176,6 +176,11 @@ public class IRNode {
         beforeMatchingNameRegex(ADD_VF, "AddVF");
     }
 
+    public static final String ADD_VHF = PREFIX + "ADD_VHF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(ADD_VHF, "AddVHF");
+    }
+
     public static final String ADD_REDUCTION_V = PREFIX + "ADD_REDUCTION_V" + POSTFIX;
     static {
         beforeMatchingNameRegex(ADD_REDUCTION_V, "AddReductionV(B|S|I|L|F|D)");
