@@ -126,7 +126,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 void Parse::do_get_xxx(Node* obj, ciField* field) {
   BasicType bt = field->layout_type();
   // Does this field have a constant value?  If so, just push the value.
-  if (field->is_constant() && !field->is_flattened() &&
+  if (field->is_constant() && !field->is_flat() &&
       // Keep consistent with types found by ciTypeFlow: for an
       // unloaded field type, ciTypeFlow::StateVector::do_getstatic()
       // speculates the field is null. The code in the rest of this
@@ -149,7 +149,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
     // Loading from a field of an empty inline type. Just return the default instance.
     ld = InlineTypeNode::make_default(_gvn, field_klass->as_inline_klass());
-  } else if (field->is_flattened()) {
+  } else if (field->is_flat()) {
     // Loading from a flattened inline type field.
     ld = InlineTypeNode::make_from_flattened(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset);
   } else {
@@ -235,7 +235,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
     return;
-  } else if (field->is_flattened()) {
+  } else if (field->is_flat()) {
     // Storing to a flattened inline type field.
     if (!val->is_InlineType()) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());

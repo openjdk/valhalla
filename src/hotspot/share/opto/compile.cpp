@@ -1059,8 +1059,8 @@ void Compile::Init(bool aliasing) {
 
   set_do_freq_based_layout(_directive->BlockLayoutByFrequencyOption);
   _loop_opts_cnt = LoopOptsCount;
-  _has_flattened_accesses = false;
-  _flattened_accesses_share_alias = true;
+  _has_flat_accesses = false;
+  _flat_accesses_share_alias = true;
   _scalarize_in_safepoints = false;
 
   set_do_inlining(Inline);
@@ -1436,7 +1436,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,nullptr,false,Type::Offset(offset), ta->field_offset());
     }
     // Initially all flattened array accesses share a single slice
-    if (ta->is_flat() && ta->elem() != TypeInstPtr::BOTTOM && _flattened_accesses_share_alias) {
+    if (ta->is_flat() && ta->elem() != TypeInstPtr::BOTTOM && _flat_accesses_share_alias) {
       const TypeAry* tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size(), /* stable= */ false, /* flat= */ true);
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,nullptr,false,Type::Offset(offset), Type::Offset(Type::OffsetBot));
     }
@@ -2038,16 +2038,10 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
 #ifdef ASSERT
         // Verify that inline type is buffered when replacing by oop
         else if (u->is_InlineType()) {
-          InlineTypeNode* vt2 = u->as_InlineType();
-          for (uint i = 0; i < vt2->field_count(); ++i) {
-            if (vt2->field_value(i) == vt && !vt2->field_is_flattened(i)) {
-              // Use in non-flat field
-              must_be_buffered = true;
-            }
-          }
+          // InlineType uses don't need buffering because they are about to be replaced as well
         } else if (u->is_Phi()) {
           // TODO 8302217 Remove this once InlineTypeNodes are reliably pushed through
-        } else if (u->Opcode() != Op_Return || !tf()->returns_inline_type_as_fields()) {
+        } else {
           must_be_buffered = true;
         }
         if (must_be_buffered && !vt->is_allocated(&igvn)) {
@@ -2063,8 +2057,8 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   igvn.optimize();
 }
 
-void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
-  if (!_has_flattened_accesses) {
+void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
+  if (!_has_flat_accesses) {
     return;
   }
   // Initially, all flattened array accesses share the same slice to
@@ -2112,7 +2106,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
   }
 
   if (memnodes.size() > 0) {
-    _flattened_accesses_share_alias = false;
+    _flat_accesses_share_alias = false;
 
     // We are going to change the slice for the flattened array
     // accesses so we need to clear the cache entries that refer to
@@ -2330,7 +2324,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
   }
   print_method(PHASE_SPLIT_INLINES_ARRAY, 2);
 #ifdef ASSERT
-  if (!_flattened_accesses_share_alias) {
+  if (!_flat_accesses_share_alias) {
     wq.clear();
     wq.push(root());
     for (uint i = 0; i < wq.size(); i++) {
@@ -2789,7 +2783,7 @@ void Compile::Optimize() {
   // Process inline type nodes now that all inlining is over
   process_inline_types(igvn);
 
-  adjust_flattened_array_access_aliases(igvn);
+  adjust_flat_array_access_aliases(igvn);
 
   // Perform escape analysis
   if (do_escape_analysis() && ConnectionGraph::has_candidates(this)) {

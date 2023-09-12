@@ -127,7 +127,7 @@ void fieldDescriptor::print() const { print_on(tty); }
 
 void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
   BasicType ft = field_type();
-  if (ft != T_PRIMITIVE_OBJECT) {
+  if (!is_null_free_inline_type()) {
     print_on(st);
     st->print(" ");
   }
@@ -160,20 +160,21 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
     case T_BOOLEAN:
       st->print("%s", obj->bool_field(offset()) ? "true" : "false");
       break;
+    case T_ARRAY:
+    case T_OBJECT:
     case T_PRIMITIVE_OBJECT:
-      if (is_inlined()) {
-        // Print fields of inlined fields (recursively)
+      if (is_flat()) { // only some inline types can be flat
+        assert(is_null_free_inline_type(), "Only null free inline type fields can be flat");
+        // Print fields of flat fields (recursively)
         InlineKlass* vk = InlineKlass::cast(field_holder()->get_inline_type_field_klass(index()));
         int field_offset = offset() - vk->first_field_offset();
         obj = cast_to_oop(cast_from_oop<address>(obj) + field_offset);
-        st->print_cr("Inline type field inlined '%s':", vk->name()->as_C_string());
+        st->print_cr("Flat inline type field '%s':", vk->name()->as_C_string());
         FieldPrinter print_field(st, obj);
         vk->do_nonstatic_fields(&print_field);
         return; // Do not print underlying representation
       }
-      // inline type field not inlined, fall through
-    case T_ARRAY:
-    case T_OBJECT:
+      // Not flat inline type field, fall through
       if (obj->obj_field(offset()) != nullptr) {
         obj->obj_field(offset())->print_value_on(st);
       } else {

@@ -1113,9 +1113,9 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
             break;
           case new_flat_array_id:
             // new "[QVT;"
-            __ cmpl(t0, Klass::_lh_array_tag_vt_value);  // the array can be flattened.
+            __ cmpl(t0, Klass::_lh_array_tag_vt_value);  // the array can be a flat array.
             __ jcc(Assembler::equal, ok);
-            __ cmpl(t0, Klass::_lh_array_tag_obj_value); // the array cannot be flattened (due to InlineArrayElementMaxFlatSize, etc)
+            __ cmpl(t0, Klass::_lh_array_tag_obj_value); // the array cannot be a flat array (due to InlineArrayElementMaxFlatSize, etc)
             __ jcc(Assembler::equal, ok);
             __ stop("assert(is an object or inline type array klass)");
             break;
@@ -1167,16 +1167,16 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
-    case load_flattened_array_id:
+    case load_flat_array_id:
       {
-        StubFrame f(sasm, "load_flattened_array", dont_gc_arguments);
+        StubFrame f(sasm, "load_flat_array", dont_gc_arguments);
         OopMap* map = save_live_registers(sasm, 3);
 
         // Called with store_parameter and not C abi
 
         f.load_argument(1, rax); // rax,: array
         f.load_argument(0, rbx); // rbx,: index
-        int call_offset = __ call_RT(rax, noreg, CAST_FROM_FN_PTR(address, load_flattened_array), rax, rbx);
+        int call_offset = __ call_RT(rax, noreg, CAST_FROM_FN_PTR(address, load_flat_array), rax, rbx);
 
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
@@ -1187,9 +1187,9 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
-    case store_flattened_array_id:
+    case store_flat_array_id:
       {
-        StubFrame f(sasm, "store_flattened_array", dont_gc_arguments);
+        StubFrame f(sasm, "store_flat_array", dont_gc_arguments);
         OopMap* map = save_live_registers(sasm, 4);
 
         // Called with store_parameter and not C abi
@@ -1197,7 +1197,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         f.load_argument(2, rax); // rax,: array
         f.load_argument(1, rbx); // rbx,: index
         f.load_argument(0, rcx); // rcx,: value
-        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, store_flattened_array), rax, rbx, rcx);
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, store_flat_array), rax, rbx, rcx);
 
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);

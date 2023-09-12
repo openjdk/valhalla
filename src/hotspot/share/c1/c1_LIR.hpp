@@ -338,7 +338,7 @@ class LIR_Opr {
       case T_INT:
       case T_ADDRESS:
       case T_OBJECT:
-      case T_PRIMITIVE_OBJECT:
+      case T_PRIMITIVE_OBJECT:  // fall through
       case T_ARRAY:
       case T_METADATA:
         return single_size;
@@ -488,7 +488,7 @@ inline LIR_Opr::OprType as_OprType(BasicType type) {
   case T_FLOAT:    return LIR_Opr::float_type;
   case T_DOUBLE:   return LIR_Opr::double_type;
   case T_OBJECT:
-  case T_PRIMITIVE_OBJECT:
+  case T_PRIMITIVE_OBJECT:  // fall through
   case T_ARRAY:    return LIR_Opr::object_type;
   case T_ADDRESS:  return LIR_Opr::address_type;
   case T_METADATA: return LIR_Opr::metadata_type;
@@ -1015,7 +1015,7 @@ enum LIR_Code {
     , lir_store_check
   , end_opTypeCheck
   , begin_opFlattenedArrayCheck
-    , lir_flattened_array_check
+    , lir_flat_array_check
   , end_opFlattenedArrayCheck
   , begin_opNullFreeArrayCheck
     , lir_null_free_array_check
@@ -2499,7 +2499,7 @@ class LIR_List: public CompilationResourceObj {
 
   void instanceof(LIR_Opr result, LIR_Opr object, ciKlass* klass, LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check, CodeEmitInfo* info_for_patch, ciMethod* profiled_method, int profiled_bci);
   void store_check(LIR_Opr object, LIR_Opr array, LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, CodeEmitInfo* info_for_exception, ciMethod* profiled_method, int profiled_bci);
-  void check_flattened_array(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub);
+  void check_flat_array(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub);
   void check_null_free_array(LIR_Opr array, LIR_Opr tmp);
   void substitutability_check(LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr equal_result, LIR_Opr not_equal_result,
                               LIR_Opr tmp1, LIR_Opr tmp2,
