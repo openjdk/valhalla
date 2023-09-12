@@ -2357,10 +2357,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           return false;
         }
 
-        ciField* field = vk->get_non_flattened_field_by_offset(off);
+        ciField* field = vk->get_non_flat_field_by_offset(off);
         if (field != nullptr) {
           BasicType bt = type2field[field->type()->basic_type()];
-          if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flattened())) {
+          if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flat())) {
             bt = T_OBJECT;
           }
           if (bt == type && (bt != T_PRIMITIVE_OBJECT || field->type() == inline_klass)) {
@@ -2444,13 +2444,13 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       k = instptr->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
       field = k->get_field_by_offset(off, true);
     } else {
-      field = k->get_non_flattened_field_by_offset(off);
+      field = k->get_non_flat_field_by_offset(off);
     }
     if (field != nullptr) {
       bt = type2field[field->type()->basic_type()];
     }
     assert(bt == alias_type->basic_type() || bt == T_PRIMITIVE_OBJECT, "should match");
-    if (field != nullptr && bt == T_PRIMITIVE_OBJECT && !field->is_flattened()) {
+    if (field != nullptr && bt == T_PRIMITIVE_OBJECT && !field->is_flat()) {
       bt = T_OBJECT;
     }
   } else {
@@ -2542,7 +2542,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     Node* p = nullptr;
     // Try to constant fold a load from a constant field
 
-    if (heap_base_oop != top() && field != nullptr && field->is_constant() && !field->is_flattened() && !mismatched) {
+    if (heap_base_oop != top() && field != nullptr && field->is_constant() && !field->is_flat() && !mismatched) {
       // final or stable field
       p = make_constant_from_field(field, heap_base_oop);
     }

@@ -110,8 +110,12 @@ class FieldStreamBase : public StackObj {
     return field()->offset();
   }
 
-  bool is_inlined() {
-    return field()->field_flags().is_inlined();
+  bool is_null_free_inline_type() {
+    return field()->field_flags().is_null_free_inline_type();
+  }
+
+  bool is_flat() {
+    return field()->field_flags().is_flat();
   }
 
   bool is_contended() const {

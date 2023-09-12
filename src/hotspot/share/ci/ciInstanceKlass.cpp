@@ -439,9 +439,9 @@ ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) 
   return field;
 }
 
-ciField* ciInstanceKlass::get_non_flattened_field_by_offset(int field_offset) {
+ciField* ciInstanceKlass::get_non_flat_field_by_offset(int field_offset) {
   if (super() != nullptr && super()->has_nonstatic_fields()) {
-    ciField* f = super()->get_non_flattened_field_by_offset(field_offset);
+    ciField* f = super()->get_non_flat_field_by_offset(field_offset);
     if (f != nullptr) {
       return f;
     }
@@ -524,7 +524,7 @@ int ciInstanceKlass::compute_nonstatic_fields() {
   return fields->length();
 }
 
-GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields, bool flatten) {
+GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields, bool is_flat) {
   ASSERT_IN_VM;
   Arena* arena = CURRENT_ENV->arena();
   int flen = 0;
@@ -550,22 +550,22 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static())  continue;
     fieldDescriptor& fd = fs.field_descriptor();
-    if (fd.is_inlined() && flatten) {
+    if (fd.is_flat() && is_flat) {
       // Inline type fields are embedded
       int field_offset = fd.offset();
       // Get InlineKlass and adjust number of fields
       Klass* k = get_instanceKlass()->get_inline_type_field_klass(fd.index());
       ciInlineKlass* vk = CURRENT_ENV->get_klass(k)->as_inline_klass();
       flen += vk->nof_nonstatic_fields() - 1;
-      // Iterate over fields of the flattened inline type and copy them to 'this'
+      // Iterate over fields of the flat inline type and copy them to 'this'
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
-        ciField* flattened_field = vk->nonstatic_field_at(i);
+        ciField* flat_field = vk->nonstatic_field_at(i);
         // Adjust offset to account for missing oop header
-        int offset = field_offset + (flattened_field->offset_in_bytes() - vk->first_field_offset());
-        // A flattened field can be treated as final if the non-flattened
+        int offset = field_offset + (flat_field->offset_in_bytes() - vk->first_field_offset());
+        // A flat field can be treated as final if the non-flat
         // field is declared final or the holder klass is an inline type itself.
         bool is_final = fd.is_final() || is_inlinetype();
-        ciField* field = new (arena) ciField(flattened_field, this, offset, is_final);
+        ciField* field = new (arena) ciField(flat_field, this, offset, is_final);
         fields->append(field);
       }
     } else {
@@ -714,7 +714,7 @@ public:
   StaticFieldPrinter(outputStream* out) :
     _out(out) {
   }
-  void do_field_helper(fieldDescriptor* fd, oop obj, bool flattened);
+  void do_field_helper(fieldDescriptor* fd, oop obj, bool is_flat);
 };
 
 class StaticFinalFieldPrinter : public StaticFieldPrinter {
@@ -751,7 +751,7 @@ public:
   }
 };
 
-void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool flattened) {
+void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool is_flat) {
   BasicType bt = fd->field_type();
   switch (bt) {
     case T_BYTE:    _out->print("%d", mirror->byte_field(fd->offset()));   break;
@@ -770,57 +770,59 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       _out->print(INT64_FORMAT, *(int64_t*)&d);
       break;
     }
+    case T_PRIMITIVE_OBJECT: // fall-through
     case T_ARRAY:  // fall-through
-    case T_OBJECT: {
-      _out->print("%s ", fd->signature()->as_quoted_ascii());
-      oop value =  mirror->obj_field_acquire(fd->offset());
-      if (value == nullptr) {
-        _out->print_cr("null");
-      } else if (value->is_instance()) {
-        assert(fd->field_type() == T_OBJECT, "");
-        if (value->is_a(vmClasses::String_klass())) {
-          const char* ascii_value = java_lang_String::as_quoted_ascii(value);
-          _out->print("\"%s\"", (ascii_value != nullptr) ? ascii_value : "");
-         } else {
-          const char* klass_name  = value->klass()->name()->as_quoted_ascii();
-          _out->print("%s", klass_name);
+    case T_OBJECT:
+      if (!fd->is_null_free_inline_type()) {
+        _out->print("%s ", fd->signature()->as_quoted_ascii());
+        oop value =  mirror->obj_field_acquire(fd->offset());
+        if (value == nullptr) {
+          _out->print_cr("null");
+        } else if (value->is_instance()) {
+          assert(fd->field_type() == T_OBJECT, "");
+          if (value->is_a(vmClasses::String_klass())) {
+            const char* ascii_value = java_lang_String::as_quoted_ascii(value);
+            _out->print("\"%s\"", (ascii_value != nullptr) ? ascii_value : "");
+          } else {
+            const char* klass_name  = value->klass()->name()->as_quoted_ascii();
+            _out->print("%s", klass_name);
+          }
+        } else if (value->is_array()) {
+          typeArrayOop ta = (typeArrayOop)value;
+          _out->print("%d", ta->length());
+          if (value->is_objArray() || value->is_flatArray()) {
+            objArrayOop oa = (objArrayOop)value;
+            const char* klass_name  = value->klass()->name()->as_quoted_ascii();
+            _out->print(" %s", klass_name);
+          }
+        } else {
+          ShouldNotReachHere();
         }
-      } else if (value->is_array()) {
-        typeArrayOop ta = (typeArrayOop)value;
-        _out->print("%d", ta->length());
-        if (value->is_objArray() || value->is_flatArray()) {
-          objArrayOop oa = (objArrayOop)value;
-          const char* klass_name  = value->klass()->name()->as_quoted_ascii();
-          _out->print(" %s", klass_name);
+        break;
+      } else {
+        // handling of null free inline type
+        ResetNoHandleMark rnhm;
+        Thread* THREAD = Thread::current();
+        SignatureStream ss(fd->signature(), false);
+        Symbol* name = ss.as_symbol();
+        assert(!HAS_PENDING_EXCEPTION, "can resolve klass?");
+        InstanceKlass* holder = fd->field_holder();
+        InstanceKlass* k = SystemDictionary::find_instance_klass(THREAD, name,
+                                                                 Handle(THREAD, holder->class_loader()),
+                                                                 Handle(THREAD, holder->protection_domain()));
+        assert(k != nullptr && !HAS_PENDING_EXCEPTION, "can resolve klass?");
+        InlineKlass* vk = InlineKlass::cast(k);
+        oop obj;
+        if (is_flat) {
+          int field_offset = fd->offset() - vk->first_field_offset();
+          obj = cast_to_oop(cast_from_oop<address>(mirror) + field_offset);
+        } else {
+          obj = mirror->obj_field_acquire(fd->offset());
         }
-      } else {
-        ShouldNotReachHere();
+        InlineTypeFieldPrinter print_field(_out, obj);
+        vk->do_nonstatic_fields(&print_field);
+        break;
       }
-      break;
-    }
-    case T_PRIMITIVE_OBJECT: {
-      ResetNoHandleMark rnhm;
-      Thread* THREAD = Thread::current();
-      SignatureStream ss(fd->signature(), false);
-      Symbol* name = ss.as_symbol();
-      assert(!HAS_PENDING_EXCEPTION, "can resolve klass?");
-      InstanceKlass* holder = fd->field_holder();
-      InstanceKlass* k = SystemDictionary::find_instance_klass(THREAD, name,
-                                                               Handle(THREAD, holder->class_loader()),
-                                                               Handle(THREAD, holder->protection_domain()));
-      assert(k != nullptr && !HAS_PENDING_EXCEPTION, "can resolve klass?");
-      InlineKlass* vk = InlineKlass::cast(k);
-      oop obj;
-      if (flattened) {
-        int field_offset = fd->offset() - vk->first_field_offset();
-        obj = cast_to_oop(cast_from_oop<address>(mirror) + field_offset);
-      } else {
-        obj = mirror->obj_field_acquire(fd->offset());
-      }
-      InlineTypeFieldPrinter print_field(_out, obj);
-      vk->do_nonstatic_fields(&print_field);
-      break;
-    }
     default:
       ShouldNotReachHere();
   }

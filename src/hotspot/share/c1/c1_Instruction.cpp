@@ -126,7 +126,7 @@ ciKlass* Instruction::as_loaded_klass_or_null() const {
   return nullptr;
 }
 
-bool Instruction::is_loaded_flattened_array() const {
+bool Instruction::is_loaded_flat_array() const {
   if (UseFlatArray) {
     ciType* type = declared_type();
     return type != nullptr && type->is_flat_array_klass();
@@ -134,7 +134,7 @@ bool Instruction::is_loaded_flattened_array() const {
   return false;
 }
 
-bool Instruction::maybe_flattened_array() {
+bool Instruction::maybe_flat_array() {
   if (UseFlatArray) {
     ciType* type = declared_type();
     if (type != nullptr) {
@@ -152,7 +152,7 @@ bool Instruction::maybe_flattened_array() {
       }
     } else {
       // Type info gets lost during Phi merging (Phi, IfOp, etc), but we might be storing into a
-      // flattened array, so we should do a runtime check.
+      // flat array, so we should do a runtime check.
       return true;
     }
   }
@@ -262,8 +262,8 @@ ciType* LoadIndexed::declared_type() const {
   return ak->element_type();
 }
 
-bool StoreIndexed::is_exact_flattened_array_store() const {
-  if (array()->is_loaded_flattened_array() && value()->as_Constant() == nullptr && value()->declared_type() != nullptr) {
+bool StoreIndexed::is_exact_flat_array_store() const {
+  if (array()->is_loaded_flat_array() && value()->as_Constant() == nullptr && value()->declared_type() != nullptr) {
     ciKlass* element_klass = array()->declared_type()->as_flat_array_klass()->element_klass();
     ciKlass* actual_klass = value()->declared_type()->as_klass();
 
