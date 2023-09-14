@@ -52,7 +52,7 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
   bool unrelated_classes = false;
   // Handle inline type arrays
   if (subk->flat_array() && superk->not_flat_array()) {
-    // The subtype is flattened in arrays and the supertype is not flattened in arrays. Must be unrelated.
+    // The subtype is in flat arrays and the supertype is not in flat arrays. Must be unrelated.
     unrelated_classes = true;
   } else if (subk->is_not_flat() && superk->is_flat()) {
     // The subtype is a non-flat array and the supertype is a flat array. Must be unrelated.

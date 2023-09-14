@@ -277,7 +277,7 @@ void Parse::array_store(BasicType bt) {
         }
         Node* casted_ary = ary;
         if (vk != nullptr && !stopped()) {
-          // Element type is known, cast and store to flattened representation
+          // Element type is known, cast and store to flat representation
           assert(vk->flat_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
           ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();

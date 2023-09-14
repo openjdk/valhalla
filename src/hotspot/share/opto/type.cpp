@@ -5200,11 +5200,11 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
     } else if (this->is_flat() != tap->is_flat()) {
       // Meeting flat inline type array with non-flat array. Adjust (field) offset accordingly.
       if (tary->_flat) {
-        // Result is flattened
+        // Result is in a flat representation
         off = Offset(is_flat() ? offset() : tap->offset());
         field_off = is_flat() ? field_offset() : tap->field_offset();
       } else if (below_centerline(ptr)) {
-        // Result is non-flattened
+        // Result is in a non-flat representation
         off = Offset(flat_offset()).meet(Offset(tap->flat_offset()));
         field_off = Offset::bottom;
       } else if (flat_offset() == tap->flat_offset()) {
