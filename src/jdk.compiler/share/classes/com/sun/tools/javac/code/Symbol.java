@@ -1347,6 +1347,8 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         public boolean isPermittedExplicit = false;
 
+        private boolean hasImplicitConstructor = false;
+
         public ClassSymbol(long flags, Name name, Type type, Symbol owner) {
             super(TYP, flags, name, type, owner);
             this.members_field = null;
@@ -1689,6 +1691,21 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
         public boolean isUnnamed() {
             return (flags_field & Flags.UNNAMED_CLASS) != 0 ;
+        }
+
+        public boolean hasImplicitConstructor() {
+            if (hasImplicitConstructor) {
+                return true;
+            } else {
+                if (getImplicitConstructor() != null) {
+                    hasImplicitConstructor = true;
+                }
+                return hasImplicitConstructor;
+            }
+        }
+
+        public void implicitConstructorFound() {
+            hasImplicitConstructor = true;
         }
 
         public MethodSymbol getImplicitConstructor() {

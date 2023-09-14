@@ -135,10 +135,6 @@ public class ClassReader {
      */
     public boolean saveParameterNames;
 
-    /** Switch: does this value class has an implicit constructor
-     */
-    public boolean hasImplicitConstructor;
-
     /** Switch: emit Q descriptors
      */
     private boolean emitQDesc;
@@ -1350,24 +1346,36 @@ public class ClassReader {
                     }
                 }
             },
-            new AttributeReader(names.ImplicitCreation, V63, CLASS_ATTRIBUTE) {
+            new AttributeReader(names.ImplicitCreation, V66, CLASS_ATTRIBUTE) {
                 @Override
                 protected boolean accepts(AttributeKind kind) {
                     return super.accepts(kind) && allowValueClasses;
                 }
                 protected void read(Symbol sym, int attrLen) {
+                    if (((ClassSymbol)sym).hasImplicitConstructor()) { // there can only be one per class
+                        throw badClassFile("attribute.must.be.unique", names.ImplicitCreation);
+                    }
                     if (sym.kind == TYP) {
                         nextChar();
-                        hasImplicitConstructor = true;
+                        ((ClassSymbol)sym).implicitConstructorFound();
                     }
                 }
             },
-            new AttributeReader(names.NullRestricted, V63, MEMBER_ATTRIBUTE) {
+            new AttributeReader(names.NullRestricted, V66, MEMBER_ATTRIBUTE) {
                 @Override
                 protected boolean accepts(AttributeKind kind) {
                     return super.accepts(kind) && allowValueClasses;
                 }
                 protected void read(Symbol sym, int attrLen) {
+                    if (sym.kind != VAR) {
+                        throw badClassFile("attribute.only.applicable.to.fields", names.NullRestricted);
+                    }
+                    if (sym.type.isPrimitive() || sym.type.hasTag(TypeTag.ARRAY)) {
+                        throw badClassFile("attribute.not.applicable.to.field.type", names.NullRestricted, sym.type);
+                    }
+                    if (sym.type.isNonNullable()) {
+                        throw badClassFile("attribute.must.be.unique", names.NullRestricted);
+                    }
                     sym.type = sym.type.asNullMarked(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL);
                 }
             },
@@ -2380,7 +2388,7 @@ public class ClassReader {
                     syms.voidType,
                     type.getThrownTypes(),
                     syms.methodClass);
-            if (hasImplicitConstructor && type.getParameterTypes().size() == 0) {
+            if (((ClassSymbol)currentOwner).hasImplicitConstructor() && type.getParameterTypes().size() == 0) {
                 // this has to be the implicit constructor
                 flags |= IMPLICIT;
             }

@@ -995,13 +995,20 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         throw new AssertionError("file not found");
     }
 
-    private Attribute findAttributeOrFail(Attributes attributes, Class<? extends Attribute> attrClass) {
+    private Attribute findAttributeOrFail(Attributes attributes, Class<? extends Attribute> attrClass, int numberOfAttributes) {
+        int attrCount = 0;
+        Attribute result = null;
         for (Attribute attribute : attributes) {
             if (attribute.getClass() == attrClass) {
-                return attribute;
+                attrCount++;
+                if (result == null) {
+                    result = attribute;
+                }
             }
         }
-        throw new AssertionError("attribute not found");
+        if (attrCount == 0) throw new AssertionError("attribute not found");
+        if (attrCount != numberOfAttributes) throw new AssertionError("incorrect number of attributes found");
+        return result;
     }
 
     public void testClassAttributes() throws Exception {
@@ -1028,19 +1035,19 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         ClassFile classFile = ClassFile.read(findClassFileOrFail(dir, "V1.class"));
 
         Field field1 = classFile.fields[0];
-        findAttributeOrFail(field1.attributes, NullRestricted_attribute.class);
+        findAttributeOrFail(field1.attributes, NullRestricted_attribute.class, 1);
         Field field2 = classFile.fields[1];
         try {
-            findAttributeOrFail(field2.attributes, NullRestricted_attribute.class);
+            findAttributeOrFail(field2.attributes, NullRestricted_attribute.class, 1);
             throw new AssertionError("NullRestricted attribute shouldn't be here");
         } catch (Throwable t) {
             // good
         }
-        findAttributeOrFail(classFile.attributes, ImplicitCreation_attribute.class);
+        findAttributeOrFail(classFile.attributes, ImplicitCreation_attribute.class, 1);
 
         classFile = ClassFile.read(findClassFileOrFail(dir, "V2.class"));
         try {
-            findAttributeOrFail(classFile.attributes, ImplicitCreation_attribute.class);
+            findAttributeOrFail(classFile.attributes, ImplicitCreation_attribute.class, 1);
             throw new AssertionError("ImplicitCreation attribute shouldn't be here");
         } catch (Throwable t) {
             // good
@@ -1050,17 +1057,24 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
     public void testImplementingLooselyConsistentValue() {
         assertFail("compiler.err.cant.implement.interface",
                 """
-                class V implements LooselyConsistentValue {}
+                class V implements LooselyConsistentValue {} // not a value class
                 """
         );
         assertFail("compiler.err.cant.implement.interface",
                 """
-                value class V implements LooselyConsistentValue {}
+                value class V implements LooselyConsistentValue {} // no implicit constructor
                 """
         );
         assertOK(
                 """
-                abstract class V implements LooselyConsistentValue {}
+                abstract class V implements LooselyConsistentValue {}  // not concrete value class
+                """
+        );
+        assertOK(
+                """
+                value class V implements LooselyConsistentValue { // concrete value class with implicit constructor
+                    public implicit V();
+                }
                 """
         );
     }
