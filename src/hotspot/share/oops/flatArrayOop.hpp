@@ -29,7 +29,8 @@
 #include "oops/klass.hpp"
 #include "runtime/handles.hpp"
 
-// A flatArrayOop is an array containing inline types (may include flatten embedded oop elements).
+// A flatArrayOop points to a flat array containing inline types (no indirection).
+// It may include embedded oops in its elements.
 
 class flatArrayOopDesc : public arrayOopDesc {
 

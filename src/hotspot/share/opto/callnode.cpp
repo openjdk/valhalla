@@ -1187,7 +1187,7 @@ int CallStaticJavaNode::extract_uncommon_trap_request(const Node* call) {
 }
 
 bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, Node* mem, Node* unc_arg) {
-  // Split if can cause the flattened array branch of an array load to
+  // Split if can cause the flat array branch of an array load to
   // end in an uncommon trap. In that case, the allocation of the
   // loaded value and its initialization is useless. Eliminate it. use
   // the jvm state of the allocation to create a new uncommon trap

@@ -638,7 +638,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
       } else {
         _has_inline_type_fields = true;
         if (group == _static_fields) {
-          // static fields are never flatten
+          // static fields are never flat
           group->add_oop_field(idx);
         } else {
           _has_flattening_information = true;
@@ -656,7 +656,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
           if (vk->is_naturally_atomic()) {
             too_atomic_to_flatten = false;
             //too_volatile_to_flatten = false; //FIXME
-            // volatile fields are currently never flatten, this could change in the future
+            // Currently, volatile fields are never flat, this could change in the future
           }
           if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
             group->add_flat_field(idx, vk);
@@ -739,7 +739,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
       } else {
         _has_inline_type_fields = true;
         if (group == _static_fields) {
-          // static fields are never flatten
+          // static fields are never flat
           group->add_oop_field(fieldinfo.index());
         } else {
           // Flattening decision to be taken here
@@ -756,7 +756,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
           if (vk->is_naturally_atomic()) {
             too_atomic_to_flatten = false;
             //too_volatile_to_flatten = false; //FIXME
-            // volatile fields are currently never flatten, this could change in the future
+            // Currently, volatile fields are never flat, this could change in the future
           }
           if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
             group->add_flat_field(fieldinfo.index(), vk);
