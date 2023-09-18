@@ -342,7 +342,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
 }
 
 
-Klass* FlatArrayKlass::array_klass(int n, TRAPS) {
+ArrayKlass* FlatArrayKlass::array_klass(int n, TRAPS) {
   assert(dimension() <= n, "check order of chain");
   int dim = dimension();
   if (dim == n) return this;
@@ -359,8 +359,7 @@ Klass* FlatArrayKlass::array_klass(int n, TRAPS) {
       if (higher_dimension() == nullptr) {
 
         // Create multi-dim klass object and link them together
-        Klass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, true, CHECK_NULL);
-        ObjArrayKlass* ak = ObjArrayKlass::cast(k);
+        ObjArrayKlass* ak = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, true, CHECK_NULL);
         ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load
         release_set_higher_dimension(ak);
@@ -374,7 +373,7 @@ Klass* FlatArrayKlass::array_klass(int n, TRAPS) {
   return ak->array_klass(n, THREAD);
 }
 
-Klass* FlatArrayKlass::array_klass_or_null(int n) {
+ArrayKlass* FlatArrayKlass::array_klass_or_null(int n) {
 
   assert(dimension() <= n, "check order of chain");
   int dim = dimension();
@@ -389,11 +388,11 @@ Klass* FlatArrayKlass::array_klass_or_null(int n) {
   return ak->array_klass_or_null(n);
 }
 
-Klass* FlatArrayKlass::array_klass(TRAPS) {
+ArrayKlass* FlatArrayKlass::array_klass(TRAPS) {
   return array_klass(dimension() +  1, THREAD);
 }
 
-Klass* FlatArrayKlass::array_klass_or_null() {
+ArrayKlass* FlatArrayKlass::array_klass_or_null() {
   return array_klass_or_null(dimension() +  1);
 }
 

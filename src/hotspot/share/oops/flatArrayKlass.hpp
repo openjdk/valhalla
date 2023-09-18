@@ -48,12 +48,12 @@ class FlatArrayKlass : public ArrayKlass {
   FlatArrayKlass() {}
 
   // Returns the ObjArrayKlass for n'th dimension.
-  virtual Klass* array_klass(int n, TRAPS);
-  virtual Klass* array_klass_or_null(int n);
+  virtual ArrayKlass* array_klass(int n, TRAPS);
+  virtual ArrayKlass* array_klass_or_null(int n);
 
   // Returns the array class with this class as element type.
-  virtual Klass* array_klass(TRAPS);
-  virtual Klass* array_klass_or_null();
+  virtual ArrayKlass* array_klass(TRAPS);
+  virtual ArrayKlass* array_klass_or_null();
 
   virtual InlineKlass* element_klass() const;
   virtual void set_element_klass(Klass* k);
