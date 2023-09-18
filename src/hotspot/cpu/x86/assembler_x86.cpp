@@ -7329,7 +7329,7 @@ void Assembler::vpaddq(XMMRegister dst, XMMRegister nds, Address src, int vector
 
 void Assembler::evaddph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
   assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
-  InstructionAttr attributes(vector_len, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ false);
+  InstructionAttr attributes(vector_len, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ true);
   attributes.set_is_evex_instruction();
   int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_NONE, VEX_OPCODE_MAP5, &attributes);
   emit_int16(0x58, (0xC0 | encode));
