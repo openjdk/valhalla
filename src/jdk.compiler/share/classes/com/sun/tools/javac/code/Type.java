@@ -1287,7 +1287,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         @Override
         public boolean hasImplicitConstructor() {
-            return tsym != null && tsym.kind == TYP && ((ClassSymbol)tsym).getImplicitConstructor() != null;
+            return tsym != null && tsym.kind == TYP && ((ClassSymbol)tsym).hasImplicitConstructor();
         }
 
         @Override
