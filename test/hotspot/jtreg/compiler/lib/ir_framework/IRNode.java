@@ -151,6 +151,11 @@ public class IRNode {
         beforeMatchingNameRegex(ADD_L, "AddL");
     }
 
+    public static final String ADD_HF = PREFIX + "ADD_HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(ADD_HF, "AddHF");
+    }
+
     public static final String ADD_V = PREFIX + "ADD_V" + POSTFIX;
     static {
         beforeMatchingNameRegex(ADD_V, "AddV(B|S|I|L|F|D)");
@@ -169,6 +174,11 @@ public class IRNode {
     public static final String ADD_VF = PREFIX + "ADD_VF" + POSTFIX;
     static {
         beforeMatchingNameRegex(ADD_VF, "AddVF");
+    }
+
+    public static final String ADD_VHF = PREFIX + "ADD_VHF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(ADD_VHF, "AddVHF");
     }
 
     public static final String ADD_REDUCTION_V = PREFIX + "ADD_REDUCTION_V" + POSTFIX;
@@ -891,6 +901,16 @@ public class IRNode {
     public static final String RANGE_CHECK_TRAP = PREFIX + "RANGE_CHECK_TRAP" + POSTFIX;
     static {
         trapNodes(RANGE_CHECK_TRAP,"range_check");
+    }
+
+    public static final String REINTERPRET_S2HF = PREFIX + "REINTERPRET_S2HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(REINTERPRET_S2HF, "ReinterpretS2HF");
+    }
+
+    public static final String REINTERPRET_HF2S = PREFIX + "REINTERPRET_HF2S" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(REINTERPRET_HF2S, "ReinterpretHF2S");
     }
 
     public static final String REPLICATE_B = PREFIX + "REPLICATE_B" + POSTFIX;

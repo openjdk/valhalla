@@ -195,6 +195,12 @@ class methodHandle;
   do_intrinsic(_dsignum,                  java_lang_Math,         signum_name,        double_double_signature,   F_S)   \
   do_intrinsic(_fsignum,                  java_lang_Math,         signum_name,        float_float_signature,     F_S)   \
                                                                                                                         \
+                                                                                                                        \
+  /* Float16 intrinsics, similar to what we have in Math. */                                                            \
+  do_intrinsic(_sum_float16,              java_lang_Float16,      sum_name,           floa16_float16_signature,  F_S)   \
+   do_name(sum_name, "sum")                                                                                             \
+   do_signature(floa16_float16_signature, "(Qjava/lang/Float16;Qjava/lang/Float16;)Qjava/lang/Float16;")                \
+                                                                                                                        \
   /* StrictMath intrinsics, similar to what we have in Math. */                                                         \
   do_intrinsic(_min_strict,               java_lang_StrictMath,   min_name,           int2_int_signature,        F_S)   \
   do_intrinsic(_max_strict,               java_lang_StrictMath,   max_name,           int2_int_signature,        F_S)   \

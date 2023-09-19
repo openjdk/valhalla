@@ -4695,6 +4695,22 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
   }
 }
 
+// utility function to skip over internal jdk primitive classes used to override the need for passing
+// an explict JVM flag EnablePrimitiveClasses.
+bool ClassFileParser::is_jdk_internal_class(const Symbol* class_name) const {
+  if (vmSymbols::java_lang_Float16() == class_name) {
+    return (EnablePrimitiveClasses = true);
+  }
+  return false;
+}
+
+bool ClassFileParser::is_jdk_internal_class_sig(const char* sig) const {
+  if (strstr(sig, vmSymbols::java_lang_Float16_signature()->as_C_string())) {
+    return true;
+  }
+  return false;
+}
+
 // utility methods for format checking
 
 void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const {
@@ -4725,7 +4741,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
     return;
   }
 
-  if (is_primitive_class && !EnablePrimitiveClasses) {
+  if (is_primitive_class && !is_jdk_internal_class(_class_name) && !EnablePrimitiveClasses) {
       ResourceMark rm(THREAD);
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
@@ -5157,7 +5173,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_PRIMITIVE_OBJECT:
       // Can't enable this check fully until JDK upgrades the bytecode generators (TODO: JDK-8270852).
       // For now, compare to class file version 51 so old verifier doesn't see Q signatures.
-      if ( (_major_version < 51 /* CONSTANT_CLASS_DESCRIPTORS */ ) || (!EnablePrimitiveClasses)) {
+      if ( (_major_version < 51 /* CONSTANT_CLASS_DESCRIPTORS */ ) || (!EnablePrimitiveClasses && !is_jdk_internal_class_sig(signature))) {
         classfile_parse_error("Class name contains illegal Q-signature "
                               "in descriptor in class file %s, requires option -XX:+EnablePrimitiveClasses",
                               CHECK_0);

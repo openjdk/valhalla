@@ -50,9 +50,6 @@ protected:
                      // Nodes are connected in increasing order of the index of the field they correspond to.
   };
 
-  // Get the klass defining the field layout of the inline type
-  ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
-
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
@@ -77,6 +74,9 @@ protected:
   static InlineTypeNode* make_from_flattened_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited);
 
 public:
+  // Get the klass defining the field layout of the inline type
+  ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
+
   // Create with default field values
   static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
   // Create uninitialized

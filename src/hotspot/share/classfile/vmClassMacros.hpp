@@ -171,6 +171,7 @@
   do_klass(Boolean_klass,                               java_lang_Boolean                                     ) \
   do_klass(Character_klass,                             java_lang_Character                                   ) \
   do_klass(Float_klass,                                 java_lang_Float                                       ) \
+  do_klass(Float16_klass,                               java_lang_Float16                                     ) \
   do_klass(Double_klass,                                java_lang_Double                                      ) \
   do_klass(Byte_klass,                                  java_lang_Byte                                        ) \
   do_klass(Short_klass,                                 java_lang_Short                                       ) \

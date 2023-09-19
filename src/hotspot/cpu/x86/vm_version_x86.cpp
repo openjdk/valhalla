@@ -949,6 +949,7 @@ void VM_Version::get_processor_features() {
     _features &= ~CPU_AVX512_VBMI2;
     _features &= ~CPU_AVX512_BITALG;
     _features &= ~CPU_AVX512_IFMA;
+    _features &= ~CPU_AVX512_FP16;
   }
 
   if (UseAVX < 2)
@@ -982,6 +983,7 @@ void VM_Version::get_processor_features() {
       _features &= ~CPU_GFNI;
       _features &= ~CPU_AVX512_BITALG;
       _features &= ~CPU_AVX512_IFMA;
+      _features &= ~CPU_AVX512_FP16;
     }
   }
 
@@ -3017,6 +3019,9 @@ uint64_t VM_Version::feature_flags() {
     }
     if (_cpuid_info.sef_cpuid7_edx.bits.serialize != 0)
       result |= CPU_SERIALIZE;
+
+    if (_cpuid_info.sef_cpuid7_edx.bits.avx512_fp16 != 0)
+      result |= CPU_AVX512_FP16;
   }
 
   // ZX features.

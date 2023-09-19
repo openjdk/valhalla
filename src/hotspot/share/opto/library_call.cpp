@@ -544,6 +544,8 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_floatToFloat16:
   case vmIntrinsics::_float16ToFloat:           return inline_fp_conversions(intrinsic_id());
 
+  case vmIntrinsics::_sum_float16:              return inline_fp16_operations(intrinsic_id());
+
   case vmIntrinsics::_floatIsFinite:
   case vmIntrinsics::_floatIsInfinite:
   case vmIntrinsics::_doubleIsFinite:
@@ -4892,6 +4894,34 @@ bool LibraryCallKit::inline_native_Reflection_getCallerClass() {
 #endif
 
   return false;  // bail-out; let JVM_GetCallerClass do the work
+}
+
+bool LibraryCallKit::inline_fp16_operations(vmIntrinsics::ID id) {
+  if (!Matcher::match_rule_supported(Op_ReinterpretS2HF) ||
+      !Matcher::match_rule_supported(Op_ReinterpretHF2S)) {
+    return false;
+  }
+
+  Node* result = nullptr;
+  Node* val1 = argument(0);  // receiver
+  Node* val2 = argument(1);  // argument
+  assert(val1->is_InlineType() && val2->is_InlineType(), "");
+
+  Node* fld1 = _gvn.transform(new ReinterpretS2HFNode(val1->as_InlineType()->field_value(0)));
+  Node* fld2 = _gvn.transform(new ReinterpretS2HFNode(val2->as_InlineType()->field_value(0)));
+
+  switch (id) {
+  case vmIntrinsics::_sum_float16:   result = _gvn.transform(new AddHFNode(fld1, fld2)); break;
+
+  default:
+    fatal_unexpected_iid(id);
+    break;
+  }
+  InlineTypeNode* box = InlineTypeNode::make_uninitialized(_gvn, val1->as_InlineType()->inline_klass(), true);
+  Node* short_result  = _gvn.transform(new ReinterpretHF2SNode(result));
+  box->set_field_value(0, short_result);
+  set_result(_gvn.transform(box));
+  return true;
 }
 
 bool LibraryCallKit::inline_fp_conversions(vmIntrinsics::ID id) {

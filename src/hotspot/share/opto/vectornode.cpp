@@ -46,6 +46,7 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     case T_INT:       return Op_AddVI;
     default:          return 0;
     }
+  case Op_AddHF: return (bt == T_SHORT ? Op_AddVHF : 0);
   case Op_AddL: return (bt == T_LONG   ? Op_AddVL : 0);
   case Op_AddF: return (bt == T_FLOAT  ? Op_AddVF : 0);
   case Op_AddD: return (bt == T_DOUBLE ? Op_AddVD : 0);
@@ -267,6 +268,9 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     return Op_SignumVF;
   case Op_SignumD:
     return Op_SignumVD;
+  case Op_ReinterpretS2HF:
+  case Op_ReinterpretHF2S:
+    return Op_VectorReinterpret;
 
   default:
     assert(!VectorNode::is_convert_opcode(sopc),
@@ -605,6 +609,16 @@ bool VectorNode::is_rotate_opcode(int opc) {
   }
 }
 
+bool VectorNode::is_float16_node(int opc) {
+  switch (opc) {
+  case Op_AddHF:
+  case Op_ReinterpretS2HF:
+     return true;
+  default:
+     return false;
+  }
+}
+
 bool VectorNode::is_scalar_rotate(Node* n) {
   if (is_rotate_opcode(n->Opcode())) {
     return true;
@@ -674,7 +688,7 @@ void VectorNode::vector_operands(Node* n, uint* start, uint* end) {
     *start = 1;
     *end   = (n->is_Con() && Matcher::supports_vector_constant_rotates(n->get_int())) ? 2 : 3;
     break;
-  case Op_AddI: case Op_AddL: case Op_AddF: case Op_AddD:
+  case Op_AddI: case Op_AddHF: case Op_AddL: case Op_AddF: case Op_AddD:
   case Op_SubI: case Op_SubL: case Op_SubF: case Op_SubD:
   case Op_MulI: case Op_MulL: case Op_MulF: case Op_MulD:
   case Op_DivF: case Op_DivD:
@@ -732,6 +746,7 @@ VectorNode* VectorNode::make(int vopc, Node* n1, Node* n2, const TypeVect* vt, b
 
   switch (vopc) {
   case Op_AddVB: return new AddVBNode(n1, n2, vt);
+  case Op_AddVHF: return new AddVHFNode(n1, n2, vt);
   case Op_AddVS: return new AddVSNode(n1, n2, vt);
   case Op_AddVI: return new AddVINode(n1, n2, vt);
   case Op_AddVL: return new AddVLNode(n1, n2, vt);
@@ -1731,6 +1746,10 @@ Node* VectorReinterpretNode::Identity(PhaseGVN *phase) {
     }
   }
   return this;
+}
+
+VectorNode* VectorReinterpretNode::make(Node* n, const TypeVect* dst_vt, const TypeVect* src_vt) {
+  return new VectorReinterpretNode(n, dst_vt, src_vt);
 }
 
 Node* VectorInsertNode::make(Node* vec, Node* new_val, int position) {

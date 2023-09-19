@@ -542,6 +542,9 @@ void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle 
   if (value_array_klasses() != nullptr) {
     value_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
   }
+  if (vmSymbols::java_lang_Float16() == name()) {
+    EnablePrimitiveClasses = true;
+  }
 }
 
 // oop verify

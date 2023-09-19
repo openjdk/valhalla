@@ -115,7 +115,7 @@ public:
 };
 
 //------------------------------AddFNode---------------------------------------
-// Add 2 floats
+// Add 2 half-precision floats
 class AddFNode : public AddNode {
 public:
   AddFNode( Node *in1, Node *in2 ) : AddNode(in1,in2) {}
@@ -129,6 +129,14 @@ public:
   int min_opcode() const { return Op_MinF; }
   virtual Node* Identity(PhaseGVN* phase) { return this; }
   virtual uint ideal_reg() const { return Op_RegF; }
+};
+
+//------------------------------AddHFNode---------------------------------------
+// Add 2 floats
+class AddHFNode : public AddFNode {
+public:
+  AddHFNode( Node *in1, Node *in2 ) : AddFNode(in1,in2) {}
+  virtual int Opcode() const;
 };
 
 //------------------------------AddDNode---------------------------------------

@@ -2903,6 +2903,13 @@ bool SuperWord::output() {
         int vopc = VectorCastNode::opcode(opc, in->bottom_type()->is_vect()->element_basic_type());
         vn = VectorCastNode::make(vopc, in, bt, vlen);
         vlen_in_bytes = vn->as_Vector()->length_in_bytes();
+      } else if (opc == Op_ReinterpretS2HF || opc == Op_ReinterpretHF2S) {
+        assert(n->req() == 2, "only one input expected");
+        BasicType bt = velt_basic_type(n);
+        const TypeVect* vt = TypeVect::make(bt, vlen);
+        Node* in = vector_opd(p, 1);
+        vn = VectorReinterpretNode::make(in, vt, vt);
+        vlen_in_bytes = vn->as_Vector()->length_in_bytes();
       } else if (opc == Op_FmaD || opc == Op_FmaF) {
         // Promote operands to vector
         Node* in1 = vector_opd(p, 1);
@@ -3757,6 +3764,9 @@ const Type* SuperWord::container_type(Node* n) {
     // A narrow type of arithmetic operations will be determined by
     // propagating the type of memory operations.
     return TypeInt::INT;
+  }
+  if (VectorNode::is_float16_node(n->Opcode())) {
+    return TypeInt::SHORT;
   }
   return t;
 }

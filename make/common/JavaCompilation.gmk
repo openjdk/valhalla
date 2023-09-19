@@ -274,7 +274,7 @@ define SetupJavaCompilationBody
   PARANOIA_FLAGS := -implicit:none -Xprefer:source -XDignore.symbol.file=true -encoding ascii
 
   $1_FLAGS += -g -Xlint:all $$($1_TARGET_RELEASE) $$(PARANOIA_FLAGS) $$(JAVA_WARNINGS_ARE_ERRORS)
-  $1_FLAGS += $$($1_JAVAC_FLAGS)
+  $1_FLAGS += $$($1_JAVAC_FLAGS) -XDenablePrimitiveClasses
 
   ifneq ($$($1_DISABLED_WARNINGS), )
     $1_FLAGS += -Xlint:$$(call CommaList, $$(addprefix -, $$($1_DISABLED_WARNINGS)))

@@ -853,3 +853,35 @@ const Type* RoundDoubleModeNode::Value(PhaseGVN* phase) const {
   return Type::DOUBLE;
 }
 //=============================================================================
+
+const Type* ReinterpretS2HFNode::Value(PhaseGVN* phase) const {
+  const Type* type = phase->type( in(1) );
+  // Convert FP16 constant value to Float constant value, this will allow
+  // further constant folding to be done at float granularity by value routines
+  // of FP16 IR nodes.
+  if (type->isa_int() && type->is_int()->is_con()) {
+     jshort hfval = type->is_int()->get_con();
+     jfloat fval = StubRoutines::hf2f(hfval);
+     return TypeF::make(fval);
+  }
+  return Type::FLOAT;
+}
+
+Node* ReinterpretS2HFNode::Identity(PhaseGVN* phase) {
+  if (in(1)->Opcode() == Op_ReinterpretHF2S) {
+     assert(in(1)->in(1)->bottom_type()->isa_float(), "");
+     return in(1)->in(1);
+  }
+  return this;
+}
+
+const Type* ReinterpretHF2SNode::Value(PhaseGVN* phase) const {
+  const Type* type = phase->type( in(1) );
+  // Convert Float constant value to FP16 constant value.
+  if (type->isa_float_constant()) {
+     jfloat fval = type->is_float_constant()->_f;
+     jshort hfval = StubRoutines::f2hf(fval);
+     return TypeInt::make(hfval);
+  }
+  return TypeInt::SHORT;
+}

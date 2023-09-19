@@ -1405,6 +1405,7 @@
   declare_c2_type(AddINode, AddNode)                                      \
   declare_c2_type(AddLNode, AddNode)                                      \
   declare_c2_type(AddFNode, AddNode)                                      \
+  declare_c2_type(AddHFNode, AddNode)                                     \
   declare_c2_type(AddDNode, AddNode)                                      \
   declare_c2_type(AddPNode, Node)                                         \
   declare_c2_type(OrINode, AddNode)                                       \
@@ -1423,6 +1424,8 @@
   declare_c2_type(StartNode, MultiNode)                                   \
   declare_c2_type(StartOSRNode, StartNode)                                \
   declare_c2_type(ParmNode, ProjNode)                                     \
+  declare_c2_type(ReinterpretS2HFNode, Node)                              \
+  declare_c2_type(ReinterpretHF2SNode, Node)                              \
   declare_c2_type(ReturnNode, Node)                                       \
   declare_c2_type(RethrowNode, Node)                                      \
   declare_c2_type(TailCallNode, ReturnNode)                               \
@@ -1680,6 +1683,7 @@
   declare_c2_type(AddVLNode, VectorNode)                                  \
   declare_c2_type(AddReductionVLNode, ReductionNode)                      \
   declare_c2_type(AddVFNode, VectorNode)                                  \
+  declare_c2_type(AddVHFNode, VectorNode)                                 \
   declare_c2_type(AddReductionVFNode, ReductionNode)                      \
   declare_c2_type(AddVDNode, VectorNode)                                  \
   declare_c2_type(AddReductionVDNode, ReductionNode)                      \
