@@ -57,6 +57,10 @@ public class FP16ReductionOperations {
                                     Float.float16ToFloat(hf4.float16ToRawShortBits()));
     }
 
+    public static boolean compare(short actual, short expected) {
+        return !((0xFFFF & actual) == (0xFFFF & expected));
+    }
+
     public static void test_reduction_constants(char oper) {
         short actual = 0;
         short expected = 0;
@@ -67,7 +71,7 @@ public class FP16ReductionOperations {
                          }
             default  ->  throw new AssertionError("Unsupported Operation.");
         }
-        if (actual != expected) {
+        if (compare(actual,expected)) {
             throw new AssertionError("Result mismatch!, expected = " + expected + " actual = " + actual);
         }
     }
@@ -98,7 +102,7 @@ public class FP16ReductionOperations {
                          }
             default  ->  throw new AssertionError("Unsupported Operation.");
         }
-        if (actual != expected) {
+        if (compare(actual,expected)) {
             throw new AssertionError("Result mismatch!, expected = " + expected + " actual = " + actual);
         }
     }

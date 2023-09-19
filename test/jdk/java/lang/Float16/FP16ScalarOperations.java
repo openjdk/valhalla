@@ -56,10 +56,15 @@ public class FP16ScalarOperations {
             default  : throw new AssertionError("Unsupported Operation!");
         }
     }
+
+    public static boolean compare(short actual, short expected) {
+        return !((0xFFFF & actual) == (0xFFFF & expected));
+    }
+
     public static void validate(char oper, short input1, short input2) {
         short actual = actual_value(oper, input1, input2);
         short expected = expected_value(oper, input1, input2);
-        if (actual != expected) {
+        if (compare(actual, expected)) {
             throw new AssertionError("Test Failed: " + input1 + " + " + input2 + " : " + actual + " != " + expected);
         }
     }
