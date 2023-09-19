@@ -1011,6 +1011,14 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         return result;
     }
 
+    private void checkAttributeNotPresent(Attributes attributes, Class<? extends Attribute> attrClass) {
+        for (Attribute attribute : attributes) {
+            if (attribute.getClass() == attrClass) {
+                throw new AssertionError("attribute found");
+            }
+        }
+    }
+
     public void testClassAttributes() throws Exception {
         String code =
                 """
@@ -1021,6 +1029,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value class V1 {
                     V0! f1;
                     V0 f2;
+                    V0[]! f3;
                     public implicit V1();
                 }
 
@@ -1043,6 +1052,8 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         } catch (Throwable t) {
             // good
         }
+        Field field3 = classFile.fields[2];
+        checkAttributeNotPresent(field3.attributes, NullRestricted_attribute.class);
         findAttributeOrFail(classFile.attributes, ImplicitCreation_attribute.class, 1);
 
         classFile = ClassFile.read(findClassFileOrFail(dir, "V2.class"));
