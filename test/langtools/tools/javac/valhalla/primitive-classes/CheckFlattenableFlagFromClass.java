@@ -9,6 +9,5 @@
 public class CheckFlattenableFlagFromClass {
     void foo(FlattenableFlagFromClass f) {
         f.v = null; // Error.
-        f.va = null; //f.va[0] = null; // Error.  we currently can't represent that elements inside an array are non-nullable
     }
 }

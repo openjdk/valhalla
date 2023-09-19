@@ -2809,7 +2809,7 @@ public class Check {
         boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
         boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
         if (c.getKind() == TypeKind.DECLARED && implementsLooselyConsistentValue && !c.tsym.isAbstract()) {
-            if (!cIsValue || ((ClassSymbol)c.tsym).getImplicitConstructor() == null) {
+            if (!cIsValue || !((ClassSymbol)c.tsym).hasImplicitConstructor()) {
                 log.error(pos, Errors.CantImplementInterface(c.tsym));
             }
         }

@@ -958,7 +958,7 @@ public class ClassWriter extends ClassFile {
     /** Write "ImplicitCreation" attribute.
      */
     int writeImplicitCreationIfNeeded(ClassSymbol csym) {
-        if (csym.isValueClass() && csym.getImplicitConstructor() != null) {
+        if (csym.isValueClass() && csym.hasImplicitConstructor()) {
             int alenIdx = writeAttr(names.ImplicitCreation);
             int flags = ACC_DEFAULT | (csym.isSubClass(syms.looselyConsistentValueType.tsym, types) ? ACC_NON_ATOMIC : 0);
             databuf.appendChar(flags);
@@ -1821,7 +1821,7 @@ public class ClassWriter extends ClassFile {
             result &= ~ABSTRACT;
         if (emitQDesc && sym.kind == TYP) {
             ClassSymbol csym = (ClassSymbol)sym;
-            if (csym.isValueClass() && csym.getImplicitConstructor() != null) {
+            if (csym.isValueClass() && csym.hasImplicitConstructor()) {
                 result |= ACC_PRIMITIVE;
             }
         }

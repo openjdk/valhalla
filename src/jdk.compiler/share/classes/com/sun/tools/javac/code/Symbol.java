@@ -1708,7 +1708,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             hasImplicitConstructor = true;
         }
 
-        public MethodSymbol getImplicitConstructor() {
+        private MethodSymbol getImplicitConstructor() {
             for (Symbol s : members().getSymbols(NON_RECURSIVE)) {
                 switch (s.kind) {
                     case MTH:

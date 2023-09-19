@@ -29,5 +29,4 @@ public class FlattenableFlagFromClass {
     }
 
     public V! v;
-    public V[]! va;
 }
