@@ -54,8 +54,8 @@ class StubAssembler;
   stub(new_object_array)             \
   stub(new_flat_array)               \
   stub(new_multi_array)              \
-  stub(load_flattened_array)         \
-  stub(store_flattened_array)        \
+  stub(load_flat_array)              \
+  stub(store_flat_array)             \
   stub(substitutability_check)       \
   stub(buffer_inline_args)           \
   stub(buffer_inline_args_no_receiver)\
@@ -111,8 +111,8 @@ class Runtime1: public AllStatic {
   static uint _new_flat_array_slowcase_cnt;
   static uint _new_instance_slowcase_cnt;
   static uint _new_multi_array_slowcase_cnt;
-  static uint _load_flattened_array_slowcase_cnt;
-  static uint _store_flattened_array_slowcase_cnt;
+  static uint _load_flat_array_slowcase_cnt;
+  static uint _store_flat_array_slowcase_cnt;
   static uint _substitutability_check_slowcase_cnt;
   static uint _buffer_inline_args_slowcase_cnt;
   static uint _buffer_inline_args_no_receiver_slowcase_cnt;
@@ -155,8 +155,8 @@ class Runtime1: public AllStatic {
   static void new_object_array(JavaThread* current, Klass* klass, jint length);
   static void new_flat_array (JavaThread* current, Klass* klass, jint length);
   static void new_multi_array (JavaThread* current, Klass* klass, int rank, jint* dims);
-  static void load_flattened_array(JavaThread* current, flatArrayOopDesc* array, int index);
-  static void store_flattened_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value);
+  static void load_flat_array(JavaThread* current, flatArrayOopDesc* array, int index);
+  static void store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value);
   static int  substitutability_check(JavaThread* current, oopDesc* left, oopDesc* right);
   static void buffer_inline_args(JavaThread* current, Method* method);
   static void buffer_inline_args_no_receiver(JavaThread* current, Method* method);

@@ -1057,7 +1057,7 @@ class DumperSupport : AllStatic {
 
   // helper methods for inlined fields.
   static bool is_inlined_field(const FieldStream& fld) {
-    return fld.field_descriptor().is_inlined();
+    return fld.field_descriptor().is_flat();
   }
   static InlineKlass* get_inlined_field_klass(const FieldStream &fld) {
     assert(is_inlined_field(fld), "must be inlined field");

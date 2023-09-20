@@ -86,8 +86,8 @@ class fieldDescriptor {
   bool is_stable()                const    { return field_flags().is_stable(); }
   bool is_volatile()              const    { return access_flags().is_volatile(); }
   bool is_transient()             const    { return access_flags().is_transient(); }
-  inline bool is_inlined()        const;
-  inline bool is_inline_type()    const;
+  inline bool is_flat()        const;
+  inline bool is_null_free_inline_type()    const;
   inline bool is_multifield()            const;
   inline bool is_multifield_base()       const;
   inline u2   multifield_base()          const;

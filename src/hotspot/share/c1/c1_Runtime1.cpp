@@ -127,8 +127,8 @@ uint Runtime1::_new_object_array_slowcase_cnt = 0;
 uint Runtime1::_new_flat_array_slowcase_cnt = 0;
 uint Runtime1::_new_instance_slowcase_cnt = 0;
 uint Runtime1::_new_multi_array_slowcase_cnt = 0;
-uint Runtime1::_load_flattened_array_slowcase_cnt = 0;
-uint Runtime1::_store_flattened_array_slowcase_cnt = 0;
+uint Runtime1::_load_flat_array_slowcase_cnt = 0;
+uint Runtime1::_store_flat_array_slowcase_cnt = 0;
 uint Runtime1::_substitutability_check_slowcase_cnt = 0;
 uint Runtime1::_buffer_inline_args_slowcase_cnt = 0;
 uint Runtime1::_buffer_inline_args_no_receiver_slowcase_cnt = 0;
@@ -486,11 +486,11 @@ static void profile_flat_array(JavaThread* current) {
   }
 }
 
-JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* current, flatArrayOopDesc* array, int index))
+JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc* array, int index))
   assert(array->klass()->is_flatArray_klass(), "should not be called");
   profile_flat_array(current);
 
-  NOT_PRODUCT(_load_flattened_array_slowcase_cnt++;)
+  NOT_PRODUCT(_load_flat_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
   flatArrayHandle vah(current, array);
   oop obj = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
@@ -498,12 +498,12 @@ JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* current, flatArrayOop
 JRT_END
 
 
-JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
+JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
   if (array->klass()->is_flatArray_klass()) {
     profile_flat_array(current);
   }
 
-  NOT_PRODUCT(_store_flattened_array_slowcase_cnt++;)
+  NOT_PRODUCT(_store_flat_array_slowcase_cnt++;)
   if (value == nullptr) {
     assert(array->klass()->is_flatArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
@@ -1098,7 +1098,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
     constantPoolHandle constants(current, caller_method->constants());
     LinkResolver::resolve_field_access(result, constants, field_access.index(), caller_method, Bytecodes::java_code(code), CHECK);
     patch_field_offset = result.offset();
-    assert(!result.is_inlined(), "Can not patch access to flattened field");
+    assert(!result.is_flat(), "Can not patch access to flat field");
 
     // If we're patching a field which is volatile then at compile it
     // must not have been know to be volatile, so the generated code
@@ -1679,8 +1679,8 @@ void Runtime1::print_statistics() {
   tty->print_cr(" _new_flat_array_slowcase_cnt:    %u", _new_flat_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %u", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %u", _new_multi_array_slowcase_cnt);
-  tty->print_cr(" _load_flattened_array_slowcase_cnt:   %u", _load_flattened_array_slowcase_cnt);
-  tty->print_cr(" _store_flattened_array_slowcase_cnt:  %u", _store_flattened_array_slowcase_cnt);
+  tty->print_cr(" _load_flat_array_slowcase_cnt:   %u", _load_flat_array_slowcase_cnt);
+  tty->print_cr(" _store_flat_array_slowcase_cnt:  %u", _store_flat_array_slowcase_cnt);
   tty->print_cr(" _substitutability_check_slowcase_cnt: %u", _substitutability_check_slowcase_cnt);
   tty->print_cr(" _buffer_inline_args_slowcase_cnt:%u", _buffer_inline_args_slowcase_cnt);
   tty->print_cr(" _buffer_inline_args_no_receiver_slowcase_cnt:%u", _buffer_inline_args_no_receiver_slowcase_cnt);

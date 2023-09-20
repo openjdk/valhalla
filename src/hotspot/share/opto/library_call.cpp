@@ -2365,15 +2365,15 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           return false;
         }
 
-        ciField* field = vk->get_non_flattened_field_by_offset(off);
         // Skip over direct field access for VectorPayloadMF* class instances since
         // multifield is loaded into vector, alternatively we can create a lane
         // extraction logic. Given that unsafe put operations over vector payloads are part
         // of fallback implementation, for the time being suboptimality should not be major
         // concern.
+        ciField* field = vk->get_non_flat_field_by_offset(off);
         if (field != nullptr && !VectorSupport::is_vector_payload_mf(vk->get_InlineKlass())) {
           BasicType bt = type2field[field->type()->basic_type()];
-          if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flattened())) {
+          if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flat())) {
             bt = T_OBJECT;
           }
           if (bt == type && (bt != T_PRIMITIVE_OBJECT || field->type() == inline_klass)) {
@@ -2457,13 +2457,13 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       k = instptr->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
       field = k->get_field_by_offset(off, true);
     } else {
-      field = k->get_non_flattened_field_by_offset(off);
+      field = k->get_non_flat_field_by_offset(off);
     }
     if (field != nullptr) {
       bt = type2field[field->type()->basic_type()];
     }
     assert(bt == alias_type->basic_type() || bt == T_PRIMITIVE_OBJECT, "should match");
-    if (field != nullptr && bt == T_PRIMITIVE_OBJECT && !field->is_flattened()) {
+    if (field != nullptr && bt == T_PRIMITIVE_OBJECT && !field->is_flat()) {
       bt = T_OBJECT;
     }
   } else {
@@ -2555,7 +2555,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     Node* p = nullptr;
     // Try to constant fold a load from a constant field
 
-    if (heap_base_oop != top() && field != nullptr && field->is_constant() && !field->is_flattened() && !mismatched) {
+    if (heap_base_oop != top() && field != nullptr && field->is_constant() && !field->is_flat() && !mismatched) {
       // final or stable field
       p = make_constant_from_field(field, heap_base_oop);
     }
@@ -2565,9 +2565,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         if (adr_type->isa_instptr() && !mismatched) {
           ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
           int offset = adr_type->is_instptr()->offset();
-          p = InlineTypeNode::make_from_flattened(this, inline_klass, base, base, holder, offset, decorators);
+          p = InlineTypeNode::make_from_flat(this, inline_klass, base, base, holder, offset, decorators);
         } else {
-          p = InlineTypeNode::make_from_flattened(this, inline_klass, base, adr, nullptr, 0, decorators);
+          p = InlineTypeNode::make_from_flat(this, inline_klass, base, adr, nullptr, 0, decorators);
         }
       } else {
         p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
@@ -2618,9 +2618,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
         int offset = adr_type->is_instptr()->offset();
-        val->as_InlineType()->store_flattened(this, base, base, holder, offset, decorators);
+        val->as_InlineType()->store_flat(this, base, base, holder, offset, decorators);
       } else {
-        val->as_InlineType()->store_flattened(this, base, adr, nullptr, 0, decorators);
+        val->as_InlineType()->store_flat(this, base, adr, nullptr, 0, decorators);
       }
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
@@ -5369,7 +5369,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
           obj_type->can_be_inline_array() &&
           (ary_ptr == nullptr || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
-        // Flattened inline type array may have object field that would require a
+        // Flat inline type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
         generate_fair_guard(flat_array_test(obj_klass), slow_region);
       }

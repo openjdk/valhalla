@@ -129,7 +129,7 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
 
 arrayOop oopFactory::new_valueArray(Klass* k, int length, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
-  // Request flattened, but we might not actually get it...either way "null-free" are the aaload/aastore semantics
+  // Request a flat array, but we might not actually get it...either way "null-free" are the aaload/aastore semantics
   Klass* array_klass = klass->value_array_klass(CHECK_NULL);
   assert(array_klass->is_null_free_array_klass(), "Expect a null-free array class here");
 
