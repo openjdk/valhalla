@@ -5265,8 +5265,10 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 //----------------------inline_unsafe_isFlattenedArray-------------------
 // public native boolean Unsafe.isFlattenedArray(Class<?> arrayClass);
 bool LibraryCallKit::inline_unsafe_isFlattenedArray() {
-  Node* cls = argument(1); // TODO: null check on cls? or assume this is never null?
-  Node* kls = load_klass_from_mirror(cls, false, nullptr, 0); // TODO: null check on kls? primitive handling (e.g. int.class)? array check? (see generate_array_guard and _isArray implementation)
+  // Unsafe.isFlattenedArray assumes arrayClass is neither null nor a primitive
+  // class (e.g. int.class). It can however be a non-array class.
+  Node* cls = argument(1); // cls cannot be null.
+  Node* kls = load_klass_from_mirror(cls, false, nullptr, 0); // TODO: null check on kls? array check? (see generate_array_guard and _isArray implementation)
   Node* result = flat_array_test(kls);
   set_result(result);
   return true;
