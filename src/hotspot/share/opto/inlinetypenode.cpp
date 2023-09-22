@@ -485,11 +485,11 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != nullptr);
       bool mismatched = (decorators & C2_MISMATCHED) != 0;
-      ciField* field = holder->get_field_by_offset(offset, false);
-      if (base->is_Con() && !is_array && !mismatched && !field->is_multifield_base()) {
+      if (base->is_Con() && !is_array && !mismatched && !is_multifield_base(i)) {
         // If the oop to the inline type is constant (static final field), we can
         // also treat the fields as constants because the inline type is immutable.
         ciObject* constant_oop = oop_ptr->const_oop();
+        ciField* field = holder->get_field_by_offset(offset, false);
         assert(field != nullptr, "field not found");
         ciConstant constant = constant_oop->as_instance()->field_value(field);
         const Type* con_type = Type::make_from_constant(constant, /*require_const=*/ true);
@@ -507,6 +507,7 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
         Node* adr = kit->basic_plus_adr(base, ptr, offset);
         assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
         const Type* val_type = Type::get_const_type(ft);
+        ciField* field = inline_klass()->get_field_by_offset(field_offset(i), false);
         bool load_bundle = !InlineTypeNode::is_multifield_scalarized(field);
         if (load_bundle) {
           value = kit->gvn().transform(LoadVectorNode::make(0, kit->control(), kit->memory(adr), adr, adr_type, ft->bundle_size(), bt));
