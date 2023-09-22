@@ -63,7 +63,7 @@ LayoutRawBlock::LayoutRawBlock(int index, Kind kind, int size, int alignment, bo
  _alignment(alignment),
  _size(size),
  _field_index(index),
- _is_reference(is_reference), 
+ _is_reference(is_reference),
  _multifield_index(multifield_index) {
   assert(kind == REGULAR || kind == FLAT || kind == INHERITED || kind == MULTIFIELD,
          "Other kind do not have a field index");
