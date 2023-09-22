@@ -509,6 +509,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_writebackPostSync0:       return inline_unsafe_writebackSync0(false);
   case vmIntrinsics::_allocateInstance:         return inline_unsafe_allocate();
   case vmIntrinsics::_copyMemory:               return inline_unsafe_copyMemory();
+  case vmIntrinsics::_isFlattenedArray:         return inline_unsafe_isFlattenedArray();
   case vmIntrinsics::_getLength:                return inline_native_getLength();
   case vmIntrinsics::_copyOf:                   return inline_array_copyOf(false);
   case vmIntrinsics::_copyOfRange:              return inline_array_copyOf(true);
@@ -5260,6 +5261,16 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 }
 
 #undef XTOP
+
+//----------------------inline_unsafe_isFlattenedArray-------------------
+// public native boolean Unsafe.isFlattenedArray(Class<?> arrayClass);
+bool LibraryCallKit::inline_unsafe_isFlattenedArray() {
+  Node* cls = argument(1); // TODO: null check on cls? or assume this is never null?
+  Node* kls = load_klass_from_mirror(cls, false, nullptr, 0); // TODO: null check on kls? primitive handling (e.g. int.class)? array check? (see generate_array_guard and _isArray implementation)
+  Node* result = flat_array_test(kls);
+  set_result(result);
+  return true;
+}
 
 //------------------------clone_coping-----------------------------------
 // Helper function for inline_native_clone.

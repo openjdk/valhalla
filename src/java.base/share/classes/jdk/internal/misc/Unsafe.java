@@ -194,6 +194,7 @@ public final class Unsafe {
     /**
      * Returns true if the given class is a flattened array.
      */
+    @IntrinsicCandidate
     public native boolean isFlattenedArray(Class<?> arrayClass);
 
     /**
