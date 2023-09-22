@@ -509,7 +509,6 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_writebackPostSync0:       return inline_unsafe_writebackSync0(false);
   case vmIntrinsics::_allocateInstance:         return inline_unsafe_allocate();
   case vmIntrinsics::_copyMemory:               return inline_unsafe_copyMemory();
-  case vmIntrinsics::_isFlattenedArray:         return inline_unsafe_isFlattenedArray();
   case vmIntrinsics::_getLength:                return inline_native_getLength();
   case vmIntrinsics::_copyOf:                   return inline_array_copyOf(false);
   case vmIntrinsics::_copyOfRange:              return inline_array_copyOf(true);
@@ -531,7 +530,8 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_isPrimitive:
   case vmIntrinsics::_isHidden:
   case vmIntrinsics::_getSuperclass:
-  case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
+  case vmIntrinsics::_getClassAccessFlags:
+  case vmIntrinsics::_isFlattenedArray:         return inline_native_Class_query(intrinsic_id());
 
   case vmIntrinsics::_asPrimaryType:
   case vmIntrinsics::_asPrimaryTypeArg:
@@ -3966,6 +3966,12 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
     prim_return_value = intcon(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC);
     return_type = TypeInt::INT;  // not bool!  6297094
     break;
+  case vmIntrinsics::_isFlattenedArray:
+    // Unlike the other cases, the queried class of Unsafe.isFlattenedArray is
+    // its first and only parameter, not the receiver.
+    mirror = argument(1);
+    prim_return_value = intcon(0);
+    break;
   default:
     fatal_unexpected_iid(id);
     break;
@@ -4091,6 +4097,16 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   case vmIntrinsics::_getClassAccessFlags:
     p = basic_plus_adr(kls, in_bytes(Klass::access_flags_offset()));
     query_value = make_load(nullptr, p, TypeInt::INT, T_INT, MemNode::unordered);
+    break;
+
+  case vmIntrinsics::_isFlattenedArray:
+    if (generate_array_guard(kls, region) != nullptr) {
+      // If the array guard is taken, test whether it is flattened.
+      Node* is_flattened = flat_array_test(kls);
+      phi->add_req(is_flattened);
+    }
+    // If we fall through, it's a plain class and not a flattened array.
+    query_value = intcon(0);
     break;
 
   default:
@@ -5261,18 +5277,6 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 }
 
 #undef XTOP
-
-//----------------------inline_unsafe_isFlattenedArray-------------------
-// public native boolean Unsafe.isFlattenedArray(Class<?> arrayClass);
-bool LibraryCallKit::inline_unsafe_isFlattenedArray() {
-  // Unsafe.isFlattenedArray assumes arrayClass is neither null nor a primitive
-  // class (e.g. int.class). It can however be a non-array class.
-  Node* cls = argument(1); // cls cannot be null.
-  Node* kls = load_klass_from_mirror(cls, false, nullptr, 0); // TODO: null check on kls? array check? (see generate_array_guard and _isArray implementation)
-  Node* result = flat_array_test(kls);
-  set_result(result);
-  return true;
-}
 
 //------------------------clone_coping-----------------------------------
 // Helper function for inline_native_clone.
