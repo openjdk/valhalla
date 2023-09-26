@@ -428,9 +428,9 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
   // The jfieldID is the offset of the field within the object
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
   intptr_t offset = InstanceKlass::cast(k1)->field_offset( slot );
-  bool is_inlined = InstanceKlass::cast(k1)->field_is_inlined(slot);
+  bool is_flat = InstanceKlass::cast(k1)->field_is_flat(slot);
   assert(InstanceKlass::cast(k1)->contains_field_offset(offset), "stay within object");
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset, is_inlined);
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset, is_flat);
   return ret;
 JNI_END
 
@@ -1831,7 +1831,7 @@ JNI_ENTRY(jfieldID, jni_GetFieldID(JNIEnv *env, jclass clazz,
 
   // A jfieldID for a non-static field is simply the offset of the field within the instanceOop
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset(), fd.is_inlined());
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset(), fd.is_flat());
   return ret;
 JNI_END
 
@@ -1847,16 +1847,16 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   if (JvmtiExport::should_post_field_access()) {
     o = JvmtiExport::jni_GetField_probe(thread, obj, o, k, fieldID, false);
   }
-  if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
+  if (!jfieldIDWorkaround::is_flat_jfieldID(fieldID)) {
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(o, offset);
   } else {
-    assert(k->is_instance_klass(), "Only instance can have inlined fields");
+    assert(k->is_instance_klass(), "Only instance can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
     InstanceKlass* holder = fd.field_holder();
     InlineKlass* field_vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
-    res = field_vklass->read_inlined_field(o, ik->field_offset(fd.index()), CHECK_NULL);
+    res = field_vklass->read_flat_field(o, ik->field_offset(fd.index()), CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(THREAD, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
@@ -1950,17 +1950,17 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     field_value.l = value;
     o = JvmtiExport::jni_SetField_probe(thread, obj, o, k, fieldID, false, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
-  if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
+  if (!jfieldIDWorkaround::is_flat_jfieldID(fieldID)) {
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
   } else {
-    assert(k->is_instance_klass(), "Only instances can have inlined fields");
+    assert(k->is_instance_klass(), "Only instances can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
     InstanceKlass* holder = fd.field_holder();
     InlineKlass* vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
     oop v = JNIHandles::resolve_non_null(value);
-    vklass->write_inlined_field(o, offset, v, CHECK);
+    vklass->write_flat_field(o, offset, v, CHECK);
   }
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END

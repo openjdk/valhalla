@@ -176,7 +176,7 @@ void MultiFieldInfo::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 bool InstanceKlass::field_is_null_free_inline_type(int index) const {
-  return Signature::basic_type(field_signature(index)) == T_PRIMITIVE_OBJECT;
+  return field(index).field_flags().is_null_free_inline_type();
 }
 
 static inline bool is_stack_chunk_class(const Symbol* class_name,
@@ -1311,7 +1311,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Initialize classes of inline fields
   if (EnablePrimitiveClasses) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
+      if (fs.is_null_free_inline_type()) {
         Klass* klass = get_inline_type_field_klass_or_null(fs.index());
         if (fs.access_flags().is_static() && klass == nullptr) {
           klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
@@ -2820,7 +2820,7 @@ void InstanceKlass::remove_unshareable_info() {
 
   if (has_inline_type_fields()) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
+      if (fs.is_null_free_inline_type()) {
         reset_inline_type_field_klass(fs.index());
       }
     }

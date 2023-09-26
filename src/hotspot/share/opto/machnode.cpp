@@ -386,7 +386,7 @@ const class TypePtr *MachNode::adr_type() const {
   assert(tp->base() != Type::AnyPtr, "not a bare pointer");
 
   if (tp->isa_aryptr()) {
-    // In the case of a flattened inline type array, each field has its
+    // In the case of a flat inline type array, each field has its
     // own slice so we need to extract the field being accessed from
     // the address computation
     if (offset == Type::OffsetBot) {

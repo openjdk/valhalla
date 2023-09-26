@@ -77,7 +77,7 @@ protected:
          ProfileTripFailed     = 1<<14,
          LoopNestInnerLoop     = 1<<15,
          LoopNestLongOuterLoop = 1<<16,
-         FlattenedArrays       = 1<<17};
+         FlatArrays            = 1<<17};
   char _unswitch_count;
   enum { _unswitch_max=3 };
 
@@ -100,7 +100,7 @@ public:
   bool is_subword_loop() const { return _loop_flags & SubwordLoop; }
   bool is_loop_nest_inner_loop() const { return _loop_flags & LoopNestInnerLoop; }
   bool is_loop_nest_outer_loop() const { return _loop_flags & LoopNestLongOuterLoop; }
-  bool is_flattened_arrays() const { return _loop_flags & FlattenedArrays; }
+  bool is_flat_arrays() const { return _loop_flags & FlatArrays; }
 
   void mark_partial_peel_failed() { _loop_flags |= PartialPeelFailed; }
   void mark_was_slp() { _loop_flags |= WasSlpAnalyzed; }
@@ -114,7 +114,7 @@ public:
   void mark_subword_loop() { _loop_flags |= SubwordLoop; }
   void mark_loop_nest_inner_loop() { _loop_flags |= LoopNestInnerLoop; }
   void mark_loop_nest_outer_loop() { _loop_flags |= LoopNestLongOuterLoop; }
-  void mark_flattened_arrays() { _loop_flags |= FlattenedArrays; }
+  void mark_flat_arrays() { _loop_flags |= FlatArrays; }
 
   int unswitch_max() { return _unswitch_max; }
   int unswitch_count() { return _unswitch_count; }
@@ -1538,7 +1538,7 @@ private:
   void try_move_store_after_loop(Node* n);
   void move_flat_array_check_out_of_loop(Node* n);
   bool identical_backtoback_ifs(Node *n);
-  bool flatten_array_element_type_check(Node *n);
+  bool flat_array_element_type_check(Node *n);
   bool can_split_if(Node *n_ctrl);
   bool cannot_split_division(const Node* n, const Node* region) const;
   static bool is_divisor_counted_loop_phi(const Node* divisor, const Node* loop);

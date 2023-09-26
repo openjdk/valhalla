@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1609,10 +1609,15 @@ public class TestLWorld {
         }
     }
 
+    // Pass arguments via fields to avoid exzessive spilling leading to compilation bailouts
+    static Test51Value test51_arg1;
+    static MyValue1 test51_arg2;
+    static Object test51_arg3;
+
     // Same as test2 but with field holder being an inline type
     @Test
-    public long test51(Test51Value holder, MyValue1 vt1, Object vt2) {
-        return holder.test(holder, vt1, vt2);
+    public long test51() {
+        return test51_arg1.test(test51_arg1, test51_arg2, test51_arg3);
     }
 
     @Run(test = "test51")
@@ -1622,7 +1627,10 @@ public class TestLWorld {
         Test51Value holder = new Test51Value();
         Asserts.assertEQ(testValue1.hash(), vt.hash());
         Asserts.assertEQ(holder.valueField1.hash(), vt.hash());
-        long result = test51(holder, vt, vt);
+        test51_arg1 = holder;
+        test51_arg2 = vt;
+        test51_arg3 = vt;
+        long result = test51();
         Asserts.assertEQ(result, 9*vt.hash() + def.hashPrimitive());
     }
 

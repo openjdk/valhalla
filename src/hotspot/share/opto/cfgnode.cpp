@@ -1025,7 +1025,7 @@ Node *Node::nonnull_req() const {
 
 
 //=============================================================================
-// note that these functions assume that the _adr_type field is flattened
+// note that these functions assume that the _adr_type field is flat
 uint PhiNode::hash() const {
   const Type* at = _adr_type;
   return TypeNode::hash() + (at ? at->hash() : 0);
@@ -1043,7 +1043,7 @@ const TypePtr* flatten_phi_adr_type(const TypePtr* at) {
 // create a new phi with edges matching r and set (initially) to x
 PhiNode* PhiNode::make(Node* r, Node* x, const Type *t, const TypePtr* at) {
   uint preds = r->req();   // Number of predecessor paths
-  assert(t != Type::MEMORY || at == flatten_phi_adr_type(at) || (flatten_phi_adr_type(at) == TypeAryPtr::INLINES && Compile::current()->flattened_accesses_share_alias()), "flatten at");
+  assert(t != Type::MEMORY || at == flatten_phi_adr_type(at) || (flatten_phi_adr_type(at) == TypeAryPtr::INLINES && Compile::current()->flat_accesses_share_alias()), "flatten at");
   PhiNode* p = new PhiNode(r, t, at);
   for (uint j = 1; j < preds; j++) {
     // Fill in all inputs, except those which the region does not yet have
@@ -1171,13 +1171,13 @@ void PhiNode::verify_adr_type(bool recursive) const {
   if (Node::in_dump())               return;  // muzzle asserts when printing
 
   assert((_type == Type::MEMORY) == (_adr_type != nullptr), "adr_type for memory phis only");
-  // Flat array element shouldn't get their own memory slice until flattened_accesses_share_alias is cleared.
-  // It could be the graph has no loads/stores and flattened_accesses_share_alias is never cleared. EA could still
+  // Flat array element shouldn't get their own memory slice until flat_accesses_share_alias is cleared.
+  // It could be the graph has no loads/stores and flat_accesses_share_alias is never cleared. EA could still
   // creates per element Phis but that wouldn't be a problem as there are no memory accesses for that array.
   assert(_adr_type == nullptr || _adr_type->isa_aryptr() == nullptr ||
          _adr_type->is_aryptr()->is_known_instance() ||
          !_adr_type->is_aryptr()->is_flat() ||
-         !Compile::current()->flattened_accesses_share_alias() ||
+         !Compile::current()->flat_accesses_share_alias() ||
          _adr_type == TypeAryPtr::INLINES, "flat array element shouldn't get its own slice yet");
 
   if (!VerifyAliases)       return;  // verify thoroughly only if requested

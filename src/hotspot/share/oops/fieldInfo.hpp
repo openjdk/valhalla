@@ -69,17 +69,19 @@ class FieldInfo {
   class FieldFlags {
     friend class VMStructs;
     friend class JVMCIVMStructs;
+    friend class FieldDesc;
 
     // The ordering of this enum is totally internal.  More frequent
     // flags should come earlier than less frequent ones, because
     // earlier ones compress better.
     enum FieldFlagBitPosition {
-      _ff_inlined,           // or "flattened"
-      _ff_initialized,       // has ConstantValue initializer attribute
-      _ff_injected,          // internal field injected by the JVM
-      _ff_generic,           // has a generic signature
-      _ff_stable,            // trust as stable b/c declared as @Stable
-      _ff_contended,         // is contended, may have contention-group
+      _ff_null_free_inline_type,  // field's type is an inline type and the field is null free
+      _ff_flat,         // field is a flat field
+      _ff_initialized,  // has ConstantValue initializer attribute
+      _ff_injected,     // internal field injected by the JVM
+      _ff_generic,      // has a generic signature
+      _ff_stable,       // trust as stable b/c declared as @Stable
+      _ff_contended,    // is contended, may have contention-group
       _ff_multifield,        // carry a multifield annotation.
       _ff_multifield_base,   // is a base field of multifield bundle.
     };
@@ -112,7 +114,8 @@ class FieldInfo {
     }
 
     bool is_initialized() const     { return test_flag(_ff_initialized); }
-    bool is_inlined() const         { return test_flag(_ff_inlined); }
+    bool is_null_free_inline_type() const { return test_flag(_ff_null_free_inline_type); }
+    bool is_flat() const            { return test_flag(_ff_flat); }
     bool is_injected() const        { return test_flag(_ff_injected); }
     bool is_generic() const         { return test_flag(_ff_generic); }
     bool is_stable() const          { return test_flag(_ff_stable); }
@@ -120,12 +123,13 @@ class FieldInfo {
     bool is_multifield() const      { return test_flag(_ff_multifield); }
     bool is_multifield_base() const { return test_flag(_ff_multifield_base); }
 
-    void update_initialized(bool z)      { update_flag(_ff_initialized, z); }
-    void update_inlined(bool z)          { update_flag(_ff_inlined, z); }
-    void update_injected(bool z)         { update_flag(_ff_injected, z); }
-    void update_generic(bool z)          { update_flag(_ff_generic, z); }
-    void update_stable(bool z)           { update_flag(_ff_stable, z); }
-    void update_contended(bool z)        { update_flag(_ff_contended, z); }
+    void update_initialized(bool z) { update_flag(_ff_initialized, z); }
+    void update_null_free_inline_type(bool z) { update_flag(_ff_null_free_inline_type, z); }
+    void update_flat(bool z)        { update_flag(_ff_flat, z); }
+    void update_injected(bool z)    { update_flag(_ff_injected, z); }
+    void update_generic(bool z)     { update_flag(_ff_generic, z); }
+    void update_stable(bool z)      { update_flag(_ff_stable, z); }
+    void update_contended(bool z)   { update_flag(_ff_contended, z); }
     void update_multifield(bool z)       { update_flag(_ff_multifield, z); }
     void update_multifield_base(bool z)  { update_flag(_ff_multifield_base, z); }
   };

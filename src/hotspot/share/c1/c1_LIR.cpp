@@ -347,7 +347,7 @@ LIR_OpTypeCheck::LIR_OpTypeCheck(LIR_Code code, LIR_Opr object, LIR_Opr array, L
 }
 
 LIR_OpFlattenedArrayCheck::LIR_OpFlattenedArrayCheck(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub)
-  : LIR_Op(lir_flattened_array_check, LIR_OprFact::illegalOpr, nullptr)
+  : LIR_Op(lir_flat_array_check, LIR_OprFact::illegalOpr, nullptr)
   , _array(array)
   , _value(value)
   , _tmp(tmp)
@@ -878,7 +878,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     }
 
 // LIR_OpFlattenedArrayCheck
-    case lir_flattened_array_check: {
+    case lir_flat_array_check: {
       assert(op->as_OpFlattenedArrayCheck() != nullptr, "must be");
       LIR_OpFlattenedArrayCheck* opFlattenedArrayCheck = (LIR_OpFlattenedArrayCheck*)op;
 
@@ -1646,7 +1646,7 @@ void LIR_List::null_check(LIR_Opr opr, CodeEmitInfo* info, bool deoptimize_on_nu
   }
 }
 
-void LIR_List::check_flattened_array(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub) {
+void LIR_List::check_flat_array(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub) {
   LIR_OpFlattenedArrayCheck* c = new LIR_OpFlattenedArrayCheck(array, value, tmp, stub);
   append(c);
 }
@@ -1953,7 +1953,7 @@ const char * LIR_Op::name() const {
      case lir_checkcast:             s = "checkcast";     break;
      case lir_store_check:           s = "store_check";   break;
      // LIR_OpFlattenedArrayCheck
-     case lir_flattened_array_check: s = "flattened_array_check"; break;
+     case lir_flat_array_check:      s = "flat_array_check"; break;
      // LIR_OpNullFreeArrayCheck
      case lir_null_free_array_check: s = "null_free_array_check"; break;
      // LIR_OpSubstitutabilityCheck

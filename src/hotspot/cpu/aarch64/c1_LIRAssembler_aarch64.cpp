@@ -1578,13 +1578,13 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
 }
 
 void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
-  // We are loading/storing from/to an array that *may* be flattened (the
+  // We are loading/storing from/to an array that *may* be a flat array (the
   // declared type is Object[], abstract[], interface[] or VT.ref[]).
-  // If this array is flattened, take the slow path.
+  // If this array is a flat array, take the slow path.
 
   Register klass = op->tmp()->as_register();
   if (UseArrayMarkWordCheck) {
-    __ test_flattened_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
+    __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
   } else {
     __ load_klass(klass, op->array()->as_register());
     __ ldrw(klass, Address(klass, Klass::layout_helper_offset()));
@@ -1592,7 +1592,7 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
     __ br(Assembler::NE, *op->stub()->entry());
   }
   if (!op->value()->is_illegal()) {
-    // The array is not flattened, but it might be null-free. If we are storing
+    // The array is not a flat array, but it might be null-free. If we are storing
     // a null into a null-free array, take the slow path (which will throw NPE).
     Label skip;
     __ cbnz(op->value()->as_register(), skip);
@@ -2406,7 +2406,7 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
     if (is_dest) {
       __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
     } else {
-      __ test_flattened_array_oop(obj, tmp, *slow_path->entry());
+      __ test_flat_array_oop(obj, tmp, *slow_path->entry());
     }
   } else {
     __ load_klass(tmp, obj);

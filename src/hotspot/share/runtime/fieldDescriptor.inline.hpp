@@ -66,8 +66,8 @@ inline BasicType fieldDescriptor::field_type() const {
   return Signature::basic_type(signature());
 }
 
-inline bool fieldDescriptor::is_inlined()  const  { return field().field_flags().is_inlined(); }
-inline bool fieldDescriptor::is_inline_type() const { return field_type() == T_PRIMITIVE_OBJECT; }
+inline bool fieldDescriptor::is_flat()  const  { return field().field_flags().is_flat(); }
+inline bool fieldDescriptor::is_null_free_inline_type() const { return field().field_flags().is_null_free_inline_type(); }
 
 inline bool fieldDescriptor::is_multifield() const { return field().is_multifield(); }
 inline bool fieldDescriptor::is_multifield_base() const { return field().is_multifield_base(); }
