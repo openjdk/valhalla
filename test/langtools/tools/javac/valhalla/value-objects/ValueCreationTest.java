@@ -62,30 +62,23 @@ public class ValueCreationTest {
          "final value class ValueCreationTest$Point",
          "flags: (0x0050) ACC_FINAL, ACC_VALUE",
 
-         // Check that constructor invocation has been lowered into invokestatic
-         // of the factory method.
-         "4: invokestatic  #10                 // Method \"<vnew>\":(II)LValueCreationTest$Point;",
+         "0: new           #8                  // class ValueCreationTest$Point",
 
 
 
          // Check that constructor has been lowered into a static factory method
-         "static ValueCreationTest$Point ValueCreationTest$Point(int, int);",
-         "descriptor: (II)LValueCreationTest$Point;",
-         "flags: (0x0008) ACC_STATIC",
-         "0: aconst_init   #1                  // class ValueCreationTest$Point",
-         "3: astore_2",
-         "4: iload_0",
-         "5: aload_2",
-         "6: swap",
-         "7: withfield     #3                  // Field x:I",
-        "10: astore_2",
-        "11: iload_1",
-        "12: aload_2",
-        "13: swap",
-        "14: withfield     #7                  // Field y:I",
-        "17: astore_2",
-        "18: aload_2",
-        "19: areturn"
+         "ValueCreationTest$Point(int, int);",
+         "descriptor: (II)V",
+         "flags: (0x0000)",
+         "0: aload_0",
+         "1: invokespecial #1                  // Method java/lang/Object.\"<init>\":()V",
+         "4: aload_0",
+         "5: iload_1",
+         "6: putfield      #7                  // Field x:I",
+         "9: aload_0",
+        "10: iload_2",
+        "11: putfield      #13                 // Field y:I",
+        "14: return"
          });
 
      }

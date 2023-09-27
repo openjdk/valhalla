@@ -579,14 +579,6 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     }
 
     @DefinedBy(Api.COMPILER_TREE)
-    public JCTree visitWithField(WithFieldTree node, P p) {
-        JCWithField t = (JCWithField) node;
-        JCExpression field = copy(t.field, p);
-        JCExpression value = copy(t.value, p);
-        return M.at(t.pos).WithField(field, value);
-    }
-
-    @DefinedBy(Api.COMPILER_TREE)
     public JCTree visitWildcard(WildcardTree node, P p) {
         JCWildcard t = (JCWildcard) node;
         TypeBoundKind kind = M.at(t.kind.pos).TypeBoundKind(t.kind.kind);

@@ -429,7 +429,7 @@ public class RichDiagnosticFormatter extends
             if (s.isStaticOrInstanceInit()) {
                return ownerName;
             } else {
-                String ms = (s.isInitOrVNew()) ? ownerName : s.name.toString();
+                String ms = (s.isInit()) ? ownerName : s.name.toString();
                 if (s.type != null) {
                     if (s.type.hasTag(FORALL)) {
                         ms = "<" + visitTypes(s.type.getTypeArguments(), locale) + ">" + ms;

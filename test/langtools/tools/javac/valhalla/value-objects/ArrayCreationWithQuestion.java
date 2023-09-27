@@ -60,10 +60,10 @@ public class ArrayCreationWithQuestion {
                 Paths.get(System.getProperty("test.classes"),
                         "ArrayCreationWithQuestion$VT.class").toString() };
         runCheck(params, new String [] {
-                "         6: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
-                "        17: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
-                "        33: invokestatic  #16                 // Method java/lang/reflect/Array.newInstance:(Ljava/lang/Class;I)Ljava/lang/Object;",
-                "        52: invokestatic  #16                 // Method java/lang/reflect/Array.newInstance:(Ljava/lang/Class;I)Ljava/lang/Object;",
+                "         7: anewarray     #7                  // class ArrayCreationWithQuestion$VT",
+                "        16: anewarray     #7                  // class ArrayCreationWithQuestion$VT",
+                "        30: invokestatic  #22                 // Method java/lang/reflect/Array.newInstance:(Ljava/lang/Class;I)Ljava/lang/Object;",
+                "        47: invokestatic  #22                 // Method java/lang/reflect/Array.newInstance:(Ljava/lang/Class;I)Ljava/lang/Object;",
         });
 
     }

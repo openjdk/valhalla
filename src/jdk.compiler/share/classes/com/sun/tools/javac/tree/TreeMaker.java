@@ -266,12 +266,6 @@ public class TreeMaker implements JCTree.Factory {
         return tree;
     }
 
-    public JCWithField WithField(JCExpression field, JCExpression value) {
-        JCWithField tree = new JCWithField(field, value);
-        tree.pos = pos;
-        return tree;
-    }
-
     public JCForLoop ForLoop(List<JCStatement> init,
                            JCExpression cond,
                            List<JCExpressionStatement> step,

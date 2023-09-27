@@ -243,10 +243,6 @@ public interface ByteCodes {
         jsr_w           = 201,
         breakpoint      = 202,
 
-        // value classes related bytecodes
-        aconst_init     = 203,
-        withfield       = 204,
-
         ByteCodeCount   = 205;
 
     /** Virtual instruction codes; used for constant folding.

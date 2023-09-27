@@ -974,7 +974,7 @@ public class Types {
         private Predicate<Symbol> bridgeFilter = new Predicate<Symbol>() {
             public boolean test(Symbol t) {
                 return t.kind == MTH &&
-                        !names.isInitOrVNew(t.name) &&
+                        !names.isInit(t.name) &&
                         t.name != names.clinit &&
                         (t.flags() & SYNTHETIC) == 0;
             }

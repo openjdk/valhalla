@@ -180,12 +180,6 @@ public class TreeTranslator extends JCTree.Visitor {
         result = tree;
     }
 
-    public void visitWithField(JCWithField tree) {
-        tree.field = translate(tree.field);
-        tree.value = translate(tree.value);
-        result = tree;
-    }
-
     public void visitForLoop(JCForLoop tree) {
         tree.init = translate(tree.init);
         tree.cond = translate(tree.cond);

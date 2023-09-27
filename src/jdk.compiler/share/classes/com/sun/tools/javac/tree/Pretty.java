@@ -797,18 +797,6 @@ public class Pretty extends JCTree.Visitor {
         }
     }
 
-    public void visitWithField(JCWithField tree) {
-        try {
-            print("__WithField(");
-            printExpr(tree.field);
-            print(", ");
-            printExpr(tree.value);
-            print(")");
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     public void visitForLoop(JCForLoop tree) {
         try {
             print("for (");

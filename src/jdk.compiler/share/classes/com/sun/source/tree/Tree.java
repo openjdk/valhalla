@@ -355,11 +355,6 @@ public interface Tree {
         WHILE_LOOP(WhileLoopTree.class),
 
         /**
-         * Used for instances of {@link WithFieldTree}.
-         */
-        WITH_FIELD(WithFieldTree.class),
-
-        /**
          * Used for instances of {@link UnaryTree} representing postfix
          * increment operator {@code ++}.
          */

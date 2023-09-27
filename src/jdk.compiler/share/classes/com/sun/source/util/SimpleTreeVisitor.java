@@ -237,20 +237,6 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * @implSpec This implementation calls {@code defaultAction}.
-     *
-     * @param node {@inheritDoc}
-     * @param p {@inheritDoc}
-     * @return  the result of {@code defaultAction}
-     */
-    @Override
-    public R visitWithField(WithFieldTree node, P p) {
-        return defaultAction(node, p);
-    }
-
-    /**
      * {@inheritDoc} This implementation calls {@code defaultAction}.
      *
      * @param node {@inheritDoc}
