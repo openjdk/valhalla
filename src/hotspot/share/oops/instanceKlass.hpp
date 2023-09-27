@@ -401,6 +401,7 @@ class InstanceKlass: public Klass {
   ArrayKlass* array_klasses() const     { return _array_klasses; }
   inline ArrayKlass* array_klasses_acquire() const; // load with acquire semantics
   inline void release_set_array_klasses(ArrayKlass* k); // store with release semantics
+  void set_array_klasses(ArrayKlass* k) { _array_klasses = k; }
 
   // methods
   Array<Method*>* methods() const          { return _methods; }

@@ -156,11 +156,11 @@ JRT_ENTRY(void, InterpreterRuntime::ldc(JavaThread* current, bool wide))
   // access constant pool
   LastFrameAccessor last_frame(current);
   ConstantPool* pool = last_frame.method()->constants();
-  int index = wide ? last_frame.get_index_u2(Bytecodes::_ldc_w) : last_frame.get_index_u1(Bytecodes::_ldc);
-  constantTag tag = pool->tag_at(index);
+  int cp_index = wide ? last_frame.get_index_u2(Bytecodes::_ldc_w) : last_frame.get_index_u1(Bytecodes::_ldc);
+  constantTag tag = pool->tag_at(cp_index);
 
   assert (tag.is_unresolved_klass() || tag.is_klass(), "wrong ldc call");
-  Klass* klass = pool->klass_at(index, CHECK);
+  Klass* klass = pool->klass_at(cp_index, CHECK);
   oop java_class = tag.is_Qdescriptor_klass()
                       ? InlineKlass::cast(klass)->val_mirror()
                       : klass->java_mirror();

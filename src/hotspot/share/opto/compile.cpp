@@ -2812,8 +2812,9 @@ void Compile::Optimize() {
         TracePhase tp("macroEliminate", &timers[_t_macroEliminate]);
         PhaseMacroExpand mexp(igvn);
         mexp.eliminate_macro_nodes();
-        igvn.set_delay_transform(false);
+        if (failing()) return;
 
+        igvn.set_delay_transform(false);
         igvn.optimize();
         print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
       }
@@ -4852,10 +4853,13 @@ void Compile::record_failure(const char* reason) {
 
 Compile::TracePhase::TracePhase(const char* name, elapsedTimer* accumulator)
   : TraceTime(name, accumulator, CITime, CITimeVerbose),
-    _compile(nullptr), _log(nullptr), _phase_name(name), _dolog(CITimeVerbose)
+    _compile(Compile::current()),
+    _log(nullptr),
+    _phase_name(name),
+    _dolog(CITimeVerbose)
 {
+  assert(_compile != nullptr, "sanity check");
   if (_dolog) {
-    _compile = Compile::current();
     _log = _compile->log();
   }
   if (_log != nullptr) {
@@ -4873,7 +4877,7 @@ Compile::TracePhase::~TracePhase() {
   }
 
   if (VerifyIdealNodeCount) {
-    Compile::current()->print_missing_nodes();
+    _compile->print_missing_nodes();
   }
 #endif
 
