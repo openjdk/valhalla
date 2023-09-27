@@ -729,6 +729,7 @@ int ConstantPool::to_cp_index(int index, Bytecodes::Code code) {
     case Bytecodes::_getstatic:
     case Bytecodes::_putfield:
     case Bytecodes::_putstatic:
+    case Bytecodes::_withfield:
       return resolved_field_entry_at(index)->constant_pool_index();
     case Bytecodes::_invokeinterface:
     case Bytecodes::_invokehandle:

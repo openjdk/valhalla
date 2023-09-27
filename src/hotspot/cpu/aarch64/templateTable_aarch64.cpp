@@ -2954,7 +2954,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   const Register tos_state = r3;
   const Register obj       = r2;
   const Register off       = r19;
-  const Register flags     = r0;
+  const Register flags     = r6;
   const Register bc        = r4;
   const Register inline_klass = r5;
 
@@ -2963,11 +2963,9 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   load_resolved_field_entry(obj, cache, tos_state, off, flags, is_static);
 
   Label Done;
-  __ mov(r5, flags);
-
   {
     Label notVolatile;
-    __ tbz(r5, ResolvedFieldEntry::is_volatile_shift, notVolatile);
+    __ tbz(flags, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::StoreStore | MacroAssembler::LoadStore);
     __ bind(notVolatile);
   }
@@ -3174,7 +3172,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   {
     Label notVolatile;
-    __ tbz(r5, ResolvedFieldEntry::is_volatile_shift, notVolatile);
+    __ tbz(flags, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::StoreLoad | MacroAssembler::StoreStore);
     __ bind(notVolatile);
   }
@@ -3406,9 +3404,8 @@ void TemplateTable::fast_accessfield(TosState state)
         // field is not flat
         __ load_heap_oop(r0, field, rscratch1, rscratch2);
         __ cbnz(r0, nonnull);
-          __ andw(index, r3, ConstantPoolCacheEntry::field_index_mask);
-          __ ldr(klass, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
-                                             ConstantPoolCacheEntry::f1_offset())));
+          __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
+          __ ldr(klass, Address(r2, in_bytes(ResolvedFieldEntry::field_holder_offset())));
           __ get_inline_type_field_klass(klass, index, inline_klass);
           __ get_default_value_oop(inline_klass, tmp /* temp */, r0);
         __ bind(nonnull);
@@ -3416,9 +3413,8 @@ void TemplateTable::fast_accessfield(TosState state)
         __ b(Done);
       __ bind(is_flat);
       // field is flat
-        __ andw(index, r3, ConstantPoolCacheEntry::field_index_mask);
-        __ ldr(klass, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
-                                           ConstantPoolCacheEntry::f1_offset())));
+        __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
+        __ ldr(klass, Address(r2, in_bytes(ResolvedFieldEntry::field_holder_offset())));
         __ read_flat_field(klass, index, r1, tmp /* temp */, r0);
         __ verify_oop(r0);
       __ bind(Done);
@@ -3908,8 +3904,8 @@ void TemplateTable::aconst_init() {
 
 void TemplateTable::withfield() {
   transition(vtos, atos);
-  resolve_cache_and_index(f2_byte, c_rarg1 /*cache*/, c_rarg2 /*index*/, sizeof(u2));
 
+  resolve_cache_and_index_for_field(f2_byte, c_rarg1 /*cache*/, c_rarg2 /*index*/);
   __ lea(c_rarg2, at_tos());
   call_VM(r1, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), c_rarg1, c_rarg2);
   // new value type is returned in r1

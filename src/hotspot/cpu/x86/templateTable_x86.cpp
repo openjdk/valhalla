@@ -3114,7 +3114,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ load_heap_oop(rax, field);
       Label is_null_free_inline_type, uninitialized;
       // Issue below if the static field has not been initialized yet
-      __ test_field_is_null_free_inline_type(flag, rscratch1, is_null_free_inline_type);
+      __ test_field_is_null_free_inline_type(flags, rscratch1, is_null_free_inline_type);
         // field is not a null free inline type
         __ push(atos);
         __ jmp(Done);
@@ -3160,7 +3160,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ load_heap_oop(rax, field);
           __ testptr(rax, rax);
           __ jcc(Assembler::notZero, nonnull);
-            __ load_unsigned_short(flags, Address(cache, in_bytes(ResolvedIndyEntry::field_index_offset())));
+            __ load_unsigned_short(flags, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
             __ movptr(rcx, Address(cache, ResolvedFieldEntry::field_holder_offset()));
             __ get_inline_type_field_klass(rcx, flags, rbx);
             __ get_default_value_oop(rbx, rcx, rax);
@@ -3170,7 +3170,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(rewrite_inline);
         __ bind(is_flat);
           pop_and_check_object(rax);
-          __ load_unsigned_short(flags, Address(cache, in_bytes(ResolvedIndyEntry::field_index_offset())));
+          __ load_unsigned_short(flags, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
           __ movptr(rcx, Address(cache, ResolvedFieldEntry::field_holder_offset()));
           __ read_flat_field(rcx, flags, rbx, rax);
           __ verify_oop(rax);
@@ -3398,8 +3398,9 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   Label notVolatile, Done;
 
   // Check for volatile store
-  __ andl(flags, (1 << ResolvedFieldEntry::is_volatile_shift));
-  __ testl(flags, flags);
+  __ movl(rscratch1, flags);
+  __ andl(rscratch1, (1 << ResolvedFieldEntry::is_volatile_shift));
+  __ testl(rscratch1, rscratch1);
   __ jcc(Assembler::zero, notVolatile);
 
   putfield_or_static_helper(byte_no, is_static, rc, obj, off, tos_state, flags);
@@ -3408,7 +3409,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   __ jmp(Done);
   __ bind(notVolatile);
 
-  putfield_or_static_helper(byte_no, is_static, rc, obj, off, flags, tos_state, flags);
+  putfield_or_static_helper(byte_no, is_static, rc, obj, off, tos_state, flags);
 
   __ bind(Done);
 }
@@ -3709,10 +3710,8 @@ void TemplateTable::fast_storefield(TosState state) {
   __ load_field_entry(rcx, rax);
   load_resolved_field_entry(noreg, cache, rax, rbx, rdx);
   // RBX: field offset, RCX: RAX: TOS, RDX: flags
-  if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rscratch2, rdx);  // saving flags for is_flat test
-  }
-  __ andl(rdx, (1 << ResolvedFieldEntry::is_volatile_shift));
+  __ movl(rscratch2, rdx);  // saving flags for is_flat test
+  __ andl(rscratch2, (1 << ResolvedFieldEntry::is_volatile_shift));
   __ pop(rax);
 
   // Get object from stack
@@ -3722,21 +3721,15 @@ void TemplateTable::fast_storefield(TosState state) {
   const Address field(rcx, rbx, Address::times_1);
 
   // Check for volatile store
-  __ testl(rdx, rdx);
+  __ testl(rscratch2, rscratch2);
   __ jcc(Assembler::zero, notVolatile);
 
-  if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rdx, rscratch2);  // restoring flags for is_flat test
-  }
   fast_storefield_helper(field, rax, rdx);
   volatile_barrier(Assembler::Membar_mask_bits(Assembler::StoreLoad |
                                                Assembler::StoreStore));
   __ jmp(Done);
   __ bind(notVolatile);
 
-  if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rdx, rscratch2);  // restoring flags for is_flat test
-  }
   fast_storefield_helper(field, rax, rdx);
 
   __ bind(Done);
@@ -3828,7 +3821,7 @@ void TemplateTable::fast_accessfield(TosState state) {
 
   // access constant pool cache
   __ load_field_entry(rcx, rbx);
-  __ load_sized_value(rbx, Address(rcx, in_bytes(ResolvedFieldEntry::field_offset_offset())), sizeof(int), true /*is_signed*/);
+  __ load_sized_value(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_offset_offset())), sizeof(int), true /*is_signed*/);
 
   // rax: object
   __ verify_oop(rax);
@@ -3840,21 +3833,14 @@ void TemplateTable::fast_accessfield(TosState state) {
   case Bytecodes::_fast_qgetfield:
     {
       Label is_flat, nonnull, Done;
-      __ movptr(rscratch1, Address(rcx, rbx, Address::times_ptr,
-                                   in_bytes(ConstantPoolCache::base_offset() +
-                                            ConstantPoolCacheEntry::flags_offset())));
+      __ load_unsigned_byte(rscratch1, Address(rcx, in_bytes(ResolvedFieldEntry::flags_offset())));
       __ test_field_is_flat(rscratch1, rscratch2, is_flat);
         // field is not flat
         __ load_heap_oop(rax, field);
         __ testptr(rax, rax);
         __ jcc(Assembler::notZero, nonnull);
-          __ movl(rdx, Address(rcx, rbx, Address::times_ptr,
-                             in_bytes(ConstantPoolCache::base_offset() +
-                                      ConstantPoolCacheEntry::flags_offset())));
-          __ andl(rdx, ConstantPoolCacheEntry::field_index_mask);
-          __ movptr(rcx, Address(rcx, rbx, Address::times_ptr,
-                                       in_bytes(ConstantPoolCache::base_offset() +
-                                                ConstantPoolCacheEntry::f1_offset())));
+          __ load_unsigned_short(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_index_offset())));
+          __ movptr(rcx, Address(rcx, ResolvedFieldEntry::field_holder_offset()));
           __ get_inline_type_field_klass(rcx, rdx, rbx);
           __ get_default_value_oop(rbx, rcx, rax);
         __ bind(nonnull);
@@ -3863,13 +3849,8 @@ void TemplateTable::fast_accessfield(TosState state) {
       __ bind(is_flat);
       // field is flat
         __ push(rdx); // save offset
-        __ movl(rdx, Address(rcx, rbx, Address::times_ptr,
-                           in_bytes(ConstantPoolCache::base_offset() +
-                                    ConstantPoolCacheEntry::flags_offset())));
-        __ andl(rdx, ConstantPoolCacheEntry::field_index_mask);
-        __ movptr(rcx, Address(rcx, rbx, Address::times_ptr,
-                                     in_bytes(ConstantPoolCache::base_offset() +
-                                              ConstantPoolCacheEntry::f1_offset())));
+        __ load_unsigned_short(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_index_offset())));
+        __ movptr(rcx, Address(rcx, ResolvedFieldEntry::field_holder_offset()));
         __ pop(rbx); // restore offset
         __ read_flat_field(rcx, rdx, rbx, rax);
       __ bind(Done);

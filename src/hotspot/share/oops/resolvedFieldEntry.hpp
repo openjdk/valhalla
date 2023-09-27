@@ -51,7 +51,7 @@ class ResolvedFieldEntry {
   u2 _field_index;              // Index into field information in holder InstanceKlass
   u2 _cpool_index;              // Constant pool index
   u1 _tos_state;                      // TOS state
-  u1 _flags;                    // Flags: [0000|00|is_final|is_volatile]
+  u1 _flags;                    // Flags: [0000|is_null_free_inline_type|is_flat|is_final|is_volatile]
   u1 _get_code, _put_code;      // Get and Put bytecodes of the field
 
 public:
@@ -72,6 +72,8 @@ public:
   enum {
       is_volatile_shift     = 0,
       is_final_shift        = 1, // unused
+      is_flat_shift         = 2,
+      is_null_free_inline_type_shift = 3,
   };
 
   // Getters
@@ -84,6 +86,8 @@ public:
   u1 put_code()                 const { return Atomic::load_acquire(&_put_code);      }
   bool is_final()               const { return (_flags & (1 << is_final_shift))    != 0; }
   bool is_volatile ()           const { return (_flags & (1 << is_volatile_shift)) != 0; }
+  bool is_flat()                const { return (_flags & (1 << is_flat_shift))     != 0; }
+  bool is_null_free_inline_type() const { return (_flags & (1 << is_null_free_inline_type_shift)) != 0; }
   bool is_resolved(Bytecodes::Code code) const {
     switch(code) {
     case Bytecodes::_getstatic:
@@ -91,6 +95,7 @@ public:
       return (get_code() == code);
     case Bytecodes::_putstatic:
     case Bytecodes::_putfield:
+    case Bytecodes::_withfield:
       return (put_code() == code);
     default:
       ShouldNotReachHere();
@@ -101,8 +106,10 @@ public:
   // Printing
   void print_on(outputStream* st) const;
 
-  void set_flags(bool is_final, bool is_volatile) {
-    u1 new_flags = (static_cast<u1>(is_final) << static_cast<u1>(is_final_shift)) | static_cast<u1>(is_volatile);
+  void set_flags(bool is_final, bool is_volatile, bool is_flat, bool is_null_free_inline_type) {
+    u1 new_flags = (static_cast<u1>(is_final) << static_cast<u1>(is_final_shift)) | static_cast<u1>(is_volatile) |
+      (static_cast<u1>(is_flat) << static_cast<u1>(is_flat_shift)) |
+      (static_cast<u1>(is_null_free_inline_type) << static_cast<u1>(is_null_free_inline_type_shift));
     _flags = new_flags;
   }
 
