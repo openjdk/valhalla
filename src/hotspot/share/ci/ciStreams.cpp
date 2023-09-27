@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -310,7 +310,7 @@ int ciBytecodeStream::get_field_index() {
          cur_bc() == Bytecodes::_getstatic ||
          cur_bc() == Bytecodes::_putstatic ||
          cur_bc() == Bytecodes::_withfield, "wrong bc");
-  return get_index_u2_cpcache();
+  return get_index_u2();
 }
 
 

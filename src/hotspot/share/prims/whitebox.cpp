@@ -1982,6 +1982,24 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaFrameOopIterator(JNIEnv* env, jobject wb,
 WB_END
 
 
+WB_ENTRY(jint, WB_getFieldEntriesLength(JNIEnv* env, jobject wb, jclass klass))
+  InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(klass)));
+  ConstantPool* cp = ik->constants();
+  if (cp->cache() == nullptr) {
+    return -1;
+  }
+  return cp->resolved_field_entries_length();
+WB_END
+
+WB_ENTRY(jint, WB_getFieldCPIndex(JNIEnv* env, jobject wb, jclass klass, jint index))
+  InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(klass)));
+  ConstantPool* cp = ik->constants();
+  if (cp->cache() == NULL) {
+      return -1;
+  }
+  return cp->resolved_field_entry_at(index)->constant_pool_index();
+WB_END
+
 WB_ENTRY(jint, WB_getIndyInfoLength(JNIEnv* env, jobject wb, jclass klass))
   InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(klass)));
   ConstantPool* cp = ik->constants();
@@ -2882,6 +2900,8 @@ static JNINativeMethod methods[] = {
           CC"(Ljava/lang/Object;)[Ljava/lang/Object;",(void*)&WB_getObjectsViaOopIterator},
   {CC"getObjectsViaFrameOopIterator",
       CC"(I)[Ljava/lang/Object;",                     (void*)&WB_getObjectsViaFrameOopIterator},
+  {CC"getFieldEntriesLength0", CC"(Ljava/lang/Class;)I",  (void*)&WB_getFieldEntriesLength},
+  {CC"getFieldCPIndex0",    CC"(Ljava/lang/Class;I)I", (void*)&WB_getFieldCPIndex},
   {CC"getIndyInfoLength0", CC"(Ljava/lang/Class;)I",  (void*)&WB_getIndyInfoLength},
   {CC"getIndyCPIndex0",    CC"(Ljava/lang/Class;I)I", (void*)&WB_getIndyCPIndex},
   {CC"printClasses0",      CC"(Ljava/lang/String;I)Ljava/lang/String;", (void*)&WB_printClasses},
