@@ -219,7 +219,7 @@ class ErrorContext {
   static ErrorContext bad_stackmap(int index, StackMapFrame* frame) {
     return ErrorContext(0, BAD_STACKMAP, TypeOrigin::frame(frame));
   }
-  static ErrorContext bad_inline_type(u2 bci, TypeOrigin type, TypeOrigin exp) {
+  static ErrorContext bad_inline_type(int bci, TypeOrigin type, TypeOrigin exp) {
     return ErrorContext(bci, WRONG_INLINE_TYPE, type, exp);
   }
 

@@ -1762,7 +1762,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
               _klass->major_version(), _klass->minor_version(), _klass->external_name());
             return;
           }
-          index = bcs.get_index_u2();
+          u2 index = bcs.get_index_u2();
           verify_cp_class_type(bci, index, cp, CHECK_VERIFY(this));
           VerificationType ref_type = cp_index_to_type(index, cp, CHECK_VERIFY(this));
           if (!ref_type.is_object()) {

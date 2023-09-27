@@ -398,7 +398,7 @@ void ConstantPool::remove_unshareable_info() {
     case JVM_CONSTANT_UnresolvedClassInError:
       {
         jbyte qdesc_bit = tag_at(cp_index).is_Qdescriptor_klass() ? (jbyte) JVM_CONSTANT_QDescBit : 0;
-        tag_at_put(index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
+        tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
       }
       break;
     case JVM_CONSTANT_MethodHandleInError:
@@ -614,7 +614,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
   // and the Klass* stored in _resolved_klasses is non-null, so we need
   // hardware store ordering here.
   jbyte tag = JVM_CONSTANT_Class;
-  if (this_cp->tag_at(which).is_Qdescriptor_klass()) {
+  if (this_cp->tag_at(cp_index).is_Qdescriptor_klass()) {
     tag |= JVM_CONSTANT_QDescBit;
   }
   // We also need to CAS to not overwrite an error from a racing thread.
