@@ -39,8 +39,8 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     /*package-private*/
     abstract VectorPayloadMF indices();
 
-    static VectorPayloadMF prepare(int length, int[] indices, int offset) {
-        VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(byte.class, length);
+    static VectorPayloadMF prepare(Class<?> elemType, int length, int[] indices, int offset, boolean is_max_species) {
+        VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(elemType, length, is_max_species);
         payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
         long mf_offset = payload.multiFieldOffset();
         for (int i = 0; i < length; i++) {
@@ -52,8 +52,8 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         return payload;
     }
 
-    static VectorPayloadMF prepare(int length, IntUnaryOperator f) {
-        VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(byte.class, length);
+    static VectorPayloadMF prepare(Class<?> elemType, int length, IntUnaryOperator f, boolean is_max_species) {
+        VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(elemType, length, is_max_species);
         payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
         long offset = payload.multiFieldOffset();
         for (int i = 0; i < length; i++) {
@@ -139,7 +139,8 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     @ForceInline
     public final VectorShuffle<E> wrapAndRebuild(VectorPayloadMF oldIndices) {
         int length = oldIndices.length();
-        VectorPayloadMF indices = VectorPayloadMF.newInstanceFactory(byte.class, length);
+        boolean is_max_species = ((AbstractSpecies)(vspecies())).is_max_species();
+        VectorPayloadMF indices = VectorPayloadMF.newShuffleInstanceFactory(vspecies().elementType(), length, is_max_species);
         long offset = oldIndices.multiFieldOffset();
         indices = Unsafe.getUnsafe().makePrivateBuffer(indices);
         for (int i = 0; i < length; i++) {

@@ -40,14 +40,14 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-value class Short128Vector extends ShortVector {
+value class ShortMaxVector extends ShortVector {
     static final ShortSpecies VSPECIES =
-        (ShortSpecies) ShortVector.SPECIES_128;
+        (ShortSpecies) ShortVector.SPECIES_MAX;
 
     static final VectorShape VSHAPE =
         VSPECIES.vectorShape();
 
-    static final Class<Short128Vector> VCLASS = Short128Vector.class;
+    static final Class<ShortMaxVector> VCLASS = ShortMaxVector.class;
 
     static final int VSIZE = VSPECIES.vectorBitSize();
 
@@ -55,12 +55,12 @@ value class Short128Vector extends ShortVector {
 
     static final Class<Short> ETYPE = short.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF128S.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxS.class);
 
-    private final VectorPayloadMF128S payload;
+    private final VectorPayloadMFMaxS payload;
 
-    Short128Vector(Object value) {
-        this.payload = (VectorPayloadMF128S) value;
+    ShortMaxVector(Object value) {
+        this.payload = (VectorPayloadMFMaxS) value;
     }
 
     @ForceInline
@@ -69,8 +69,8 @@ value class Short128Vector extends ShortVector {
         return payload;
     }
 
-    static final Short128Vector ZERO = new Short128Vector(VectorPayloadMF.newVectorInstanceFactory(short.class, 8, false));
-    static final Short128Vector IOTA = new Short128Vector(VectorPayloadMF.createVectPayloadInstanceS(VLENGTH, (short[])(VSPECIES.iotaArray()), false));
+    static final ShortMaxVector ZERO = new ShortMaxVector(VectorPayloadMF.newVectorInstanceFactory(short.class, 0, true));
+    static final ShortMaxVector IOTA = new ShortMaxVector(VectorPayloadMF.createVectPayloadInstanceS(VLENGTH, (short[])(VSPECIES.iotaArray()), true));
 
     static {
         // Warm up a few species caches.
@@ -121,60 +121,60 @@ value class Short128Vector extends ShortVector {
 
     @Override
     @ForceInline
-    public final Short128Vector broadcast(short e) {
-        return (Short128Vector) super.broadcastTemplate(e);  // specialize
+    public final ShortMaxVector broadcast(short e) {
+        return (ShortMaxVector) super.broadcastTemplate(e);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Short128Vector broadcast(long e) {
-        return (Short128Vector) super.broadcastTemplate(e);  // specialize
+    public final ShortMaxVector broadcast(long e) {
+        return (ShortMaxVector) super.broadcastTemplate(e);  // specialize
     }
 
     @Override
     @ForceInline
-    Short128Mask maskFromPayload(VectorPayloadMF payload) {
-        return new Short128Mask(payload);
+    ShortMaxMask maskFromPayload(VectorPayloadMF payload) {
+        return new ShortMaxMask(payload);
     }
 
     @Override
     @ForceInline
-    Short128Shuffle iotaShuffle() { return Short128Shuffle.IOTA; }
+    ShortMaxShuffle iotaShuffle() { return ShortMaxShuffle.IOTA; }
 
     @ForceInline
-    Short128Shuffle iotaShuffle(int start, int step, boolean wrap) {
+    ShortMaxShuffle iotaShuffle(int start, int step, boolean wrap) {
       if (wrap) {
-        return (Short128Shuffle)VectorSupport.shuffleIota(ETYPE, Short128Shuffle.class, VSPECIES, VLENGTH, start, step, 1,
+        return (ShortMaxShuffle)VectorSupport.shuffleIota(ETYPE, ShortMaxShuffle.class, VSPECIES, VLENGTH, start, step, 1,
                 (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (VectorIntrinsics.wrapToRange(i*lstep + lstart, l))));
       } else {
-        return (Short128Shuffle)VectorSupport.shuffleIota(ETYPE, Short128Shuffle.class, VSPECIES, VLENGTH, start, step, 0,
+        return (ShortMaxShuffle)VectorSupport.shuffleIota(ETYPE, ShortMaxShuffle.class, VSPECIES, VLENGTH, start, step, 0,
                 (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (i*lstep + lstart)));
       }
     }
 
     @Override
     @ForceInline
-    Short128Shuffle shuffleFromBytes(VectorPayloadMF indexes) { return new Short128Shuffle(indexes); }
+    ShortMaxShuffle shuffleFromBytes(VectorPayloadMF indexes) { return new ShortMaxShuffle(indexes); }
 
     @Override
     @ForceInline
-    Short128Shuffle shuffleFromArray(int[] indexes, int i) { return new Short128Shuffle(indexes, i); }
+    ShortMaxShuffle shuffleFromArray(int[] indexes, int i) { return new ShortMaxShuffle(indexes, i); }
 
     @Override
     @ForceInline
-    Short128Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Short128Shuffle(fn); }
+    ShortMaxShuffle shuffleFromOp(IntUnaryOperator fn) { return new ShortMaxShuffle(fn); }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
     final @Override
-    Short128Vector vectorFactory(VectorPayloadMF vec) {
-        return new Short128Vector(vec);
+    ShortMaxVector vectorFactory(VectorPayloadMF vec) {
+        return new ShortMaxVector(vec);
     }
 
     @ForceInline
     final @Override
-    Byte128Vector asByteVectorRaw() {
-        return (Byte128Vector) super.asByteVectorRawTemplate();  // specialize
+    ByteMaxVector asByteVectorRaw() {
+        return (ByteMaxVector) super.asByteVectorRawTemplate();  // specialize
     }
 
     @ForceInline
@@ -187,31 +187,31 @@ value class Short128Vector extends ShortVector {
 
     @ForceInline
     final @Override
-    Short128Vector uOpMF(FUnOp f) {
-        return (Short128Vector) super.uOpTemplateMF(f);  // specialize
+    ShortMaxVector uOpMF(FUnOp f) {
+        return (ShortMaxVector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Short128Vector uOpMF(VectorMask<Short> m, FUnOp f) {
-        return (Short128Vector)
-            super.uOpTemplateMF((Short128Mask)m, f);  // specialize
+    ShortMaxVector uOpMF(VectorMask<Short> m, FUnOp f) {
+        return (ShortMaxVector)
+            super.uOpTemplateMF((ShortMaxMask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Short128Vector bOpMF(Vector<Short> v, FBinOp f) {
-        return (Short128Vector) super.bOpTemplateMF((Short128Vector)v, f);  // specialize
+    ShortMaxVector bOpMF(Vector<Short> v, FBinOp f) {
+        return (ShortMaxVector) super.bOpTemplateMF((ShortMaxVector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Short128Vector bOpMF(Vector<Short> v,
+    ShortMaxVector bOpMF(Vector<Short> v,
                      VectorMask<Short> m, FBinOp f) {
-        return (Short128Vector)
-            super.bOpTemplateMF((Short128Vector)v, (Short128Mask)m,
+        return (ShortMaxVector)
+            super.bOpTemplateMF((ShortMaxVector)v, (ShortMaxMask)m,
                                 f);  // specialize
     }
 
@@ -219,19 +219,19 @@ value class Short128Vector extends ShortVector {
 
     @ForceInline
     final @Override
-    Short128Vector tOpMF(Vector<Short> v1, Vector<Short> v2, FTriOp f) {
-        return (Short128Vector)
-            super.tOpTemplateMF((Short128Vector)v1, (Short128Vector)v2,
+    ShortMaxVector tOpMF(Vector<Short> v1, Vector<Short> v2, FTriOp f) {
+        return (ShortMaxVector)
+            super.tOpTemplateMF((ShortMaxVector)v1, (ShortMaxVector)v2,
                                 f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Short128Vector tOpMF(Vector<Short> v1, Vector<Short> v2,
+    ShortMaxVector tOpMF(Vector<Short> v1, Vector<Short> v2,
                      VectorMask<Short> m, FTriOp f) {
-        return (Short128Vector)
-            super.tOpTemplateMF((Short128Vector)v1, (Short128Vector)v2,
-                                (Short128Mask)m, f);  // specialize
+        return (ShortMaxVector)
+            super.tOpTemplateMF((ShortMaxVector)v1, (ShortMaxVector)v2,
+                                (ShortMaxMask)m, f);  // specialize
     }
 
     @ForceInline
@@ -269,64 +269,64 @@ value class Short128Vector extends ShortVector {
 
     @Override
     @ForceInline
-    public Short128Vector lanewise(Unary op) {
-        return (Short128Vector) super.lanewiseTemplate(op);  // specialize
+    public ShortMaxVector lanewise(Unary op) {
+        return (ShortMaxVector) super.lanewiseTemplate(op);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector lanewise(Unary op, VectorMask<Short> m) {
-        return (Short128Vector) super.lanewiseTemplate(op, Short128Mask.class, (Short128Mask) m);  // specialize
+    public ShortMaxVector lanewise(Unary op, VectorMask<Short> m) {
+        return (ShortMaxVector) super.lanewiseTemplate(op, ShortMaxMask.class, (ShortMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector lanewise(Binary op, Vector<Short> v) {
-        return (Short128Vector) super.lanewiseTemplate(op, v);  // specialize
+    public ShortMaxVector lanewise(Binary op, Vector<Short> v) {
+        return (ShortMaxVector) super.lanewiseTemplate(op, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector lanewise(Binary op, Vector<Short> v, VectorMask<Short> m) {
-        return (Short128Vector) super.lanewiseTemplate(op, Short128Mask.class, v, (Short128Mask) m);  // specialize
+    public ShortMaxVector lanewise(Binary op, Vector<Short> v, VectorMask<Short> m) {
+        return (ShortMaxVector) super.lanewiseTemplate(op, ShortMaxMask.class, v, (ShortMaxMask) m);  // specialize
     }
 
     /*package-private*/
     @Override
-    @ForceInline Short128Vector
+    @ForceInline ShortMaxVector
     lanewiseShift(VectorOperators.Binary op, int e) {
-        return (Short128Vector) super.lanewiseShiftTemplate(op, e);  // specialize
+        return (ShortMaxVector) super.lanewiseShiftTemplate(op, e);  // specialize
     }
 
     /*package-private*/
     @Override
-    @ForceInline Short128Vector
+    @ForceInline ShortMaxVector
     lanewiseShift(VectorOperators.Binary op, int e, VectorMask<Short> m) {
-        return (Short128Vector) super.lanewiseShiftTemplate(op, Short128Mask.class, e, (Short128Mask) m);  // specialize
+        return (ShortMaxVector) super.lanewiseShiftTemplate(op, ShortMaxMask.class, e, (ShortMaxMask) m);  // specialize
     }
 
     /*package-private*/
     @Override
     @ForceInline
     public final
-    Short128Vector
+    ShortMaxVector
     lanewise(Ternary op, Vector<Short> v1, Vector<Short> v2) {
-        return (Short128Vector) super.lanewiseTemplate(op, v1, v2);  // specialize
+        return (ShortMaxVector) super.lanewiseTemplate(op, v1, v2);  // specialize
     }
 
     @Override
     @ForceInline
     public final
-    Short128Vector
+    ShortMaxVector
     lanewise(Ternary op, Vector<Short> v1, Vector<Short> v2, VectorMask<Short> m) {
-        return (Short128Vector) super.lanewiseTemplate(op, Short128Mask.class, v1, v2, (Short128Mask) m);  // specialize
+        return (ShortMaxVector) super.lanewiseTemplate(op, ShortMaxMask.class, v1, v2, (ShortMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
     public final
-    Short128Vector addIndex(int scale) {
-        return (Short128Vector) super.addIndexTemplate(scale);  // specialize
+    ShortMaxVector addIndex(int scale) {
+        return (ShortMaxVector) super.addIndexTemplate(scale);  // specialize
     }
 
     // Type specific horizontal reductions
@@ -341,7 +341,7 @@ value class Short128Vector extends ShortVector {
     @ForceInline
     public final short reduceLanes(VectorOperators.Associative op,
                                     VectorMask<Short> m) {
-        return super.reduceLanesTemplate(op, Short128Mask.class, (Short128Mask) m);  // specialized
+        return super.reduceLanesTemplate(op, ShortMaxMask.class, (ShortMaxMask) m);  // specialized
     }
 
     @Override
@@ -354,173 +354,166 @@ value class Short128Vector extends ShortVector {
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op,
                                         VectorMask<Short> m) {
-        return (long) super.reduceLanesTemplate(op, Short128Mask.class, (Short128Mask) m);  // specialized
+        return (long) super.reduceLanesTemplate(op, ShortMaxMask.class, (ShortMaxMask) m);  // specialized
     }
 
     @ForceInline
     public VectorShuffle<Short> toShuffle() {
-        return super.toShuffleTemplate(Short128Shuffle.class); // specialize
+        return super.toShuffleTemplate(ShortMaxShuffle.class); // specialize
     }
 
     // Specialized unary testing
 
     @Override
     @ForceInline
-    public final Short128Mask test(Test op) {
-        return super.testTemplate(Short128Mask.class, op);  // specialize
+    public final ShortMaxMask test(Test op) {
+        return super.testTemplate(ShortMaxMask.class, op);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Short128Mask test(Test op, VectorMask<Short> m) {
-        return super.testTemplate(Short128Mask.class, op, (Short128Mask) m);  // specialize
+    public final ShortMaxMask test(Test op, VectorMask<Short> m) {
+        return super.testTemplate(ShortMaxMask.class, op, (ShortMaxMask) m);  // specialize
     }
 
     // Specialized comparisons
 
     @Override
     @ForceInline
-    public final Short128Mask compare(Comparison op, Vector<Short> v) {
-        return super.compareTemplate(Short128Mask.class, op, v);  // specialize
+    public final ShortMaxMask compare(Comparison op, Vector<Short> v) {
+        return super.compareTemplate(ShortMaxMask.class, op, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Short128Mask compare(Comparison op, short s) {
-        return super.compareTemplate(Short128Mask.class, op, s);  // specialize
+    public final ShortMaxMask compare(Comparison op, short s) {
+        return super.compareTemplate(ShortMaxMask.class, op, s);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Short128Mask compare(Comparison op, long s) {
-        return super.compareTemplate(Short128Mask.class, op, s);  // specialize
+    public final ShortMaxMask compare(Comparison op, long s) {
+        return super.compareTemplate(ShortMaxMask.class, op, s);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Short128Mask compare(Comparison op, Vector<Short> v, VectorMask<Short> m) {
-        return super.compareTemplate(Short128Mask.class, op, v, (Short128Mask) m);
+    public final ShortMaxMask compare(Comparison op, Vector<Short> v, VectorMask<Short> m) {
+        return super.compareTemplate(ShortMaxMask.class, op, v, (ShortMaxMask) m);
     }
 
 
     @Override
     @ForceInline
-    public Short128Vector blend(Vector<Short> v, VectorMask<Short> m) {
-        return (Short128Vector)
-            super.blendTemplate(Short128Mask.class,
-                                (Short128Vector) v,
-                                (Short128Mask) m);  // specialize
+    public ShortMaxVector blend(Vector<Short> v, VectorMask<Short> m) {
+        return (ShortMaxVector)
+            super.blendTemplate(ShortMaxMask.class,
+                                (ShortMaxVector) v,
+                                (ShortMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector slice(int origin, Vector<Short> v) {
-        return (Short128Vector) super.sliceTemplate(origin, v);  // specialize
+    public ShortMaxVector slice(int origin, Vector<Short> v) {
+        return (ShortMaxVector) super.sliceTemplate(origin, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector slice(int origin) {
-        return (Short128Vector) super.sliceTemplate(origin);  // specialize
+    public ShortMaxVector slice(int origin) {
+        return (ShortMaxVector) super.sliceTemplate(origin);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector unslice(int origin, Vector<Short> w, int part) {
-        return (Short128Vector) super.unsliceTemplate(origin, w, part);  // specialize
+    public ShortMaxVector unslice(int origin, Vector<Short> w, int part) {
+        return (ShortMaxVector) super.unsliceTemplate(origin, w, part);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector unslice(int origin, Vector<Short> w, int part, VectorMask<Short> m) {
-        return (Short128Vector)
-            super.unsliceTemplate(Short128Mask.class,
+    public ShortMaxVector unslice(int origin, Vector<Short> w, int part, VectorMask<Short> m) {
+        return (ShortMaxVector)
+            super.unsliceTemplate(ShortMaxMask.class,
                                   origin, w, part,
-                                  (Short128Mask) m);  // specialize
+                                  (ShortMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector unslice(int origin) {
-        return (Short128Vector) super.unsliceTemplate(origin);  // specialize
+    public ShortMaxVector unslice(int origin) {
+        return (ShortMaxVector) super.unsliceTemplate(origin);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector rearrange(VectorShuffle<Short> s) {
-        return (Short128Vector)
-            super.rearrangeTemplate(Short128Shuffle.class,
-                                    (Short128Shuffle) s);  // specialize
+    public ShortMaxVector rearrange(VectorShuffle<Short> s) {
+        return (ShortMaxVector)
+            super.rearrangeTemplate(ShortMaxShuffle.class,
+                                    (ShortMaxShuffle) s);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector rearrange(VectorShuffle<Short> shuffle,
+    public ShortMaxVector rearrange(VectorShuffle<Short> shuffle,
                                   VectorMask<Short> m) {
-        return (Short128Vector)
-            super.rearrangeTemplate(Short128Shuffle.class,
-                                    Short128Mask.class,
-                                    (Short128Shuffle) shuffle,
-                                    (Short128Mask) m);  // specialize
+        return (ShortMaxVector)
+            super.rearrangeTemplate(ShortMaxShuffle.class,
+                                    ShortMaxMask.class,
+                                    (ShortMaxShuffle) shuffle,
+                                    (ShortMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector rearrange(VectorShuffle<Short> s,
+    public ShortMaxVector rearrange(VectorShuffle<Short> s,
                                   Vector<Short> v) {
-        return (Short128Vector)
-            super.rearrangeTemplate(Short128Shuffle.class,
-                                    (Short128Shuffle) s,
-                                    (Short128Vector) v);  // specialize
+        return (ShortMaxVector)
+            super.rearrangeTemplate(ShortMaxShuffle.class,
+                                    (ShortMaxShuffle) s,
+                                    (ShortMaxVector) v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector compress(VectorMask<Short> m) {
-        return (Short128Vector)
-            super.compressTemplate(Short128Mask.class,
-                                   (Short128Mask) m);  // specialize
+    public ShortMaxVector compress(VectorMask<Short> m) {
+        return (ShortMaxVector)
+            super.compressTemplate(ShortMaxMask.class,
+                                   (ShortMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector expand(VectorMask<Short> m) {
-        return (Short128Vector)
-            super.expandTemplate(Short128Mask.class,
-                                   (Short128Mask) m);  // specialize
+    public ShortMaxVector expand(VectorMask<Short> m) {
+        return (ShortMaxVector)
+            super.expandTemplate(ShortMaxMask.class,
+                                   (ShortMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector selectFrom(Vector<Short> v) {
-        return (Short128Vector)
-            super.selectFromTemplate((Short128Vector) v);  // specialize
+    public ShortMaxVector selectFrom(Vector<Short> v) {
+        return (ShortMaxVector)
+            super.selectFromTemplate((ShortMaxVector) v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Short128Vector selectFrom(Vector<Short> v,
+    public ShortMaxVector selectFrom(Vector<Short> v,
                                    VectorMask<Short> m) {
-        return (Short128Vector)
-            super.selectFromTemplate((Short128Vector) v,
-                                     (Short128Mask) m);  // specialize
+        return (ShortMaxVector)
+            super.selectFromTemplate((ShortMaxVector) v,
+                                     (ShortMaxMask) m);  // specialize
     }
 
 
     @ForceInline
     @Override
     public short lane(int i) {
-        switch(i) {
-            case 0: return laneHelper(0);
-            case 1: return laneHelper(1);
-            case 2: return laneHelper(2);
-            case 3: return laneHelper(3);
-            case 4: return laneHelper(4);
-            case 5: return laneHelper(5);
-            case 6: return laneHelper(6);
-            case 7: return laneHelper(7);
-            default: throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
+        if (i < 0 || i >= VLENGTH) {
+            throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
         }
+        return laneHelper(i);
     }
 
     public short laneHelper(int i) {
@@ -536,21 +529,14 @@ value class Short128Vector extends ShortVector {
 
     @ForceInline
     @Override
-    public Short128Vector withLane(int i, short e) {
-        switch (i) {
-            case 0: return withLaneHelper(0, e);
-            case 1: return withLaneHelper(1, e);
-            case 2: return withLaneHelper(2, e);
-            case 3: return withLaneHelper(3, e);
-            case 4: return withLaneHelper(4, e);
-            case 5: return withLaneHelper(5, e);
-            case 6: return withLaneHelper(6, e);
-            case 7: return withLaneHelper(7, e);
-            default: throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
+    public ShortMaxVector withLane(int i, short e) {
+        if (i < 0 || i >= VLENGTH) {
+            throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
         }
+        return withLaneHelper(i, e);
     }
 
-    public Short128Vector withLaneHelper(int i, short e) {
+    public ShortMaxVector withLaneHelper(int i, short e) {
        return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
@@ -566,22 +552,22 @@ value class Short128Vector extends ShortVector {
 
     // Mask
 
-    static final value class Short128Mask extends AbstractMask<Short> {
+    static final value class ShortMaxMask extends AbstractMask<Short> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
-        Short128Mask(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF64Z) payload;
+        ShortMaxMask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMFMaxSZ) payload;
         }
 
-        private final VectorPayloadMF64Z payload;
+        private final VectorPayloadMFMaxSZ payload;
 
-        Short128Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, false));
+        ShortMaxMask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, ETYPE, VLENGTH, true));
         }
 
-        Short128Mask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, false));
+        ShortMaxMask(boolean val) {
+            this(prepare(val, ETYPE, VLENGTH, true));
         }
 
 
@@ -603,32 +589,32 @@ value class Short128Vector extends ShortVector {
         @ForceInline
         @Override
         public final
-        Short128Vector toVector() {
-            return (Short128Vector) super.toVectorTemplate();  // specialize
+        ShortMaxVector toVector() {
+            return (ShortMaxVector) super.toVectorTemplate();  // specialize
         }
 
         @Override
         @ForceInline
         /*package-private*/
-        Short128Mask indexPartiallyInUpperRange(long offset, long limit) {
-            return (Short128Mask) VectorSupport.indexPartiallyInUpperRange(
-                Short128Mask.class, short.class, VLENGTH, offset, limit,
-                (o, l) -> (Short128Mask) TRUE_MASK.indexPartiallyInRange(o, l));
+        ShortMaxMask indexPartiallyInUpperRange(long offset, long limit) {
+            return (ShortMaxMask) VectorSupport.indexPartiallyInUpperRange(
+                ShortMaxMask.class, short.class, VLENGTH, offset, limit,
+                (o, l) -> (ShortMaxMask) TRUE_MASK.indexPartiallyInRange(o, l));
         }
 
         // Unary operations
 
         @Override
         @ForceInline
-        public Short128Mask not() {
+        public ShortMaxMask not() {
             return xor(maskAll(true));
         }
 
         @Override
         @ForceInline
-        public Short128Mask compress() {
-            return (Short128Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
-                Short128Vector.class, Short128Mask.class, ETYPE, VLENGTH, null, this,
+        public ShortMaxMask compress() {
+            return (ShortMaxMask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+                ShortMaxVector.class, ShortMaxMask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
 
@@ -637,32 +623,32 @@ value class Short128Vector extends ShortVector {
 
         @Override
         @ForceInline
-        public Short128Mask and(VectorMask<Short> mask) {
+        public ShortMaxMask and(VectorMask<Short> mask) {
             Objects.requireNonNull(mask);
-            Short128Mask m = (Short128Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Short128Mask.class, null,
+            ShortMaxMask m = (ShortMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_AND, ShortMaxMask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short128Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (ShortMaxMask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
         @ForceInline
-        public Short128Mask or(VectorMask<Short> mask) {
+        public ShortMaxMask or(VectorMask<Short> mask) {
             Objects.requireNonNull(mask);
-            Short128Mask m = (Short128Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Short128Mask.class, null,
+            ShortMaxMask m = (ShortMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_OR, ShortMaxMask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short128Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (ShortMaxMask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @Override
         @ForceInline
-        public Short128Mask xor(VectorMask<Short> mask) {
+        public ShortMaxMask xor(VectorMask<Short> mask) {
             Objects.requireNonNull(mask);
-            Short128Mask m = (Short128Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Short128Mask.class, null,
+            ShortMaxMask m = (ShortMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, ShortMaxMask.class, null,
                                           short.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Short128Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (ShortMaxMask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -670,22 +656,22 @@ value class Short128Vector extends ShortVector {
         @Override
         @ForceInline
         public int trueCount() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Short128Mask.class, short.class, VLENGTH, this,
-                                                            (m) -> ((Short128Mask) m).trueCountHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, ShortMaxMask.class, short.class, VLENGTH, this,
+                                                            (m) -> ((ShortMaxMask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Short128Mask.class, short.class, VLENGTH, this,
-                                                            (m) -> ((Short128Mask) m).firstTrueHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, ShortMaxMask.class, short.class, VLENGTH, this,
+                                                            (m) -> ((ShortMaxMask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Short128Mask.class, short.class, VLENGTH, this,
-                                                            (m) -> ((Short128Mask) m).lastTrueHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, ShortMaxMask.class, short.class, VLENGTH, this,
+                                                            (m) -> ((ShortMaxMask) m).lastTrueHelper());
         }
 
         @Override
@@ -694,8 +680,8 @@ value class Short128Vector extends ShortVector {
             if (length() > Long.SIZE) {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
-            return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Short128Mask.class, short.class, VLENGTH, this,
-                                                      (m) -> ((Short128Mask) m).toLongHelper());
+            return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, ShortMaxMask.class, short.class, VLENGTH, this,
+                                                      (m) -> ((ShortMaxMask) m).toLongHelper());
         }
 
         // laneIsSet
@@ -704,8 +690,8 @@ value class Short128Vector extends ShortVector {
         @ForceInline
         public boolean laneIsSet(int i) {
             Objects.checkIndex(i, length());
-            return VectorSupport.extract(Short128Mask.class, short.class, VLENGTH,
-                                         this, i, (m, idx) -> (((Short128Mask) m).laneIsSetHelper(idx) ? 1L : 0L)) == 1L;
+            return VectorSupport.extract(ShortMaxMask.class, short.class, VLENGTH,
+                                         this, i, (m, idx) -> (((ShortMaxMask) m).laneIsSetHelper(idx) ? 1L : 0L)) == 1L;
         }
 
         // Reductions
@@ -713,54 +699,54 @@ value class Short128Vector extends ShortVector {
         @Override
         @ForceInline
         public boolean anyTrue() {
-            return VectorSupport.test(BT_ne, Short128Mask.class, short.class, VLENGTH,
+            return VectorSupport.test(BT_ne, ShortMaxMask.class, short.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> ((Short128Mask) m).anyTrueHelper());
+                                         (m, __) -> ((ShortMaxMask) m).anyTrueHelper());
         }
 
         @Override
         @ForceInline
         public boolean allTrue() {
-            return VectorSupport.test(BT_overflow, Short128Mask.class, short.class, VLENGTH,
+            return VectorSupport.test(BT_overflow, ShortMaxMask.class, short.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> ((Short128Mask) m).allTrueHelper());
+                                         (m, __) -> ((ShortMaxMask) m).allTrueHelper());
         }
 
         @ForceInline
         /*package-private*/
-        static Short128Mask maskAll(boolean bit) {
-            return VectorSupport.fromBitsCoerced(Short128Mask.class, short.class, VLENGTH,
+        static ShortMaxMask maskAll(boolean bit) {
+            return VectorSupport.fromBitsCoerced(ShortMaxMask.class, short.class, VLENGTH,
                                                  (bit ? -1 : 0), MODE_BROADCAST, null,
                                                  (v, __) -> (v != 0 ? TRUE_MASK : FALSE_MASK));
         }
-        private static final Short128Mask  TRUE_MASK = new Short128Mask(true);
-        private static final Short128Mask FALSE_MASK = new Short128Mask(false);
+        private static final ShortMaxMask  TRUE_MASK = new ShortMaxMask(true);
+        private static final ShortMaxMask FALSE_MASK = new ShortMaxMask(false);
 
     }
 
     // Shuffle
 
-    static final value class Short128Shuffle extends AbstractShuffle<Short> {
+    static final value class ShortMaxShuffle extends AbstractShuffle<Short> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
-        private final VectorPayloadMF64B payload;
+        private final VectorPayloadMFMaxSB payload;
 
-        Short128Shuffle(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF64B) payload;
+        ShortMaxShuffle(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMFMaxSB) payload;
             assert(VLENGTH == payload.length());
             assert(indexesInRange(payload));
         }
 
-        public Short128Shuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, false));
+        public ShortMaxShuffle(int[] indexes, int i) {
+            this(prepare(ETYPE, VLENGTH, indexes, i, true));
         }
 
-        public Short128Shuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, false));
+        public ShortMaxShuffle(IntUnaryOperator fn) {
+            this(prepare(ETYPE, VLENGTH, fn, true));
         }
 
-        public Short128Shuffle(int[] indexes) {
+        public ShortMaxShuffle(int[] indexes) {
             this(indexes, 0);
         }
 
@@ -782,13 +768,13 @@ value class Short128Vector extends ShortVector {
             assert(VLENGTH < Byte.MAX_VALUE);
             assert(Byte.MIN_VALUE <= -VLENGTH);
         }
-        static final Short128Shuffle IOTA = new Short128Shuffle(IDENTITY);
+        static final ShortMaxShuffle IOTA = new ShortMaxShuffle(IDENTITY);
 
         @Override
         @ForceInline
-        public Short128Vector toVector() {
-            return VectorSupport.shuffleToVector(VCLASS, ETYPE, Short128Shuffle.class, this, VLENGTH,
-                                                    (s) -> ((Short128Vector)(((AbstractShuffle<Short>)(s)).toVectorTemplate())));
+        public ShortMaxVector toVector() {
+            return VectorSupport.shuffleToVector(VCLASS, ETYPE, ShortMaxShuffle.class, this, VLENGTH,
+                                                    (s) -> ((ShortMaxVector)(((AbstractShuffle<Short>)(s)).toVectorTemplate())));
         }
 
         @Override
@@ -803,11 +789,11 @@ value class Short128Vector extends ShortVector {
 
         @ForceInline
         @Override
-        public Short128Shuffle rearrange(VectorShuffle<Short> shuffle) {
-            Short128Shuffle s = (Short128Shuffle) shuffle;
+        public ShortMaxShuffle rearrange(VectorShuffle<Short> shuffle) {
+            ShortMaxShuffle s = (ShortMaxShuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -816,7 +802,7 @@ value class Short128Vector extends ShortVector {
                 Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
             r = Unsafe.getUnsafe().finishPrivateBuffer(r);
-            return new Short128Shuffle(r);
+            return new ShortMaxShuffle(r);
         }
     }
 
@@ -835,7 +821,7 @@ value class Short128Vector extends ShortVector {
     @Override
     final
     ShortVector fromArray0(short[] a, int offset, VectorMask<Short> m, int offsetInRange) {
-        return super.fromArray0Template(Short128Mask.class, a, offset, (Short128Mask) m, offsetInRange);  // specialize
+        return super.fromArray0Template(ShortMaxMask.class, a, offset, (ShortMaxMask) m, offsetInRange);  // specialize
     }
 
 
@@ -850,7 +836,7 @@ value class Short128Vector extends ShortVector {
     @Override
     final
     ShortVector fromCharArray0(char[] a, int offset, VectorMask<Short> m, int offsetInRange) {
-        return super.fromCharArray0Template(Short128Mask.class, a, offset, (Short128Mask) m, offsetInRange);  // specialize
+        return super.fromCharArray0Template(ShortMaxMask.class, a, offset, (ShortMaxMask) m, offsetInRange);  // specialize
     }
 
 
@@ -865,7 +851,7 @@ value class Short128Vector extends ShortVector {
     @Override
     final
     ShortVector fromMemorySegment0(MemorySegment ms, long offset, VectorMask<Short> m, int offsetInRange) {
-        return super.fromMemorySegment0Template(Short128Mask.class, ms, offset, (Short128Mask) m, offsetInRange);  // specialize
+        return super.fromMemorySegment0Template(ShortMaxMask.class, ms, offset, (ShortMaxMask) m, offsetInRange);  // specialize
     }
 
     @ForceInline
@@ -879,7 +865,7 @@ value class Short128Vector extends ShortVector {
     @Override
     final
     void intoArray0(short[] a, int offset, VectorMask<Short> m) {
-        super.intoArray0Template(Short128Mask.class, a, offset, (Short128Mask) m);
+        super.intoArray0Template(ShortMaxMask.class, a, offset, (ShortMaxMask) m);
     }
 
 
@@ -888,14 +874,14 @@ value class Short128Vector extends ShortVector {
     @Override
     final
     void intoMemorySegment0(MemorySegment ms, long offset, VectorMask<Short> m) {
-        super.intoMemorySegment0Template(Short128Mask.class, ms, offset, (Short128Mask) m);
+        super.intoMemorySegment0Template(ShortMaxMask.class, ms, offset, (ShortMaxMask) m);
     }
 
     @ForceInline
     @Override
     final
     void intoCharArray0(char[] a, int offset, VectorMask<Short> m) {
-        super.intoCharArray0Template(Short128Mask.class, a, offset, (Short128Mask) m);
+        super.intoCharArray0Template(ShortMaxMask.class, a, offset, (ShortMaxMask) m);
     }
 
     // End of specialized low-level memory operations.

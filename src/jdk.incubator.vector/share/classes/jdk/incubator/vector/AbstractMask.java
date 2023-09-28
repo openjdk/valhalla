@@ -41,8 +41,8 @@ abstract class AbstractMask<E> extends VectorMask<E> {
     /*package-private*/
     abstract VectorPayloadMF getBits();
 
-    static VectorPayloadMF prepare(VectorPayloadMF payload, int offset, int length) {
-        VectorPayloadMF res = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+    static VectorPayloadMF prepare(VectorPayloadMF payload, int offset, Class<?> elementType, int length, boolean is_max_species) {
+        VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(elementType, length, is_max_species);
         res = Unsafe.getUnsafe().makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
         for (int i = 0; i < length; i++) {
@@ -53,8 +53,8 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         return res;
     }
 
-    static VectorPayloadMF prepare(boolean val, int length) {
-        VectorPayloadMF res = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+    static VectorPayloadMF prepare(boolean val, Class<?> elementType, int length, boolean is_max_species) {
+        VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(elementType, length, is_max_species);
         res = Unsafe.getUnsafe().makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
         for (int i = 0; i < length; i++) {
@@ -73,7 +73,8 @@ abstract class AbstractMask<E> extends VectorMask<E> {
     AbstractMask<E> uOpMF(MUnOp f) {
         int length = vspecies().laneCount();
         VectorPayloadMF bits = getBits();
-        VectorPayloadMF res = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+        boolean is_max_species = ((AbstractSpecies)(vspecies())).is_max_species();
+        VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
         res = Unsafe.getUnsafe().makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
         for (int i = 0; i < length; i++) {
@@ -94,7 +95,8 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         int length = vspecies().laneCount();
         VectorPayloadMF bits = getBits();
         VectorPayloadMF mbits = m.getBits();
-        VectorPayloadMF res = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+        boolean is_max_species = ((AbstractSpecies)(vspecies())).is_max_species();
+        VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
         res = Unsafe.getUnsafe().makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
         for (int i = 0; i < length; i++) {

@@ -92,10 +92,10 @@ class SerializeClosure;
   template(java_lang_Long_LongCache,                  "java/lang/Long$LongCache")                 \
                                                                                                   \
   template(jdk_internal_vm_vector_VectorSupport,       "jdk/internal/vm/vector/VectorSupport")                     \
-  template(jdk_internal_vm_vector_VectorPayload,       "jdk/internal/vm/vector/VectorSupport$VectorPayload")       \
   template(jdk_internal_vm_vector_Vector,              "jdk/internal/vm/vector/VectorSupport$Vector")              \
   template(jdk_internal_vm_vector_VectorMask,          "jdk/internal/vm/vector/VectorSupport$VectorMask")          \
   template(jdk_internal_vm_vector_VectorShuffle,       "jdk/internal/vm/vector/VectorSupport$VectorShuffle")       \
+  template(jdk_internal_vm_vector_VectorPayload,       "jdk/internal/vm/vector/VectorSupport$VectorPayload")       \
   template(jdk_internal_vm_vector_VectorPayloadMF,     "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF")     \
   template(jdk_internal_vm_vector_VectorPayloadMF8Z,   "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF8Z")   \
   template(jdk_internal_vm_vector_VectorPayloadMF16Z,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF16Z")  \
@@ -131,6 +131,20 @@ class SerializeClosure;
   template(jdk_internal_vm_vector_VectorPayloadMF128D, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128D") \
   template(jdk_internal_vm_vector_VectorPayloadMF256D, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256D") \
   template(jdk_internal_vm_vector_VectorPayloadMF512D, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF512D") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxB, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxB") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxS, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxS") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxI, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxI") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxL, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxL") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxF, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxF") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxD, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxD") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxBZ, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxBZ") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxSZ, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxSZ") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxIZ, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxIZ") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxLZ, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxLZ") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxBB, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxBB") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxSB, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxSB") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxIB, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxIB") \
+  template(jdk_internal_vm_vector_VectorPayloadMFMaxLB, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMFMaxLB") \
   template(payload_name,                               "payload")                                                  \
   template(mfield_name,                                "mfield")                                                   \
   template(ETYPE_name,                                 "ETYPE")                                                    \

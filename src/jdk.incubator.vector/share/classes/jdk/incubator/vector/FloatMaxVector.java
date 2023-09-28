@@ -40,14 +40,14 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-value class Float256Vector extends FloatVector {
+value class FloatMaxVector extends FloatVector {
     static final FloatSpecies VSPECIES =
-        (FloatSpecies) FloatVector.SPECIES_256;
+        (FloatSpecies) FloatVector.SPECIES_MAX;
 
     static final VectorShape VSHAPE =
         VSPECIES.vectorShape();
 
-    static final Class<Float256Vector> VCLASS = Float256Vector.class;
+    static final Class<FloatMaxVector> VCLASS = FloatMaxVector.class;
 
     static final int VSIZE = VSPECIES.vectorBitSize();
 
@@ -55,12 +55,12 @@ value class Float256Vector extends FloatVector {
 
     static final Class<Float> ETYPE = float.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF256F.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxF.class);
 
-    private final VectorPayloadMF256F payload;
+    private final VectorPayloadMFMaxF payload;
 
-    Float256Vector(Object value) {
-        this.payload = (VectorPayloadMF256F) value;
+    FloatMaxVector(Object value) {
+        this.payload = (VectorPayloadMFMaxF) value;
     }
 
     @ForceInline
@@ -69,8 +69,8 @@ value class Float256Vector extends FloatVector {
         return payload;
     }
 
-    static final Float256Vector ZERO = new Float256Vector(VectorPayloadMF.newVectorInstanceFactory(float.class, 8, false));
-    static final Float256Vector IOTA = new Float256Vector(VectorPayloadMF.createVectPayloadInstanceF(VLENGTH, (float[])(VSPECIES.iotaArray()), false));
+    static final FloatMaxVector ZERO = new FloatMaxVector(VectorPayloadMF.newVectorInstanceFactory(float.class, 0, true));
+    static final FloatMaxVector IOTA = new FloatMaxVector(VectorPayloadMF.createVectPayloadInstanceF(VLENGTH, (float[])(VSPECIES.iotaArray()), true));
 
     static {
         // Warm up a few species caches.
@@ -121,60 +121,60 @@ value class Float256Vector extends FloatVector {
 
     @Override
     @ForceInline
-    public final Float256Vector broadcast(float e) {
-        return (Float256Vector) super.broadcastTemplate(e);  // specialize
+    public final FloatMaxVector broadcast(float e) {
+        return (FloatMaxVector) super.broadcastTemplate(e);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float256Vector broadcast(long e) {
-        return (Float256Vector) super.broadcastTemplate(e);  // specialize
+    public final FloatMaxVector broadcast(long e) {
+        return (FloatMaxVector) super.broadcastTemplate(e);  // specialize
     }
 
     @Override
     @ForceInline
-    Float256Mask maskFromPayload(VectorPayloadMF payload) {
-        return new Float256Mask(payload);
+    FloatMaxMask maskFromPayload(VectorPayloadMF payload) {
+        return new FloatMaxMask(payload);
     }
 
     @Override
     @ForceInline
-    Float256Shuffle iotaShuffle() { return Float256Shuffle.IOTA; }
+    FloatMaxShuffle iotaShuffle() { return FloatMaxShuffle.IOTA; }
 
     @ForceInline
-    Float256Shuffle iotaShuffle(int start, int step, boolean wrap) {
+    FloatMaxShuffle iotaShuffle(int start, int step, boolean wrap) {
       if (wrap) {
-        return (Float256Shuffle)VectorSupport.shuffleIota(ETYPE, Float256Shuffle.class, VSPECIES, VLENGTH, start, step, 1,
+        return (FloatMaxShuffle)VectorSupport.shuffleIota(ETYPE, FloatMaxShuffle.class, VSPECIES, VLENGTH, start, step, 1,
                 (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (VectorIntrinsics.wrapToRange(i*lstep + lstart, l))));
       } else {
-        return (Float256Shuffle)VectorSupport.shuffleIota(ETYPE, Float256Shuffle.class, VSPECIES, VLENGTH, start, step, 0,
+        return (FloatMaxShuffle)VectorSupport.shuffleIota(ETYPE, FloatMaxShuffle.class, VSPECIES, VLENGTH, start, step, 0,
                 (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (i*lstep + lstart)));
       }
     }
 
     @Override
     @ForceInline
-    Float256Shuffle shuffleFromBytes(VectorPayloadMF indexes) { return new Float256Shuffle(indexes); }
+    FloatMaxShuffle shuffleFromBytes(VectorPayloadMF indexes) { return new FloatMaxShuffle(indexes); }
 
     @Override
     @ForceInline
-    Float256Shuffle shuffleFromArray(int[] indexes, int i) { return new Float256Shuffle(indexes, i); }
+    FloatMaxShuffle shuffleFromArray(int[] indexes, int i) { return new FloatMaxShuffle(indexes, i); }
 
     @Override
     @ForceInline
-    Float256Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Float256Shuffle(fn); }
+    FloatMaxShuffle shuffleFromOp(IntUnaryOperator fn) { return new FloatMaxShuffle(fn); }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
     final @Override
-    Float256Vector vectorFactory(VectorPayloadMF vec) {
-        return new Float256Vector(vec);
+    FloatMaxVector vectorFactory(VectorPayloadMF vec) {
+        return new FloatMaxVector(vec);
     }
 
     @ForceInline
     final @Override
-    Byte256Vector asByteVectorRaw() {
-        return (Byte256Vector) super.asByteVectorRawTemplate();  // specialize
+    ByteMaxVector asByteVectorRaw() {
+        return (ByteMaxVector) super.asByteVectorRawTemplate();  // specialize
     }
 
     @ForceInline
@@ -187,31 +187,31 @@ value class Float256Vector extends FloatVector {
 
     @ForceInline
     final @Override
-    Float256Vector uOpMF(FUnOp f) {
-        return (Float256Vector) super.uOpTemplateMF(f);  // specialize
+    FloatMaxVector uOpMF(FUnOp f) {
+        return (FloatMaxVector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Float256Vector uOpMF(VectorMask<Float> m, FUnOp f) {
-        return (Float256Vector)
-            super.uOpTemplateMF((Float256Mask)m, f);  // specialize
+    FloatMaxVector uOpMF(VectorMask<Float> m, FUnOp f) {
+        return (FloatMaxVector)
+            super.uOpTemplateMF((FloatMaxMask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Float256Vector bOpMF(Vector<Float> v, FBinOp f) {
-        return (Float256Vector) super.bOpTemplateMF((Float256Vector)v, f);  // specialize
+    FloatMaxVector bOpMF(Vector<Float> v, FBinOp f) {
+        return (FloatMaxVector) super.bOpTemplateMF((FloatMaxVector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Float256Vector bOpMF(Vector<Float> v,
+    FloatMaxVector bOpMF(Vector<Float> v,
                      VectorMask<Float> m, FBinOp f) {
-        return (Float256Vector)
-            super.bOpTemplateMF((Float256Vector)v, (Float256Mask)m,
+        return (FloatMaxVector)
+            super.bOpTemplateMF((FloatMaxVector)v, (FloatMaxMask)m,
                                 f);  // specialize
     }
 
@@ -219,19 +219,19 @@ value class Float256Vector extends FloatVector {
 
     @ForceInline
     final @Override
-    Float256Vector tOpMF(Vector<Float> v1, Vector<Float> v2, FTriOp f) {
-        return (Float256Vector)
-            super.tOpTemplateMF((Float256Vector)v1, (Float256Vector)v2,
+    FloatMaxVector tOpMF(Vector<Float> v1, Vector<Float> v2, FTriOp f) {
+        return (FloatMaxVector)
+            super.tOpTemplateMF((FloatMaxVector)v1, (FloatMaxVector)v2,
                                 f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Float256Vector tOpMF(Vector<Float> v1, Vector<Float> v2,
+    FloatMaxVector tOpMF(Vector<Float> v1, Vector<Float> v2,
                      VectorMask<Float> m, FTriOp f) {
-        return (Float256Vector)
-            super.tOpTemplateMF((Float256Vector)v1, (Float256Vector)v2,
-                                (Float256Mask)m, f);  // specialize
+        return (FloatMaxVector)
+            super.tOpTemplateMF((FloatMaxVector)v1, (FloatMaxVector)v2,
+                                (FloatMaxMask)m, f);  // specialize
     }
 
     @ForceInline
@@ -269,26 +269,26 @@ value class Float256Vector extends FloatVector {
 
     @Override
     @ForceInline
-    public Float256Vector lanewise(Unary op) {
-        return (Float256Vector) super.lanewiseTemplate(op);  // specialize
+    public FloatMaxVector lanewise(Unary op) {
+        return (FloatMaxVector) super.lanewiseTemplate(op);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector lanewise(Unary op, VectorMask<Float> m) {
-        return (Float256Vector) super.lanewiseTemplate(op, Float256Mask.class, (Float256Mask) m);  // specialize
+    public FloatMaxVector lanewise(Unary op, VectorMask<Float> m) {
+        return (FloatMaxVector) super.lanewiseTemplate(op, FloatMaxMask.class, (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector lanewise(Binary op, Vector<Float> v) {
-        return (Float256Vector) super.lanewiseTemplate(op, v);  // specialize
+    public FloatMaxVector lanewise(Binary op, Vector<Float> v) {
+        return (FloatMaxVector) super.lanewiseTemplate(op, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector lanewise(Binary op, Vector<Float> v, VectorMask<Float> m) {
-        return (Float256Vector) super.lanewiseTemplate(op, Float256Mask.class, v, (Float256Mask) m);  // specialize
+    public FloatMaxVector lanewise(Binary op, Vector<Float> v, VectorMask<Float> m) {
+        return (FloatMaxVector) super.lanewiseTemplate(op, FloatMaxMask.class, v, (FloatMaxMask) m);  // specialize
     }
 
 
@@ -296,24 +296,24 @@ value class Float256Vector extends FloatVector {
     @Override
     @ForceInline
     public final
-    Float256Vector
+    FloatMaxVector
     lanewise(Ternary op, Vector<Float> v1, Vector<Float> v2) {
-        return (Float256Vector) super.lanewiseTemplate(op, v1, v2);  // specialize
+        return (FloatMaxVector) super.lanewiseTemplate(op, v1, v2);  // specialize
     }
 
     @Override
     @ForceInline
     public final
-    Float256Vector
+    FloatMaxVector
     lanewise(Ternary op, Vector<Float> v1, Vector<Float> v2, VectorMask<Float> m) {
-        return (Float256Vector) super.lanewiseTemplate(op, Float256Mask.class, v1, v2, (Float256Mask) m);  // specialize
+        return (FloatMaxVector) super.lanewiseTemplate(op, FloatMaxMask.class, v1, v2, (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
     public final
-    Float256Vector addIndex(int scale) {
-        return (Float256Vector) super.addIndexTemplate(scale);  // specialize
+    FloatMaxVector addIndex(int scale) {
+        return (FloatMaxVector) super.addIndexTemplate(scale);  // specialize
     }
 
     // Type specific horizontal reductions
@@ -328,7 +328,7 @@ value class Float256Vector extends FloatVector {
     @ForceInline
     public final float reduceLanes(VectorOperators.Associative op,
                                     VectorMask<Float> m) {
-        return super.reduceLanesTemplate(op, Float256Mask.class, (Float256Mask) m);  // specialized
+        return super.reduceLanesTemplate(op, FloatMaxMask.class, (FloatMaxMask) m);  // specialized
     }
 
     @Override
@@ -341,174 +341,166 @@ value class Float256Vector extends FloatVector {
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op,
                                         VectorMask<Float> m) {
-        return (long) super.reduceLanesTemplate(op, Float256Mask.class, (Float256Mask) m);  // specialized
+        return (long) super.reduceLanesTemplate(op, FloatMaxMask.class, (FloatMaxMask) m);  // specialized
     }
 
     @ForceInline
     public VectorShuffle<Float> toShuffle() {
-        return super.toShuffleTemplate(Float256Shuffle.class); // specialize
+        return super.toShuffleTemplate(FloatMaxShuffle.class); // specialize
     }
 
     // Specialized unary testing
 
     @Override
     @ForceInline
-    public final Float256Mask test(Test op) {
-        return super.testTemplate(Float256Mask.class, op);  // specialize
+    public final FloatMaxMask test(Test op) {
+        return super.testTemplate(FloatMaxMask.class, op);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float256Mask test(Test op, VectorMask<Float> m) {
-        return super.testTemplate(Float256Mask.class, op, (Float256Mask) m);  // specialize
+    public final FloatMaxMask test(Test op, VectorMask<Float> m) {
+        return super.testTemplate(FloatMaxMask.class, op, (FloatMaxMask) m);  // specialize
     }
 
     // Specialized comparisons
 
     @Override
     @ForceInline
-    public final Float256Mask compare(Comparison op, Vector<Float> v) {
-        return super.compareTemplate(Float256Mask.class, op, v);  // specialize
+    public final FloatMaxMask compare(Comparison op, Vector<Float> v) {
+        return super.compareTemplate(FloatMaxMask.class, op, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float256Mask compare(Comparison op, float s) {
-        return super.compareTemplate(Float256Mask.class, op, s);  // specialize
+    public final FloatMaxMask compare(Comparison op, float s) {
+        return super.compareTemplate(FloatMaxMask.class, op, s);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float256Mask compare(Comparison op, long s) {
-        return super.compareTemplate(Float256Mask.class, op, s);  // specialize
+    public final FloatMaxMask compare(Comparison op, long s) {
+        return super.compareTemplate(FloatMaxMask.class, op, s);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float256Mask compare(Comparison op, Vector<Float> v, VectorMask<Float> m) {
-        return super.compareTemplate(Float256Mask.class, op, v, (Float256Mask) m);
+    public final FloatMaxMask compare(Comparison op, Vector<Float> v, VectorMask<Float> m) {
+        return super.compareTemplate(FloatMaxMask.class, op, v, (FloatMaxMask) m);
     }
 
 
     @Override
     @ForceInline
-    public Float256Vector blend(Vector<Float> v, VectorMask<Float> m) {
-        return (Float256Vector)
-            super.blendTemplate(Float256Mask.class,
-                                (Float256Vector) v,
-                                (Float256Mask) m);  // specialize
+    public FloatMaxVector blend(Vector<Float> v, VectorMask<Float> m) {
+        return (FloatMaxVector)
+            super.blendTemplate(FloatMaxMask.class,
+                                (FloatMaxVector) v,
+                                (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector slice(int origin, Vector<Float> v) {
-        return (Float256Vector) super.sliceTemplate(origin, v);  // specialize
+    public FloatMaxVector slice(int origin, Vector<Float> v) {
+        return (FloatMaxVector) super.sliceTemplate(origin, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector slice(int origin) {
-        return (Float256Vector) super.sliceTemplate(origin);  // specialize
+    public FloatMaxVector slice(int origin) {
+        return (FloatMaxVector) super.sliceTemplate(origin);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector unslice(int origin, Vector<Float> w, int part) {
-        return (Float256Vector) super.unsliceTemplate(origin, w, part);  // specialize
+    public FloatMaxVector unslice(int origin, Vector<Float> w, int part) {
+        return (FloatMaxVector) super.unsliceTemplate(origin, w, part);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector unslice(int origin, Vector<Float> w, int part, VectorMask<Float> m) {
-        return (Float256Vector)
-            super.unsliceTemplate(Float256Mask.class,
+    public FloatMaxVector unslice(int origin, Vector<Float> w, int part, VectorMask<Float> m) {
+        return (FloatMaxVector)
+            super.unsliceTemplate(FloatMaxMask.class,
                                   origin, w, part,
-                                  (Float256Mask) m);  // specialize
+                                  (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector unslice(int origin) {
-        return (Float256Vector) super.unsliceTemplate(origin);  // specialize
+    public FloatMaxVector unslice(int origin) {
+        return (FloatMaxVector) super.unsliceTemplate(origin);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector rearrange(VectorShuffle<Float> s) {
-        return (Float256Vector)
-            super.rearrangeTemplate(Float256Shuffle.class,
-                                    (Float256Shuffle) s);  // specialize
+    public FloatMaxVector rearrange(VectorShuffle<Float> s) {
+        return (FloatMaxVector)
+            super.rearrangeTemplate(FloatMaxShuffle.class,
+                                    (FloatMaxShuffle) s);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector rearrange(VectorShuffle<Float> shuffle,
+    public FloatMaxVector rearrange(VectorShuffle<Float> shuffle,
                                   VectorMask<Float> m) {
-        return (Float256Vector)
-            super.rearrangeTemplate(Float256Shuffle.class,
-                                    Float256Mask.class,
-                                    (Float256Shuffle) shuffle,
-                                    (Float256Mask) m);  // specialize
+        return (FloatMaxVector)
+            super.rearrangeTemplate(FloatMaxShuffle.class,
+                                    FloatMaxMask.class,
+                                    (FloatMaxShuffle) shuffle,
+                                    (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector rearrange(VectorShuffle<Float> s,
+    public FloatMaxVector rearrange(VectorShuffle<Float> s,
                                   Vector<Float> v) {
-        return (Float256Vector)
-            super.rearrangeTemplate(Float256Shuffle.class,
-                                    (Float256Shuffle) s,
-                                    (Float256Vector) v);  // specialize
+        return (FloatMaxVector)
+            super.rearrangeTemplate(FloatMaxShuffle.class,
+                                    (FloatMaxShuffle) s,
+                                    (FloatMaxVector) v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector compress(VectorMask<Float> m) {
-        return (Float256Vector)
-            super.compressTemplate(Float256Mask.class,
-                                   (Float256Mask) m);  // specialize
+    public FloatMaxVector compress(VectorMask<Float> m) {
+        return (FloatMaxVector)
+            super.compressTemplate(FloatMaxMask.class,
+                                   (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector expand(VectorMask<Float> m) {
-        return (Float256Vector)
-            super.expandTemplate(Float256Mask.class,
-                                   (Float256Mask) m);  // specialize
+    public FloatMaxVector expand(VectorMask<Float> m) {
+        return (FloatMaxVector)
+            super.expandTemplate(FloatMaxMask.class,
+                                   (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector selectFrom(Vector<Float> v) {
-        return (Float256Vector)
-            super.selectFromTemplate((Float256Vector) v);  // specialize
+    public FloatMaxVector selectFrom(Vector<Float> v) {
+        return (FloatMaxVector)
+            super.selectFromTemplate((FloatMaxVector) v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float256Vector selectFrom(Vector<Float> v,
+    public FloatMaxVector selectFrom(Vector<Float> v,
                                    VectorMask<Float> m) {
-        return (Float256Vector)
-            super.selectFromTemplate((Float256Vector) v,
-                                     (Float256Mask) m);  // specialize
+        return (FloatMaxVector)
+            super.selectFromTemplate((FloatMaxVector) v,
+                                     (FloatMaxMask) m);  // specialize
     }
 
 
     @ForceInline
     @Override
     public float lane(int i) {
-        int bits;
-        switch(i) {
-            case 0: bits = laneHelper(0); break;
-            case 1: bits = laneHelper(1); break;
-            case 2: bits = laneHelper(2); break;
-            case 3: bits = laneHelper(3); break;
-            case 4: bits = laneHelper(4); break;
-            case 5: bits = laneHelper(5); break;
-            case 6: bits = laneHelper(6); break;
-            case 7: bits = laneHelper(7); break;
-            default: throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
+        if (i < 0 || i >= VLENGTH) {
+            throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
         }
+        int bits = laneHelper(i);
         return Float.intBitsToFloat(bits);
     }
 
@@ -525,21 +517,14 @@ value class Float256Vector extends FloatVector {
 
     @ForceInline
     @Override
-    public Float256Vector withLane(int i, float e) {
-        switch(i) {
-            case 0: return withLaneHelper(0, e);
-            case 1: return withLaneHelper(1, e);
-            case 2: return withLaneHelper(2, e);
-            case 3: return withLaneHelper(3, e);
-            case 4: return withLaneHelper(4, e);
-            case 5: return withLaneHelper(5, e);
-            case 6: return withLaneHelper(6, e);
-            case 7: return withLaneHelper(7, e);
-            default: throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
+    public FloatMaxVector withLane(int i, float e) {
+        if (i < 0 || i >= VLENGTH) {
+            throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
         }
+        return withLaneHelper(i, e);
     }
 
-    public Float256Vector withLaneHelper(int i, float e) {
+    public FloatMaxVector withLaneHelper(int i, float e) {
         return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)Float.floatToIntBits(e),
@@ -555,22 +540,22 @@ value class Float256Vector extends FloatVector {
 
     // Mask
 
-    static final value class Float256Mask extends AbstractMask<Float> {
+    static final value class FloatMaxMask extends AbstractMask<Float> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Float> ETYPE = float.class; // used by the JVM
 
-        Float256Mask(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF64Z) payload;
+        FloatMaxMask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMFMaxIZ) payload;
         }
 
-        private final VectorPayloadMF64Z payload;
+        private final VectorPayloadMFMaxIZ payload;
 
-        Float256Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, false));
+        FloatMaxMask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, ETYPE, VLENGTH, true));
         }
 
-        Float256Mask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, false));
+        FloatMaxMask(boolean val) {
+            this(prepare(val, ETYPE, VLENGTH, true));
         }
 
 
@@ -592,32 +577,32 @@ value class Float256Vector extends FloatVector {
         @ForceInline
         @Override
         public final
-        Float256Vector toVector() {
-            return (Float256Vector) super.toVectorTemplate();  // specialize
+        FloatMaxVector toVector() {
+            return (FloatMaxVector) super.toVectorTemplate();  // specialize
         }
 
         @Override
         @ForceInline
         /*package-private*/
-        Float256Mask indexPartiallyInUpperRange(long offset, long limit) {
-            return (Float256Mask) VectorSupport.indexPartiallyInUpperRange(
-                Float256Mask.class, float.class, VLENGTH, offset, limit,
-                (o, l) -> (Float256Mask) TRUE_MASK.indexPartiallyInRange(o, l));
+        FloatMaxMask indexPartiallyInUpperRange(long offset, long limit) {
+            return (FloatMaxMask) VectorSupport.indexPartiallyInUpperRange(
+                FloatMaxMask.class, float.class, VLENGTH, offset, limit,
+                (o, l) -> (FloatMaxMask) TRUE_MASK.indexPartiallyInRange(o, l));
         }
 
         // Unary operations
 
         @Override
         @ForceInline
-        public Float256Mask not() {
+        public FloatMaxMask not() {
             return xor(maskAll(true));
         }
 
         @Override
         @ForceInline
-        public Float256Mask compress() {
-            return (Float256Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
-                Float256Vector.class, Float256Mask.class, ETYPE, VLENGTH, null, this,
+        public FloatMaxMask compress() {
+            return (FloatMaxMask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+                FloatMaxVector.class, FloatMaxMask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
 
@@ -626,32 +611,32 @@ value class Float256Vector extends FloatVector {
 
         @Override
         @ForceInline
-        public Float256Mask and(VectorMask<Float> mask) {
+        public FloatMaxMask and(VectorMask<Float> mask) {
             Objects.requireNonNull(mask);
-            Float256Mask m = (Float256Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Float256Mask.class, null,
+            FloatMaxMask m = (FloatMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_AND, FloatMaxMask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Float256Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (FloatMaxMask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
         @ForceInline
-        public Float256Mask or(VectorMask<Float> mask) {
+        public FloatMaxMask or(VectorMask<Float> mask) {
             Objects.requireNonNull(mask);
-            Float256Mask m = (Float256Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Float256Mask.class, null,
+            FloatMaxMask m = (FloatMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_OR, FloatMaxMask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Float256Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (FloatMaxMask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @Override
         @ForceInline
-        public Float256Mask xor(VectorMask<Float> mask) {
+        public FloatMaxMask xor(VectorMask<Float> mask) {
             Objects.requireNonNull(mask);
-            Float256Mask m = (Float256Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Float256Mask.class, null,
+            FloatMaxMask m = (FloatMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, FloatMaxMask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Float256Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (FloatMaxMask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -659,22 +644,22 @@ value class Float256Vector extends FloatVector {
         @Override
         @ForceInline
         public int trueCount() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Float256Mask.class, int.class, VLENGTH, this,
-                                                            (m) -> ((Float256Mask) m).trueCountHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, FloatMaxMask.class, int.class, VLENGTH, this,
+                                                            (m) -> ((FloatMaxMask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Float256Mask.class, int.class, VLENGTH, this,
-                                                            (m) -> ((Float256Mask) m).firstTrueHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, FloatMaxMask.class, int.class, VLENGTH, this,
+                                                            (m) -> ((FloatMaxMask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Float256Mask.class, int.class, VLENGTH, this,
-                                                            (m) -> ((Float256Mask) m).lastTrueHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, FloatMaxMask.class, int.class, VLENGTH, this,
+                                                            (m) -> ((FloatMaxMask) m).lastTrueHelper());
         }
 
         @Override
@@ -683,8 +668,8 @@ value class Float256Vector extends FloatVector {
             if (length() > Long.SIZE) {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
-            return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Float256Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> ((Float256Mask) m).toLongHelper());
+            return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, FloatMaxMask.class, int.class, VLENGTH, this,
+                                                      (m) -> ((FloatMaxMask) m).toLongHelper());
         }
 
         // laneIsSet
@@ -693,8 +678,8 @@ value class Float256Vector extends FloatVector {
         @ForceInline
         public boolean laneIsSet(int i) {
             Objects.checkIndex(i, length());
-            return VectorSupport.extract(Float256Mask.class, float.class, VLENGTH,
-                                         this, i, (m, idx) -> (((Float256Mask) m).laneIsSetHelper(idx) ? 1L : 0L)) == 1L;
+            return VectorSupport.extract(FloatMaxMask.class, float.class, VLENGTH,
+                                         this, i, (m, idx) -> (((FloatMaxMask) m).laneIsSetHelper(idx) ? 1L : 0L)) == 1L;
         }
 
         // Reductions
@@ -702,54 +687,54 @@ value class Float256Vector extends FloatVector {
         @Override
         @ForceInline
         public boolean anyTrue() {
-            return VectorSupport.test(BT_ne, Float256Mask.class, int.class, VLENGTH,
+            return VectorSupport.test(BT_ne, FloatMaxMask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> ((Float256Mask) m).anyTrueHelper());
+                                         (m, __) -> ((FloatMaxMask) m).anyTrueHelper());
         }
 
         @Override
         @ForceInline
         public boolean allTrue() {
-            return VectorSupport.test(BT_overflow, Float256Mask.class, int.class, VLENGTH,
+            return VectorSupport.test(BT_overflow, FloatMaxMask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> ((Float256Mask) m).allTrueHelper());
+                                         (m, __) -> ((FloatMaxMask) m).allTrueHelper());
         }
 
         @ForceInline
         /*package-private*/
-        static Float256Mask maskAll(boolean bit) {
-            return VectorSupport.fromBitsCoerced(Float256Mask.class, int.class, VLENGTH,
+        static FloatMaxMask maskAll(boolean bit) {
+            return VectorSupport.fromBitsCoerced(FloatMaxMask.class, int.class, VLENGTH,
                                                  (bit ? -1 : 0), MODE_BROADCAST, null,
                                                  (v, __) -> (v != 0 ? TRUE_MASK : FALSE_MASK));
         }
-        private static final Float256Mask  TRUE_MASK = new Float256Mask(true);
-        private static final Float256Mask FALSE_MASK = new Float256Mask(false);
+        private static final FloatMaxMask  TRUE_MASK = new FloatMaxMask(true);
+        private static final FloatMaxMask FALSE_MASK = new FloatMaxMask(false);
 
     }
 
     // Shuffle
 
-    static final value class Float256Shuffle extends AbstractShuffle<Float> {
+    static final value class FloatMaxShuffle extends AbstractShuffle<Float> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Float> ETYPE = float.class; // used by the JVM
 
-        private final VectorPayloadMF64B payload;
+        private final VectorPayloadMFMaxIB payload;
 
-        Float256Shuffle(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF64B) payload;
+        FloatMaxShuffle(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMFMaxIB) payload;
             assert(VLENGTH == payload.length());
             assert(indexesInRange(payload));
         }
 
-        public Float256Shuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, false));
+        public FloatMaxShuffle(int[] indexes, int i) {
+            this(prepare(ETYPE, VLENGTH, indexes, i, true));
         }
 
-        public Float256Shuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, false));
+        public FloatMaxShuffle(IntUnaryOperator fn) {
+            this(prepare(ETYPE, VLENGTH, fn, true));
         }
 
-        public Float256Shuffle(int[] indexes) {
+        public FloatMaxShuffle(int[] indexes) {
             this(indexes, 0);
         }
 
@@ -771,13 +756,13 @@ value class Float256Vector extends FloatVector {
             assert(VLENGTH < Byte.MAX_VALUE);
             assert(Byte.MIN_VALUE <= -VLENGTH);
         }
-        static final Float256Shuffle IOTA = new Float256Shuffle(IDENTITY);
+        static final FloatMaxShuffle IOTA = new FloatMaxShuffle(IDENTITY);
 
         @Override
         @ForceInline
-        public Float256Vector toVector() {
-            return VectorSupport.shuffleToVector(VCLASS, ETYPE, Float256Shuffle.class, this, VLENGTH,
-                                                    (s) -> ((Float256Vector)(((AbstractShuffle<Float>)(s)).toVectorTemplate())));
+        public FloatMaxVector toVector() {
+            return VectorSupport.shuffleToVector(VCLASS, ETYPE, FloatMaxShuffle.class, this, VLENGTH,
+                                                    (s) -> ((FloatMaxVector)(((AbstractShuffle<Float>)(s)).toVectorTemplate())));
         }
 
         @Override
@@ -792,11 +777,11 @@ value class Float256Vector extends FloatVector {
 
         @ForceInline
         @Override
-        public Float256Shuffle rearrange(VectorShuffle<Float> shuffle) {
-            Float256Shuffle s = (Float256Shuffle) shuffle;
+        public FloatMaxShuffle rearrange(VectorShuffle<Float> shuffle) {
+            FloatMaxShuffle s = (FloatMaxShuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -805,7 +790,7 @@ value class Float256Vector extends FloatVector {
                 Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
             r = Unsafe.getUnsafe().finishPrivateBuffer(r);
-            return new Float256Shuffle(r);
+            return new FloatMaxShuffle(r);
         }
     }
 
@@ -824,14 +809,14 @@ value class Float256Vector extends FloatVector {
     @Override
     final
     FloatVector fromArray0(float[] a, int offset, VectorMask<Float> m, int offsetInRange) {
-        return super.fromArray0Template(Float256Mask.class, a, offset, (Float256Mask) m, offsetInRange);  // specialize
+        return super.fromArray0Template(FloatMaxMask.class, a, offset, (FloatMaxMask) m, offsetInRange);  // specialize
     }
 
     @ForceInline
     @Override
     final
     FloatVector fromArray0(float[] a, int offset, int[] indexMap, int mapOffset, VectorMask<Float> m) {
-        return super.fromArray0Template(Float256Mask.class, a, offset, indexMap, mapOffset, (Float256Mask) m);
+        return super.fromArray0Template(FloatMaxMask.class, a, offset, indexMap, mapOffset, (FloatMaxMask) m);
     }
 
 
@@ -847,7 +832,7 @@ value class Float256Vector extends FloatVector {
     @Override
     final
     FloatVector fromMemorySegment0(MemorySegment ms, long offset, VectorMask<Float> m, int offsetInRange) {
-        return super.fromMemorySegment0Template(Float256Mask.class, ms, offset, (Float256Mask) m, offsetInRange);  // specialize
+        return super.fromMemorySegment0Template(FloatMaxMask.class, ms, offset, (FloatMaxMask) m, offsetInRange);  // specialize
     }
 
     @ForceInline
@@ -861,14 +846,14 @@ value class Float256Vector extends FloatVector {
     @Override
     final
     void intoArray0(float[] a, int offset, VectorMask<Float> m) {
-        super.intoArray0Template(Float256Mask.class, a, offset, (Float256Mask) m);
+        super.intoArray0Template(FloatMaxMask.class, a, offset, (FloatMaxMask) m);
     }
 
     @ForceInline
     @Override
     final
     void intoArray0(float[] a, int offset, int[] indexMap, int mapOffset, VectorMask<Float> m) {
-        super.intoArray0Template(Float256Mask.class, a, offset, indexMap, mapOffset, (Float256Mask) m);
+        super.intoArray0Template(FloatMaxMask.class, a, offset, indexMap, mapOffset, (FloatMaxMask) m);
     }
 
 
@@ -876,7 +861,7 @@ value class Float256Vector extends FloatVector {
     @Override
     final
     void intoMemorySegment0(MemorySegment ms, long offset, VectorMask<Float> m) {
-        super.intoMemorySegment0Template(Float256Mask.class, ms, offset, (Float256Mask) m);
+        super.intoMemorySegment0Template(FloatMaxMask.class, ms, offset, (FloatMaxMask) m);
     }
 
 

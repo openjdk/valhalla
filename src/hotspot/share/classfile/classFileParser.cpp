@@ -1631,7 +1631,11 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     if (parsed_annotations.is_multifield_base() && is_java_primitive(cp->basic_type_for_signature_at(signature_index))) {
       field->field_flags_addr()->update_multifield_base(true);
       char* base_name = cp->symbol_at(name_index)->as_C_string();
-      for (int i = 1; i < parsed_annotations.multifield_arg(); i++) {
+      int bundle_size = parsed_annotations.multifield_arg();
+      if (bundle_size < 0) {
+        bundle_size = VectorSupport::get_max_multifield_count(_class_name);
+      }
+      for (int i = 1; i < bundle_size; i++) {
         field_index++;
         stringStream st;
         st.print("%s", base_name);

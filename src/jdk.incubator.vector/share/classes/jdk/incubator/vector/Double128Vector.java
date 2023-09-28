@@ -69,8 +69,8 @@ value class Double128Vector extends DoubleVector {
         return payload;
     }
 
-    static final Double128Vector ZERO = new Double128Vector(VectorPayloadMF.newInstanceFactory(double.class, 2));
-    static final Double128Vector IOTA = new Double128Vector(VectorPayloadMF.createVectPayloadInstanceD(2, (double[])(VSPECIES.iotaArray())));
+    static final Double128Vector ZERO = new Double128Vector(VectorPayloadMF.newVectorInstanceFactory(double.class, 2, false));
+    static final Double128Vector IOTA = new Double128Vector(VectorPayloadMF.createVectPayloadInstanceD(VLENGTH, (double[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -547,19 +547,20 @@ value class Double128Vector extends DoubleVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Double> ETYPE = double.class; // used by the JVM
 
-        private final VectorPayloadMF16Z payload;
-
         Double128Mask(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF16Z) payload;
         }
 
+        private final VectorPayloadMF16Z payload;
+
         Double128Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, ETYPE, VLENGTH, false));
         }
 
         Double128Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, ETYPE, VLENGTH, false));
         }
+
 
         @ForceInline
         final @Override
@@ -728,17 +729,18 @@ value class Double128Vector extends DoubleVector {
             assert(indexesInRange(payload));
         }
 
+        public Double128Shuffle(int[] indexes, int i) {
+            this(prepare(ETYPE, VLENGTH, indexes, i, false));
+        }
+
+        public Double128Shuffle(IntUnaryOperator fn) {
+            this(prepare(ETYPE, VLENGTH, fn, false));
+        }
+
         public Double128Shuffle(int[] indexes) {
             this(indexes, 0);
         }
 
-        public Double128Shuffle(int[] indexes, int i) {
-            this(prepare(VLENGTH, indexes, i));
-        }
-
-        public Double128Shuffle(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
-        }
 
         @ForceInline
         @Override
@@ -782,7 +784,7 @@ value class Double128Vector extends DoubleVector {
             Double128Shuffle s = (Double128Shuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {

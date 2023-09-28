@@ -372,9 +372,10 @@ public abstract class ShortVector extends AbstractVector<Short> {
     <M> ShortVector ldOpMF(M memory, int offset,
                                   FLdOp<M> f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                short.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                short.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putShort(tpayload, vOffset + i * Short.BYTES, f.apply(memory, offset, i));
@@ -390,9 +391,10 @@ public abstract class ShortVector extends AbstractVector<Short> {
                                   VectorMask<Short> m,
                                   FLdOp<M> f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                short.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                short.class, length, is_max_species));
         VectorPayloadMF mbits = ((AbstractMask<Short>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -417,9 +419,10 @@ public abstract class ShortVector extends AbstractVector<Short> {
     ShortVector ldLongOpMF(MemorySegment memory, long offset,
                                   FLdLongOp f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                short.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                short.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putShort(tpayload, vOffset + i * Short.BYTES, f.apply(memory, offset, i));
@@ -435,9 +438,10 @@ public abstract class ShortVector extends AbstractVector<Short> {
                                   VectorMask<Short> m,
                                   FLdLongOp f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                short.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                short.class, length, is_max_species));
         VectorPayloadMF mbits = ((AbstractMask<Short>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -545,7 +549,8 @@ public abstract class ShortVector extends AbstractVector<Short> {
         int length = vspecies().length();
         VectorPayloadMF vec1 = vec();
         VectorPayloadMF vec2 = ((ShortVector)o).vec();
-        VectorPayloadMF mbits = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
+        VectorPayloadMF mbits = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
         mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -4425,9 +4430,8 @@ public abstract class ShortVector extends AbstractVector<Short> {
         @Override
         @ForceInline
         public final ShortVector zero() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == ShortMaxVector.class)
-            //    return ShortMaxVector.ZERO;
+            if ((Class<?>) vectorType() == ShortMaxVector.class)
+               return ShortMaxVector.ZERO;
             switch (vectorBitSize()) {
                 case 64: return Short64Vector.ZERO;
                 case 128: return Short128Vector.ZERO;
@@ -4440,9 +4444,8 @@ public abstract class ShortVector extends AbstractVector<Short> {
         @Override
         @ForceInline
         public final ShortVector iota() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == ShortMaxVector.class)
-            //    return ShortMaxVector.IOTA;
+            if ((Class<?>) vectorType() == ShortMaxVector.class)
+                return ShortMaxVector.IOTA;
             switch (vectorBitSize()) {
                 case 64: return Short64Vector.IOTA;
                 case 128: return Short128Vector.IOTA;
@@ -4456,9 +4459,8 @@ public abstract class ShortVector extends AbstractVector<Short> {
         @Override
         @ForceInline
         public final VectorMask<Short> maskAll(boolean bit) {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == ShortMaxVector.class)
-            //    return ShortMaxVector.ShortMaxMask.maskAll(bit);
+            if ((Class<?>) vectorType() == ShortMaxVector.class)
+                return ShortMaxVector.ShortMaxMask.maskAll(bit);
             switch (vectorBitSize()) {
                 case 64: return Short64Vector.Short64Mask.maskAll(bit);
                 case 128: return Short128Vector.Short128Mask.maskAll(bit);
@@ -4493,8 +4495,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
             case VectorShape.SK_128_BIT: return (ShortSpecies) SPECIES_128;
             case VectorShape.SK_256_BIT: return (ShortSpecies) SPECIES_256;
             case VectorShape.SK_512_BIT: return (ShortSpecies) SPECIES_512;
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //case VectorShape.SK_Max_BIT: return (ShortSpecies) SPECIES_MAX;
+            case VectorShape.SK_Max_BIT: return (ShortSpecies) SPECIES_MAX;
             default: throw new IllegalArgumentException("Bad shape: " + s);
         }
     }
@@ -4528,13 +4529,11 @@ public abstract class ShortVector extends AbstractVector<Short> {
                             Short512Vector::new);
 
     /** Species representing {@link ShortVector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
-    // FIXME: Enable once multi-field based MaxVector is supported.
-    /*public static final VectorSpecies<Short> SPECIES_MAX
+    public static final VectorSpecies<Short> SPECIES_MAX
         = new ShortSpecies(VectorShape.S_Max_BIT,
                             ShortMaxVector.class,
                             ShortMaxVector.ShortMaxMask.class,
                             ShortMaxVector::new);
-     */
 
     /**
      * Preferred species for {@link ShortVector}s.

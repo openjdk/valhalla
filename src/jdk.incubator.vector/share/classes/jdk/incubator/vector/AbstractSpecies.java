@@ -298,6 +298,8 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
     /*package-private*/
     abstract Vector<E> fromIntValues(int[] values);
 
+    boolean is_max_species() { return vectorShape().switchKey == VectorShape.SK_Max_BIT; }
+
     /**
      * Do not use a dummy except to call methods on it when you don't
      * care about the lane values.  The main benefit of it is to
@@ -320,22 +322,22 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         VectorSupport.VectorPayloadMF za = null;
         switch (laneType.switchKey) {
         case LaneType.SK_FLOAT:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceF(laneCount, (float[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceF(laneCount, (float[])initarr, is_max_species());
             break;
         case LaneType.SK_DOUBLE:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceD(laneCount, (double[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceD(laneCount, (double[])initarr, is_max_species());
             break;
         case LaneType.SK_BYTE:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceB(laneCount, (byte[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceB(laneCount, (byte[])initarr, is_max_species());
             break;
         case LaneType.SK_SHORT:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceS(laneCount, (short[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceS(laneCount, (short[])initarr, is_max_species());
             break;
         case LaneType.SK_INT:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceI(laneCount, (int[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceI(laneCount, (int[])initarr, is_max_species());
             break;
         case LaneType.SK_LONG:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceL(laneCount, (long[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceL(laneCount, (long[])initarr, is_max_species());
             break;
         default:
             assert false : "Unsupported elemType in createVectorMF";
@@ -354,7 +356,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         case LaneType.SK_SHORT:
         case LaneType.SK_INT:
         case LaneType.SK_LONG:
-            za = VectorPayloadMF.newInstanceFactory(elementType(), laneCount);
+            za = VectorPayloadMF.newVectorInstanceFactory(elementType(), laneCount, is_max_species());
             break;
         default:
             assert false : "Unsupported elemType in makeDummyVectorMF";
@@ -508,7 +510,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
     }
 
     AbstractMask<E> opm(FOpm f) {
-        VectorPayloadMF payload = VectorPayloadMF.newInstanceFactory(boolean.class, laneCount);
+        VectorPayloadMF payload = VectorPayloadMF.newMaskInstanceFactory(elementType(), laneCount, is_max_species());
         payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
         long mOffset = payload.multiFieldOffset();
         for (int i = 0; i < laneCount; i++) {

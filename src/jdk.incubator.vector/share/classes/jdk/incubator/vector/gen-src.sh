@@ -148,8 +148,7 @@ do
   esac
 
   old_args="$args"
-  # for bits in 64 128 256 512 Max
-  for bits in 64 128 256 512
+  for bits in 64 128 256 512 Max
   do
     vectortype=${typeprefix}${Type}${bits}Vector
     masktype=${typeprefix}${Type}${bits}Mask
@@ -178,6 +177,7 @@ do
 
     if [[ "${bits}" == "Max" ]]; then
         vectorindextype="vix.getClass()"
+        vectorsizeinbytes="${bits}"
     else
         vectorindextype="Int${vectorindexbits}Vector.class"
     fi;
