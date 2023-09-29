@@ -4019,6 +4019,7 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
 
   Node* p;  // handy temp
   Node* null_ctl;
+  Node* array_ctrl;
 
   // Now that we have the non-null klass, we can perform the real query.
   // For constant classes, the query will constant-fold in LoadNode::Value.
@@ -4100,9 +4101,18 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
     break;
 
   case vmIntrinsics::_isFlattenedArray:
-    if (generate_array_guard(kls, region) != nullptr) {
-      // If the array guard is taken, test whether it is flattened.
-      Node* is_flattened = flat_array_test(kls);
+    array_ctrl = generate_array_guard(kls, region);
+    if (array_ctrl != nullptr) {
+      // If the array guard is taken, cast klass as an array and test whether it
+      // is flattened (the cast is necessary to meet the assumptions of
+      // PhaseMacroExpand::expand_flatarraycheck_node()).
+      const Type* array_kls_type =
+        TypeAryKlassPtr::make(TypePtr::NotNull, Type::BOTTOM, nullptr,
+                              Type::Offset::bottom, false, false, false);
+      Node* cast = new CastPPNode(kls, array_kls_type);
+      cast->init_req(0, array_ctrl);
+      Node* array_kls = _gvn.transform(cast);
+      Node* is_flattened = flat_array_test(array_kls);
       phi->add_req(is_flattened);
     }
     // If we fall through, it's a plain class and not a flattened array.
