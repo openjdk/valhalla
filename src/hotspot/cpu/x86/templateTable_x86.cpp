@@ -3709,10 +3709,8 @@ void TemplateTable::fast_storefield(TosState state) {
   __ push(rax);
   __ load_field_entry(rcx, rax);
   load_resolved_field_entry(noreg, cache, rax, rbx, rdx);
-  // RBX: field offset, RCX: RAX: TOS, RDX: flags
-  __ movl(rscratch2, rdx);  // saving flags for is_flat test
-  __ andl(rscratch2, (1 << ResolvedFieldEntry::is_volatile_shift));
   __ pop(rax);
+  // RBX: field offset, RCX: RAX: TOS, RDX: flags
 
   // Get object from stack
   pop_and_check_object(rcx);
@@ -3721,6 +3719,8 @@ void TemplateTable::fast_storefield(TosState state) {
   const Address field(rcx, rbx, Address::times_1);
 
   // Check for volatile store
+  __ movl(rscratch2, rdx);  // saving flags for is_flat test
+  __ andl(rscratch2, (1 << ResolvedFieldEntry::is_volatile_shift));
   __ testl(rscratch2, rscratch2);
   __ jcc(Assembler::zero, notVolatile);
 
