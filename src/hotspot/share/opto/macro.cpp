@@ -2827,17 +2827,22 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       lhs = _igvn.transform(new OrINode(lhs, lh_val));
     }
     Node* masked = transform_later(new AndINode(lhs, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
-    Node* bol;
-    if (UseNewCode) {
-      Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
-      bol = transform_later(new BoolNode(cmp, BoolTest::eq));
-    } else {
-      // This is required to satisfy the matcher in cases the result (bol) is
-      // used by other nodes than If.
-      bol = transform_later(new Conv2BNode(masked));
-    }
+    Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
+    Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
+    Node* m2b = transform_later(new Conv2BNode(masked));
+    // The matcher expects the input to If nodes to be produced by a Bool(CmpI..)
+    // pattern, but the input to other potential users (e.g. Phi) to be some
+    // other pattern (e.g. a Conv2B node, possibly idealized as a CMoveI).
     Node* old_bol = check->unique_out();
-    _igvn.replace_node(old_bol, bol);
+    for (DUIterator_Last imin, i = old_bol->last_outs(imin); i >= imin; --i) {
+      Node* user = old_bol->last_out(i);
+      for (uint j = 0; j < user->req(); j++) {
+        Node* n = user->in(j);
+        if (n == old_bol) {
+          _igvn.replace_input_of(user, j, user->is_If() ? bol : m2b);
+        }
+      }
+    }
     _igvn.replace_node(check, C->top());
   }
 }
