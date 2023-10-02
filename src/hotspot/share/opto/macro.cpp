@@ -2827,8 +2827,15 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       lhs = _igvn.transform(new OrINode(lhs, lh_val));
     }
     Node* masked = transform_later(new AndINode(lhs, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
-    Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
-    Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
+    Node* bol;
+    if (UseNewCode) {
+      Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
+      bol = transform_later(new BoolNode(cmp, BoolTest::eq));
+    } else {
+      // This is required to satisfy the matcher in cases the result (bol) is
+      // used by other nodes than If.
+      bol = transform_later(new Conv2BNode(masked));
+    }
     Node* old_bol = check->unique_out();
     _igvn.replace_node(old_bol, bol);
     _igvn.replace_node(check, C->top());
