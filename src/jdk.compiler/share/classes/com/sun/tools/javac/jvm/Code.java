@@ -1022,11 +1022,6 @@ public class Code {
             state.push(uninitializedObject(t.tsym.erasure(types), cp - 3));
             break;
         }
-        /*case aconst_init: {
-            Type t = (Type)data;
-            state.push(t.tsym.erasure(types));
-            break;
-        }*/
         case sipush:
             state.push(syms.intType);
             break;

@@ -27,10 +27,8 @@
  * @summary JShell: NPE in switch with non existing record pattern
  * @build KullaTesting TestingInputStream
  * @run testng Test8294583
- * @ignore
+ * @ignore 8316628
  */
-
-// see JDK-8316628
 
 import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;

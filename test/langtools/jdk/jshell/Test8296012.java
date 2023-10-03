@@ -27,10 +27,8 @@
  * @summary jshell crashes on mismatched record pattern
  * @build KullaTesting TestingInputStream
  * @run testng Test8296012
- * @ignore
+ * @ignore 8316628
  */
-
-// see JDK-8316628
 
 import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;

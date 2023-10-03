@@ -26,10 +26,8 @@
  * @bug 8199193
  * @summary Tests for the --enable-preview option
  * @run testng ToolEnablePreviewTest
- * @ignore
+ * @ignore 8316628
  */
-
-// see JDK-8316628
 
 import org.testng.annotations.Test;
 
