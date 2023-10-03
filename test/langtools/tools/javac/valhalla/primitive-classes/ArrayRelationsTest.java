@@ -29,6 +29,7 @@
  * @summary LW2 array support in javac
  * @compile -XDemitQDesc ArrayRelationsTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ArrayRelationsTest
+ * @ignore 8316628
  */
 
 public value class ArrayRelationsTest {

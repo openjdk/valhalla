@@ -93,7 +93,6 @@ public class Names {
     public final Name getClass;
     public final Name hasNext;
     public final Name hashCode;
-    public final Name vnew;
     public final Name init;
     public final Name invoke;
     public final Name iterator;
@@ -305,7 +304,6 @@ public class Names {
         getClass = fromString("getClass");
         hasNext = fromString("hasNext");
         hashCode = fromString("hashCode");
-        vnew = fromString("<vnew>");
         init = fromString("<init>");
         invoke = fromString("invoke");
         iterator = fromString("iterator");
@@ -467,8 +465,8 @@ public class Names {
             return SharedNameTable.create(this);
     }
 
-    public boolean isInitOrVNew(Name name) {
-        return name == init || name == vnew;
+    public boolean isInit(Name name) {
+        return name == init;
     }
 
     public void dispose() {

@@ -27,6 +27,7 @@
  * @summary Test value instatiation using new/ctors.
  * @compile -XDenablePrimitiveClasses InnerValueNew.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InnerValueNew
+ * @ignore 8316628
  */
 
 

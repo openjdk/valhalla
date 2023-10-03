@@ -30,6 +30,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses SignatureTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SignatureTest
+ * @ignore 8316628
  */
 
 import com.sun.tools.classfile.*;

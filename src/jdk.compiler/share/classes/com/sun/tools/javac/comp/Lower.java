@@ -1145,7 +1145,7 @@ public class Lower extends TreeTranslator {
         }
         if ((sym.flags() & PRIVATE) == 0 || sym.owner == currentClass) {
             return false;
-        } else if (names.isInitOrVNew(sym.name) && sym.owner.isDirectlyOrIndirectlyLocal()) {
+        } else if (names.isInit(sym.name) && sym.owner.isDirectlyOrIndirectlyLocal()) {
             // private constructor in local class: relax protection
             sym.flags_field &= ~PRIVATE;
             return false;
@@ -1349,10 +1349,9 @@ public class Lower extends TreeTranslator {
                     argtypes = argtypes
                         .prepend(syms.intType)
                         .prepend(syms.stringType);
-                Name constructorName = accOwner.isConcreteValueClass() ? names.vnew : names.init;
                 aconstr = new MethodSymbol(
                     SYNTHETIC,
-                    constructorName,
+                    names.init,
                     new MethodType(
                         argtypes.append(
                             accessConstructorTag().erasure(types)),
@@ -1396,7 +1395,7 @@ public class Lower extends TreeTranslator {
     void makeAccessible(Symbol sym) {
         JCClassDecl cdef = classDef(sym.owner.enclClass());
         if (cdef == null) Assert.error("class def not found: " + sym + " in " + sym.owner);
-        if (names.isInitOrVNew(sym.name)) {
+        if (names.isInit(sym.name)) {
             cdef.defs = cdef.defs.prepend(
                 accessConstructorDef(cdef.pos, sym, accessConstrs.get(sym)));
         } else {
@@ -1609,9 +1608,9 @@ public class Lower extends TreeTranslator {
         ClassSymbol c = owner.enclClass();
         boolean isMandated =
             // Anonymous constructors
-            (owner.isInitOrVNew() && owner.isAnonymous()) ||
+            (owner.isInit() && owner.isAnonymous()) ||
             // Constructors of non-private inner member classes
-            (owner.isInitOrVNew() && c.isInner() &&
+            (owner.isInit() && c.isInner() &&
              !c.isPrivate() && !c.isStatic());
         long flags =
             FINAL | (isMandated ? MANDATED : SYNTHETIC) | PARAMETER;
@@ -2783,7 +2782,7 @@ public class Lower extends TreeTranslator {
     }
 
     private void visitMethodDefInternal(JCMethodDecl tree) {
-        if (names.isInitOrVNew(tree.name) &&
+        if (names.isInit(tree.name) &&
             !currentClass.isStatic() &&
             (currentClass.isInner() || currentClass.isDirectlyOrIndirectlyLocal())) {
             // We are seeing a constructor of an inner class.
@@ -2864,7 +2863,7 @@ public class Lower extends TreeTranslator {
                 lambdaTranslationMap = prevLambdaTranslationMap;
             }
         }
-        if (names.isInitOrVNew(tree.name) && ((tree.sym.flags_field & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
+        if (names.isInit(tree.name) && ((tree.sym.flags_field & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
                 (tree.sym.flags_field & (GENERATEDCONSTR | RECORD)) == (GENERATEDCONSTR | RECORD))) {
             // lets find out if there is any field waiting to be initialized
             ListBuffer<VarSymbol> fields = new ListBuffer<>();
@@ -3107,12 +3106,12 @@ public class Lower extends TreeTranslator {
         Symbol meth = TreeInfo.symbol(tree.meth);
         List<Type> argtypes = meth.type.getParameterTypes();
         // TODO - is enum so always <init>.
-        if (names.isInitOrVNew(meth.name) && meth.owner == syms.enumSym)
+        if (names.isInit(meth.name) && meth.owner == syms.enumSym)
             argtypes = argtypes.tail.tail;
         tree.args = boxArgs(argtypes, tree.args, tree.varargsElement);
         tree.varargsElement = null;
         Name methName = TreeInfo.name(tree.meth);
-        if (names.isInitOrVNew(meth.name)) {
+        if (names.isInit(meth.name)) {
             // We are seeing a this(...) or super(...) constructor call.
             // If an access constructor is used, append null as a last argument.
             Symbol constructor = accessConstructor(tree.pos(), meth);
@@ -3705,23 +3704,6 @@ public class Lower extends TreeTranslator {
         tree.cond = translate(tree.cond, syms.booleanType);
         tree.body = translate(tree.body);
         result = tree;
-    }
-
-    public void visitWithField(JCWithField tree) {
-        Type fieldType = tree.field.type;
-        tree.field = translate(tree.field, tree);
-        tree.value = translate(tree.value, fieldType); // important to use pre-translation type.
-
-        // If translated field is an Apply, we are
-        // seeing an access method invocation. In this case, append
-        // right hand side as last argument of the access method.
-        if (tree.field.hasTag(APPLY)) {
-            JCMethodInvocation app = (JCMethodInvocation) tree.field;
-            app.args = List.of(tree.value).prependList(app.args);
-            result = app;
-        } else {
-            result = tree;
-        }
     }
 
     public void visitForLoop(JCForLoop tree) {

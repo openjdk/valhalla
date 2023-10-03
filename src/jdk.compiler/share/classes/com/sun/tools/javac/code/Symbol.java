@@ -29,7 +29,6 @@ import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -356,12 +355,15 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
      */
     public Type externalType(Types types) {
         Type t = erasure(types);
-        if (isValueObjectFactory()) {
+        /*if (isValueClassConst()) {
+            // previously we had vnew methods which had a return type, not `void`, and we were attaching metadata to it
+            // like nullness for example. Type `void` doesn't accept metadata so if we need to state that the result of
+            // invoking a value class constructor is never null, we will need another way.
             if (((MethodType)t).restype.getMetadata(TypeMetadata.NullMarker.class) == null) {
                 ((MethodType)t).restype = ((MethodType)t).restype.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL));
             }
-        }
-        if (isInitOrVNew() && owner.hasOuterInstance()) {
+        }*/
+        if (isInit() && owner.hasOuterInstance()) {
             Type outerThisType = types.erasure(owner.type.getEnclosingType());
             return new MethodType(t.getParameterTypes().prepend(outerThisType),
                                   t.getReturnType(),
@@ -486,20 +488,20 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
     /** Is this symbol a value object factory?
      */
-    public boolean isValueObjectFactory() {
-        return name == name.table.names.vnew && this.type.getReturnType().tsym == this.owner;
+    public boolean isValueClassConst() {
+        return name == name.table.names.init && this.owner.isValueClass();
     }
 
     /** Is this symbol an implicit constructor?
      */
     public boolean isImplicitConstructor() {
-        return isInitOrVNew() && ((flags() & IMPLICIT) != 0);
+        return isInit() && ((flags() & IMPLICIT) != 0);
     }
 
     /** Is this symbol a constructor or value factory?
      */
-    public boolean isInitOrVNew() {
-        return name.table.names.isInitOrVNew(name);
+    public boolean isInit() {
+        return name.table.names.isInit(name);
     }
 
     public boolean isDynamic() {
@@ -1712,7 +1714,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             for (Symbol s : members().getSymbols(NON_RECURSIVE)) {
                 switch (s.kind) {
                     case MTH:
-                        if (s.isInitOrVNew()) {
+                        if (s.isInit()) {
                             if (s.isImplicitConstructor()) {
                                 return (MethodSymbol) s;
                             }
@@ -2046,7 +2048,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             if ((flags() & BLOCK) != 0) {
                 return owner.name.toString();
             } else {
-                String s = isInitOrVNew()
+                String s = isInit()
                     ? owner.name.toString()
                     : name.toString();
                 if (type != null) {
@@ -2108,7 +2110,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          *  override the erasure of the other when seen from class `origin'?
          */
         public boolean binaryOverrides(Symbol _other, TypeSymbol origin, Types types) {
-            if (isInitOrVNew() || _other.kind != MTH) return false;
+            if (isInit() || _other.kind != MTH) return false;
 
             if (this == _other) return true;
             MethodSymbol other = (MethodSymbol)_other;
@@ -2177,7 +2179,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          */
         public boolean overrides(Symbol _other, TypeSymbol origin, Types types, boolean checkResult,
                                             boolean requireConcreteIfInherited) {
-            if (isInitOrVNew() || _other.kind != MTH) return false;
+            if (isInit() || _other.kind != MTH) return false;
 
             if (this == _other) return true;
             MethodSymbol other = (MethodSymbol)_other;
@@ -2301,7 +2303,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public ElementKind getKind() {
-            if (isInitOrVNew())
+            if (isInit())
                 return ElementKind.CONSTRUCTOR;
             else if (name == name.table.names.clinit)
                 return ElementKind.STATIC_INIT;
@@ -2474,7 +2476,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                         refSym.isStatic() ? ClassFile.REF_getStatic : ClassFile.REF_getField :
                         refSym.isStatic() ? ClassFile.REF_putStatic : ClassFile.REF_putField;
             } else {
-                if (refSym.isInitOrVNew()) {
+                if (refSym.isInit()) {
                     return ClassFile.REF_newInvokeSpecial;
                 } else {
                     if (refSym.isStatic()) {

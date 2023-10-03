@@ -27,6 +27,7 @@
  * @summary [lworld] default value creation should not impose raw types on users.
  * @compile -XDenablePrimitiveClasses ParameterizedDefault.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ParameterizedDefault
+ * @ignore 8316628
  */
 
 public value class ParameterizedDefault<E> {

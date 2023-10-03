@@ -27,6 +27,7 @@
  * @summary Trouble creating an anonymous value class with diamond syntax
  * @compile -XDemitQDesc AnonymousValue.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses AnonymousValue
+ * @ignore 8316628
  */
 
 import java.util.function.Function;

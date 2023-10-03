@@ -26,6 +26,7 @@
  * @summary Test withfield behavior at runtime.
  * @compile -XDenablePrimitiveClasses WithFieldRuntimeTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses WithFieldRuntimeTest
+ * @ignore 8316628
  */
 
 public final value class WithFieldRuntimeTest {

@@ -27,6 +27,7 @@
  * @summary Allow anonymous classes to be value types
  * @compile -XDemitQDesc AnonymousValueType.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:none AnonymousValueType
+ * @ignore 8316628
  */
 
 

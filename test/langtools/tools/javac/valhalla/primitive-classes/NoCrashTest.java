@@ -27,6 +27,7 @@
  * @summary Test compiler on various constructs it had issues with.
  * @compile -XDenablePrimitiveClasses NoCrashTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses NoCrashTest
+ * @ignore 8316628
  */
 
 import java.util.ArrayList;

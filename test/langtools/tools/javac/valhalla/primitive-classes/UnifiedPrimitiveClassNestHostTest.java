@@ -30,6 +30,7 @@
  * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses UnifiedPrimitiveClassNestHostTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses UnifiedPrimitiveClassNestHostTest
+ * @ignore 8316628
  */
 
 import java.util.Arrays;

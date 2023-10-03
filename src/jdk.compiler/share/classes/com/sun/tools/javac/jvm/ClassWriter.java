@@ -1099,7 +1099,7 @@ public class ClassWriter extends ClassFile {
     private boolean requiresParamNames(MethodSymbol m) {
         if (options.isSet(PARAMETERS))
             return true;
-        if ((m.isInitOrVNew() || m.isValueObjectFactory()) && (m.flags_field & RECORD) != 0)
+        if (m.isInit() && (m.flags_field & RECORD) != 0)
             return true;
         return false;
     }

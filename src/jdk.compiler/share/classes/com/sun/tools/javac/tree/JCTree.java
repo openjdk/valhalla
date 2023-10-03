@@ -133,10 +133,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
          */
         WHILELOOP,
 
-        /** Withfields, of type WithField.
-         */
-        WITHFIELD,
-
         /** For-loops, of type ForLoop.
          */
         FORLOOP,
@@ -965,7 +961,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         }
 
         public boolean isInitOrVNew() {
-            return name.table.names.isInitOrVNew(name);
+            return name.table.names.isInit(name);
         }
   }
 
@@ -1184,36 +1180,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public Tag getTag() {
             return WHILELOOP;
-        }
-    }
-
-    /**
-     * A withfield expression
-     */
-    public static class JCWithField extends JCExpression implements WithFieldTree {
-        public JCExpression field;
-        public JCExpression value;
-        protected JCWithField(JCExpression field, JCExpression value) {
-            this.field = field;
-            this.value = value;
-        }
-        @Override
-        public void accept(Visitor v) { v.visitWithField(this); }
-
-        @DefinedBy(Api.COMPILER_TREE)
-        public Kind getKind() { return Kind.WITH_FIELD; }
-        @DefinedBy(Api.COMPILER_TREE)
-        public JCExpression getField() { return field; }
-        @DefinedBy(Api.COMPILER_TREE)
-        public JCExpression getValue() { return value; }
-        @Override @DefinedBy(Api.COMPILER_TREE)
-        public <R,D> R accept(TreeVisitor<R,D> v, D d) {
-            return v.visitWithField(this, d);
-        }
-
-        @Override
-        public Tag getTag() {
-            return WITHFIELD;
         }
     }
 
@@ -3652,7 +3618,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public void visitBlock(JCBlock that)                 { visitTree(that); }
         public void visitDoLoop(JCDoWhileLoop that)          { visitTree(that); }
         public void visitWhileLoop(JCWhileLoop that)         { visitTree(that); }
-        public void visitWithField(JCWithField that)         { visitTree(that); }
         public void visitForLoop(JCForLoop that)             { visitTree(that); }
         public void visitForeachLoop(JCEnhancedForLoop that) { visitTree(that); }
         public void visitLabelled(JCLabeledStatement that)   { visitTree(that); }

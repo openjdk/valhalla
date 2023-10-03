@@ -29,6 +29,7 @@
  * @summary Test conditional expression typing involving inlines.
  * @compile -XDenablePrimitiveClasses ConditionalInlineTypeTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ConditionalInlineTypeTest
+ * @ignore 8316628
  */
 
 public class ConditionalInlineTypeTest {

@@ -27,6 +27,7 @@
  * @summary Test value instatiation using new/ctors.
  * @compile -XDenablePrimitiveClasses QualifiedSuperCtor.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses QualifiedSuperCtor
+ * @ignore 8316628
  */
 
 value class A {

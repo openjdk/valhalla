@@ -79,7 +79,6 @@ public class Gen extends JCTree.Visitor {
     private final Lower lower;
     private final Annotate annotate;
     private final StringConcat concat;
-    private final TransValues transValues;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -117,7 +116,6 @@ public class Gen extends JCTree.Visitor {
         accessDollar = names.
             fromString("access" + target.syntheticNameChar());
         lower = Lower.instance(context);
-        transValues = TransValues.instance(context);
 
         Options options = Options.instance(context);
         lineDebugInfo =
@@ -339,7 +337,7 @@ public class Gen extends JCTree.Visitor {
         Symbol msym = rs.
             resolveInternalMethod(pos, attrEnv, site, name, argtypes, null);
         if (isStatic) items.makeStaticItem(msym).invoke();
-        else items.makeMemberItem(msym, names.isInitOrVNew(name)).invoke();
+        else items.makeMemberItem(msym, names.isInit(name)).invoke();
     }
 
     /** Is the given method definition an access method
@@ -562,7 +560,7 @@ public class Gen extends JCTree.Visitor {
      *  @param initTAs  Type annotations from the initializer expression.
      */
     void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<TypeCompound> initTAs) {
-        if (names.isInitOrVNew(md.name) && TreeInfo.isInitialConstructor(md)) {
+        if (names.isInit(md.name) && TreeInfo.isInitialConstructor(md)) {
             // We are seeing a constructor that does not call another
             // constructor of the same class.
             List<JCStatement> stats = md.body.stats;
@@ -969,7 +967,7 @@ public class Gen extends JCTree.Visitor {
             MethodSymbol meth = tree.sym;
             int extras = 0;
             // Count up extra parameters
-            if (meth.isInitOrVNew()) {
+            if (meth.isInit()) {
                 extras++;
                 if (meth.enclClass().isInner() &&
                     !meth.enclClass().isStatic()) {
@@ -1009,7 +1007,7 @@ public class Gen extends JCTree.Visitor {
                     if (env.enclMethod == null ||
                         env.enclMethod.sym.type.getReturnType().hasTag(VOID)) {
                         code.emitop0(return_);
-                    } else if (env.enclMethod.sym.isValueObjectFactory()) {
+                    } else if (env.enclMethod.sym.isValueClassConst()) {
                         items.makeLocalItem(env.enclMethod.factoryProduct).load();
                         code.emitop0(areturn);
                     } else {
@@ -1078,7 +1076,7 @@ public class Gen extends JCTree.Visitor {
                 Type selfType = meth.owner.type;
                 selfType = selfType.hasImplicitConstructor() ?
                         selfType.addMetadata(new TypeMetadata.NullMarker(JCNullableTypeExpression.NullMarker.NOT_NULL)) : selfType;
-                if (meth.isInitOrVNew() && selfType != syms.objectType)
+                if (meth.isInit() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
                         code.newLocal(
@@ -1173,37 +1171,6 @@ public class Gen extends JCTree.Visitor {
 
     public void visitWhileLoop(JCWhileLoop tree) {
         genLoop(tree, tree.body, tree.cond, List.nil(), true);
-    }
-
-    public void visitWithField(JCWithField tree) {
-        switch(tree.field.getTag()) {
-            case IDENT:
-                Symbol sym = ((JCIdent) tree.field).sym;
-                items.makeThisItem().load();
-                genExpr(tree.value, tree.field.type).load();
-                sym = binaryQualifier(sym, env.enclClass.type);
-                code.emitop2(withfield, sym, PoolWriter::putMember);
-                result = items.makeStackItem(tree.type);
-                break;
-            case SELECT:
-                JCFieldAccess fieldAccess = (JCFieldAccess) tree.field;
-                sym = TreeInfo.symbol(fieldAccess);
-                // JDK-8207332: To maintain the order of side effects, must compute value ahead of field
-                genExpr(tree.value, tree.field.type).load();
-                genExpr(fieldAccess.selected, fieldAccess.selected.type).load();
-                if (Code.width(tree.field.type) == 2) {
-                    code.emitop0(dup_x2);
-                    code.emitop0(pop);
-                } else {
-                    code.emitop0(swap);
-                }
-                sym = binaryQualifier(sym, fieldAccess.selected.type);
-                code.emitop2(withfield, sym, PoolWriter::putMember);
-                result = items.makeStackItem(tree.type);
-                break;
-            default:
-                Assert.check(false);
-        }
     }
 
     public void visitForLoop(JCForLoop tree) {
@@ -2487,7 +2454,8 @@ public class Gen extends JCTree.Visitor {
 
     public void visitDefaultValue(JCDefaultValue tree) {
         if (tree.type.isValueClass()) {
-            code.emitop2(aconst_init, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
+            //code.emitop2(aconst_init, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
+            code.emitop0(aconst_null);
         } else if (tree.type.isReference()) {
             code.emitop0(aconst_null);
         } else {
@@ -2553,7 +2521,6 @@ public class Gen extends JCTree.Visitor {
             /* method normalizeDefs() can add references to external classes into the constant pool
              */
             cdef.defs = normalizeDefs(cdef.defs, c);
-            cdef = transValues.translateTopLevelClass(cdef, make);
             generateReferencesToPrunedTree(c);
             Env<GenContext> localEnv = new Env<>(cdef, new GenContext());
             localEnv.toplevel = env.toplevel;

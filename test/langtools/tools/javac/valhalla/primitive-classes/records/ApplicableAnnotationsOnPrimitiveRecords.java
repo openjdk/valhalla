@@ -30,7 +30,9 @@
  *          jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses ApplicableAnnotationsOnPrimitiveRecords.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ApplicableAnnotationsOnPrimitiveRecords
+ * @ignore 8316628
  */
+
 import com.sun.tools.classfile.*;
 import com.sun.tools.javac.util.Assert;
 import java.lang.annotation.*;

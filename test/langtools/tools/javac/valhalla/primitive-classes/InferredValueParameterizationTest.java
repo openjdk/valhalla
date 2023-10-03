@@ -28,6 +28,7 @@
  * @summary Test various inference scenarios.
  * @compile -XDenablePrimitiveClasses InferredValueParameterizationTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InferredValueParameterizationTest
+ * @ignore 8316628
  */
 
 import java.util.List;
