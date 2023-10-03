@@ -994,7 +994,7 @@ public:
     ALength,                          // array length (or TOP if none)
     ValidLengthTest,
     InlineType,                       // InlineTypeNode if this is an inline type allocation
-    DefaultValue,                     // default value in case of non-flattened inline type array
+    DefaultValue,                     // default value in case of non-flat inline type array
     RawDefaultValue,                  // same as above but as raw machine word
     ParmLimit
   };

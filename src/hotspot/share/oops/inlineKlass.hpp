@@ -182,7 +182,7 @@ class InlineKlass: public InstanceKlass {
   // Query if this class promises atomicity one way or another
   bool is_atomic() { return is_naturally_atomic() || is_declared_atomic(); }
 
-  bool flatten_array();
+  bool flat_array();
 
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();

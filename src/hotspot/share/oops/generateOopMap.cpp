@@ -1386,7 +1386,7 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
                                         break;
 
     case Bytecodes::_aconst_init:      ppush1(CellTypeState::make_line_ref(itr->bci())); break;
-    case Bytecodes::_withfield:        do_withfield(itr->get_index_u2_cpcache(), itr->bci(), itr->code()); break;
+    case Bytecodes::_withfield:        do_withfield(itr->get_index_u2(), itr->bci(), itr->code()); break;
 
     case Bytecodes::_iconst_m1:
     case Bytecodes::_iconst_0:
@@ -1601,10 +1601,18 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_jsr:               do_jsr(itr->dest());         break;
     case Bytecodes::_jsr_w:             do_jsr(itr->dest_w());       break;
 
-    case Bytecodes::_getstatic:         do_field(true,  true,  itr->get_index_u2_cpcache(), itr->bci(), itr->code()); break;
-    case Bytecodes::_putstatic:         do_field(false, true,  itr->get_index_u2_cpcache(), itr->bci(), itr->code()); break;
-    case Bytecodes::_getfield:          do_field(true,  false, itr->get_index_u2_cpcache(), itr->bci(), itr->code()); break;
-    case Bytecodes::_putfield:          do_field(false, false, itr->get_index_u2_cpcache(), itr->bci(), itr->code()); break;
+    case Bytecodes::_getstatic:
+      do_field(true,  true,  itr->get_index_u2(), itr->bci(), itr->code());
+      break;
+    case Bytecodes::_putstatic:
+      do_field(false,  true,  itr->get_index_u2(), itr->bci(), itr->code());
+      break;
+    case Bytecodes::_getfield:
+      do_field(true,  false,  itr->get_index_u2(), itr->bci(), itr->code());
+      break;
+    case Bytecodes::_putfield:
+      do_field(false,  false,  itr->get_index_u2(), itr->bci(), itr->code());
+      break;
 
     case Bytecodes::_invokeinterface:
     case Bytecodes::_invokevirtual:
