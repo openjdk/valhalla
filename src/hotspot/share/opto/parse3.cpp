@@ -150,8 +150,8 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     // Loading from a field of an empty inline type. Just return the default instance.
     ld = InlineTypeNode::make_default(_gvn, field_klass->as_inline_klass());
   } else if (field->is_flat()) {
-    // Loading from a flattened inline type field.
-    ld = InlineTypeNode::make_from_flattened(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset);
+    // Loading from a flat inline type field.
+    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset);
   } else {
     // Build the resultant type of the load
     const Type* type;
@@ -236,12 +236,12 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     // Storing to a field of an empty inline type. Ignore.
     return;
   } else if (field->is_flat()) {
-    // Storing to a flattened inline type field.
+    // Storing to a flat inline type field.
     if (!val->is_InlineType()) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
     inc_sp(1);
-    val->as_InlineType()->store_flattened(this, obj, obj, field->holder(), offset);
+    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset);
     dec_sp(1);
   } else {
     // Store the value.

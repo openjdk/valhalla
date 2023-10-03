@@ -42,6 +42,7 @@
 #include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -2901,7 +2902,7 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
+  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::notZero, is_null_free_inline_type);
@@ -2909,7 +2910,7 @@ void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Registe
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
+  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::zero, not_null_free_inline_type);
@@ -2917,7 +2918,7 @@ void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Reg
 
 void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flat_shift);
+  shrl(temp_reg, ResolvedFieldEntry::is_flat_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::notZero, is_flat);

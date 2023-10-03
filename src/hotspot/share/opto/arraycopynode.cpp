@@ -425,7 +425,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
       Node* off  = kit.MakeConX(off_in_vt + i * atp_src->flat_elem_size());
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
-      assert(!field->is_flat(), "flattened field encountered");
+      assert(!field->is_flat(), "flat field encountered");
       if (bt == T_PRIMITIVE_OBJECT) {
         bt = T_OBJECT;
       }
