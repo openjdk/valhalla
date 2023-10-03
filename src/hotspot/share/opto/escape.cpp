@@ -49,7 +49,7 @@ ConnectionGraph::ConnectionGraph(Compile * C, PhaseIterGVN *igvn, int invocation
   // pushed to the ConnectionGraph. The code below bumps the initial capacity of
   // _nodes by 10% to account for these additional nodes. If capacity is exceeded
   // the array will be reallocated.
-  _nodes(C->comp_arena(), ReduceAllocationMerges ? C->unique()*1.10 : C->unique(), C->unique(), nullptr),
+  _nodes(C->comp_arena(), C->do_reduce_allocation_merges() ? C->unique()*1.10 : C->unique(), C->unique(), nullptr),
   _in_worklist(C->comp_arena()),
   _next_pidx(0),
   _collecting(true),
@@ -409,7 +409,7 @@ bool ConnectionGraph::compute_escape() {
   }
 
   // 6. Remove reducible allocation merges from ideal graph
-  if (ReduceAllocationMerges && reducible_merges.size() > 0) {
+  if (reducible_merges.size() > 0) {
     bool delay = _igvn->delay_transform();
     _igvn->set_delay_transform(true);
     for (uint i = 0; i < reducible_merges.size(); i++ ) {
@@ -513,8 +513,9 @@ bool ConnectionGraph::can_reduce_phi_check_users(PhiNode* ophi) const {
 // details.
 bool ConnectionGraph::can_reduce_phi(PhiNode* ophi) const {
   // If there was an error attempting to reduce allocation merges for this
-  // method we might have disabled the compilation and be retrying
-  // with RAM disabled.
+  // method we might have disabled the compilation and be retrying with RAM
+  // disabled.
+  // If EliminateAllocations is False, there is no point in reducing merges.
   if (!_compile->do_reduce_allocation_merges()) {
     return false;
   }
@@ -733,7 +734,12 @@ void ConnectionGraph::reduce_phi(PhiNode* ophi) {
     if (use->is_SafePoint()) {
       safepoints.push(use->as_SafePoint());
     } else {
-      assert(false, "Unexpected use of reducible Phi.");
+#ifdef ASSERT
+      ophi->dump(-3);
+      assert(false, "Unexpected user of reducible Phi %d -> %d:%s", ophi->_idx, use->_idx, use->Name());
+#endif
+      _compile->record_failure(C2Compiler::retry_no_reduce_allocation_merges());
+      return;
     }
   }
 
@@ -743,8 +749,9 @@ void ConnectionGraph::reduce_phi(PhiNode* ophi) {
 }
 
 void ConnectionGraph::verify_ram_nodes(Compile* C, Node* root) {
-  Unique_Node_List ideal_nodes;
+  if (!C->do_reduce_allocation_merges()) return;
 
+  Unique_Node_List ideal_nodes;
   ideal_nodes.map(C->live_nodes(), nullptr);  // preallocate space
   ideal_nodes.push(root);
 
@@ -2126,7 +2133,7 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   // "known" unless they are initialized by arraycopy/clone.
   if (alloc->is_Allocate() && !pta->arraycopy_dst()) {
     if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != nullptr) {
-      // Non-flattened inline type arrays are initialized with
+      // Non-flat inline type arrays are initialized with
       // the default value instead of null. Handle them here.
       init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::DefaultValue)->_idx);
       assert(init_val != nullptr, "default value should be registered");
@@ -2341,7 +2348,7 @@ void ConnectionGraph::adjust_scalar_replaceable_state(JavaObjectNode* jobj, Uniq
           continue;
         }
 
-        if (ReduceAllocationMerges && use_n->is_Phi() && can_reduce_phi(use_n->as_Phi())) {
+        if (use_n->is_Phi() && can_reduce_phi(use_n->as_Phi())) {
           candidates.push(use_n);
         } else {
           // Mark all objects as NSR if we can't remove the merge
@@ -2981,7 +2988,7 @@ int ConnectionGraph::address_offset(Node* adr, PhaseValues* phase) {
            "offset must be a constant or it is initialization of array");
     return offs;
   }
-  return adr_type->is_ptr()->flattened_offset();
+  return adr_type->is_ptr()->flat_offset();
 }
 
 Node* ConnectionGraph::get_addp_base(Node *addp) {
@@ -3136,7 +3143,7 @@ bool ConnectionGraph::split_AddP(Node *addp, Node *base) {
     intptr_t offs = (int)igvn->find_intptr_t_con(addp->in(AddPNode::Offset), Type::OffsetBot);
     assert(offs != Type::OffsetBot, "offset must be a constant");
     if (base_t->isa_aryptr() != nullptr) {
-      // In the case of a flattened inline type array, each field has its
+      // In the case of a flat inline type array, each field has its
       // own slice so we need to extract the field being accessed from
       // the address computation
       t = base_t->isa_aryptr()->add_field_offset_and_offset(offs)->is_oopptr();
@@ -3170,7 +3177,7 @@ bool ConnectionGraph::split_AddP(Node *addp, Node *base) {
   }
   const TypePtr* tinst = base_t->add_offset(t->offset());
   if (tinst->isa_aryptr() && t->isa_aryptr()) {
-    // In the case of a flattened inline type array, each field has its
+    // In the case of a flat inline type array, each field has its
     // own slice so we need to keep track of the field being accessed.
     tinst = tinst->is_aryptr()->with_field_offset(t->is_aryptr()->field_offset().get());
     // Keep array properties (not flat/null-free)
@@ -3968,6 +3975,20 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
     }
 
   }
+
+#ifdef ASSERT
+  // At this point reducible Phis shouldn't have AddP users anymore; only SafePoints.
+  for (uint i = 0; i < reducible_merges.size(); i++) {
+    Node* phi = reducible_merges.at(i);
+    for (DUIterator_Fast jmax, j = phi->fast_outs(jmax); j < jmax; j++) {
+      Node* use = phi->fast_out(j);
+      if (!use->is_SafePoint()) {
+        phi->dump(-3);
+        assert(false, "Unexpected user of reducible Phi -> %s", use->Name());
+      }
+    }
+  }
+#endif
 
   // Go over all ArrayCopy nodes and if one of the inputs has a unique
   // type, record it in the ArrayCopy node so we know what memory this

@@ -1045,13 +1045,13 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
     }
     if (!unrelated_classes) {
       // Handle inline type arrays
-      if ((r0->flatten_array() && r1->not_flatten_array()) ||
-          (r1->flatten_array() && r0->not_flatten_array())) {
-        // One type is flattened in arrays but the other type is not. Must be unrelated.
+      if ((r0->flat_array() && r1->not_flat_array()) ||
+          (r1->flat_array() && r0->not_flat_array())) {
+        // One type is in flat arrays but the other type is not. Must be unrelated.
         unrelated_classes = true;
       } else if ((r0->is_not_flat() && r1->is_flat()) ||
                  (r1->is_not_flat() && r0->is_flat())) {
-        // One type is a non-flattened array and the other type is a flattened array. Must be unrelated.
+        // One type is a non-flat array and the other type is a flat array. Must be unrelated.
         unrelated_classes = true;
       } else if ((r0->is_not_null_free() && r1->is_null_free()) ||
                  (r1->is_not_null_free() && r0->is_null_free())) {

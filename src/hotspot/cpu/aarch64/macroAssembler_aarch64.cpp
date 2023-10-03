@@ -49,6 +49,7 @@
 #include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -1737,17 +1738,17 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, is_null_free_inline_type);
+  tbnz(flags, ResolvedFieldEntry::is_null_free_inline_type_shift, is_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, not_null_free_inline_type);
+  tbz(flags, ResolvedFieldEntry::is_null_free_inline_type_shift, not_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_flat_shift, is_flat);
+  tbnz(flags, ResolvedFieldEntry::is_flat_shift, is_flat);
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {

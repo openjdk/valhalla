@@ -73,7 +73,14 @@ compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
 
 compiler/gcbarriers/TestZGCBarrierElision.java#ZGen 8313737 generic-all
 compiler/valhalla/inlinetypes/TestArrays.java 8313667 generic-all
-
+compiler/valhalla/inlinetypes/TestBasicFunctionality.java 8317140 linux-x64
+compiler/valhalla/inlinetypes/TestCallingConvention.java 8317142 generic-all
+compiler/valhalla/inlinetypes/TestCallingConventionC1.java 8317143 linux-x64
+compiler/valhalla/inlinetypes/TestLWorld.java 8317145 linux-x64,windows-x64
+compiler/valhalla/inlinetypes/TestLWorldProfiling.java 8317146 linux-x64
+compiler/valhalla/inlinetypes/TestNullableArrays.java 8317147 linux-x64
+compiler/valhalla/inlinetypes/TestUnloadedInlineTypeField.java 8317148 linux-x64
+compiler/valhalla/inlinetypes/TestValueClasses.java 8317149 generic-all
 #############################################################################
 
 # :hotspot_gc
@@ -102,12 +109,11 @@ runtime/os/TestTracePageSizes.java#compiler-options 8267460 linux-aarch64
 runtime/os/TestTracePageSizes.java#G1 8267460 linux-aarch64
 runtime/os/TestTracePageSizes.java#Parallel 8267460 linux-aarch64
 runtime/os/TestTracePageSizes.java#Serial 8267460 linux-aarch64
-runtime/os/TestTrimNative.java#trimNative 8312525 linux-all
-runtime/os/TestTrimNative.java#trimNativeLowInterval 8312525 linux-all
 runtime/ErrorHandling/CreateCoredumpOnCrash.java 8267433 macosx-x64
 runtime/CompressedOops/CompressedClassPointers.java 8305765 generic-all
 runtime/StackGuardPages/TestStackGuardPagesNative.java 8303612 linux-all
 runtime/ErrorHandling/TestDwarf.java 8305489 linux-all
+runtime/ErrorHandling/MachCodeFramesInErrorFile.java 8313315 linux-ppc64le
 
 applications/jcstress/copy.java 8229852 linux-all
 applications/ctw/modules/jdk_crypto_ec.java 8312194 generic-all
@@ -210,3 +216,5 @@ vmTestbase/vm/mlvm/indy/func/jvmti/mergeCP_indy2manySame_b/TestDescription.java 
 vmTestbase/nsk/jdwp/ThreadReference/ForceEarlyReturn/forceEarlyReturn001/forceEarlyReturn001.java 7199837 generic-all
 
 vmTestbase/nsk/monitoring/ThreadMXBean/ThreadInfo/Multi/Multi005/TestDescription.java 8076494 windows-x64
+
+vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all

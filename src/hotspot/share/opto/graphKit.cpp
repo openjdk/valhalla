@@ -1675,7 +1675,7 @@ Node* GraphKit::access_store_at(Node* obj,
 
   assert(val != nullptr, "not dead path");
   if (val->is_InlineType()) {
-    // Store to non-flattened field. Buffer the inline type and make sure
+    // Store to non-flat field. Buffer the inline type and make sure
     // the store is re-executed if the allocation triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
@@ -3568,8 +3568,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   record_for_igvn(region);
 
   bool not_inline = !toop->can_be_inline_type();
-  bool not_flattened = !UseFlatArray || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->flatten_array());
-  if (EnableValhalla && not_flattened) {
+  bool not_flat = !UseFlatArray || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->flat_array());
+  if (EnableValhalla && not_flat) {
     // Check if obj has been loaded from an array
     obj = obj->isa_DecodeN() ? obj->in(1) : obj;
     Node* array = nullptr;
@@ -3596,7 +3596,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_null_free()));
           replace_in_map(array, cast);
         } else if (!ary_t->is_not_flat()) {
-          // Casting array element to a non-flattened type, mark array as not flat.
+          // Casting array element to a non-flat type, mark array as not flat.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_flat()));
           replace_in_map(array, cast);
         }
@@ -3866,14 +3866,14 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
   const TypeKlassPtr* klass_t = _gvn.type(klass_node)->isa_klassptr();
   if (!StressReflectiveCode && klass_t != nullptr) {
     bool xklass = klass_t->klass_is_exact();
-    bool can_be_flattened = false;
+    bool can_be_flat = false;
     const TypeAryPtr* ary_type = klass_t->as_instance_type()->isa_aryptr();
     if (UseFlatArray && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
       // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue. Don't constant fold.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
-      can_be_flattened = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flatten_array());
+      can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flat_array());
     }
-    if (!can_be_flattened && (xklass || (klass_t->isa_aryklassptr() && klass_t->is_aryklassptr()->elem() != Type::BOTTOM))) {
+    if (!can_be_flat && (xklass || (klass_t->isa_aryklassptr() && klass_t->is_aryklassptr()->elem() != Type::BOTTOM))) {
       jint lhelper;
       if (klass_t->is_flat()) {
         lhelper = ary_type->flat_layout_helper();
@@ -3958,9 +3958,9 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
     if (oop_type->isa_aryptr()) {
       const TypeAryPtr* arytype = oop_type->is_aryptr();
       if (arytype->is_flat()) {
-        // Initially all flattened array accesses share a single slice
+        // Initially all flat array accesses share a single slice
         // but that changes after parsing. Prepare the memory graph so
-        // it can optimize flattened array accesses properly once they
+        // it can optimize flat array accesses properly once they
         // don't share a single slice.
         assert(C->flat_accesses_share_alias(), "should be set at parse time");
         C->set_flat_accesses_share_alias(false);
@@ -4269,8 +4269,8 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   // Inline type array variants:
   // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue")
   // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue")
-  // - null-free, flattened: MyValue.val[] (ciFlatArrayKlass "[QMyValue")
-  // Check if array is a null-free, non-flattened inline type array
+  // - null-free, flat     : MyValue.val[] (ciFlatArrayKlass "[QMyValue")
+  // Check if array is a null-free, non-flat inline type array
   // that needs to be initialized with the default inline type.
   Node* default_value = nullptr;
   Node* raw_default_value = nullptr;
@@ -4289,7 +4289,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     Node* bol = array_lh_test(klass_node, Klass::_lh_array_tag_flat_value_bit_inplace | Klass::_lh_null_free_array_bit_inplace, Klass::_lh_null_free_array_bit_inplace);
     IfNode* iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
-    // Null-free, non-flattened inline type array, initialize with the default value
+    // Null-free, non-flat inline type array, initialize with the default value
     set_control(_gvn.transform(new IfTrueNode(iff)));
     Node* p = basic_plus_adr(klass_node, in_bytes(ArrayKlass::element_klass_offset()));
     Node* eklass = _gvn.transform(LoadKlassNode::make(_gvn, control(), immutable_memory(), p, TypeInstPtr::KLASS));

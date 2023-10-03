@@ -130,7 +130,7 @@ class MacroAssembler: public Assembler {
   void test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array);
   void test_non_null_free_array_oop(Register oop, Register temp_reg, Label& is_non_null_free_array);
 
-  // Check array klass layout helper for flatten or null-free arrays...
+  // Check array klass layout helper for flat or null-free arrays...
   void test_flat_array_layout(Register lh, Label& is_flat_array);
   void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
   void test_null_free_array_layout(Register lh, Label& is_null_free_array);
