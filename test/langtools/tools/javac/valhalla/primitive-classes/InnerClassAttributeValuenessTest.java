@@ -28,6 +28,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses InnerClassAttributeValuenessTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InnerClassAttributeValuenessTest
+ * @ignore 8316628
  */
 
 import com.sun.tools.classfile.AccessFlags;

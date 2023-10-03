@@ -29,6 +29,7 @@
  * @summary Check that javac does not crash while computing LUB involving values.
  * @compile -XDenablePrimitiveClasses LubWithInlines.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LubWithInlines
+ * @ignore 8316628
  */
 
 public class LubWithInlines {

@@ -356,6 +356,9 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     public Type externalType(Types types) {
         Type t = erasure(types);
         /*if (isValueClassConst()) {
+            // previously we had vnew methods which had a return type, not `void`, and we were attaching metadata to it
+            // like nullness for example. Type `void` doesn't accept metadata so if we need to state that the result of
+            // invoking a value class constructor is never null, we will need another way.
             if (((MethodType)t).restype.getMetadata(TypeMetadata.NullMarker.class) == null) {
                 ((MethodType)t).restype = ((MethodType)t).restype.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL));
             }

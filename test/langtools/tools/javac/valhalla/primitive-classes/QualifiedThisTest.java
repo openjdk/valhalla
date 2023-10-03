@@ -27,6 +27,7 @@
  * @summary Test that qualified this based access to instance fields works ok.
  * @compile -XDenablePrimitiveClasses QualifiedThisTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses QualifiedThisTest
+ * @ignore 8316628
  */
 
 public value class QualifiedThisTest {

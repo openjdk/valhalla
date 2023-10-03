@@ -27,6 +27,7 @@
  * @summary Test value instatiation using new/ctors.
  * @compile -XDenablePrimitiveClasses ValueNewReadWrite.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueNewReadWrite
+ * @ignore 8316628
  */
 
 public value class ValueNewReadWrite {

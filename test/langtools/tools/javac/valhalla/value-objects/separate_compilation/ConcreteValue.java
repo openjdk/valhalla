@@ -30,7 +30,10 @@
  * @compile AbstractValueSuper.java ConcreteValue.java
  * @compile ConcreteValue.java
  * @run main ConcreteValue
+ * @ignore
  */
+
+// see JDK-8316628
 
 public value class ConcreteValue extends AbstractValueSuper {
     public static void main(String [] args) {

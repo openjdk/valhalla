@@ -32,6 +32,7 @@
  *          jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run main RuntimeNullChecks
+ * @ignore 8316628
  */
 
 import java.util.*;

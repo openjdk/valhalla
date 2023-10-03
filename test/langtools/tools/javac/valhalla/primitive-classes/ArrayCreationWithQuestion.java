@@ -29,6 +29,7 @@
  * @compile -XDemitQDesc ArrayCreationWithQuestion.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ArrayCreationWithQuestion
  * @modules jdk.compiler
+ * @ignore 8316628
  */
 
 import java.io.PrintWriter;

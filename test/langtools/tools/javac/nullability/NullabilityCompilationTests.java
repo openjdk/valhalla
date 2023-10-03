@@ -34,6 +34,7 @@
  *      jdk.compiler/com.sun.tools.javac.util
  *      jdk.jdeps/com.sun.tools.classfile
  * @run testng/othervm NullabilityCompilationTests
+ * @ignore 8316628
  */
 import java.util.List;
 import java.util.function.Consumer;

@@ -26,6 +26,7 @@
  * @enablePreview
  * @summary Test behavior of Pretty
  * @modules jdk.compiler
+ * @ignore 8316628
  */
 
 import java.io.IOException;

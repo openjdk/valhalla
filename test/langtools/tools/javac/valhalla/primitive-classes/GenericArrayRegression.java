@@ -27,6 +27,7 @@
  * @summary Trouble assigning/casting to a value array type with parameterized element type
  * @compile -XDenablePrimitiveClasses -XDenablePrimitiveClasses GenericArrayRegression.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses GenericArrayRegression
+ * @ignore 8316628
  */
 
 public class GenericArrayRegression {

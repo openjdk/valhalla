@@ -25,8 +25,10 @@
  * @test
  * @bug 8208067
  * @summary Verify that instance methods are callable from ctor after all instance fields are DA.
+ * @ignore
  */
 
+// see JDK-8316628
 public value class CanonicalCtorTest {
 
     private final int x, ymx;

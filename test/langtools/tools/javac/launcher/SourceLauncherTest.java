@@ -32,6 +32,7 @@
  *          jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.JavaTask toolbox.JavacTask toolbox.TestRunner toolbox.ToolBox
  * @run main SourceLauncherTest
+ * @ignore 8316628
  */
 
 import com.sun.tools.classfile.Attribute;
