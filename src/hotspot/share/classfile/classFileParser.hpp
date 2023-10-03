@@ -356,7 +356,7 @@ class ClassFileParser {
                                                     const u1* const preload_attribute_start,
                                                     TRAPS);
 
-  u2 parse_classfile_record_attribute(const ClassFileStream* const cfs,
+  u4 parse_classfile_record_attribute(const ClassFileStream* const cfs,
                                       const ConstantPool* cp,
                                       const u1* const record_attribute_start,
                                       TRAPS);
