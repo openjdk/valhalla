@@ -75,7 +75,8 @@ compiler/gcbarriers/TestZGCBarrierElision.java#ZGen 8313737 generic-all
 compiler/valhalla/inlinetypes/TestArrays.java 8313667 generic-all
 compiler/valhalla/inlinetypes/TestBasicFunctionality.java 8317140 linux-x64
 compiler/valhalla/inlinetypes/TestCallingConvention.java 8317142 generic-all
-compiler/valhalla/inlinetypes/TestCallingConventionC1.java 8317143 linux-x64
+compiler/valhalla/inlinetypes/TestCallingConventionC1.java 8317143 generic-all
+compiler/valhalla/inlinetypes/TestC1.java 8317143 generic-all
 compiler/valhalla/inlinetypes/TestLWorld.java 8317145 linux-x64,windows-x64
 compiler/valhalla/inlinetypes/TestLWorldProfiling.java 8317146 linux-x64
 compiler/valhalla/inlinetypes/TestNullableArrays.java 8317147 linux-x64
@@ -148,6 +149,8 @@ serviceability/sa/TestJmapCoreMetaspace.java 8267433 macosx-x64
 serviceability/attach/ConcAttachTest.java 8290043 linux-all
 
 # Valhalla TODO:
+serviceability/jvmti/Valhalla/HeapDump/HeapDump.java 8317416 generic-all
+
 serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
 serviceability/sa/ClhsdbCDSJstackPrintAll.java 8190936 generic-all
 serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
@@ -194,7 +197,6 @@ vmTestbase/metaspace/gc/firstGC_50m/TestDescription.java 8208250 generic-all
 vmTestbase/metaspace/gc/firstGC_99m/TestDescription.java 8208250 generic-all
 vmTestbase/metaspace/gc/firstGC_default/TestDescription.java 8208250 generic-all
 
-vmTestbase/nsk/jvmti/AttachOnDemand/attach002a/TestDescription.java 8307462 generic-all
 vmTestbase/nsk/jvmti/AttachOnDemand/attach045/TestDescription.java 8202971 generic-all
 vmTestbase/nsk/jvmti/scenarios/jni_interception/JI05/ji05t001/TestDescription.java 8219652 aix-ppc64
 vmTestbase/nsk/jvmti/scenarios/jni_interception/JI06/ji06t001/TestDescription.java 8219652 aix-ppc64
