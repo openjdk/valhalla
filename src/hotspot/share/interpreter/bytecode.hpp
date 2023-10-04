@@ -276,7 +276,7 @@ class Bytecode_checkcast: public Bytecode {
   void verify() const { assert(Bytecodes::java_code(code()) == Bytecodes::_checkcast, "check checkcast"); }
 
   // Returns index
-  long index() const   { return get_index_u2(Bytecodes::_checkcast); };
+  u2 index() const   { return get_index_u2(Bytecodes::_checkcast); };
 };
 
 // Abstraction for instanceof
@@ -286,7 +286,7 @@ class Bytecode_instanceof: public Bytecode {
   void verify() const { assert(code() == Bytecodes::_instanceof, "check instanceof"); }
 
   // Returns index
-  long index() const   { return get_index_u2(Bytecodes::_instanceof); };
+  u2 index() const   { return get_index_u2(Bytecodes::_instanceof); };
 };
 
 class Bytecode_new: public Bytecode {
@@ -295,7 +295,7 @@ class Bytecode_new: public Bytecode {
   void verify() const { assert(java_code() == Bytecodes::_new, "check new"); }
 
   // Returns index
-  long index() const   { return get_index_u2(Bytecodes::_new); };
+  u2 index() const   { return get_index_u2(Bytecodes::_new); };
 };
 
 class Bytecode_aconst_init: public Bytecode {
@@ -313,7 +313,7 @@ class Bytecode_multianewarray: public Bytecode {
   void verify() const { assert(java_code() == Bytecodes::_multianewarray, "check new"); }
 
   // Returns index
-  long index() const   { return get_index_u2(Bytecodes::_multianewarray); };
+  u2 index() const   { return get_index_u2(Bytecodes::_multianewarray); };
 };
 
 class Bytecode_anewarray: public Bytecode {
@@ -322,7 +322,7 @@ class Bytecode_anewarray: public Bytecode {
   void verify() const { assert(java_code() == Bytecodes::_anewarray, "check anewarray"); }
 
   // Returns index
-  long index() const   { return get_index_u2(Bytecodes::_anewarray); };
+  u2 index() const   { return get_index_u2(Bytecodes::_anewarray); };
 };
 
 // Abstraction for ldc, ldc_w and ldc2_w

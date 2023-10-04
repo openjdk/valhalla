@@ -452,7 +452,9 @@ public:
 //------------------------------NegNode----------------------------------------
 class NegNode : public Node {
 public:
-  NegNode( Node *in1 ) : Node(0,in1) {}
+  NegNode(Node* in1) : Node(0, in1) {
+    init_class_id(Class_Neg);
+  }
 };
 
 //------------------------------NegINode---------------------------------------
