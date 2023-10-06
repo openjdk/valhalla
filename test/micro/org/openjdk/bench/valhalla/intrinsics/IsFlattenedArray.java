@@ -64,32 +64,32 @@ public class IsFlattenedArray {
     }
 
     @Benchmark
-    public boolean testKnownFlatClass() {
+    public boolean testKnownFlattenedClass() {
         return U.isFlattenedArray(Point[].class);
     }
 
     @Benchmark
-    public boolean testKnownNonFlatClass() {
+    public boolean testKnownNonFlattenedClass() {
         return U.isFlattenedArray(String[].class);
     }
 
     @Benchmark
-    public boolean testUnknownFlatClass(ClassState state) {
+    public boolean testUnknownFlattenedClass(ClassState state) {
         return U.isFlattenedArray(state.flattenedArrayClass);
     }
 
     @Benchmark
-    public boolean testUnknownNonFlatClass(ClassState state) {
+    public boolean testUnknownNonFlattenedClass(ClassState state) {
         return U.isFlattenedArray(state.nonFlattenedArrayClass);
     }
 
     @Benchmark
-    public void setKnownFlatArrayElement(ClassState state) {
+    public void setKnownFlattenedArrayElement(ClassState state) {
         flattenedArrayVarHandle.set(state.flattenedArray, state.arrayIndex, state.flatElement);
     }
 
     @Benchmark
-    public void setKnownNonFlatArrayElement(ClassState state) {
+    public void setKnownNonFlattenedArrayElement(ClassState state) {
         nonFlattenedArrayVarHandle.set(state.nonFlattenedArray, state.arrayIndex, state.nonFlatElement);
     }
 
@@ -97,6 +97,12 @@ public class IsFlattenedArray {
     public void setUnknownArrayElement(ClassState state) {
         objectArrayVarHandle.set(state.objectArray, state.arrayIndex, state.objectElement);
     }
+
+    @Benchmark
+    public VarHandle makeArrayVarHandle() {
+        return MethodHandles.arrayElementVarHandle(Object[].class);
+    }
+
 }
 
 primitive class Point {
