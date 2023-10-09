@@ -72,16 +72,6 @@ compiler/vectorapi/VectorLogicalOpIdentityTest.java 8302459 linux-x64,windows-x6
 compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
 
 compiler/gcbarriers/TestZGCBarrierElision.java#ZGen 8313737 generic-all
-compiler/valhalla/inlinetypes/TestArrays.java 8313667 generic-all
-compiler/valhalla/inlinetypes/TestBasicFunctionality.java 8317140 linux-x64
-compiler/valhalla/inlinetypes/TestCallingConvention.java 8317142 generic-all
-compiler/valhalla/inlinetypes/TestCallingConventionC1.java 8317143 generic-all
-compiler/valhalla/inlinetypes/TestC1.java 8317143 generic-all
-compiler/valhalla/inlinetypes/TestLWorld.java 8317145 linux-x64,windows-x64
-compiler/valhalla/inlinetypes/TestLWorldProfiling.java 8317146 linux-x64
-compiler/valhalla/inlinetypes/TestNullableArrays.java 8317147 linux-x64
-compiler/valhalla/inlinetypes/TestUnloadedInlineTypeField.java 8317148 linux-x64
-compiler/valhalla/inlinetypes/TestValueClasses.java 8317149 generic-all
 #############################################################################
 
 # :hotspot_gc

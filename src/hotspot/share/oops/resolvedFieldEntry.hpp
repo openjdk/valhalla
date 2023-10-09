@@ -74,6 +74,7 @@ public:
       is_final_shift        = 1, // unused
       is_flat_shift         = 2,
       is_null_free_inline_type_shift = 3,
+      max_flag_shift = is_null_free_inline_type_shift,
   };
 
   // Getters
@@ -136,6 +137,7 @@ public:
     // These must be set after the other fields
     set_bytecode(&_get_code, b1);
     set_bytecode(&_put_code, b2);
+    assert(is_valid(), "invalid");
   }
 
   // CDS
@@ -150,6 +152,8 @@ public:
   static ByteSize type_offset()         { return byte_offset_of(ResolvedFieldEntry, _tos_state);    }
   static ByteSize flags_offset()        { return byte_offset_of(ResolvedFieldEntry, _flags);        }
 
+  // Debug help
+  bool is_valid() const;
 };
 
 #endif //SHARE_OOPS_RESOLVEDFIELDENTRY_HPP
