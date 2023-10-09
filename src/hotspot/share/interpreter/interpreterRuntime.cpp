@@ -272,6 +272,7 @@ JRT_ENTRY(void, InterpreterRuntime::aconst_init(JavaThread* current, ConstantPoo
 JRT_END
 
 JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ResolvedFieldEntry* entry, uintptr_t ptr))
+  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
   oop obj = nullptr;
   int recv_offset = type2size[as_BasicType((TosState)entry->tos_state())];
   assert(frame::interpreter_frame_expression_stack_direction() == -1, "currently is -1 on all platforms");
@@ -396,6 +397,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   // The code below tries to load and initialize the field's class again before returning the default value.
   // If the field was not initialized because of an error, an exception should be thrown.
   // If the class is being initialized, the default value is returned.
+  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = entry->field_holder();
   u2 index = entry->field_index();
@@ -1428,6 +1430,7 @@ JRT_END
 JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDesc* obj,
                                                       ResolvedFieldEntry *entry))
 
+  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
   // check the access_flags for the field in the klass
 
   InstanceKlass* ik = entry->field_holder();
@@ -1452,6 +1455,7 @@ JRT_END
 JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread* current, oopDesc* obj,
                                                             ResolvedFieldEntry *entry, jvalue *value))
 
+  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
   InstanceKlass* ik = entry->field_holder();
 
   // check the access_flags for the field in the klass
