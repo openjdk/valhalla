@@ -251,7 +251,6 @@ Node* PhaseVector::expand_vbox_node_helper(Node* vbox,
                                            VectorSet &visited) {
   // JDK-8304948 shows an example that there may be a cycle in the graph.
   if (visited.test_set(vbox->_idx)) {
-    assert(vbox->is_Phi(), "should be phi");
     return vbox; // already visited
   }
 
