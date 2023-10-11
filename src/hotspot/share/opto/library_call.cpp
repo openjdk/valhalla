@@ -4101,36 +4101,19 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
     break;
 
   case vmIntrinsics::_isFlattenedArray:
-    array_ctrl = generate_array_guard(kls, region);
-    if (array_ctrl != nullptr) {
-      Node* is_flattened;
-      if (UseNewCode) {
-        // Expand subset of FlatArrayCheck node directly.
-        // TODO: factor out into own function to be reused in macro expansion.
-        // See GraphKit::array_lh_test().
-        Node* lh_addr = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
-        Node* lh_val = _gvn.transform(LoadNode::make(_gvn, nullptr, C->immutable_memory(),
-                                                     lh_addr, lh_addr->bottom_type()->is_ptr(),
-                                                     TypeInt::INT, T_INT, MemNode::unordered));
-        Node* masked = _gvn.transform(new AndINode(lh_val, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
-        is_flattened = _gvn.transform(new Conv2BNode(masked));
-      } else {
-        // Generate a FlatArrayCheck node to be macro-expanded.
-        // If the array guard is taken, cast klass as an array and test whether
-        // it is flattened (the cast is necessary to meet the assumptions of
-        // PhaseMacroExpand::expand_flatarraycheck_node()).
-        const Type* array_kls_type =
-          TypeAryKlassPtr::make(TypePtr::NotNull, Type::BOTTOM, nullptr,
-                                Type::Offset::bottom, false, false, false);
-        Node* cast = new CastPPNode(kls, array_kls_type);
-        cast->init_req(0, array_ctrl);
-        Node* array_kls = _gvn.transform(cast);
-        is_flattened = flat_array_test(array_kls);
-      }
-      phi->add_req(is_flattened);
+    if (UseNewCode) {
+      // Expand subset of FlatArrayCheck node directly.
+      // TODO: factor out into own function to be reused in macro expansion.
+      // See GraphKit::array_lh_test().
+      Node* lh_addr = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
+      Node* lh_val = _gvn.transform(LoadNode::make(_gvn, nullptr, C->immutable_memory(),
+                                                   lh_addr, lh_addr->bottom_type()->is_ptr(),
+                                                   TypeInt::INT, T_INT, MemNode::unordered));
+      Node* masked = _gvn.transform(new AndINode(lh_val, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
+      query_value = _gvn.transform(new Conv2BNode(masked));
+    } else {
+      query_value = flat_array_test(kls);
     }
-    // If we fall through, it's a plain class and not a flattened array.
-    query_value = intcon(0);
     break;
 
   default:

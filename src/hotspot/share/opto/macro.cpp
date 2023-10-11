@@ -2819,7 +2819,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
         Node* klass_adr = basic_plus_adr(array_or_klass, oopDesc::klass_offset_in_bytes());
         klass = transform_later(LoadKlassNode::make(_igvn, nullptr, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
       } else {
-        assert(t->isa_aryklassptr(), "Unexpected input type");
+        assert(t->isa_klassptr(), "Unexpected input type");
         klass = array_or_klass;
       }
       Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
