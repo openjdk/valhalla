@@ -40,26 +40,16 @@ import jdk.internal.misc.Unsafe;
 public class IsFlattenedArray {
 
     private static final Unsafe U = Unsafe.getUnsafe();
-    private static final VarHandle flattenedArrayVarHandle =
-        MethodHandles.arrayElementVarHandle(Point[].class);
-    private static final VarHandle nonFlattenedArrayVarHandle =
-        MethodHandles.arrayElementVarHandle(String[].class);
     private static final VarHandle objectArrayVarHandle =
         MethodHandles.arrayElementVarHandle(Object[].class);
 
     @State(Scope.Benchmark)
     public static class ClassState {
         public Class flattenedArrayClass = Point[].class;
-        public Point[] flattenedArray = new Point[10];
-        public Point flatElement = new Point(0, 0);
-
         public Class nonFlattenedArrayClass = String[].class;
-        public String[] nonFlattenedArray = new String[10];
-        public String nonFlatElement = new String("hej");
 
         public Object[] objectArray = new Object[10];
         public Object objectElement = new Object();
-
         public int arrayIndex = 0;
     }
 
@@ -84,17 +74,7 @@ public class IsFlattenedArray {
     }
 
     @Benchmark
-    public void setKnownFlattenedArrayElement(ClassState state) {
-        flattenedArrayVarHandle.set(state.flattenedArray, state.arrayIndex, state.flatElement);
-    }
-
-    @Benchmark
-    public void setKnownNonFlattenedArrayElement(ClassState state) {
-        nonFlattenedArrayVarHandle.set(state.nonFlattenedArray, state.arrayIndex, state.nonFlatElement);
-    }
-
-    @Benchmark
-    public void setUnknownArrayElement(ClassState state) {
+    public void setArrayElement(ClassState state) {
         objectArrayVarHandle.set(state.objectArray, state.arrayIndex, state.objectElement);
     }
 
