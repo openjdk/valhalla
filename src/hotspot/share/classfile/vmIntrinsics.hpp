@@ -618,6 +618,8 @@ class methodHandle;
   do_intrinsic(_copyMemory,               jdk_internal_misc_Unsafe,     copyMemory_name, copyMemory_signature,         F_RN)     \
    do_name(     copyMemory_name,                                        "copyMemory0")                                           \
    do_signature(copyMemory_signature,                                   "(Ljava/lang/Object;JLjava/lang/Object;JJ)V")            \
+  do_intrinsic(_isFlattenedArray,         jdk_internal_misc_Unsafe,     isFlattenedArray_name, class_boolean_signature, F_RN)    \
+   do_name(     isFlattenedArray_name,                                  "isFlattenedArray")                                      \
   do_intrinsic(_loadFence,                jdk_internal_misc_Unsafe,     loadFence_name, loadFence_signature,           F_R)      \
    do_name(     loadFence_name,                                         "loadFence")                                             \
    do_alias(    loadFence_signature,                                    void_method_signature)                                   \
@@ -630,8 +632,6 @@ class methodHandle;
   do_intrinsic(_fullFence,                jdk_internal_misc_Unsafe,     fullFence_name, fullFence_signature,           F_RN)     \
    do_name(     fullFence_name,                                         "fullFence")                                             \
    do_alias(    fullFence_signature,                                    void_method_signature)                                   \
-  do_intrinsic(_isFlattenedArray,         jdk_internal_misc_Unsafe,     isFlattenedArray_name, class_boolean_signature, F_RN)    \
-   do_name(     isFlattenedArray_name,                                  "isFlattenedArray")                                      \
                                                                                                                         \
   /* Custom branch frequencies profiling support for JSR292 */                                                          \
   do_class(java_lang_invoke_MethodHandleImpl,               "java/lang/invoke/MethodHandleImpl")                        \
