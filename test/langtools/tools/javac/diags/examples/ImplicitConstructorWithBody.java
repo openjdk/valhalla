@@ -22,6 +22,7 @@
  */
 
 // key: compiler.err.implicit.const.cant.have.body
+// options: -XDenableNullRestrictedTypes
 
 value class ImplicitConstructorWithBody {
     public implicit ImplicitConstructorWithBody() {}

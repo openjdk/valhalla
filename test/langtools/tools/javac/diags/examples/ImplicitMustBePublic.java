@@ -22,6 +22,7 @@
  */
 
 // key: compiler.err.implicit.const.must.be.public
+// options: -XDenableNullRestrictedTypes
 
 value class ImplicitMustBePublic {
     implicit ImplicitMustBePublic();

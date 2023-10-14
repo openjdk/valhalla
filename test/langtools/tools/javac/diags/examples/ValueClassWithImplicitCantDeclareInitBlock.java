@@ -22,6 +22,7 @@
  */
 
 // key: compiler.err.value.class.with.implicit.declares.init.block
+// options: -XDenableNullRestrictedTypes
 
 value class ValueClassWithImplicitCantDeclareInitBlock {
     int i;

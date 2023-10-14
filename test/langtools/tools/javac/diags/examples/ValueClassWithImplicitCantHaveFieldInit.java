@@ -22,6 +22,7 @@
  */
 
 // key: compiler.err.value.class.with.implicit.instance.field.initializer
+// options: -XDenableNullRestrictedTypes
 
 value class ValueClassWithImplicitCantHaveFieldInit {
     int i = 0;

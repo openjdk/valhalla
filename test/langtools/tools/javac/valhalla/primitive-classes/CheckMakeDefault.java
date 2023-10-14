@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check various semantic constraints on value creation via default
  *
- * @compile/fail/ref=CheckMakeDefault.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckMakeDefault.java
+ * @compile/fail/ref=CheckMakeDefault.out -XDrawDiagnostics -XDenablePrimitiveClasses -XDenableNullRestrictedTypes CheckMakeDefault.java
  */
 value final class Point {
     value interface I { int x = 10; } // Error

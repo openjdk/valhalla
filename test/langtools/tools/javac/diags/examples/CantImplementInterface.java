@@ -22,6 +22,7 @@
  */
 
 // key: compiler.err.cant.implement.interface
+// options: -XDenableNullRestrictedTypes
 
 class CantImplementInterface implements LooselyConsistentValue {
 }

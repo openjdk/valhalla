@@ -101,6 +101,8 @@ public class Types {
 
     private boolean emitQDesc;
 
+    private boolean allowNullRestrictedTypes;
+
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
     public static Types instance(Context context) {
         Types instance = context.get(typesKey);
@@ -128,6 +130,7 @@ public class Types {
         };
         Options options = Options.instance(context);
         emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
+        allowNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
     }
     // </editor-fold>
 
@@ -1109,7 +1112,9 @@ public class Types {
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
         if (t.equalsIgnoreMetadata(s)) {
-            new NullabilityComparator((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
+            if (allowNullRestrictedTypes) {
+                new NullabilityComparator((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
+            }
             return true;
         }
         if (s.isPartial())
@@ -1228,7 +1233,7 @@ public class Types {
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
                                           s.getEnclosingType());
-                if (result) {
+                if (result && allowNullRestrictedTypes) {
                     new NullabilityComparator((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
                 }
                 return result;
@@ -1512,7 +1517,7 @@ public class Types {
                 boolean equal = t.tsym == s.tsym
                         && visit(t.getEnclosingType(), s.getEnclosingType())
                         && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
-                if (equal) {
+                if (equal && allowNullRestrictedTypes) {
                     new NullabilityComparator((t1, t2) -> !hasSameNullability(t1, t2)).visit(s, t);
                 }
                 return equal;

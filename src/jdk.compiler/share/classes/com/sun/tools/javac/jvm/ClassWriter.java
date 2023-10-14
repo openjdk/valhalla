@@ -85,6 +85,10 @@ public class ClassWriter extends ClassFile {
      */
     private boolean emitQDesc;
 
+    /** Switch: are null-restricted types allowed
+     */
+    private boolean allowNullRestrictedTypes;
+
     /** Switch: generate CharacterRangeTable attribute.
      */
     private boolean genCrt;
@@ -198,6 +202,7 @@ public class ClassWriter extends ClassFile {
             dumpMethodModifiers = modifierFlags.indexOf('m') != -1;
         }
         emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
+        allowNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
     }
 
     public void addExtraAttributes(ToIntFunction<Symbol> addExtraAttributes) {
@@ -958,7 +963,7 @@ public class ClassWriter extends ClassFile {
     /** Write "ImplicitCreation" attribute.
      */
     int writeImplicitCreationIfNeeded(ClassSymbol csym) {
-        if (csym.isValueClass() && csym.hasImplicitConstructor()) {
+        if (allowNullRestrictedTypes && csym.isValueClass() && csym.hasImplicitConstructor()) {
             int alenIdx = writeAttr(names.ImplicitCreation);
             int flags = ACC_DEFAULT | (csym.isSubClass(syms.looselyConsistentValueType.tsym, types) ? ACC_NON_ATOMIC : 0);
             databuf.appendChar(flags);
@@ -971,7 +976,7 @@ public class ClassWriter extends ClassFile {
     /** Write "NullRestricted" attribute.
      */
     int writeNullRestrictedIfNeeded(Symbol sym) {
-        if (sym.kind == VAR && sym.type.isNonNullable() && !sym.type.hasTag(ARRAY)) {
+        if (allowNullRestrictedTypes && sym.kind == VAR && sym.type.isNonNullable() && !sym.type.hasTag(ARRAY)) {
             int alenIdx = writeAttr(names.NullRestricted);
             endAttr(alenIdx);
             return 1;

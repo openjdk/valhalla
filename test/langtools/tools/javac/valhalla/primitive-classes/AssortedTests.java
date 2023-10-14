@@ -27,7 +27,7 @@
  * @test
  * @bug 8222634
  * @summary Check various code snippets that were incorrectly failing to compile.
- * @compile -XDemitQDesc AssortedTests.java
+ * @compile -XDemitQDesc -XDenableNullRestrictedTypes AssortedTests.java
  */
 
 value class MyValue1 {

@@ -103,6 +103,7 @@ public class Lower extends TreeTranslator {
     private final boolean optimizeOuterThis;
     private final boolean useMatchException;
     private final boolean emitQDesc;
+    private final boolean allowNullRestrictedTypes;
 
     @SuppressWarnings("this-escape")
     protected Lower(Context context) {
@@ -135,6 +136,7 @@ public class Lower extends TreeTranslator {
         useMatchException = Feature.PATTERN_SWITCH.allowedInSource(source) &&
                             (preview.isEnabled() || !preview.isPreview(Feature.PATTERN_SWITCH));
         emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
+        allowNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
     }
 
     /** The currently enclosing class.
@@ -4196,7 +4198,7 @@ public class Lower extends TreeTranslator {
             noOfDims++;
         }
         tree.elems = translate(tree.elems, types.elemtype(tree.type));
-        if (emitQDesc || tree.elemtype == null || !originalElemType.type.isNonNullable()) {
+        if (emitQDesc || !allowNullRestrictedTypes || tree.elemtype == null || !originalElemType.type.isNonNullable()) {
             result = tree;
         } else {
             Symbol elemClass = syms.getClassField(tree.elemtype.type, types);

@@ -27,6 +27,8 @@
  * @summary Check array creation with V and V.ref
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @modules jdk.compiler
+ * @compile -XDenableNullRestrictedTypes ArrayCreationWithQuestion.java
+ * @run main ArrayCreationWithQuestion
  */
 
 import java.io.PrintWriter;

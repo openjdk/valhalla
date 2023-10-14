@@ -22,6 +22,7 @@
  */
 
 // key: compiler.err.value.class.with.implicit.cannot.be.inner
+// options: -XDenableNullRestrictedTypes
 
 class ValueClassWithImplicitCannotBeInner {
     value class V {

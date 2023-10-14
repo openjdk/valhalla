@@ -182,6 +182,7 @@ public class Check {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
         allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
+        allowNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
     }
 
     /** Character for synthetic names
@@ -228,6 +229,10 @@ public class Check {
     /** Are value classes allowed
      */
     private final boolean allowValueClasses;
+
+    /** Are null-restricted types allowed
+     */
+    private final boolean allowNullRestrictedTypes;
 /* *************************************************************************
  * Errors and Warnings
  **************************************************************************/
@@ -298,7 +303,7 @@ public class Check {
      *  @param warnKey    A warning key.
      */
     public void warnNullableTypes(DiagnosticPosition pos, Warning warnKey) {
-        if (lint.isEnabled(LintCategory.NULL)) {
+        if (allowNullRestrictedTypes && lint.isEnabled(LintCategory.NULL)) {
             log.warning(LintCategory.NULL, pos, warnKey);
         }
     }
@@ -837,22 +842,24 @@ public class Check {
     }
 
     void checkConstraintsOfValueClassesWithImplicitConst(JCClassDecl classDecl, ClassSymbol c) {
-        JCMethodDecl implicitConstructor = TreeInfo.getImplicitConstructor(classDecl.defs);
-        if (implicitConstructor != null) {
-            Type encl = c.type.getEnclosingType();
-            if (encl != null && encl.hasTag(CLASS)) {
-                log.error(classDecl.pos(), Errors.ValueClassWithImplicitCannotBeInner(c));
-            }
-            if ((c.flags() & HASINITBLOCK) != 0) {
-                log.error(classDecl.pos(), Errors.ValueClassWithImplicitDeclaresInitBlock(c));
-            }
-            for (Symbol s : c.members().getSymbols(NON_RECURSIVE)) {
-                switch (s.kind) {
-                    case VAR:
-                        if ((s.flags() & STATIC) == 0 & (s.flags() & HASINIT) != 0) {
-                            log.error(classDecl.pos(), Errors.ValueClassWithImplicitInstanceFieldInitializer(c));
-                        }
-                        break;
+        if (allowNullRestrictedTypes) {
+            JCMethodDecl implicitConstructor = TreeInfo.getImplicitConstructor(classDecl.defs);
+            if (implicitConstructor != null) {
+                Type encl = c.type.getEnclosingType();
+                if (encl != null && encl.hasTag(CLASS)) {
+                    log.error(classDecl.pos(), Errors.ValueClassWithImplicitCannotBeInner(c));
+                }
+                if ((c.flags() & HASINITBLOCK) != 0) {
+                    log.error(classDecl.pos(), Errors.ValueClassWithImplicitDeclaresInitBlock(c));
+                }
+                for (Symbol s : c.members().getSymbols(NON_RECURSIVE)) {
+                    switch (s.kind) {
+                        case VAR:
+                            if ((s.flags() & STATIC) == 0 & (s.flags() & HASINIT) != 0) {
+                                log.error(classDecl.pos(), Errors.ValueClassWithImplicitInstanceFieldInitializer(c));
+                            }
+                            break;
+                    }
                 }
             }
         }
@@ -2802,7 +2809,7 @@ public class Check {
 
         boolean implementsLooselyConsistentValue = false;
         try {
-            implementsLooselyConsistentValue = allowValueClasses ? types.asSuper(c, syms.looselyConsistentValueType.tsym) != null : false;
+            implementsLooselyConsistentValue = allowValueClasses && allowNullRestrictedTypes ? types.asSuper(c, syms.looselyConsistentValueType.tsym) != null : false;
         } catch (CompletionFailure cf) {
             // ignore
         }
@@ -4458,15 +4465,17 @@ public class Check {
 
         @Override
         public void warn(LintCategory lint) {
-            boolean warned = this.warned;
-            super.warn(lint);
-            if (warned) return; // suppress redundant diagnostics
-            switch (lint) {
-                case NULL:
-                    Check.this.warnNullableTypes(pos(), Warnings.UncheckedNullnessConversion);
-                    break;
-                default:
-                    throw new AssertionError("Unexpected lint: " + lint);
+            if (allowNullRestrictedTypes) {
+                boolean warned = this.warned;
+                super.warn(lint);
+                if (warned) return; // suppress redundant diagnostics
+                switch (lint) {
+                    case NULL:
+                        Check.this.warnNullableTypes(pos(), Warnings.UncheckedNullnessConversion);
+                        break;
+                    default:
+                        throw new AssertionError("Unexpected lint: " + lint);
+                }
             }
         }
     }
