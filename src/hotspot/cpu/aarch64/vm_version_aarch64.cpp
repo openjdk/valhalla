@@ -657,3 +657,7 @@ void VM_Version::initialize_cpu_information(void) {
 
   _initialized = true;
 }
+
+int VM_Version::max_vector_size(BasicType bt) {
+  return MaxVectorSize / type2aelembytes(bt);
+}

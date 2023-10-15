@@ -563,11 +563,11 @@ value class ShortMaxVector extends ShortVector {
         private final VectorPayloadMFMaxSZ payload;
 
         ShortMaxMask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, true));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         ShortMaxMask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, true));
+            this(prepare(val, VSPECIES));
         }
 
 
@@ -739,11 +739,11 @@ value class ShortMaxVector extends ShortVector {
         }
 
         public ShortMaxShuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, true));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public ShortMaxShuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, true));
+            this(prepare(fn, VSPECIES));
         }
 
         public ShortMaxShuffle(int[] indexes) {

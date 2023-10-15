@@ -555,11 +555,11 @@ value class Long128Vector extends LongVector {
         private final VectorPayloadMF16Z payload;
 
         Long128Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, false));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Long128Mask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, false));
+            this(prepare(val, VSPECIES));
         }
 
 
@@ -731,11 +731,11 @@ value class Long128Vector extends LongVector {
         }
 
         public Long128Shuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, false));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public Long128Shuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, false));
+            this(prepare(fn, VSPECIES));
         }
 
         public Long128Shuffle(int[] indexes) {

@@ -41,11 +41,12 @@ abstract class AbstractMask<E> extends VectorMask<E> {
     /*package-private*/
     abstract VectorPayloadMF getBits();
 
-    static VectorPayloadMF prepare(VectorPayloadMF payload, int offset, Class<?> elementType, int length, boolean is_max_species) {
-        VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(elementType, length, is_max_species);
+    static <F> VectorPayloadMF prepare(VectorPayloadMF payload, int offset, VectorSpecies<F> species) {
+        boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
+        VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(species.elementType(), species.length(), isMaxShape);
         res = Unsafe.getUnsafe().makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
-        for (int i = 0; i < length; i++) {
+        for (int i = 0; i < species.length(); i++) {
             boolean b = Unsafe.getUnsafe().getBoolean(payload, mOffset + i + offset);
             Unsafe.getUnsafe().putBoolean(res, mOffset + i, b);
         }
@@ -53,11 +54,12 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         return res;
     }
 
-    static VectorPayloadMF prepare(boolean val, Class<?> elementType, int length, boolean is_max_species) {
-        VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(elementType, length, is_max_species);
+    static <F> VectorPayloadMF prepare(boolean val, VectorSpecies<F> species) {
+        boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
+        VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(species.elementType(), species.length(), isMaxShape);
         res = Unsafe.getUnsafe().makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
-        for (int i = 0; i < length; i++) {
+        for (int i = 0; i < species.length(); i++) {
             Unsafe.getUnsafe().putBoolean(res, mOffset + i, val);
         }
         res = Unsafe.getUnsafe().finishPrivateBuffer(res);
@@ -138,7 +140,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
                 this.getClass(), vspecies().elementType(), vspecies().laneCount,
                 species.maskType(), species.elementType(), vspecies().laneCount,
                 this, species,
-                (m, s) -> s.maskFactory(m.getBits()).check(s));
+                (m, s) -> VectorMask.fromLong(s, m.toLong()).check(s));
     }
 
     @Override

@@ -558,11 +558,11 @@ value class Double256Vector extends DoubleVector {
         private final VectorPayloadMF32Z payload;
 
         Double256Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, false));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Double256Mask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, false));
+            this(prepare(val, VSPECIES));
         }
 
 
@@ -734,11 +734,11 @@ value class Double256Vector extends DoubleVector {
         }
 
         public Double256Shuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, false));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public Double256Shuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, false));
+            this(prepare(fn, VSPECIES));
         }
 
         public Double256Shuffle(int[] indexes) {

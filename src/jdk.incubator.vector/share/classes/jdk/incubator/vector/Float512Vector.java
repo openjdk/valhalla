@@ -582,11 +582,11 @@ value class Float512Vector extends FloatVector {
         private final VectorPayloadMF128Z payload;
 
         Float512Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, false));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Float512Mask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, false));
+            this(prepare(val, VSPECIES));
         }
 
 
@@ -758,11 +758,11 @@ value class Float512Vector extends FloatVector {
         }
 
         public Float512Shuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, false));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public Float512Shuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, false));
+            this(prepare(fn, VSPECIES));
         }
 
         public Float512Shuffle(int[] indexes) {

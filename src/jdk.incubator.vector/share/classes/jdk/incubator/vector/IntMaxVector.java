@@ -563,11 +563,11 @@ value class IntMaxVector extends IntVector {
         private final VectorPayloadMFMaxIZ payload;
 
         IntMaxMask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, true));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         IntMaxMask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, true));
+            this(prepare(val, VSPECIES));
         }
 
 
@@ -753,11 +753,11 @@ value class IntMaxVector extends IntVector {
         }
 
         public IntMaxShuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, true));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public IntMaxShuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, true));
+            this(prepare(fn, VSPECIES));
         }
 
         public IntMaxShuffle(int[] indexes) {

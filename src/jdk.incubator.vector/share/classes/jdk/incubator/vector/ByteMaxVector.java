@@ -563,11 +563,11 @@ value class ByteMaxVector extends ByteVector {
         private final VectorPayloadMFMaxBZ payload;
 
         ByteMaxMask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, true));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         ByteMaxMask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, true));
+            this(prepare(val, VSPECIES));
         }
 
 
@@ -739,11 +739,11 @@ value class ByteMaxVector extends ByteVector {
         }
 
         public ByteMaxShuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, true));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public ByteMaxShuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, true));
+            this(prepare(fn, VSPECIES));
         }
 
         public ByteMaxShuffle(int[] indexes) {

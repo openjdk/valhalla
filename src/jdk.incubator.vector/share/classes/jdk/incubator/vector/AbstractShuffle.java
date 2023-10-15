@@ -39,8 +39,10 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     /*package-private*/
     abstract VectorPayloadMF indices();
 
-    static VectorPayloadMF prepare(Class<?> elemType, int length, int[] indices, int offset, boolean is_max_species) {
-        VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(elemType, length, is_max_species);
+    static <F> VectorPayloadMF prepare(int[] indices, int offset, VectorSpecies<F> species) {
+        int length = species.length();
+        boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
+        VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(species.elementType(), length, isMaxShape);
         payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
         long mf_offset = payload.multiFieldOffset();
         for (int i = 0; i < length; i++) {
@@ -52,8 +54,10 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         return payload;
     }
 
-    static VectorPayloadMF prepare(Class<?> elemType, int length, IntUnaryOperator f, boolean is_max_species) {
-        VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(elemType, length, is_max_species);
+    static <F> VectorPayloadMF prepare(IntUnaryOperator f, VectorSpecies<F> species) {
+        int length = species.length();
+        boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
+        VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(species.elementType(), length, isMaxShape);
         payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
         long offset = payload.multiFieldOffset();
         for (int i = 0; i < length; i++) {

@@ -553,11 +553,11 @@ value class LongMaxVector extends LongVector {
         private final VectorPayloadMFMaxLZ payload;
 
         LongMaxMask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, true));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         LongMaxMask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, true));
+            this(prepare(val, VSPECIES));
         }
 
 
@@ -729,11 +729,11 @@ value class LongMaxVector extends LongVector {
         }
 
         public LongMaxShuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, true));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public LongMaxShuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, true));
+            this(prepare(fn, VSPECIES));
         }
 
         public LongMaxShuffle(int[] indexes) {

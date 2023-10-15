@@ -846,11 +846,11 @@ value class $vectortype$ extends $abstractvectortype$ {
         private final VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$Z payload;
 
         $masktype$(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, true));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         $masktype$(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, true));
+            this(prepare(val, VSPECIES));
         }
 #else[Max]
         $masktype$(VectorPayloadMF payload) {
@@ -860,11 +860,11 @@ value class $vectortype$ extends $abstractvectortype$ {
         private final VectorPayloadMF$vectorsizeinbytes$Z payload;
 
         $masktype$(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, false));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         $masktype$(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, false));
+            this(prepare(val, VSPECIES));
         }
 #end[Max]
 
@@ -1060,11 +1060,11 @@ value class $vectortype$ extends $abstractvectortype$ {
         }
 
         public $shuffletype$(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, true));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public $shuffletype$(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, true));
+            this(prepare(fn, VSPECIES));
         }
 #else[Max]
         private final VectorPayloadMF$vectorsizeinbytes$B payload;
@@ -1076,11 +1076,11 @@ value class $vectortype$ extends $abstractvectortype$ {
         }
 
         public $shuffletype$(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, false));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public $shuffletype$(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, false));
+            this(prepare(fn, VSPECIES));
         }
 #end[Max]
 

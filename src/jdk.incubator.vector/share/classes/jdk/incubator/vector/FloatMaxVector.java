@@ -551,11 +551,11 @@ value class FloatMaxVector extends FloatVector {
         private final VectorPayloadMFMaxIZ payload;
 
         FloatMaxMask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, ETYPE, VLENGTH, true));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         FloatMaxMask(boolean val) {
-            this(prepare(val, ETYPE, VLENGTH, true));
+            this(prepare(val, VSPECIES));
         }
 
 
@@ -727,11 +727,11 @@ value class FloatMaxVector extends FloatVector {
         }
 
         public FloatMaxShuffle(int[] indexes, int i) {
-            this(prepare(ETYPE, VLENGTH, indexes, i, true));
+            this(prepare(indexes, i, VSPECIES));
         }
 
         public FloatMaxShuffle(IntUnaryOperator fn) {
-            this(prepare(ETYPE, VLENGTH, fn, true));
+            this(prepare(fn, VSPECIES));
         }
 
         public FloatMaxShuffle(int[] indexes) {

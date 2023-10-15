@@ -167,7 +167,7 @@ public class VectorSupport {
 
         @ForceInline
         public static VectorPayloadMF newMaskInstanceFactory(Class<?> elemType, int length, boolean max_payload) {
-            if (false == max_payload) {
+            if (!max_payload) {
                 switch(length) {
                     case  1: return new VectorPayloadMF8Z();
                     case  2: return new VectorPayloadMF16Z();
@@ -183,15 +183,12 @@ public class VectorSupport {
                    return new VectorPayloadMFMaxBZ();
                 } else if (elemType == short.class) {
                    return new VectorPayloadMFMaxSZ();
-                } else if (elemType == int.class) {
+                } else if (elemType == int.class || elemType == float.class) {
                    return new VectorPayloadMFMaxIZ();
-                } else if (elemType == long.class) {
+                } else if (elemType == long.class || elemType == double.class) {
                    return new VectorPayloadMFMaxLZ();
-                } else if (elemType == float.class) {
-                   return new VectorPayloadMFMaxIZ();
                 } else {
-                   assert elemType == double.class;
-                   return new VectorPayloadMFMaxLZ();
+                   assert false : "Unexpected lane type";
                 }
             }
             return null;
@@ -199,7 +196,7 @@ public class VectorSupport {
 
         @ForceInline
         public static VectorPayloadMF newShuffleInstanceFactory(Class<?> elemType, int length, boolean max_payload) {
-            if (false == max_payload) {
+            if (!max_payload) {
                 switch(length) {
                     case  1: return new VectorPayloadMF8B();
                     case  2: return new VectorPayloadMF16B();
@@ -215,15 +212,12 @@ public class VectorSupport {
                    return new VectorPayloadMFMaxBB();
                 } else if (elemType == short.class) {
                    return new VectorPayloadMFMaxSB();
-                } else if (elemType == int.class) {
+                } else if (elemType == int.class || elemType == float.class) {
                    return new VectorPayloadMFMaxIB();
-                } else if (elemType == long.class) {
+                } else if (elemType == long.class || elemType == double.class) {
                    return new VectorPayloadMFMaxLB();
-                } else if (elemType == float.class) {
-                   return new VectorPayloadMFMaxIB();
                 } else {
-                   assert elemType == double.class;
-                   return new VectorPayloadMFMaxLB();
+                   assert false : "Unexpected lane type";
                 }
             }
             return null;
@@ -302,7 +296,7 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceB(int length, byte [] init, boolean max_payload) {
+        public static VectorPayloadMF createVectPayloadInstanceB(int length, byte[] init, boolean max_payload) {
             VectorPayloadMF obj = newVectorInstanceFactory(byte.class, length, max_payload);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
@@ -314,7 +308,7 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceS(int length, short [] init, boolean max_payload) {
+        public static VectorPayloadMF createVectPayloadInstanceS(int length, short[] init, boolean max_payload) {
             VectorPayloadMF obj = newVectorInstanceFactory(short.class, length, max_payload);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
@@ -326,7 +320,7 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceI(int length, int [] init, boolean max_payload) {
+        public static VectorPayloadMF createVectPayloadInstanceI(int length, int[] init, boolean max_payload) {
             VectorPayloadMF obj = newVectorInstanceFactory(int.class, length, max_payload);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
@@ -338,7 +332,7 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceL(int length, long [] init, boolean max_payload) {
+        public static VectorPayloadMF createVectPayloadInstanceL(int length, long[] init, boolean max_payload) {
             VectorPayloadMF obj = newVectorInstanceFactory(long.class, length, max_payload);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
@@ -350,7 +344,7 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceF(int length, float [] init, boolean max_payload) {
+        public static VectorPayloadMF createVectPayloadInstanceF(int length, float[] init, boolean max_payload) {
             VectorPayloadMF obj = newVectorInstanceFactory(float.class, length, max_payload);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
@@ -362,7 +356,7 @@ public class VectorSupport {
         }
 
         @ForceInline
-        public static VectorPayloadMF createVectPayloadInstanceD(int length, double [] init, boolean max_payload) {
+        public static VectorPayloadMF createVectPayloadInstanceD(int length, double[] init, boolean max_payload) {
             VectorPayloadMF obj = newVectorInstanceFactory(double.class, length, max_payload);
             obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
             long start_offset = obj.multiFieldOffset();
