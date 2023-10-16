@@ -462,7 +462,7 @@ int VectorSupport::vop2ideal(jint id, BasicType bt) {
 int VectorSupport::get_max_multifield_count(const Symbol* payload_name) {
   assert(payload_name, "");
   vmSymbolID sid = vmSymbols::find_sid(payload_name);
-  int size = VM_Version::max_vector_size(T_BYTE);
+  int size = MAX2(VM_Version::max_vector_size(T_BYTE), 8);
   switch(sid) {
     case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxB_enum:
     case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxBZ_enum:

@@ -2220,45 +2220,7 @@ const TypeVectMask* Matcher::predicate_reg_type(const Type* elemTy, int length) 
 
 // Max vector size in bytes. 0 if not supported.
 int Matcher::vector_width_in_bytes(BasicType bt) {
-  assert(is_java_primitive(bt), "only primitive type vectors");
-  if (UseSSE < 2) return 0;
-  // SSE2 supports 128bit vectors for all types.
-  // AVX2 supports 256bit vectors for all types.
-  // AVX2/EVEX supports 512bit vectors for all types.
-  int size = (UseAVX > 1) ? (1 << UseAVX) * 8 : 16;
-  // AVX1 supports 256bit vectors only for FLOAT and DOUBLE.
-  if (UseAVX > 0 && (bt == T_FLOAT || bt == T_DOUBLE))
-    size = (UseAVX > 2) ? 64 : 32;
-  if (UseAVX > 2 && (bt == T_BYTE || bt == T_SHORT || bt == T_CHAR))
-    size = (VM_Version::supports_avx512bw()) ? 64 : 32;
-  // Use flag to limit vector size.
-  size = MIN2(size,(int)MaxVectorSize);
-  // Minimum 2 values in vector (or 4 for bytes).
-  switch (bt) {
-  case T_DOUBLE:
-  case T_LONG:
-    if (size < 16) return 0;
-    break;
-  case T_FLOAT:
-  case T_INT:
-    if (size < 8) return 0;
-    break;
-  case T_BOOLEAN:
-    if (size < 4) return 0;
-    break;
-  case T_CHAR:
-    if (size < 4) return 0;
-    break;
-  case T_BYTE:
-    if (size < 4) return 0;
-    break;
-  case T_SHORT:
-    if (size < 4) return 0;
-    break;
-  default:
-    ShouldNotReachHere();
-  }
-  return size;
+  return max_vector_size(bt) * type2aelembytes(bt);
 }
 
 // Limits on vector size (number of elements) loaded into vector.

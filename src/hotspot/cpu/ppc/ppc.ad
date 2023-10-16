@@ -2209,13 +2209,7 @@ OptoRegPair Matcher::vector_return_value(uint ideal_reg) {
 
 // Vector width in bytes.
 int Matcher::vector_width_in_bytes(BasicType bt) {
-  if (SuperwordUseVSX) {
-    assert(MaxVectorSize == 16, "");
-    return 16;
-  } else {
-    assert(MaxVectorSize == 8, "");
-    return 8;
-  }
+  return max_vector_size(bt) * type2aelembytes(bt);
 }
 
 // Vector ideal reg.
@@ -2232,7 +2226,7 @@ uint Matcher::vector_ideal_reg(int size) {
 // Limits on vector size (number of elements) loaded into vector.
 int Matcher::max_vector_size(const BasicType bt) {
   assert(is_java_primitive(bt), "only primitive type vectors");
-  return vector_width_in_bytes(bt)/type2aelembytes(bt);
+  return VM_Version::max_vector_size(bt);
 }
 
 int Matcher::min_vector_size(const BasicType bt) {
