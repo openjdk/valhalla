@@ -5264,7 +5264,8 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 
 //----------------------inline_unsafe_isFlattenedArray-------------------
 // public native boolean Unsafe.isFlattenedArray(Class<?> arrayClass);
-// This method assumes arrayClass is neither null not a primitive class.
+// This method exploits assumptions made by the native implementation
+// (arrayClass is neither null nor primitive) to avoid unnecessary null checks.
 bool LibraryCallKit::inline_unsafe_isFlattenedArray() {
   Node* cls = argument(1);
   Node* p = basic_plus_adr(cls, java_lang_Class::klass_offset());
