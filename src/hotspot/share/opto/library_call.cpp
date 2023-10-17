@@ -5264,7 +5264,7 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 
 //----------------------inline_unsafe_isFlattenedArray-------------------
 // public native boolean Unsafe.isFlattenedArray(Class<?> arrayClass);
-// This method exploits assumptions made by the native implementation
+// This intrinsic exploits assumptions made by the native implementation
 // (arrayClass is neither null nor primitive) to avoid unnecessary null checks.
 bool LibraryCallKit::inline_unsafe_isFlattenedArray() {
   Node* cls = argument(1);
