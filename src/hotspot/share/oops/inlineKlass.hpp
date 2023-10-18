@@ -182,7 +182,7 @@ class InlineKlass: public InstanceKlass {
   // Query if this class promises atomicity one way or another
   bool is_atomic() { return is_naturally_atomic() || is_declared_atomic(); }
 
-  bool flatten_array();
+  bool flat_array();
 
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
@@ -203,7 +203,7 @@ class InlineKlass: public InstanceKlass {
   // General store methods
   //
   // Normally loads and store methods would be found in *Oops classes, but since values can be
-  // "in-lined" (flattened) into containing oops, these methods reside here in InlineKlass.
+  // "in-lined" (flat layout) into containing oops, these methods reside here in InlineKlass.
   //
   // "inline_copy_*_to_new_*" assume new memory (i.e. IS_DEST_UNINITIALIZED for write barriers)
 
@@ -212,8 +212,8 @@ class InlineKlass: public InstanceKlass {
   void inline_copy_oop_to_new_payload(oop src, void* dst);
   void inline_copy_oop_to_payload(oop src, void* dst);
 
-  oop read_inlined_field(oop obj, int offset, TRAPS);
-  void write_inlined_field(oop obj, int offset, oop value, TRAPS);
+  oop read_flat_field(oop obj, int offset, TRAPS);
+  void write_flat_field(oop obj, int offset, oop value, TRAPS);
 
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>

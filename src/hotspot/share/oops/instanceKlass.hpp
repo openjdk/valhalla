@@ -401,6 +401,7 @@ class InstanceKlass: public Klass {
   ArrayKlass* array_klasses() const     { return _array_klasses; }
   inline ArrayKlass* array_klasses_acquire() const; // load with acquire semantics
   inline void release_set_array_klasses(ArrayKlass* k); // store with release semantics
+  void set_array_klasses(ArrayKlass* k) { _array_klasses = k; }
 
   // methods
   Array<Method*>* methods() const          { return _methods; }
@@ -446,7 +447,7 @@ class InstanceKlass: public Klass {
   FieldStatus field_status(int index)   const { return fields_status()->at(index); }
   inline Symbol* field_name        (int index) const;
   inline Symbol* field_signature   (int index) const;
-  bool    field_is_inlined(int index) const { return field_flags(index).is_inlined(); }
+  bool    field_is_flat(int index) const { return field_flags(index).is_flat(); }
   bool    field_is_null_free_inline_type(int index) const;
 
   // Number of Java declared fields
@@ -1153,12 +1154,12 @@ public:
   // Lock during initialization
 public:
   // Returns the array class for the n'th dimension
-  virtual Klass* array_klass(int n, TRAPS);
-  virtual Klass* array_klass_or_null(int n);
+  virtual ArrayKlass* array_klass(int n, TRAPS);
+  virtual ArrayKlass* array_klass_or_null(int n);
 
   // Returns the array class with this class as element type
-  virtual Klass* array_klass(TRAPS);
-  virtual Klass* array_klass_or_null();
+  virtual ArrayKlass* array_klass(TRAPS);
+  virtual ArrayKlass* array_klass_or_null();
 
   static void clean_initialization_error_table();
 

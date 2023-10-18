@@ -39,7 +39,7 @@ class ciInlineKlass : public ciInstanceKlass {
   CI_PACKAGE_ACCESS
 
 private:
-  // Fields declared in the bytecode (without flattened inline type fields)
+  // Fields declared in the bytecode (without nested fields in flat fields)
   GrowableArray<ciField*>* _declared_nonstatic_fields;
 
   InlineKlass* to_InlineKlass() const {
@@ -77,7 +77,7 @@ public:
   int first_field_offset() const;
   int field_index_by_offset(int offset);
 
-  bool flatten_array() const;
+  bool flat_array() const;
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
   bool is_empty();

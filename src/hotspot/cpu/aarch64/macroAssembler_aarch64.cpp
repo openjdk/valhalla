@@ -46,8 +46,10 @@
 #include "memory/universe.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/accessDecorators.hpp"
+#include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -1736,17 +1738,17 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, is_null_free_inline_type);
+  tbnz(flags, ResolvedFieldEntry::is_null_free_inline_type_shift, is_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, not_null_free_inline_type);
+  tbz(flags, ResolvedFieldEntry::is_null_free_inline_type_shift, not_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened) {
+void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_inlined_shift, is_flattened);
+  tbnz(flags, ResolvedFieldEntry::is_flat_shift, is_flat);
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
@@ -1768,13 +1770,13 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
   }
 }
 
-void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg, Label& is_flattened_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flattened_array);
+void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
 }
 
-void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_reg,
-                                                  Label&is_non_flattened_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flattened_array);
+void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg,
+                                                  Label&is_non_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array) {
@@ -1785,14 +1787,14 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
   test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
 }
 
-void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
+void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
   tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  br(Assembler::NE, is_flattened_array);
+  br(Assembler::NE, is_flat_array);
 }
 
-void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
+void MacroAssembler::test_non_flat_array_layout(Register lh, Label& is_non_flat_array) {
   tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  br(Assembler::EQ, is_non_flattened_array);
+  br(Assembler::EQ, is_non_flat_array);
 }
 
 void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
@@ -6272,12 +6274,12 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
 
   // The following code is similar to allocate_instance but has some slight differences,
   // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
-  // allocating is not necessary if vk != NULL, etc. allocate_instance is not aware of these.
+  // allocating is not necessary if vk != nullptr, etc. allocate_instance is not aware of these.
   Label slow_case;
   // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
   mov(r0_preserved, r0); // save r0 for slow_case since *_allocate may corrupt it when allocation failed
 
-  if (vk != NULL) {
+  if (vk != nullptr) {
     // Called from C1, where the return type is statically known.
     movptr(klass, (intptr_t)vk->get_InlineKlass());
     jint obj_size = vk->layout_helper();
@@ -6303,13 +6305,13 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     mov(rscratch1, (intptr_t)markWord::inline_type_prototype().value());
     str(rscratch1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
     store_klass_gap(buffer_obj, zr);
-    if (vk == NULL) {
+    if (vk == nullptr) {
       // store_klass corrupts klass, so save it for later use (interpreter case only).
       mov(tmp1, klass);
     }
     store_klass(buffer_obj, klass);
     // 3. Initialize its fields with an inline class specific handler
-    if (vk != NULL) {
+    if (vk != nullptr) {
       far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
       // tmp1 holds klass preserved above

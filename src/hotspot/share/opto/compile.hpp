@@ -178,17 +178,20 @@ class Options {
   const bool _subsume_loads;         // Load can be matched as part of a larger op.
   const bool _do_escape_analysis;    // Do escape analysis.
   const bool _do_iterative_escape_analysis;  // Do iterative escape analysis.
+  const bool _do_reduce_allocation_merges;  // Do try to reduce allocation merges.
   const bool _eliminate_boxing;      // Do boxing elimination.
   const bool _do_locks_coarsening;   // Do locks coarsening
   const bool _install_code;          // Install the code that was compiled
  public:
   Options(bool subsume_loads, bool do_escape_analysis,
           bool do_iterative_escape_analysis,
+          bool do_reduce_allocation_merges,
           bool eliminate_boxing, bool do_locks_coarsening,
           bool install_code) :
           _subsume_loads(subsume_loads),
           _do_escape_analysis(do_escape_analysis),
           _do_iterative_escape_analysis(do_iterative_escape_analysis),
+          _do_reduce_allocation_merges(do_reduce_allocation_merges),
           _eliminate_boxing(eliminate_boxing),
           _do_locks_coarsening(do_locks_coarsening),
           _install_code(install_code) {
@@ -199,6 +202,7 @@ class Options {
        /* subsume_loads = */ true,
        /* do_escape_analysis = */ false,
        /* do_iterative_escape_analysis = */ false,
+       /* do_reduce_allocation_merges = */ false,
        /* eliminate_boxing = */ false,
        /* do_lock_coarsening = */ false,
        /* install_code = */ true
@@ -226,7 +230,7 @@ class Compile : public Phase {
   // (The time collection itself is always conditionalized on CITime.)
   class TracePhase : public TraceTime {
    private:
-    Compile*    C;
+    Compile*    _compile;
     CompileLog* _log;
     const char* _phase_name;
     bool _dolog;
@@ -318,7 +322,7 @@ class Compile : public Phase {
   bool                  _has_stringbuilder;     // True StringBuffers or StringBuilders are allocated
   bool                  _has_boxed_value;       // True if a boxed object is allocated
   bool                  _has_reserved_stack_access; // True if the method or an inlined method is annotated with ReservedStackAccess
-  bool                  _has_circular_inline_type; // True if method loads an inline type with a circular, non-flattened field
+  bool                  _has_circular_inline_type; // True if method loads an inline type with a circular, non-flat field
   uint                  _max_vector_size;       // Maximum size of generated vectors
   bool                  _clear_upper_avx;       // Clear upper bits of ymm registers using vzeroupper
   uint                  _trap_hist[trapHistLength];  // Cumulative traps
@@ -345,8 +349,8 @@ class Compile : public Phase {
   bool                  _clinit_barrier_on_entry; // True if clinit barrier is needed on nmethod entry
   RTMState              _rtm_state;             // State of Restricted Transactional Memory usage
   int                   _loop_opts_cnt;         // loop opts round
-  bool                  _has_flattened_accesses; // Any known flattened array accesses?
-  bool                  _flattened_accesses_share_alias; // Initially all flattened array share a single slice
+  bool                  _has_flat_accesses;     // Any known flat array accesses?
+  bool                  _flat_accesses_share_alias; // Initially all flat array share a single slice
   bool                  _scalarize_in_safepoints; // Scalarize inline types in safepoint debug info
   uint                  _stress_seed;           // Seed for stress testing
 
@@ -572,6 +576,7 @@ private:
   /** Do escape analysis. */
   bool              do_escape_analysis() const  { return _options._do_escape_analysis; }
   bool              do_iterative_escape_analysis() const  { return _options._do_iterative_escape_analysis; }
+  bool              do_reduce_allocation_merges() const  { return _options._do_reduce_allocation_merges; }
   /** Do boxing elimination. */
   bool              eliminate_boxing() const    { return _options._eliminate_boxing; }
   /** Do aggressive boxing elimination. */
@@ -660,9 +665,9 @@ private:
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
   bool              clinit_barrier_on_entry()       { return _clinit_barrier_on_entry; }
   void          set_clinit_barrier_on_entry(bool z) { _clinit_barrier_on_entry = z; }
-  void          set_flattened_accesses()         { _has_flattened_accesses = true; }
-  bool          flattened_accesses_share_alias() const { return _flattened_accesses_share_alias; }
-  void          set_flattened_accesses_share_alias(bool z) { _flattened_accesses_share_alias = z; }
+  void          set_flat_accesses()              { _has_flat_accesses = true; }
+  bool          flat_accesses_share_alias() const { return _flat_accesses_share_alias; }
+  void          set_flat_accesses_share_alias(bool z) { _flat_accesses_share_alias = z; }
   bool          scalarize_in_safepoints() const { return _scalarize_in_safepoints; }
   void          set_scalarize_in_safepoints(bool z) { _scalarize_in_safepoints = z; }
 
@@ -787,7 +792,7 @@ private:
   void remove_inline_type(Node* n);
   void process_inline_types(PhaseIterGVN &igvn, bool remove = false);
 
-  void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
+  void adjust_flat_array_access_aliases(PhaseIterGVN& igvn);
 
   void record_unstable_if_trap(UnstableIfTrap* trap);
   bool remove_unstable_if_trap(CallStaticJavaNode* unc, bool yield);

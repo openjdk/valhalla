@@ -126,7 +126,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 void Parse::do_get_xxx(Node* obj, ciField* field) {
   BasicType bt = field->layout_type();
   // Does this field have a constant value?  If so, just push the value.
-  if (field->is_constant() && !field->is_flattened() &&
+  if (field->is_constant() && !field->is_flat() &&
       // Keep consistent with types found by ciTypeFlow: for an
       // unloaded field type, ciTypeFlow::StateVector::do_getstatic()
       // speculates the field is null. The code in the rest of this
@@ -149,9 +149,9 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
     // Loading from a field of an empty inline type. Just return the default instance.
     ld = InlineTypeNode::make_default(_gvn, field_klass->as_inline_klass());
-  } else if (field->is_flattened()) {
-    // Loading from a flattened inline type field.
-    ld = InlineTypeNode::make_from_flattened(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset);
+  } else if (field->is_flat()) {
+    // Loading from a flat inline type field.
+    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset);
   } else {
     // Build the resultant type of the load
     const Type* type;
@@ -235,13 +235,13 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
     return;
-  } else if (field->is_flattened()) {
-    // Storing to a flattened inline type field.
+  } else if (field->is_flat()) {
+    // Storing to a flat inline type field.
     if (!val->is_InlineType()) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
     inc_sp(1);
-    val->as_InlineType()->store_flattened(this, obj, obj, field->holder(), offset);
+    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset);
     dec_sp(1);
   } else {
     // Store the value.
@@ -398,10 +398,13 @@ void Parse::do_multianewarray() {
   // It is often the case that the lengths are small (except the last).
   // If that happens, use the fast 1-d creator a constant number of times.
   const int expand_limit = MIN2((int)MultiArrayExpandLimit, 100);
-  int expand_count = 1;        // count of allocations in the expansion
-  int expand_fanout = 1;       // running total fanout
+  int64_t expand_count = 1;        // count of allocations in the expansion
+  int64_t expand_fanout = 1;       // running total fanout
   for (j = 0; j < ndimensions-1; j++) {
     int dim_con = find_int_con(length[j], -1);
+    // To prevent overflow, we use 64-bit values.  Alternatively,
+    // we could clamp dim_con like so:
+    // dim_con = MIN2(dim_con, expand_limit);
     expand_fanout *= dim_con;
     expand_count  += expand_fanout; // count the level-J sub-arrays
     if (dim_con <= 0

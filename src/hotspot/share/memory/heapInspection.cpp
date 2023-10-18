@@ -33,6 +33,7 @@
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/fieldInfo.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "runtime/reflectionUtils.hpp"
@@ -536,51 +537,43 @@ private:
   int _index;
   InstanceKlass* _holder;
   AccessFlags _access_flags;
+  FieldInfo::FieldFlags _field_flags;
  public:
-  FieldDesc() {
-    _name = nullptr;
-    _signature = nullptr;
-    _offset = -1;
-    _index = -1;
-    _holder = nullptr;
-    _access_flags = AccessFlags();
-  }
-  FieldDesc(fieldDescriptor& fd) {
-    _name = fd.name();
-    _signature = fd.signature();
-    _offset = fd.offset();
-    _index = fd.index();
-    _holder = fd.field_holder();
-    _access_flags = fd.access_flags();
-  }
+  FieldDesc() : _name(nullptr), _signature(nullptr), _offset(-1), _index(-1), _holder(nullptr),
+                _access_flags(AccessFlags()), _field_flags(FieldInfo::FieldFlags((u4)0)) { }
+
+  FieldDesc(fieldDescriptor& fd) : _name(fd.name()), _signature(fd.signature()), _offset(fd.offset()),
+                                   _index(fd.index()), _holder(fd.field_holder()),
+                                   _access_flags(fd.access_flags()), _field_flags(fd.field_flags()) { }
+
   const Symbol* name() { return _name;}
   const Symbol* signature() { return _signature; }
   int offset() const { return _offset; }
   int index() const { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  bool is_inline_type() const { return Signature::basic_type(_signature) == T_PRIMITIVE_OBJECT; }
+  bool is_null_free_inline_type() const { return _field_flags.is_null_free_inline_type(); }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {
    return f1->offset() > f2->offset() ? 1 : -1;
 }
 
-static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, bool is_inline_type, bool is_inlined ) {
-  const char* inlined_msg = "";
-  if (is_inline_type) {
-    inlined_msg = is_inlined ? "inlined" : "not inlined";
+static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, bool is_inline_type, bool is_flat ) {
+  const char* flat_field_msg = "";
+  if (is_flat) {
+    flat_field_msg = is_flat ? "flat" : "not flat";
   }
   st->print_cr("  @ %d %*s \"%s\" %s %s %s",
       offset, level * 3, "",
       fd.name()->as_C_string(),
       fd.signature()->as_C_string(),
       is_inline_type ? " // inline type " : "",
-      inlined_msg);
+      flat_field_msg);
 }
 
-static void print_inlined_field(outputStream* st, int level, int offset, InstanceKlass* klass) {
-  assert(klass->is_inline_klass(), "Only inline types can be inlined");
+static void print_flat_field(outputStream* st, int level, int offset, InstanceKlass* klass) {
+  assert(klass->is_inline_klass(), "Only inline types can be flat");
   InlineKlass* vklass = InlineKlass::cast(klass);
   GrowableArray<FieldDesc>* fields = new (mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
   for (FieldStream fd(klass, false, false); !fd.eos(); fd.next()) {
@@ -593,9 +586,9 @@ static void print_inlined_field(outputStream* st, int level, int offset, Instanc
     FieldDesc fd = fields->at(i);
     int offset2 = offset + fd.offset() - vklass->first_field_offset();
     print_field(st, level, offset2, fd,
-        fd.is_inline_type(), fd.holder()->field_is_inlined(fd.index()));
-    if (fd.holder()->field_is_inlined(fd.index())) {
-      print_inlined_field(st, level + 1, offset2 ,
+        fd.is_null_free_inline_type(), fd.holder()->field_is_flat(fd.index()));
+    if (fd.holder()->field_is_flat(fd.index())) {
+      print_flat_field(st, level + 1, offset2 ,
           InstanceKlass::cast(fd.holder()->get_inline_type_field_klass(fd.index())));
     }
   }
@@ -634,9 +627,9 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     fields->sort(compare_offset);
     for(int i = 0; i < fields->length(); i++) {
       FieldDesc fd = fields->at(i);
-      print_field(st, 0, fd.offset(), fd, fd.is_inline_type(), fd.holder()->field_is_inlined(fd.index()));
-      if (fd.holder()->field_is_inlined(fd.index())) {
-        print_inlined_field(st, 1, fd.offset(),
+      print_field(st, 0, fd.offset(), fd, fd.is_null_free_inline_type(), fd.holder()->field_is_flat(fd.index()));
+      if (fd.holder()->field_is_flat(fd.index())) {
+        print_flat_field(st, 1, fd.offset(),
             InstanceKlass::cast(fd.holder()->get_inline_type_field_klass(fd.index())));
       }
     }

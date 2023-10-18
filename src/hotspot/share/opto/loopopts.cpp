@@ -1378,12 +1378,12 @@ static Node* is_inner_of_stripmined_loop(const Node* out) {
   return out_le;
 }
 
-bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
+bool PhaseIdealLoop::flat_array_element_type_check(Node *n) {
   // If the CmpP is a subtype check for a value that has just been
   // loaded from an array, the subtype check guarantees the value
-  // can't be stored in a flattened array and the load of the value
-  // happens with a flattened array check then: push the type check
-  // through the phi of the flattened array check. This needs special
+  // can't be stored in a flat array and the load of the value
+  // happens with a flat array check then: push the type check
+  // through the phi of the flat array check. This needs special
   // logic because the subtype check's input is not a phi but a
   // LoadKlass that must first be cloned through the phi.
   if (n->Opcode() != Op_CmpP) {
@@ -1482,7 +1482,7 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
 // info.
 void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
 
-  if (flatten_array_element_type_check(n)) {
+  if (flat_array_element_type_check(n)) {
     return;
   }
 
@@ -1869,7 +1869,13 @@ void PhaseIdealLoop::try_sink_out_of_loop(Node* n) {
                 cast = ConstraintCastNode::make_cast_for_type(x_ctrl, in, in_t, ConstraintCastNode::UnconditionalDependency);
               }
               if (cast != nullptr) {
-                register_new_node(cast, x_ctrl);
+                Node* prev = _igvn.hash_find_insert(cast);
+                if (prev != nullptr && get_ctrl(prev) == x_ctrl) {
+                  cast->destruct(&_igvn);
+                  cast = prev;
+                } else {
+                  register_new_node(cast, x_ctrl);
+                }
                 x->replace_edge(in, cast);
                 // Chain of AddP:
                 // 2- A CastPP of the base is only added now that both AddP nodes are sunk

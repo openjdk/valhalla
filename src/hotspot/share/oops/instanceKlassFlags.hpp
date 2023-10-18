@@ -65,7 +65,7 @@ class InstanceKlassFlags {
 
   /* (*) An inline type is considered empty if it contains no non-static fields or
      if it contains only empty inline fields. Note that JITs have a slightly different
-     definition: empty inline fields must be flattened otherwise the container won't
+     definition: empty inline fields must be flat otherwise the container won't
      be considered empty */
 
 #define IK_FLAGS_ENUM_NAME(name, value)    _misc_##name = value,

@@ -260,6 +260,8 @@ class StubRoutines: AllStatic {
 
   JFR_ONLY(static RuntimeStub* _jfr_write_checkpoint_stub;)
   JFR_ONLY(static address _jfr_write_checkpoint;)
+  JFR_ONLY(static RuntimeStub* _jfr_return_lease_stub;)
+  JFR_ONLY(static address _jfr_return_lease;)
 
   static address _load_inline_type_fields_in_regs;
   static address _store_inline_type_fields_to_buf;
@@ -460,6 +462,7 @@ class StubRoutines: AllStatic {
   static address cont_returnBarrierExc(){return _cont_returnBarrierExc; }
 
   JFR_ONLY(static address jfr_write_checkpoint() { return _jfr_write_checkpoint; })
+  JFR_ONLY(static address jfr_return_lease() { return _jfr_return_lease; })
 
   static address select_fill_function(BasicType t, bool aligned, const char* &name);
 

@@ -30,6 +30,7 @@
 #include "opto/convertnode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/opaquenode.hpp"
+#include "opto/predicates.hpp"
 #include "opto/rootnode.hpp"
 
 //================= Loop Unswitching =====================
@@ -78,7 +79,7 @@ bool IdealLoopTree::policy_unswitching( PhaseIdealLoop *phase ) const {
     return false;
   }
 
-  if (head->is_flattened_arrays()) {
+  if (head->is_flat_arrays()) {
     return false;
   }
 
@@ -122,8 +123,8 @@ IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, No
     unswitch_iffs.push(unswitch_iff);
   }
 
-  // Collect all non-flattened array checks for unswitching to create a fast loop
-  // without checks (only non-flattened array accesses) and a slow loop with checks.
+  // Collect all non-flat array checks for unswitching to create a fast loop
+  // without checks (only non-flat array accesses) and a slow loop with checks.
   if (unswitch_iff == nullptr || unswitch_iff->is_flat_array_check(&_igvn)) {
     for (uint i = 0; i < loop->_body.size(); i++) {
       IfNode* n = loop->_body.at(i)->isa_If();
@@ -144,17 +145,11 @@ IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, No
 // insert a clone of the test that selects which version to
 // execute.
 void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
-  LoopNode *head = loop->_head->as_Loop();
-  Node* entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
-  if (ParsePredicates::is_success_proj(entry)) {
-    assert(entry->is_IfProj(), "sanity - must be ifProj since there is at least one predicate");
-    if (entry->outcnt() > 1) {
-      // Bailout if there are predicates from which there are additional control dependencies (i.e. from loop
-      // entry 'entry') to previously partially peeled statements since this case is not handled and can lead
-      // to a wrong execution. Remove this bailout, once this is fixed.
-      return;
-    }
+  LoopNode* head = loop->_head->as_Loop();
+  if (has_control_dependencies_from_predicates(head)) {
+    return;
   }
+
   // Find first invariant test that doesn't exit the loop
   Node_List unswitch_iffs;
   IfNode* unswitch_iff = find_unswitching_candidate((const IdealLoopTree *)loop, unswitch_iffs);
@@ -179,24 +174,8 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
 
   IfNode* invar_iff = create_slow_version_of_loop(loop, old_new, unswitch_iffs, CloneIncludesStripMined);
   ProjNode* proj_true = invar_iff->proj_out(1);
-  ProjNode* proj_false = invar_iff->proj_out(0);
+  verify_fast_loop(head, proj_true);
 
-#ifdef ASSERT
-  assert(proj_true->is_IfTrue(), "must be true projection");
-  entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
-  ParsePredicates parse_predicates(entry);
-  if (!parse_predicates.has_any()) {
-    // No Parse Predicate.
-    Node* uniqc = proj_true->unique_ctrl_out();
-    assert((uniqc == head && !head->is_strip_mined()) || (uniqc == head->in(LoopNode::EntryControl)
-           && head->is_strip_mined()), "must hold by construction if no predicates");
-  } else {
-    // There is at least one Parse Predicate. When skipping all predicates/Regular Predicate Blocks, we should end up
-    // at 'proj_true'.
-    assert(proj_true == Predicates::skip_all_predicates(parse_predicates),
-           "must hold by construction if at least one Parse Predicate");
-  }
-#endif
   // Increment unswitch count
   LoopNode* head_clone = old_new[head->_idx]->as_Loop();
   int nct = head->unswitch_count() + 1;
@@ -244,9 +223,9 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
     _igvn.rehash_node_delayed(unswitch_iff_clone);
     dominated_by(proj_false->as_IfProj(), unswitch_iff_clone);
   } else {
-    // Leave the flattened array checks in the slow loop and
+    // Leave the flat array checks in the slow loop and
     // prevent it from being unswitched again based on these checks.
-    head_clone->mark_flattened_arrays();
+    head_clone->mark_flat_arrays();
   }
 
   // Reoptimize loops
@@ -270,6 +249,21 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   C->set_major_progress();
 }
 
+bool PhaseIdealLoop::has_control_dependencies_from_predicates(LoopNode* head) const {
+  Node* entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
+  Predicates predicates(entry);
+  if (predicates.has_any()) {
+    assert(entry->is_IfProj(), "sanity - must be ifProj since there is at least one predicate");
+    if (entry->outcnt() > 1) {
+      // Bailout if there are predicates from which there are additional control dependencies (i.e. from loop
+      // entry 'entry') to previously partially peeled statements since this case is not handled and can lead
+      // to a wrong execution. Remove this bailout, once this is fixed.
+      return true;
+    }
+  }
+  return false;
+}
+
 //-------------------------create_slow_version_of_loop------------------------
 // Create a slow version of the loop by cloning the loop
 // and inserting an if to select fast-slow versions.
@@ -290,21 +284,21 @@ IfNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
   IfNode* unswitch_iff = unswitch_iffs.at(0)->as_If();
   BoolNode* bol = unswitch_iff->in(1)->as_Bool();
   if (unswitch_iffs.size() > 1) {
-    // Flattened array checks are used on array access to switch between
-    // a legacy object array access and a flattened inline type array
+    // Flat array checks are used on array access to switch between
+    // a legacy object array access and a flat inline type array
     // access. We want the performance impact on legacy accesses to be
     // as small as possible so we make two copies of the loop: a fast
     // one where all accesses are known to be legacy, a slow one where
-    // some accesses are to flattened arrays. Flattened array checks
+    // some accesses are to flat arrays. Flat array checks
     // can be removed from the fast loop (true proj) but not from the
-    // slow loop (false proj) as it can have a mix of flattened/legacy accesses.
+    // slow loop (false proj) as it can have a mix of flat/legacy accesses.
     assert(bol->_test._test == BoolTest::ne, "IfTrue proj must point to flat array");
     bol = bol->clone()->as_Bool();
     register_new_node(bol, entry);
     FlatArrayCheckNode* cmp = bol->in(1)->clone()->as_FlatArrayCheck();
     register_new_node(cmp, entry);
     bol->set_req(1, cmp);
-    // Combine all checks into a single one that fails if one array is flattened
+    // Combine all checks into a single one that fails if one array is a flat array
     assert(cmp->req() == 3, "unexpected number of inputs for FlatArrayCheck");
     cmp->add_req_batch(C->top(), unswitch_iffs.size() - 1);
     for (uint i = 0; i < unswitch_iffs.size(); i++) {
@@ -343,6 +337,24 @@ IfNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
 
   return iff;
 }
+
+#ifdef ASSERT
+void PhaseIdealLoop::verify_fast_loop(LoopNode* head, const ProjNode* proj_true) const {
+  assert(proj_true->is_IfTrue(), "must be true projection");
+  Node* entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
+  Predicates predicates(entry);
+  if (!predicates.has_any()) {
+    // No Parse Predicate.
+    Node* uniqc = proj_true->unique_ctrl_out();
+    assert((uniqc == head && !head->is_strip_mined()) || (uniqc == head->in(LoopNode::EntryControl)
+                                                          && head->is_strip_mined()), "must hold by construction if no predicates");
+  } else {
+    // There is at least one Parse Predicate. When skipping all predicates/predicate blocks, we should end up
+    // at 'proj_true'.
+    assert(proj_true == predicates.entry(), "must hold by construction if at least one Parse Predicate");
+  }
+}
+#endif // ASSERT
 
 LoopNode* PhaseIdealLoop::create_reserve_version_of_loop(IdealLoopTree *loop, CountedLoopReserveKit* lk) {
   Node_List old_new;

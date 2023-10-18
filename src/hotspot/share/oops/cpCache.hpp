@@ -76,7 +76,7 @@
 // The flags after TosState have the following interpretation:
 // bit 27: 0 for fields, 1 for methods
 // I  flag true if field is a null free inline type (must never be null)
-// i  flag true if field is inlined
+// i  flag true if field is flat
 // f  flag true if field is marked final
 // v  flag true if field is volatile (only for fields)
 // f2 flag true if f2 contains an oop (e.g., virtual final method)
@@ -130,6 +130,7 @@
 // source code.  The _indices field with the bytecode must be written last.
 
 class CallInfo;
+class ResolvedFieldEntry;
 class ResolvedIndyEntry;
 
 class ConstantPoolCacheEntry {
@@ -186,7 +187,7 @@ class ConstantPoolCacheEntry {
     has_appendix_shift         = 24,  // (A) does the call site have an appendix argument?
     is_null_free_inline_type_shift = 24,  // (I) is the field a null free inline type (must never be null)
     is_forced_virtual_shift    = 23,  // (I) is the interface reference forced to virtual mode?
-    is_inlined_shift           = 23,  // (i) is the field inlined?
+    is_flat_shift              = 23,  // (i) is the field flat?
     is_final_shift             = 22,  // (f) is the field or method final?
     is_volatile_shift          = 21,  // (v) is the field volatile?
     is_vfinal_shift            = 20,  // (vf) did the call resolve to a final method?
@@ -226,7 +227,7 @@ class ConstantPoolCacheEntry {
     TosState        field_type,                  // the (machine) field type
     bool            is_final,                    // the field is final
     bool            is_volatile,                 // the field is volatile
-    bool            is_inlined,                  // the field is inlined
+    bool            is_flat,                     // the field is flat
     bool            is_null_free_inline_type     // the field is an inline type (must never be null)
   );
 
@@ -338,7 +339,7 @@ class ConstantPoolCacheEntry {
   int  parameter_size() const                    { assert(is_method_entry(), ""); return (_flags & parameter_size_mask); }
   bool is_volatile() const                       { return (_flags & (1 << is_volatile_shift))       != 0; }
   bool is_final() const                          { return (_flags & (1 << is_final_shift))          != 0; }
-  bool is_inlined() const                        { return (_flags & (1 << is_inlined_shift))        != 0; }
+  bool is_flat() const                           { return (_flags & (1 << is_flat_shift))           != 0; }
   bool is_forced_virtual() const                 { return (_flags & (1 << is_forced_virtual_shift)) != 0; }
   bool is_vfinal() const                         { return (_flags & (1 << is_vfinal_shift))         != 0; }
   bool indy_resolution_failed() const;
@@ -416,7 +417,8 @@ class ConstantPoolCache: public MetaspaceObj {
   // RedefineClasses support
   uint64_t             _gc_epoch;
 
-  Array<ResolvedIndyEntry>* _resolved_indy_entries;
+  Array<ResolvedIndyEntry>*  _resolved_indy_entries;
+  Array<ResolvedFieldEntry>* _resolved_field_entries;
 
   CDS_ONLY(Array<ConstantPoolCacheEntry>* _initial_entries;)
 
@@ -427,7 +429,8 @@ class ConstantPoolCache: public MetaspaceObj {
   ConstantPoolCache(int length,
                     const intStack& inverse_index_map,
                     const intStack& invokedynamic_references_map,
-                    Array<ResolvedIndyEntry>* indy_info);
+                    Array<ResolvedIndyEntry>* indy_info,
+                    Array<ResolvedFieldEntry>* field_entries);
 
   // Initialization
   void initialize(const intArray& inverse_index_map,
@@ -437,6 +440,7 @@ class ConstantPoolCache: public MetaspaceObj {
                                      const intStack& cp_cache_map,
                                      const intStack& invokedynamic_references_map,
                                      const GrowableArray<ResolvedIndyEntry> indy_entries,
+                                     const GrowableArray<ResolvedFieldEntry> field_entries,
                                      TRAPS);
 
   int length() const                      { return _length; }
@@ -452,14 +456,20 @@ class ConstantPoolCache: public MetaspaceObj {
   Array<u2>* reference_map() const        { return _reference_map; }
   void set_reference_map(Array<u2>* o)    { _reference_map = o; }
 
+  Array<ResolvedFieldEntry>* resolved_field_entries()          { return _resolved_field_entries; }
+  inline ResolvedFieldEntry* resolved_field_entry_at(int field_index) const;
+  inline int resolved_field_entries_length() const;
+  void print_resolved_field_entries(outputStream* st) const;
+
   Array<ResolvedIndyEntry>* resolved_indy_entries()          { return _resolved_indy_entries; }
   inline ResolvedIndyEntry* resolved_indy_entry_at(int index) const;
   inline int resolved_indy_entries_length() const;
   void print_resolved_indy_entries(outputStream* st)   const;
 
   // Assembly code support
-  static ByteSize resolved_references_offset()   { return byte_offset_of(ConstantPoolCache, _resolved_references); }
-  static ByteSize invokedynamic_entries_offset() { return byte_offset_of(ConstantPoolCache, _resolved_indy_entries); }
+  static ByteSize resolved_references_offset()     { return byte_offset_of(ConstantPoolCache, _resolved_references);    }
+  static ByteSize invokedynamic_entries_offset()   { return byte_offset_of(ConstantPoolCache, _resolved_indy_entries);  }
+  static ByteSize field_entries_offset()           { return byte_offset_of(ConstantPoolCache, _resolved_field_entries); }
 
 #if INCLUDE_CDS
   void remove_unshareable_info();

@@ -569,6 +569,7 @@ public sealed interface Classfile
     int ACC_ENUM = 0x4000;
     int ACC_ANNOTATION = 0x2000;
     int ACC_SUPER = 0x0020;
+    int ACC_IDENTITY = 0x0020;
     int ACC_ABSTRACT = 0x0400;
     int ACC_VOLATILE = 0x0040;
     int ACC_TRANSIENT = 0x0080;
@@ -690,7 +691,12 @@ public sealed interface Classfile
     int JAVA_21_VERSION = 65;
     int JAVA_22_VERSION = 66;
 
-    int PREVIEW_MINOR_VERSION = -1;
+    /**
+     * A minor version number indicating a class uses preview features
+     * of a Java SE version since 12, for major versions {@value
+     * #JAVA_12_VERSION} and above.
+     */
+    int PREVIEW_MINOR_VERSION = 65535;
 
     static int latestMajorVersion() {
         return JAVA_22_VERSION;

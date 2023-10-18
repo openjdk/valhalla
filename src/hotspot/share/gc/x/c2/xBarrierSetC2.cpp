@@ -274,7 +274,7 @@ void XBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* a
 
   if (ac->is_clone_array() && ary_ptr != nullptr) {
     BasicType bt = ary_ptr->elem()->array_element_basic_type();
-    if (is_reference_type(bt)) {
+    if (is_reference_type(bt) && !ary_ptr->is_flat()) {
       // Clone object array
       bt = T_OBJECT;
     } else {

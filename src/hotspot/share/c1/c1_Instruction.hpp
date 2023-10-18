@@ -518,8 +518,8 @@ class Instruction: public CompilationResourceObj {
     return _next;
   }
 
-  bool is_loaded_flattened_array() const;
-  bool maybe_flattened_array();
+  bool is_loaded_flat_array() const;
+  bool maybe_flat_array();
   bool maybe_null_free_array();
 
   Instruction *insert_after_same_bci(Instruction *i) {
@@ -868,7 +868,7 @@ LEAF(LoadField, AccessField)
 LEAF(StoreField, AccessField)
  private:
   Value _value;
-  ciField* _enclosing_field;   // enclosing field (the flattened one) for nested fields
+  ciField* _enclosing_field;   // enclosing field (the flat one) for nested fields
 
  public:
   // creation
@@ -1007,8 +1007,8 @@ LEAF(LoadIndexed, AccessIndexed)
   DelayedLoadIndexed* delayed() const { return _delayed; }
   void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
 
-  // generic
-  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), type()->tag(), array()->subst(), index()->subst(), vt())
+  // generic;
+  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), vt())
 };
 
 class DelayedLoadIndexed : public CompilationResourceObj {
@@ -1053,7 +1053,7 @@ LEAF(StoreIndexed, AccessIndexed)
   bool check_boolean() const                     { return _check_boolean; }
 
   // Flattened array support
-  bool is_exact_flattened_array_store() const;
+  bool is_exact_flat_array_store() const;
   // generic
   virtual void input_values_do(ValueVisitor* f)   { AccessIndexed::input_values_do(f); f->visit(&_value); }
 };

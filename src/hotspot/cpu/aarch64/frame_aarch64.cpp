@@ -511,7 +511,7 @@ bool frame::is_interpreted_frame_valid(JavaThread* thread) const {
 
   // first the method
 
-  Method* m = *interpreter_frame_method_addr();
+  Method* m = safe_interpreter_frame_method();
 
   // validate the method we'd find in this potential sender
   if (!Method::is_valid_method(m)) return false;
@@ -788,7 +788,7 @@ frame::frame(void* sp, void* fp, void* pc) {
 // a stack repair and return the repaired sender stack pointer.
 intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const {
   CompiledMethod* cm = _cb->as_compiled_method_or_null();
-  if (cm != NULL && cm->needs_stack_repair()) {
+  if (cm != nullptr && cm->needs_stack_repair()) {
     // The stack increment resides just below the saved FP on the stack and
     // records the total frame size excluding the two words for saving FP and LR.
     intptr_t* sp_inc_addr = (intptr_t*) (saved_fp_addr - 1);

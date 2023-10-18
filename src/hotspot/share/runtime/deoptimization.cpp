@@ -251,11 +251,11 @@ Deoptimization::UnrollBlock::~UnrollBlock() {
 
 int Deoptimization::UnrollBlock::size_of_frames() const {
   // Account first for the adjustment of the initial frame
-  int result = _caller_adjustment;
+  intptr_t result = _caller_adjustment;
   for (int index = 0; index < number_of_frames(); index++) {
     result += frame_sizes()[index];
   }
-  return result;
+  return checked_cast<int>(result);
 }
 
 void Deoptimization::UnrollBlock::print() {
@@ -337,7 +337,7 @@ static bool rematerialize_objects(JavaThread* thread, int exec_mode, CompiledMet
   assert(exec_mode == Deoptimization::Unpack_none || (deoptee_thread == thread),
          "a frame can only be deoptimized by the owner thread");
 
-  GrowableArray<ScopeValue*>* objects = chunk->at(0)->scope()->objects();
+  GrowableArray<ScopeValue*>* objects = chunk->at(0)->scope()->objects_to_rematerialize(deoptee, map);
 
   // The flag return_oop() indicates call sites which return oop
   // in compiled code. Such sites include java method calls,
@@ -1112,7 +1112,7 @@ protected:
       objArrayOop cache = CacheType::cache(ik);
       assert(cache->length() > 0, "Empty cache");
       _low = BoxType::value(cache->obj_at(0));
-      _high = _low + cache->length() - 1;
+      _high = checked_cast<PrimitiveType>(_low + cache->length() - 1);
       _cache = JNIHandles::make_global(Handle(thread, cache));
     }
   }
@@ -1131,7 +1131,7 @@ public:
   }
   oop lookup(PrimitiveType value) {
     if (_low <= value && value <= _high) {
-      int offset = value - _low;
+      int offset = checked_cast<int>(value - _low);
       return objArrayOop(JNIHandles::resolve_non_null(_cache))->obj_at(offset);
     }
     return nullptr;
@@ -1217,12 +1217,12 @@ oop Deoptimization::get_cached_box(AutoBoxObjectValue* bv, frame* fr, RegisterMa
    if (box_type != T_OBJECT) {
      StackValue* value = StackValue::create_stack_value(fr, reg_map, bv->field_at(box_type == T_LONG ? 1 : 0));
      switch(box_type) {
-       case T_INT:     return IntegerBoxCache::singleton(THREAD)->lookup_raw(value->get_int(), cache_init_error);
-       case T_CHAR:    return CharacterBoxCache::singleton(THREAD)->lookup_raw(value->get_int(), cache_init_error);
-       case T_SHORT:   return ShortBoxCache::singleton(THREAD)->lookup_raw(value->get_int(), cache_init_error);
-       case T_BYTE:    return ByteBoxCache::singleton(THREAD)->lookup_raw(value->get_int(), cache_init_error);
-       case T_BOOLEAN: return BooleanBoxCache::singleton(THREAD)->lookup_raw(value->get_int(), cache_init_error);
-       case T_LONG:    return LongBoxCache::singleton(THREAD)->lookup_raw(value->get_int(), cache_init_error);
+       case T_INT:     return IntegerBoxCache::singleton(THREAD)->lookup_raw(value->get_intptr(), cache_init_error);
+       case T_CHAR:    return CharacterBoxCache::singleton(THREAD)->lookup_raw(value->get_intptr(), cache_init_error);
+       case T_SHORT:   return ShortBoxCache::singleton(THREAD)->lookup_raw(value->get_intptr(), cache_init_error);
+       case T_BYTE:    return ByteBoxCache::singleton(THREAD)->lookup_raw(value->get_intptr(), cache_init_error);
+       case T_BOOLEAN: return BooleanBoxCache::singleton(THREAD)->lookup_raw(value->get_intptr(), cache_init_error);
+       case T_LONG:    return LongBoxCache::singleton(THREAD)->lookup_raw(value->get_intptr(), cache_init_error);
        default:;
      }
    }
@@ -1248,8 +1248,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     // to be checked before using the field values. Skip re-allocation if it is null.
     if (sv->maybe_null()) {
       assert(k->is_inline_klass(), "must be an inline klass");
-      intptr_t init_value = StackValue::create_stack_value(fr, reg_map, sv->is_init())->get_int();
-      jint is_init = (jint)*((jint*)&init_value);
+      jint is_init = StackValue::create_stack_value(fr, reg_map, sv->is_init())->get_jint();
       if (is_init == 0) {
         continue;
       }
@@ -1276,7 +1275,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
 
       InstanceKlass* ik = InstanceKlass::cast(k);
       if (obj == nullptr && !cache_init_error) {
-#ifdef COMPILER2
+#if COMPILER2_OR_JVMCI
         if (EnableVectorSupport && VectorSupport::is_vector(ik)) {
           obj = VectorSupport::allocate_vector(ik, fr, reg_map, sv, THREAD);
         } else {
@@ -1284,7 +1283,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
         }
 #else
         obj = ik->allocate_instance(THREAD);
-#endif // COMPILER2
+#endif // COMPILER2_OR_JVMCI
       }
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* ak = FlatArrayKlass::cast(k);
@@ -1373,19 +1372,19 @@ static jbyte* check_alignment_get_addr(typeArrayOop obj, int index, int expected
     return res;
 }
 
-static void byte_array_put(typeArrayOop obj, intptr_t val, int index, int byte_count) {
+static void byte_array_put(typeArrayOop obj, StackValue* value, int index, int byte_count) {
   switch (byte_count) {
     case 1:
-      obj->byte_at_put(index, (jbyte) *((jint *) &val));
+      obj->byte_at_put(index, (jbyte) value->get_jint());
       break;
     case 2:
-      *((jshort *) check_alignment_get_addr(obj, index, 2)) = (jshort) *((jint *) &val);
+      *((jshort *) check_alignment_get_addr(obj, index, 2)) = (jshort) value->get_jint();
       break;
     case 4:
-      *((jint *) check_alignment_get_addr(obj, index, 4)) = (jint) *((jint *) &val);
+      *((jint *) check_alignment_get_addr(obj, index, 4)) = value->get_jint();
       break;
     case 8:
-      *((jlong *) check_alignment_get_addr(obj, index, 8)) = (jlong) *((jlong *) &val);
+      *((jlong *) check_alignment_get_addr(obj, index, 8)) = (jlong) value->get_intptr();
       break;
     default:
       ShouldNotReachHere();
@@ -1397,7 +1396,6 @@ static void byte_array_put(typeArrayOop obj, intptr_t val, int index, int byte_c
 // restore elements of an eliminated type array
 void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, typeArrayOop obj, BasicType type) {
   int index = 0;
-  intptr_t val;
 
   for (int i = 0; i < sv->field_size(); i++) {
     StackValue* value = StackValue::create_stack_value(fr, reg_map, sv->field_at(i));
@@ -1407,15 +1405,14 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
       StackValue* low =
         StackValue::create_stack_value(fr, reg_map, sv->field_at(++i));
 #ifdef _LP64
-      jlong res = (jlong)low->get_int();
+      jlong res = (jlong)low->get_intptr();
 #else
-      jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
+      jlong res = jlong_from(value->get_jint(), low->get_jint());
 #endif
       obj->long_at_put(index, res);
       break;
     }
 
-    // Have to cast to INT (32 bits) pointer to avoid little/big-endian problem.
     case T_INT: case T_FLOAT: { // 4 bytes.
       assert(value->type() == T_INT, "Agreement.");
       bool big_value = false;
@@ -1436,53 +1433,48 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
       if (big_value) {
         StackValue* low = StackValue::create_stack_value(fr, reg_map, sv->field_at(++i));
   #ifdef _LP64
-        jlong res = (jlong)low->get_int();
+        jlong res = (jlong)low->get_intptr();
   #else
-        jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
+        jlong res = jlong_from(value->get_jint(), low->get_jint());
   #endif
-        obj->int_at_put(index, (jint)*((jint*)&res));
-        obj->int_at_put(++index, (jint)*(((jint*)&res) + 1));
+        obj->int_at_put(index, *(jint*)&res);
+        obj->int_at_put(++index, *((jint*)&res + 1));
       } else {
-        val = value->get_int();
-        obj->int_at_put(index, (jint)*((jint*)&val));
+        obj->int_at_put(index, value->get_jint());
       }
       break;
     }
 
     case T_SHORT:
       assert(value->type() == T_INT, "Agreement.");
-      val = value->get_int();
-      obj->short_at_put(index, (jshort)*((jint*)&val));
+      obj->short_at_put(index, (jshort)value->get_jint());
       break;
 
     case T_CHAR:
       assert(value->type() == T_INT, "Agreement.");
-      val = value->get_int();
-      obj->char_at_put(index, (jchar)*((jint*)&val));
+      obj->char_at_put(index, (jchar)value->get_jint());
       break;
 
     case T_BYTE: {
       assert(value->type() == T_INT, "Agreement.");
-      // The value we get is erased as a regular int. We will need to find its actual byte count 'by hand'.
-      val = value->get_int();
 #if INCLUDE_JVMCI
+      // The value we get is erased as a regular int. We will need to find its actual byte count 'by hand'.
       int byte_count = count_number_of_bytes_for_entry(sv, i);
-      byte_array_put(obj, val, index, byte_count);
+      byte_array_put(obj, value, index, byte_count);
       // According to byte_count contract, the values from i + 1 to i + byte_count are illegal values. Skip.
       i += byte_count - 1; // Balance the loop counter.
       index += byte_count;
       // index has been updated so continue at top of loop
       continue;
 #else
-      obj->byte_at_put(index, (jbyte)*((jint*)&val));
+      obj->byte_at_put(index, (jbyte)value->get_jint());
       break;
 #endif // INCLUDE_JVMCI
     }
 
     case T_BOOLEAN: {
       assert(value->type() == T_INT, "Agreement.");
-      val = value->get_int();
-      obj->bool_at_put(index, (jboolean)*((jint*)&val));
+      obj->bool_at_put(index, (jboolean)value->get_jint());
       break;
     }
 
@@ -1507,12 +1499,9 @@ public:
   int _offset;
   BasicType _type;
   InstanceKlass* _klass;
+  bool _is_flat;
 public:
-  ReassignedField() {
-    _offset = 0;
-    _type = T_ILLEGAL;
-    _klass = nullptr;
-  }
+  ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false) { }
 };
 
 int compare(ReassignedField* left, ReassignedField* right) {
@@ -1530,12 +1519,13 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        if (fs.signature()->is_Q_signature()) {
-          if (fs.is_inlined()) {
-            // Resolve klass of flattened inline type field
+        if (fs.is_null_free_inline_type()) {
+          if (fs.is_flat()) {
+            field._is_flat = true;
+            // Resolve klass of flat inline type field
             field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));
           } else {
-            field._type = T_OBJECT;
+            field._type = T_OBJECT;  // Can be removed once Q-descriptors have been removed.
           }
         }
         fields->append(field);
@@ -1547,16 +1537,15 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   for (int i = 0; i < fields->length(); i++) {
     BasicType type = fields->at(i)._type;
     int offset = base_offset + fields->at(i)._offset;
-    // Check for flattened inline type field before accessing the ScopeValue because it might not have any fields
-    if (type == T_PRIMITIVE_OBJECT) {
-      // Recursively re-assign flattened inline type fields
+    // Check for flat inline type field before accessing the ScopeValue because it might not have any fields
+    if (fields->at(i)._is_flat) {
+      // Recursively re-assign flat inline type fields
       InstanceKlass* vk = fields->at(i)._klass;
       assert(vk != nullptr, "must be resolved");
       offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
       svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
       continue; // Continue because we don't need to increment svIndex
     }
-    intptr_t val;
     ScopeValue* scope_field = sv->field_at(svIndex);
     StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
     switch (type) {
@@ -1566,7 +1555,6 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         obj->obj_field_put(offset, value->get_obj()());
         break;
 
-      // Have to cast to INT (32 bits) pointer to avoid little/big-endian problem.
       case T_INT: case T_FLOAT: { // 4 bytes.
         assert(value->type() == T_INT, "Agreement.");
         bool big_value = false;
@@ -1590,8 +1578,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
           assert(i < fields->length(), "second T_INT field needed");
           assert(fields->at(i)._type == T_INT, "T_INT field needed");
         } else {
-          val = value->get_int();
-          obj->int_field_put(offset, (jint)*((jint*)&val));
+          obj->int_field_put(offset, value->get_jint());
           break;
         }
       }
@@ -1601,9 +1588,9 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         assert(value->type() == T_INT, "Agreement.");
         StackValue* low = StackValue::create_stack_value(fr, reg_map, sv->field_at(++svIndex));
 #ifdef _LP64
-        jlong res = (jlong)low->get_int();
+        jlong res = (jlong)low->get_intptr();
 #else
-        jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
+        jlong res = jlong_from(value->get_jint(), low->get_jint());
 #endif
         obj->long_field_put(offset, res);
         break;
@@ -1611,26 +1598,22 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
 
       case T_SHORT:
         assert(value->type() == T_INT, "Agreement.");
-        val = value->get_int();
-        obj->short_field_put(offset, (jshort)*((jint*)&val));
+        obj->short_field_put(offset, (jshort)value->get_jint());
         break;
 
       case T_CHAR:
         assert(value->type() == T_INT, "Agreement.");
-        val = value->get_int();
-        obj->char_field_put(offset, (jchar)*((jint*)&val));
+        obj->char_field_put(offset, (jchar)value->get_jint());
         break;
 
       case T_BYTE:
         assert(value->type() == T_INT, "Agreement.");
-        val = value->get_int();
-        obj->byte_field_put(offset, (jbyte)*((jint*)&val));
+        obj->byte_field_put(offset, (jbyte)value->get_jint());
         break;
 
       case T_BOOLEAN:
         assert(value->type() == T_INT, "Agreement.");
-        val = value->get_int();
-        obj->bool_field_put(offset, (jboolean)*((jint*)&val));
+        obj->bool_field_put(offset, (jboolean)value->get_jint());
         break;
 
       default:
@@ -1644,10 +1627,10 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
 // restore fields of an eliminated inline type array
 void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, flatArrayOop obj, FlatArrayKlass* vak, bool skip_internal, TRAPS) {
   InlineKlass* vk = vak->element_klass();
-  assert(vk->flatten_array(), "should only be used for flattened inline type arrays");
+  assert(vk->flat_array(), "should only be used for flat inline type arrays");
   // Adjust offset to omit oop header
   int base_offset = arrayOopDesc::base_offset_in_bytes(T_PRIMITIVE_OBJECT) - InlineKlass::cast(vk)->first_field_offset();
-  // Initialize all elements of the flattened inline type array
+  // Initialize all elements of the flat inline type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
@@ -1658,6 +1641,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
 // restore fields of all eliminated objects and arrays
 void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, bool realloc_failures, bool skip_internal, TRAPS) {
   for (int i = 0; i < objects->length(); i++) {
+    assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
     Handle obj = sv->value();
@@ -1678,7 +1662,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
       continue;
     }
 #endif // INCLUDE_JVMCI
-#ifdef COMPILER2
+#if COMPILER2_OR_JVMCI
     if (EnableVectorSupport && VectorSupport::is_vector(k)) {
       assert(sv->field_size() == 1, "%s not a vector", k->name()->as_C_string());
       ScopeValue* payload = sv->field_at(0);
@@ -1698,7 +1682,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
       // Else fall-through to do assignment for scalar-replaced boxed vector representation
       // which could be restored after vector object allocation.
     }
-#endif /* !COMPILER2 */
+#endif /* !COMPILER2_OR_JVMCI */
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
       reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, CHECK);
@@ -1764,7 +1748,7 @@ vframeArray* Deoptimization::create_vframeArray(JavaThread* thread, frame fr, Re
   // stuff a C2I adapter we can properly fill in the callee-save
   // register locations.
   frame caller = fr.sender(reg_map);
-  int frame_size = caller.sp() - fr.sp();
+  int frame_size = pointer_delta_as_int(caller.sp(), fr.sp());
 
   frame sender = caller;
 

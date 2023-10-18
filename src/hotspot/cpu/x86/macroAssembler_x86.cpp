@@ -39,8 +39,10 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/accessDecorators.hpp"
+#include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -2900,7 +2902,7 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
+  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::notZero, is_null_free_inline_type);
@@ -2908,18 +2910,18 @@ void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Registe
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
+  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::zero, not_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined) {
+void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_inlined_shift);
+  shrl(temp_reg, ResolvedFieldEntry::is_flat_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_inlined);
+  jcc(Assembler::notZero, is_flat);
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
@@ -2939,25 +2941,25 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
   jcc((jmp_set) ? Assembler::notZero : Assembler::zero, jmp_label);
 }
 
-void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg,
-                                              Label&is_flattened_array) {
+void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg,
+                                         Label& is_flat_array) {
 #ifdef _LP64
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flattened_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
 #else
   load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
-  test_flattened_array_layout(temp_reg, is_flattened_array);
+  test_flat_array_layout(temp_reg, is_flat_array);
 #endif
 }
 
-void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_reg,
-                                                  Label&is_non_flattened_array) {
+void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg,
+                                             Label& is_non_flat_array) {
 #ifdef _LP64
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flattened_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
 #else
   load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
-  test_non_flattened_array_layout(temp_reg, is_non_flattened_array);
+  test_non_flat_array_layout(temp_reg, is_non_flat_array);
 #endif
 }
 
@@ -2981,14 +2983,14 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
 #endif
 }
 
-void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
+void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
   testl(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  jcc(Assembler::notZero, is_flattened_array);
+  jcc(Assembler::notZero, is_flat_array);
 }
 
-void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
+void MacroAssembler::test_non_flat_array_layout(Register lh, Label& is_non_flat_array) {
   testl(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  jcc(Assembler::zero, is_non_flattened_array);
+  jcc(Assembler::zero, is_non_flat_array);
 }
 
 void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
@@ -4889,7 +4891,7 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   if (!IS_A_TEMP(rdi)) { push(rdi); pushed_rdi = true; }
 
 #ifndef PRODUCT
-  int* pst_counter = &SharedRuntime::_partial_subtype_ctr;
+  uint* pst_counter = &SharedRuntime::_partial_subtype_ctr;
   ExternalAddress pst_counter_addr((address) pst_counter);
   NOT_LP64(  incrementl(pst_counter_addr) );
   LP64_ONLY( lea(rcx, pst_counter_addr) );
@@ -10026,6 +10028,17 @@ void MacroAssembler::evpandq(XMMRegister dst, XMMRegister nds, AddressLiteral sr
   } else {
     lea(rscratch, src);
     evpandq(dst, nds, Address(rscratch, 0), vector_len);
+  }
+}
+
+void MacroAssembler::evpaddq(XMMRegister dst, KRegister mask, XMMRegister nds, AddressLiteral src, bool merge, int vector_len, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    Assembler::evpaddq(dst, mask, nds, as_Address(src), merge, vector_len);
+  } else {
+    lea(rscratch, src);
+    Assembler::evpaddq(dst, mask, nds, Address(rscratch, 0), merge, vector_len);
   }
 }
 

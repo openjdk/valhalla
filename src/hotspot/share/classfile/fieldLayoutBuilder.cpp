@@ -63,7 +63,7 @@ LayoutRawBlock::LayoutRawBlock(int index, Kind kind, int size, int alignment, bo
  _size(size),
  _field_index(index),
  _is_reference(is_reference) {
-  assert(kind == REGULAR || kind == INLINED || kind == INHERITED,
+  assert(kind == REGULAR || kind == FLAT || kind == INHERITED,
          "Other kind do not have a field index");
   assert(size > 0, "Sanity check");
   assert(alignment > 0, "Sanity check");
@@ -105,8 +105,8 @@ void FieldGroup::add_oop_field(int idx) {
   _oop_count++;
 }
 
-void FieldGroup::add_inlined_field(int idx, InlineKlass* vk) {
-  LayoutRawBlock* block = new LayoutRawBlock(idx, LayoutRawBlock::INLINED, vk->get_exact_size_in_bytes(), vk->get_alignment(), false);
+void FieldGroup::add_flat_field(int idx, InlineKlass* vk) {
+  LayoutRawBlock* block = new LayoutRawBlock(idx, LayoutRawBlock::FLAT, vk->get_exact_size_in_bytes(), vk->get_alignment(), false);
   block->set_inline_klass(vk);
   if (block->size() >= oopSize) {
     add_to_big_primitive_list(block);
@@ -184,7 +184,7 @@ LayoutRawBlock* FieldLayout::first_field_block() {
   while (block != nullptr
          && block->kind() != LayoutRawBlock::INHERITED
          && block->kind() != LayoutRawBlock::REGULAR
-         && block->kind() != LayoutRawBlock::INLINED) {
+         && block->kind() != LayoutRawBlock::FLAT) {
     block = block->next_block();
   }
   return block;
@@ -338,7 +338,7 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
       if (fs.access_flags().is_static()) continue;
       has_instance_fields = true;
       LayoutRawBlock* block;
-      if (type == T_PRIMITIVE_OBJECT) {
+      if (fs.field_flags().is_null_free_inline_type()) {
         InlineKlass* vk = InlineKlass::cast(ik->get_inline_type_field_klass(fs.index()));
         block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, vk->get_exact_size_in_bytes(),
                                    vk->get_alignment(), false);
@@ -477,7 +477,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
                          "REGULAR");
         break;
       }
-      case LayoutRawBlock::INLINED: {
+      case LayoutRawBlock::FLAT: {
         FieldInfo* fi = _field_info->adr_at(b->field_index());
         output->print_cr(" @%d \"%s\" %s %d/%d %s",
                          b->offset(),
@@ -485,7 +485,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
                          fi->signature(_cp)->as_C_string(),
                          b->size(),
                          b->alignment(),
-                         "INLINED");
+                         "FLAT");
         break;
       }
       case LayoutRawBlock::RESERVED: {
@@ -631,43 +631,45 @@ void FieldLayoutBuilder::regular_field_sorting() {
       break;
     case T_OBJECT:
     case T_ARRAY:
-      if (group != _static_fields) _nonstatic_oopmap_count++;
-      group->add_oop_field(idx);
-      break;
-    case T_PRIMITIVE_OBJECT:
-      _has_inline_type_fields = true;
-      if (group == _static_fields) {
-        // static fields are never inlined
+    case T_PRIMITIVE_OBJECT:  // T_PRIMITIVE_OBJECT is going to me removed, inline types are detected below
+      if (!fieldinfo.field_flags().is_null_free_inline_type()) {
+        if (group != _static_fields) _nonstatic_oopmap_count++;
         group->add_oop_field(idx);
       } else {
-        _has_flattening_information = true;
-        // Flattening decision to be taken here
-        // This code assumes all verification already have been performed
-        // (field's type has been loaded and it is an inline klass)
-        JavaThread* THREAD = JavaThread::current();
-        Klass* klass =  _inline_type_field_klasses->at(idx);
-        assert(klass != nullptr, "Sanity check");
-        InlineKlass* vk = InlineKlass::cast(klass);
-        bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
-                                   (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
-        bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
-        bool too_volatile_to_flatten = fieldinfo.access_flags().is_volatile();
-        if (vk->is_naturally_atomic()) {
-          too_atomic_to_flatten = false;
-          //too_volatile_to_flatten = false; //FIXME
-          // volatile fields are currently never inlined, this could change in the future
-        }
-        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten) || fieldinfo.access_flags().is_final()) {
-          group->add_inlined_field(idx, vk);
-          _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
-          _field_info->adr_at(idx)->field_flags_addr()->update_inlined(true);
-          if (!vk->is_atomic()) {  // flat and non-atomic: take note
-            _has_nonatomic_values = true;
-            _atomic_field_count--;  // every other field is atomic but this one
-          }
-        } else {
-          _nonstatic_oopmap_count++;
+        _has_inline_type_fields = true;
+        if (group == _static_fields) {
+          // static fields are never flat
           group->add_oop_field(idx);
+        } else {
+          _has_flattening_information = true;
+          // Flattening decision to be taken here
+          // This code assumes all verification already have been performed
+          // (field's type has been loaded and it is an inline klass)
+          JavaThread* THREAD = JavaThread::current();
+          Klass* klass =  _inline_type_field_klasses->at(idx);
+          assert(klass != nullptr, "Sanity check");
+          InlineKlass* vk = InlineKlass::cast(klass);
+          bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
+                                    (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
+          bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
+          bool too_volatile_to_flatten = fieldinfo.access_flags().is_volatile();
+          if (vk->is_naturally_atomic()) {
+            too_atomic_to_flatten = false;
+            //too_volatile_to_flatten = false; //FIXME
+            // Currently, volatile fields are never flat, this could change in the future
+          }
+          if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
+            group->add_flat_field(idx, vk);
+            _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
+            _field_info->adr_at(idx)->field_flags_addr()->update_flat(true);
+            if (!vk->is_atomic()) {  // flat and non-atomic: take note
+              _has_nonatomic_values = true;
+              _atomic_field_count--;  // every other field is atomic but this one
+            }
+          } else {
+            _nonstatic_oopmap_count++;
+            group->add_oop_field(idx);
+          }
         }
       }
       break;
@@ -692,7 +694,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
  *     constraining alignment, this value is then used as the alignment
  *     constraint when flattening this inline type into another container
  *   - field flattening decisions are taken in this method (those decisions are
- *     currently only based in the size of the fields to be inlined, the size
+ *     currently only based in the size of the fields to be flattened, the size
  *     of the resulting instance is not considered)
  */
 void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
@@ -727,52 +729,52 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
       break;
     case T_OBJECT:
     case T_ARRAY:
-      if (group != _static_fields) {
-        _nonstatic_oopmap_count++;
-        field_alignment = type2aelembytes(type); // alignment == size for oops
-      }
-      group->add_oop_field(fieldinfo.index());
-      break;
-    case T_PRIMITIVE_OBJECT: {
-//      fs.set_inline(true);
-      _has_inline_type_fields = true;
-      if (group == _static_fields) {
-        // static fields are never inlined
+    case T_PRIMITIVE_OBJECT: // T_PRIMITIVE_OBJECT is going to be removed, online types are detected below
+      if (!fieldinfo.field_flags().is_null_free_inline_type()) {
+        if (group != _static_fields) {
+          _nonstatic_oopmap_count++;
+          field_alignment = type2aelembytes(type); // alignment == size for oops
+        }
         group->add_oop_field(fieldinfo.index());
       } else {
-        // Flattening decision to be taken here
-        // This code assumes all verifications have already been performed
-        // (field's type has been loaded and it is an inline klass)
-        JavaThread* THREAD = JavaThread::current();
-        Klass* klass =  _inline_type_field_klasses->at(fieldinfo.index());
-        assert(klass != nullptr, "Sanity check");
-        InlineKlass* vk = InlineKlass::cast(klass);
-        bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
-                                   (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
-        bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
-        bool too_volatile_to_flatten = fieldinfo.access_flags().is_volatile();
-        if (vk->is_naturally_atomic()) {
-          too_atomic_to_flatten = false;
-          //too_volatile_to_flatten = false; //FIXME
-          // volatile fields are currently never inlined, this could change in the future
-        }
-        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten) || fieldinfo.access_flags().is_final()) {
-          group->add_inlined_field(fieldinfo.index(), vk);
-          _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
-          field_alignment = vk->get_alignment();
-          _field_info->adr_at(fieldinfo.index())->field_flags_addr()->update_inlined(true);
-          if (!vk->is_atomic()) {  // flat and non-atomic: take note
-            _has_nonatomic_values = true;
-            _atomic_field_count--;  // every other field is atomic but this one
-          }
-        } else {
-          _nonstatic_oopmap_count++;
-          field_alignment = type2aelembytes(T_OBJECT);
+        _has_inline_type_fields = true;
+        if (group == _static_fields) {
+          // static fields are never flat
           group->add_oop_field(fieldinfo.index());
+        } else {
+          // Flattening decision to be taken here
+          // This code assumes all verifications have already been performed
+          // (field's type has been loaded and it is an inline klass)
+          JavaThread* THREAD = JavaThread::current();
+          Klass* klass =  _inline_type_field_klasses->at(fieldinfo.index());
+          assert(klass != nullptr, "Sanity check");
+          InlineKlass* vk = InlineKlass::cast(klass);
+          bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
+                                    (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
+          bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
+          bool too_volatile_to_flatten = fieldinfo.access_flags().is_volatile();
+          if (vk->is_naturally_atomic()) {
+            too_atomic_to_flatten = false;
+            //too_volatile_to_flatten = false; //FIXME
+            // Currently, volatile fields are never flat, this could change in the future
+          }
+          if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
+            group->add_flat_field(fieldinfo.index(), vk);
+            _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
+            field_alignment = vk->get_alignment();
+            _field_info->adr_at(fieldinfo.index())->field_flags_addr()->update_flat(true);
+            if (!vk->is_atomic()) {  // flat and non-atomic: take note
+              _has_nonatomic_values = true;
+              _atomic_field_count--;  // every other field is atomic but this one
+            }
+          } else {
+            _nonstatic_oopmap_count++;
+            field_alignment = type2aelembytes(T_OBJECT);
+            group->add_oop_field(fieldinfo.index());
+          }
         }
       }
       break;
-    }
     default:
       fatal("Unexpected BasicType");
     }
@@ -797,7 +799,7 @@ void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
 
 /* Computation of regular classes layout is an evolution of the previous default layout
  * (FieldAllocationStyle 1):
- *   - primitive fields (both primitive types and flattened inline types) are allocated
+ *   - primitive fields (both primitive types and flat inline types) are allocated
  *     first, from the biggest to the smallest
  *   - then oop fields are allocated (to increase chances to have contiguous oops and
  *     a simpler oopmap).
@@ -847,7 +849,7 @@ void FieldLayoutBuilder::compute_regular_layout() {
  * of inline classes is to be embedded into other containers, it is critical
  * to keep their size as small as possible. For this reason, the allocation
  * strategy is:
- *   - big primitive fields (primitive types and flattened inline type smaller
+ *   - big primitive fields (primitive types and flat inline type smaller
  *     than an oop) are allocated first (from the biggest to the smallest)
  *   - then oop fields
  *   - then small primitive fields (from the biggest to the smallest)
@@ -890,7 +892,7 @@ void FieldLayoutBuilder::compute_inline_class_layout(TRAPS) {
   epilogue();
 }
 
-void FieldLayoutBuilder::add_inlined_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_maps,
+void FieldLayoutBuilder::add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_maps,
                 InlineKlass* vklass, int offset) {
   int diff = offset - vklass->first_field_offset();
   const OopMapBlock* map = vklass->start_of_nonstatic_oop_maps();
@@ -905,11 +907,11 @@ void FieldLayoutBuilder::register_embedded_oops_from_list(OopMapBlocksBuilder* n
   if (list != nullptr) {
     for (int i = 0; i < list->length(); i++) {
       LayoutRawBlock* f = list->at(i);
-      if (f->kind() == LayoutRawBlock::INLINED) {
+      if (f->kind() == LayoutRawBlock::FLAT) {
         InlineKlass* vk = f->inline_klass();
         assert(vk != nullptr, "Should have been initialized");
         if (vk->contains_oops()) {
-          add_inlined_field_oopmap(nonstatic_oop_maps, vk, f->offset());
+          add_flat_field_oopmap(nonstatic_oop_maps, vk, f->offset());
         }
       }
     }

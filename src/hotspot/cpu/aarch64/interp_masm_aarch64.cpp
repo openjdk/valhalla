@@ -38,6 +38,7 @@
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "oops/resolvedIndyEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -285,9 +286,9 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
   }
 }
 
-void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
-                                                   Register field_index, Register field_offset,
-                                                   Register temp, Register obj) {
+void InterpreterMacroAssembler::read_flat_field(Register holder_klass,
+                                                Register field_index, Register field_offset,
+                                                Register temp, Register obj) {
   Label alloc_failed, empty_value, done;
   const Register src = field_offset;
   const Register alloc_temp = rscratch1;
@@ -325,7 +326,7 @@ void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
   bind(alloc_failed);
   pop(obj);
   pop(holder_klass);
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_inlined_field),
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, field_index, holder_klass);
 
   bind(done);
@@ -1642,7 +1643,7 @@ void InterpreterMacroAssembler::profile_array(Register mdp,
     profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::array_offset())));
 
     Label not_flat;
-    test_non_flattened_array_oop(array, tmp, not_flat);
+    test_non_flat_array_oop(array, tmp, not_flat);
 
     set_mdp_flag_at(mdp, ArrayLoadStoreData::flat_array_byte_constant());
 
@@ -2066,8 +2067,24 @@ void InterpreterMacroAssembler::load_resolved_indy_entry(Register cache, Registe
   get_cache_index_at_bcp(index, 1, sizeof(u4));
   // Get address of invokedynamic array
   ldr(cache, Address(rcpool, in_bytes(ConstantPoolCache::invokedynamic_entries_offset())));
-  // Scale the index to be the entry index * sizeof(ResolvedInvokeDynamicInfo)
+  // Scale the index to be the entry index * sizeof(ResolvedIndyEntry)
   lsl(index, index, log2i_exact(sizeof(ResolvedIndyEntry)));
   add(cache, cache, Array<ResolvedIndyEntry>::base_offset_in_bytes());
+  lea(cache, Address(cache, index));
+}
+
+void InterpreterMacroAssembler::load_field_entry(Register cache, Register index, int bcp_offset) {
+  // Get index out of bytecode pointer
+  get_cache_index_at_bcp(index, bcp_offset, sizeof(u2));
+  // Take shortcut if the size is a power of 2
+  if (is_power_of_2(sizeof(ResolvedFieldEntry))) {
+    lsl(index, index, log2i_exact(sizeof(ResolvedFieldEntry))); // Scale index by power of 2
+  } else {
+    mov(cache, sizeof(ResolvedFieldEntry));
+    mul(index, index, cache); // Scale the index to be the entry index * sizeof(ResolvedFieldEntry)
+  }
+  // Get address of field entries array
+  ldr(cache, Address(rcpool, ConstantPoolCache::field_entries_offset()));
+  add(cache, cache, Array<ResolvedFieldEntry>::base_offset_in_bytes());
   lea(cache, Address(cache, index));
 }

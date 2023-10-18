@@ -122,7 +122,7 @@ int InlineKlass::nonstatic_oop_count() {
   return oops;
 }
 
-oop InlineKlass::read_inlined_field(oop obj, int offset, TRAPS) {
+oop InlineKlass::read_flat_field(oop obj, int offset, TRAPS) {
   oop res = nullptr;
   assert(is_initialized() || is_being_initialized()|| is_in_error_state(),
         "Must be initialized, initializing or in a corner case of an escaped instance of a class that failed its initialization");
@@ -137,7 +137,7 @@ oop InlineKlass::read_inlined_field(oop obj, int offset, TRAPS) {
   return res;
 }
 
-void InlineKlass::write_inlined_field(oop obj, int offset, oop value, TRAPS) {
+void InlineKlass::write_flat_field(oop obj, int offset, oop value, TRAPS) {
   if (value == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
@@ -148,7 +148,7 @@ void InlineKlass::write_inlined_field(oop obj, int offset, oop value, TRAPS) {
 
 // Arrays of...
 
-bool InlineKlass::flatten_array() {
+bool InlineKlass::flat_array() {
   if (!UseFlatArray) {
     return false;
   }
@@ -183,7 +183,7 @@ Klass* InlineKlass::value_array_klass(int n, TRAPS) {
       // Check if update has already taken place
       if (value_array_klasses() == nullptr) {
         ArrayKlass* k;
-        if (flatten_array()) {
+        if (flat_array()) {
           k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
         } else {
           k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, true, CHECK_NULL);
@@ -218,7 +218,7 @@ Klass* InlineKlass::value_array_klass_or_null() {
 
 // Inline type arguments are not passed by reference, instead each
 // field of the inline type is passed as an argument. This helper
-// function collects the inlined field (recursively)
+// function collects the flat field (recursively)
 // in a list. Included with the field's type is
 // the offset of each field in the inline type: i2c and c2i adapters
 // need that to load or store fields. Finally, the list of fields is
@@ -242,8 +242,8 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
-    if (fs.is_inlined()) {
-      // Resolve klass of inlined field and recursively collect fields
+    if (fs.is_flat()) {
+      // Resolve klass of flat field and recursively collect fields
       Klass* vk = get_inline_type_field_klass(fs.index());
       count += InlineKlass::cast(vk)->collect_fields(sig, offset);
     } else {

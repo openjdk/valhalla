@@ -46,8 +46,7 @@ int ciInlineKlass::first_field_offset() const {
 }
 
 // Returns the index of the field with the given offset. If the field at 'offset'
-// belongs to a flattened inline type field, return the index of the field
-// in the flattened inline type.
+// belongs to a flat field, return the index of the field in the inline type of the flat field.
 int ciInlineKlass::field_index_by_offset(int offset) {
   assert(contains_field_offset(offset), "invalid field offset");
   int best_offset = 0;
@@ -61,7 +60,7 @@ int ciInlineKlass::field_index_by_offset(int offset) {
     } else if (field_offset < offset && field_offset > best_offset) {
       // No exact match. Save the index of the field with the closest offset that
       // is smaller than the given field offset. This index corresponds to the
-      // flattened inline type field that holds the field we are looking for.
+      // flat field that holds the field we are looking for.
       best_offset = field_offset;
       best_index = i;
     }
@@ -71,9 +70,9 @@ int ciInlineKlass::field_index_by_offset(int offset) {
   return best_index;
 }
 
-// Are arrays containing this inline type flattened?
-bool ciInlineKlass::flatten_array() const {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->flatten_array();)
+// Are arrays containing this inline type flat arrays?
+bool ciInlineKlass::flat_array() const {
+  GUARDED_VM_ENTRY(return to_InlineKlass()->flat_array();)
 }
 
 // Can this inline type be passed as multiple values?
@@ -89,7 +88,7 @@ bool ciInlineKlass::can_be_returned_as_fields() const {
 bool ciInlineKlass::is_empty() {
   // Do not use InlineKlass::is_empty_inline_type here because it does
   // consider the container empty even if fields of empty inline types
-  // are not flattened
+  // are not flat
   return nof_nonstatic_fields() == 0;
 }
 
