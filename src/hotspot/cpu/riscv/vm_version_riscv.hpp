@@ -201,6 +201,9 @@ class VM_Version : public Abstract_VM_Version {
   constexpr static bool supports_stack_watermark_barrier() { return true; }
 
   static bool supports_on_spin_wait() { return UseZihintpause; }
+
+  // Max supported vector lane count for a particular lane type.
+  static int max_vector_size(BasicType bt);
 };
 
 #endif // CPU_RISCV_VM_VERSION_RISCV_HPP

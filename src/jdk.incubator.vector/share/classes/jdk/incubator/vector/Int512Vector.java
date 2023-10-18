@@ -69,8 +69,8 @@ value class Int512Vector extends IntVector {
         return payload;
     }
 
-    static final Int512Vector ZERO = new Int512Vector(VectorPayloadMF.newInstanceFactory(int.class, 16));
-    static final Int512Vector IOTA = new Int512Vector(VectorPayloadMF.createVectPayloadInstanceI(16, (int[])(VSPECIES.iotaArray())));
+    static final Int512Vector ZERO = new Int512Vector(VectorPayloadMF.newVectorInstanceFactory(int.class, 16, false));
+    static final Int512Vector IOTA = new Int512Vector(VectorPayloadMF.createVectPayloadInstanceI(VLENGTH, (int[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -586,19 +586,20 @@ value class Int512Vector extends IntVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-        private final VectorPayloadMF128Z payload;
-
         Int512Mask(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF128Z) payload;
         }
 
+        private final VectorPayloadMF128Z payload;
+
         Int512Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Int512Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
+
 
         @ForceInline
         final @Override
@@ -767,17 +768,18 @@ value class Int512Vector extends IntVector {
             assert(indexesInRange(payload));
         }
 
+        public Int512Shuffle(int[] indexes, int i) {
+            this(prepare(indexes, i, VSPECIES));
+        }
+
+        public Int512Shuffle(IntUnaryOperator fn) {
+            this(prepare(fn, VSPECIES));
+        }
+
         public Int512Shuffle(int[] indexes) {
             this(indexes, 0);
         }
 
-        public Int512Shuffle(int[] indexes, int i) {
-            this(prepare(VLENGTH, indexes, i));
-        }
-
-        public Int512Shuffle(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
-        }
 
         @ForceInline
         @Override
@@ -821,7 +823,7 @@ value class Int512Vector extends IntVector {
             Int512Shuffle s = (Int512Shuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {

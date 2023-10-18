@@ -774,6 +774,9 @@ public:
   // Check intrinsic support
   static bool is_intrinsic_supported(vmIntrinsicID id);
 
+  // Max supported vector lane count for a particular lane type.
+  static int max_vector_size(BasicType bt);
+
   // there are several insns to force cache line sync to memory which
   // we can use to ensure mapped non-volatile memory is up to date with
   // pending in-cache changes.

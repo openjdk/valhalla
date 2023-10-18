@@ -372,9 +372,10 @@ public abstract class FloatVector extends AbstractVector<Float> {
     <M> FloatVector ldOpMF(M memory, int offset,
                                   FLdOp<M> f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                float.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                float.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putFloat(tpayload, vOffset + i * Float.BYTES, f.apply(memory, offset, i));
@@ -390,9 +391,10 @@ public abstract class FloatVector extends AbstractVector<Float> {
                                   VectorMask<Float> m,
                                   FLdOp<M> f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                float.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                float.class, length, is_max_species));
         VectorPayloadMF mbits = ((AbstractMask<Float>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -417,9 +419,10 @@ public abstract class FloatVector extends AbstractVector<Float> {
     FloatVector ldLongOpMF(MemorySegment memory, long offset,
                                   FLdLongOp f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                float.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                float.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putFloat(tpayload, vOffset + i * Float.BYTES, f.apply(memory, offset, i));
@@ -435,9 +438,10 @@ public abstract class FloatVector extends AbstractVector<Float> {
                                   VectorMask<Float> m,
                                   FLdLongOp f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                float.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                float.class, length, is_max_species));
         VectorPayloadMF mbits = ((AbstractMask<Float>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -545,7 +549,8 @@ public abstract class FloatVector extends AbstractVector<Float> {
         int length = vspecies().length();
         VectorPayloadMF vec1 = vec();
         VectorPayloadMF vec2 = ((FloatVector)o).vec();
-        VectorPayloadMF mbits = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
+        VectorPayloadMF mbits = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
         mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -3976,9 +3981,8 @@ public abstract class FloatVector extends AbstractVector<Float> {
         @Override
         @ForceInline
         public final FloatVector zero() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == FloatMaxVector.class)
-            //    return FloatMaxVector.ZERO;
+            if ((Class<?>) vectorType() == FloatMaxVector.class)
+               return FloatMaxVector.ZERO;
             switch (vectorBitSize()) {
                 case 64: return Float64Vector.ZERO;
                 case 128: return Float128Vector.ZERO;
@@ -3991,9 +3995,8 @@ public abstract class FloatVector extends AbstractVector<Float> {
         @Override
         @ForceInline
         public final FloatVector iota() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == FloatMaxVector.class)
-            //    return FloatMaxVector.IOTA;
+            if ((Class<?>) vectorType() == FloatMaxVector.class)
+                return FloatMaxVector.IOTA;
             switch (vectorBitSize()) {
                 case 64: return Float64Vector.IOTA;
                 case 128: return Float128Vector.IOTA;
@@ -4007,9 +4010,8 @@ public abstract class FloatVector extends AbstractVector<Float> {
         @Override
         @ForceInline
         public final VectorMask<Float> maskAll(boolean bit) {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == FloatMaxVector.class)
-            //    return FloatMaxVector.FloatMaxMask.maskAll(bit);
+            if ((Class<?>) vectorType() == FloatMaxVector.class)
+                return FloatMaxVector.FloatMaxMask.maskAll(bit);
             switch (vectorBitSize()) {
                 case 64: return Float64Vector.Float64Mask.maskAll(bit);
                 case 128: return Float128Vector.Float128Mask.maskAll(bit);
@@ -4044,8 +4046,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             case VectorShape.SK_128_BIT: return (FloatSpecies) SPECIES_128;
             case VectorShape.SK_256_BIT: return (FloatSpecies) SPECIES_256;
             case VectorShape.SK_512_BIT: return (FloatSpecies) SPECIES_512;
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //case VectorShape.SK_Max_BIT: return (FloatSpecies) SPECIES_MAX;
+            case VectorShape.SK_Max_BIT: return (FloatSpecies) SPECIES_MAX;
             default: throw new IllegalArgumentException("Bad shape: " + s);
         }
     }
@@ -4079,13 +4080,11 @@ public abstract class FloatVector extends AbstractVector<Float> {
                             Float512Vector::new);
 
     /** Species representing {@link FloatVector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
-    // FIXME: Enable once multi-field based MaxVector is supported.
-    /*public static final VectorSpecies<Float> SPECIES_MAX
+    public static final VectorSpecies<Float> SPECIES_MAX
         = new FloatSpecies(VectorShape.S_Max_BIT,
                             FloatMaxVector.class,
                             FloatMaxVector.FloatMaxMask.class,
                             FloatMaxVector::new);
-     */
 
     /**
      * Preferred species for {@link FloatVector}s.

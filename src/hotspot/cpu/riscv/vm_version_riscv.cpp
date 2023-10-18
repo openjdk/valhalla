@@ -349,3 +349,21 @@ void VM_Version::initialize_cpu_information(void) {
   snprintf(_cpu_desc, CPU_DETAILED_DESC_BUF_SIZE, "RISCV64 %s", features_string());
   _initialized = true;
 }
+
+int VM_Version::max_vector_size(BasicType bt) {
+#ifdef COMPILER2
+  if (UseRVV) {
+    // The MaxVectorSize should have been set by detecting RVV max vector register size when check UseRVV.
+    // MaxVectorSize == VM_Version::_initial_vector_length
+    int size = MaxVectorSize;
+    // Minimum 2 values in vector
+    if (size < 2 * type2aelembytes(bt)) size = 0;
+    // But never < 4
+    if (size < 4) size = 0;
+    return size / type2aelembytes(bt);
+  }
+  return 0;
+#else
+  return -1;
+#endif
+}

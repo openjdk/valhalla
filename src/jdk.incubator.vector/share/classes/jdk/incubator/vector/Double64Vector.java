@@ -69,8 +69,8 @@ value class Double64Vector extends DoubleVector {
         return payload;
     }
 
-    static final Double64Vector ZERO = new Double64Vector(VectorPayloadMF.newInstanceFactory(double.class, 1));
-    static final Double64Vector IOTA = new Double64Vector(VectorPayloadMF.createVectPayloadInstanceD(1, (double[])(VSPECIES.iotaArray())));
+    static final Double64Vector ZERO = new Double64Vector(VectorPayloadMF.newVectorInstanceFactory(double.class, 1, false));
+    static final Double64Vector IOTA = new Double64Vector(VectorPayloadMF.createVectPayloadInstanceD(VLENGTH, (double[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -545,19 +545,20 @@ value class Double64Vector extends DoubleVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Double> ETYPE = double.class; // used by the JVM
 
-        private final VectorPayloadMF8Z payload;
-
         Double64Mask(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF8Z) payload;
         }
 
+        private final VectorPayloadMF8Z payload;
+
         Double64Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Double64Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
+
 
         @ForceInline
         final @Override
@@ -726,17 +727,18 @@ value class Double64Vector extends DoubleVector {
             assert(indexesInRange(payload));
         }
 
+        public Double64Shuffle(int[] indexes, int i) {
+            this(prepare(indexes, i, VSPECIES));
+        }
+
+        public Double64Shuffle(IntUnaryOperator fn) {
+            this(prepare(fn, VSPECIES));
+        }
+
         public Double64Shuffle(int[] indexes) {
             this(indexes, 0);
         }
 
-        public Double64Shuffle(int[] indexes, int i) {
-            this(prepare(VLENGTH, indexes, i));
-        }
-
-        public Double64Shuffle(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
-        }
 
         @ForceInline
         @Override
@@ -780,7 +782,7 @@ value class Double64Vector extends DoubleVector {
             Double64Shuffle s = (Double64Shuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {

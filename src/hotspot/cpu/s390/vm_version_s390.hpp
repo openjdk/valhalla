@@ -567,6 +567,9 @@ class VM_Version: public Abstract_VM_Version {
   static unsigned long z_SIGSEGV();
 
   static void initialize_cpu_information(void);
+
+  // Max supported vector lane count for a particular lane type.
+  static int max_vector_size(BasicType bt);
 };
 
 #endif // CPU_S390_VM_VERSION_S390_HPP

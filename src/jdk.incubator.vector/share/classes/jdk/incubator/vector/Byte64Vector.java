@@ -69,8 +69,8 @@ value class Byte64Vector extends ByteVector {
         return payload;
     }
 
-    static final Byte64Vector ZERO = new Byte64Vector(VectorPayloadMF.newInstanceFactory(byte.class, 8));
-    static final Byte64Vector IOTA = new Byte64Vector(VectorPayloadMF.createVectPayloadInstanceB(8, (byte[])(VSPECIES.iotaArray())));
+    static final Byte64Vector ZERO = new Byte64Vector(VectorPayloadMF.newVectorInstanceFactory(byte.class, 8, false));
+    static final Byte64Vector IOTA = new Byte64Vector(VectorPayloadMF.createVectPayloadInstanceB(VLENGTH, (byte[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -570,19 +570,20 @@ value class Byte64Vector extends ByteVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-        private final VectorPayloadMF64Z payload;
-
         Byte64Mask(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF64Z) payload;
         }
 
+        private final VectorPayloadMF64Z payload;
+
         Byte64Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Byte64Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
+
 
         @ForceInline
         final @Override
@@ -751,17 +752,18 @@ value class Byte64Vector extends ByteVector {
             assert(indexesInRange(payload));
         }
 
+        public Byte64Shuffle(int[] indexes, int i) {
+            this(prepare(indexes, i, VSPECIES));
+        }
+
+        public Byte64Shuffle(IntUnaryOperator fn) {
+            this(prepare(fn, VSPECIES));
+        }
+
         public Byte64Shuffle(int[] indexes) {
             this(indexes, 0);
         }
 
-        public Byte64Shuffle(int[] indexes, int i) {
-            this(prepare(VLENGTH, indexes, i));
-        }
-
-        public Byte64Shuffle(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
-        }
 
         @ForceInline
         @Override
@@ -805,7 +807,7 @@ value class Byte64Vector extends ByteVector {
             Byte64Shuffle s = (Byte64Shuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {

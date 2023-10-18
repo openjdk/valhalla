@@ -459,19 +459,50 @@ int VectorSupport::vop2ideal(jint id, BasicType bt) {
 }
 #endif // COMPILER2
 
+int VectorSupport::get_max_multifield_count(const Symbol* payload_name) {
+  assert(payload_name, "");
+  vmSymbolID sid = vmSymbols::find_sid(payload_name);
+  int size = MAX2(VM_Version::max_vector_size(T_BYTE), 8);
+  switch(sid) {
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxB_enum:
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxBZ_enum:
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxBB_enum:
+       return size;
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxS_enum:
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxSZ_enum:
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxSB_enum:
+       return size / type2aelembytes(T_SHORT);
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxI_enum:
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxIZ_enum:
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxIB_enum:
+       return size / type2aelembytes(T_INT);
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxL_enum:
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxLZ_enum:
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxLB_enum:
+       return size / type2aelembytes(T_LONG);
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxF_enum:
+       return size / type2aelembytes(T_FLOAT);
+    case vmSymbolID::jdk_internal_vm_vector_VectorPayloadMFMaxD_enum:
+       return size / type2aelembytes(T_DOUBLE);
+    default  : fatal("unknown symbol"); return -1;
+  }
+}
+
+int VectorSupport::max_vector_size(BasicType bt) {
+  if (is_java_primitive(bt)) {
+    return VM_Version::max_vector_size(bt);
+  }
+  return -1;
+}
+
 /**
  * Implementation of the jdk.internal.vm.vector.VectorSupport class
  */
 
 JVM_ENTRY(jint, VectorSupport_GetMaxLaneCount(JNIEnv *env, jclass vsclazz, jobject clazz)) {
-#ifdef COMPILER2
   oop mirror = JNIHandles::resolve_non_null(clazz);
-  if (java_lang_Class::is_primitive(mirror)) {
-    BasicType bt = java_lang_Class::primitive_type(mirror);
-    return Matcher::max_vector_size(bt);
-  }
-#endif // COMPILER2
-  return -1;
+  BasicType bt = java_lang_Class::primitive_type(mirror);
+  return VectorSupport::max_vector_size(bt);
 } JVM_END
 
 // JVM_RegisterVectorSupportMethods

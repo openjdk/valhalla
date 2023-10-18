@@ -40,14 +40,14 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-value class Float128Vector extends FloatVector {
+value class FloatMaxVector extends FloatVector {
     static final FloatSpecies VSPECIES =
-        (FloatSpecies) FloatVector.SPECIES_128;
+        (FloatSpecies) FloatVector.SPECIES_MAX;
 
     static final VectorShape VSHAPE =
         VSPECIES.vectorShape();
 
-    static final Class<Float128Vector> VCLASS = Float128Vector.class;
+    static final Class<FloatMaxVector> VCLASS = FloatMaxVector.class;
 
     static final int VSIZE = VSPECIES.vectorBitSize();
 
@@ -55,12 +55,12 @@ value class Float128Vector extends FloatVector {
 
     static final Class<Float> ETYPE = float.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF128F.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxF.class);
 
-    private final VectorPayloadMF128F payload;
+    private final VectorPayloadMFMaxF payload;
 
-    Float128Vector(Object value) {
-        this.payload = (VectorPayloadMF128F) value;
+    FloatMaxVector(Object value) {
+        this.payload = (VectorPayloadMFMaxF) value;
     }
 
     @ForceInline
@@ -69,8 +69,8 @@ value class Float128Vector extends FloatVector {
         return payload;
     }
 
-    static final Float128Vector ZERO = new Float128Vector(VectorPayloadMF.newVectorInstanceFactory(float.class, 4, false));
-    static final Float128Vector IOTA = new Float128Vector(VectorPayloadMF.createVectPayloadInstanceF(VLENGTH, (float[])(VSPECIES.iotaArray()), false));
+    static final FloatMaxVector ZERO = new FloatMaxVector(VectorPayloadMF.newVectorInstanceFactory(float.class, 0, true));
+    static final FloatMaxVector IOTA = new FloatMaxVector(VectorPayloadMF.createVectPayloadInstanceF(VLENGTH, (float[])(VSPECIES.iotaArray()), true));
 
     static {
         // Warm up a few species caches.
@@ -121,60 +121,60 @@ value class Float128Vector extends FloatVector {
 
     @Override
     @ForceInline
-    public final Float128Vector broadcast(float e) {
-        return (Float128Vector) super.broadcastTemplate(e);  // specialize
+    public final FloatMaxVector broadcast(float e) {
+        return (FloatMaxVector) super.broadcastTemplate(e);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float128Vector broadcast(long e) {
-        return (Float128Vector) super.broadcastTemplate(e);  // specialize
+    public final FloatMaxVector broadcast(long e) {
+        return (FloatMaxVector) super.broadcastTemplate(e);  // specialize
     }
 
     @Override
     @ForceInline
-    Float128Mask maskFromPayload(VectorPayloadMF payload) {
-        return new Float128Mask(payload);
+    FloatMaxMask maskFromPayload(VectorPayloadMF payload) {
+        return new FloatMaxMask(payload);
     }
 
     @Override
     @ForceInline
-    Float128Shuffle iotaShuffle() { return Float128Shuffle.IOTA; }
+    FloatMaxShuffle iotaShuffle() { return FloatMaxShuffle.IOTA; }
 
     @ForceInline
-    Float128Shuffle iotaShuffle(int start, int step, boolean wrap) {
+    FloatMaxShuffle iotaShuffle(int start, int step, boolean wrap) {
       if (wrap) {
-        return (Float128Shuffle)VectorSupport.shuffleIota(ETYPE, Float128Shuffle.class, VSPECIES, VLENGTH, start, step, 1,
+        return (FloatMaxShuffle)VectorSupport.shuffleIota(ETYPE, FloatMaxShuffle.class, VSPECIES, VLENGTH, start, step, 1,
                 (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (VectorIntrinsics.wrapToRange(i*lstep + lstart, l))));
       } else {
-        return (Float128Shuffle)VectorSupport.shuffleIota(ETYPE, Float128Shuffle.class, VSPECIES, VLENGTH, start, step, 0,
+        return (FloatMaxShuffle)VectorSupport.shuffleIota(ETYPE, FloatMaxShuffle.class, VSPECIES, VLENGTH, start, step, 0,
                 (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (i*lstep + lstart)));
       }
     }
 
     @Override
     @ForceInline
-    Float128Shuffle shuffleFromBytes(VectorPayloadMF indexes) { return new Float128Shuffle(indexes); }
+    FloatMaxShuffle shuffleFromBytes(VectorPayloadMF indexes) { return new FloatMaxShuffle(indexes); }
 
     @Override
     @ForceInline
-    Float128Shuffle shuffleFromArray(int[] indexes, int i) { return new Float128Shuffle(indexes, i); }
+    FloatMaxShuffle shuffleFromArray(int[] indexes, int i) { return new FloatMaxShuffle(indexes, i); }
 
     @Override
     @ForceInline
-    Float128Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Float128Shuffle(fn); }
+    FloatMaxShuffle shuffleFromOp(IntUnaryOperator fn) { return new FloatMaxShuffle(fn); }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
     final @Override
-    Float128Vector vectorFactory(VectorPayloadMF vec) {
-        return new Float128Vector(vec);
+    FloatMaxVector vectorFactory(VectorPayloadMF vec) {
+        return new FloatMaxVector(vec);
     }
 
     @ForceInline
     final @Override
-    Byte128Vector asByteVectorRaw() {
-        return (Byte128Vector) super.asByteVectorRawTemplate();  // specialize
+    ByteMaxVector asByteVectorRaw() {
+        return (ByteMaxVector) super.asByteVectorRawTemplate();  // specialize
     }
 
     @ForceInline
@@ -187,31 +187,31 @@ value class Float128Vector extends FloatVector {
 
     @ForceInline
     final @Override
-    Float128Vector uOpMF(FUnOp f) {
-        return (Float128Vector) super.uOpTemplateMF(f);  // specialize
+    FloatMaxVector uOpMF(FUnOp f) {
+        return (FloatMaxVector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Float128Vector uOpMF(VectorMask<Float> m, FUnOp f) {
-        return (Float128Vector)
-            super.uOpTemplateMF((Float128Mask)m, f);  // specialize
+    FloatMaxVector uOpMF(VectorMask<Float> m, FUnOp f) {
+        return (FloatMaxVector)
+            super.uOpTemplateMF((FloatMaxMask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Float128Vector bOpMF(Vector<Float> v, FBinOp f) {
-        return (Float128Vector) super.bOpTemplateMF((Float128Vector)v, f);  // specialize
+    FloatMaxVector bOpMF(Vector<Float> v, FBinOp f) {
+        return (FloatMaxVector) super.bOpTemplateMF((FloatMaxVector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Float128Vector bOpMF(Vector<Float> v,
+    FloatMaxVector bOpMF(Vector<Float> v,
                      VectorMask<Float> m, FBinOp f) {
-        return (Float128Vector)
-            super.bOpTemplateMF((Float128Vector)v, (Float128Mask)m,
+        return (FloatMaxVector)
+            super.bOpTemplateMF((FloatMaxVector)v, (FloatMaxMask)m,
                                 f);  // specialize
     }
 
@@ -219,19 +219,19 @@ value class Float128Vector extends FloatVector {
 
     @ForceInline
     final @Override
-    Float128Vector tOpMF(Vector<Float> v1, Vector<Float> v2, FTriOp f) {
-        return (Float128Vector)
-            super.tOpTemplateMF((Float128Vector)v1, (Float128Vector)v2,
+    FloatMaxVector tOpMF(Vector<Float> v1, Vector<Float> v2, FTriOp f) {
+        return (FloatMaxVector)
+            super.tOpTemplateMF((FloatMaxVector)v1, (FloatMaxVector)v2,
                                 f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Float128Vector tOpMF(Vector<Float> v1, Vector<Float> v2,
+    FloatMaxVector tOpMF(Vector<Float> v1, Vector<Float> v2,
                      VectorMask<Float> m, FTriOp f) {
-        return (Float128Vector)
-            super.tOpTemplateMF((Float128Vector)v1, (Float128Vector)v2,
-                                (Float128Mask)m, f);  // specialize
+        return (FloatMaxVector)
+            super.tOpTemplateMF((FloatMaxVector)v1, (FloatMaxVector)v2,
+                                (FloatMaxMask)m, f);  // specialize
     }
 
     @ForceInline
@@ -269,26 +269,26 @@ value class Float128Vector extends FloatVector {
 
     @Override
     @ForceInline
-    public Float128Vector lanewise(Unary op) {
-        return (Float128Vector) super.lanewiseTemplate(op);  // specialize
+    public FloatMaxVector lanewise(Unary op) {
+        return (FloatMaxVector) super.lanewiseTemplate(op);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector lanewise(Unary op, VectorMask<Float> m) {
-        return (Float128Vector) super.lanewiseTemplate(op, Float128Mask.class, (Float128Mask) m);  // specialize
+    public FloatMaxVector lanewise(Unary op, VectorMask<Float> m) {
+        return (FloatMaxVector) super.lanewiseTemplate(op, FloatMaxMask.class, (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector lanewise(Binary op, Vector<Float> v) {
-        return (Float128Vector) super.lanewiseTemplate(op, v);  // specialize
+    public FloatMaxVector lanewise(Binary op, Vector<Float> v) {
+        return (FloatMaxVector) super.lanewiseTemplate(op, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector lanewise(Binary op, Vector<Float> v, VectorMask<Float> m) {
-        return (Float128Vector) super.lanewiseTemplate(op, Float128Mask.class, v, (Float128Mask) m);  // specialize
+    public FloatMaxVector lanewise(Binary op, Vector<Float> v, VectorMask<Float> m) {
+        return (FloatMaxVector) super.lanewiseTemplate(op, FloatMaxMask.class, v, (FloatMaxMask) m);  // specialize
     }
 
 
@@ -296,24 +296,24 @@ value class Float128Vector extends FloatVector {
     @Override
     @ForceInline
     public final
-    Float128Vector
+    FloatMaxVector
     lanewise(Ternary op, Vector<Float> v1, Vector<Float> v2) {
-        return (Float128Vector) super.lanewiseTemplate(op, v1, v2);  // specialize
+        return (FloatMaxVector) super.lanewiseTemplate(op, v1, v2);  // specialize
     }
 
     @Override
     @ForceInline
     public final
-    Float128Vector
+    FloatMaxVector
     lanewise(Ternary op, Vector<Float> v1, Vector<Float> v2, VectorMask<Float> m) {
-        return (Float128Vector) super.lanewiseTemplate(op, Float128Mask.class, v1, v2, (Float128Mask) m);  // specialize
+        return (FloatMaxVector) super.lanewiseTemplate(op, FloatMaxMask.class, v1, v2, (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
     public final
-    Float128Vector addIndex(int scale) {
-        return (Float128Vector) super.addIndexTemplate(scale);  // specialize
+    FloatMaxVector addIndex(int scale) {
+        return (FloatMaxVector) super.addIndexTemplate(scale);  // specialize
     }
 
     // Type specific horizontal reductions
@@ -328,7 +328,7 @@ value class Float128Vector extends FloatVector {
     @ForceInline
     public final float reduceLanes(VectorOperators.Associative op,
                                     VectorMask<Float> m) {
-        return super.reduceLanesTemplate(op, Float128Mask.class, (Float128Mask) m);  // specialized
+        return super.reduceLanesTemplate(op, FloatMaxMask.class, (FloatMaxMask) m);  // specialized
     }
 
     @Override
@@ -341,170 +341,166 @@ value class Float128Vector extends FloatVector {
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op,
                                         VectorMask<Float> m) {
-        return (long) super.reduceLanesTemplate(op, Float128Mask.class, (Float128Mask) m);  // specialized
+        return (long) super.reduceLanesTemplate(op, FloatMaxMask.class, (FloatMaxMask) m);  // specialized
     }
 
     @ForceInline
     public VectorShuffle<Float> toShuffle() {
-        return super.toShuffleTemplate(Float128Shuffle.class); // specialize
+        return super.toShuffleTemplate(FloatMaxShuffle.class); // specialize
     }
 
     // Specialized unary testing
 
     @Override
     @ForceInline
-    public final Float128Mask test(Test op) {
-        return super.testTemplate(Float128Mask.class, op);  // specialize
+    public final FloatMaxMask test(Test op) {
+        return super.testTemplate(FloatMaxMask.class, op);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float128Mask test(Test op, VectorMask<Float> m) {
-        return super.testTemplate(Float128Mask.class, op, (Float128Mask) m);  // specialize
+    public final FloatMaxMask test(Test op, VectorMask<Float> m) {
+        return super.testTemplate(FloatMaxMask.class, op, (FloatMaxMask) m);  // specialize
     }
 
     // Specialized comparisons
 
     @Override
     @ForceInline
-    public final Float128Mask compare(Comparison op, Vector<Float> v) {
-        return super.compareTemplate(Float128Mask.class, op, v);  // specialize
+    public final FloatMaxMask compare(Comparison op, Vector<Float> v) {
+        return super.compareTemplate(FloatMaxMask.class, op, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float128Mask compare(Comparison op, float s) {
-        return super.compareTemplate(Float128Mask.class, op, s);  // specialize
+    public final FloatMaxMask compare(Comparison op, float s) {
+        return super.compareTemplate(FloatMaxMask.class, op, s);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float128Mask compare(Comparison op, long s) {
-        return super.compareTemplate(Float128Mask.class, op, s);  // specialize
+    public final FloatMaxMask compare(Comparison op, long s) {
+        return super.compareTemplate(FloatMaxMask.class, op, s);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Float128Mask compare(Comparison op, Vector<Float> v, VectorMask<Float> m) {
-        return super.compareTemplate(Float128Mask.class, op, v, (Float128Mask) m);
+    public final FloatMaxMask compare(Comparison op, Vector<Float> v, VectorMask<Float> m) {
+        return super.compareTemplate(FloatMaxMask.class, op, v, (FloatMaxMask) m);
     }
 
 
     @Override
     @ForceInline
-    public Float128Vector blend(Vector<Float> v, VectorMask<Float> m) {
-        return (Float128Vector)
-            super.blendTemplate(Float128Mask.class,
-                                (Float128Vector) v,
-                                (Float128Mask) m);  // specialize
+    public FloatMaxVector blend(Vector<Float> v, VectorMask<Float> m) {
+        return (FloatMaxVector)
+            super.blendTemplate(FloatMaxMask.class,
+                                (FloatMaxVector) v,
+                                (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector slice(int origin, Vector<Float> v) {
-        return (Float128Vector) super.sliceTemplate(origin, v);  // specialize
+    public FloatMaxVector slice(int origin, Vector<Float> v) {
+        return (FloatMaxVector) super.sliceTemplate(origin, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector slice(int origin) {
-        return (Float128Vector) super.sliceTemplate(origin);  // specialize
+    public FloatMaxVector slice(int origin) {
+        return (FloatMaxVector) super.sliceTemplate(origin);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector unslice(int origin, Vector<Float> w, int part) {
-        return (Float128Vector) super.unsliceTemplate(origin, w, part);  // specialize
+    public FloatMaxVector unslice(int origin, Vector<Float> w, int part) {
+        return (FloatMaxVector) super.unsliceTemplate(origin, w, part);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector unslice(int origin, Vector<Float> w, int part, VectorMask<Float> m) {
-        return (Float128Vector)
-            super.unsliceTemplate(Float128Mask.class,
+    public FloatMaxVector unslice(int origin, Vector<Float> w, int part, VectorMask<Float> m) {
+        return (FloatMaxVector)
+            super.unsliceTemplate(FloatMaxMask.class,
                                   origin, w, part,
-                                  (Float128Mask) m);  // specialize
+                                  (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector unslice(int origin) {
-        return (Float128Vector) super.unsliceTemplate(origin);  // specialize
+    public FloatMaxVector unslice(int origin) {
+        return (FloatMaxVector) super.unsliceTemplate(origin);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector rearrange(VectorShuffle<Float> s) {
-        return (Float128Vector)
-            super.rearrangeTemplate(Float128Shuffle.class,
-                                    (Float128Shuffle) s);  // specialize
+    public FloatMaxVector rearrange(VectorShuffle<Float> s) {
+        return (FloatMaxVector)
+            super.rearrangeTemplate(FloatMaxShuffle.class,
+                                    (FloatMaxShuffle) s);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector rearrange(VectorShuffle<Float> shuffle,
+    public FloatMaxVector rearrange(VectorShuffle<Float> shuffle,
                                   VectorMask<Float> m) {
-        return (Float128Vector)
-            super.rearrangeTemplate(Float128Shuffle.class,
-                                    Float128Mask.class,
-                                    (Float128Shuffle) shuffle,
-                                    (Float128Mask) m);  // specialize
+        return (FloatMaxVector)
+            super.rearrangeTemplate(FloatMaxShuffle.class,
+                                    FloatMaxMask.class,
+                                    (FloatMaxShuffle) shuffle,
+                                    (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector rearrange(VectorShuffle<Float> s,
+    public FloatMaxVector rearrange(VectorShuffle<Float> s,
                                   Vector<Float> v) {
-        return (Float128Vector)
-            super.rearrangeTemplate(Float128Shuffle.class,
-                                    (Float128Shuffle) s,
-                                    (Float128Vector) v);  // specialize
+        return (FloatMaxVector)
+            super.rearrangeTemplate(FloatMaxShuffle.class,
+                                    (FloatMaxShuffle) s,
+                                    (FloatMaxVector) v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector compress(VectorMask<Float> m) {
-        return (Float128Vector)
-            super.compressTemplate(Float128Mask.class,
-                                   (Float128Mask) m);  // specialize
+    public FloatMaxVector compress(VectorMask<Float> m) {
+        return (FloatMaxVector)
+            super.compressTemplate(FloatMaxMask.class,
+                                   (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector expand(VectorMask<Float> m) {
-        return (Float128Vector)
-            super.expandTemplate(Float128Mask.class,
-                                   (Float128Mask) m);  // specialize
+    public FloatMaxVector expand(VectorMask<Float> m) {
+        return (FloatMaxVector)
+            super.expandTemplate(FloatMaxMask.class,
+                                   (FloatMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector selectFrom(Vector<Float> v) {
-        return (Float128Vector)
-            super.selectFromTemplate((Float128Vector) v);  // specialize
+    public FloatMaxVector selectFrom(Vector<Float> v) {
+        return (FloatMaxVector)
+            super.selectFromTemplate((FloatMaxVector) v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Float128Vector selectFrom(Vector<Float> v,
+    public FloatMaxVector selectFrom(Vector<Float> v,
                                    VectorMask<Float> m) {
-        return (Float128Vector)
-            super.selectFromTemplate((Float128Vector) v,
-                                     (Float128Mask) m);  // specialize
+        return (FloatMaxVector)
+            super.selectFromTemplate((FloatMaxVector) v,
+                                     (FloatMaxMask) m);  // specialize
     }
 
 
     @ForceInline
     @Override
     public float lane(int i) {
-        int bits;
-        switch(i) {
-            case 0: bits = laneHelper(0); break;
-            case 1: bits = laneHelper(1); break;
-            case 2: bits = laneHelper(2); break;
-            case 3: bits = laneHelper(3); break;
-            default: throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
+        if (i < 0 || i >= VLENGTH) {
+            throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
         }
+        int bits = laneHelper(i);
         return Float.intBitsToFloat(bits);
     }
 
@@ -521,17 +517,14 @@ value class Float128Vector extends FloatVector {
 
     @ForceInline
     @Override
-    public Float128Vector withLane(int i, float e) {
-        switch(i) {
-            case 0: return withLaneHelper(0, e);
-            case 1: return withLaneHelper(1, e);
-            case 2: return withLaneHelper(2, e);
-            case 3: return withLaneHelper(3, e);
-            default: throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
+    public FloatMaxVector withLane(int i, float e) {
+        if (i < 0 || i >= VLENGTH) {
+            throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
         }
+        return withLaneHelper(i, e);
     }
 
-    public Float128Vector withLaneHelper(int i, float e) {
+    public FloatMaxVector withLaneHelper(int i, float e) {
         return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)Float.floatToIntBits(e),
@@ -547,21 +540,21 @@ value class Float128Vector extends FloatVector {
 
     // Mask
 
-    static final value class Float128Mask extends AbstractMask<Float> {
+    static final value class FloatMaxMask extends AbstractMask<Float> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Float> ETYPE = float.class; // used by the JVM
 
-        Float128Mask(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF32Z) payload;
+        FloatMaxMask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMFMaxIZ) payload;
         }
 
-        private final VectorPayloadMF32Z payload;
+        private final VectorPayloadMFMaxIZ payload;
 
-        Float128Mask(VectorPayloadMF payload, int offset) {
+        FloatMaxMask(VectorPayloadMF payload, int offset) {
             this(prepare(payload, offset, VSPECIES));
         }
 
-        Float128Mask(boolean val) {
+        FloatMaxMask(boolean val) {
             this(prepare(val, VSPECIES));
         }
 
@@ -584,32 +577,32 @@ value class Float128Vector extends FloatVector {
         @ForceInline
         @Override
         public final
-        Float128Vector toVector() {
-            return (Float128Vector) super.toVectorTemplate();  // specialize
+        FloatMaxVector toVector() {
+            return (FloatMaxVector) super.toVectorTemplate();  // specialize
         }
 
         @Override
         @ForceInline
         /*package-private*/
-        Float128Mask indexPartiallyInUpperRange(long offset, long limit) {
-            return (Float128Mask) VectorSupport.indexPartiallyInUpperRange(
-                Float128Mask.class, float.class, VLENGTH, offset, limit,
-                (o, l) -> (Float128Mask) TRUE_MASK.indexPartiallyInRange(o, l));
+        FloatMaxMask indexPartiallyInUpperRange(long offset, long limit) {
+            return (FloatMaxMask) VectorSupport.indexPartiallyInUpperRange(
+                FloatMaxMask.class, float.class, VLENGTH, offset, limit,
+                (o, l) -> (FloatMaxMask) TRUE_MASK.indexPartiallyInRange(o, l));
         }
 
         // Unary operations
 
         @Override
         @ForceInline
-        public Float128Mask not() {
+        public FloatMaxMask not() {
             return xor(maskAll(true));
         }
 
         @Override
         @ForceInline
-        public Float128Mask compress() {
-            return (Float128Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
-                Float128Vector.class, Float128Mask.class, ETYPE, VLENGTH, null, this,
+        public FloatMaxMask compress() {
+            return (FloatMaxMask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+                FloatMaxVector.class, FloatMaxMask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
 
@@ -618,32 +611,32 @@ value class Float128Vector extends FloatVector {
 
         @Override
         @ForceInline
-        public Float128Mask and(VectorMask<Float> mask) {
+        public FloatMaxMask and(VectorMask<Float> mask) {
             Objects.requireNonNull(mask);
-            Float128Mask m = (Float128Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Float128Mask.class, null,
+            FloatMaxMask m = (FloatMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_AND, FloatMaxMask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Float128Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (FloatMaxMask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
         @ForceInline
-        public Float128Mask or(VectorMask<Float> mask) {
+        public FloatMaxMask or(VectorMask<Float> mask) {
             Objects.requireNonNull(mask);
-            Float128Mask m = (Float128Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Float128Mask.class, null,
+            FloatMaxMask m = (FloatMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_OR, FloatMaxMask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Float128Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (FloatMaxMask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @Override
         @ForceInline
-        public Float128Mask xor(VectorMask<Float> mask) {
+        public FloatMaxMask xor(VectorMask<Float> mask) {
             Objects.requireNonNull(mask);
-            Float128Mask m = (Float128Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Float128Mask.class, null,
+            FloatMaxMask m = (FloatMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, FloatMaxMask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Float128Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (FloatMaxMask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -651,22 +644,22 @@ value class Float128Vector extends FloatVector {
         @Override
         @ForceInline
         public int trueCount() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Float128Mask.class, int.class, VLENGTH, this,
-                                                            (m) -> ((Float128Mask) m).trueCountHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, FloatMaxMask.class, int.class, VLENGTH, this,
+                                                            (m) -> ((FloatMaxMask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Float128Mask.class, int.class, VLENGTH, this,
-                                                            (m) -> ((Float128Mask) m).firstTrueHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, FloatMaxMask.class, int.class, VLENGTH, this,
+                                                            (m) -> ((FloatMaxMask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Float128Mask.class, int.class, VLENGTH, this,
-                                                            (m) -> ((Float128Mask) m).lastTrueHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, FloatMaxMask.class, int.class, VLENGTH, this,
+                                                            (m) -> ((FloatMaxMask) m).lastTrueHelper());
         }
 
         @Override
@@ -675,8 +668,8 @@ value class Float128Vector extends FloatVector {
             if (length() > Long.SIZE) {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
-            return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Float128Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> ((Float128Mask) m).toLongHelper());
+            return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, FloatMaxMask.class, int.class, VLENGTH, this,
+                                                      (m) -> ((FloatMaxMask) m).toLongHelper());
         }
 
         // laneIsSet
@@ -685,8 +678,8 @@ value class Float128Vector extends FloatVector {
         @ForceInline
         public boolean laneIsSet(int i) {
             Objects.checkIndex(i, length());
-            return VectorSupport.extract(Float128Mask.class, float.class, VLENGTH,
-                                         this, i, (m, idx) -> (((Float128Mask) m).laneIsSetHelper(idx) ? 1L : 0L)) == 1L;
+            return VectorSupport.extract(FloatMaxMask.class, float.class, VLENGTH,
+                                         this, i, (m, idx) -> (((FloatMaxMask) m).laneIsSetHelper(idx) ? 1L : 0L)) == 1L;
         }
 
         // Reductions
@@ -694,54 +687,54 @@ value class Float128Vector extends FloatVector {
         @Override
         @ForceInline
         public boolean anyTrue() {
-            return VectorSupport.test(BT_ne, Float128Mask.class, int.class, VLENGTH,
+            return VectorSupport.test(BT_ne, FloatMaxMask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> ((Float128Mask) m).anyTrueHelper());
+                                         (m, __) -> ((FloatMaxMask) m).anyTrueHelper());
         }
 
         @Override
         @ForceInline
         public boolean allTrue() {
-            return VectorSupport.test(BT_overflow, Float128Mask.class, int.class, VLENGTH,
+            return VectorSupport.test(BT_overflow, FloatMaxMask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> ((Float128Mask) m).allTrueHelper());
+                                         (m, __) -> ((FloatMaxMask) m).allTrueHelper());
         }
 
         @ForceInline
         /*package-private*/
-        static Float128Mask maskAll(boolean bit) {
-            return VectorSupport.fromBitsCoerced(Float128Mask.class, int.class, VLENGTH,
+        static FloatMaxMask maskAll(boolean bit) {
+            return VectorSupport.fromBitsCoerced(FloatMaxMask.class, int.class, VLENGTH,
                                                  (bit ? -1 : 0), MODE_BROADCAST, null,
                                                  (v, __) -> (v != 0 ? TRUE_MASK : FALSE_MASK));
         }
-        private static final Float128Mask  TRUE_MASK = new Float128Mask(true);
-        private static final Float128Mask FALSE_MASK = new Float128Mask(false);
+        private static final FloatMaxMask  TRUE_MASK = new FloatMaxMask(true);
+        private static final FloatMaxMask FALSE_MASK = new FloatMaxMask(false);
 
     }
 
     // Shuffle
 
-    static final value class Float128Shuffle extends AbstractShuffle<Float> {
+    static final value class FloatMaxShuffle extends AbstractShuffle<Float> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Float> ETYPE = float.class; // used by the JVM
 
-        private final VectorPayloadMF32B payload;
+        private final VectorPayloadMFMaxIB payload;
 
-        Float128Shuffle(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF32B) payload;
+        FloatMaxShuffle(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMFMaxIB) payload;
             assert(VLENGTH == payload.length());
             assert(indexesInRange(payload));
         }
 
-        public Float128Shuffle(int[] indexes, int i) {
+        public FloatMaxShuffle(int[] indexes, int i) {
             this(prepare(indexes, i, VSPECIES));
         }
 
-        public Float128Shuffle(IntUnaryOperator fn) {
+        public FloatMaxShuffle(IntUnaryOperator fn) {
             this(prepare(fn, VSPECIES));
         }
 
-        public Float128Shuffle(int[] indexes) {
+        public FloatMaxShuffle(int[] indexes) {
             this(indexes, 0);
         }
 
@@ -763,13 +756,13 @@ value class Float128Vector extends FloatVector {
             assert(VLENGTH < Byte.MAX_VALUE);
             assert(Byte.MIN_VALUE <= -VLENGTH);
         }
-        static final Float128Shuffle IOTA = new Float128Shuffle(IDENTITY);
+        static final FloatMaxShuffle IOTA = new FloatMaxShuffle(IDENTITY);
 
         @Override
         @ForceInline
-        public Float128Vector toVector() {
-            return VectorSupport.shuffleToVector(VCLASS, ETYPE, Float128Shuffle.class, this, VLENGTH,
-                                                    (s) -> ((Float128Vector)(((AbstractShuffle<Float>)(s)).toVectorTemplate())));
+        public FloatMaxVector toVector() {
+            return VectorSupport.shuffleToVector(VCLASS, ETYPE, FloatMaxShuffle.class, this, VLENGTH,
+                                                    (s) -> ((FloatMaxVector)(((AbstractShuffle<Float>)(s)).toVectorTemplate())));
         }
 
         @Override
@@ -784,11 +777,11 @@ value class Float128Vector extends FloatVector {
 
         @ForceInline
         @Override
-        public Float128Shuffle rearrange(VectorShuffle<Float> shuffle) {
-            Float128Shuffle s = (Float128Shuffle) shuffle;
+        public FloatMaxShuffle rearrange(VectorShuffle<Float> shuffle) {
+            FloatMaxShuffle s = (FloatMaxShuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -797,7 +790,7 @@ value class Float128Vector extends FloatVector {
                 Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
             r = Unsafe.getUnsafe().finishPrivateBuffer(r);
-            return new Float128Shuffle(r);
+            return new FloatMaxShuffle(r);
         }
     }
 
@@ -816,14 +809,14 @@ value class Float128Vector extends FloatVector {
     @Override
     final
     FloatVector fromArray0(float[] a, int offset, VectorMask<Float> m, int offsetInRange) {
-        return super.fromArray0Template(Float128Mask.class, a, offset, (Float128Mask) m, offsetInRange);  // specialize
+        return super.fromArray0Template(FloatMaxMask.class, a, offset, (FloatMaxMask) m, offsetInRange);  // specialize
     }
 
     @ForceInline
     @Override
     final
     FloatVector fromArray0(float[] a, int offset, int[] indexMap, int mapOffset, VectorMask<Float> m) {
-        return super.fromArray0Template(Float128Mask.class, a, offset, indexMap, mapOffset, (Float128Mask) m);
+        return super.fromArray0Template(FloatMaxMask.class, a, offset, indexMap, mapOffset, (FloatMaxMask) m);
     }
 
 
@@ -839,7 +832,7 @@ value class Float128Vector extends FloatVector {
     @Override
     final
     FloatVector fromMemorySegment0(MemorySegment ms, long offset, VectorMask<Float> m, int offsetInRange) {
-        return super.fromMemorySegment0Template(Float128Mask.class, ms, offset, (Float128Mask) m, offsetInRange);  // specialize
+        return super.fromMemorySegment0Template(FloatMaxMask.class, ms, offset, (FloatMaxMask) m, offsetInRange);  // specialize
     }
 
     @ForceInline
@@ -853,14 +846,14 @@ value class Float128Vector extends FloatVector {
     @Override
     final
     void intoArray0(float[] a, int offset, VectorMask<Float> m) {
-        super.intoArray0Template(Float128Mask.class, a, offset, (Float128Mask) m);
+        super.intoArray0Template(FloatMaxMask.class, a, offset, (FloatMaxMask) m);
     }
 
     @ForceInline
     @Override
     final
     void intoArray0(float[] a, int offset, int[] indexMap, int mapOffset, VectorMask<Float> m) {
-        super.intoArray0Template(Float128Mask.class, a, offset, indexMap, mapOffset, (Float128Mask) m);
+        super.intoArray0Template(FloatMaxMask.class, a, offset, indexMap, mapOffset, (FloatMaxMask) m);
     }
 
 
@@ -868,7 +861,7 @@ value class Float128Vector extends FloatVector {
     @Override
     final
     void intoMemorySegment0(MemorySegment ms, long offset, VectorMask<Float> m) {
-        super.intoMemorySegment0Template(Float128Mask.class, ms, offset, (Float128Mask) m);
+        super.intoMemorySegment0Template(FloatMaxMask.class, ms, offset, (FloatMaxMask) m);
     }
 
 

@@ -376,9 +376,10 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     <M> $abstractvectortype$ ldOpMF(M memory, int offset,
                                   FLdOp<M> f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                $type$.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                $type$.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
@@ -394,9 +395,10 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                   VectorMask<$Boxtype$> m,
                                   FLdOp<M> f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                $type$.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                $type$.class, length, is_max_species));
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -421,9 +423,10 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     $abstractvectortype$ ldLongOpMF(MemorySegment memory, long offset,
                                   FLdLongOp f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                $type$.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                $type$.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
@@ -439,9 +442,10 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                   VectorMask<$Boxtype$> m,
                                   FLdLongOp f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                $type$.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                $type$.class, length, is_max_species));
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -549,7 +553,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         int length = vspecies().length();
         VectorPayloadMF vec1 = vec();
         VectorPayloadMF vec2 = (($abstractvectortype$)o).vec();
-        VectorPayloadMF mbits = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
+        VectorPayloadMF mbits = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
         mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -3784,11 +3789,9 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             // indexShape is still S_MAX_BIT, but the lane count of int vector
             // is 64. So when loading index vector (IntVector), only lower half
             // of index data is needed.
-            /*vix = IntVector
+            vix = IntVector
                 .fromArray(isp, indexMap, mapOffset, IntMaxVector.IntMaxMask.LOWER_HALF_TRUE_MASK)
                 .add(offset);
-             */
-             assert false : "Unhandled case for Multi-field based MaxVector";
         } else {
             vix = IntVector
                 .fromArray(isp, indexMap, mapOffset)
@@ -4424,11 +4427,9 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             // indexShape is still S_MAX_BIT, but the lane count of int vector
             // is 64. So when loading index vector (IntVector), only lower half
             // of index data is needed.
-            /*vix = IntVector
+            vix = IntVector
                 .fromArray(isp, indexMap, mapOffset, IntMaxVector.IntMaxMask.LOWER_HALF_TRUE_MASK)
                 .add(offset);
-             */
-             assert false : "Unhandled case for Multi-field based MaxVector";
         } else {
             vix = IntVector
                 .fromArray(isp, indexMap, mapOffset)
@@ -4968,11 +4969,9 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             // indexShape is still S_MAX_BIT, but the lane count of int vector
             // is 64. So when loading index vector (IntVector), only lower half
             // of index data is needed.
-            /*vix = IntVector
+            vix = IntVector
                 .fromArray(isp, indexMap, mapOffset, IntMaxVector.IntMaxMask.LOWER_HALF_TRUE_MASK)
                 .add(offset);
-             */
-            assert false : "Unhandled case for Multi-field based MaxVector";
         } else {
             vix = IntVector
                 .fromArray(isp, indexMap, mapOffset)
@@ -5160,12 +5159,9 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             // indexShape is still S_MAX_BIT, but the lane count of int vector
             // is 64. So when loading index vector (IntVector), only lower half
             // of index data is needed.
-            /*vix = IntVector
+            vix = IntVector
                 .fromArray(isp, indexMap, mapOffset, IntMaxVector.IntMaxMask.LOWER_HALF_TRUE_MASK)
                 .add(offset);
-             */
-             assert false : "Unhandled case for Multi-field based MaxVector";
-
         } else {
             vix = IntVector
                 .fromArray(isp, indexMap, mapOffset)
@@ -5717,9 +5713,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         @Override
         @ForceInline
         public final $abstractvectortype$ zero() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == $Type$MaxVector.class)
-            //    return $Type$MaxVector.ZERO;
+            if ((Class<?>) vectorType() == $Type$MaxVector.class)
+               return $Type$MaxVector.ZERO;
             switch (vectorBitSize()) {
                 case 64: return $Type$64Vector.ZERO;
                 case 128: return $Type$128Vector.ZERO;
@@ -5732,9 +5727,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         @Override
         @ForceInline
         public final $abstractvectortype$ iota() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == $Type$MaxVector.class)
-            //    return $Type$MaxVector.IOTA;
+            if ((Class<?>) vectorType() == $Type$MaxVector.class)
+                return $Type$MaxVector.IOTA;
             switch (vectorBitSize()) {
                 case 64: return $Type$64Vector.IOTA;
                 case 128: return $Type$128Vector.IOTA;
@@ -5748,9 +5742,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         @Override
         @ForceInline
         public final VectorMask<$Boxtype$> maskAll(boolean bit) {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == $Type$MaxVector.class)
-            //    return $Type$MaxVector.$Type$MaxMask.maskAll(bit);
+            if ((Class<?>) vectorType() == $Type$MaxVector.class)
+                return $Type$MaxVector.$Type$MaxMask.maskAll(bit);
             switch (vectorBitSize()) {
                 case 64: return $Type$64Vector.$Type$64Mask.maskAll(bit);
                 case 128: return $Type$128Vector.$Type$128Mask.maskAll(bit);
@@ -5785,8 +5778,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             case VectorShape.SK_128_BIT: return ($Type$Species) SPECIES_128;
             case VectorShape.SK_256_BIT: return ($Type$Species) SPECIES_256;
             case VectorShape.SK_512_BIT: return ($Type$Species) SPECIES_512;
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //case VectorShape.SK_Max_BIT: return ($Type$Species) SPECIES_MAX;
+            case VectorShape.SK_Max_BIT: return ($Type$Species) SPECIES_MAX;
             default: throw new IllegalArgumentException("Bad shape: " + s);
         }
     }
@@ -5820,13 +5812,11 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                             $Type$512Vector::new);
 
     /** Species representing {@link $Type$Vector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
-    // FIXME: Enable once multi-field based MaxVector is supported.
-    /*public static final VectorSpecies<$Boxtype$> SPECIES_MAX
+    public static final VectorSpecies<$Boxtype$> SPECIES_MAX
         = new $Type$Species(VectorShape.S_Max_BIT,
                             $Type$MaxVector.class,
                             $Type$MaxVector.$Type$MaxMask.class,
                             $Type$MaxVector::new);
-     */
 
     /**
      * Preferred species for {@link $Type$Vector}s.

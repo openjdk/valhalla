@@ -69,8 +69,8 @@ value class Int256Vector extends IntVector {
         return payload;
     }
 
-    static final Int256Vector ZERO = new Int256Vector(VectorPayloadMF.newInstanceFactory(int.class, 8));
-    static final Int256Vector IOTA = new Int256Vector(VectorPayloadMF.createVectPayloadInstanceI(8, (int[])(VSPECIES.iotaArray())));
+    static final Int256Vector ZERO = new Int256Vector(VectorPayloadMF.newVectorInstanceFactory(int.class, 8, false));
+    static final Int256Vector IOTA = new Int256Vector(VectorPayloadMF.createVectPayloadInstanceI(VLENGTH, (int[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -570,19 +570,20 @@ value class Int256Vector extends IntVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-        private final VectorPayloadMF64Z payload;
-
         Int256Mask(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF64Z) payload;
         }
 
+        private final VectorPayloadMF64Z payload;
+
         Int256Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Int256Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
+
 
         @ForceInline
         final @Override
@@ -751,17 +752,18 @@ value class Int256Vector extends IntVector {
             assert(indexesInRange(payload));
         }
 
+        public Int256Shuffle(int[] indexes, int i) {
+            this(prepare(indexes, i, VSPECIES));
+        }
+
+        public Int256Shuffle(IntUnaryOperator fn) {
+            this(prepare(fn, VSPECIES));
+        }
+
         public Int256Shuffle(int[] indexes) {
             this(indexes, 0);
         }
 
-        public Int256Shuffle(int[] indexes, int i) {
-            this(prepare(VLENGTH, indexes, i));
-        }
-
-        public Int256Shuffle(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
-        }
 
         @ForceInline
         @Override
@@ -805,7 +807,7 @@ value class Int256Vector extends IntVector {
             Int256Shuffle s = (Int256Shuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {

@@ -138,5 +138,7 @@ class VectorSupport : AllStatic {
   static bool is_vector(Klass* klass);
   static bool is_vector_payload_mf(Klass* klass);
   static bool skip_value_scalarization(Klass* klass);
+  static int  max_vector_size(BasicType bt);
+  static int  get_max_multifield_count(const Symbol* payload_name);
 };
 #endif // SHARE_PRIMS_VECTORSUPPORT_HPP

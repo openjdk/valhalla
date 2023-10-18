@@ -69,8 +69,8 @@ value class Float512Vector extends FloatVector {
         return payload;
     }
 
-    static final Float512Vector ZERO = new Float512Vector(VectorPayloadMF.newInstanceFactory(float.class, 16));
-    static final Float512Vector IOTA = new Float512Vector(VectorPayloadMF.createVectPayloadInstanceF(16, (float[])(VSPECIES.iotaArray())));
+    static final Float512Vector ZERO = new Float512Vector(VectorPayloadMF.newVectorInstanceFactory(float.class, 16, false));
+    static final Float512Vector IOTA = new Float512Vector(VectorPayloadMF.createVectPayloadInstanceF(VLENGTH, (float[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -575,19 +575,20 @@ value class Float512Vector extends FloatVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Float> ETYPE = float.class; // used by the JVM
 
-        private final VectorPayloadMF128Z payload;
-
         Float512Mask(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF128Z) payload;
         }
 
+        private final VectorPayloadMF128Z payload;
+
         Float512Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Float512Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
+
 
         @ForceInline
         final @Override
@@ -756,17 +757,18 @@ value class Float512Vector extends FloatVector {
             assert(indexesInRange(payload));
         }
 
+        public Float512Shuffle(int[] indexes, int i) {
+            this(prepare(indexes, i, VSPECIES));
+        }
+
+        public Float512Shuffle(IntUnaryOperator fn) {
+            this(prepare(fn, VSPECIES));
+        }
+
         public Float512Shuffle(int[] indexes) {
             this(indexes, 0);
         }
 
-        public Float512Shuffle(int[] indexes, int i) {
-            this(prepare(VLENGTH, indexes, i));
-        }
-
-        public Float512Shuffle(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
-        }
 
         @ForceInline
         @Override
@@ -810,7 +812,7 @@ value class Float512Vector extends FloatVector {
             Float512Shuffle s = (Float512Shuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {

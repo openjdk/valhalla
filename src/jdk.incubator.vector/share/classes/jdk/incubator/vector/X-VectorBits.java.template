@@ -69,8 +69,13 @@ value class $vectortype$ extends $abstractvectortype$ {
         return payload;
     }
 
-    static final $vectortype$ ZERO = new $vectortype$(VectorPayloadMF.newInstanceFactory($type$.class, $numLanes$));
-    static final $vectortype$ IOTA = new $vectortype$(VectorPayloadMF.createVectPayloadInstance$Boxinitials$($numLanes$, ($type$[])(VSPECIES.iotaArray())));
+#if[!Max]
+    static final $vectortype$ ZERO = new $vectortype$(VectorPayloadMF.newVectorInstanceFactory($type$.class, $numLanes$, false));
+    static final $vectortype$ IOTA = new $vectortype$(VectorPayloadMF.createVectPayloadInstance$Boxinitials$(VLENGTH, ($type$[])(VSPECIES.iotaArray()), false));
+#else[!Max]
+    static final $vectortype$ ZERO = new $vectortype$(VectorPayloadMF.newVectorInstanceFactory($type$.class, $numLanes$, true));
+    static final $vectortype$ IOTA = new $vectortype$(VectorPayloadMF.createVectPayloadInstance$Boxinitials$(VLENGTH, ($type$[])(VSPECIES.iotaArray()), true));
+#end[!Max]
 
     static {
         // Warm up a few species caches.
@@ -833,19 +838,36 @@ value class $vectortype$ extends $abstractvectortype$ {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<$Boxtype$> ETYPE = $type$.class; // used by the JVM
 
-        private final VectorPayloadMF$vectorsizeinbytes$Z payload;
+#if[Max]
+        $masktype$(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$Z) payload;
+        }
 
+        private final VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$Z payload;
+
+        $masktype$(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VSPECIES));
+        }
+
+        $masktype$(boolean val) {
+            this(prepare(val, VSPECIES));
+        }
+#else[Max]
         $masktype$(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF$vectorsizeinbytes$Z) payload;
         }
 
+        private final VectorPayloadMF$vectorsizeinbytes$Z payload;
+
         $masktype$(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         $masktype$(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
+#end[Max]
+
 
         @ForceInline
         final @Override
@@ -1001,7 +1023,11 @@ value class $vectortype$ extends $abstractvectortype$ {
 #if[intAndMax]
 
         static VectorPayloadMF maskLowerHalf() {
-            VectorPayloadMF newObj = VectorPayloadMF.newInstanceFactory(boolean.class, VLENGTH);
+#if[Max]
+            VectorPayloadMF newObj = VectorPayloadMF.newMaskInstanceFactory(ETYPE, VLENGTH, true);
+#else[Max]
+            VectorPayloadMF newObj = VectorPayloadMF.newMaskInstanceFactory(ETYPE, VLENGTH, false);
+#end[Max]
             newObj = Unsafe.getUnsafe().makePrivateBuffer(newObj);
             long mf_offset = newObj.multiFieldOffset();
             int len = VLENGTH >> 1;
@@ -1024,6 +1050,23 @@ value class $vectortype$ extends $abstractvectortype$ {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<$Boxtype$> ETYPE = $type$.class; // used by the JVM
 
+#if[Max]
+        private final VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$B payload;
+
+        $shuffletype$(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$B) payload;
+            assert(VLENGTH == payload.length());
+            assert(indexesInRange(payload));
+        }
+
+        public $shuffletype$(int[] indexes, int i) {
+            this(prepare(indexes, i, VSPECIES));
+        }
+
+        public $shuffletype$(IntUnaryOperator fn) {
+            this(prepare(fn, VSPECIES));
+        }
+#else[Max]
         private final VectorPayloadMF$vectorsizeinbytes$B payload;
 
         $shuffletype$(VectorPayloadMF payload) {
@@ -1032,17 +1075,19 @@ value class $vectortype$ extends $abstractvectortype$ {
             assert(indexesInRange(payload));
         }
 
+        public $shuffletype$(int[] indexes, int i) {
+            this(prepare(indexes, i, VSPECIES));
+        }
+
+        public $shuffletype$(IntUnaryOperator fn) {
+            this(prepare(fn, VSPECIES));
+        }
+#end[Max]
+
         public $shuffletype$(int[] indexes) {
             this(indexes, 0);
         }
 
-        public $shuffletype$(int[] indexes, int i) {
-            this(prepare(VLENGTH, indexes, i));
-        }
-
-        public $shuffletype$(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
-        }
 
         @ForceInline
         @Override
@@ -1086,7 +1131,11 @@ value class $vectortype$ extends $abstractvectortype$ {
             $shuffletype$ s = ($shuffletype$) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+#if[Max]
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);
+#else[Max]
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
+#end[Max]
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {

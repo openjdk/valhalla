@@ -372,9 +372,10 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     <M> ByteVector ldOpMF(M memory, int offset,
                                   FLdOp<M> f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                byte.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                byte.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
@@ -390,9 +391,10 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                   VectorMask<Byte> m,
                                   FLdOp<M> f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                byte.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                byte.class, length, is_max_species));
         VectorPayloadMF mbits = ((AbstractMask<Byte>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -417,9 +419,10 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     ByteVector ldLongOpMF(MemorySegment memory, long offset,
                                   FLdLongOp f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                byte.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                byte.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
@@ -435,9 +438,10 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                   VectorMask<Byte> m,
                                   FLdLongOp f) {
         int length = vspecies().length();
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newInstanceFactory(
-                byte.class, length));
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+                byte.class, length, is_max_species));
         VectorPayloadMF mbits = ((AbstractMask<Byte>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -545,7 +549,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         int length = vspecies().length();
         VectorPayloadMF vec1 = vec();
         VectorPayloadMF vec2 = ((ByteVector)o).vec();
-        VectorPayloadMF mbits = VectorPayloadMF.newInstanceFactory(boolean.class, length);
+        boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
+        VectorPayloadMF mbits = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
         mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
@@ -4431,9 +4436,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         @Override
         @ForceInline
         public final ByteVector zero() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == ByteMaxVector.class)
-            //    return ByteMaxVector.ZERO;
+            if ((Class<?>) vectorType() == ByteMaxVector.class)
+               return ByteMaxVector.ZERO;
             switch (vectorBitSize()) {
                 case 64: return Byte64Vector.ZERO;
                 case 128: return Byte128Vector.ZERO;
@@ -4446,9 +4450,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         @Override
         @ForceInline
         public final ByteVector iota() {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == ByteMaxVector.class)
-            //    return ByteMaxVector.IOTA;
+            if ((Class<?>) vectorType() == ByteMaxVector.class)
+                return ByteMaxVector.IOTA;
             switch (vectorBitSize()) {
                 case 64: return Byte64Vector.IOTA;
                 case 128: return Byte128Vector.IOTA;
@@ -4462,9 +4465,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         @Override
         @ForceInline
         public final VectorMask<Byte> maskAll(boolean bit) {
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //if ((Class<?>) vectorType() == ByteMaxVector.class)
-            //    return ByteMaxVector.ByteMaxMask.maskAll(bit);
+            if ((Class<?>) vectorType() == ByteMaxVector.class)
+                return ByteMaxVector.ByteMaxMask.maskAll(bit);
             switch (vectorBitSize()) {
                 case 64: return Byte64Vector.Byte64Mask.maskAll(bit);
                 case 128: return Byte128Vector.Byte128Mask.maskAll(bit);
@@ -4499,8 +4501,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             case VectorShape.SK_128_BIT: return (ByteSpecies) SPECIES_128;
             case VectorShape.SK_256_BIT: return (ByteSpecies) SPECIES_256;
             case VectorShape.SK_512_BIT: return (ByteSpecies) SPECIES_512;
-            // FIXME: Enable once multi-field based MaxVector is supported.
-            //case VectorShape.SK_Max_BIT: return (ByteSpecies) SPECIES_MAX;
+            case VectorShape.SK_Max_BIT: return (ByteSpecies) SPECIES_MAX;
             default: throw new IllegalArgumentException("Bad shape: " + s);
         }
     }
@@ -4534,13 +4535,11 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                             Byte512Vector::new);
 
     /** Species representing {@link ByteVector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
-    // FIXME: Enable once multi-field based MaxVector is supported.
-    /*public static final VectorSpecies<Byte> SPECIES_MAX
+    public static final VectorSpecies<Byte> SPECIES_MAX
         = new ByteSpecies(VectorShape.S_Max_BIT,
                             ByteMaxVector.class,
                             ByteMaxVector.ByteMaxMask.class,
                             ByteMaxVector::new);
-     */
 
     /**
      * Preferred species for {@link ByteVector}s.

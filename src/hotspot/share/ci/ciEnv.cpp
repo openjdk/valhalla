@@ -1772,13 +1772,8 @@ void ciEnv::dump_inline_data(int compile_id) {
 }
 
 bool ciEnv::is_multifield_scalarized(BasicType bt, int vec_length) {
-#if COMPILER2
-  CompilerThread* ct = CompilerThread::current();
-  if (ct && ct->compiler()->is_c2()) {
-    return InlineTypeNode::is_multifield_scalarized(bt, vec_length);
-  } else {
-    return true;
-  }
+#ifdef COMPILER2
+  return InlineTypeNode::is_multifield_scalarized(bt, vec_length);
 #else
   return true;
 #endif

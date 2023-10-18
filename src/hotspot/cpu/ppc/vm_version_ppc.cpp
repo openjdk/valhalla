@@ -702,3 +702,19 @@ void VM_Version::initialize_cpu_information(void) {
   snprintf(_cpu_desc, CPU_DETAILED_DESC_BUF_SIZE, "PPC %s", features_string());
   _initialized = true;
 }
+
+int VM_Version::max_vector_size(BasicType bt) {
+#ifdef COMPILER2
+  int size = 0;
+  if (SuperwordUseVSX) {
+    assert(MaxVectorSize == 16, "");
+    size = 16;
+  } else {
+    assert(MaxVectorSize == 8, "");
+    size = 8;
+  }
+  return size / type2aelembytes(bt);
+#else
+  return -1;
+#endif
+}

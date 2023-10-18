@@ -1955,22 +1955,12 @@ bool Matcher::is_short_branch_offset(int rule, int br_size, int offset) {
 
 // Vector width in bytes.
 int Matcher::vector_width_in_bytes(BasicType bt) {
-  if (UseRVV) {
-    // The MaxVectorSize should have been set by detecting RVV max vector register size when check UseRVV.
-    // MaxVectorSize == VM_Version::_initial_vector_length
-    int size = MaxVectorSize;
-    // Minimum 2 values in vector
-    if (size < 2 * type2aelembytes(bt)) size = 0;
-    // But never < 4
-    if (size < 4) size = 0;
-    return size;
-  }
-  return 0;
+  return max_vector_size(bt) * type2aelembytes(bt);
 }
 
 // Limits on vector size (number of elements) loaded into vector.
 int Matcher::max_vector_size(const BasicType bt) {
-  return vector_width_in_bytes(bt) / type2aelembytes(bt);
+  return VM_Version::max_vector_size(bt);
 }
 
 int Matcher::min_vector_size(const BasicType bt) {

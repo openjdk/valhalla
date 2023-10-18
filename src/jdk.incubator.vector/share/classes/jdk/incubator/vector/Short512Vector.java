@@ -69,8 +69,8 @@ value class Short512Vector extends ShortVector {
         return payload;
     }
 
-    static final Short512Vector ZERO = new Short512Vector(VectorPayloadMF.newInstanceFactory(short.class, 32));
-    static final Short512Vector IOTA = new Short512Vector(VectorPayloadMF.createVectPayloadInstanceS(32, (short[])(VSPECIES.iotaArray())));
+    static final Short512Vector ZERO = new Short512Vector(VectorPayloadMF.newVectorInstanceFactory(short.class, 32, false));
+    static final Short512Vector IOTA = new Short512Vector(VectorPayloadMF.createVectPayloadInstanceS(VLENGTH, (short[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -618,19 +618,20 @@ value class Short512Vector extends ShortVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
-        private final VectorPayloadMF256Z payload;
-
         Short512Mask(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF256Z) payload;
         }
 
+        private final VectorPayloadMF256Z payload;
+
         Short512Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Short512Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
+
 
         @ForceInline
         final @Override
@@ -799,17 +800,18 @@ value class Short512Vector extends ShortVector {
             assert(indexesInRange(payload));
         }
 
+        public Short512Shuffle(int[] indexes, int i) {
+            this(prepare(indexes, i, VSPECIES));
+        }
+
+        public Short512Shuffle(IntUnaryOperator fn) {
+            this(prepare(fn, VSPECIES));
+        }
+
         public Short512Shuffle(int[] indexes) {
             this(indexes, 0);
         }
 
-        public Short512Shuffle(int[] indexes, int i) {
-            this(prepare(VLENGTH, indexes, i));
-        }
-
-        public Short512Shuffle(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
-        }
 
         @ForceInline
         @Override
@@ -853,7 +855,7 @@ value class Short512Vector extends ShortVector {
             Short512Shuffle s = (Short512Shuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {

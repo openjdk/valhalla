@@ -361,3 +361,11 @@ void VM_Version::initialize_cpu_information(void) {
   snprintf(_cpu_desc, CPU_DETAILED_DESC_BUF_SIZE, "%s", _features_string);
   _initialized = true;
 }
+
+int VM_Version::max_vector_size(BasicType bt) {
+#ifdef COMPILER2
+  return MaxVectorSize / type2aelembytes(bt);
+#else
+  return -1;
+#endif
+}

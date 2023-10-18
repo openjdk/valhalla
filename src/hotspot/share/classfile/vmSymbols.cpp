@@ -186,7 +186,6 @@ const char* vmSymbols::name_for(vmSymbolID sid) {
 #endif
 
 
-
 void vmSymbols::symbols_do(SymbolClosure* f) {
   for (auto index : EnumRange<vmSymbolID>{}) {
     f->do_symbol(&Symbol::_vm_symbols[as_int(index)]);

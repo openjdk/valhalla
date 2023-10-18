@@ -69,8 +69,8 @@ value class Double512Vector extends DoubleVector {
         return payload;
     }
 
-    static final Double512Vector ZERO = new Double512Vector(VectorPayloadMF.newInstanceFactory(double.class, 8));
-    static final Double512Vector IOTA = new Double512Vector(VectorPayloadMF.createVectPayloadInstanceD(8, (double[])(VSPECIES.iotaArray())));
+    static final Double512Vector ZERO = new Double512Vector(VectorPayloadMF.newVectorInstanceFactory(double.class, 8, false));
+    static final Double512Vector IOTA = new Double512Vector(VectorPayloadMF.createVectPayloadInstanceD(VLENGTH, (double[])(VSPECIES.iotaArray()), false));
 
     static {
         // Warm up a few species caches.
@@ -559,19 +559,20 @@ value class Double512Vector extends DoubleVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Double> ETYPE = double.class; // used by the JVM
 
-        private final VectorPayloadMF64Z payload;
-
         Double512Mask(VectorPayloadMF payload) {
             this.payload = (VectorPayloadMF64Z) payload;
         }
 
+        private final VectorPayloadMF64Z payload;
+
         Double512Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VLENGTH));
+            this(prepare(payload, offset, VSPECIES));
         }
 
         Double512Mask(boolean val) {
-            this(prepare(val, VLENGTH));
+            this(prepare(val, VSPECIES));
         }
+
 
         @ForceInline
         final @Override
@@ -740,17 +741,18 @@ value class Double512Vector extends DoubleVector {
             assert(indexesInRange(payload));
         }
 
+        public Double512Shuffle(int[] indexes, int i) {
+            this(prepare(indexes, i, VSPECIES));
+        }
+
+        public Double512Shuffle(IntUnaryOperator fn) {
+            this(prepare(fn, VSPECIES));
+        }
+
         public Double512Shuffle(int[] indexes) {
             this(indexes, 0);
         }
 
-        public Double512Shuffle(int[] indexes, int i) {
-            this(prepare(VLENGTH, indexes, i));
-        }
-
-        public Double512Shuffle(IntUnaryOperator fn) {
-            this(prepare(VLENGTH, fn));
-        }
 
         @ForceInline
         @Override
@@ -794,7 +796,7 @@ value class Double512Vector extends DoubleVector {
             Double512Shuffle s = (Double512Shuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newInstanceFactory(byte.class, VLENGTH);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {

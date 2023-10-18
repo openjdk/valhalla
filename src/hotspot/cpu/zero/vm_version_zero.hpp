@@ -36,6 +36,8 @@ class VM_Version : public Abstract_VM_Version {
   constexpr static bool supports_stack_watermark_barrier() { return true; }
 
   static void initialize_cpu_information(void);
+
+  static int max_vector_size(BasicType bt) { return -1;}
 };
 
 #endif // CPU_ZERO_VM_VERSION_ZERO_HPP

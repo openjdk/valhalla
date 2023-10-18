@@ -127,6 +127,10 @@ public:
   static uint64_t _dscr_val;
 
   static void initialize_cpu_information(void);
+
+  // Max supported vector lane count for a particular lane type.
+  static int max_vector_size(BasicType bt);
+
 };
 
 #endif // CPU_PPC_VM_VERSION_PPC_HPP

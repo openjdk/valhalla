@@ -40,14 +40,14 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-value class Int64Vector extends IntVector {
+value class IntMaxVector extends IntVector {
     static final IntSpecies VSPECIES =
-        (IntSpecies) IntVector.SPECIES_64;
+        (IntSpecies) IntVector.SPECIES_MAX;
 
     static final VectorShape VSHAPE =
         VSPECIES.vectorShape();
 
-    static final Class<Int64Vector> VCLASS = Int64Vector.class;
+    static final Class<IntMaxVector> VCLASS = IntMaxVector.class;
 
     static final int VSIZE = VSPECIES.vectorBitSize();
 
@@ -55,12 +55,12 @@ value class Int64Vector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF64I.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxI.class);
 
-    private final VectorPayloadMF64I payload;
+    private final VectorPayloadMFMaxI payload;
 
-    Int64Vector(Object value) {
-        this.payload = (VectorPayloadMF64I) value;
+    IntMaxVector(Object value) {
+        this.payload = (VectorPayloadMFMaxI) value;
     }
 
     @ForceInline
@@ -69,8 +69,8 @@ value class Int64Vector extends IntVector {
         return payload;
     }
 
-    static final Int64Vector ZERO = new Int64Vector(VectorPayloadMF.newVectorInstanceFactory(int.class, 2, false));
-    static final Int64Vector IOTA = new Int64Vector(VectorPayloadMF.createVectPayloadInstanceI(VLENGTH, (int[])(VSPECIES.iotaArray()), false));
+    static final IntMaxVector ZERO = new IntMaxVector(VectorPayloadMF.newVectorInstanceFactory(int.class, 0, true));
+    static final IntMaxVector IOTA = new IntMaxVector(VectorPayloadMF.createVectPayloadInstanceI(VLENGTH, (int[])(VSPECIES.iotaArray()), true));
 
     static {
         // Warm up a few species caches.
@@ -121,60 +121,60 @@ value class Int64Vector extends IntVector {
 
     @Override
     @ForceInline
-    public final Int64Vector broadcast(int e) {
-        return (Int64Vector) super.broadcastTemplate(e);  // specialize
+    public final IntMaxVector broadcast(int e) {
+        return (IntMaxVector) super.broadcastTemplate(e);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Int64Vector broadcast(long e) {
-        return (Int64Vector) super.broadcastTemplate(e);  // specialize
+    public final IntMaxVector broadcast(long e) {
+        return (IntMaxVector) super.broadcastTemplate(e);  // specialize
     }
 
     @Override
     @ForceInline
-    Int64Mask maskFromPayload(VectorPayloadMF payload) {
-        return new Int64Mask(payload);
+    IntMaxMask maskFromPayload(VectorPayloadMF payload) {
+        return new IntMaxMask(payload);
     }
 
     @Override
     @ForceInline
-    Int64Shuffle iotaShuffle() { return Int64Shuffle.IOTA; }
+    IntMaxShuffle iotaShuffle() { return IntMaxShuffle.IOTA; }
 
     @ForceInline
-    Int64Shuffle iotaShuffle(int start, int step, boolean wrap) {
+    IntMaxShuffle iotaShuffle(int start, int step, boolean wrap) {
       if (wrap) {
-        return (Int64Shuffle)VectorSupport.shuffleIota(ETYPE, Int64Shuffle.class, VSPECIES, VLENGTH, start, step, 1,
+        return (IntMaxShuffle)VectorSupport.shuffleIota(ETYPE, IntMaxShuffle.class, VSPECIES, VLENGTH, start, step, 1,
                 (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (VectorIntrinsics.wrapToRange(i*lstep + lstart, l))));
       } else {
-        return (Int64Shuffle)VectorSupport.shuffleIota(ETYPE, Int64Shuffle.class, VSPECIES, VLENGTH, start, step, 0,
+        return (IntMaxShuffle)VectorSupport.shuffleIota(ETYPE, IntMaxShuffle.class, VSPECIES, VLENGTH, start, step, 0,
                 (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (i*lstep + lstart)));
       }
     }
 
     @Override
     @ForceInline
-    Int64Shuffle shuffleFromBytes(VectorPayloadMF indexes) { return new Int64Shuffle(indexes); }
+    IntMaxShuffle shuffleFromBytes(VectorPayloadMF indexes) { return new IntMaxShuffle(indexes); }
 
     @Override
     @ForceInline
-    Int64Shuffle shuffleFromArray(int[] indexes, int i) { return new Int64Shuffle(indexes, i); }
+    IntMaxShuffle shuffleFromArray(int[] indexes, int i) { return new IntMaxShuffle(indexes, i); }
 
     @Override
     @ForceInline
-    Int64Shuffle shuffleFromOp(IntUnaryOperator fn) { return new Int64Shuffle(fn); }
+    IntMaxShuffle shuffleFromOp(IntUnaryOperator fn) { return new IntMaxShuffle(fn); }
 
     // Make a vector of the same species but the given elements:
     @ForceInline
     final @Override
-    Int64Vector vectorFactory(VectorPayloadMF vec) {
-        return new Int64Vector(vec);
+    IntMaxVector vectorFactory(VectorPayloadMF vec) {
+        return new IntMaxVector(vec);
     }
 
     @ForceInline
     final @Override
-    Byte64Vector asByteVectorRaw() {
-        return (Byte64Vector) super.asByteVectorRawTemplate();  // specialize
+    ByteMaxVector asByteVectorRaw() {
+        return (ByteMaxVector) super.asByteVectorRawTemplate();  // specialize
     }
 
     @ForceInline
@@ -187,31 +187,31 @@ value class Int64Vector extends IntVector {
 
     @ForceInline
     final @Override
-    Int64Vector uOpMF(FUnOp f) {
-        return (Int64Vector) super.uOpTemplateMF(f);  // specialize
+    IntMaxVector uOpMF(FUnOp f) {
+        return (IntMaxVector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Int64Vector uOpMF(VectorMask<Integer> m, FUnOp f) {
-        return (Int64Vector)
-            super.uOpTemplateMF((Int64Mask)m, f);  // specialize
+    IntMaxVector uOpMF(VectorMask<Integer> m, FUnOp f) {
+        return (IntMaxVector)
+            super.uOpTemplateMF((IntMaxMask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Int64Vector bOpMF(Vector<Integer> v, FBinOp f) {
-        return (Int64Vector) super.bOpTemplateMF((Int64Vector)v, f);  // specialize
+    IntMaxVector bOpMF(Vector<Integer> v, FBinOp f) {
+        return (IntMaxVector) super.bOpTemplateMF((IntMaxVector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Int64Vector bOpMF(Vector<Integer> v,
+    IntMaxVector bOpMF(Vector<Integer> v,
                      VectorMask<Integer> m, FBinOp f) {
-        return (Int64Vector)
-            super.bOpTemplateMF((Int64Vector)v, (Int64Mask)m,
+        return (IntMaxVector)
+            super.bOpTemplateMF((IntMaxVector)v, (IntMaxMask)m,
                                 f);  // specialize
     }
 
@@ -219,19 +219,19 @@ value class Int64Vector extends IntVector {
 
     @ForceInline
     final @Override
-    Int64Vector tOpMF(Vector<Integer> v1, Vector<Integer> v2, FTriOp f) {
-        return (Int64Vector)
-            super.tOpTemplateMF((Int64Vector)v1, (Int64Vector)v2,
+    IntMaxVector tOpMF(Vector<Integer> v1, Vector<Integer> v2, FTriOp f) {
+        return (IntMaxVector)
+            super.tOpTemplateMF((IntMaxVector)v1, (IntMaxVector)v2,
                                 f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Int64Vector tOpMF(Vector<Integer> v1, Vector<Integer> v2,
+    IntMaxVector tOpMF(Vector<Integer> v1, Vector<Integer> v2,
                      VectorMask<Integer> m, FTriOp f) {
-        return (Int64Vector)
-            super.tOpTemplateMF((Int64Vector)v1, (Int64Vector)v2,
-                                (Int64Mask)m, f);  // specialize
+        return (IntMaxVector)
+            super.tOpTemplateMF((IntMaxVector)v1, (IntMaxVector)v2,
+                                (IntMaxMask)m, f);  // specialize
     }
 
     @ForceInline
@@ -269,64 +269,64 @@ value class Int64Vector extends IntVector {
 
     @Override
     @ForceInline
-    public Int64Vector lanewise(Unary op) {
-        return (Int64Vector) super.lanewiseTemplate(op);  // specialize
+    public IntMaxVector lanewise(Unary op) {
+        return (IntMaxVector) super.lanewiseTemplate(op);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector lanewise(Unary op, VectorMask<Integer> m) {
-        return (Int64Vector) super.lanewiseTemplate(op, Int64Mask.class, (Int64Mask) m);  // specialize
+    public IntMaxVector lanewise(Unary op, VectorMask<Integer> m) {
+        return (IntMaxVector) super.lanewiseTemplate(op, IntMaxMask.class, (IntMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector lanewise(Binary op, Vector<Integer> v) {
-        return (Int64Vector) super.lanewiseTemplate(op, v);  // specialize
+    public IntMaxVector lanewise(Binary op, Vector<Integer> v) {
+        return (IntMaxVector) super.lanewiseTemplate(op, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector lanewise(Binary op, Vector<Integer> v, VectorMask<Integer> m) {
-        return (Int64Vector) super.lanewiseTemplate(op, Int64Mask.class, v, (Int64Mask) m);  // specialize
+    public IntMaxVector lanewise(Binary op, Vector<Integer> v, VectorMask<Integer> m) {
+        return (IntMaxVector) super.lanewiseTemplate(op, IntMaxMask.class, v, (IntMaxMask) m);  // specialize
     }
 
     /*package-private*/
     @Override
-    @ForceInline Int64Vector
+    @ForceInline IntMaxVector
     lanewiseShift(VectorOperators.Binary op, int e) {
-        return (Int64Vector) super.lanewiseShiftTemplate(op, e);  // specialize
+        return (IntMaxVector) super.lanewiseShiftTemplate(op, e);  // specialize
     }
 
     /*package-private*/
     @Override
-    @ForceInline Int64Vector
+    @ForceInline IntMaxVector
     lanewiseShift(VectorOperators.Binary op, int e, VectorMask<Integer> m) {
-        return (Int64Vector) super.lanewiseShiftTemplate(op, Int64Mask.class, e, (Int64Mask) m);  // specialize
+        return (IntMaxVector) super.lanewiseShiftTemplate(op, IntMaxMask.class, e, (IntMaxMask) m);  // specialize
     }
 
     /*package-private*/
     @Override
     @ForceInline
     public final
-    Int64Vector
+    IntMaxVector
     lanewise(Ternary op, Vector<Integer> v1, Vector<Integer> v2) {
-        return (Int64Vector) super.lanewiseTemplate(op, v1, v2);  // specialize
+        return (IntMaxVector) super.lanewiseTemplate(op, v1, v2);  // specialize
     }
 
     @Override
     @ForceInline
     public final
-    Int64Vector
+    IntMaxVector
     lanewise(Ternary op, Vector<Integer> v1, Vector<Integer> v2, VectorMask<Integer> m) {
-        return (Int64Vector) super.lanewiseTemplate(op, Int64Mask.class, v1, v2, (Int64Mask) m);  // specialize
+        return (IntMaxVector) super.lanewiseTemplate(op, IntMaxMask.class, v1, v2, (IntMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
     public final
-    Int64Vector addIndex(int scale) {
-        return (Int64Vector) super.addIndexTemplate(scale);  // specialize
+    IntMaxVector addIndex(int scale) {
+        return (IntMaxVector) super.addIndexTemplate(scale);  // specialize
     }
 
     // Type specific horizontal reductions
@@ -341,7 +341,7 @@ value class Int64Vector extends IntVector {
     @ForceInline
     public final int reduceLanes(VectorOperators.Associative op,
                                     VectorMask<Integer> m) {
-        return super.reduceLanesTemplate(op, Int64Mask.class, (Int64Mask) m);  // specialized
+        return super.reduceLanesTemplate(op, IntMaxMask.class, (IntMaxMask) m);  // specialized
     }
 
     @Override
@@ -354,167 +354,166 @@ value class Int64Vector extends IntVector {
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op,
                                         VectorMask<Integer> m) {
-        return (long) super.reduceLanesTemplate(op, Int64Mask.class, (Int64Mask) m);  // specialized
+        return (long) super.reduceLanesTemplate(op, IntMaxMask.class, (IntMaxMask) m);  // specialized
     }
 
     @ForceInline
     public VectorShuffle<Integer> toShuffle() {
-        return super.toShuffleTemplate(Int64Shuffle.class); // specialize
+        return super.toShuffleTemplate(IntMaxShuffle.class); // specialize
     }
 
     // Specialized unary testing
 
     @Override
     @ForceInline
-    public final Int64Mask test(Test op) {
-        return super.testTemplate(Int64Mask.class, op);  // specialize
+    public final IntMaxMask test(Test op) {
+        return super.testTemplate(IntMaxMask.class, op);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Int64Mask test(Test op, VectorMask<Integer> m) {
-        return super.testTemplate(Int64Mask.class, op, (Int64Mask) m);  // specialize
+    public final IntMaxMask test(Test op, VectorMask<Integer> m) {
+        return super.testTemplate(IntMaxMask.class, op, (IntMaxMask) m);  // specialize
     }
 
     // Specialized comparisons
 
     @Override
     @ForceInline
-    public final Int64Mask compare(Comparison op, Vector<Integer> v) {
-        return super.compareTemplate(Int64Mask.class, op, v);  // specialize
+    public final IntMaxMask compare(Comparison op, Vector<Integer> v) {
+        return super.compareTemplate(IntMaxMask.class, op, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Int64Mask compare(Comparison op, int s) {
-        return super.compareTemplate(Int64Mask.class, op, s);  // specialize
+    public final IntMaxMask compare(Comparison op, int s) {
+        return super.compareTemplate(IntMaxMask.class, op, s);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Int64Mask compare(Comparison op, long s) {
-        return super.compareTemplate(Int64Mask.class, op, s);  // specialize
+    public final IntMaxMask compare(Comparison op, long s) {
+        return super.compareTemplate(IntMaxMask.class, op, s);  // specialize
     }
 
     @Override
     @ForceInline
-    public final Int64Mask compare(Comparison op, Vector<Integer> v, VectorMask<Integer> m) {
-        return super.compareTemplate(Int64Mask.class, op, v, (Int64Mask) m);
+    public final IntMaxMask compare(Comparison op, Vector<Integer> v, VectorMask<Integer> m) {
+        return super.compareTemplate(IntMaxMask.class, op, v, (IntMaxMask) m);
     }
 
 
     @Override
     @ForceInline
-    public Int64Vector blend(Vector<Integer> v, VectorMask<Integer> m) {
-        return (Int64Vector)
-            super.blendTemplate(Int64Mask.class,
-                                (Int64Vector) v,
-                                (Int64Mask) m);  // specialize
+    public IntMaxVector blend(Vector<Integer> v, VectorMask<Integer> m) {
+        return (IntMaxVector)
+            super.blendTemplate(IntMaxMask.class,
+                                (IntMaxVector) v,
+                                (IntMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector slice(int origin, Vector<Integer> v) {
-        return (Int64Vector) super.sliceTemplate(origin, v);  // specialize
+    public IntMaxVector slice(int origin, Vector<Integer> v) {
+        return (IntMaxVector) super.sliceTemplate(origin, v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector slice(int origin) {
-        return (Int64Vector) super.sliceTemplate(origin);  // specialize
+    public IntMaxVector slice(int origin) {
+        return (IntMaxVector) super.sliceTemplate(origin);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector unslice(int origin, Vector<Integer> w, int part) {
-        return (Int64Vector) super.unsliceTemplate(origin, w, part);  // specialize
+    public IntMaxVector unslice(int origin, Vector<Integer> w, int part) {
+        return (IntMaxVector) super.unsliceTemplate(origin, w, part);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector unslice(int origin, Vector<Integer> w, int part, VectorMask<Integer> m) {
-        return (Int64Vector)
-            super.unsliceTemplate(Int64Mask.class,
+    public IntMaxVector unslice(int origin, Vector<Integer> w, int part, VectorMask<Integer> m) {
+        return (IntMaxVector)
+            super.unsliceTemplate(IntMaxMask.class,
                                   origin, w, part,
-                                  (Int64Mask) m);  // specialize
+                                  (IntMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector unslice(int origin) {
-        return (Int64Vector) super.unsliceTemplate(origin);  // specialize
+    public IntMaxVector unslice(int origin) {
+        return (IntMaxVector) super.unsliceTemplate(origin);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector rearrange(VectorShuffle<Integer> s) {
-        return (Int64Vector)
-            super.rearrangeTemplate(Int64Shuffle.class,
-                                    (Int64Shuffle) s);  // specialize
+    public IntMaxVector rearrange(VectorShuffle<Integer> s) {
+        return (IntMaxVector)
+            super.rearrangeTemplate(IntMaxShuffle.class,
+                                    (IntMaxShuffle) s);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector rearrange(VectorShuffle<Integer> shuffle,
+    public IntMaxVector rearrange(VectorShuffle<Integer> shuffle,
                                   VectorMask<Integer> m) {
-        return (Int64Vector)
-            super.rearrangeTemplate(Int64Shuffle.class,
-                                    Int64Mask.class,
-                                    (Int64Shuffle) shuffle,
-                                    (Int64Mask) m);  // specialize
+        return (IntMaxVector)
+            super.rearrangeTemplate(IntMaxShuffle.class,
+                                    IntMaxMask.class,
+                                    (IntMaxShuffle) shuffle,
+                                    (IntMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector rearrange(VectorShuffle<Integer> s,
+    public IntMaxVector rearrange(VectorShuffle<Integer> s,
                                   Vector<Integer> v) {
-        return (Int64Vector)
-            super.rearrangeTemplate(Int64Shuffle.class,
-                                    (Int64Shuffle) s,
-                                    (Int64Vector) v);  // specialize
+        return (IntMaxVector)
+            super.rearrangeTemplate(IntMaxShuffle.class,
+                                    (IntMaxShuffle) s,
+                                    (IntMaxVector) v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector compress(VectorMask<Integer> m) {
-        return (Int64Vector)
-            super.compressTemplate(Int64Mask.class,
-                                   (Int64Mask) m);  // specialize
+    public IntMaxVector compress(VectorMask<Integer> m) {
+        return (IntMaxVector)
+            super.compressTemplate(IntMaxMask.class,
+                                   (IntMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector expand(VectorMask<Integer> m) {
-        return (Int64Vector)
-            super.expandTemplate(Int64Mask.class,
-                                   (Int64Mask) m);  // specialize
+    public IntMaxVector expand(VectorMask<Integer> m) {
+        return (IntMaxVector)
+            super.expandTemplate(IntMaxMask.class,
+                                   (IntMaxMask) m);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector selectFrom(Vector<Integer> v) {
-        return (Int64Vector)
-            super.selectFromTemplate((Int64Vector) v);  // specialize
+    public IntMaxVector selectFrom(Vector<Integer> v) {
+        return (IntMaxVector)
+            super.selectFromTemplate((IntMaxVector) v);  // specialize
     }
 
     @Override
     @ForceInline
-    public Int64Vector selectFrom(Vector<Integer> v,
+    public IntMaxVector selectFrom(Vector<Integer> v,
                                    VectorMask<Integer> m) {
-        return (Int64Vector)
-            super.selectFromTemplate((Int64Vector) v,
-                                     (Int64Mask) m);  // specialize
+        return (IntMaxVector)
+            super.selectFromTemplate((IntMaxVector) v,
+                                     (IntMaxMask) m);  // specialize
     }
 
 
     @ForceInline
     @Override
     public int lane(int i) {
-        switch(i) {
-            case 0: return laneHelper(0);
-            case 1: return laneHelper(1);
-            default: throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
+        if (i < 0 || i >= VLENGTH) {
+            throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
         }
+        return laneHelper(i);
     }
 
     public int laneHelper(int i) {
@@ -530,15 +529,14 @@ value class Int64Vector extends IntVector {
 
     @ForceInline
     @Override
-    public Int64Vector withLane(int i, int e) {
-        switch (i) {
-            case 0: return withLaneHelper(0, e);
-            case 1: return withLaneHelper(1, e);
-            default: throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
+    public IntMaxVector withLane(int i, int e) {
+        if (i < 0 || i >= VLENGTH) {
+            throw new IllegalArgumentException("Index " + i + " must be zero or positive, and less than " + VLENGTH);
         }
+        return withLaneHelper(i, e);
     }
 
-    public Int64Vector withLaneHelper(int i, int e) {
+    public IntMaxVector withLaneHelper(int i, int e) {
        return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
@@ -554,21 +552,21 @@ value class Int64Vector extends IntVector {
 
     // Mask
 
-    static final value class Int64Mask extends AbstractMask<Integer> {
+    static final value class IntMaxMask extends AbstractMask<Integer> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-        Int64Mask(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF16Z) payload;
+        IntMaxMask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMFMaxIZ) payload;
         }
 
-        private final VectorPayloadMF16Z payload;
+        private final VectorPayloadMFMaxIZ payload;
 
-        Int64Mask(VectorPayloadMF payload, int offset) {
+        IntMaxMask(VectorPayloadMF payload, int offset) {
             this(prepare(payload, offset, VSPECIES));
         }
 
-        Int64Mask(boolean val) {
+        IntMaxMask(boolean val) {
             this(prepare(val, VSPECIES));
         }
 
@@ -591,32 +589,32 @@ value class Int64Vector extends IntVector {
         @ForceInline
         @Override
         public final
-        Int64Vector toVector() {
-            return (Int64Vector) super.toVectorTemplate();  // specialize
+        IntMaxVector toVector() {
+            return (IntMaxVector) super.toVectorTemplate();  // specialize
         }
 
         @Override
         @ForceInline
         /*package-private*/
-        Int64Mask indexPartiallyInUpperRange(long offset, long limit) {
-            return (Int64Mask) VectorSupport.indexPartiallyInUpperRange(
-                Int64Mask.class, int.class, VLENGTH, offset, limit,
-                (o, l) -> (Int64Mask) TRUE_MASK.indexPartiallyInRange(o, l));
+        IntMaxMask indexPartiallyInUpperRange(long offset, long limit) {
+            return (IntMaxMask) VectorSupport.indexPartiallyInUpperRange(
+                IntMaxMask.class, int.class, VLENGTH, offset, limit,
+                (o, l) -> (IntMaxMask) TRUE_MASK.indexPartiallyInRange(o, l));
         }
 
         // Unary operations
 
         @Override
         @ForceInline
-        public Int64Mask not() {
+        public IntMaxMask not() {
             return xor(maskAll(true));
         }
 
         @Override
         @ForceInline
-        public Int64Mask compress() {
-            return (Int64Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
-                Int64Vector.class, Int64Mask.class, ETYPE, VLENGTH, null, this,
+        public IntMaxMask compress() {
+            return (IntMaxMask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+                IntMaxVector.class, IntMaxMask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
 
@@ -625,32 +623,32 @@ value class Int64Vector extends IntVector {
 
         @Override
         @ForceInline
-        public Int64Mask and(VectorMask<Integer> mask) {
+        public IntMaxMask and(VectorMask<Integer> mask) {
             Objects.requireNonNull(mask);
-            Int64Mask m = (Int64Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Int64Mask.class, null,
+            IntMaxMask m = (IntMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_AND, IntMaxMask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Int64Mask) m1.bOpMF(m2, (i, a, b) -> a & b));
+                                          (m1, m2, vm) -> (IntMaxMask) m1.bOpMF(m2, (i, a, b) -> a & b));
         }
 
         @Override
         @ForceInline
-        public Int64Mask or(VectorMask<Integer> mask) {
+        public IntMaxMask or(VectorMask<Integer> mask) {
             Objects.requireNonNull(mask);
-            Int64Mask m = (Int64Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Int64Mask.class, null,
+            IntMaxMask m = (IntMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_OR, IntMaxMask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Int64Mask) m1.bOpMF(m2, (i, a, b) -> a | b));
+                                          (m1, m2, vm) -> (IntMaxMask) m1.bOpMF(m2, (i, a, b) -> a | b));
         }
 
         @Override
         @ForceInline
-        public Int64Mask xor(VectorMask<Integer> mask) {
+        public IntMaxMask xor(VectorMask<Integer> mask) {
             Objects.requireNonNull(mask);
-            Int64Mask m = (Int64Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Int64Mask.class, null,
+            IntMaxMask m = (IntMaxMask)mask;
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, IntMaxMask.class, null,
                                           int.class, VLENGTH, this, m, null,
-                                          (m1, m2, vm) -> (Int64Mask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
+                                          (m1, m2, vm) -> (IntMaxMask) m1.bOpMF(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -658,22 +656,22 @@ value class Int64Vector extends IntVector {
         @Override
         @ForceInline
         public int trueCount() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Int64Mask.class, int.class, VLENGTH, this,
-                                                            (m) -> ((Int64Mask) m).trueCountHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, IntMaxMask.class, int.class, VLENGTH, this,
+                                                            (m) -> ((IntMaxMask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Int64Mask.class, int.class, VLENGTH, this,
-                                                            (m) -> ((Int64Mask) m).firstTrueHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, IntMaxMask.class, int.class, VLENGTH, this,
+                                                            (m) -> ((IntMaxMask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
-            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Int64Mask.class, int.class, VLENGTH, this,
-                                                            (m) -> ((Int64Mask) m).lastTrueHelper());
+            return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, IntMaxMask.class, int.class, VLENGTH, this,
+                                                            (m) -> ((IntMaxMask) m).lastTrueHelper());
         }
 
         @Override
@@ -682,8 +680,8 @@ value class Int64Vector extends IntVector {
             if (length() > Long.SIZE) {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
-            return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Int64Mask.class, int.class, VLENGTH, this,
-                                                      (m) -> ((Int64Mask) m).toLongHelper());
+            return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, IntMaxMask.class, int.class, VLENGTH, this,
+                                                      (m) -> ((IntMaxMask) m).toLongHelper());
         }
 
         // laneIsSet
@@ -692,8 +690,8 @@ value class Int64Vector extends IntVector {
         @ForceInline
         public boolean laneIsSet(int i) {
             Objects.checkIndex(i, length());
-            return VectorSupport.extract(Int64Mask.class, int.class, VLENGTH,
-                                         this, i, (m, idx) -> (((Int64Mask) m).laneIsSetHelper(idx) ? 1L : 0L)) == 1L;
+            return VectorSupport.extract(IntMaxMask.class, int.class, VLENGTH,
+                                         this, i, (m, idx) -> (((IntMaxMask) m).laneIsSetHelper(idx) ? 1L : 0L)) == 1L;
         }
 
         // Reductions
@@ -701,54 +699,68 @@ value class Int64Vector extends IntVector {
         @Override
         @ForceInline
         public boolean anyTrue() {
-            return VectorSupport.test(BT_ne, Int64Mask.class, int.class, VLENGTH,
+            return VectorSupport.test(BT_ne, IntMaxMask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> ((Int64Mask) m).anyTrueHelper());
+                                         (m, __) -> ((IntMaxMask) m).anyTrueHelper());
         }
 
         @Override
         @ForceInline
         public boolean allTrue() {
-            return VectorSupport.test(BT_overflow, Int64Mask.class, int.class, VLENGTH,
+            return VectorSupport.test(BT_overflow, IntMaxMask.class, int.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> ((Int64Mask) m).allTrueHelper());
+                                         (m, __) -> ((IntMaxMask) m).allTrueHelper());
         }
 
         @ForceInline
         /*package-private*/
-        static Int64Mask maskAll(boolean bit) {
-            return VectorSupport.fromBitsCoerced(Int64Mask.class, int.class, VLENGTH,
+        static IntMaxMask maskAll(boolean bit) {
+            return VectorSupport.fromBitsCoerced(IntMaxMask.class, int.class, VLENGTH,
                                                  (bit ? -1 : 0), MODE_BROADCAST, null,
                                                  (v, __) -> (v != 0 ? TRUE_MASK : FALSE_MASK));
         }
-        private static final Int64Mask  TRUE_MASK = new Int64Mask(true);
-        private static final Int64Mask FALSE_MASK = new Int64Mask(false);
+        private static final IntMaxMask  TRUE_MASK = new IntMaxMask(true);
+        private static final IntMaxMask FALSE_MASK = new IntMaxMask(false);
 
+
+        static VectorPayloadMF maskLowerHalf() {
+            VectorPayloadMF newObj = VectorPayloadMF.newMaskInstanceFactory(ETYPE, VLENGTH, true);
+            newObj = Unsafe.getUnsafe().makePrivateBuffer(newObj);
+            long mf_offset = newObj.multiFieldOffset();
+            int len = VLENGTH >> 1;
+            for (int i = 0; i < len; i++) {
+                Unsafe.getUnsafe().putBoolean(newObj, mf_offset + i, true);
+            }
+            newObj = Unsafe.getUnsafe().finishPrivateBuffer(newObj);
+            return newObj;
+        }
+
+        static final IntMaxMask LOWER_HALF_TRUE_MASK = new IntMaxMask(maskLowerHalf());
     }
 
     // Shuffle
 
-    static final value class Int64Shuffle extends AbstractShuffle<Integer> {
+    static final value class IntMaxShuffle extends AbstractShuffle<Integer> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-        private final VectorPayloadMF16B payload;
+        private final VectorPayloadMFMaxIB payload;
 
-        Int64Shuffle(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF16B) payload;
+        IntMaxShuffle(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMFMaxIB) payload;
             assert(VLENGTH == payload.length());
             assert(indexesInRange(payload));
         }
 
-        public Int64Shuffle(int[] indexes, int i) {
+        public IntMaxShuffle(int[] indexes, int i) {
             this(prepare(indexes, i, VSPECIES));
         }
 
-        public Int64Shuffle(IntUnaryOperator fn) {
+        public IntMaxShuffle(IntUnaryOperator fn) {
             this(prepare(fn, VSPECIES));
         }
 
-        public Int64Shuffle(int[] indexes) {
+        public IntMaxShuffle(int[] indexes) {
             this(indexes, 0);
         }
 
@@ -770,13 +782,13 @@ value class Int64Vector extends IntVector {
             assert(VLENGTH < Byte.MAX_VALUE);
             assert(Byte.MIN_VALUE <= -VLENGTH);
         }
-        static final Int64Shuffle IOTA = new Int64Shuffle(IDENTITY);
+        static final IntMaxShuffle IOTA = new IntMaxShuffle(IDENTITY);
 
         @Override
         @ForceInline
-        public Int64Vector toVector() {
-            return VectorSupport.shuffleToVector(VCLASS, ETYPE, Int64Shuffle.class, this, VLENGTH,
-                                                    (s) -> ((Int64Vector)(((AbstractShuffle<Integer>)(s)).toVectorTemplate())));
+        public IntMaxVector toVector() {
+            return VectorSupport.shuffleToVector(VCLASS, ETYPE, IntMaxShuffle.class, this, VLENGTH,
+                                                    (s) -> ((IntMaxVector)(((AbstractShuffle<Integer>)(s)).toVectorTemplate())));
         }
 
         @Override
@@ -791,11 +803,11 @@ value class Int64Vector extends IntVector {
 
         @ForceInline
         @Override
-        public Int64Shuffle rearrange(VectorShuffle<Integer> shuffle) {
-            Int64Shuffle s = (Int64Shuffle) shuffle;
+        public IntMaxShuffle rearrange(VectorShuffle<Integer> shuffle) {
+            IntMaxShuffle s = (IntMaxShuffle) shuffle;
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
+            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);
             r = Unsafe.getUnsafe().makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
@@ -804,7 +816,7 @@ value class Int64Vector extends IntVector {
                 Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
             r = Unsafe.getUnsafe().finishPrivateBuffer(r);
-            return new Int64Shuffle(r);
+            return new IntMaxShuffle(r);
         }
     }
 
@@ -823,14 +835,14 @@ value class Int64Vector extends IntVector {
     @Override
     final
     IntVector fromArray0(int[] a, int offset, VectorMask<Integer> m, int offsetInRange) {
-        return super.fromArray0Template(Int64Mask.class, a, offset, (Int64Mask) m, offsetInRange);  // specialize
+        return super.fromArray0Template(IntMaxMask.class, a, offset, (IntMaxMask) m, offsetInRange);  // specialize
     }
 
     @ForceInline
     @Override
     final
     IntVector fromArray0(int[] a, int offset, int[] indexMap, int mapOffset, VectorMask<Integer> m) {
-        return super.fromArray0Template(Int64Mask.class, a, offset, indexMap, mapOffset, (Int64Mask) m);
+        return super.fromArray0Template(IntMaxMask.class, a, offset, indexMap, mapOffset, (IntMaxMask) m);
     }
 
 
@@ -846,7 +858,7 @@ value class Int64Vector extends IntVector {
     @Override
     final
     IntVector fromMemorySegment0(MemorySegment ms, long offset, VectorMask<Integer> m, int offsetInRange) {
-        return super.fromMemorySegment0Template(Int64Mask.class, ms, offset, (Int64Mask) m, offsetInRange);  // specialize
+        return super.fromMemorySegment0Template(IntMaxMask.class, ms, offset, (IntMaxMask) m, offsetInRange);  // specialize
     }
 
     @ForceInline
@@ -860,14 +872,14 @@ value class Int64Vector extends IntVector {
     @Override
     final
     void intoArray0(int[] a, int offset, VectorMask<Integer> m) {
-        super.intoArray0Template(Int64Mask.class, a, offset, (Int64Mask) m);
+        super.intoArray0Template(IntMaxMask.class, a, offset, (IntMaxMask) m);
     }
 
     @ForceInline
     @Override
     final
     void intoArray0(int[] a, int offset, int[] indexMap, int mapOffset, VectorMask<Integer> m) {
-        super.intoArray0Template(Int64Mask.class, a, offset, indexMap, mapOffset, (Int64Mask) m);
+        super.intoArray0Template(IntMaxMask.class, a, offset, indexMap, mapOffset, (IntMaxMask) m);
     }
 
 
@@ -875,7 +887,7 @@ value class Int64Vector extends IntVector {
     @Override
     final
     void intoMemorySegment0(MemorySegment ms, long offset, VectorMask<Integer> m) {
-        super.intoMemorySegment0Template(Int64Mask.class, ms, offset, (Int64Mask) m);
+        super.intoMemorySegment0Template(IntMaxMask.class, ms, offset, (IntMaxMask) m);
     }
 
 
