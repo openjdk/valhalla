@@ -51,11 +51,11 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
   // Similar to logic in CmpPNode::sub()
   bool unrelated_classes = false;
   // Handle inline type arrays
-  if (subk->flatten_array() && superk->not_flatten_array()) {
-    // The subtype is flattened in arrays and the supertype is not flattened in arrays. Must be unrelated.
+  if (subk->flat_array() && superk->not_flat_array()) {
+    // The subtype is in flat arrays and the supertype is not in flat arrays. Must be unrelated.
     unrelated_classes = true;
   } else if (subk->is_not_flat() && superk->is_flat()) {
-    // The subtype is a non-flattened array and the supertype is a flattened array. Must be unrelated.
+    // The subtype is a non-flat array and the supertype is a flat array. Must be unrelated.
     unrelated_classes = true;
   } else if (subk->is_not_null_free() && superk->is_null_free()) {
     // The subtype is a nullable array and the supertype is null-free array. Must be unrelated.

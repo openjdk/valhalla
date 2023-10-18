@@ -61,7 +61,7 @@ class ciMetadata: public ciBaseObject {
   virtual bool is_obj_array_klass() const   { return false; }
   virtual bool is_type_array_klass() const  { return false; }
   virtual bool is_wrapper() const           { return false; }
-  virtual bool flatten_array() const        { return false; }
+  virtual bool flat_array() const           { return false; }
   virtual void dump_replay_data(outputStream* st) { /* do nothing */ }
 
   ciMethod*                as_method() {

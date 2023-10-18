@@ -44,13 +44,13 @@ class ciField : public ArenaObj {
 private:
   ciFlags          _flags;
   ciInstanceKlass* _holder;
-  ciInstanceKlass* _original_holder; // For flattened fields
+  ciInstanceKlass* _original_holder; // For fields nested in flat fields
   ciSymbol*        _name;
   ciSymbol*        _signature;
   ciType*          _type;
   int              _offset;
   bool             _is_constant;
-  bool             _is_flattened;
+  bool             _is_flat;
   bool             _is_null_free;
   ciMethod*        _known_to_link_with_put;
   ciInstanceKlass* _known_to_link_with_get;
@@ -173,7 +173,7 @@ public:
   bool is_stable               () const { return flags().is_stable(); }
   bool is_volatile             () const { return flags().is_volatile(); }
   bool is_transient            () const { return flags().is_transient(); }
-  bool is_flattened            () const { return _is_flattened; }
+  bool is_flat                 () const { return _is_flat; }
   bool is_null_free            () const { return _is_null_free; }
 
   // The field is modified outside of instance initializer methods

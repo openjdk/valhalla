@@ -135,8 +135,8 @@ ValueType* as_ValueType(BasicType type) {
     case T_FLOAT  : return floatType;
     case T_DOUBLE : return doubleType;
     case T_ARRAY  : return arrayType;
+    case T_PRIMITIVE_OBJECT: // Fall through
     case T_OBJECT : return objectType;
-    case T_PRIMITIVE_OBJECT: return objectType;
     case T_ADDRESS: return addressType;
     case T_ILLEGAL: return illegalType;
     default       : ShouldNotReachHere();

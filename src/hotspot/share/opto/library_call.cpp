@@ -51,6 +51,7 @@
 #include "opto/runtime.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -499,6 +500,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 #ifdef JFR_HAVE_INTRINSICS
   case vmIntrinsics::_counterTime:              return inline_native_time_funcs(CAST_FROM_FN_PTR(address, JfrTime::time_function()), "counterTime");
   case vmIntrinsics::_getEventWriter:           return inline_native_getEventWriter();
+  case vmIntrinsics::_jvm_commit:               return inline_native_jvm_commit();
 #endif
   case vmIntrinsics::_currentTimeMillis:        return inline_native_time_funcs(CAST_FROM_FN_PTR(address, os::javaTimeMillis), "currentTimeMillis");
   case vmIntrinsics::_nanoTime:                 return inline_native_time_funcs(CAST_FROM_FN_PTR(address, os::javaTimeNanos), "nanoTime");
@@ -2358,10 +2360,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           return false;
         }
 
-        ciField* field = vk->get_non_flattened_field_by_offset(off);
+        ciField* field = vk->get_non_flat_field_by_offset(off);
         if (field != nullptr) {
           BasicType bt = type2field[field->type()->basic_type()];
-          if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flattened())) {
+          if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flat())) {
             bt = T_OBJECT;
           }
           if (bt == type && (bt != T_PRIMITIVE_OBJECT || field->type() == inline_klass)) {
@@ -2445,13 +2447,13 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       k = instptr->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
       field = k->get_field_by_offset(off, true);
     } else {
-      field = k->get_non_flattened_field_by_offset(off);
+      field = k->get_non_flat_field_by_offset(off);
     }
     if (field != nullptr) {
       bt = type2field[field->type()->basic_type()];
     }
     assert(bt == alias_type->basic_type() || bt == T_PRIMITIVE_OBJECT, "should match");
-    if (field != nullptr && bt == T_PRIMITIVE_OBJECT && !field->is_flattened()) {
+    if (field != nullptr && bt == T_PRIMITIVE_OBJECT && !field->is_flat()) {
       bt = T_OBJECT;
     }
   } else {
@@ -2543,7 +2545,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     Node* p = nullptr;
     // Try to constant fold a load from a constant field
 
-    if (heap_base_oop != top() && field != nullptr && field->is_constant() && !field->is_flattened() && !mismatched) {
+    if (heap_base_oop != top() && field != nullptr && field->is_constant() && !field->is_flat() && !mismatched) {
       // final or stable field
       p = make_constant_from_field(field, heap_base_oop);
     }
@@ -2553,9 +2555,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         if (adr_type->isa_instptr() && !mismatched) {
           ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
           int offset = adr_type->is_instptr()->offset();
-          p = InlineTypeNode::make_from_flattened(this, inline_klass, base, base, holder, offset, decorators);
+          p = InlineTypeNode::make_from_flat(this, inline_klass, base, base, holder, offset, decorators);
         } else {
-          p = InlineTypeNode::make_from_flattened(this, inline_klass, base, adr, nullptr, 0, decorators);
+          p = InlineTypeNode::make_from_flat(this, inline_klass, base, adr, nullptr, 0, decorators);
         }
       } else {
         p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
@@ -2606,9 +2608,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
         int offset = adr_type->is_instptr()->offset();
-        val->as_InlineType()->store_flattened(this, base, base, holder, offset, decorators);
+        val->as_InlineType()->store_flat(this, base, base, holder, offset, decorators);
       } else {
-        val->as_InlineType()->store_flattened(this, base, adr, nullptr, 0, decorators);
+        val->as_InlineType()->store_flat(this, base, adr, nullptr, 0, decorators);
       }
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
@@ -3020,6 +3022,13 @@ bool LibraryCallKit::inline_unsafe_writebackSync0(bool is_pre) {
 //----------------------------inline_unsafe_allocate---------------------------
 // public native Object Unsafe.allocateInstance(Class<?> cls);
 bool LibraryCallKit::inline_unsafe_allocate() {
+
+#if INCLUDE_JVMTI
+  if (too_many_traps(Deoptimization::Reason_intrinsic)) {
+    return false;
+  }
+#endif //INCLUDE_JVMTI
+
   if (callee()->is_static())  return false;  // caller must have the capability!
 
   null_check_receiver();  // null-check, then ignore
@@ -3029,6 +3038,24 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   Node* kls = load_klass_from_mirror(cls, false, nullptr, 0);
   kls = null_check(kls);
   if (stopped())  return true;  // argument was like int.class
+
+#if INCLUDE_JVMTI
+    // Don't try to access new allocated obj in the intrinsic.
+    // It causes perfomance issues even when jvmti event VmObjectAlloc is disabled.
+    // Deoptimize and allocate in interpreter instead.
+    Node* addr = makecon(TypeRawPtr::make((address) &JvmtiExport::_should_notify_object_alloc));
+    Node* should_post_vm_object_alloc = make_load(this->control(), addr, TypeInt::INT, T_INT, MemNode::unordered);
+    Node* chk = _gvn.transform(new CmpINode(should_post_vm_object_alloc, intcon(0)));
+    Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::eq));
+    {
+      BuildCutout unless(this, tst, PROB_MAX);
+      uncommon_trap(Deoptimization::Reason_intrinsic,
+                    Deoptimization::Action_make_not_entrant);
+    }
+    if (stopped()) {
+      return true;
+    }
+#endif //INCLUDE_JVMTI
 
   Node* test = nullptr;
   if (LibraryCallKit::klass_needs_init_guard(kls)) {
@@ -3216,6 +3243,136 @@ bool LibraryCallKit::inline_native_classID() {
   final_sync(ideal);
   set_result(ideal.value(result));
 #undef __
+  return true;
+}
+
+//------------------------inline_native_jvm_commit------------------
+bool LibraryCallKit::inline_native_jvm_commit() {
+  enum { _true_path = 1, _false_path = 2, PATH_LIMIT };
+
+  // Save input memory and i_o state.
+  Node* input_memory_state = reset_memory();
+  set_all_memory(input_memory_state);
+  Node* input_io_state = i_o();
+
+  // TLS.
+  Node* tls_ptr = _gvn.transform(new ThreadLocalNode());
+  // Jfr java buffer.
+  Node* java_buffer_offset = _gvn.transform(new AddPNode(top(), tls_ptr, _gvn.transform(MakeConX(in_bytes(JAVA_BUFFER_OFFSET_JFR)))));
+  Node* java_buffer = _gvn.transform(new LoadPNode(control(), input_memory_state, java_buffer_offset, TypePtr::BOTTOM, TypeRawPtr::NOTNULL, MemNode::unordered));
+  Node* java_buffer_pos_offset = _gvn.transform(new AddPNode(top(), java_buffer, _gvn.transform(MakeConX(in_bytes(JFR_BUFFER_POS_OFFSET)))));
+
+  // Load the current value of the notified field in the JfrThreadLocal.
+  Node* notified_offset = basic_plus_adr(top(), tls_ptr, in_bytes(NOTIFY_OFFSET_JFR));
+  Node* notified = make_load(control(), notified_offset, TypeInt::BOOL, T_BOOLEAN, MemNode::unordered);
+
+  // Test for notification.
+  Node* notified_cmp = _gvn.transform(new CmpINode(notified, _gvn.intcon(1)));
+  Node* test_notified = _gvn.transform(new BoolNode(notified_cmp, BoolTest::eq));
+  IfNode* iff_notified = create_and_map_if(control(), test_notified, PROB_MIN, COUNT_UNKNOWN);
+
+  // True branch, is notified.
+  Node* is_notified = _gvn.transform(new IfTrueNode(iff_notified));
+  set_control(is_notified);
+
+  // Reset notified state.
+  Node* notified_reset_memory = store_to_memory(control(), notified_offset, _gvn.intcon(0), T_BOOLEAN, Compile::AliasIdxRaw, MemNode::unordered);
+
+  // Iff notified, the return address of the commit method is the current position of the backing java buffer. This is used to reset the event writer.
+  Node* current_pos_X = _gvn.transform(new LoadXNode(control(), input_memory_state, java_buffer_pos_offset, TypeRawPtr::NOTNULL, TypeX_X, MemNode::unordered));
+  // Convert the machine-word to a long.
+  Node* current_pos = _gvn.transform(ConvX2L(current_pos_X));
+
+  // False branch, not notified.
+  Node* not_notified = _gvn.transform(new IfFalseNode(iff_notified));
+  set_control(not_notified);
+  set_all_memory(input_memory_state);
+
+  // Arg is the next position as a long.
+  Node* arg = argument(0);
+  // Convert long to machine-word.
+  Node* next_pos_X = _gvn.transform(ConvL2X(arg));
+
+  // Store the next_position to the underlying jfr java buffer.
+  Node* commit_memory;
+#ifdef _LP64
+  commit_memory = store_to_memory(control(), java_buffer_pos_offset, next_pos_X, T_LONG, Compile::AliasIdxRaw, MemNode::release);
+#else
+  commit_memory = store_to_memory(control(), java_buffer_pos_offset, next_pos_X, T_INT, Compile::AliasIdxRaw, MemNode::release);
+#endif
+
+  // Now load the flags from off the java buffer and decide if the buffer is a lease. If so, it needs to be returned post-commit.
+  Node* java_buffer_flags_offset = _gvn.transform(new AddPNode(top(), java_buffer, _gvn.transform(MakeConX(in_bytes(JFR_BUFFER_FLAGS_OFFSET)))));
+  Node* flags = make_load(control(), java_buffer_flags_offset, TypeInt::UBYTE, T_BYTE, MemNode::unordered);
+  Node* lease_constant = _gvn.transform(_gvn.intcon(4));
+
+  // And flags with lease constant.
+  Node* lease = _gvn.transform(new AndINode(flags, lease_constant));
+
+  // Branch on lease to conditionalize returning the leased java buffer.
+  Node* lease_cmp = _gvn.transform(new CmpINode(lease, lease_constant));
+  Node* test_lease = _gvn.transform(new BoolNode(lease_cmp, BoolTest::eq));
+  IfNode* iff_lease = create_and_map_if(control(), test_lease, PROB_MIN, COUNT_UNKNOWN);
+
+  // False branch, not a lease.
+  Node* not_lease = _gvn.transform(new IfFalseNode(iff_lease));
+
+  // True branch, is lease.
+  Node* is_lease = _gvn.transform(new IfTrueNode(iff_lease));
+  set_control(is_lease);
+
+  // Make a runtime call, which can safepoint, to return the leased buffer. This updates both the JfrThreadLocal and the Java event writer oop.
+  Node* call_return_lease = make_runtime_call(RC_NO_LEAF,
+                                              OptoRuntime::void_void_Type(),
+                                              StubRoutines::jfr_return_lease(),
+                                              "return_lease", TypePtr::BOTTOM);
+  Node* call_return_lease_control = _gvn.transform(new ProjNode(call_return_lease, TypeFunc::Control));
+
+  RegionNode* lease_compare_rgn = new RegionNode(PATH_LIMIT);
+  record_for_igvn(lease_compare_rgn);
+  PhiNode* lease_compare_mem = new PhiNode(lease_compare_rgn, Type::MEMORY, TypePtr::BOTTOM);
+  record_for_igvn(lease_compare_mem);
+  PhiNode* lease_compare_io = new PhiNode(lease_compare_rgn, Type::ABIO);
+  record_for_igvn(lease_compare_io);
+  PhiNode* lease_result_value = new PhiNode(lease_compare_rgn, TypeLong::LONG);
+  record_for_igvn(lease_result_value);
+
+  // Update control and phi nodes.
+  lease_compare_rgn->init_req(_true_path, call_return_lease_control);
+  lease_compare_rgn->init_req(_false_path, not_lease);
+
+  lease_compare_mem->init_req(_true_path, _gvn.transform(reset_memory()));
+  lease_compare_mem->init_req(_false_path, commit_memory);
+
+  lease_compare_io->init_req(_true_path, i_o());
+  lease_compare_io->init_req(_false_path, input_io_state);
+
+  lease_result_value->init_req(_true_path, null()); // if the lease was returned, return 0.
+  lease_result_value->init_req(_false_path, arg); // if not lease, return new updated position.
+
+  RegionNode* result_rgn = new RegionNode(PATH_LIMIT);
+  PhiNode* result_mem = new PhiNode(result_rgn, Type::MEMORY, TypePtr::BOTTOM);
+  PhiNode* result_io = new PhiNode(result_rgn, Type::ABIO);
+  PhiNode* result_value = new PhiNode(result_rgn, TypeLong::LONG);
+
+  // Update control and phi nodes.
+  result_rgn->init_req(_true_path, is_notified);
+  result_rgn->init_req(_false_path, _gvn.transform(lease_compare_rgn));
+
+  result_mem->init_req(_true_path, notified_reset_memory);
+  result_mem->init_req(_false_path, _gvn.transform(lease_compare_mem));
+
+  result_io->init_req(_true_path, input_io_state);
+  result_io->init_req(_false_path, _gvn.transform(lease_compare_io));
+
+  result_value->init_req(_true_path, current_pos);
+  result_value->init_req(_false_path, _gvn.transform(lease_result_value));
+
+  // Set output state.
+  set_control(_gvn.transform(result_rgn));
+  set_all_memory(_gvn.transform(result_mem));
+  set_i_o(_gvn.transform(result_io));
+  set_result(result_rgn, result_value);
   return true;
 }
 
@@ -3671,12 +3828,19 @@ bool LibraryCallKit::inline_native_setCurrentThread() {
   return true;
 }
 
-Node* LibraryCallKit::scopedValueCache_helper() {
-  ciKlass *objects_klass = ciObjArrayKlass::make(env()->Object_klass());
-  const TypeOopPtr *etype = TypeOopPtr::make_from_klass(env()->Object_klass());
+const Type* LibraryCallKit::scopedValueCache_type() {
+  ciKlass* objects_klass = ciObjArrayKlass::make(env()->Object_klass());
+  const TypeOopPtr* etype = TypeOopPtr::make_from_klass(env()->Object_klass());
+  const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
 
+  // Because we create the scopedValue cache lazily we have to make the
+  // type of the result BotPTR.
   bool xk = etype->klass_is_exact();
+  const Type* objects_type = TypeAryPtr::make(TypePtr::BotPTR, arr0, objects_klass, xk, TypeAryPtr::Offset(0));
+  return objects_type;
+}
 
+Node* LibraryCallKit::scopedValueCache_helper() {
   Node* thread = _gvn.transform(new ThreadLocalNode());
   Node* p = basic_plus_adr(top()/*!oop*/, thread, in_bytes(JavaThread::scopedValueCache_offset()));
   // We cannot use immutable_memory() because we might flip onto a
@@ -3689,15 +3853,8 @@ Node* LibraryCallKit::scopedValueCache_helper() {
 
 //------------------------inline_native_scopedValueCache------------------
 bool LibraryCallKit::inline_native_scopedValueCache() {
-  ciKlass *objects_klass = ciObjArrayKlass::make(env()->Object_klass());
-  const TypeOopPtr *etype = TypeOopPtr::make_from_klass(env()->Object_klass());
-  const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
-
-  // Because we create the scopedValue cache lazily we have to make the
-  // type of the result BotPTR.
-  bool xk = etype->klass_is_exact();
-  const Type* objects_type = TypeAryPtr::make(TypePtr::BotPTR, arr0, objects_klass, xk, TypeAryPtr::Offset(0));
   Node* cache_obj_handle = scopedValueCache_helper();
+  const Type* objects_type = scopedValueCache_type();
   set_result(access_load(cache_obj_handle, objects_type, T_OBJECT, IN_NATIVE));
 
   return true;
@@ -3707,9 +3864,10 @@ bool LibraryCallKit::inline_native_scopedValueCache() {
 bool LibraryCallKit::inline_native_setScopedValueCache() {
   Node* arr = argument(0);
   Node* cache_obj_handle = scopedValueCache_helper();
+  const Type* objects_type = scopedValueCache_type();
 
   const TypePtr *adr_type = _gvn.type(cache_obj_handle)->isa_ptr();
-  access_store_at(nullptr, cache_obj_handle, adr_type, arr, _gvn.type(arr), T_OBJECT, IN_NATIVE | MO_UNORDERED);
+  access_store_at(nullptr, cache_obj_handle, adr_type, arr, objects_type, T_OBJECT, IN_NATIVE | MO_UNORDERED);
 
   return true;
 }
@@ -5255,7 +5413,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
           obj_type->can_be_inline_array() &&
           (ary_ptr == nullptr || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
-        // Flattened inline type array may have object field that would require a
+        // Flat inline type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
         generate_fair_guard(flat_array_test(obj_klass), slow_region);
       }

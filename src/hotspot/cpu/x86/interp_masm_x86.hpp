@@ -240,18 +240,18 @@ class InterpreterMacroAssembler: public MacroAssembler {
   //     will return new instance via the same reg
   //   - assumes holder_klass and valueKlass field klass have both been resolved
   //   - 32 bits: kills rdi and rsi
-  void read_inlined_field(Register holder_klass,
-                            Register field_index, Register field_offset,
-                            Register obj = rax);
+  void read_flat_field(Register holder_klass,
+                       Register field_index, Register field_offset,
+                       Register obj = rax);
 
-  // Allocate value buffer in "obj" and read in flattened element at the given index
+  // Allocate value buffer in "obj" and read in flat element at the given index
   // NOTES:
   //   - Return via "obj" must be rax
   //   - kills all given regs
   //   - 32 bits: kills rdi and rsi
-  void read_flattened_element(Register array, Register index,
-                              Register t1, Register t2,
-                              Register obj = rax);
+  void read_flat_element(Register array, Register index,
+                         Register t1, Register t2,
+                         Register obj = rax);
 
   // Object locking
   void lock_object  (Register lock_reg);
@@ -333,7 +333,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void profile_parameters_type(Register mdp, Register tmp1, Register tmp2);
 
   void load_resolved_indy_entry(Register cache, Register index);
-
+  void load_field_entry(Register cache, Register index, int bcp_offset = 1);
 };
 
 #endif // CPU_X86_INTERP_MASM_X86_HPP

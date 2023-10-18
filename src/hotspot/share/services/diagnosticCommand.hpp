@@ -320,8 +320,9 @@ protected:
   DCmdArgument<bool>  _all;
   DCmdArgument<jlong> _gzip;
   DCmdArgument<bool> _overwrite;
+  DCmdArgument<jlong> _parallel;
 public:
-  static int num_arguments() { return 4; }
+  static int num_arguments() { return 5; }
   HeapDumpDCmd(outputStream* output, bool heap);
   static const char* name() {
     return "GC.heap_dump";
@@ -403,7 +404,7 @@ public:
     return "VM.class_print_layout";
   }
   static const char* description() {
-    return "Print the layout of an instance of a class, including inlined fields. "
+    return "Print the layout of an instance of a class, including flat fields. "
            "The name of each class is followed by the ClassLoaderData* of its ClassLoader, "
            "or \"null\" if loaded by the bootstrap class loader.";
   }

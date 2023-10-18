@@ -1011,8 +1011,8 @@ void GraphBuilder::load_constant() {
     // Unbox the value at runtime, if needed.
     // ConstantDynamic entry can be of a primitive type, but it is cached in boxed form.
     if (patch_state != nullptr) {
-      int index = stream()->get_constant_pool_index();
-      BasicType type = stream()->get_basic_type_for_constant_at(index);
+      int cp_index = stream()->get_constant_pool_index();
+      BasicType type = stream()->get_basic_type_for_constant_at(cp_index);
       if (is_java_primitive(type)) {
         ciInstanceKlass* box_klass = ciEnv::current()->get_box_klass_for_primitive_type(type);
         assert(box_klass->is_loaded(), "sanity");
@@ -1090,8 +1090,8 @@ void GraphBuilder::load_indexed(BasicType type) {
   // In case of in block code motion in range check elimination
   ValueStack* state_before = nullptr;
   int array_idx = state()->stack_size() - 2;
-  if (type == T_OBJECT && state()->stack_at(array_idx)->maybe_flattened_array()) {
-    // Save the entire state and re-execute on deopt when accessing flattened arrays
+  if (type == T_OBJECT && state()->stack_at(array_idx)->maybe_flat_array()) {
+    // Save the entire state and re-execute on deopt when accessing flat arrays
     state_before = copy_state_before();
     state_before->set_should_reexecute(true);
   } else {
@@ -1112,7 +1112,7 @@ void GraphBuilder::load_indexed(BasicType type) {
   bool need_membar = false;
   LoadIndexed* load_indexed = nullptr;
   Instruction* result = nullptr;
-  if (array->is_loaded_flattened_array()) {
+  if (array->is_loaded_flat_array()) {
     ciType* array_type = array->declared_type();
     ciInlineKlass* elem_klass = array_type->as_flat_array_klass()->element_klass()->as_inline_klass();
 
@@ -1123,7 +1123,7 @@ void GraphBuilder::load_indexed(BasicType type) {
     if (s.cur_bc() == Bytecodes::_getfield) {
       bool will_link;
       ciField* next_field = s.get_field(will_link);
-      bool next_needs_patching = !next_field->holder()->is_loaded() ||
+      bool next_needs_patching = !next_field->holder()->is_initialized() ||
                                  !next_field->will_link(method(), Bytecodes::_getfield) ||
                                  PatchALot;
       can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching;
@@ -1147,7 +1147,7 @@ void GraphBuilder::load_indexed(BasicType type) {
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
         load_indexed->set_vt(new_instance);
         // The LoadIndexed node will initialise this instance by copying from
-        // the flattened field.  Ensure these stores are visible before any
+        // the flat field.  Ensure these stores are visible before any
         // subsequent store that publishes this reference.
         need_membar = true;
       }
@@ -1166,7 +1166,7 @@ void GraphBuilder::load_indexed(BasicType type) {
     append(new MemBar(lir_membar_storestore));
   }
   assert(!load_indexed->should_profile() || load_indexed == result, "should not be optimized out");
-  if (!array->is_loaded_flattened_array()) {
+  if (!array->is_loaded_flat_array()) {
     push(as_ValueType(type), result);
   }
 }
@@ -1176,8 +1176,8 @@ void GraphBuilder::store_indexed(BasicType type) {
   // In case of in block code motion in range check elimination
   ValueStack* state_before = nullptr;
   int array_idx = state()->stack_size() - 3;
-  if (type == T_OBJECT && state()->stack_at(array_idx)->maybe_flattened_array()) {
-    // Save the entire state and re-execute on deopt when accessing flattened arrays
+  if (type == T_OBJECT && state()->stack_at(array_idx)->maybe_flat_array()) {
+    // Save the entire state and re-execute on deopt when accessing flat arrays
     state_before = copy_state_before();
     state_before->set_should_reexecute(true);
   } else {
@@ -1209,7 +1209,7 @@ void GraphBuilder::store_indexed(BasicType type) {
   }
 
   StoreIndexed* store_indexed = new StoreIndexed(array, index, length, type, value, state_before, check_boolean);
-  if (profile_array_accesses() && is_reference_type(type) && !array->is_loaded_flattened_array()) {
+  if (profile_array_accesses() && is_reference_type(type) && !array->is_loaded_flat_array()) {
     compilation()->set_would_profile(true);
     store_indexed->set_should_profile(true);
     store_indexed->set_profiled_method(method());
@@ -1366,7 +1366,7 @@ void GraphBuilder::shift_op(ValueType* type, Bytecodes::Code code) {
             } else {
               // pattern: (a << s0c) >>> s0c => simplify to: a & m, with m constant
               assert(0 < s0c && s0c < BitsPerInt, "adjust code below to handle corner cases");
-              const int m = (1 << (BitsPerInt - s0c)) - 1;
+              const int m = checked_cast<int>(right_n_bits(BitsPerInt - s0c));
               Value s = append(new Constant(new IntConstant(m)));
               ipush(append(new LogicOp(Bytecodes::_iand, l->x(), s)));
             }
@@ -1863,7 +1863,7 @@ Value GraphBuilder::make_constant(ciConstant field_value, ciField* field) {
 void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* enclosing_field) {
   for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
     ciField* inner_field = vk->nonstatic_field_at(i);
-    assert(!inner_field->is_flattened(), "the iteration over nested fields is handled by the loop itself");
+    assert(!inner_field->is_flat(), "the iteration over nested fields is handled by the loop itself");
     int off = inner_field->offset_in_bytes() - vk->first_field_offset();
     LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
     Value replacement = append(load);
@@ -1883,7 +1883,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
   // call will_link again to determine if the field is valid.
   const bool needs_patching = !holder->is_loaded() ||
                               !field->will_link(method(), code) ||
-                              (!field->is_flattened() && PatchALot);
+                              (!field->is_flat() && PatchALot);
 
   ValueStack* state_before = nullptr;
   if (!holder->is_initialized() || needs_patching) {
@@ -1959,8 +1959,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     case Bytecodes::_getfield: {
       // Check for compile-time constants, i.e., trusted final non-static fields.
       Value constant = nullptr;
-      if (state_before == nullptr && field->is_flattened()) {
-        // Save the entire state and re-execute on deopt when accessing flattened fields
+      if (state_before == nullptr && field->is_flat()) {
+        // Save the entire state and re-execute on deopt when accessing flat fields
         assert(Interpreter::bytecode_should_reexecute(code), "should reexecute");
         state_before = copy_state_before();
       }
@@ -1972,13 +1972,13 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           // Loading from a field of an empty inline type. Just return the default instance.
           null_check(obj);
           constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
-        } else if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
+        } else if (field->is_constant() && !field->is_flat() && obj_type->is_constant() && !PatchALot) {
           ciObject* const_oop = obj_type->constant_value();
           if (!const_oop->is_null_object() && const_oop->is_loaded()) {
             ciConstant field_value = field->constant_value_of(const_oop);
             if (field_value.is_valid()) {
               if (field->is_null_free() && field_value.is_null_or_zero()) {
-                // Non-flattened inline type field. Replace null by the default value.
+                // Non-flat inline type field. Replace null by the default value.
                 constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
               } else {
                 constant = make_constant(field_value, field);
@@ -2001,7 +2001,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (state_before == nullptr) {
           state_before = copy_state_for_exception();
         }
-        if (!field->is_flattened()) {
+        if (!field->is_flat()) {
           if (has_pending_field_access()) {
             assert(!needs_patching, "Can't patch delayed field access");
             obj = pending_field_access()->obj();
@@ -2091,7 +2091,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before);
               _memory->new_instance(new_instance);
               apush(append_split(new_instance));
-              assert(!needs_patching, "Can't patch flattened inline type field access");
+              assert(!needs_patching, "Can't patch flat inline type field access");
               if (has_pending_field_access()) {
                 copy_inline_content(inline_klass, pending_field_access()->obj(),
                                     pending_field_access()->offset() + field->offset_in_bytes() - field->holder()->as_inline_klass()->first_field_offset(),
@@ -2126,14 +2126,14 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
         // Storing to a field of an empty inline type. Ignore.
         null_check(obj);
-      } else if (!field->is_flattened()) {
+      } else if (!field->is_flat()) {
         StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
         if (!needs_patching) store = _memory->store(store);
         if (store != nullptr) {
           append(store);
         }
       } else {
-        assert(!needs_patching, "Can't patch flattened inline type field access");
+        assert(!needs_patching, "Can't patch flat inline type field access");
         ciInlineKlass* inline_klass = field->type()->as_inline_klass();
         copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, offset, state_before, field);
       }
@@ -2167,7 +2167,7 @@ void GraphBuilder::withfield(int field_index) {
 
   // call will_link again to determine if the field is valid.
   const bool needs_patching = !field_modify->will_link(method(), Bytecodes::_withfield) ||
-                              (!field_modify->is_flattened() && PatchALot);
+                              (!field_modify->is_flat() && PatchALot);
   const int offset_modify = !needs_patching ? field_modify->offset_in_bytes() : -1;
 
   scope()->set_wrote_final();
@@ -2188,7 +2188,7 @@ void GraphBuilder::withfield(int field_index) {
       int offset = field->offset_in_bytes();
       // Don't use offset_modify here, it might be set to -1 if needs_patching
       if (offset != field_modify->offset_in_bytes()) {
-        if (field->is_flattened()) {
+        if (field->is_flat()) {
           ciInlineKlass* vk = field->type()->as_inline_klass();
           if (!vk->is_empty()) {
             copy_inline_content(vk, obj, offset, new_instance, vk->first_field_offset(), state_before, field);
@@ -2208,8 +2208,8 @@ void GraphBuilder::withfield(int field_index) {
     Value mask = append(new Constant(new IntConstant(1)));
     val = append(new LogicOp(Bytecodes::_iand, val, mask));
   }
-  if (field_modify->is_flattened()) {
-    assert(!needs_patching, "Can't patch flattened inline type field access");
+  if (field_modify->is_flat()) {
+    assert(!needs_patching, "Can't patch flat inline type field access");
     ciInlineKlass* vk = field_modify->type()->as_inline_klass();
     if (!vk->is_empty()) {
       copy_inline_content(vk, val, vk->first_field_offset(), new_instance, offset_modify, state_before, field_modify);
@@ -2441,9 +2441,10 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
         assert(singleton != declared_interface, "not a unique implementor");
         cha_monomorphic_target = target->find_monomorphic_target(calling_klass, declared_interface, singleton);
         if (cha_monomorphic_target != nullptr) {
-          if (cha_monomorphic_target->holder() != compilation()->env()->Object_klass()) {
-            ciInstanceKlass* holder = cha_monomorphic_target->holder();
-            ciInstanceKlass* constraint = (holder->is_subtype_of(singleton) ? holder : singleton); // avoid upcasts
+          ciInstanceKlass* holder = cha_monomorphic_target->holder();
+          ciInstanceKlass* constraint = (holder->is_subtype_of(singleton) ? holder : singleton); // avoid upcasts
+          if (holder != compilation()->env()->Object_klass() &&
+              (!type_is_exact || receiver_klass->is_subtype_of(constraint))) {
             actual_recv = declared_interface;
 
             // insert a check it's really the expected class.
@@ -2456,7 +2457,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
 
             dependency_recorder()->assert_unique_implementor(declared_interface, singleton);
           } else {
-            cha_monomorphic_target = nullptr; // subtype check against Object is useless
+            cha_monomorphic_target = nullptr;
           }
         }
       }

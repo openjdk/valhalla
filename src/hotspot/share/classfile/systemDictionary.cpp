@@ -1201,7 +1201,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   if (ik->has_inline_type_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       Symbol* sig = fs.signature();
-      if (Signature::basic_type(sig) == T_PRIMITIVE_OBJECT) {
+      if (fs.is_null_free_inline_type()) {
         if (!fs.access_flags().is_static()) {
           // Pre-load inline class
           Klass* real_k = SystemDictionary::resolve_inline_type_field_or_fail(sig,

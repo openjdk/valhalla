@@ -121,18 +121,18 @@ class MacroAssembler: public Assembler {
 
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
-  void test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined);
+  void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
 
-  // Check oops for special arrays, i.e. flattened and/or null-free
+  // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
-  void test_flattened_array_oop(Register oop, Register temp_reg, Label&is_flattened_array);
-  void test_non_flattened_array_oop(Register oop, Register temp_reg, Label&is_non_flattened_array);
-  void test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array);
-  void test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array);
+  void test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array);
+  void test_non_flat_array_oop(Register oop, Register temp_reg, Label& is_non_flat_array);
+  void test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array);
+  void test_non_null_free_array_oop(Register oop, Register temp_reg, Label& is_non_null_free_array);
 
-  // Check array klass layout helper for flatten or null-free arrays...
-  void test_flattened_array_layout(Register lh, Label& is_flattened_array);
-  void test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array);
+  // Check array klass layout helper for flat or null-free arrays...
+  void test_flat_array_layout(Register lh, Label& is_flat_array);
+  void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
   void test_null_free_array_layout(Register lh, Label& is_null_free_array);
   void test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array);
 
@@ -1847,6 +1847,9 @@ public:
 
   using Assembler::evpandq;
   void evpandq(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len, Register rscratch = noreg);
+
+  using Assembler::evpaddq;
+  void evpaddq(XMMRegister dst, KRegister mask, XMMRegister nds, AddressLiteral src, bool merge, int vector_len, Register rscratch = noreg);
 
   using Assembler::evporq;
   void evporq(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len, Register rscratch = noreg);

@@ -190,7 +190,7 @@ extern LONG WINAPI topLevelExceptionFilter(_EXCEPTION_POINTERS* );
 bool jfieldIDWorkaround::is_valid_jfieldID(Klass* k, jfieldID id) {
   if (jfieldIDWorkaround::is_instance_jfieldID(k, id)) {
     uintptr_t as_uint = (uintptr_t) id;
-    intptr_t offset = raw_instance_offset(id);
+    int offset = raw_instance_offset(id);
     if (is_checked_jfieldID(id)) {
       if (!klass_hash_ok(k, id)) {
         return false;
@@ -208,7 +208,7 @@ bool jfieldIDWorkaround::is_valid_jfieldID(Klass* k, jfieldID id) {
 }
 
 
-intptr_t jfieldIDWorkaround::encode_klass_hash(Klass* k, intptr_t offset) {
+intptr_t jfieldIDWorkaround::encode_klass_hash(Klass* k, int offset) {
   if (offset <= small_offset_mask) {
     Klass* field_klass = k;
     Klass* super_klass = field_klass->super();
@@ -251,7 +251,7 @@ bool jfieldIDWorkaround::klass_hash_ok(Klass* k, jfieldID id) {
 void jfieldIDWorkaround::verify_instance_jfieldID(Klass* k, jfieldID id) {
   guarantee(jfieldIDWorkaround::is_instance_jfieldID(k, id), "must be an instance field" );
   uintptr_t as_uint = (uintptr_t) id;
-  intptr_t offset = raw_instance_offset(id);
+  int offset = raw_instance_offset(id);
   if (VerifyJNIFields) {
     if (is_checked_jfieldID(id)) {
       guarantee(klass_hash_ok(k, id),
@@ -415,7 +415,7 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
 
   // First check if this is a static field
   if (modifiers & JVM_ACC_STATIC) {
-    intptr_t offset = InstanceKlass::cast(k1)->field_offset( slot );
+    int offset = InstanceKlass::cast(k1)->field_offset( slot );
     JNIid* id = InstanceKlass::cast(k1)->jni_id_for(offset);
     assert(id != nullptr, "corrupt Field object");
     debug_only(id->set_is_static_field_id();)
@@ -427,10 +427,10 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
   // The slot is the index of the field description in the field-array
   // The jfieldID is the offset of the field within the object
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
-  intptr_t offset = InstanceKlass::cast(k1)->field_offset( slot );
-  bool is_inlined = InstanceKlass::cast(k1)->field_is_inlined(slot);
+  int offset = InstanceKlass::cast(k1)->field_offset( slot );
+  bool is_flat = InstanceKlass::cast(k1)->field_is_flat(slot);
   assert(InstanceKlass::cast(k1)->contains_field_offset(offset), "stay within object");
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset, is_inlined);
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset, is_flat);
   return ret;
 JNI_END
 
@@ -1831,7 +1831,7 @@ JNI_ENTRY(jfieldID, jni_GetFieldID(JNIEnv *env, jclass clazz,
 
   // A jfieldID for a non-static field is simply the offset of the field within the instanceOop
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset(), fd.is_inlined());
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset(), fd.is_flat());
   return ret;
 JNI_END
 
@@ -1847,16 +1847,16 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   if (JvmtiExport::should_post_field_access()) {
     o = JvmtiExport::jni_GetField_probe(thread, obj, o, k, fieldID, false);
   }
-  if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
+  if (!jfieldIDWorkaround::is_flat_jfieldID(fieldID)) {
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(o, offset);
   } else {
-    assert(k->is_instance_klass(), "Only instance can have inlined fields");
+    assert(k->is_instance_klass(), "Only instance can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
     InstanceKlass* holder = fd.field_holder();
     InlineKlass* field_vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
-    res = field_vklass->read_inlined_field(o, ik->field_offset(fd.index()), CHECK_NULL);
+    res = field_vklass->read_flat_field(o, ik->field_offset(fd.index()), CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(THREAD, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
@@ -1950,21 +1950,22 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     field_value.l = value;
     o = JvmtiExport::jni_SetField_probe(thread, obj, o, k, fieldID, false, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
-  if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
+  if (!jfieldIDWorkaround::is_flat_jfieldID(fieldID)) {
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
   } else {
-    assert(k->is_instance_klass(), "Only instances can have inlined fields");
+    assert(k->is_instance_klass(), "Only instances can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
     InstanceKlass* holder = fd.field_holder();
     InlineKlass* vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
     oop v = JNIHandles::resolve_non_null(value);
-    vklass->write_inlined_field(o, offset, v, CHECK);
+    vklass->write_flat_field(o, offset, v, CHECK);
   }
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
 
+// TODO: make this a template
 
 #define DEFINE_SETFIELD(Argument,Fieldname,Result,SigType,unionType \
                         , EntryProbe, ReturnProbe) \
@@ -1982,7 +1983,6 @@ JNI_ENTRY_NO_PRESERVE(void, jni_Set##Result##Field(JNIEnv *env, jobject obj, jfi
     field_value.unionType = value; \
     o = JvmtiExport::jni_SetField_probe(thread, obj, o, k, fieldID, false, SigType, (jvalue *)&field_value); \
   } \
-  if (SigType == JVM_SIGNATURE_BOOLEAN) { value = ((jboolean)value) & 1; } \
   o->Fieldname##_field_put(offset, value); \
   ReturnProbe; \
 JNI_END
@@ -2175,7 +2175,6 @@ JNI_ENTRY(void, jni_SetStatic##Result##Field(JNIEnv *env, jclass clazz, jfieldID
     field_value.unionType = value; \
     JvmtiExport::jni_SetField_probe(thread, nullptr, nullptr, id->holder(), fieldID, true, SigType, (jvalue *)&field_value); \
   } \
-  if (SigType == JVM_SIGNATURE_BOOLEAN) { value = ((jboolean)value) & 1; } \
   id->holder()->java_mirror()-> Fieldname##_field_put (id->offset(), value); \
   ReturnProbe;\
 JNI_END
@@ -2995,7 +2994,7 @@ JNI_ENTRY(jweak, jni_NewWeakGlobalRef(JNIEnv *env, jobject ref))
   HOTSPOT_JNI_NEWWEAKGLOBALREF_ENTRY(env, ref);
   Handle ref_handle(thread, JNIHandles::resolve(ref));
   jweak ret = JNIHandles::make_weak_global(ref_handle, AllocFailStrategy::RETURN_NULL);
-  if (ret == nullptr) {
+  if (ret == nullptr && ref_handle.not_null()) {
     THROW_OOP_(Universe::out_of_memory_error_c_heap(), nullptr);
   }
   HOTSPOT_JNI_NEWWEAKGLOBALREF_RETURN(ret);

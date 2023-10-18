@@ -795,8 +795,8 @@ private:
   const bool _stable;           // Are elements @Stable?
 
   // Inline type array properties
-  const bool _flat;             // Array is flattened
-  const bool _not_flat;         // Array is never flattened
+  const bool _flat;             // Array is flat
+  const bool _not_flat;         // Array is never flat
   const bool _not_null_free;    // Array is never null-free
 
   friend class TypeAryPtr;
@@ -1018,7 +1018,7 @@ protected:
     LCA
   };
   template<class T> static TypePtr::MeetResult meet_instptr(PTR& ptr, InterfaceSet& interfaces, const T* this_type, const T* other_type,
-                                                            ciKlass*& res_klass, bool& res_xk, bool& res_flatten_array);
+                                                            ciKlass*& res_klass, bool& res_xk, bool& res_flat_array);
 
   template<class T> static MeetResult meet_aryptr(PTR& ptr, const Type*& elem, const T* this_ary, const T* other_ary,
                                                   ciKlass*& res_klass, bool& res_xk, bool &res_flat, bool &res_not_flat, bool &res_not_null_free);
@@ -1050,7 +1050,7 @@ public:
   Type::Offset xadd_offset(intptr_t offset) const;
   virtual const TypePtr* add_offset(intptr_t offset) const;
   virtual const TypePtr* with_offset(intptr_t offset) const;
-  virtual int flattened_offset() const { return offset(); }
+  virtual int flat_offset() const { return offset(); }
   virtual bool eq(const Type *t) const;
   virtual uint hash() const;             // Type specific hashing
 
@@ -1088,8 +1088,8 @@ public:
   virtual bool maybe_null() const { return meet_ptr(Null) == ptr(); }
 
   virtual bool can_be_inline_type() const { return false; }
-  virtual bool flatten_array()      const { return false; }
-  virtual bool not_flatten_array()  const { return false; }
+  virtual bool flat_array()         const { return false; }
+  virtual bool not_flat_array()     const { return false; }
   virtual bool is_flat()            const { return false; }
   virtual bool is_not_flat()        const { return false; }
   virtual bool is_null_free()       const { return false; }
@@ -1322,12 +1322,12 @@ private:
 // or to a Klass* (including array klasses).
 class TypeInstPtr : public TypeOopPtr {
   TypeInstPtr(PTR ptr, ciKlass* k, const InterfaceSet& interfaces, bool xk, ciObject* o, Offset offset,
-              bool flatten_array, int instance_id, const TypePtr* speculative,
+              bool flat_array, int instance_id, const TypePtr* speculative,
               int inline_depth);
   virtual bool eq( const Type *t ) const;
   virtual uint hash() const;             // Type specific hashing
 
-  bool _flatten_array;     // Type is flat in arrays
+  bool _flat_array;     // Type is flat in arrays
   ciKlass* exact_klass_helper() const;
 
 public:
@@ -1375,7 +1375,7 @@ public:
 
   // Make a pointer to an oop.
   static const TypeInstPtr* make(PTR ptr, ciKlass* k, const InterfaceSet& interfaces, bool xk, ciObject* o, Offset offset,
-                                 bool flatten_array = false,
+                                 bool flat_array = false,
                                  int instance_id = InstanceBot,
                                  const TypePtr* speculative = nullptr,
                                  int inline_depth = InlineDepthBottom);
@@ -1407,9 +1407,9 @@ public:
   virtual const TypePtr* with_inline_depth(int depth) const;
   virtual const TypePtr* with_instance_id(int instance_id) const;
 
-  virtual const TypeInstPtr* cast_to_flatten_array() const;
-  virtual bool flatten_array() const { return _flatten_array; }
-  virtual bool not_flatten_array() const { return !can_be_inline_type() || (_klass->is_inlinetype() && !flatten_array()); }
+  virtual const TypeInstPtr* cast_to_flat_array() const;
+  virtual bool flat_array() const { return _flat_array; }
+  virtual bool not_flat_array() const { return !can_be_inline_type() || (_klass->is_inlinetype() && !flat_array()); }
 
   // the core of the computation of the meet of 2 types
   virtual const Type *xmeet_helper(const Type *t) const;
@@ -1468,7 +1468,7 @@ class TypeAryPtr : public TypeOopPtr {
   virtual uint hash() const;    // Type specific hashing
   const TypeAry *_ary;          // Array we point into
   const bool     _is_autobox_cache;
-  // For flattened inline type arrays, each field of the inline type in
+  // For flat inline type arrays, each field of the inline type in
   // the array has its own memory slice so we need to keep track of
   // which field is accessed
   const Offset _field_offset;
@@ -1562,7 +1562,7 @@ public:
 
   static jint max_array_length(BasicType etype);
 
-  int flattened_offset() const;
+  int flat_offset() const;
   const Offset field_offset() const { return _field_offset; }
   const TypeAryPtr* with_field_offset(int offset) const;
   const TypePtr* add_field_offset_and_offset(intptr_t offset) const;
@@ -1738,14 +1738,14 @@ private:
 // Instance klass pointer, mirrors TypeInstPtr
 class TypeInstKlassPtr : public TypeKlassPtr {
 
-  TypeInstKlassPtr(PTR ptr, ciKlass* klass, const InterfaceSet& interfaces, Offset offset, bool flatten_array)
-    : TypeKlassPtr(InstKlassPtr, ptr, klass, interfaces, offset), _flatten_array(flatten_array) {
+  TypeInstKlassPtr(PTR ptr, ciKlass* klass, const InterfaceSet& interfaces, Offset offset, bool flat_array)
+    : TypeKlassPtr(InstKlassPtr, ptr, klass, interfaces, offset), _flat_array(flat_array) {
     assert(klass->is_instance_klass() && (!klass->is_loaded() || !klass->is_interface()), "");
   }
 
   virtual bool must_be_exact() const;
 
-  const bool _flatten_array; // Type is flat in arrays
+  const bool _flat_array; // Type is flat in arrays
 
 public:
   // Instance klass ignoring any interface
@@ -1764,7 +1764,7 @@ public:
     InterfaceSet interfaces = TypePtr::interfaces(k, true, true, false, interface_handling);
     return make(TypePtr::Constant, k, interfaces, Offset(0));
   }
-  static const TypeInstKlassPtr* make(PTR ptr, ciKlass* k, const InterfaceSet& interfaces, Offset offset, bool flatten_array = false);
+  static const TypeInstKlassPtr* make(PTR ptr, ciKlass* k, const InterfaceSet& interfaces, Offset offset, bool flat_array = false);
 
   static const TypeInstKlassPtr* make(PTR ptr, ciKlass* k, Offset offset) {
     const TypePtr::InterfaceSet interfaces = TypePtr::interfaces(k, true, false, false, ignore_interfaces);
@@ -1787,8 +1787,8 @@ public:
 
   virtual const TypeKlassPtr* try_improve() const;
 
-  virtual bool flatten_array() const { return _flatten_array; }
-  virtual bool not_flatten_array() const { return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flatten_array()); }
+  virtual bool flat_array() const { return _flat_array; }
+  virtual bool not_flat_array() const { return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flat_array()); }
 
   virtual bool can_be_inline_array() const;
 
@@ -1806,7 +1806,7 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   friend class TypePtr;
 
   const Type *_elem;
-  const bool _not_flat;      // Array is never flattened
+  const bool _not_flat;      // Array is never flat
   const bool _not_null_free; // Array is never null-free
   const bool _null_free;
 

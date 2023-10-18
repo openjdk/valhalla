@@ -47,7 +47,7 @@ typedef void (MacroAssembler::* chr_insn)(Register Rt, const Address &adr);
 
 void C2_MacroAssembler::entry_barrier() {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  if (BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {
+  if (BarrierSet::barrier_set()->barrier_set_nmethod() != nullptr) {
     // Dummy labels for just measuring the code size
     Label dummy_slow_path;
     Label dummy_continuation;

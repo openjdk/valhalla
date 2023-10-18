@@ -299,7 +299,7 @@ Node* PhaseMacroExpand::array_lh_test(Node* array, jint mask) {
 }
 
 Node* PhaseMacroExpand::generate_flat_array_guard(Node** ctrl, Node* array, RegionNode* region) {
-  assert(UseFlatArray, "can never be flattened");
+  assert(UseFlatArray, "can never be flat");
   return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_array_tag_flat_value_bit_inplace), region);
 }
 
@@ -1444,7 +1444,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.
   //
-  // We have no stub to copy flattened inline type arrays with oop
+  // We have no stub to copy flat inline type arrays with oop
   // fields if we need to emit write barriers.
   //
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();

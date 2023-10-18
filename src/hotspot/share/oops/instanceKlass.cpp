@@ -168,7 +168,7 @@ static inline bool is_class_loader(const Symbol* class_name,
 }
 
 bool InstanceKlass::field_is_null_free_inline_type(int index) const {
-  return Signature::basic_type(field_signature(index)) == T_PRIMITIVE_OBJECT;
+  return field(index).field_flags().is_null_free_inline_type();
 }
 
 static inline bool is_stack_chunk_class(const Symbol* class_name,
@@ -1298,7 +1298,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Initialize classes of inline fields
   if (EnablePrimitiveClasses) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
+      if (fs.is_null_free_inline_type()) {
         Klass* klass = get_inline_type_field_klass_or_null(fs.index());
         if (fs.access_flags().is_static() && klass == nullptr) {
           klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
@@ -1614,7 +1614,7 @@ bool InstanceKlass::is_same_or_direct_interface(Klass *k) const {
 objArrayOop InstanceKlass::allocate_objArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = objArrayOopDesc::object_size(length);
-  Klass* ak = array_klass(n, CHECK_NULL);
+  ArrayKlass* ak = array_klass(n, CHECK_NULL);
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
                                                                 /* do_zero */ true, CHECK_NULL);
   return o;
@@ -1678,7 +1678,7 @@ void InstanceKlass::check_valid_for_instantiation(bool throwError, TRAPS) {
   }
 }
 
-Klass* InstanceKlass::array_klass(int n, TRAPS) {
+ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
   // Need load-acquire for lock-free read
   if (array_klasses_acquire() == nullptr) {
     ResourceMark rm(THREAD);
@@ -1701,7 +1701,7 @@ Klass* InstanceKlass::array_klass(int n, TRAPS) {
   return ak->array_klass(n, THREAD);
 }
 
-Klass* InstanceKlass::array_klass_or_null(int n) {
+ArrayKlass* InstanceKlass::array_klass_or_null(int n) {
   // Need load-acquire for lock-free read
   ArrayKlass* ak = array_klasses_acquire();
   if (ak == nullptr) {
@@ -1711,11 +1711,11 @@ Klass* InstanceKlass::array_klass_or_null(int n) {
   }
 }
 
-Klass* InstanceKlass::array_klass(TRAPS) {
+ArrayKlass* InstanceKlass::array_klass(TRAPS) {
   return array_klass(1, THREAD);
 }
 
-Klass* InstanceKlass::array_klass_or_null() {
+ArrayKlass* InstanceKlass::array_klass_or_null() {
   return array_klass_or_null(1);
 }
 
@@ -2804,7 +2804,7 @@ void InstanceKlass::remove_unshareable_info() {
 
   if (has_inline_type_fields()) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
+      if (fs.is_null_free_inline_type()) {
         reset_inline_type_field_klass(fs.index());
       }
     }
@@ -4104,7 +4104,7 @@ void InstanceKlass::print_class_load_helper(ClassLoaderData* loader_data,
 
     // Class hierarchy info
     debug_stream.print(" klass: " PTR_FORMAT " super: " PTR_FORMAT,
-                      p2i(this),  p2i(superklass()));
+                       p2i(this),  p2i(superklass()));
 
     // Interfaces
     if (local_interfaces() != nullptr && local_interfaces()->length() > 0) {
@@ -4112,7 +4112,7 @@ void InstanceKlass::print_class_load_helper(ClassLoaderData* loader_data,
       int length = local_interfaces()->length();
       for (int i = 0; i < length; i++) {
         debug_stream.print(" " PTR_FORMAT,
-                          p2i(InstanceKlass::cast(local_interfaces()->at(i))));
+                           p2i(InstanceKlass::cast(local_interfaces()->at(i))));
       }
     }
 
@@ -4124,9 +4124,9 @@ void InstanceKlass::print_class_load_helper(ClassLoaderData* loader_data,
     // Classfile checksum
     if (cfs) {
       debug_stream.print(" bytes: %d checksum: %08x",
-                        cfs->length(),
-                        ClassLoader::crc32(0, (const char*)cfs->buffer(),
-                        cfs->length()));
+                         cfs->length(),
+                         ClassLoader::crc32(0, (const char*)cfs->buffer(),
+                         cfs->length()));
     }
 
     msg.debug("%s", debug_stream.as_string());

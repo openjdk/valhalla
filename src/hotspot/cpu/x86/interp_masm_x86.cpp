@@ -34,6 +34,7 @@
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "oops/resolvedIndyEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -1246,9 +1247,9 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 }
 
 
-void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
-                                                     Register field_index, Register field_offset,
-                                                     Register obj) {
+void InterpreterMacroAssembler::read_flat_field(Register holder_klass,
+                                                Register field_index, Register field_offset,
+                                                Register obj) {
   Label alloc_failed, empty_value, done;
   const Register src = field_offset;
   const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
@@ -1286,15 +1287,15 @@ void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
   bind(alloc_failed);
   pop(obj);
   pop(holder_klass);
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_inlined_field),
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, field_index, holder_klass);
 
   bind(done);
 }
 
-void InterpreterMacroAssembler::read_flattened_element(Register array, Register index,
-                                                       Register t1, Register t2,
-                                                       Register obj) {
+void InterpreterMacroAssembler::read_flat_element(Register array, Register index,
+                                                  Register t1, Register t2,
+                                                  Register obj) {
   assert_different_registers(array, index, t1, t2);
   Label alloc_failed, empty_value, done;
   const Register array_klass = t2;
@@ -2169,7 +2170,7 @@ void InterpreterMacroAssembler::profile_array(Register mdp,
     profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::array_offset())));
 
     Label not_flat;
-    test_non_flattened_array_oop(array, tmp, not_flat);
+    test_non_flat_array_oop(array, tmp, not_flat);
 
     set_mdp_flag_at(mdp, ArrayLoadStoreData::flat_array_byte_constant());
 
@@ -2348,7 +2349,22 @@ void InterpreterMacroAssembler::load_resolved_indy_entry(Register cache, Registe
   if (is_power_of_2(sizeof(ResolvedIndyEntry))) {
     shll(index, log2i_exact(sizeof(ResolvedIndyEntry))); // Scale index by power of 2
   } else {
-    imull(index, index, sizeof(ResolvedIndyEntry)); // Scale the index to be the entry index * sizeof(ResolvedInvokeDynamicInfo)
+    imull(index, index, sizeof(ResolvedIndyEntry)); // Scale the index to be the entry index * sizeof(ResolvedIndyEntry)
   }
   lea(cache, Address(cache, index, Address::times_1, Array<ResolvedIndyEntry>::base_offset_in_bytes()));
+}
+
+void InterpreterMacroAssembler::load_field_entry(Register cache, Register index, int bcp_offset) {
+  // Get index out of bytecode pointer
+  movptr(cache, Address(rbp, frame::interpreter_frame_cache_offset * wordSize));
+  get_cache_index_at_bcp(index, bcp_offset, sizeof(u2));
+
+  movptr(cache, Address(cache, ConstantPoolCache::field_entries_offset()));
+  // Take shortcut if the size is a power of 2
+  if (is_power_of_2(sizeof(ResolvedFieldEntry))) {
+    shll(index, log2i_exact(sizeof(ResolvedFieldEntry))); // Scale index by power of 2
+  } else {
+    imull(index, index, sizeof(ResolvedFieldEntry)); // Scale the index to be the entry index * sizeof(ResolvedFieldEntry)
+  }
+  lea(cache, Address(cache, index, Address::times_1, Array<ResolvedFieldEntry>::base_offset_in_bytes()));
 }

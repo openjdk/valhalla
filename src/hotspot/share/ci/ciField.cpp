@@ -71,7 +71,7 @@
 // ------------------------------------------------------------------
 // ciField::ciField
 ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
-  _original_holder(nullptr), _is_flattened(false), _known_to_link_with_put(nullptr), _known_to_link_with_get(nullptr) {
+  _original_holder(nullptr), _is_flat(false), _known_to_link_with_put(nullptr), _known_to_link_with_get(nullptr) {
   ASSERT_IN_VM;
   CompilerThread *THREAD = CompilerThread::current();
 
@@ -233,13 +233,13 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _name = field->_name;
   _signature = field->_signature;
   _type = field->_type;
-  // Trust final flattened fields
+  // Trust final flat fields
   _is_constant = is_final;
   _known_to_link_with_put = field->_known_to_link_with_put;
   _known_to_link_with_get = field->_known_to_link_with_get;
   _constant_value = field->_constant_value;
-  assert(!field->is_flattened(), "field must not be flattened");
-  _is_flattened = false;
+  assert(!field->is_flat(), "field must not be flat");
+  _is_flat = false;
   _is_null_free = field->_is_null_free;
   _original_holder = (field->_original_holder != nullptr) ? field->_original_holder : field->_holder;
 }
@@ -291,8 +291,8 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   Klass* field_holder = fd->field_holder();
   assert(field_holder != nullptr, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
-  _is_flattened = fd->is_inlined();
-  _is_null_free = fd->signature()->is_Q_signature();
+  _is_flat = fd->is_flat();
+  _is_null_free = fd->is_null_free_inline_type();
   _original_holder = nullptr;
 
   // Check to see if the field is constant.
@@ -491,7 +491,7 @@ void ciField::print() {
     tty->print(" constant_value=");
     _constant_value.print();
   }
-  tty->print(" is_flattened=%s", bool_to_str(_is_flattened));
+  tty->print(" is_flat=%s", bool_to_str(_is_flat));
   tty->print(" is_null_free=%s", bool_to_str(_is_null_free));
   tty->print(">");
 }
