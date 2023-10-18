@@ -363,5 +363,9 @@ void VM_Version::initialize_cpu_information(void) {
 }
 
 int VM_Version::max_vector_size(BasicType bt) {
+#ifdef COMPILER2
   return MaxVectorSize / type2aelembytes(bt);
+#else
+  return -1;
+#endif
 }

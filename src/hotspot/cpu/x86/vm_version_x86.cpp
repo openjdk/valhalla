@@ -3217,6 +3217,7 @@ intx VM_Version::allocate_prefetch_distance(bool use_watermark_prefetch) {
 
 // Max vector size in bytes. 0 if not supported.
 int VM_Version::max_vector_size(BasicType bt) {
+#ifdef COMPILER2_OR_JVMCI
   assert(is_java_primitive(bt), "only primitive type vectors");
   if (UseSSE < 2) return 0;
   // SSE2 supports 128bit vectors for all types.
@@ -3256,6 +3257,9 @@ int VM_Version::max_vector_size(BasicType bt) {
     assert(false, "Unexpected basic type");
   }
   return size / type2aelembytes(bt);
+#else
+  return -1;
+#endif
 }
 
 

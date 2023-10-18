@@ -659,11 +659,15 @@ void VM_Version::initialize_cpu_information(void) {
 }
 
 int VM_Version::max_vector_size(BasicType bt) {
- // The MaxVectorSize should have been set by detecting SVE max vector register size.
+  // The MaxVectorSize should have been set by detecting SVE max vector register size.
+#ifdef COMPILER2
   int size = MIN2((UseSVE > 0) ? 256 : 16, (int)MaxVectorSize);
   // Minimum 2 values in vector
   if (size < 2*type2aelembytes(bt)) size = 0;
   // But never < 4
   if (size < 4) size = 0;
   return size / type2aelembytes(bt);
+#else
+  return -1;
+#endif
 }

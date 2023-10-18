@@ -351,6 +351,7 @@ void VM_Version::initialize_cpu_information(void) {
 }
 
 int VM_Version::max_vector_size(BasicType bt) {
+#ifdef COMPILER2
   if (UseRVV) {
     // The MaxVectorSize should have been set by detecting RVV max vector register size when check UseRVV.
     // MaxVectorSize == VM_Version::_initial_vector_length
@@ -362,4 +363,7 @@ int VM_Version::max_vector_size(BasicType bt) {
     return size / type2aelembytes(bt);
   }
   return 0;
+#else
+  return -1;
+#endif
 }

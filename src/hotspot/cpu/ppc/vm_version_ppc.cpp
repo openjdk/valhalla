@@ -704,6 +704,7 @@ void VM_Version::initialize_cpu_information(void) {
 }
 
 int VM_Version::max_vector_size(BasicType bt) {
+#ifdef COMPILER2
   int size = 0;
   if (SuperwordUseVSX) {
     assert(MaxVectorSize == 16, "");
@@ -713,4 +714,7 @@ int VM_Version::max_vector_size(BasicType bt) {
     size = 8;
   }
   return size / type2aelembytes(bt);
+#else
+  return -1;
+#endif
 }
