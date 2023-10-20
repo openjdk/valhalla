@@ -2819,7 +2819,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
         Node* klass_adr = basic_plus_adr(array_or_klass, oopDesc::klass_offset_in_bytes());
         klass = transform_later(LoadKlassNode::make(_igvn, nullptr, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
       } else {
-        assert(t->isa_aryklassptr(), "Unexpected input type");
+        assert(t->isa_klassptr(), "Unexpected input type");
         klass = array_or_klass;
       }
       Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
@@ -2829,8 +2829,20 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
     Node* masked = transform_later(new AndINode(lhs, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
     Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
     Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
+    Node* m2b = transform_later(new Conv2BNode(masked));
+    // The matcher expects the input to If nodes to be produced by a Bool(CmpI..)
+    // pattern, but the input to other potential users (e.g. Phi) to be some
+    // other pattern (e.g. a Conv2B node, possibly idealized as a CMoveI).
     Node* old_bol = check->unique_out();
-    _igvn.replace_node(old_bol, bol);
+    for (DUIterator_Last imin, i = old_bol->last_outs(imin); i >= imin; --i) {
+      Node* user = old_bol->last_out(i);
+      for (uint j = 0; j < user->req(); j++) {
+        Node* n = user->in(j);
+        if (n == old_bol) {
+          _igvn.replace_input_of(user, j, user->is_If() ? bol : m2b);
+        }
+      }
+    }
     _igvn.replace_node(check, C->top());
   }
 }

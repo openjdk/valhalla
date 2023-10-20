@@ -50,7 +50,7 @@ class ResolvedFieldEntry {
   int _field_offset;            // Field offset in bytes
   u2 _field_index;              // Index into field information in holder InstanceKlass
   u2 _cpool_index;              // Constant pool index
-  u1 _tos_state;                      // TOS state
+  u1 _tos_state;                // TOS state
   u1 _flags;                    // Flags: [0000|is_null_free_inline_type|is_flat|is_final|is_volatile]
   u1 _get_code, _put_code;      // Get and Put bytecodes of the field
 
@@ -74,6 +74,7 @@ public:
       is_final_shift        = 1, // unused
       is_flat_shift         = 2,
       is_null_free_inline_type_shift = 3,
+      max_flag_shift = is_null_free_inline_type_shift,
   };
 
   // Getters
@@ -106,11 +107,15 @@ public:
   // Printing
   void print_on(outputStream* st) const;
 
-  void set_flags(bool is_final, bool is_volatile, bool is_flat, bool is_null_free_inline_type) {
-    u1 new_flags = (static_cast<u1>(is_final) << static_cast<u1>(is_final_shift)) | static_cast<u1>(is_volatile) |
-      (static_cast<u1>(is_flat) << static_cast<u1>(is_flat_shift)) |
-      (static_cast<u1>(is_null_free_inline_type) << static_cast<u1>(is_null_free_inline_type_shift));
-    _flags = new_flags;
+  void set_flags(bool is_final_flag, bool is_volatile_flag, bool is_flat_flag, bool is_null_free_inline_type_flag) {
+    u1 new_flags = (is_final_flag << is_final_shift) | static_cast<int>(is_volatile_flag) |
+      (is_flat_flag << is_flat_shift) |
+      (is_null_free_inline_type_flag << is_null_free_inline_type_shift);
+    _flags = checked_cast<u1>(new_flags);
+    assert(is_final() == is_final_flag, "Must be");
+    assert(is_volatile() == is_volatile_flag, "Must be");
+    assert(is_flat() == is_flat_flag, "Must be");
+    assert(is_null_free_inline_type() == is_null_free_inline_type_flag, "Must be");
   }
 
   inline void set_bytecode(u1* code, u1 new_code) {
@@ -123,7 +128,7 @@ public:
   }
 
   // Populate the strucutre with resolution information
-  void fill_in(InstanceKlass* klass, intx offset, int index, int tos_state, u1 b1, u1 b2) {
+  void fill_in(InstanceKlass* klass, int offset, u2 index, u1 tos_state, u1 b1, u1 b2) {
     _field_holder = klass;
     _field_offset = offset;
     _field_index = index;
@@ -132,6 +137,7 @@ public:
     // These must be set after the other fields
     set_bytecode(&_get_code, b1);
     set_bytecode(&_put_code, b2);
+    assert(is_valid(), "invalid");
   }
 
   // CDS
@@ -146,6 +152,8 @@ public:
   static ByteSize type_offset()         { return byte_offset_of(ResolvedFieldEntry, _tos_state);    }
   static ByteSize flags_offset()        { return byte_offset_of(ResolvedFieldEntry, _flags);        }
 
+  // Debug help
+  bool is_valid() const;
 };
 
 #endif //SHARE_OOPS_RESOLVEDFIELDENTRY_HPP
