@@ -27,7 +27,7 @@
  * @test
  * @summary Test basic syntax of values
  *
- * @compile -XDenablePrimitiveClasses Point.java
+ * @compile -XDenablePrimitiveClasses -XDenableNullRestrictedTypes Point.java
  */
 
 value class Point {

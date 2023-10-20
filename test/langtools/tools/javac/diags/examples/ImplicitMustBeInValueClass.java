@@ -22,6 +22,7 @@
  */
 
 // key: compiler.err.implicit.const.must.be.declared.in.value.class
+// options: -XDenableNullRestrictedTypes
 
 class ImplicitMustBeInValueClass {
     public implicit ImplicitMustBeInValueClass();

@@ -128,6 +128,7 @@ public class TestValueClasses extends JavadocTester {
 
         javadoc("-d", base.resolve("out").toString(),
                 "-sourcepath", src.toString(),
+                "-XDenableNullRestrictedTypes",
                 "p");
         checkExit(Exit.OK);
 

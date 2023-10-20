@@ -195,6 +195,7 @@ public class JavacParser implements Parser {
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowNullRestrictedTypes = fac.options.isSet("enableNullRestrictedTypes");
     }
 
     /** Construct a parser from an existing parser, with minimal overhead.
@@ -219,6 +220,7 @@ public class JavacParser implements Parser {
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowValueClasses = parser.allowValueClasses;
+        this.allowNullRestrictedTypes = parser.allowNullRestrictedTypes;
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -263,6 +265,10 @@ public class JavacParser implements Parser {
     /** Switch: are sealed types allowed in this source level?
      */
     boolean allowSealedTypes;
+
+    /** Switch: are null-restricted types allowed?
+     */
+    boolean allowNullRestrictedTypes;
 
     /** The type of the method receiver, as specified by a first "this" parameter.
      */
@@ -716,7 +722,7 @@ public class JavacParser implements Parser {
                 t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
             }
         }
-        if (EMOTIONAL_QUALIFIER.test(token.kind)) {
+        if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
             setNullMarker(t);
             nextToken();
         }
@@ -1157,7 +1163,7 @@ public class JavacParser implements Parser {
                     JCModifiers mods = optFinal(0);
                     int typePos = token.pos;
                     JCExpression type = unannotatedType(false, NOQUES | TYPE);
-                    if (token.kind == QUES && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                    if (allowNullRestrictedTypes && token.kind == QUES && EMOTIONAL_QUALIFIER.test(token.kind)) {
                         if (peekToken(IDENTIFIER, COMMA) || peekToken(IDENTIFIER, SEMI) ||
                                 peekToken(IDENTIFIER, RPAREN) || peekToken(IDENTIFIER, INSTANCEOF_INFIX)) {
                             setNullMarker(type);
@@ -1498,7 +1504,7 @@ public class JavacParser implements Parser {
                 t = lambdaExpressionOrStatement(false, false, pos);
             } else {
                 t = toP(F.at(token.pos).Ident(ident()));
-                if (EMOTIONAL_QUALIFIER.test(token.kind) && (peekToken(LBRACKET) || peekToken(LT))) {
+                if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind) && (peekToken(LBRACKET) || peekToken(LT))) {
                     emotionalMarkersOK = true;
                     selectTypeMode();
                     setNullMarker(t);
@@ -1523,7 +1529,7 @@ public class JavacParser implements Parser {
                             if (annos.nonEmpty()) {
                                 t = toP(F.at(pos).AnnotatedType(annos, t));
                             }
-                            if (EMOTIONAL_QUALIFIER.test(token.kind)) {
+                            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
                                 setNullMarker(t);
                                 nextToken();
                             }
@@ -1667,7 +1673,7 @@ public class JavacParser implements Parser {
                 }
             }
             if (typeArgs != null) illegal();
-            if (EMOTIONAL_QUALIFIER.test(token.kind) && (token.kind == QUES || token.kind == BANG || (token.kind == STAR))) {
+            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind) && (token.kind == QUES || token.kind == BANG || (token.kind == STAR))) {
                 if (peekToken(LBRACKET) || peekToken(LT) || emotionalMarkersOK) {
                     selectTypeMode();
                     setNullMarker(t);
@@ -1793,7 +1799,7 @@ public class JavacParser implements Parser {
             int pos1 = token.pos;
             final List<JCAnnotation> annos = typeAnnotationsOpt();
 
-            if (isMode(TYPE) && typeArgs == null && EMOTIONAL_QUALIFIER.test(token.kind) &&
+            if (allowNullRestrictedTypes && isMode(TYPE) && typeArgs == null && EMOTIONAL_QUALIFIER.test(token.kind) &&
                     (t instanceof JCIdent || t instanceof JCFieldAccess || t instanceof JCArrayTypeTree)) {
                 setNullMarker(t);
                 selectTypeMode();
@@ -1807,7 +1813,7 @@ public class JavacParser implements Parser {
                         nextToken();
                         t = bracketsOpt(t);
                         t = toP(F.at(pos1).TypeArray(t));
-                        if (isMode(TYPE) && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                        if (allowNullRestrictedTypes && isMode(TYPE) && EMOTIONAL_QUALIFIER.test(token.kind)) {
                             setNullMarker(t);
                             nextToken();
                         }
@@ -2041,17 +2047,17 @@ public class JavacParser implements Parser {
                     if (peekToken(lookahead, LAX_IDENTIFIER)) {
                         // Identifier, Identifier/'_'/'assert'/'enum' -> explicit lambda
                         return ParensResult.EXPLICIT_LAMBDA;
-                    } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COMMA) ||
-                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, RPAREN, ARROW)) {
+                    } else if (allowNullRestrictedTypes && (peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COMMA) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, RPAREN, ARROW))) {
                         // Identifier, '!'/'?', Identifier/'_'/'assert'/'enum', ','/')' -> explicit lambda
                         return ParensResult.EXPLICIT_LAMBDA;
-                    } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, RPAREN)) {
+                    } else if (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, RPAREN)) {
                         // this must be a cast with emotional type
                         return ParensResult.CAST;
-                    } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
+                    } else if (allowNullRestrictedTypes && (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LT) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA) ||
-                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LBRACKET) ) {
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LBRACKET)) ) {
                         // Identifier, '!'/'?', '<'/','/'>' or
                         // Identifier, '!'/'?', '[' -> it's a type, skip the emotional anno and continue
                         lookahead++;
@@ -2078,13 +2084,13 @@ public class JavacParser implements Parser {
                         // '[', ']', Identifier/'_'/'assert'/'enum' -> explicit lambda
                         return ParensResult.EXPLICIT_LAMBDA;
                     } else if (peekToken(lookahead, RBRACKET, RPAREN) ||
-                            peekToken(lookahead, RBRACKET, EMOTIONAL_QUALIFIER, RPAREN) ||
+                            (allowNullRestrictedTypes && peekToken(lookahead, RBRACKET, EMOTIONAL_QUALIFIER, RPAREN)) ||
                             peekToken(lookahead, RBRACKET, AMP)) {
                         // '[', ']', ')' -> cast
                         // '[', ']', '!', ')' -> cast
                         // '[', ']', '&' -> cast (intersection type)
                         return ParensResult.CAST;
-                    } else if (peekToken(lookahead, RBRACKET, EMOTIONAL_QUALIFIER)) {
+                    } else if (allowNullRestrictedTypes && peekToken(lookahead, RBRACKET, EMOTIONAL_QUALIFIER)) {
                         //consume the ']' and the '!' and skip
                         type = true;
                         lookahead++;
@@ -2108,7 +2114,7 @@ public class JavacParser implements Parser {
                     depth--;
                     if (depth == 0) {
                         if (peekToken(lookahead, RPAREN) ||
-                                peekToken(lookahead, EMOTIONAL_QUALIFIER, RPAREN) ||
+                                (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, RPAREN)) ||
                                 peekToken(lookahead, AMP)) {
                             // '>', ')' -> cast
                             // '>', '&' -> cast
@@ -2511,7 +2517,7 @@ public class JavacParser implements Parser {
             int pos = token.pos;
             nextToken();
             t = bracketsOptCont(t, pos, nextLevelAnnotations);
-        } else if (EMOTIONAL_QUALIFIER.test(token.kind) && peekToken(LBRACKET)) {
+        } else if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind) && peekToken(LBRACKET)) {
             Token nullMarker = token;
             nextToken();
             int pos = token.pos;
@@ -3471,15 +3477,16 @@ public class JavacParser implements Parser {
                         } else {
                             pendingResult = PatternResult.PATTERN;
                         }
-                    } else if (typeDepth == 0 &&
-                            (peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COMMA) ||
+                    } else if (typeDepth == 0 && allowNullRestrictedTypes &&
+                            ((peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COMMA) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, ARROW) ||
-                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COLON))) {
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COLON))) ) {
                         // this is a type test pattern
                         return PatternResult.PATTERN;
-                    } else if (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
+                    } else if ( allowNullRestrictedTypes &&
+                            (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LT) ||
-                            peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA)) {
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA)) ) {
                         // this is a type - skip the emotional anno and continue
                         lookahead++;
                         break;
@@ -3498,7 +3505,7 @@ public class JavacParser implements Parser {
                     }
                     break;
                 case BANG:
-                    if (!peekToken(lookahead, LPAREN)) break;
+                    if (allowNullRestrictedTypes && !peekToken(lookahead, LPAREN)) break;
                 case DOT, QUES, EXTENDS, SUPER, COMMA: break;
                 case LT: typeDepth++; break;
                 case GTGTGT: typeDepth--;
@@ -3681,7 +3688,7 @@ public class JavacParser implements Parser {
                     flag = Flags.IDENTITY_TYPE;
                     break;
                 }
-                if (isImplicitModifier()) {
+                if (allowNullRestrictedTypes && isImplicitModifier()) {
                     flag = Flags.IMPLICIT;
                     break;
                 }
@@ -3964,7 +3971,7 @@ public class JavacParser implements Parser {
             }
         }
         if (name == names.implicit) {
-            if (allowValueClasses) {
+            if (allowNullRestrictedTypes && allowValueClasses) {
                 return Source.JDK18;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));

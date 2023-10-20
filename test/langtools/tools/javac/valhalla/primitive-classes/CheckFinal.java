@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Value types and their instance fields are implicitly final
  *
- * @compile/fail/ref=CheckFinal.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckFinal.java
+ * @compile/fail/ref=CheckFinal.out -XDrawDiagnostics -XDenablePrimitiveClasses -XDenableNullRestrictedTypes CheckFinal.java
  */
 
 value class CheckFinal { // implicitly final

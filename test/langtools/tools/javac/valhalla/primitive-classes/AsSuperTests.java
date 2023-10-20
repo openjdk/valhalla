@@ -27,7 +27,7 @@
  * @test
  * @bug 8244712
  * @summary Javac should switch to reference projection before walking type hierarchy.
- * @compile -XDemitQDesc AsSuperTests.java
+ * @compile -XDemitQDesc -XDenableNullRestrictedTypes AsSuperTests.java
  */
 
 /* The following test "covers"/verifies that the asSuper calls in

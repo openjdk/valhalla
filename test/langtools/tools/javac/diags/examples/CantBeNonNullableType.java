@@ -23,6 +23,7 @@
 
 // key: compiler.err.type.cant.be.null.restricted
 // key: compiler.err.type.cant.be.null.restricted.2
+// options: -XDenableNullRestrictedTypes
 
 public class CantBeNonNullableType {
     String! s;

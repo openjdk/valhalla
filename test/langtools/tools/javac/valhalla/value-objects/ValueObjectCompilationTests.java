@@ -775,114 +775,121 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     public void testImplicitConstructor() {
-        assertOK(
-                """
-                value class V {
-                    public implicit V();
-                }
-                """
-        );
-        assertFail("compiler.err.implicit.const.must.be.public",
-                """
-                value class V {
-                    implicit V();
-                }
-                """
-        );
-        assertFail("compiler.err.implicit.const.cant.have.body",
-                """
-                value class V {
-                    public implicit V() {}
-                }
-                """
-        );
-        assertFail("compiler.err.implicit.const.must.be.public",
-                """
-                value class V {
-                    private implicit V();
-                }
-                """
-        );
-        assertFail("compiler.err.implicit.const.must.be.public",
-                """
-                value class V {
-                    protected implicit V();
-                }
-                """
-        );
-
-        assertFail("compiler.err.already.defined",
-                """
-                value class V {
-                    public implicit V();
-                    public V() {}
-                }
-                """
-        );
-
-        assertFail("compiler.err.implicit.const.must.be.declared.in.value.class",
-                """
-                class V {
-                    public implicit V();
-                }
-                """
-        );
-        assertFail("compiler.err.value.class.with.implicit.cannot.be.inner",
-                """
-                class Outer {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {"-XDenableNullRestrictedTypes"};
+            setCompileOptions(testOptions);
+            assertOK(
+                    """
                     value class V {
                         public implicit V();
                     }
-                }
-                """
-        );
-        assertFail("compiler.err.value.class.with.implicit.cannot.be.inner",
-                """
-                class Outer {
-                    new value class V() {
+                    """
+            );
+            assertFail("compiler.err.implicit.const.must.be.public",
+                    """
+                    value class V {
+                        implicit V();
+                    }
+                    """
+            );
+            assertFail("compiler.err.implicit.const.cant.have.body",
+                    """
+                    value class V {
+                        public implicit V() {}
+                    }
+                    """
+            );
+            assertFail("compiler.err.implicit.const.must.be.public",
+                    """
+                    value class V {
+                        private implicit V();
+                    }
+                    """
+            );
+            assertFail("compiler.err.implicit.const.must.be.public",
+                    """
+                    value class V {
+                        protected implicit V();
+                    }
+                    """
+            );
+
+            assertFail("compiler.err.already.defined",
+                    """
+                    value class V {
                         public implicit V();
-                    };
-                }
-                """
-        );
-        assertFail("compiler.err.value.class.with.implicit.cannot.be.inner",
-                """
-                class Outer {
-                    void m() {
+                        public V() {}
+                    }
+                    """
+            );
+
+            assertFail("compiler.err.implicit.const.must.be.declared.in.value.class",
+                    """
+                    class V {
+                        public implicit V();
+                    }
+                    """
+            );
+            assertFail("compiler.err.value.class.with.implicit.cannot.be.inner",
+                    """
+                    class Outer {
                         value class V {
                             public implicit V();
                         }
                     }
-                }
-                """
-        );
-        assertFail("compiler.err.cyclic.primitive.class.membership",
-                """
-                value class V {
-                    V! v;
-                    public implicit V();
-                }
-                """
-        );
-        assertFail("compiler.err.value.class.with.implicit.instance.field.initializer",
-                """
-                value class V {
-                    String s = "";
-                    public implicit V();
-                }
-                """
-        );
-        assertFail("compiler.err.value.class.with.implicit.declares.init.block",
-                """
-                value class V {
-                    String s;
-                    {
-                        s = "";
+                    """
+            );
+            assertFail("compiler.err.value.class.with.implicit.cannot.be.inner",
+                    """
+                    class Outer {
+                        new value class V() {
+                            public implicit V();
+                        };
                     }
-                    public implicit V();
-                }
-                """
-        );
+                    """
+            );
+            assertFail("compiler.err.value.class.with.implicit.cannot.be.inner",
+                    """
+                    class Outer {
+                        void m() {
+                            value class V {
+                                public implicit V();
+                            }
+                        }
+                    }
+                    """
+            );
+            assertFail("compiler.err.cyclic.primitive.class.membership",
+                    """
+                    value class V {
+                        V! v;
+                        public implicit V();
+                    }
+                    """
+            );
+            assertFail("compiler.err.value.class.with.implicit.instance.field.initializer",
+                    """
+                    value class V {
+                        String s = "";
+                        public implicit V();
+                    }
+                    """
+            );
+            assertFail("compiler.err.value.class.with.implicit.declares.init.block",
+                    """
+                    value class V {
+                        String s;
+                        {
+                            s = "";
+                        }
+                        public implicit V();
+                    }
+                    """
+            );
+        } finally {
+            setCompileOptions(previousOptions);
+        }
     }
 
     private File findClassFileOrFail(File dir, String name) {
@@ -919,73 +926,87 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     public void testClassAttributes() throws Exception {
-        String code =
-                """
-                value class V0 {
-                    public implicit V0();
-                }
-
-                value class V1 {
-                    V0! f1;
-                    V0 f2;
-                    V0[]! f3;
-                    public implicit V1();
-                }
-
-                value class V2 {
-                    public V2() {}
-                }
-                """;
-
-        File dir = assertOK(true, code);
-
-        // test for V1
-        ClassFile classFile = ClassFile.read(findClassFileOrFail(dir, "V1.class"));
-
-        Field field1 = classFile.fields[0];
-        findAttributeOrFail(field1.attributes, NullRestricted_attribute.class, 1);
-        Field field2 = classFile.fields[1];
+        String[] previousOptions = getCompileOptions();
         try {
-            findAttributeOrFail(field2.attributes, NullRestricted_attribute.class, 1);
-            throw new AssertionError("NullRestricted attribute shouldn't be here");
-        } catch (Throwable t) {
-            // good
-        }
-        Field field3 = classFile.fields[2];
-        checkAttributeNotPresent(field3.attributes, NullRestricted_attribute.class);
-        findAttributeOrFail(classFile.attributes, ImplicitCreation_attribute.class, 1);
+            String[] testOptions = {"-XDenableNullRestrictedTypes"};
+            setCompileOptions(testOptions);
+            String code =
+                    """
+                    value class V0 {
+                        public implicit V0();
+                    }
 
-        classFile = ClassFile.read(findClassFileOrFail(dir, "V2.class"));
-        try {
+                    value class V1 {
+                        V0! f1;
+                        V0 f2;
+                        V0[]! f3;
+                        public implicit V1();
+                    }
+
+                    value class V2 {
+                        public V2() {}
+                    }
+                    """;
+
+            File dir = assertOK(true, code);
+
+            // test for V1
+            ClassFile classFile = ClassFile.read(findClassFileOrFail(dir, "V1.class"));
+
+            Field field1 = classFile.fields[0];
+            findAttributeOrFail(field1.attributes, NullRestricted_attribute.class, 1);
+            Field field2 = classFile.fields[1];
+            try {
+                findAttributeOrFail(field2.attributes, NullRestricted_attribute.class, 1);
+                throw new AssertionError("NullRestricted attribute shouldn't be here");
+            } catch (Throwable t) {
+                // good
+            }
+            Field field3 = classFile.fields[2];
+            checkAttributeNotPresent(field3.attributes, NullRestricted_attribute.class);
             findAttributeOrFail(classFile.attributes, ImplicitCreation_attribute.class, 1);
-            throw new AssertionError("ImplicitCreation attribute shouldn't be here");
-        } catch (Throwable t) {
-            // good
+
+            classFile = ClassFile.read(findClassFileOrFail(dir, "V2.class"));
+            try {
+                findAttributeOrFail(classFile.attributes, ImplicitCreation_attribute.class, 1);
+                throw new AssertionError("ImplicitCreation attribute shouldn't be here");
+            } catch (Throwable t) {
+                // good
+            }
+        } finally {
+            setCompileOptions(previousOptions);
         }
     }
 
     public void testImplementingLooselyConsistentValue() {
-        assertFail("compiler.err.cant.implement.interface",
-                """
-                class V implements LooselyConsistentValue {} // not a value class
-                """
-        );
-        assertFail("compiler.err.cant.implement.interface",
-                """
-                value class V implements LooselyConsistentValue {} // no implicit constructor
-                """
-        );
-        assertOK(
-                """
-                abstract class V implements LooselyConsistentValue {}  // not concrete value class
-                """
-        );
-        assertOK(
-                """
-                value class V implements LooselyConsistentValue { // concrete value class with implicit constructor
-                    public implicit V();
-                }
-                """
-        );
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {"-XDenableNullRestrictedTypes"};
+            setCompileOptions(testOptions);
+            assertFail("compiler.err.cant.implement.interface",
+                    """
+                    class V implements LooselyConsistentValue {} // not a value class
+                    """
+            );
+            assertFail("compiler.err.cant.implement.interface",
+                    """
+                    value class V implements LooselyConsistentValue {} // no implicit constructor
+                    """
+            );
+            assertOK(
+                    """
+                    abstract class V implements LooselyConsistentValue {}  // not concrete value class
+                    """
+            );
+            assertOK(
+                    """
+                    value class V implements LooselyConsistentValue { // concrete value class with implicit constructor
+                        public implicit V();
+                    }
+                    """
+            );
+        } finally {
+            setCompileOptions(previousOptions);
+        }
     }
 }

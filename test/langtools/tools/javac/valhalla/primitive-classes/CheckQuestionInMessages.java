@@ -3,7 +3,7 @@
  * @bug 8222790
  * @summary javac diagnostics don't discriminate between inline types and there nullable projection types.
  *
- * @compile/fail/ref=CheckQuestionInMessages.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckQuestionInMessages.java
+ * @compile/fail/ref=CheckQuestionInMessages.out -XDrawDiagnostics -XDenablePrimitiveClasses -XDenableNullRestrictedTypes CheckQuestionInMessages.java
  */
 
 import java.util.List;

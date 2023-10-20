@@ -27,7 +27,7 @@
  * @test
  * @enablePreview
  * @summary Smoke test for parsing of bang types
- * @compile NullabilityParsingTest.java
+ * @compile -XDenableNullRestrictedTypes NullabilityParsingTest.java
  */
 
 import java.util.function.*;

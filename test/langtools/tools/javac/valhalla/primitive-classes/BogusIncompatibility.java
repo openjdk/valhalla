@@ -25,8 +25,8 @@
  * @test
  * @bug 8214299
  * @summary Strange errors from javac when mixing box and val types.
- * @compile -XDemitQDesc BogusIncompatibility.java
- * @compile -XDemitQDesc BogusIncompatibility.java
+ * @compile -XDemitQDesc -XDenableNullRestrictedTypes BogusIncompatibility.java
+ * @compile -XDemitQDesc -XDenableNullRestrictedTypes BogusIncompatibility.java
  */
 
 public class BogusIncompatibility {

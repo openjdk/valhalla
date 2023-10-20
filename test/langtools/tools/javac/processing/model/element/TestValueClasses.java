@@ -89,7 +89,7 @@ public class TestValueClasses extends TestRunner {
     }
 
     @Test
-    public void TestValueClassesProcessor(Path base) throws Exception {
+    public void testValueClassesProcessor(Path base) throws Exception {
         Path src = base.resolve("src");
         Path r = src.resolve("Test");
 
@@ -127,7 +127,7 @@ public class TestValueClasses extends TestRunner {
         for (Mode mode : new Mode[] {Mode.API}) {
             List<String> log = new JavacTask(tb, mode)
                     .options("-processor", ValueClassesProcessor.class.getName(),
-                            "-XDrawDiagnostics")
+                            "-XDenableNullRestrictedTypes", "-XDrawDiagnostics")
                     .files(findJavaFiles(src))
                     .outdir(classes)
                     .run()

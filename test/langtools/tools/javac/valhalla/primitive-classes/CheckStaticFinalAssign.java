@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check that a static final field may not be modified in a value factory
- * @compile/fail/ref=CheckStaticFinalAssign.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses CheckStaticFinalAssign.java
+ * @compile/fail/ref=CheckStaticFinalAssign.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses -XDenableNullRestrictedTypes CheckStaticFinalAssign.java
  */
 
 value final class CheckStaticFinalAssign {

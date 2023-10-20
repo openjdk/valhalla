@@ -28,7 +28,7 @@
  * @summary V.ref class should not inadvertently carry over attributes from V.class
  * @bug 8244713
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @compile -XDemitQDesc AttributesTest.java
+ * @compile -XDemitQDesc -XDenableNullRestrictedTypes AttributesTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses AttributesTest
  */
 
