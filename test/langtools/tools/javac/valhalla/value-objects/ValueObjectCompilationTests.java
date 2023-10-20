@@ -935,14 +935,14 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     value class V0 {
                         public implicit V0();
                     }
-    
+
                     value class V1 {
                         V0! f1;
                         V0 f2;
                         V0[]! f3;
                         public implicit V1();
                     }
-    
+
                     value class V2 {
                         public V2() {}
                     }
