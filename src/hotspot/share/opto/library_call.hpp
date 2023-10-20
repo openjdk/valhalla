@@ -251,6 +251,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
+  bool inline_unsafe_isFlattenedArray();
   bool inline_unsafe_make_private_buffer();
   bool inline_unsafe_finish_private_buffer();
 
@@ -259,6 +260,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_native_setCurrentThread();
 
   bool inline_native_scopedValueCache();
+  const Type* scopedValueCache_type();
   Node* scopedValueCache_helper();
   bool inline_native_setScopedValueCache();
 

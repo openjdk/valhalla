@@ -3292,8 +3292,7 @@ void TemplateTable::withfield() {
   Register cache = LP64_ONLY(c_rarg1) NOT_LP64(rcx);
   Register index = LP64_ONLY(c_rarg2) NOT_LP64(rdx);
 
-  resolve_cache_and_index(f2_byte, cache, index, sizeof(u2));
-  __ load_field_entry(cache, index);
+  resolve_cache_and_index_for_field(f2_byte, cache, index);
 
   __ lea(rax, at_tos());
   __ call_VM(rbx, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), cache, rax);

@@ -132,6 +132,8 @@ class MoveNode;
 class MulNode;
 class MultiNode;
 class MultiBranchNode;
+class NegNode;
+class NegVNode;
 class NeverBranchNode;
 class Opaque1Node;
 class OuterStripMinedLoopNode;
@@ -730,12 +732,13 @@ public:
         DEFINE_CLASS_ID(CompressV, Vector, 4)
         DEFINE_CLASS_ID(ExpandV, Vector, 5)
         DEFINE_CLASS_ID(CompressM, Vector, 6)
-      DEFINE_CLASS_ID(InlineType, Type, 8)
         DEFINE_CLASS_ID(Reduction, Vector, 9)
           DEFINE_CLASS_ID(UnorderedReduction, Reduction, 0)
-      DEFINE_CLASS_ID(Con, Type, 10)
+        DEFINE_CLASS_ID(NegV, Vector, 8)
+      DEFINE_CLASS_ID(InlineType, Type, 8)
+      DEFINE_CLASS_ID(Con, Type, 9)
           DEFINE_CLASS_ID(ConI, Con, 0)
-      DEFINE_CLASS_ID(SafePointScalarMerge, Type, 9)
+      DEFINE_CLASS_ID(SafePointScalarMerge, Type, 10)
 
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
@@ -789,8 +792,9 @@ public:
     DEFINE_CLASS_ID(Opaque1,  Node, 16)
     DEFINE_CLASS_ID(Move,     Node, 17)
     DEFINE_CLASS_ID(LShift,   Node, 18)
+    DEFINE_CLASS_ID(Neg,      Node, 19)
 
-    _max_classes  = ClassMask_LShift
+    _max_classes  = ClassMask_Neg
   };
   #undef DEFINE_CLASS_ID
 
@@ -954,6 +958,8 @@ public:
   DEFINE_CLASS_QUERY(Mul)
   DEFINE_CLASS_QUERY(Multi)
   DEFINE_CLASS_QUERY(MultiBranch)
+  DEFINE_CLASS_QUERY(Neg)
+  DEFINE_CLASS_QUERY(NegV)
   DEFINE_CLASS_QUERY(NeverBranch)
   DEFINE_CLASS_QUERY(Opaque1)
   DEFINE_CLASS_QUERY(OuterStripMinedLoop)
