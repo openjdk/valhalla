@@ -1997,8 +1997,8 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 }
 
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
-InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init) {
-  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
+InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk) {
+  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), !_type->maybe_null());
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -2024,7 +2024,7 @@ InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_res
       n = InlineTypeNode::make_null(*phase, vk);
     } else if (n->is_Phi()) {
       assert(can_reshape, "can only handle phis during IGVN");
-      n = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk, is_init));
+      n = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk));
     }
     while (casts.size() != 0) {
       // Push the cast(s) through the InlineTypeNode
@@ -2594,8 +2594,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     worklist.push(this);
     bool can_optimize = true;
     ciInlineKlass* vk = nullptr;
-    // true if all IsInit inputs of all InlineType* nodes are true
-    bool is_init = true;
     Node_List casts;
 
     // TODO 8302217 We need to prevent endless pushing through
@@ -2633,14 +2631,9 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         const Type* t = phase->type(n);
         if (n->is_InlineType() && (vk == nullptr || vk == t->inline_klass())) {
           vk = (vk == nullptr) ? t->inline_klass() : vk;
-          if (phase->find_int_con(n->as_InlineType()->get_is_init(), 0) != 1) {
-            is_init = false;
-          }
         } else if (n->is_Phi() && can_reshape && n->bottom_type()->isa_ptr()) {
           worklist.push(n);
-        } else if (t->is_zero_type()) {
-          is_init = false;
-        } else {
+        } else if (!t->is_zero_type()) {
           can_optimize = false;
         }
       }
@@ -2654,9 +2647,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       }
     }
     if (can_optimize && vk != nullptr) {
-// TODO 8302217
-//      assert(!_type->isa_ptr() || _type->maybe_null() || is_init, "Phi not null but a possible null was seen");
-      return push_inline_types_through(phase, can_reshape, vk, is_init);
+      return push_inline_types_through(phase, can_reshape, vk);
     }
   }
 
