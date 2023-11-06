@@ -1131,6 +1131,7 @@ static int c_calling_convention_priv(const BasicType *sig_bt,
         // fall through
       case T_OBJECT:
       case T_ARRAY:
+      case T_PRIMITIVE_OBJECT:
       case T_ADDRESS:
       case T_METADATA:
         if (int_args < Argument::n_int_register_parameters_c) {
