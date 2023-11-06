@@ -3376,6 +3376,8 @@ public class JavacParser implements Parser {
                         } else {
                             pendingResult = PatternResult.PATTERN;
                         }
+                    } else if (typeDepth == 0 && parenDepth == 0 && (peekToken(lookahead, tk -> tk == ARROW || tk == COMMA))) {
+                        return PatternResult.EXPRESSION;
                     }
                     break;
                 case UNDERSCORE:
