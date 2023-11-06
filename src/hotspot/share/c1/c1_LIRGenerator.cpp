@@ -3163,7 +3163,6 @@ void LIRGenerator::invoke_load_one_argument(LIRItem* param, LIR_Opr loc) {
   } else {
     LIR_Address* addr = loc->as_address_ptr();
     param->load_for_store(addr->type());
-    assert(addr->type() != T_PRIMITIVE_OBJECT, "not supported yet");
     if (addr->type() == T_OBJECT) {
       __ move_wide(param->result(), addr);
     } else {

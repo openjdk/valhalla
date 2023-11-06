@@ -270,10 +270,8 @@ const Type* Type::get_typeflow_type(ciType* type) {
     assert(type->is_return_address(), "");
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
-  case T_PRIMITIVE_OBJECT: {
-    ciInlineKlass* vk = type->unwrap()->as_inline_klass();
-    return TypeOopPtr::make_from_klass(vk)->join_speculative(type->is_null_free() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
-  }
+  case T_OBJECT:
+    return Type::get_const_type(type->unwrap())->join_speculative(type->is_null_free() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
 
   default:
     // make sure we did not mix up the cases:
@@ -303,7 +301,6 @@ const Type* Type::make_from_constant(ciConstant constant, bool require_constant,
     case T_FLOAT:    return TypeF::make(constant.as_float());
     case T_DOUBLE:   return TypeD::make(constant.as_double());
     case T_ARRAY:
-    case T_PRIMITIVE_OBJECT:
     case T_OBJECT: {
         const Type* con_type = nullptr;
         ciObject* oop_constant = constant.as_object();
@@ -341,14 +338,12 @@ static ciConstant check_mismatched_access(ciConstant con, BasicType loadbt, bool
   switch (conbt) {
     case T_BOOLEAN: conbt = T_BYTE;   break;
     case T_ARRAY:   conbt = T_OBJECT; break;
-    case T_PRIMITIVE_OBJECT: conbt = T_OBJECT; break;
     default:                          break;
   }
   switch (loadbt) {
     case T_BOOLEAN:   loadbt = T_BYTE;   break;
     case T_NARROWOOP: loadbt = T_OBJECT; break;
     case T_ARRAY:     loadbt = T_OBJECT; break;
-    case T_PRIMITIVE_OBJECT: loadbt = T_OBJECT; break;
     case T_ADDRESS:   loadbt = T_OBJECT; break;
     default:                             break;
   }
@@ -2206,7 +2201,6 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
       arg_cnt++;
     }
   }
-
   const Type **field_array = fields(arg_cnt);
   switch (return_type->basic_type()) {
   case T_LONG:
@@ -2218,6 +2212,19 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
     field_array[TypeFunc::Parms+1] = Type::HALF;
     break;
   case T_OBJECT:
+    if (return_type->is_inlinetype() && ret_vt_fields) {
+      uint pos = TypeFunc::Parms;
+      field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
+      collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
+      if (!sig->returns_null_free_inline_type()) {
+        // InlineTypeNode::IsInit field used for null checking
+        field_array[pos++] = get_const_basic_type(T_BOOLEAN);
+      }
+      break;
+    } else {
+      field_array[TypeFunc::Parms] = get_const_type(return_type, interface_handling)->join_speculative(sig->returns_null_free_inline_type() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+    }
+    break;
   case T_ARRAY:
   case T_BOOLEAN:
   case T_CHAR:
@@ -2226,19 +2233,6 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
   case T_SHORT:
   case T_INT:
     field_array[TypeFunc::Parms] = get_const_type(return_type, interface_handling);
-    break;
-  case T_PRIMITIVE_OBJECT:
-    if (ret_vt_fields) {
-      uint pos = TypeFunc::Parms;
-      field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
-      collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
-      if (!sig->returns_null_free_inline_type()) {
-        // InlineTypeNode::IsInit field used for null checking
-        field_array[pos++] = get_const_basic_type(T_BOOLEAN);
-      }
-    } else {
-      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(sig->returns_null_free_inline_type() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
-    }
     break;
   case T_VOID:
     break;
@@ -2286,6 +2280,16 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, InterfaceHandling inte
       field_array[pos++] = Type::HALF;
       break;
     case T_OBJECT:
+      if (type->is_inlinetype() && vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
+        if (!sig->is_null_free_at(i)) {
+          // InlineTypeNode::IsInit field used for null checking
+          field_array[pos++] = get_const_basic_type(T_BOOLEAN);
+        }
+        collect_inline_fields(type->as_inline_klass(), field_array, pos);
+      } else {
+        field_array[pos++] = get_const_type(type, interface_handling)->join_speculative(sig->is_null_free_at(i) ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+      }
+      break;
     case T_ARRAY:
     case T_FLOAT:
     case T_INT:
@@ -2297,18 +2301,6 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, InterfaceHandling inte
     case T_SHORT:
       field_array[pos++] = TypeInt::INT;
       break;
-    case T_PRIMITIVE_OBJECT: {
-      if (vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
-        if (!sig->is_null_free_at(i)) {
-          // InlineTypeNode::IsInit field used for null checking
-          field_array[pos++] = get_const_basic_type(T_BOOLEAN);
-        }
-        collect_inline_fields(type->as_inline_klass(), field_array, pos);
-      } else {
-        field_array[pos++] = get_const_type(type)->join_speculative(sig->is_null_free_at(i) ? TypePtr::NOTNULL : TypePtr::BOTTOM);
-      }
-      break;
-    }
     default:
       ShouldNotReachHere();
     }

@@ -929,7 +929,6 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
   Node* mem = merge_mem->memory_at(alias_idx); // memory slice to operate on
 
   // scaling and rounding of indexes:
-  assert(basic_elem_type != T_PRIMITIVE_OBJECT, "should have been converted to a basic type copy");
   int scale = exact_log2(type2aelembytes(basic_elem_type));
   int abase = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
   int clear_low = (-1 << scale) & (BytesPerInt  - 1);

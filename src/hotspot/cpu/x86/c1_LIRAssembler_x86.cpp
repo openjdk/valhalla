@@ -197,7 +197,7 @@ void LIR_Assembler::push(LIR_Opr opr) {
     __ push_addr(frame_map()->address_for_slot(opr->single_stack_ix()));
   } else if (opr->is_constant()) {
     LIR_Const* const_opr = opr->as_constant_ptr();
-    if (const_opr->type() == T_OBJECT || const_opr->type() == T_PRIMITIVE_OBJECT) {
+    if (const_opr->type() == T_OBJECT) {
       __ push_oop(const_opr->as_jobject(), rscratch1);
     } else if (const_opr->type() == T_INT) {
       __ push_jint(const_opr->as_jint());
@@ -637,7 +637,6 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
       break;
     }
 
-    case T_PRIMITIVE_OBJECT: // Fall through
     case T_OBJECT: {
       if (patch_code != lir_patch_none) {
         jobject2reg_with_patching(dest->as_register(), info);
@@ -728,7 +727,6 @@ void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
       __ movptr(frame_map()->address_for_slot(dest->single_stack_ix()), c->as_jint_bits());
       break;
 
-    case T_PRIMITIVE_OBJECT: // Fall through
     case T_OBJECT:
       __ movoop(frame_map()->address_for_slot(dest->single_stack_ix()), c->as_jobject(), rscratch1);
       break;
@@ -770,7 +768,6 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
       __ movptr(as_Address(addr), c->as_jint_bits());
       break;
 
-    case T_PRIMITIVE_OBJECT: // fall through
     case T_OBJECT:  // fall through
     case T_ARRAY:
       if (c->as_jobject() == nullptr) {
@@ -859,7 +856,7 @@ void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
     }
 #endif
     assert(src->is_single_cpu(), "must match");
-    if (src->type() == T_OBJECT || src->type() == T_PRIMITIVE_OBJECT) {
+    if (src->type() == T_OBJECT) {
       __ verify_oop(src->as_register());
     }
     move_regs(src->as_register(), dest->as_register());
@@ -1045,7 +1042,6 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
-    case T_PRIMITIVE_OBJECT: // fall through
     case T_ARRAY:   // fall through
     case T_OBJECT:  // fall through
       if (UseCompressedOops && !wide) {
@@ -1218,7 +1214,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   LIR_Address* addr = src->as_address_ptr();
   Address from_addr = as_Address(addr);
 
-  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_PRIMITIVE_OBJECT) {
+  if (addr->base()->type() == T_OBJECT) {
     __ verify_oop(addr->base()->as_pointer_register());
   }
 
@@ -1279,7 +1275,6 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
-    case T_PRIMITIVE_OBJECT: // fall through
     case T_OBJECT:  // fall through
     case T_ARRAY:   // fall through
       if (UseCompressedOops && !wide) {

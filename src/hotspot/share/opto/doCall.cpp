@@ -792,7 +792,7 @@ void Parse::do_call() {
     if (rtype->is_inlinetype() && !peek()->is_InlineType()) {
       Node* retnode = pop();
       retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
-      push_node(T_PRIMITIVE_OBJECT, retnode);
+      push_node(T_OBJECT, retnode);
     }
   }
 

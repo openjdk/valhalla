@@ -587,7 +587,6 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
       break;
     }
 
-    case T_PRIMITIVE_OBJECT:
     case T_OBJECT: {
         if (patch_code != lir_patch_none) {
           jobject2reg_with_patching(dest->as_register(), info);
@@ -634,7 +633,6 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
 void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
   LIR_Const* c = src->as_constant_ptr();
   switch (c->type()) {
-  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:
     {
       if (! c->as_jobject())
@@ -701,7 +699,6 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     assert(c->as_jint() == 0, "should be");
     insn = &Assembler::strw;
     break;
-  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:
   case T_ARRAY:
     // Non-null case is not handled on aarch64 but handled on x86
@@ -744,7 +741,7 @@ void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
       return;
     }
     assert(src->is_single_cpu(), "must match");
-    if (src->type() == T_OBJECT || src->type() == T_PRIMITIVE_OBJECT) {
+    if (src->type() == T_OBJECT) {
       __ verify_oop(src->as_register());
     }
     move_regs(src->as_register(), dest->as_register());
@@ -844,7 +841,6 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
-    case T_PRIMITIVE_OBJECT: // fall through
     case T_ARRAY:   // fall through
     case T_OBJECT:  // fall through
       if (UseCompressedOops && !wide) {
@@ -974,7 +970,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   LIR_Address* addr = src->as_address_ptr();
   LIR_Address* from_addr = src->as_address_ptr();
 
-  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_PRIMITIVE_OBJECT) {
+  if (addr->base()->type() == T_OBJECT) {
     __ verify_oop(addr->base()->as_pointer_register());
   }
 
@@ -998,7 +994,6 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
-    case T_PRIMITIVE_OBJECT: // fall through
     case T_ARRAY:   // fall through
     case T_OBJECT:  // fall through
       if (UseCompressedOops && !wide) {
@@ -2147,7 +2142,6 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
       case T_METADATA:
         imm = (intptr_t)(opr2->as_constant_ptr()->as_metadata());
         break;
-      case T_PRIMITIVE_OBJECT:
       case T_OBJECT:
       case T_ARRAY:
         jobject2reg(opr2->as_constant_ptr()->as_jobject(), rscratch1);
@@ -2316,7 +2310,6 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, LIR_Opr count, LIR_Opr
       }
       break;
     case T_LONG:
-    case T_PRIMITIVE_OBJECT:
     case T_ADDRESS:
     case T_OBJECT:
       switch (code) {
@@ -2353,7 +2346,6 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, jint count, LIR_Opr de
       break;
     case T_LONG:
     case T_ADDRESS:
-    case T_PRIMITIVE_OBJECT:
     case T_OBJECT:
       switch (code) {
       case lir_shl:  __ lsl (dreg, lreg, count); break;
@@ -3391,7 +3383,6 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
     xchg = &MacroAssembler::atomic_xchgal;
     add = &MacroAssembler::atomic_addal;
     break;
-  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:
   case T_ARRAY:
     if (UseCompressedOops) {

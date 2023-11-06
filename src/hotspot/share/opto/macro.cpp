@@ -1076,7 +1076,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         assert(use->as_InlineType()->get_oop() == res, "unexpected inline type ptr use");
         // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
-        use->as_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
+        use->as_InlineType()->set_oop(_igvn.zerocon(T_OBJECT));
         const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
         _igvn.set_type(use, toop);
         use->as_InlineType()->set_type(toop);

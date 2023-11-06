@@ -338,7 +338,6 @@ class LIR_Opr {
       case T_INT:
       case T_ADDRESS:
       case T_OBJECT:
-      case T_PRIMITIVE_OBJECT:  // fall through
       case T_ARRAY:
       case T_METADATA:
         return single_size;
@@ -488,7 +487,6 @@ inline LIR_Opr::OprType as_OprType(BasicType type) {
   case T_FLOAT:    return LIR_Opr::float_type;
   case T_DOUBLE:   return LIR_Opr::double_type;
   case T_OBJECT:
-  case T_PRIMITIVE_OBJECT:  // fall through
   case T_ARRAY:    return LIR_Opr::object_type;
   case T_ADDRESS:  return LIR_Opr::address_type;
   case T_METADATA: return LIR_Opr::metadata_type;
@@ -680,7 +678,6 @@ class LIR_OprFact: public AllStatic {
     LIR_Opr res;
     switch (type) {
       case T_OBJECT: // fall through
-      case T_PRIMITIVE_OBJECT: // fall through
       case T_ARRAY:
         res = (LIR_Opr)(intptr_t)((index << LIR_Opr::data_shift)  |
                                             LIR_Opr::object_type  |
@@ -785,7 +782,6 @@ class LIR_OprFact: public AllStatic {
   static LIR_Opr stack(int index, BasicType type) {
     LIR_Opr res;
     switch (type) {
-      case T_PRIMITIVE_OBJECT: // fall through
       case T_OBJECT: // fall through
       case T_ARRAY:
         res = (LIR_Opr)(intptr_t)((index << LIR_Opr::data_shift) |

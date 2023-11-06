@@ -6345,7 +6345,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                                         VMRegPair* from, int from_count, int& from_index, VMReg to,
                                         RegState reg_state[], Register val_array) {
-  assert(sig->at(sig_index)._bt == T_PRIMITIVE_OBJECT, "should be at end delimiter");
+  assert(sig->at(sig_index)._bt == T_PRIMITIVE_OBJECT, "should be at delimiter");
   assert(to->is_valid(), "destination must be valid");
 
   if (reg_state[to->value()] == reg_written) {
