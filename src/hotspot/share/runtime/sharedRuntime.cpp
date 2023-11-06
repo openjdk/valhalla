@@ -2507,7 +2507,7 @@ static int _compact; // number of equals calls with compact signature
 class AdapterFingerPrint : public CHeapObj<mtCode> {
  private:
   enum {
-    _basic_type_bits = 4,
+    _basic_type_bits = 5,
     _basic_type_mask = right_n_bits(_basic_type_bits),
     _basic_types_per_int = BitsPerInt / _basic_type_bits,
     _compact_int_count = 3
@@ -2587,7 +2587,7 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         BasicType bt = T_ILLEGAL;
         if (sig_index < total_args_passed) {
           bt = sig->at(sig_index++)._bt;
-          if (bt == T_PRIMITIVE_OBJECT) {
+          if (bt == T_METADATA) {
             // Found start of inline type in signature
             assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
             if (sig_index == 1 && has_ro_adapter) {
@@ -3098,7 +3098,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             _sig_cc->appendAll(vk->extended_sig());
             _sig_cc_ro->appendAll(vk->extended_sig());
             if (bt == T_OBJECT) {
-              // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_PRIMITIVE_OBJECT
+              // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_METADATA delimiter
               _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr));
               _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr));
             }
@@ -3873,7 +3873,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID) {

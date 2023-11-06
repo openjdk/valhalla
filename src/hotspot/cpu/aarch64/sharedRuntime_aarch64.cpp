@@ -495,23 +495,23 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
   if (InlineTypePassFieldsAsArgs) {
      for (int i = 0; i < sig_extended->length(); i++) {
        BasicType bt = sig_extended->at(i)._bt;
-       if (bt == T_PRIMITIVE_OBJECT) {
+       if (bt == T_METADATA) {
          // In sig_extended, an inline type argument starts with:
-         // T_PRIMITIVE_OBJECT, followed by the types of the fields of the
+         // T_METADATA, followed by the types of the fields of the
          // inline type and T_VOID to mark the end of the value
          // type. Inline types are flattened so, for instance, in the
          // case of an inline type with an int field and an inline type
          // field that itself has 2 fields, an int and a long:
-         // T_PRIMITIVE_OBJECT T_INT T_PRIMITIVE_OBJECT T_INT T_LONG T_VOID (second
-         // slot for the T_LONG) T_VOID (inner T_PRIMITIVE_OBJECT) T_VOID
-         // (outer T_PRIMITIVE_OBJECT)
+         // T_METADATA T_INT T_METADATA T_INT T_LONG T_VOID (second
+         // slot for the T_LONG) T_VOID (inner inline type) T_VOID
+         // (outer inline type)
          total_args_passed++;
          int vt = 1;
          do {
            i++;
            BasicType bt = sig_extended->at(i)._bt;
            BasicType prev_bt = sig_extended->at(i-1)._bt;
-           if (bt == T_PRIMITIVE_OBJECT) {
+           if (bt == T_METADATA) {
              vt++;
            } else if (bt == T_VOID &&
                       prev_bt != T_LONG &&
@@ -649,7 +649,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     // Is there an inline type argument?
     bool has_inline_argument = false;
     for (int i = 0; i < sig_extended->length() && !has_inline_argument; i++) {
-      has_inline_argument = (sig_extended->at(i)._bt == T_PRIMITIVE_OBJECT);
+      has_inline_argument = (sig_extended->at(i)._bt == T_METADATA);
     }
     if (has_inline_argument) {
       // There is at least an inline type argument: we're coming from
@@ -711,10 +711,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   // next_arg_comp is the next argument from the compiler point of
   // view (inline type fields are passed in registers/on the stack). In
-  // sig_extended, an inline type argument starts with: T_PRIMITIVE_OBJECT,
+  // sig_extended, an inline type argument starts with: T_METADATA,
   // followed by the types of the fields of the inline type and T_VOID
   // to mark the end of the inline type. ignored counts the number of
-  // T_PRIMITIVE_OBJECT/T_VOID. next_vt_arg is the next inline type argument:
+  // T_METADATA/T_VOID. next_vt_arg is the next inline type argument:
   // used to get the buffer for that argument from the pool of buffers
   // we allocated above and want to pass to the
   // interpreter. next_arg_int is the next argument from the
@@ -725,7 +725,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     assert(next_arg_int <= total_args_passed, "more arguments for the interpreter than expected?");
     BasicType bt = sig_extended->at(next_arg_comp)._bt;
     int st_off = (total_args_passed - next_arg_int - 1) * Interpreter::stackElementSize;
-    if (!InlineTypePassFieldsAsArgs || bt != T_PRIMITIVE_OBJECT) {
+    if (!InlineTypePassFieldsAsArgs || bt != T_METADATA) {
       int next_off = st_off - Interpreter::stackElementSize;
       const int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
       const VMRegPair reg_pair = regs[next_arg_comp-ignored];
@@ -743,7 +743,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     } else {
       ignored++;
       // get the buffer from the just allocated pool of buffers
-      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_PRIMITIVE_OBJECT);
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_OBJECT);
       __ load_heap_oop(buf_oop, Address(buf_array, index), tmp1, tmp2);
       next_vt_arg++; next_arg_int++;
       int vt = 1;
@@ -758,7 +758,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
         BasicType prev_bt = sig_extended->at(next_arg_comp - 1)._bt;
-        if (bt == T_PRIMITIVE_OBJECT) {
+        if (bt == T_METADATA) {
           vt++;
           ignored++;
         } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
@@ -893,8 +893,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   // Now generate the shuffle code.
   for (int i = 0; i < total_args_passed; i++) {
     BasicType bt = sig->at(i)._bt;
-
-    assert(bt != T_PRIMITIVE_OBJECT, "i2c adapter doesn't unpack inline typ args");
     if (bt == T_VOID) {
       assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
@@ -1133,7 +1131,6 @@ static int c_calling_convention_priv(const BasicType *sig_bt,
         // fall through
       case T_OBJECT:
       case T_ARRAY:
-      case T_PRIMITIVE_OBJECT:
       case T_ADDRESS:
       case T_METADATA:
         if (int_args < Argument::n_int_register_parameters_c) {
@@ -3432,7 +3429,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID) {
@@ -3474,7 +3471,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID) {

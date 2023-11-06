@@ -1851,9 +1851,10 @@ class LIR_OpAllocArray : public LIR_Op {
   LIR_Opr   _tmp4;
   BasicType _type;
   CodeStub* _stub;
+  bool      _is_null_free;
 
  public:
-  LIR_OpAllocArray(LIR_Opr klass, LIR_Opr len, LIR_Opr result, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, LIR_Opr t4, BasicType type, CodeStub* stub)
+  LIR_OpAllocArray(LIR_Opr klass, LIR_Opr len, LIR_Opr result, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, LIR_Opr t4, BasicType type, CodeStub* stub, bool is_null_free)
     : LIR_Op(lir_alloc_array, result, nullptr)
     , _klass(klass)
     , _len(len)
@@ -1862,7 +1863,8 @@ class LIR_OpAllocArray : public LIR_Op {
     , _tmp3(t3)
     , _tmp4(t4)
     , _type(type)
-    , _stub(stub) {}
+    , _stub(stub)
+    , _is_null_free(is_null_free) {}
 
   LIR_Opr   klass()   const                      { return _klass;       }
   LIR_Opr   len()     const                      { return _len;         }
@@ -1873,6 +1875,7 @@ class LIR_OpAllocArray : public LIR_Op {
   LIR_Opr   tmp4()    const                      { return _tmp4;        }
   BasicType type()    const                      { return _type;        }
   CodeStub* stub()    const                      { return _stub;        }
+  bool      is_null_free() const                 { return _is_null_free;}
 
   virtual void emit_code(LIR_Assembler* masm);
   virtual LIR_OpAllocArray * as_OpAllocArray () { return this; }
@@ -2438,7 +2441,7 @@ class LIR_List: public CompilationResourceObj {
   void irem(LIR_Opr left, int   right, LIR_Opr res, LIR_Opr tmp, CodeEmitInfo* info);
 
   void allocate_object(LIR_Opr dst, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, LIR_Opr t4, int header_size, int object_size, LIR_Opr klass, bool init_check, CodeStub* stub);
-  void allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub);
+  void allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub, bool is_null_free);
 
   // jump is an unconditional branch
   void jump(BlockBegin* block) {

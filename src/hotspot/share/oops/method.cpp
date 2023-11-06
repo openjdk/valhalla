@@ -2355,12 +2355,12 @@ bool Method::is_scalarized_arg(int idx) const {
   if (!has_scalarized_args()) {
     return false;
   }
-  // Search through signature and check if argument is wrapped in T_PRIMITIVE_OBJECT/T_VOID
+  // Search through signature and check if argument is wrapped in T_METADATA/T_VOID
   int depth = 0;
   const GrowableArray<SigEntry>* sig = adapter()->get_sig_cc();
   for (int i = 0; i < sig->length(); i++) {
     BasicType bt = sig->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       depth++;
     }
     if (idx == 0) {

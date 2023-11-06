@@ -945,7 +945,6 @@ void ThreadSafepointState::handle_polling_page_exception() {
     Method* method = nm->method();
     bool return_oop = method->is_returning_oop();
     HandleMark hm(self);
-
     GrowableArray<Handle> return_values;
     InlineKlass* vk = nullptr;
     if (return_oop && InlineTypeReturnedAsFields &&

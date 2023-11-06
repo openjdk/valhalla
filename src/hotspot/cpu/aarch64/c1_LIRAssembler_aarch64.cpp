@@ -1258,7 +1258,7 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   Register len =  op->len()->as_register();
   __ uxtw(len, len);
 
-  if (UseSlowPath || op->type() == T_PRIMITIVE_OBJECT ||
+  if (UseSlowPath || op->is_null_free() ||
       (!UseFastNewObjectArray && is_reference_type(op->type())) ||
       (!UseFastNewTypeArray   && !is_reference_type(op->type()))) {
     __ b(*op->stub()->entry());

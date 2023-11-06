@@ -2502,7 +2502,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   destruct_map_clone(old_map);
-  // TODO double checks, should flat accesses be mismatched???
   assert(!mismatched || is_flat || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
 
   if (mismatched) {
