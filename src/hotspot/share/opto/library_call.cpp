@@ -2365,7 +2365,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           if (bt == T_ARRAY || bt == T_NARROWOOP) {
             bt = T_OBJECT;
           }
-          if (bt == type && (field->is_flat() || field->type() == inline_klass)) {
+          if (bt == type && (!field->is_flat() || field->type() == inline_klass)) {
             Node* value = vt->field_value_by_offset(off, false);
             if (value->is_InlineType()) {
               value = value->as_InlineType()->adjust_scalarization_depth(this);
@@ -2515,13 +2515,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   decorators |= mo_decorator_for_access_kind(kind);
 
   if (!is_store) {
-    if (type == T_OBJECT) {
+    if (type == T_OBJECT && !is_flat) {
       const TypeOopPtr* tjp = sharpen_unsafe_type(alias_type, adr_type);
       if (tjp != nullptr) {
         value_type = tjp;
       }
-    } else if (is_flat) {
-      value_type = nullptr;
     }
   }
 
