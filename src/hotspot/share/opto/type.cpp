@@ -56,11 +56,10 @@ const Type::Offset Type::Offset::bottom(Type::OffsetBot);
 
 const Type::Offset Type::Offset::meet(const Type::Offset other) const {
   // Either is 'TOP' offset?  Return the other offset!
-  int offset = other._offset;
-  if (_offset == OffsetTop) return Offset(offset);
-  if (offset == OffsetTop) return Offset(_offset);
+  if (_offset == OffsetTop) return other;
+  if (other._offset == OffsetTop) return *this;
   // If either is different, return 'BOTTOM' offset
-  if (_offset != offset) return bottom;
+  if (_offset != other._offset) return bottom;
   return Offset(_offset);
 }
 
@@ -4979,7 +4978,13 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_flat(bool not_flat) const {
   }
   assert(!not_flat || !is_flat(), "inconsistency");
   const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), is_flat(), not_flat, is_not_null_free());
-  return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+  const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+  // We keep the speculative part if it contains information about flat-/nullability.
+  // Make sure it's removed if it's not better than the non-speculative type anymore.
+  if (res->speculative() == res->remove_speculative()) {
+    return res->remove_speculative();
+  }
+  return res;
 }
 
 //-------------------------------cast_to_not_null_free-------------------------
@@ -4991,6 +4996,8 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_null_free(bool not_null_free) const {
   const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), is_flat(), /* not_flat= */ not_null_free ? true : is_not_flat(), not_null_free);
   const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset,
                                _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+  // We keep the speculative part if it contains information about flat-/nullability.
+  // Make sure it's removed if it's not better than the non-speculative type anymore.
   if (res->speculative() == res->remove_speculative()) {
     return res->remove_speculative();
   }
@@ -5198,7 +5205,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
       } else if (below_centerline(ptr)) {
         // Result is in a non-flat representation
         off = Offset(flat_offset()).meet(Offset(tap->flat_offset()));
-        field_off = Offset::bottom;
+        field_off = (field_off == Offset::top) ? Offset::top : Offset::bottom;
       } else if (flat_offset() == tap->flat_offset()) {
         off = Offset(!is_flat() ? offset() : tap->offset());
         field_off = !is_flat() ? field_offset() : tap->field_offset();
