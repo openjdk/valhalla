@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,27 +23,25 @@
  * questions.
  */
 
-#include "jni.h"
-#include "jni_util.h"
-#include "jlong.h"
-#include "jvm.h"
+package jdk.internal.vm.annotation;
 
-#include "jdk_internal_vm_VMSupport.h"
+import java.lang.annotation.*;
 
-JNIEXPORT jobject JNICALL
-Java_jdk_internal_vm_VMSupport_initAgentProperties(JNIEnv *env, jclass cls, jobject props)
-{
-    return JVM_InitAgentProperties(env, props);
-}
-
-JNIEXPORT jstring JNICALL
-Java_jdk_internal_vm_VMSupport_getVMTemporaryDirectory(JNIEnv *env, jclass cls)
-{
-    return JVM_GetTemporaryDirectory(env);
-}
-
-JNIEXPORT jarray JNICALL
-Java_jdk_internal_vm_VMSupport_newNullRestrictedArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
-{
-    return JVM_NewNullRestrictedArray(env, elmClass, len);
+/**
+ * A null-restricted field is a field that does not store {@code null}.
+ * The type of the field is expected to be a value class type with the
+ * {@link ImplicitlyConstructible} annotation. The initial value of the field
+ * is the zero instance of the given class, and attempts to write {@code null}
+ * to the field will throw an exception.
+ * <p>
+ * The HotSpot VM uses this annotation to enable flattened encodings for the
+ * field that would otherwise be impossible.
+ * <p>
+ * Because these behaviors are not specified by Java SE, this annotation should
+ * only be used by internal JDK classes for experimental purposes and should not
+ * affect user-observable outcomes.
+ */
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface NullRestricted {
 }

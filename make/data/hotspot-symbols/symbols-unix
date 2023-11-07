@@ -182,6 +182,7 @@ JVM_NativePath
 JVM_NewArray
 JVM_NewInstanceFromConstructor
 JVM_NewMultiArray
+JVM_NewNullRestrictedArray
 JVM_PhantomReferenceRefersTo
 JVM_PrintWarningAtDynamicAgentLoad
 JVM_RaiseSignal

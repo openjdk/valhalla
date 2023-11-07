@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,27 +23,21 @@
  * questions.
  */
 
-#include "jni.h"
-#include "jni_util.h"
-#include "jlong.h"
-#include "jvm.h"
+package jdk.internal.vm.annotation;
 
-#include "jdk_internal_vm_VMSupport.h"
+import java.lang.annotation.*;
 
-JNIEXPORT jobject JNICALL
-Java_jdk_internal_vm_VMSupport_initAgentProperties(JNIEnv *env, jclass cls, jobject props)
-{
-    return JVM_InitAgentProperties(env, props);
-}
-
-JNIEXPORT jstring JNICALL
-Java_jdk_internal_vm_VMSupport_getVMTemporaryDirectory(JNIEnv *env, jclass cls)
-{
-    return JVM_GetTemporaryDirectory(env);
-}
-
-JNIEXPORT jarray JNICALL
-Java_jdk_internal_vm_VMSupport_newNullRestrictedArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
-{
-    return JVM_NewNullRestrictedArray(env, elmClass, len);
+/**
+ * An implicitly-constructible value class is a class that authorizes the JVM
+ * to create its <em>zero instance</em>, where all instance fields are set to
+ * their default values (0, {@code null}, etc.), without any code execution.
+ * Any superclasses other than {@code Object} are also expected to be marked
+ * {@code @ImplicitlyConstructible}.
+ * <p>
+ * The HotSpot VM depends on this annotation being present to properly
+ * initialize {@link NullRestricted} fields and arrays of a value class type.
+ */
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface ImplicitlyConstructible {
 }

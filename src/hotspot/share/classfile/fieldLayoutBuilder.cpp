@@ -553,13 +553,15 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, const InstanceKl
   _alignment(-1),
   _first_field_offset(-1),
   _exact_size_in_bytes(-1),
+  _atomic_field_count(0),
+  _fields_size_sum(0),
   _has_nonstatic_fields(false),
   _has_inline_type_fields(false),
   _is_contended(is_contended),
   _is_inline_type(is_inline_type),
   _has_flattening_information(is_inline_type),
   _has_nonatomic_values(false),
-  _atomic_field_count(0)
+  _nullable_atomic_flat_candidate(false)
  {}
 
 FieldGroup* FieldLayoutBuilder::get_or_create_contended_group(int g) {
@@ -645,7 +647,6 @@ void FieldLayoutBuilder::regular_field_sorting() {
           // Flattening decision to be taken here
           // This code assumes all verification already have been performed
           // (field's type has been loaded and it is an inline klass)
-          JavaThread* THREAD = JavaThread::current();
           Klass* klass =  _inline_type_field_klasses->at(idx);
           assert(klass != nullptr, "Sanity check");
           InlineKlass* vk = InlineKlass::cast(klass);
@@ -745,7 +746,6 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
           // Flattening decision to be taken here
           // This code assumes all verifications have already been performed
           // (field's type has been loaded and it is an inline klass)
-          JavaThread* THREAD = JavaThread::current();
           Klass* klass =  _inline_type_field_klasses->at(fieldinfo.index());
           assert(klass != nullptr, "Sanity check");
           InlineKlass* vk = InlineKlass::cast(klass);

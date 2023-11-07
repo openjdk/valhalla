@@ -254,13 +254,15 @@ class FieldLayoutBuilder : public ResourceObj {
   int _alignment;
   int _first_field_offset;
   int _exact_size_in_bytes;
+  int _atomic_field_count;
+  int _fields_size_sum;
   bool _has_nonstatic_fields;
   bool _has_inline_type_fields;
   bool _is_contended;
   bool _is_inline_type;
   bool _has_flattening_information;
   bool _has_nonatomic_values;
-  int _atomic_field_count;
+  bool _nullable_atomic_flat_candidate;
 
   FieldGroup* get_or_create_contended_group(int g);
 

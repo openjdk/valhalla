@@ -989,6 +989,9 @@ public:
     _field_Stable,
     _jdk_internal_vm_annotation_ReservedStackAccess,
     _jdk_internal_ValueBased,
+    _jdk_internal_ImplicitlyConstructible,
+    _jdk_internal_LooselyConsistentValue,
+    _jdk_internal_NullRestricted,
     _annotation_LIMIT
   };
   const Location _location;
@@ -1542,6 +1545,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const bool is_static = access_flags.is_static();
     FieldAnnotationCollector parsed_annotations(_loader_data);
 
+    bool is_null_restricted = false;
+
     const u2 attributes_count = cfs->get_u2_fast();
     if (attributes_count > 0) {
       parse_field_attributes(cfs,
@@ -1561,6 +1566,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                              CHECK);
         }
         _fields_annotations->at_put(n, parsed_annotations.field_annotations());
+        if (parsed_annotations.has_annotation(AnnotationCollector::_jdk_internal_NullRestricted)) {
+          is_null_restricted = true;
+        }
         parsed_annotations.set_field_annotations(nullptr);
       }
       if (parsed_annotations.field_type_annotations() != nullptr) {
@@ -1592,7 +1600,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     // a Q-descriptor. This test will be replaced later by something not relying on Q-desriptors.
     // From this point forward, checking if a field's type is an inline type should be performed
     // using the inline_type flag of FieldFlags, and not by looking for a Q-descriptor in its signature
-    if (type == T_PRIMITIVE_OBJECT) fieldFlags.update_null_free_inline_type(true);
+    if (type == T_PRIMITIVE_OBJECT || is_null_restricted) fieldFlags.update_null_free_inline_type(true);
 
     FieldInfo fi(access_flags, name_index, signature_index, constantvalue_index, fieldFlags);
     fi.set_index(n);
@@ -2066,6 +2074,18 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
       if (!privileged)              break;  // only allow in privileged code
       return _jdk_internal_ValueBased;
     }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_ImplicitlyConstructible_signature): {
+      if (_location != _in_class)   break; // only allow for classes
+      return _jdk_internal_ImplicitlyConstructible;
+    }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_LooselyConsistentValue_signature): {
+      if (_location != _in_class)   break; // only allow for classes
+      return _jdk_internal_LooselyConsistentValue;
+    }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_NullRestricted_signature): {
+      if (_location != _in_field)   break; // only allow for fields
+      return _jdk_internal_NullRestricted;
+    }
     default: {
       break;
     }
@@ -2122,6 +2142,12 @@ void ClassFileParser::ClassAnnotationCollector::apply_to(InstanceKlass* ik) {
     if (DiagnoseSyncOnValueBasedClasses) {
       ik->set_is_value_based();
     }
+  }
+  if (has_annotation(_jdk_internal_LooselyConsistentValue)) {
+    ik->set_is_loosely_consistent();
+  }
+  if (has_annotation(_jdk_internal_ImplicitlyConstructible)) {
+    ik->set_is_implicitly_constructible();
   }
 }
 
@@ -5059,6 +5085,16 @@ bool ClassFileParser::verify_unqualified_name(const char* name,
   return true;
 }
 
+bool ClassFileParser::is_class_in_preload_attribute(Symbol *klass) {
+  if (_preload_classes == nullptr) return false;
+  for (int i = 0; i < _preload_classes->length(); i++) {
+        // if (_cp->tag_at(_preload_classes->at(i)).is_klass()) continue;
+        Symbol* class_name = _cp->klass_at_noresolve(_preload_classes->at(i));
+        if (class_name == klass) return true;
+  }
+  return false;
+}
+
 // Take pointer to a UTF8 byte string (not NUL-terminated).
 // Skip over the longest part of the string that could
 // be taken as a fieldname. Allow non-trailing '/'s if slash_ok is true.
@@ -5683,6 +5719,16 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // Fill in field values obtained by parse_classfile_attributes
   if (_parsed_annotations->has_any_annotations()) {
     _parsed_annotations->apply_to(ik);
+    if (ik->is_loosely_consistent() && !ik->is_value_class()) {
+      THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
+            err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
+                    _class_name->as_klass_external_name()));
+    }
+    if (ik->is_implicitly_constructible() && !ik->is_value_class()) {
+      THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
+            err_msg("class %s cannot have annotation jdk.internal.vm.annotation.ImplicitlyConstructible, because it is not a value class",
+                    _class_name->as_klass_external_name()));
+    }
   }
 
   apply_parsed_class_attributes(ik);
@@ -5939,6 +5985,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _is_declared_atomic(false),
   _carries_value_modifier(false),
   _carries_identity_modifier(false),
+  _has_loosely_consistent_annotation(false),
+  _has_implicitly_constructible_annotation(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
@@ -6499,7 +6547,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_fac != nullptr, "invariant");
   assert(_parsed_annotations != nullptr, "invariant");
 
-
   if (EnablePrimitiveClasses) {
     _inline_type_field_klasses = MetadataFactory::new_array<InlineKlass*>(_loader_data,
                                                    java_fields_count(),
@@ -6508,7 +6555,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it) {
       FieldInfo fieldinfo = *it;
       Symbol* sig = fieldinfo.signature(cp);
-
       if (fieldinfo.field_flags().is_null_free_inline_type() && !fieldinfo.access_flags().is_static()) {
         // Pre-load inline class
         Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(sig,
@@ -6518,12 +6564,39 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         if (!klass->access_flags().is_value_class()) {
           assert(klass->is_instance_klass(), "Sanity check");
           ResourceMark rm(THREAD);
-            THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                      err_msg("Class %s expects class %s to be an inline type, but it is not",
-                      _class_name->as_C_string(),
-                      InstanceKlass::cast(klass)->external_name()));
+          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                    err_msg("Class %s expects class %s to be an inline type, but it is not",
+                    _class_name->as_C_string(),
+                    InstanceKlass::cast(klass)->external_name()));
+        }
+        if (!(sig->starts_with(JVM_SIGNATURE_PRIMITIVE_OBJECT)) && !InstanceKlass::cast(klass)->is_implicitly_constructible()) {
+          assert(klass->is_instance_klass(), "Sanity check");
+          ResourceMark rm(THREAD);
+          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                    err_msg("Class %s expects class %s to have the annotation jdk.internal.vm.annotation.ImplicitlyConstructible, but it has not",
+                    _class_name->as_C_string(),
+                    InstanceKlass::cast(klass)->external_name()));
         }
         _inline_type_field_klasses->at_put(fieldinfo.index(), InlineKlass::cast(klass));
+      } else {
+        if (sig != _class_name && is_class_in_preload_attribute(sig)) {
+          oop loader = loader_data()->class_loader();
+          Klass* klass = SystemDictionary::resolve_or_null(sig, Handle(THREAD, loader), _protection_domain, THREAD);
+          if (HAS_PENDING_EXCEPTION) {
+            CLEAR_PENDING_EXCEPTION;
+          }
+          // Should we verify that klass is a value class? What the PreLoad attribute spec says about that?
+          if (klass != nullptr) {
+            if (klass->is_inline_klass()) {
+              _inline_type_field_klasses->at_put(fieldinfo.index(), InlineKlass::cast(klass));
+              log_info(class, preload)("Preloading class %s during linking of class %s because of its Preload attribute", sig->as_C_string(), _class_name->as_C_string());
+            } else {
+              log_info(class, preload)("Preloading class %s during linking of class %s because of its Preload attribute but loaded class is not a value class", sig->as_C_string(), _class_name->as_C_string());
+            }
+          } else {
+            log_warning(class, preload)("Preloading of class %s during linking of class %s (Preload attribute) failed", sig->as_C_string(), _class_name->as_C_string());
+          }
+        }
       }
     }
   }

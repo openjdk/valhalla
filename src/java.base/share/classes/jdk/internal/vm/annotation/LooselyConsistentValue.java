@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,27 +23,29 @@
  * questions.
  */
 
-#include "jni.h"
-#include "jni_util.h"
-#include "jlong.h"
-#include "jvm.h"
+package jdk.internal.vm.annotation;
 
-#include "jdk_internal_vm_VMSupport.h"
+import java.lang.annotation.*;
 
-JNIEXPORT jobject JNICALL
-Java_jdk_internal_vm_VMSupport_initAgentProperties(JNIEnv *env, jclass cls, jobject props)
-{
-    return JVM_InitAgentProperties(env, props);
-}
-
-JNIEXPORT jstring JNICALL
-Java_jdk_internal_vm_VMSupport_getVMTemporaryDirectory(JNIEnv *env, jclass cls)
-{
-    return JVM_GetTemporaryDirectory(env);
-}
-
-JNIEXPORT jarray JNICALL
-Java_jdk_internal_vm_VMSupport_newNullRestrictedArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
-{
-    return JVM_NewNullRestrictedArray(env, elmClass, len);
+/**
+ * A loosely-consistent value class is a class that is willing to tolerate
+ * data corruption when fields or arrays storing instances of the class are
+ * updated under race. Specifically, a value object read from such a field may
+ * contain combinations of field values that were never set by a previous
+ * constructor invocation.
+ * <p>
+ * Users of a class with this annotation take responsibility for ensuring the
+ * integrity of their data by avoiding race conditions.
+ * <p>
+ * The HotSpot VM uses this annotation to enable non-atomic strategies for
+ * reading and writing to flattened fields and arrays of the annotated class's
+ * type.
+ * <p>
+ * Because these behaviors are not specified by Java SE, this annotation should
+ * only be used by internal JDK code for experimental purposes and should not
+ * affect user-observable outcomes.
+ */
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface LooselyConsistentValue {
 }

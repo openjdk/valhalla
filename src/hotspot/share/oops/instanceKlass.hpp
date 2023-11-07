@@ -383,6 +383,12 @@ class InstanceKlass: public Klass {
   bool carries_identity_modifier() const  { return _misc_flags.carries_identity_modifier(); }
   void set_carries_identity_modifier()    { _misc_flags.set_carries_identity_modifier(true); }
 
+  bool is_loosely_consistent()      const  { return _misc_flags.is_loosely_consistent(); }
+  void set_is_loosely_consistent()         { _misc_flags.set_is_loosely_consistent(true); }
+
+  bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
+  void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
+
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }
   void set_nonstatic_field_size(int size)  { _nonstatic_field_size = size; }

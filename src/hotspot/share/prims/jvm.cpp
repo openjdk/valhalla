@@ -423,6 +423,24 @@ JVM_ENTRY(jstring, JVM_GetTemporaryDirectory(JNIEnv *env))
 JVM_END
 
 
+JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len))
+  if (len < 0) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array length is negative");
+  }
+  oop mirror = JNIHandles::resolve_non_null(elmClass);
+  Klass* klass = java_lang_Class::as_Klass(mirror);
+  klass->initialize(CHECK_NULL);
+  if (!klass->is_value_class()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
+  }
+  InstanceKlass* ik = InstanceKlass::cast(klass);
+  if (!ik->is_implicitly_constructible()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not annotated with @ImplicitlyConstructible");
+  }
+  oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
+  return (jarray) JNIHandles::make_local(THREAD, array);
+JVM_END
+
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
 
 extern volatile jint vm_created;

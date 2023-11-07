@@ -1132,6 +1132,9 @@ JVM_InitAgentProperties(JNIEnv *env, jobject agent_props);
 JNIEXPORT jstring JNICALL
 JVM_GetTemporaryDirectory(JNIEnv *env);
 
+JNIEXPORT jarray JNICALL
+JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len);
+
 /* Generics reflection support.
  *
  * Returns information about the given class's EnclosingMethod

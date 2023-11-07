@@ -60,7 +60,9 @@ class InstanceKlassFlags {
     flag(is_naturally_atomic                , 1 << 17) /* loaded/stored in one instruction */ \
     flag(is_declared_atomic                 , 1 << 18) /* Listed -XX:ForceNonTearable=clist option */ \
     flag(carries_value_modifier             , 1 << 19) /* the class or one of its super types has the ACC_VALUE modifier */ \
-    flag(carries_identity_modifier          , 1 << 20) /* the class or one of its super types has the ACC_IDENTITY modifier */
+    flag(carries_identity_modifier          , 1 << 20) /* the class or one of its super types has the ACC_IDENTITY modifier */ \
+    flag(is_loosely_consistent              , 1 << 21) /* the class has the LooselyConsistentValue annotation */ \
+    flag(is_implicitly_constructible        , 1 << 22) /* the class has the ImplicitlyConstrutible annotation */
     /* end of list */
 
   /* (*) An inline type is considered empty if it contains no non-static fields or
