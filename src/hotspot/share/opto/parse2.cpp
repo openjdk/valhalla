@@ -89,7 +89,7 @@ void Parse::array_load(BasicType bt) {
     return;
   } else if (ary_t->is_null_free()) {
     // Load from non-flat inline type array (elements can never be null)
-    bt = T_PRIMITIVE_OBJECT;
+    bt = T_OBJECT;
   } else if (!ary_t->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
     assert(UseFlatArray && is_reference_type(bt) && elemptr->can_be_inline_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
@@ -120,7 +120,7 @@ void Parse::array_load(BasicType bt) {
         ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
-        Node* casted_adr = array_element_address(cast, idx, T_PRIMITIVE_OBJECT, ary_t->size(), control());
+        Node* casted_adr = array_element_address(cast, idx, T_OBJECT, ary_t->size(), control());
         // Re-execute flat array load if buffering triggers deoptimization
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
