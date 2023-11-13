@@ -207,8 +207,8 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 #endif // _LP64
 
   // Restore stack bottom in case i2c adjusted stack
-  __ movptr(rcx, Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize));
-  __ lea(rsp, Address(rbp, rcx, Address::times_ptr));
+  __ movptr(rscratch1, Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize));
+  __ lea(rsp, Address(rbp, rscratch1, Address::times_ptr));
   // and null it as marker that esp is now tos until next java call
   __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), NULL_WORD);
 
