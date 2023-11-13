@@ -516,36 +516,25 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
           format_helper(regalloc, st, larval_node, ":", -1, NULL);
         }
 
+        Node* fld_node = mcall->in(first_ind);
         ciField* cifield;
-        uint sec_fields_count = 0;
-        for (uint j = 0; j < nf; j++) {
-          Node* fld_node = mcall->in(first_ind + j);
-          if (iklass != NULL) {
-            st->print(" [");
-            cifield = iklass->nonstatic_field_at(j - sec_fields_count);
+        if (iklass != nullptr) {
+          st->print(" [");
+          cifield = iklass->nonstatic_field_at(0);
+          cifield->print_name_on(st);
+          format_helper(regalloc, st, fld_node, ":", 0, &scobjs);
+        } else {
+          format_helper(regalloc, st, fld_node, "[", 0, &scobjs);
+        }
+        for (uint j = 1; j < nf; j++) {
+          fld_node = mcall->in(first_ind+j);
+          if (iklass != nullptr) {
+            st->print(", [");
+            cifield = iklass->nonstatic_field_at(j);
             cifield->print_name_on(st);
             format_helper(regalloc, st, fld_node, ":", j, &scobjs);
-            sec_fields_count = 0;
-            if (cifield->is_multifield_base() && !fld_node->bottom_type()->isa_vect()) {
-              sec_fields_count = cifield->secondary_fields_count() - 1;
-              for (uint f = 0; f < sec_fields_count; f++) {
-                st->print(" [");
-                fld_node = mcall->in(first_ind + j + f + 1);
-                ciField* sec_field = static_cast<ciMultiField*>(cifield)->secondary_field_at(f);
-                sec_field->print_name_on(st);
-                format_helper(regalloc, st, fld_node, ":", j + f + 1, &scobjs);
-                if (f < sec_fields_count - 1) {
-                  st->print(",");
-                }
-              }
-              j += sec_fields_count;
-            }
           } else {
-            format_helper(regalloc, st, fld_node, " [", j, &scobjs);
-          }
-
-          if (j < nf - 1) {
-            st->print(",");
+            format_helper(regalloc, st, fld_node, ", [", j, &scobjs);
           }
         }
       }
