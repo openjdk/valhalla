@@ -1327,7 +1327,6 @@ public final class Class<T> implements java.io.Serializable,
      * this method returns {@code null}.
      *
      * @return the package of this class.
-     * @revised 9
      */
     public Package getPackage() {
         if (isPrimitive() || isArray()) {
@@ -3202,7 +3201,6 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @see Module#getResourceAsStream(String)
      * @since  1.1
-     * @revised 9
      */
     @CallerSensitive
     public InputStream getResourceAsStream(String name) {
@@ -3298,7 +3296,6 @@ public final class Class<T> implements java.io.Serializable,
      *         manager.
      * @throws NullPointerException If {@code name} is {@code null}
      * @since  1.1
-     * @revised 9
      */
     @CallerSensitive
     public URL getResource(String name) {
