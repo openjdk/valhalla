@@ -55,6 +55,8 @@ value class Int512Vector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
+    static final Unsafe U = Unsafe.getUnsafe();
+
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF512I.class);
 
     private final VectorPayloadMF512I payload;
@@ -538,7 +540,7 @@ value class Int512Vector extends IntVector {
                              (vec, ix) -> {
                                  VectorPayloadMF vecpayload = vec.vec();
                                  long start_offset = vecpayload.multiFieldOffset();
-                                 return (long)Unsafe.getUnsafe().getInt(vecpayload, start_offset + ix * Integer.BYTES);
+                                 return (long)U.getInt(vecpayload, start_offset + ix * Integer.BYTES);
                              });
     }
 
@@ -572,10 +574,10 @@ value class Int512Vector extends IntVector {
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
                                     VectorPayloadMF vec = v.vec();
-                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
-                                    Unsafe.getUnsafe().putInt(tpayload, start_offset + ix * Integer.BYTES, (int)bits);
-                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    U.putInt(tpayload, start_offset + ix * Integer.BYTES, (int)bits);
+                                    tpayload = U.finishPrivateBuffer(tpayload);
                                     return v.vectorFactory(tpayload);
                                 });
     }
@@ -824,14 +826,14 @@ value class Int512Vector extends IntVector {
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
             VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
-            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            r = U.makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
-                int ssi = Unsafe.getUnsafe().getByte(indices2, offset + i * Byte.BYTES);
-                int si = Unsafe.getUnsafe().getByte(indices1, offset + ssi * Byte.BYTES);
-                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
+                int ssi = U.getByte(indices2, offset + i * Byte.BYTES);
+                int si = U.getByte(indices1, offset + ssi * Byte.BYTES);
+                U.putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
-            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
+            r = U.finishPrivateBuffer(r);
             return new Int512Shuffle(r);
         }
     }

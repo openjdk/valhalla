@@ -57,6 +57,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
      */
     public ByteVector() {}
 
+    static final Unsafe U = Unsafe.getUnsafe();
+
     static final ValueLayout.OfByte ELEMENT_LAYOUT = ValueLayout.JAVA_BYTE.withByteAlignment(1);
 
     @ForceInline
@@ -137,7 +139,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         VectorPayloadMF mbits = ((AbstractMask<Byte>)m).getBits();
         long mOffset = mbits.multiFieldOffset();
         for (int i = 0; i < res.length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
+            if (U.getBoolean(mbits, mOffset + i)) {
                 res[i] = f.apply(i);
             }
         }
@@ -159,14 +161,14 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     final
     ByteVector uOpTemplateMF(FUnOp f) {
         VectorPayloadMF vec = this.vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            byte v = Unsafe.getUnsafe().getByte(vec, vOffset + i * Byte.BYTES);
-            Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(i, v));
+            byte v = U.getByte(vec, vOffset + i * Byte.BYTES);
+            U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(i, v));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -181,18 +183,19 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         if (m == null) {
             return uOpTemplateMF(f);
         }
-        VectorPayloadMF mbits = ((AbstractMask<Byte>)m).getBits();
         VectorPayloadMF vec = this.vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+        VectorPayloadMF mbits = ((AbstractMask<Byte>)m).getBits();
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            byte v = Unsafe.getUnsafe().getByte(vec, vOffset + i * Byte.BYTES);
-            v = Unsafe.getUnsafe().getBoolean(mbits, mOffset + i) ? f.apply(i, v) : v;
-            Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, v);
+            if (U.getBoolean(mbits, mOffset + i)) {
+                byte v = U.getByte(vec, vOffset + i * Byte.BYTES);
+                U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(i, v));
+            }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -213,15 +216,15 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                      FBinOp f) {
         VectorPayloadMF vec1 = vec();
         VectorPayloadMF vec2 = ((ByteVector)o).vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            byte v1 = Unsafe.getUnsafe().getByte(vec1, vOffset + i * Byte.BYTES);
-            byte v2 = Unsafe.getUnsafe().getByte(vec2, vOffset + i * Byte.BYTES);
-            Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(i, v1, v2));
+            byte v1 = U.getByte(vec1, vOffset + i * Byte.BYTES);
+            byte v2 = U.getByte(vec2, vOffset + i * Byte.BYTES);
+            U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(i, v1, v2));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -241,17 +244,18 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         VectorPayloadMF mbits = ((AbstractMask<Byte>)m).getBits();
         VectorPayloadMF vec1 = this.vec();
         VectorPayloadMF vec2 = ((ByteVector)o).vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            byte v1 = Unsafe.getUnsafe().getByte(vec1, vOffset + i * Byte.BYTES);
-            byte v2 = Unsafe.getUnsafe().getByte(vec2, vOffset + i * Byte.BYTES);
-            byte v = Unsafe.getUnsafe().getBoolean(mbits, mOffset + i) ? f.apply(i, v1, v2) : v1;
-            Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, v);
+            if (U.getBoolean(mbits, mOffset + i)) {
+                byte v1 = U.getByte(vec1, vOffset + i * Byte.BYTES);
+                byte v2 = U.getByte(vec2, vOffset + i * Byte.BYTES);
+                U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(i, v1, v2));
+            }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -275,16 +279,16 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         VectorPayloadMF vec1 = this.vec();
         VectorPayloadMF vec2 = ((ByteVector)o1).vec();
         VectorPayloadMF vec3 = ((ByteVector)o2).vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            byte v1 = Unsafe.getUnsafe().getByte(vec1, vOffset + i * Byte.BYTES);
-            byte v2 = Unsafe.getUnsafe().getByte(vec2, vOffset + i * Byte.BYTES);
-            byte v3 = Unsafe.getUnsafe().getByte(vec3, vOffset + i * Byte.BYTES);
-            Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(i, v1, v2, v3));
+            byte v1 = U.getByte(vec1, vOffset + i * Byte.BYTES);
+            byte v2 = U.getByte(vec2, vOffset + i * Byte.BYTES);
+            byte v3 = U.getByte(vec3, vOffset + i * Byte.BYTES);
+            U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(i, v1, v2, v3));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -307,18 +311,19 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         VectorPayloadMF vec1 = this.vec();
         VectorPayloadMF vec2 = ((ByteVector)o1).vec();
         VectorPayloadMF vec3 = ((ByteVector)o2).vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            byte v1 = Unsafe.getUnsafe().getByte(vec1, vOffset + i * Byte.BYTES);
-            byte v2 = Unsafe.getUnsafe().getByte(vec2, vOffset + i * Byte.BYTES);
-            byte v3 = Unsafe.getUnsafe().getByte(vec3, vOffset + i * Byte.BYTES);
-            byte v = Unsafe.getUnsafe().getBoolean(mbits, mOffset + i) ? f.apply(i, v1, v2, v3) : v1;
-            Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, v);
+            if (U.getBoolean(mbits, mOffset + i)) {
+                byte v1 = U.getByte(vec1, vOffset + i * Byte.BYTES);
+                byte v2 = U.getByte(vec2, vOffset + i * Byte.BYTES);
+                byte v3 = U.getByte(vec3, vOffset + i * Byte.BYTES);
+                U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(i, v1, v2, v3));
+            }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -340,8 +345,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            byte v1 = Unsafe.getUnsafe().getByte(vec, vOffset + i * Byte.BYTES);
-            v = Unsafe.getUnsafe().getBoolean(mbits, mOffset + i) ? f.apply(i, v, v1) : v;
+            byte v1 = U.getByte(vec, vOffset + i * Byte.BYTES);
+            v = U.getBoolean(mbits, mOffset + i) ? f.apply(i, v, v1) : v;
         }
         return v;
     }
@@ -353,7 +358,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            byte v1 = Unsafe.getUnsafe().getByte(vec, vOffset + i * Byte.BYTES);
+            byte v1 = U.getByte(vec, vOffset + i * Byte.BYTES);
             v = f.apply(i, v, v1);
         }
         return v;
@@ -374,13 +379,13 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         int length = vspecies().length();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+            U.makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
                 byte.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
+            U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -392,21 +397,19 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                   FLdOp<M> f) {
         int length = vspecies().length();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
-        VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
-                byte.class, length, is_max_species));
+        VectorPayloadMF tpayload = VectorPayloadMF.newVectorInstanceFactory(byte.class, length, is_max_species);
+        tpayload = U.makePrivateBuffer(tpayload);
         VectorPayloadMF mbits = ((AbstractMask<Byte>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
-                Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
+            if (U.getBoolean(mbits, mOffset + i)) {
+                U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
             }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
-
 
     /*package-private*/
     interface FLdLongOp {
@@ -421,13 +424,13 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         int length = vspecies().length();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+            U.makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
                 byte.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
+            U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -439,18 +442,17 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                   FLdLongOp f) {
         int length = vspecies().length();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
-        VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
-                byte.class, length, is_max_species));
+        VectorPayloadMF tpayload = VectorPayloadMF.newVectorInstanceFactory(byte.class, length, is_max_species);
+        tpayload = U.makePrivateBuffer(tpayload);
         VectorPayloadMF mbits = ((AbstractMask<Byte>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
-                Unsafe.getUnsafe().putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
+            if (U.getBoolean(mbits, mOffset + i)) {
+                U.putByte(tpayload, vOffset + i * Byte.BYTES, f.apply(memory, offset, i));
             }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -471,7 +473,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            f.apply(memory, offset, i, Unsafe.getUnsafe().getByte(vec, vOffset + i * Byte.BYTES));
+            f.apply(memory, offset, i, U.getByte(vec, vOffset + i * Byte.BYTES));
         }
     }
 
@@ -487,8 +489,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
-                f.apply(memory, offset, i, Unsafe.getUnsafe().getByte(vec, vOffset + i * Byte.BYTES));
+            if (U.getBoolean(mbits, mOffset + i)) {
+                f.apply(memory, offset, i, U.getByte(vec, vOffset + i * Byte.BYTES));
             }
         }
     }
@@ -507,7 +509,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            f.apply(memory, offset, i, Unsafe.getUnsafe().getByte(vec, vOffset + i * Byte.BYTES));
+            f.apply(memory, offset, i, U.getByte(vec, vOffset + i * Byte.BYTES));
         }
     }
 
@@ -523,8 +525,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
-                f.apply(memory, offset, i, Unsafe.getUnsafe().getByte(vec, vOffset + i * Byte.BYTES));
+            if (U.getBoolean(mbits, mOffset + i)) {
+                f.apply(memory, offset, i, U.getByte(vec, vOffset + i * Byte.BYTES));
             }
         }
     }
@@ -551,15 +553,15 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         VectorPayloadMF vec2 = ((ByteVector)o).vec();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF mbits = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
-        mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
+        mbits = U.makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            byte v1 = Unsafe.getUnsafe().getByte(vec1, vOffset + i * Byte.BYTES);
-            byte v2 = Unsafe.getUnsafe().getByte(vec2, vOffset + i * Byte.BYTES);
-            Unsafe.getUnsafe().putBoolean(mbits, mOffset + i, f.apply(cond, i, v1, v2));
+            byte v1 = U.getByte(vec1, vOffset + i * Byte.BYTES);
+            byte v2 = U.getByte(vec2, vOffset + i * Byte.BYTES);
+            U.putBoolean(mbits, mOffset + i, f.apply(cond, i, v1, v2));
         }
-        mbits = Unsafe.getUnsafe().finishPrivateBuffer(mbits);
+        mbits = U.finishPrivateBuffer(mbits);
         return maskFactory(mbits);
     }
 
@@ -4357,7 +4359,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             VectorPayloadMF mbits = ((AbstractMask<Byte>)m).getBits();
             long mOffset = mbits.multiFieldOffset();
             for (int i = 0; i < res.length; i++) {
-                if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
+                if (U.getBoolean(mbits, mOffset + i)) {
                     res[i] = f.apply(i);
                 }
             }
