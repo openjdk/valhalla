@@ -55,6 +55,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature_cc.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/checkedCast.hpp"
 #include "utilities/macros.hpp"
 #include "vmreg_x86.inline.hpp"
 #ifdef COMPILER2

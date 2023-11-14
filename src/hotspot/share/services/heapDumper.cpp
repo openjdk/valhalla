@@ -62,6 +62,7 @@
 #include "services/heapDumper.hpp"
 #include "services/heapDumperCompression.hpp"
 #include "services/threadService.hpp"
+#include "utilities/checkedCast.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 

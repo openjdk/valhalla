@@ -77,6 +77,7 @@
 #include "runtime/synchronizer.hpp"
 #include "runtime/threadCritical.hpp"
 #include "utilities/align.hpp"
+#include "utilities/checkedCast.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "utilities/globalDefinitions.hpp"
