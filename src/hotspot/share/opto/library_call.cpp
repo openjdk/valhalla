@@ -2627,10 +2627,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
   }
 
-  if (argument(1)->is_InlineType() && is_store) {
-    InlineTypeNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(argument(1))->inline_klass());
-    value = value->make_larval(this, false);
-    replace_in_map(argument(1), value);
+  if (_gvn.type(base)->is_inlinetypeptr() && is_store) {
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(base);
+    if (alloc != nullptr) {
+      assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
+    }
   }
 
   return true;
@@ -2648,31 +2649,35 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
     return true;
   }
 
-  set_result(value->as_InlineType()->make_larval(this, true));
+  set_result(value->as_InlineType()->make_larval(this));
   return true;
 }
 
 bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   Node* receiver = argument(0);
   Node* buffer = argument(1);
-  if (!buffer->is_InlineType()) {
-    return false;
+  // Incoming value should be a buffer and not InlineTypeNode.
+  if (buffer->is_InlineType()) {
+     return false;
   }
-  InlineTypeNode* vt = buffer->as_InlineType();
-  if (!vt->is_allocated(&_gvn) || VectorSupport::is_vector_payload_mf(vt->inline_klass()->get_InlineKlass())) {
-    return false;
+  // Incoming value should be inline type.
+  if (!buffer->bottom_type()->is_inlinetypeptr()) {
+     return false;
   }
-  // TODO 8239003 Why is this needed?
-  if (AllocateNode::Ideal_allocation(vt->get_oop()) == nullptr) {
-    return false;
-  }
+  const TypeInstPtr* ptr = buffer->bottom_type()->isa_instptr();
 
+  // Allocation node must exist to generate IR for transitioning allocation out
+  // of larval state. Disable the intrinsic and take unsafe slow path if allocation
+  // is not reachable,  oop returned by Unsafe_finishPrivateBuffer native method
+  // will automatically rematerialize InlineTypeNode.
+  if (AllocateNode::Ideal_allocation(buffer) == nullptr) {
+    return false;
+  }
   receiver = null_check(receiver);
   if (stopped()) {
     return true;
   }
-
-  set_result(vt->finish_larval(this));
+  set_result(InlineTypeNode::finish_larval(this, buffer, ptr));
   return true;
 }
 

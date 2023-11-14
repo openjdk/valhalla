@@ -164,8 +164,8 @@ public:
   // Pass inline type as fields at a call or return
   void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free = true);
 
-  InlineTypeNode* make_larval(GraphKit* kit, bool allocate) const;
-  InlineTypeNode* finish_larval(GraphKit* kit) const;
+  Node* make_larval(GraphKit* kit) const;
+  static InlineTypeNode* finish_larval(GraphKit* kit, Node* obj, const TypeInstPtr* vk);
 
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIdealLoop* phase);
