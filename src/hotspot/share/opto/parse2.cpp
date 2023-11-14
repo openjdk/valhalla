@@ -93,7 +93,7 @@ void Parse::array_load(BasicType bt) {
   } else if (!ary_t->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
     assert(UseFlatArray && is_reference_type(bt) && elemptr->can_be_inline_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
-           (!elemptr->is_inlinetypeptr() || elemptr->inline_klass()->flat_array()), "array can't be flat");
+           (!elemptr->is_inlinetypeptr() || elemptr->inline_klass()->flat_in_array()), "array can't be flat");
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
@@ -116,7 +116,7 @@ void Parse::array_load(BasicType bt) {
       if (elemptr->is_inlinetypeptr()) {
         // Element type is known, cast and load from flat representation
         ciInlineKlass* vk = elemptr->inline_klass();
-        assert(vk->flat_array() && elemptr->maybe_null(), "never/always flat - should be optimized");
+        assert(vk->flat_in_array() && elemptr->maybe_null(), "never/always flat - should be optimized");
         ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
@@ -155,7 +155,7 @@ void Parse::array_load(BasicType bt) {
         insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
         // Keep track of the information that the inline type is in flat arrays
-        const Type* unknown_value = elemptr->is_instptr()->cast_to_flat_array();
+        const Type* unknown_value = elemptr->is_instptr()->cast_to_flat_in_array();
         buffer = _gvn.transform(new CheckCastPPNode(control(), buffer, unknown_value));
 
         ideal.sync_kit(this);
@@ -211,7 +211,7 @@ void Parse::array_store(BasicType bt) {
     // This is only legal for non-null stores because the array_store_check always passes for null, even
     // if the array is null-free. Null stores are handled in GraphKit::gen_inline_array_null_guard().
     bool not_null_free = !tval->maybe_null() && !tval->is_oopptr()->can_be_inline_type();
-    bool not_flat = not_null_free || (tval->is_inlinetypeptr() && !tval->inline_klass()->flat_array());
+    bool not_flat = not_null_free || (tval->is_inlinetypeptr() && !tval->inline_klass()->flat_in_array());
     if (!ary_t->is_not_null_free() && not_null_free) {
       // Storing a non-inline type, mark array as not null-free (-> not flat).
       ary_t = ary_t->cast_to_not_null_free();
@@ -278,7 +278,7 @@ void Parse::array_store(BasicType bt) {
         Node* casted_ary = ary;
         if (vk != nullptr && !stopped()) {
           // Element type is known, cast and store to flat representation
-          assert(vk->flat_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
+          assert(vk->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
           ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
           casted_ary = _gvn.transform(new CheckCastPPNode(control(), casted_ary, arytype));

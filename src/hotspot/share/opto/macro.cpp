@@ -892,7 +892,7 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
     if (res_type->is_flat()) {
       ciInlineKlass* vk = res_type->is_aryptr()->elem()->inline_klass();
-      assert(vk->flat_array(), "must be flat");
+      assert(vk->flat_in_array(), "must be flat in array");
       field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), vk, field_addr_type->isa_aryptr(), 0, alloc);
     } else {
       field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
