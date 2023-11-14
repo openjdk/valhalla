@@ -71,7 +71,7 @@ int ciInlineKlass::field_index_by_offset(int offset) {
 }
 
 // Are arrays containing this inline type flat arrays?
-bool ciInlineKlass::flat_array() const {
+bool ciInlineKlass::flat_in_array() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->flat_array();)
 }
 
