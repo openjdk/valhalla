@@ -448,13 +448,7 @@ void RegionNode::verify_can_be_irreducible_entry() const {
 }
 #endif //ASSERT
 
-<<<<<<< HEAD
-Node* PhiNode::try_clean_mem_phi(PhaseGVN *phase) {
-||||||| cb3f9680d35
-bool RegionNode::try_clean_mem_phi(PhaseGVN *phase) {
-=======
 void RegionNode::try_clean_mem_phis(PhaseIterGVN* igvn) {
->>>>>>> jdk-22+14
   // Incremental inlining + PhaseStringOpts sometimes produce:
   //
   // cmpP with 1 top input
@@ -474,44 +468,6 @@ void RegionNode::try_clean_mem_phis(PhaseIterGVN* igvn) {
   // code in PhiNode::try_clean_memory_phi() replaces the Phi with the
   // MergeMem in order to remove the Region if its last phi dies.
 
-<<<<<<< HEAD
-  if (type() == Type::MEMORY && is_diamond_phi(true)) {
-    MergeMemNode* m = nullptr;
-    assert(req() == 3, "same as region");
-    Node* r = in(0);
-    for (uint i = 1; i < 3; ++i) {
-      Node *mem = in(i);
-      if (mem && mem->is_MergeMem() && r->in(i)->outcnt() == 1) {
-        // Nothing is control-dependent on path #i except the region itself.
-        m = mem->as_MergeMem();
-        uint j = 3 - i;
-        Node* other = in(j);
-        if (other && other == m->base_memory()) {
-          // m is a successor memory to other, and is not pinned inside the diamond, so push it out.
-          // This will allow the diamond to collapse completely.
-          return m;
-        }
-      }
-||||||| cb3f9680d35
-  PhiNode* phi = has_unique_phi();
-  if (phi && phi->type() == Type::MEMORY && req() == 3 && phi->is_diamond_phi(true)) {
-    MergeMemNode* m = nullptr;
-    assert(phi->req() == 3, "same as region");
-    for (uint i = 1; i < 3; ++i) {
-      Node *mem = phi->in(i);
-      if (mem && mem->is_MergeMem() && in(i)->outcnt() == 1) {
-        // Nothing is control-dependent on path #i except the region itself.
-        m = mem->as_MergeMem();
-        uint j = 3 - i;
-        Node* other = phi->in(j);
-        if (other && other == m->base_memory()) {
-          // m is a successor memory to other, and is not pinned inside the diamond, so push it out.
-          // This will allow the diamond to collapse completely.
-          phase->is_IterGVN()->replace_node(phi, m);
-          return true;
-        }
-      }
-=======
   if (!is_diamond()) {
     return;
   }
@@ -521,15 +477,8 @@ void RegionNode::try_clean_mem_phis(PhaseIterGVN* igvn) {
     if (phi->is_Phi() && phi->as_Phi()->try_clean_memory_phi(igvn)) {
       --i;
       --imax;
->>>>>>> jdk-22+14
     }
   }
-<<<<<<< HEAD
-  return nullptr;
-||||||| cb3f9680d35
-  return false;
-=======
->>>>>>> jdk-22+14
 }
 
 // Does this region merge a simple diamond formed by a proper IfNode?
@@ -570,6 +519,7 @@ bool RegionNode::is_diamond() const {
   }
   return true;
 }
+
 //------------------------------Ideal------------------------------------------
 // Return a node which is more "ideal" than the current node.  Must preserve
 // the CFG, but we can still strip out dead paths.
@@ -583,23 +533,6 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (can_reshape) {            // Need DU info to check for Phi users
     try_clean_mem_phis(phase->is_IterGVN());
     has_phis = (has_phi() != nullptr);       // Cache result
-<<<<<<< HEAD
-    if (has_phis) {
-      PhiNode* phi = has_unique_phi();
-      if (phi != nullptr) {
-        Node* m = phi->try_clean_mem_phi(phase);
-        if (m != nullptr) {
-          phase->is_IterGVN()->replace_node(phi, m);
-          has_phis = false;
-        }
-      }
-    }
-||||||| cb3f9680d35
-    if (has_phis && try_clean_mem_phi(phase)) {
-      has_phis = false;
-    }
-=======
->>>>>>> jdk-22+14
 
     if (!has_phis) {            // No Phi users?  Nothing merging?
       for (uint i = 1; i < req()-1; i++) {
@@ -1485,6 +1418,7 @@ bool PhiNode::try_clean_memory_phi(PhaseIterGVN* igvn) {
   }
   return false;
 }
+
 //----------------------------check_cmove_id-----------------------------------
 // Check for CMove'ing a constant after comparing against the constant.
 // Happens all the time now, since if we compare equality vs a constant in
@@ -1548,14 +1482,6 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
       return id;
     }
   }
-
-  if (phase->is_IterGVN()) {
-    Node* m = try_clean_mem_phi(phase);
-    if (m != nullptr) {
-      return m;
-    }
-  }
-
 
   // Looking for phis with identical inputs.  If we find one that has
   // type TypePtr::BOTTOM, replace the current phi with the bottom phi.

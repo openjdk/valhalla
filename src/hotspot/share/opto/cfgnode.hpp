@@ -132,13 +132,8 @@ public:
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
   void remove_unreachable_subgraph(PhaseIterGVN* igvn);
   virtual const RegMask &out_RegMask() const;
-<<<<<<< HEAD
-||||||| cb3f9680d35
-  bool try_clean_mem_phi(PhaseGVN* phase);
-=======
   bool is_diamond() const;
   void try_clean_mem_phis(PhaseIterGVN* phase);
->>>>>>> jdk-22+14
   bool optimize_trichotomy(PhaseIterGVN* igvn);
   NOT_PRODUCT(virtual void dump_spec(outputStream* st) const;)
 };
@@ -258,7 +253,6 @@ public:
            inst_offset() == offset &&
            type()->higher_equal(tp);
   }
-  Node* try_clean_mem_phi(PhaseGVN *phase);
 
   InlineTypeNode* push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk);
 
