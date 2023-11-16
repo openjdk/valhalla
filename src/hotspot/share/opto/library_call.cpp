@@ -2329,6 +2329,17 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   assert(Unsafe_field_offset_to_byte_offset(11) == 11,
          "fieldOffset must be byte-scaled");
 
+  if (_gvn.type(base)->is_inlinetypeptr() && is_store) {
+    // FIXME: Larval bit check is needed to preserve the semantics of value
+    // objects which can be mutated only if its _larval bit is set. Since
+    // the oop is not always an AllocateNode, we have to find an utility way
+    // to check the larval state for all kind of oops.
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(base);
+    if (alloc != nullptr) {
+      assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
+    }
+  }
+
   ciInlineKlass* inline_klass = nullptr;
   if (type == T_PRIMITIVE_OBJECT) {
     const TypeInstPtr* cls = _gvn.type(argument(4))->isa_instptr();
@@ -2349,14 +2360,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         return false;
       }
       base = vt->get_oop();
-      // FIXME: Larval bit check is needed to preserve the semantics of value
-      // objects which can be mutated only if its _larval bit is set. Since
-      // the oop is not always an AllocateNode, we have to find an utility way
-      // to check the larval state for all kind of oops.
-      AllocateNode* alloc = AllocateNode::Ideal_allocation(base);
-      if (alloc != nullptr) {
-        assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
-      }
     } else {
       if (offset->is_Con()) {
         long off = find_long_con(offset, 0);
@@ -2627,12 +2630,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
   }
 
-  if (_gvn.type(base)->is_inlinetypeptr() && is_store) {
-    AllocateNode* alloc = AllocateNode::Ideal_allocation(base);
-    if (alloc != nullptr) {
-      assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
-    }
-  }
 
   return true;
 }
@@ -2664,8 +2661,6 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   if (!buffer->bottom_type()->is_inlinetypeptr()) {
      return false;
   }
-  const TypeInstPtr* ptr = buffer->bottom_type()->isa_instptr();
-
   // Allocation node must exist to generate IR for transitioning allocation out
   // of larval state. Disable the intrinsic and take unsafe slow path if allocation
   // is not reachable,  oop returned by Unsafe_finishPrivateBuffer native method
@@ -2677,6 +2672,7 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   if (stopped()) {
     return true;
   }
+  const TypeInstPtr* ptr = buffer->bottom_type()->isa_instptr();
   set_result(InlineTypeNode::finish_larval(this, buffer, ptr));
   return true;
 }
