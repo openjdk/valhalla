@@ -1069,6 +1069,7 @@ public sealed interface Classfile
 
     /** 0x0040 */
     int ACC_VOLATILE = 0x0040;
+    int ACC_VALUE    = 0x0040;
 
     /** 0x0080 */
     int ACC_TRANSIENT = 0x0080;
