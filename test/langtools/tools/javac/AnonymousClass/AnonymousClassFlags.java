@@ -53,12 +53,12 @@ public class AnonymousClassFlags {
     // ******* TEST CASES ********
 
     static Object o1 = new Object() {
-        { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
+        { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
     };
 
     static void staticMethod() {
         Object o2 = new Object() {
-            { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
+            { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
         };
     }
 
@@ -66,17 +66,17 @@ public class AnonymousClassFlags {
         staticMethod();
 
         Object o3 = new Object() {
-            { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
+            { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
         };
     }
 
     Object o4 = new Object() {
-        { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
+        { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
     };
 
     void instanceMethod() {
         Object o5 = new Object() {
-            { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
+            { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
         };
     }
 
@@ -84,7 +84,7 @@ public class AnonymousClassFlags {
         instanceMethod();
 
         Object o6 = new Object() {
-            { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
+            { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
         };
     }
 

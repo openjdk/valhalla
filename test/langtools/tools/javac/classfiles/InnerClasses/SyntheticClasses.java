@@ -52,7 +52,7 @@ public class SyntheticClasses {
             ClassModel cf = Classfile.of().parse(classFile.toPath());
             if ((cf.flags().flagsMask() & (Classfile.ACC_SYNTHETIC | Classfile.ACC_VALUE | Classfile.ACC_ABSTRACT)) == Classfile.ACC_SYNTHETIC) {
                 if ((cf.flags().flagsMask() & Classfile.ACC_IDENTITY) == 0) {
-                    throw new IllegalStateException("Missing ACC_IDENTITY on synthetic concrete identity class: " + cf.getName());
+                    throw new IllegalStateException("Missing ACC_IDENTITY on synthetic concrete identity class: " + cf.thisClass().asInternalName());
                 }
             }
             if (cf.thisClass().asInternalName().matches(".*\\$[0-9]+")) {
