@@ -55,8 +55,6 @@ value class Byte512Vector extends ByteVector {
 
     static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF512B.class);
 
     private final VectorPayloadMF512B payload;

@@ -55,8 +55,6 @@ value class LongMaxVector extends LongVector {
 
     static final Class<Long> ETYPE = long.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxL.class);
 
     private final VectorPayloadMFMaxL payload;

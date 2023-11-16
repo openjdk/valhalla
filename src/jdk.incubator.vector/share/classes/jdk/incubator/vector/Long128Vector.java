@@ -55,8 +55,6 @@ value class Long128Vector extends LongVector {
 
     static final Class<Long> ETYPE = long.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF128L.class);
 
     private final VectorPayloadMF128L payload;

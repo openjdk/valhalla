@@ -55,8 +55,6 @@ value class Double128Vector extends DoubleVector {
 
     static final Class<Double> ETYPE = double.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF128D.class);
 
     private final VectorPayloadMF128D payload;

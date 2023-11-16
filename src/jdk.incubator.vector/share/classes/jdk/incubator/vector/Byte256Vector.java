@@ -55,8 +55,6 @@ value class Byte256Vector extends ByteVector {
 
     static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF256B.class);
 
     private final VectorPayloadMF256B payload;

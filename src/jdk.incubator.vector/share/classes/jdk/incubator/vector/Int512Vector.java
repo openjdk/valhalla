@@ -55,8 +55,6 @@ value class Int512Vector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF512I.class);
 
     private final VectorPayloadMF512I payload;

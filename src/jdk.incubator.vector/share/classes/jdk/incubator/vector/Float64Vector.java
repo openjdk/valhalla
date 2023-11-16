@@ -55,8 +55,6 @@ value class Float64Vector extends FloatVector {
 
     static final Class<Float> ETYPE = float.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF64F.class);
 
     private final VectorPayloadMF64F payload;

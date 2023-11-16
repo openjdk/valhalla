@@ -55,8 +55,6 @@ value class $vectortype$ extends $abstractvectortype$ {
 
     static final Class<$Boxtype$> ETYPE = $type$.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF$bits$$Boxinitials$.class);
 
     private final VectorPayloadMF$bits$$Boxinitials$ payload;

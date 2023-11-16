@@ -55,8 +55,6 @@ value class Short64Vector extends ShortVector {
 
     static final Class<Short> ETYPE = short.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF64S.class);
 
     private final VectorPayloadMF64S payload;

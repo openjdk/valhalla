@@ -55,8 +55,6 @@ value class IntMaxVector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxI.class);
 
     private final VectorPayloadMFMaxI payload;

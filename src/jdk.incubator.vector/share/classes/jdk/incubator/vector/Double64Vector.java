@@ -55,8 +55,6 @@ value class Double64Vector extends DoubleVector {
 
     static final Class<Double> ETYPE = double.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF64D.class);
 
     private final VectorPayloadMF64D payload;

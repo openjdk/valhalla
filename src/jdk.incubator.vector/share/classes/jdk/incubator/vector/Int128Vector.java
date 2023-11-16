@@ -55,8 +55,6 @@ value class Int128Vector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF128I.class);
 
     private final VectorPayloadMF128I payload;
