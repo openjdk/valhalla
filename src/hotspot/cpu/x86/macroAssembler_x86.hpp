@@ -33,6 +33,7 @@
 #include "runtime/rtmLocking.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/vm_version.hpp"
+#include "utilities/checkedCast.hpp"
 
 class ciInlineKlass;
 

@@ -471,7 +471,7 @@ void FlatArrayKlass::oop_print_on(oop obj, outputStream* st) {
   ArrayKlass::oop_print_on(obj, st);
   flatArrayOop va = flatArrayOop(obj);
   InlineKlass* vk = element_klass();
-  int print_len = MIN2((intx) va->length(), MaxElementPrintSize);
+  int print_len = MIN2(va->length(), MaxElementPrintSize);
   for(int index = 0; index < print_len; index++) {
     int off = (address) va->value_at_addr(index, layout_helper()) - cast_from_oop<address>(obj);
     st->print_cr(" - Index %3d offset %3d: ", index, off);

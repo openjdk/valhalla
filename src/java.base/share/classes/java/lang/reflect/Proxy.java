@@ -293,7 +293,6 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * @author      Peter Jones
  * @see         InvocationHandler
  * @since       1.3
- * @revised 9
  */
 public class Proxy implements java.io.Serializable {
     @java.io.Serial
@@ -383,7 +382,6 @@ public class Proxy implements java.io.Serializable {
      *      to create a proxy instance instead.
      *
      * @see <a href="#membership">Package and Module Membership of Proxy Class</a>
-     * @revised 9
      */
     @Deprecated
     @CallerSensitive
@@ -1016,7 +1014,6 @@ public class Proxy implements java.io.Serializable {
      *          {@code null}
      *
      * @see <a href="#membership">Package and Module Membership of Proxy Class</a>
-     * @revised 9
      */
     @CallerSensitive
     public static Object newProxyInstance(ClassLoader loader,
@@ -1101,8 +1098,6 @@ public class Proxy implements java.io.Serializable {
      * @return  {@code true} if the class is a proxy class and
      *          {@code false} otherwise
      * @throws  NullPointerException if {@code cl} is {@code null}
-     *
-     * @revised 9
      */
     public static boolean isProxyClass(Class<?> cl) {
         return Proxy.class.isAssignableFrom(cl) && ProxyBuilder.isProxyClass(cl);
