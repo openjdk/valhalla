@@ -61,6 +61,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
      */
     public $abstractvectortype$() {}
 
+    static final Unsafe U = Unsafe.getUnsafe();
+
     static final ValueLayout.Of$Type$ ELEMENT_LAYOUT = ValueLayout.JAVA_$TYPE$.withByteAlignment(1);
 
     @ForceInline
@@ -141,7 +143,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         long mOffset = mbits.multiFieldOffset();
         for (int i = 0; i < res.length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
+            if (U.getBoolean(mbits, mOffset + i)) {
                 res[i] = f.apply(i);
             }
         }
@@ -163,14 +165,14 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
     final
     $abstractvectortype$ uOpTemplateMF(FUnOp f) {
         VectorPayloadMF vec = this.vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            $type$ v = Unsafe.getUnsafe().get$Type$(vec, vOffset + i * $Boxtype$.BYTES);
-            Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(i, v));
+            $type$ v = U.get$Type$(vec, vOffset + i * $Boxtype$.BYTES);
+            U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(i, v));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -185,18 +187,19 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         if (m == null) {
             return uOpTemplateMF(f);
         }
-        VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         VectorPayloadMF vec = this.vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+        VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            $type$ v = Unsafe.getUnsafe().get$Type$(vec, vOffset + i * $Boxtype$.BYTES);
-            v = Unsafe.getUnsafe().getBoolean(mbits, mOffset + i) ? f.apply(i, v) : v;
-            Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, v);
+            if (U.getBoolean(mbits, mOffset + i)) {
+                $type$ v = U.get$Type$(vec, vOffset + i * $Boxtype$.BYTES);
+                U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(i, v));
+            }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -217,15 +220,15 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                      FBinOp f) {
         VectorPayloadMF vec1 = vec();
         VectorPayloadMF vec2 = (($abstractvectortype$)o).vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            $type$ v1 = Unsafe.getUnsafe().get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
-            $type$ v2 = Unsafe.getUnsafe().get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
-            Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(i, v1, v2));
+            $type$ v1 = U.get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
+            $type$ v2 = U.get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
+            U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(i, v1, v2));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -245,17 +248,18 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         VectorPayloadMF vec1 = this.vec();
         VectorPayloadMF vec2 = (($abstractvectortype$)o).vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            $type$ v1 = Unsafe.getUnsafe().get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
-            $type$ v2 = Unsafe.getUnsafe().get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
-            $type$ v = Unsafe.getUnsafe().getBoolean(mbits, mOffset + i) ? f.apply(i, v1, v2) : v1;
-            Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, v);
+            if (U.getBoolean(mbits, mOffset + i)) {
+                $type$ v1 = U.get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
+                $type$ v2 = U.get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
+                U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(i, v1, v2));
+            }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -279,16 +283,16 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         VectorPayloadMF vec1 = this.vec();
         VectorPayloadMF vec2 = (($abstractvectortype$)o1).vec();
         VectorPayloadMF vec3 = (($abstractvectortype$)o2).vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            $type$ v1 = Unsafe.getUnsafe().get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
-            $type$ v2 = Unsafe.getUnsafe().get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
-            $type$ v3 = Unsafe.getUnsafe().get$Type$(vec3, vOffset + i * $Boxtype$.BYTES);
-            Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(i, v1, v2, v3));
+            $type$ v1 = U.get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
+            $type$ v2 = U.get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
+            $type$ v3 = U.get$Type$(vec3, vOffset + i * $Boxtype$.BYTES);
+            U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(i, v1, v2, v3));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -311,18 +315,19 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         VectorPayloadMF vec1 = this.vec();
         VectorPayloadMF vec2 = (($abstractvectortype$)o1).vec();
         VectorPayloadMF vec3 = (($abstractvectortype$)o2).vec();
-        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vec1);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            $type$ v1 = Unsafe.getUnsafe().get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
-            $type$ v2 = Unsafe.getUnsafe().get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
-            $type$ v3 = Unsafe.getUnsafe().get$Type$(vec3, vOffset + i * $Boxtype$.BYTES);
-            $type$ v = Unsafe.getUnsafe().getBoolean(mbits, mOffset + i) ? f.apply(i, v1, v2, v3) : v1;
-            Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, v);
+            if (U.getBoolean(mbits, mOffset + i)) {
+                $type$ v1 = U.get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
+                $type$ v2 = U.get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
+                $type$ v3 = U.get$Type$(vec3, vOffset + i * $Boxtype$.BYTES);
+                U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(i, v1, v2, v3));
+            }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -344,8 +349,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            $type$ v1 = Unsafe.getUnsafe().get$Type$(vec, vOffset + i * $Boxtype$.BYTES);
-            v = Unsafe.getUnsafe().getBoolean(mbits, mOffset + i) ? f.apply(i, v, v1) : v;
+            $type$ v1 = U.get$Type$(vec, vOffset + i * $Boxtype$.BYTES);
+            v = U.getBoolean(mbits, mOffset + i) ? f.apply(i, v, v1) : v;
         }
         return v;
     }
@@ -357,7 +362,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            $type$ v1 = Unsafe.getUnsafe().get$Type$(vec, vOffset + i * $Boxtype$.BYTES);
+            $type$ v1 = U.get$Type$(vec, vOffset + i * $Boxtype$.BYTES);
             v = f.apply(i, v, v1);
         }
         return v;
@@ -378,13 +383,13 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         int length = vspecies().length();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+            U.makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
                 $type$.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
+            U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -396,21 +401,19 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                   FLdOp<M> f) {
         int length = vspecies().length();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
-        VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
-                $type$.class, length, is_max_species));
+        VectorPayloadMF tpayload = VectorPayloadMF.newVectorInstanceFactory($type$.class, length, is_max_species);
+        tpayload = U.makePrivateBuffer(tpayload);
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
-                Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
+            if (U.getBoolean(mbits, mOffset + i)) {
+                U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
             }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
-
 
     /*package-private*/
     interface FLdLongOp {
@@ -425,13 +428,13 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         int length = vspecies().length();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
+            U.makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
                 $type$.class, length, is_max_species));
         long vOffset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
+            U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -443,18 +446,17 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                   FLdLongOp f) {
         int length = vspecies().length();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
-        VectorPayloadMF tpayload =
-            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.newVectorInstanceFactory(
-                $type$.class, length, is_max_species));
+        VectorPayloadMF tpayload = VectorPayloadMF.newVectorInstanceFactory($type$.class, length, is_max_species);
+        tpayload = U.makePrivateBuffer(tpayload);
         VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
-                Unsafe.getUnsafe().put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
+            if (U.getBoolean(mbits, mOffset + i)) {
+                U.put$Type$(tpayload, vOffset + i * $Boxtype$.BYTES, f.apply(memory, offset, i));
             }
         }
-        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        tpayload = U.finishPrivateBuffer(tpayload);
         return vectorFactory(tpayload);
     }
 
@@ -475,7 +477,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            f.apply(memory, offset, i, Unsafe.getUnsafe().get$Type$(vec, vOffset + i * $Boxtype$.BYTES));
+            f.apply(memory, offset, i, U.get$Type$(vec, vOffset + i * $Boxtype$.BYTES));
         }
     }
 
@@ -491,8 +493,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
-                f.apply(memory, offset, i, Unsafe.getUnsafe().get$Type$(vec, vOffset + i * $Boxtype$.BYTES));
+            if (U.getBoolean(mbits, mOffset + i)) {
+                f.apply(memory, offset, i, U.get$Type$(vec, vOffset + i * $Boxtype$.BYTES));
             }
         }
     }
@@ -511,7 +513,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         long vOffset = this.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            f.apply(memory, offset, i, Unsafe.getUnsafe().get$Type$(vec, vOffset + i * $Boxtype$.BYTES));
+            f.apply(memory, offset, i, U.get$Type$(vec, vOffset + i * $Boxtype$.BYTES));
         }
     }
 
@@ -527,8 +529,8 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         long mOffset = mbits.multiFieldOffset();
         int length = vspecies().length();
         for (int i = 0; i < length; i++) {
-            if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
-                f.apply(memory, offset, i, Unsafe.getUnsafe().get$Type$(vec, vOffset + i * $Boxtype$.BYTES));
+            if (U.getBoolean(mbits, mOffset + i)) {
+                f.apply(memory, offset, i, U.get$Type$(vec, vOffset + i * $Boxtype$.BYTES));
             }
         }
     }
@@ -555,15 +557,15 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         VectorPayloadMF vec2 = (($abstractvectortype$)o).vec();
         boolean is_max_species = ((AbstractSpecies)vspecies()).is_max_species();
         VectorPayloadMF mbits = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
-        mbits = Unsafe.getUnsafe().makePrivateBuffer(mbits);
+        mbits = U.makePrivateBuffer(mbits);
         long vOffset = this.multiFieldOffset();
         long mOffset = mbits.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            $type$ v1 = Unsafe.getUnsafe().get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
-            $type$ v2 = Unsafe.getUnsafe().get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
-            Unsafe.getUnsafe().putBoolean(mbits, mOffset + i, f.apply(cond, i, v1, v2));
+            $type$ v1 = U.get$Type$(vec1, vOffset + i * $Boxtype$.BYTES);
+            $type$ v2 = U.get$Type$(vec2, vOffset + i * $Boxtype$.BYTES);
+            U.putBoolean(mbits, mOffset + i, f.apply(cond, i, v1, v2));
         }
-        mbits = Unsafe.getUnsafe().finishPrivateBuffer(mbits);
+        mbits = U.finishPrivateBuffer(mbits);
         return maskFactory(mbits);
     }
 
@@ -5634,7 +5636,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             VectorPayloadMF mbits = ((AbstractMask<$Boxtype$>)m).getBits();
             long mOffset = mbits.multiFieldOffset();
             for (int i = 0; i < res.length; i++) {
-                if (Unsafe.getUnsafe().getBoolean(mbits, mOffset + i)) {
+                if (U.getBoolean(mbits, mOffset + i)) {
                     res[i] = f.apply(i);
                 }
             }
