@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1098,7 +1098,10 @@ public final class Unsafe {
      * so when calling from native code.
      *
      * @param thread the thread to unpark.
+     *
+     * @deprecated Use {@link java.util.concurrent.locks.LockSupport#unpark(Thread)} instead.
      */
+    @Deprecated(since="22", forRemoval=true)
     @ForceInline
     public void unpark(Object thread) {
         theInternalUnsafe.unpark(thread);
@@ -1114,7 +1117,11 @@ public final class Unsafe {
      * "reason"). Note: This operation is in the Unsafe class only
      * because {@code unpark} is, so it would be strange to place it
      * elsewhere.
+     *
+     * @deprecated Use {@link java.util.concurrent.locks.LockSupport#parkNanos(long)} or
+     * {@link java.util.concurrent.locks.LockSupport#parkUntil(long)} instead.
      */
+    @Deprecated(since="22", forRemoval=true)
     @ForceInline
     public void park(boolean isAbsolute, long time) {
         theInternalUnsafe.park(isAbsolute, time);
@@ -1134,7 +1141,11 @@ public final class Unsafe {
      *
      * @return the number of samples actually retrieved; or -1
      *         if the load average is unobtainable.
+     *
+     * @deprecated Use {@link java.lang.management.OperatingSystemMXBean#getSystemLoadAverage()}
+     * instead.
      */
+    @Deprecated(since="22", forRemoval=true)
     @ForceInline
     public int getLoadAverage(double[] loadavg, int nelems) {
         return theInternalUnsafe.getLoadAverage(loadavg, nelems);
@@ -1223,7 +1234,6 @@ public final class Unsafe {
         return theInternalUnsafe.getAndSetReference(o, offset, newValue);
     }
 
-
     /**
      * Ensures that loads before the fence will not be reordered with loads and
      * stores after the fence; a "LoadLoad plus LoadStore barrier".
@@ -1234,8 +1244,11 @@ public final class Unsafe {
      * A pure LoadLoad fence is not provided, since the addition of LoadStore
      * is almost always desired, and most current hardware instructions that
      * provide a LoadLoad barrier also provide a LoadStore barrier for free.
+     *
+     * @deprecated Use {@link java.lang.invoke.VarHandle#acquireFence()} instead.
      * @since 1.8
      */
+    @Deprecated(since="22", forRemoval=true)
     @ForceInline
     public void loadFence() {
         theInternalUnsafe.loadFence();
@@ -1251,8 +1264,11 @@ public final class Unsafe {
      * A pure StoreStore fence is not provided, since the addition of LoadStore
      * is almost always desired, and most current hardware instructions that
      * provide a StoreStore barrier also provide a LoadStore barrier for free.
+     *
+     * @deprecated Use {@link java.lang.invoke.VarHandle#releaseFence()} instead.
      * @since 1.8
      */
+    @Deprecated(since="22", forRemoval=true)
     @ForceInline
     public void storeFence() {
         theInternalUnsafe.storeFence();
@@ -1265,8 +1281,11 @@ public final class Unsafe {
      * barrier.
      *
      * Corresponds to C11 atomic_thread_fence(memory_order_seq_cst).
+     *
+     * @deprecated Use {@link java.lang.invoke.VarHandle#fullFence()} instead.
      * @since 1.8
      */
+    @Deprecated(since="22", forRemoval=true)
     @ForceInline
     public void fullFence() {
         theInternalUnsafe.fullFence();
