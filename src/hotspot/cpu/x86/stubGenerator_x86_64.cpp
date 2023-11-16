@@ -335,7 +335,7 @@ address StubGenerator::generate_call_stub(address& return_address) {
   // make sure the type is INT
   {
     Label L;
-    __ cmpl(c_rarg1, T_INT);
+    __ cmpl(rbx, T_INT);
     __ jcc(Assembler::equal, L);
     __ stop("StubRoutines::call_stub: unexpected result type");
     __ bind(L);
