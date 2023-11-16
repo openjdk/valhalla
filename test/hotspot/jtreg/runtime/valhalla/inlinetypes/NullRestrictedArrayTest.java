@@ -26,17 +26,17 @@
 import jdk.test.lib.Asserts;
 import java.lang.reflect.Method;
 import jdk.internal.misc.Unsafe;
-import jdk.internal.vm.VMSupport;
+import jdk.internal.misc.VM;
 
 
 
 /*
  * @test
- * @summary Test of VMSupport.newNullRestrictedArray API
+ * @summary Test of VM.newNullRestrictedArray API
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.vm=ALL-UNNAMED NullRestrictedArrayTest.java
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.vm=ALL-UNNAMED -XX:+EnableValhalla -XX:+EnablePrimitiveClasses NullRestrictedArrayTest
+ * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED NullRestrictedArrayTest.java
+ * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED -XX:+EnableValhalla -XX:+EnablePrimitiveClasses NullRestrictedArrayTest
  */
 
 
@@ -61,11 +61,11 @@ public class NullRestrictedArrayTest {
       }
   }
 
-  // Test illegal attempt to create a null restricted array with an indentity class
+  // Test illegal attempt to create a null restricted array with an identity class
   public void test_0() {
       Throwable exception = null;
       try {
-        VMSupport.newNullRestrictedArray(String.class, 4);
+        VM.newNullRestrictedArray(String.class, 4);
       } catch (IllegalArgumentException e) {
         System.out.println("Received: " + e);
         exception = e;
@@ -75,6 +75,7 @@ public class NullRestrictedArrayTest {
 
   // Test illegal array length
   @jdk.internal.vm.annotation.ImplicitlyConstructible
+  @jdk.internal.vm.annotation.LooselyConsistentValue
   static value class ValueClass1 {
     int i = 0;
     int j = 0;
@@ -83,7 +84,7 @@ public class NullRestrictedArrayTest {
   public void test_1() {
       Throwable exception = null;
       try {
-        VMSupport.newNullRestrictedArray(ValueClass1.class, -1);
+        VM.newNullRestrictedArray(ValueClass1.class, -1);
       } catch (IllegalArgumentException e) {
         System.out.println("Received: " + e);
         exception = e;
@@ -100,7 +101,7 @@ public class NullRestrictedArrayTest {
   public void test_2() {
       Throwable exception = null;
       try {
-        VMSupport.newNullRestrictedArray(ValueClass2.class, 8);
+        VM.newNullRestrictedArray(ValueClass2.class, 8);
       } catch (IllegalArgumentException e) {
         System.out.println("Received: " + e);
         exception = e;
@@ -110,6 +111,7 @@ public class NullRestrictedArrayTest {
 
   // Test valid creation of a flat array
   @jdk.internal.vm.annotation.ImplicitlyConstructible
+  @jdk.internal.vm.annotation.LooselyConsistentValue
   static value class ValueClass3 {
     int i = 0;
     int j = 0;
@@ -118,7 +120,7 @@ public class NullRestrictedArrayTest {
   public void test_3() {
       Throwable exception = null;
       try {
-        Object array = VMSupport.newNullRestrictedArray(ValueClass3.class, 8);
+        Object array = VM.newNullRestrictedArray(ValueClass3.class, 8);
         Asserts.assertTrue(UNSAFE.isFlattenedArray(array.getClass()), "Expecting flat array but array is not flat");
       } catch (Throwable e) {
         System.out.println("Received: " + e);
@@ -129,6 +131,8 @@ public class NullRestrictedArrayTest {
 
   // Test that elements are not null
   @jdk.internal.vm.annotation.ImplicitlyConstructible
+  @jdk.internal.vm.annotation.LooselyConsistentValue
+
   static value class ValueClass4 {
     int i = 0;
     int j = 0;
@@ -137,7 +141,7 @@ public class NullRestrictedArrayTest {
   public void test_4() {
       Throwable exception = null;
       try {
-        Object[] array = VMSupport.newNullRestrictedArray(ValueClass4.class, 8);
+        Object[] array = VM.newNullRestrictedArray(ValueClass4.class, 8);
         Asserts.assertNotNull(array[1], "Expecting non null element but null found instead");
       } catch (Throwable e) {
         System.out.println("Received: " + e);
@@ -147,8 +151,8 @@ public class NullRestrictedArrayTest {
   }
 
   // Test that writing null to a null restricted array throws an exception
-
   @jdk.internal.vm.annotation.ImplicitlyConstructible
+  @jdk.internal.vm.annotation.LooselyConsistentValue
   static value class ValueClass5 {
     int i = 0;
     int j = 0;
@@ -157,7 +161,7 @@ public class NullRestrictedArrayTest {
   public void test_5() {
       Throwable exception = null;
       try {
-        Object[] array = VMSupport.newNullRestrictedArray(ValueClass4.class, 8);
+        Object[] array = VM.newNullRestrictedArray(ValueClass4.class, 8);
         array[1] = null;
       } catch (NullPointerException e) {
         System.out.println("Received: " + e);

@@ -41,7 +41,6 @@ import jdk.internal.misc.Unsafe;
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
-
     public static void main(String[] args) {
         AnnotationsTests tests = new AnnotationsTests();
         Class c = tests.getClass();
@@ -297,6 +296,29 @@ import jdk.internal.misc.Unsafe;
         System.out.println("Received " + e);
       }
       Asserts.assertNotNull(exception, "Expected NullPointerException not received");
+    }
+
+    // Test uninitialized static null restricted field with a class not implicitly constructible
+    static value class ValueClass11 {
+      int i = 0;
+      int j = 0;
+    }
+
+    static class BadClass11 {
+      @jdk.internal.vm.annotation.NullRestricted
+      static ValueClass11 val;
+    }
+
+    void test_11() {
+      Throwable exception = null;
+      try {
+        ValueClass11 val = BadClass11.val;
+        System.out.println(val);
+      } catch(IncompatibleClassChangeError e) {
+        exception = e;
+        System.out.println("Received " + e);
+      }
+      Asserts.assertNotNull(exception, "Expected IncompatibleClassChangerError not received");
     }
  }
 

@@ -872,7 +872,6 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
                                        // Remove the spurious const modifiers.
                                        // Many are of the form "const int x"
                                        // or "T* const x".
-                                       bool* const is_declared_atomic,
                                        TRAPS) {
   assert(stream != nullptr, "invariant");
   assert(cp != nullptr, "invariant");
@@ -2142,12 +2141,6 @@ void ClassFileParser::ClassAnnotationCollector::apply_to(InstanceKlass* ik) {
     if (DiagnoseSyncOnValueBasedClasses) {
       ik->set_is_value_based();
     }
-  }
-  if (has_annotation(_jdk_internal_LooselyConsistentValue)) {
-    ik->set_is_loosely_consistent();
-  }
-  if (has_annotation(_jdk_internal_ImplicitlyConstructible)) {
-    ik->set_is_implicitly_constructible();
   }
 }
 
@@ -5696,10 +5689,13 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   ik->set_major_version(_major_version);
   ik->set_has_nonstatic_concrete_methods(_has_nonstatic_concrete_methods);
   ik->set_declares_nonstatic_concrete_methods(_declares_nonstatic_concrete_methods);
-  if (_is_declared_atomic) {
-    ik->set_is_declared_atomic();
-  }
 
+  if (_must_be_atomic) {
+    ik->set_must_be_atomic();
+  }
+  if (_is_implicitly_constructible) {
+    ik->set_is_implicitly_constructible();
+  }
   if (_is_hidden) {
     ik->set_is_hidden();
   }
@@ -5719,16 +5715,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // Fill in field values obtained by parse_classfile_attributes
   if (_parsed_annotations->has_any_annotations()) {
     _parsed_annotations->apply_to(ik);
-    if (ik->is_loosely_consistent() && !ik->is_value_class()) {
-      THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
-            err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
-                    _class_name->as_klass_external_name()));
-    }
-    if (ik->is_implicitly_constructible() && !ik->is_value_class()) {
-      THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
-            err_msg("class %s cannot have annotation jdk.internal.vm.annotation.ImplicitlyConstructible, because it is not a value class",
-                    _class_name->as_klass_external_name()));
-    }
   }
 
   apply_parsed_class_attributes(ik);
@@ -5982,7 +5968,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_nonstatic_fields(false),
   _is_empty_inline_type(false),
   _is_naturally_atomic(false),
-  _is_declared_atomic(false),
+  _must_be_atomic(true),
+  _is_implicitly_constructible(false),
   _carries_value_modifier(false),
   _carries_identity_modifier(false),
   _has_loosely_consistent_annotation(false),
@@ -6312,7 +6299,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                    _itfs_len,
                    cp,
                    &_has_nonstatic_concrete_methods,
-                   &_is_declared_atomic,
                    CHECK);
 
   // Fields (offsets are filled in later)
@@ -6451,16 +6437,54 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     if (_super_klass->has_nonstatic_concrete_methods()) {
       _has_nonstatic_concrete_methods = true;
     }
-    if (_super_klass->is_declared_atomic()) {
-      _is_declared_atomic = true;
+
+    if (EnableValhalla && _access_flags.is_value_class()) {
+      const InstanceKlass* k = _super_klass;
+      int inherited_fields= 0;
+      while (k != nullptr) {
+        inherited_fields += k->total_fields_count();
+        k = k->super() == nullptr ? nullptr :  InstanceKlass::cast(k->super());
+      }
+      if (inherited_fields > 0) {
+        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), "Value classes don't support inherited fields yet");
+      }
     }
   }
 
-  if (*ForceNonTearable != '\0') {
-    // Allow a command line switch to force the same atomicity property:
-    const char* class_name_str = _class_name->as_C_string();
-    if (StringUtils::class_list_match(ForceNonTearable, class_name_str)) {
-      _is_declared_atomic = true;
+  if (_parsed_annotations->has_annotation(AnnotationCollector::_jdk_internal_LooselyConsistentValue) && !_access_flags.is_value_class()) {
+    THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
+          err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
+                  _class_name->as_klass_external_name()));
+  }
+  if (_parsed_annotations->has_annotation(AnnotationCollector::_jdk_internal_ImplicitlyConstructible) && !_access_flags.is_value_class()) {
+    THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
+          err_msg("class %s cannot have annotation jdk.internal.vm.annotation.ImplicitlyConstructible, because it is not a value class",
+                  _class_name->as_klass_external_name()));
+  }
+
+  // Determining is the class allows tearing or not (default is not)
+  // Test might need extensions when field inheritance is added for value classes
+  if (EnableValhalla && _access_flags.is_value_class()) {
+    if (_access_flags.is_primitive_class()) {
+      _must_be_atomic = false;             // old semantic, primitive classes are always non-atomic
+      _is_implicitly_constructible = true; // old semantic, primitive classes are always implicitly constructible
+    } else {
+      if (_super_klass != nullptr  // not j.l.Object
+               && _parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
+               && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
+        _must_be_atomic = false;
+      }
+      if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible)) {
+        _is_implicitly_constructible = true;
+      }
+    }
+    // Apply VM options override
+    if (*ForceNonTearable != '\0') {
+      // Allow a command line switch to force the same atomicity property:
+      const char* class_name_str = _class_name->as_C_string();
+      if (StringUtils::class_list_match(ForceNonTearable, class_name_str)) {
+        _must_be_atomic = true;
+      }
     }
   }
 
@@ -6505,9 +6529,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
       if (InstanceKlass::cast(interf)->has_nonstatic_concrete_methods()) {
         _has_nonstatic_concrete_methods = true;
-      }
-      if (InstanceKlass::cast(interf)->is_declared_atomic()) {
-        _is_declared_atomic = true;
       }
       _local_interfaces->at_put(i, InstanceKlass::cast(interf));
     }
@@ -6566,14 +6587,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           ResourceMark rm(THREAD);
           THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
                     err_msg("Class %s expects class %s to be an inline type, but it is not",
-                    _class_name->as_C_string(),
-                    InstanceKlass::cast(klass)->external_name()));
-        }
-        if (!(sig->starts_with(JVM_SIGNATURE_PRIMITIVE_OBJECT)) && !InstanceKlass::cast(klass)->is_implicitly_constructible()) {
-          assert(klass->is_instance_klass(), "Sanity check");
-          ResourceMark rm(THREAD);
-          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Class %s expects class %s to have the annotation jdk.internal.vm.annotation.ImplicitlyConstructible, but it has not",
                     _class_name->as_C_string(),
                     InstanceKlass::cast(klass)->external_name()));
         }

@@ -58,10 +58,10 @@ class InstanceKlassFlags {
     flag(has_inline_type_fields             , 1 << 15) /* has inline fields and related embedded section is not empty */ \
     flag(is_empty_inline_type               , 1 << 16) /* empty inline type (*) */ \
     flag(is_naturally_atomic                , 1 << 17) /* loaded/stored in one instruction */ \
-    flag(is_declared_atomic                 , 1 << 18) /* Listed -XX:ForceNonTearable=clist option */ \
+    flag(must_be_atomic                     , 1 << 18) /* doesn't allow tearing */ \
     flag(carries_value_modifier             , 1 << 19) /* the class or one of its super types has the ACC_VALUE modifier */ \
     flag(carries_identity_modifier          , 1 << 20) /* the class or one of its super types has the ACC_IDENTITY modifier */ \
-    flag(is_loosely_consistent              , 1 << 21) /* the class has the LooselyConsistentValue annotation */ \
+    flag(has_loosely_consistent_annotation  , 1 << 21) /* the class has the LooselyConsistentValue annotation WARNING: it doesn't automatically mean that the class allows tearing */ \
     flag(is_implicitly_constructible        , 1 << 22) /* the class has the ImplicitlyConstrutible annotation */
     /* end of list */
 

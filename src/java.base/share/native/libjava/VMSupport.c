@@ -42,8 +42,3 @@ Java_jdk_internal_vm_VMSupport_getVMTemporaryDirectory(JNIEnv *env, jclass cls)
     return JVM_GetTemporaryDirectory(env);
 }
 
-JNIEXPORT jarray JNICALL
-Java_jdk_internal_vm_VMSupport_newNullRestrictedArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
-{
-    return JVM_NewNullRestrictedArray(env, elmClass, len);
-}

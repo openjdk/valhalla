@@ -595,7 +595,7 @@ void FieldLayoutBuilder::prologue() {
 //     (support of the @Contended annotation)
 //   - @Contended annotation is ignored for static fields
 //   - field flattening decisions are taken in this method
-void FieldLayoutBuilder::regular_field_sorting() {
+void FieldLayoutBuilder::regular_field_sorting(TRAPS) {
   int idx = 0;
   for (GrowableArrayIterator<FieldInfo> it = _field_info->begin(); it != _field_info->end(); ++it, ++idx) {
     FieldInfo ctrl = _field_info->at(0);
@@ -643,16 +643,22 @@ void FieldLayoutBuilder::regular_field_sorting() {
           // static fields are never flat
           group->add_oop_field(idx);
         } else {
+          // Check below is performed for non-static fields, it should be performed for static fields too but at this stage,
+          // it is not guaranteed that the klass of the static field has been loaded, so the test for static fields is delayed
+          // until the linking phase
+          Klass* klass =  _inline_type_field_klasses->at(idx);
+          assert(klass != nullptr, "Sanity check");
+          InlineKlass* vk = InlineKlass::cast(klass);
+          if (!vk->is_implicitly_constructible()) {
+            THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), "Null restricted fields with a non-implicitly constructible class are not supported");
+          }
           _has_flattening_information = true;
           // Flattening decision to be taken here
           // This code assumes all verification already have been performed
           // (field's type has been loaded and it is an inline klass)
-          Klass* klass =  _inline_type_field_klasses->at(idx);
-          assert(klass != nullptr, "Sanity check");
-          InlineKlass* vk = InlineKlass::cast(klass);
           bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
                                     (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
-          bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
+          bool too_atomic_to_flatten = vk->must_be_atomic() || AlwaysAtomicAccesses;
           bool too_volatile_to_flatten = fieldinfo.access_flags().is_volatile();
           if (vk->is_naturally_atomic()) {
             too_atomic_to_flatten = false;
@@ -743,15 +749,21 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
           // static fields are never flat
           group->add_oop_field(fieldinfo.index());
         } else {
-          // Flattening decision to be taken here
-          // This code assumes all verifications have already been performed
-          // (field's type has been loaded and it is an inline klass)
+          // Check below is performed for non-static fields, it should be performed for static fields too but at this stage,
+          // it is not guaranteed that the klass of the static field has been loaded, so the test for static fields is delayed
+          // until the linking phase
           Klass* klass =  _inline_type_field_klasses->at(fieldinfo.index());
           assert(klass != nullptr, "Sanity check");
           InlineKlass* vk = InlineKlass::cast(klass);
+          if (!vk->is_implicitly_constructible()) {
+            THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), "Null restricted fields with a non-implicitly constructible class are not supported");
+          }
+          // Flattening decision to be taken here
+          // This code assumes all verifications have already been performed
+          // (field's type has been loaded and it is an inline klass)
           bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
                                     (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
-          bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
+          bool too_atomic_to_flatten = vk->must_be_atomic() || AlwaysAtomicAccesses;
           bool too_volatile_to_flatten = fieldinfo.access_flags().is_volatile();
           if (vk->is_naturally_atomic()) {
             too_atomic_to_flatten = false;
@@ -804,10 +816,10 @@ void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
  *   - then oop fields are allocated (to increase chances to have contiguous oops and
  *     a simpler oopmap).
  */
-void FieldLayoutBuilder::compute_regular_layout() {
+void FieldLayoutBuilder::compute_regular_layout(TRAPS) {
   bool need_tail_padding = false;
   prologue();
-  regular_field_sorting();
+  regular_field_sorting(CHECK);
   if (_is_contended) {
     _layout->set_start(_layout->last_block());
     // insertion is currently easy because the current strategy doesn't try to fill holes
@@ -1000,6 +1012,6 @@ void FieldLayoutBuilder::build_layout(TRAPS) {
   if (_is_inline_type) {
     compute_inline_class_layout(CHECK);
   } else {
-    compute_regular_layout();
+    compute_regular_layout(CHECK);
   }
 }

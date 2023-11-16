@@ -980,6 +980,35 @@ bool InstanceKlass::link_class_impl(TRAPS) {
         }
       }
     }
+
+    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
+      if (fs.is_null_free_inline_type() && fs.access_flags().is_static()) {
+        Symbol* sig = fs.signature();
+        oop loader = class_loader();
+        oop protection_domain = this->protection_domain();
+        Klass* klass = SystemDictionary::resolve_or_fail(sig,
+                                                        Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
+                                                        CHECK_false);
+        if (klass == nullptr) {
+          THROW_(vmSymbols::java_lang_LinkageError(), false);
+        }
+        if (!klass->is_inline_klass()) {
+          Exceptions::fthrow(
+            THREAD_AND_LOCATION,
+            vmSymbols::java_lang_IncompatibleClassChangeError(),
+            "class %s is not an inline type",
+            klass->external_name());
+        }
+        InstanceKlass* ik = InstanceKlass::cast(klass);
+        if (!ik->is_implicitly_constructible()) {
+          Exceptions::fthrow(
+            THREAD_AND_LOCATION,
+            vmSymbols::java_lang_IncompatibleClassChangeError(),
+            "class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
+            klass->external_name());
+        }
+      }
+    }
   }
 
   // in case the class is linked in the process of linking its superclasses

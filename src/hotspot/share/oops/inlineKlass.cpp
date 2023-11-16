@@ -162,7 +162,7 @@ bool InlineKlass::flat_array() {
     return false;
   }
   // Declared atomic but not naturally atomic.
-  if (is_declared_atomic() && !is_naturally_atomic()) {
+  if (must_be_atomic() && !is_naturally_atomic()) {
     return false;
   }
   // VM enforcing InlineArrayAtomicAccess only...

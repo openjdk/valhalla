@@ -28,8 +28,8 @@ package runtime.valhalla.inlinetypes;
  * @summary check effect of volatile keyword on flattenable fields
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses VolatileTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.VolatileTest
+ * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED VolatileTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=128 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.VolatileTest
  */
 
 import jdk.internal.misc.Unsafe;
@@ -40,13 +40,17 @@ import jdk.test.lib.Asserts;
 public class VolatileTest {
     static final Unsafe U = Unsafe.getUnsafe();
 
-    static primitive class MyValue {
+    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @jdk.internal.vm.annotation.LooselyConsistentValue
+    static value class MyValue {
         int i = 0;
         int j = 0;
     }
 
     static class MyContainer {
+        @jdk.internal.vm.annotation.NullRestricted
         MyValue mv0;
+        @jdk.internal.vm.annotation.NullRestricted
         volatile MyValue mv1;
     }
 
