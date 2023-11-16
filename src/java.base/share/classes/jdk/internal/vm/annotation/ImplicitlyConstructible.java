@@ -36,6 +36,10 @@ import java.lang.annotation.*;
  * <p>
  * The HotSpot VM depends on this annotation being present to properly
  * initialize {@link NullRestricted} fields and arrays of a value class type.
+ * <p>
+ * Because these behaviors are not specified by Java SE, this annotation should
+ * only be used by internal JDK code for experimental purposes and should not
+ * affect user-observable outcomes.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
