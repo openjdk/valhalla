@@ -23,41 +23,54 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 /*
  * @test
  * @summary Test initialization of static inline fields with circularity
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses CircularityTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.CircularityTest
+ * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED CircularityTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.CircularityTest
  */
 
 
 public class CircularityTest {
     static boolean b = true;
     static int counter = 0;
-
-    static primitive class A {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class A {
+        @NullRestricted
         static B b;
+        @NullRestricted
         static C c;
         int i = 0;
     }
 
-    static primitive class B {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class B {
         static {
             Asserts.assertNotNull(A.c, "Should have returned C's default value");
         }
         int i = 0;
     }
 
-    static primitive class C {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class C {
         int i;
         public C(int i) {
             this.i = i;
         }
     }
 
-    static primitive class D {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class D {
+        @NullRestricted
         static C c;
         int i = 0;
         static {
@@ -68,25 +81,36 @@ public class CircularityTest {
         }
     }
 
-    static primitive class E {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class E {
+        @NullRestricted
         static F f;
+        @NullRestricted
         static C c;
         int i = 0;
     }
 
-    static primitive class F {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class F {
         int i = 0;
         static {
             E.c = new C(5);
         }
     }
 
-    static primitive class G {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class G {
+        @NullRestricted
         static H h;
         int i = 0;
     }
 
-    static primitive class H {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class H {
         int i = 0;
         static {
             if (CircularityTest.b) {
@@ -96,13 +120,19 @@ public class CircularityTest {
         }
     }
 
-    static primitive class I {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class I {
+        @NullRestricted
         static J j;
+        @NullRestricted
         static H h;
         int i = 0;
     }
 
-    static primitive class J {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class J {
         int i = 0;
         static {
             CircularityTest.counter = 1;

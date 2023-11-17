@@ -25,6 +25,10 @@ import jdk.test.lib.Asserts;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+
 
 
 /*
@@ -58,7 +62,7 @@ import jdk.internal.misc.Unsafe;
     }
 
     static class BadClass0 {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       String s;
     }
 
@@ -81,7 +85,7 @@ import jdk.internal.misc.Unsafe;
     }
 
     static class BadClass1 {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       ValueClass1 vc;
     }
 
@@ -97,14 +101,14 @@ import jdk.internal.misc.Unsafe;
     }
 
     // Test a valid @NullRestricted field with a class that is @ImplicitlyConstructible
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @ImplicitlyConstructible
     static value class ValueClass2 {
       int i = 0;
       int j = 0;
     }
 
     static class GoodClass2 {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       ValueClass2 vc;
     }
 
@@ -120,7 +124,7 @@ import jdk.internal.misc.Unsafe;
     }
 
     // Invalid usage of @ImplicitlyConstructible on an identity class
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @ImplicitlyConstructible
     static class BadClass3 {
 
     }
@@ -137,7 +141,7 @@ import jdk.internal.misc.Unsafe;
     }
 
     // Test invalid usage of @LooselyConsistentValue on an identity class
-    @jdk.internal.vm.annotation.LooselyConsistentValue
+    @LooselyConsistentValue
     static class BadClass4 {
 
     }
@@ -155,7 +159,7 @@ import jdk.internal.misc.Unsafe;
 
     // Test field flattening of @NullRestricted annotated fields
 
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @ImplicitlyConstructible
     static value class ValueClass5 {
       int i = 0;
     }
@@ -163,7 +167,7 @@ import jdk.internal.misc.Unsafe;
     static class GoodClass5 {
       ValueClass5 f0 = new ValueClass5();
 
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       ValueClass5 f1 = new ValueClass5();
     }
 
@@ -187,20 +191,20 @@ import jdk.internal.misc.Unsafe;
 
     // Test detection/handling of circularity
 
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @ImplicitlyConstructible
     static value class ValueClass6a {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       ValueClass6b val = new ValueClass6b();
     }
 
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @ImplicitlyConstructible
     static value class ValueClass6b {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       ValueClass6a val = new ValueClass6a();
     }
 
     static class BadClass6 {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       ValueClass6a val = new ValueClass6a();
     }
 
@@ -216,13 +220,13 @@ import jdk.internal.misc.Unsafe;
     }
 
     // Test null restricted static field
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @ImplicitlyConstructible
     static value class ValueClass7 {
       int i = 0;
     }
 
     static class GoodClass7 {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       static ValueClass7 sval;
     }
 
@@ -239,9 +243,9 @@ import jdk.internal.misc.Unsafe;
     }
 
     // Test circularity on static fields
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @ImplicitlyConstructible
     static value class ValueClass8 {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       static ValueClass8 sval;
     }
 
@@ -258,13 +262,13 @@ import jdk.internal.misc.Unsafe;
     }
 
     // Test that writing null to a @NullRestricted non-static field throws an exception
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @ImplicitlyConstructible
     static value class ValueClass9 {
       int i = 0;
     }
 
     static class GoodClass9 {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       ValueClass9 val = new ValueClass9();
     }
 
@@ -281,9 +285,9 @@ import jdk.internal.misc.Unsafe;
     }
 
     // Test that writing null to a @NullRestricted static field throws an exception
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
+    @ImplicitlyConstructible
     static value class ValueClass10 {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       static ValueClass10 sval;
     }
 
@@ -305,7 +309,7 @@ import jdk.internal.misc.Unsafe;
     }
 
     static class BadClass11 {
-      @jdk.internal.vm.annotation.NullRestricted
+      @NullRestricted
       static ValueClass11 val;
     }
 

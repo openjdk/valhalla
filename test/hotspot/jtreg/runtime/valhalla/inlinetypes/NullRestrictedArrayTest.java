@@ -27,7 +27,8 @@ import jdk.test.lib.Asserts;
 import java.lang.reflect.Method;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
-
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 
 /*
@@ -74,8 +75,8 @@ public class NullRestrictedArrayTest {
   }
 
   // Test illegal array length
-  @jdk.internal.vm.annotation.ImplicitlyConstructible
-  @jdk.internal.vm.annotation.LooselyConsistentValue
+  @ImplicitlyConstructible
+  @LooselyConsistentValue
   static value class ValueClass1 {
     int i = 0;
     int j = 0;
@@ -110,8 +111,8 @@ public class NullRestrictedArrayTest {
   }
 
   // Test valid creation of a flat array
-  @jdk.internal.vm.annotation.ImplicitlyConstructible
-  @jdk.internal.vm.annotation.LooselyConsistentValue
+  @ImplicitlyConstructible
+  @LooselyConsistentValue
   static value class ValueClass3 {
     int i = 0;
     int j = 0;
@@ -130,8 +131,8 @@ public class NullRestrictedArrayTest {
   }
 
   // Test that elements are not null
-  @jdk.internal.vm.annotation.ImplicitlyConstructible
-  @jdk.internal.vm.annotation.LooselyConsistentValue
+  @ImplicitlyConstructible
+  @LooselyConsistentValue
 
   static value class ValueClass4 {
     int i = 0;
@@ -151,8 +152,8 @@ public class NullRestrictedArrayTest {
   }
 
   // Test that writing null to a null restricted array throws an exception
-  @jdk.internal.vm.annotation.ImplicitlyConstructible
-  @jdk.internal.vm.annotation.LooselyConsistentValue
+  @ImplicitlyConstructible
+  @LooselyConsistentValue
   static value class ValueClass5 {
     int i = 0;
     int j = 0;
