@@ -33,6 +33,9 @@ package runtime.valhalla.inlinetypes;
  */
 
 import jdk.internal.misc.Unsafe;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 import java.lang.reflect.*;
 import jdk.test.lib.Asserts;
@@ -40,17 +43,17 @@ import jdk.test.lib.Asserts;
 public class VolatileTest {
     static final Unsafe U = Unsafe.getUnsafe();
 
-    @jdk.internal.vm.annotation.ImplicitlyConstructible
-    @jdk.internal.vm.annotation.LooselyConsistentValue
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
     static value class MyValue {
         int i = 0;
         int j = 0;
     }
 
     static class MyContainer {
-        @jdk.internal.vm.annotation.NullRestricted
+        @NullRestricted
         MyValue mv0;
-        @jdk.internal.vm.annotation.NullRestricted
+        @NullRestricted
         volatile MyValue mv1;
     }
 
