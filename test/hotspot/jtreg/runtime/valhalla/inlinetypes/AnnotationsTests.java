@@ -324,5 +324,40 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
       }
       Asserts.assertNotNull(exception, "Expected IncompatibleClassChangerError not received");
     }
+
+    // Test illegal use of @NullRestricted on a primitive field
+    static class BadClass12 {
+      @NullRestricted
+      int i;
+    }
+    void test_12() {
+      Throwable exception = null;
+      try {
+        BadClass12 val = new BadClass12();
+        System.out.println(val);
+      } catch(ClassFormatError e) {
+        exception = e;
+        System.out.println("Received " + e);
+      }
+      Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
+    }
+
+    // Test illegal use of @NullRestricted on an array field
+    static class BadClass13 {
+      @NullRestricted
+      int Integer[];
+    }
+    void test_13() {
+      Throwable exception = null;
+      try {
+        BadClass13 val = new BadClass13();
+        System.out.println(val);
+      } catch(ClassFormatError e) {
+        exception = e;
+        System.out.println("Received " + e);
+      }
+      Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
+    }
+
  }
 

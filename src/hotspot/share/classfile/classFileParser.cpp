@@ -1567,6 +1567,13 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
         }
         _fields_annotations->at_put(n, parsed_annotations.field_annotations());
         if (parsed_annotations.has_annotation(AnnotationCollector::_jdk_internal_NullRestricted)) {
+          if (!Signature::has_envelope(sig)) {
+            Exceptions::fthrow(
+              THREAD_AND_LOCATION,
+              vmSymbols::java_lang_ClassFormatError(),
+              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s with signature %s (primitive types can never be null)",
+              name->as_C_string(), sig->as_C_string());
+          }
           is_null_restricted = true;
         }
         parsed_annotations.set_field_annotations(nullptr);
