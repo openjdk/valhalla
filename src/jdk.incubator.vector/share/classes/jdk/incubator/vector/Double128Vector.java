@@ -513,7 +513,7 @@ value class Double128Vector extends DoubleVector {
                      (vec, ix) -> {
                          VectorPayloadMF vecpayload = vec.vec();
                          long start_offset = vecpayload.multiFieldOffset();
-                         return (long)Double.doubleToLongBits(Unsafe.getUnsafe().getDouble(vecpayload, start_offset + ix * Double.BYTES));
+                         return (long)Double.doubleToLongBits(U.getDouble(vecpayload, start_offset + ix * Double.BYTES));
                      });
     }
 
@@ -533,10 +533,10 @@ value class Double128Vector extends DoubleVector {
                                 this, i, (long)Double.doubleToLongBits(e),
                                 (v, ix, bits) -> {
                                     VectorPayloadMF vec = v.vec();
-                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
                                     long start_offset = tpayload.multiFieldOffset();
-                                    Unsafe.getUnsafe().putDouble(tpayload, start_offset + ix * Double.BYTES, Double.longBitsToDouble((long)bits));
-                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    U.putDouble(tpayload, start_offset + ix * Double.BYTES, Double.longBitsToDouble((long)bits));
+                                    tpayload = U.finishPrivateBuffer(tpayload);
                                     return v.vectorFactory(tpayload);
                                 });
     }
@@ -785,14 +785,14 @@ value class Double128Vector extends DoubleVector {
             VectorPayloadMF indices1 = indices();
             VectorPayloadMF indices2 = s.indices();
             VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
-            r = Unsafe.getUnsafe().makePrivateBuffer(r);
+            r = U.makePrivateBuffer(r);
             long offset = r.multiFieldOffset();
             for (int i = 0; i < VLENGTH; i++) {
-                int ssi = Unsafe.getUnsafe().getByte(indices2, offset + i * Byte.BYTES);
-                int si = Unsafe.getUnsafe().getByte(indices1, offset + ssi * Byte.BYTES);
-                Unsafe.getUnsafe().putByte(r, offset + i * Byte.BYTES, (byte) si);
+                int ssi = U.getByte(indices2, offset + i * Byte.BYTES);
+                int si = U.getByte(indices1, offset + ssi * Byte.BYTES);
+                U.putByte(r, offset + i * Byte.BYTES, (byte) si);
             }
-            r = Unsafe.getUnsafe().finishPrivateBuffer(r);
+            r = U.finishPrivateBuffer(r);
             return new Double128Shuffle(r);
         }
     }
