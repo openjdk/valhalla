@@ -1091,6 +1091,7 @@ class CompileReplay : public StackObj {
       }
       case T_ARRAY:
       case T_OBJECT:
+      case T_PRIMITIVE_OBJECT:
         if (!fd->is_null_free_inline_type()) {
           JavaThread* THREAD = JavaThread::current();
           bool res = _replay->process_staticfield_reference(string_value, _vt, fd, THREAD);

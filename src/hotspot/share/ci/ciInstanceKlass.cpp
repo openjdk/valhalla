@@ -770,6 +770,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool i
       _out->print(INT64_FORMAT, *(int64_t*)&d);
       break;
     }
+    case T_PRIMITIVE_OBJECT: // fall-through
     case T_ARRAY:  // fall-through
     case T_OBJECT:
       if (!fd->is_null_free_inline_type()) {
