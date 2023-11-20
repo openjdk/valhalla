@@ -111,6 +111,9 @@ Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     Node* cast = clone();
     cast->set_req(1, vt->get_oop());
     vt = vt->clone()->as_InlineType();
+    if (!_type->maybe_null()) {
+      vt->as_InlineType()->set_is_init(*phase);
+    }
     vt->set_oop(phase->transform(cast));
     return vt;
   }
