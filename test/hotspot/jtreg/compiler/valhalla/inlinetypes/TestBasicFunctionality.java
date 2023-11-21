@@ -466,7 +466,9 @@ public class TestBasicFunctionality {
     // correctly allocated.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1", STORE, "= 1"},  // InitializeNode::coalesce_subword_stores merges stores
+        // Initializing stores are captured by InitializeNode::capture_store, converted
+        // to raw stores and then merged by InitializeNode::coalesce_subword_stores.
+        counts = {ALLOC, "= 1", compiler.lib.ir_framework.IRNode.STORE_L, "= 7"},
         failOn = {LOAD})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         counts = {ALLOC, "= 2"},
