@@ -1777,9 +1777,12 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Allocate inline type in src block to be able to merge it with oop in target block
           map()->set_req(j, n->as_InlineType()->buffer(this));
         } else if (!n->is_InlineType() && t->is_inlinetypeptr()) {
-          // Scalarize null in src block to be able to merge it with inline type in target block
-          assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
-          map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
+          AllocateNode* alloc = AllocateNode::Ideal_allocation(n);
+          if (alloc == nullptr || !alloc->_larval) {
+            // Scalarize null in src block to be able to merge it with inline type in target block
+            assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
+            map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
+          }
         }
       }
     }

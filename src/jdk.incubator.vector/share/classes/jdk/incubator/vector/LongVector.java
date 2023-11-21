@@ -57,8 +57,6 @@ public abstract class LongVector extends AbstractVector<Long> {
      */
     public LongVector() {}
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final ValueLayout.OfLong ELEMENT_LAYOUT = ValueLayout.JAVA_LONG.withByteAlignment(1);
 
     @ForceInline

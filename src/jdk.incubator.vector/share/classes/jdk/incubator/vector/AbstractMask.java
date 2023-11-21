@@ -38,31 +38,33 @@ import static jdk.internal.vm.vector.VectorSupport.*;
 
 abstract class AbstractMask<E> extends VectorMask<E> {
 
+    public static final Unsafe U =  Unsafe.getUnsafe();
+
     /*package-private*/
     abstract VectorPayloadMF getBits();
 
     static <F> VectorPayloadMF prepare(VectorPayloadMF payload, int offset, VectorSpecies<F> species) {
         boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
         VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(species.elementType(), species.length(), isMaxShape);
-        res = Unsafe.getUnsafe().makePrivateBuffer(res);
+        res = U.makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
         for (int i = 0; i < species.length(); i++) {
-            boolean b = Unsafe.getUnsafe().getBoolean(payload, mOffset + i + offset);
-            Unsafe.getUnsafe().putBoolean(res, mOffset + i, b);
+            boolean b = U.getBoolean(payload, mOffset + i + offset);
+            U.putBoolean(res, mOffset + i, b);
         }
-        res = Unsafe.getUnsafe().finishPrivateBuffer(res);
+        res = U.finishPrivateBuffer(res);
         return res;
     }
 
     static <F> VectorPayloadMF prepare(boolean val, VectorSpecies<F> species) {
         boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
         VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(species.elementType(), species.length(), isMaxShape);
-        res = Unsafe.getUnsafe().makePrivateBuffer(res);
+        res = U.makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
         for (int i = 0; i < species.length(); i++) {
-            Unsafe.getUnsafe().putBoolean(res, mOffset + i, val);
+            U.putBoolean(res, mOffset + i, val);
         }
-        res = Unsafe.getUnsafe().finishPrivateBuffer(res);
+        res = U.finishPrivateBuffer(res);
         return res;
     }
 
@@ -77,13 +79,13 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         VectorPayloadMF bits = getBits();
         boolean is_max_species = ((AbstractSpecies)(vspecies())).is_max_species();
         VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
-        res = Unsafe.getUnsafe().makePrivateBuffer(res);
+        res = U.makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            boolean b = Unsafe.getUnsafe().getBoolean(bits, mOffset + i);
-            Unsafe.getUnsafe().putBoolean(res, mOffset + i, f.apply(i, b));
+            boolean b = U.getBoolean(bits, mOffset + i);
+            U.putBoolean(res, mOffset + i, f.apply(i, b));
         }
-        res = Unsafe.getUnsafe().finishPrivateBuffer(res);
+        res = U.finishPrivateBuffer(res);
         return vspecies().maskFactory(res);
     }
 
@@ -99,14 +101,14 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         VectorPayloadMF mbits = m.getBits();
         boolean is_max_species = ((AbstractSpecies)(vspecies())).is_max_species();
         VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(vspecies().elementType(), length, is_max_species);
-        res = Unsafe.getUnsafe().makePrivateBuffer(res);
+        res = U.makePrivateBuffer(res);
         long mOffset = res.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            boolean b = Unsafe.getUnsafe().getBoolean(bits, mOffset + i);
-            boolean mb = Unsafe.getUnsafe().getBoolean(mbits, mOffset + i);
-            Unsafe.getUnsafe().putBoolean(res, mOffset + i, f.apply(i, b, mb));
+            boolean b = U.getBoolean(bits, mOffset + i);
+            boolean mb = U.getBoolean(mbits, mOffset + i);
+            U.putBoolean(res, mOffset + i, f.apply(i, b, mb));
         }
-        res = Unsafe.getUnsafe().finishPrivateBuffer(res);
+        res = U.finishPrivateBuffer(res);
         return vspecies().maskFactory(res);
     }
 
@@ -116,7 +118,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         VectorPayloadMF bits = getBits();
         long mOffset = bits.multiFieldOffset();
         for (int i = 0; i < vspecies().laneCount(); i++) {
-            arr[idx++] = Unsafe.getUnsafe().getBoolean(bits, mOffset + i);
+            arr[idx++] = U.getBoolean(bits, mOffset + i);
         }
     }
 
@@ -216,7 +218,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
     /*package-private*/
     boolean laneIsSetHelper(int idx) {
         VectorPayloadMF bits = getBits();
-        return Unsafe.getUnsafe().getBoolean(bits, bits.multiFieldOffset() + idx);
+        return U.getBoolean(bits, bits.multiFieldOffset() + idx);
     }
 
     /*package-private*/
@@ -225,7 +227,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         VectorPayloadMF bits = getBits();
         long mOffset = bits.multiFieldOffset();
         for (int i = 0; i < length(); i++) {
-            if (Unsafe.getUnsafe().getBoolean(bits, mOffset + i)) return true;
+            if (U.getBoolean(bits, mOffset + i)) return true;
         }
         return false;
     }
@@ -236,7 +238,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         VectorPayloadMF bits = getBits();
         long mOffset = bits.multiFieldOffset();
         for (int i = 0; i < length(); i++) {
-            if (!Unsafe.getUnsafe().getBoolean(bits, mOffset + i)) return false;
+            if (!U.getBoolean(bits, mOffset + i)) return false;
         }
         return true;
     }
@@ -247,7 +249,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         VectorPayloadMF bits = getBits();
         long mOffset = bits.multiFieldOffset();
         for (int i = 0; i < length(); i++) {
-            if (Unsafe.getUnsafe().getBoolean(bits, mOffset + i)) c++;
+            if (U.getBoolean(bits, mOffset + i)) c++;
         }
         return c;
     }
@@ -257,7 +259,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         VectorPayloadMF bits = getBits();
         long mOffset = bits.multiFieldOffset();
         for (int i = 0; i < length(); i++) {
-            if (Unsafe.getUnsafe().getBoolean(bits, mOffset + i)) return i;
+            if (U.getBoolean(bits, mOffset + i)) return i;
         }
         return length();
     }
@@ -267,7 +269,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         VectorPayloadMF bits = getBits();
         long mOffset = bits.multiFieldOffset();
         for (int i = length() - 1; i >= 0; i--) {
-            if (Unsafe.getUnsafe().getBoolean(bits, mOffset + i)) return i;
+            if (U.getBoolean(bits, mOffset + i)) return i;
         }
         return -1;
     }
@@ -279,7 +281,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         VectorPayloadMF bits = getBits();
         long mOffset = bits.multiFieldOffset();
         for (int i = 0; i < length(); i++) {
-            res = Unsafe.getUnsafe().getBoolean(bits, mOffset + i) ? res | set : res;
+            res = U.getBoolean(bits, mOffset + i) ? res | set : res;
             set = set << 1;
         }
         return res;

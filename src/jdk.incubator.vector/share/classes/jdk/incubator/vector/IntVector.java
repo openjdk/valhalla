@@ -57,8 +57,6 @@ public abstract class IntVector extends AbstractVector<Integer> {
      */
     public IntVector() {}
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final ValueLayout.OfInt ELEMENT_LAYOUT = ValueLayout.JAVA_INT.withByteAlignment(1);
 
     @ForceInline

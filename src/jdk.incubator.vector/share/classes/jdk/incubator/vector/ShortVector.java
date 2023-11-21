@@ -57,8 +57,6 @@ public abstract class ShortVector extends AbstractVector<Short> {
      */
     public ShortVector() {}
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final ValueLayout.OfShort ELEMENT_LAYOUT = ValueLayout.JAVA_SHORT.withByteAlignment(1);
 
     @ForceInline
