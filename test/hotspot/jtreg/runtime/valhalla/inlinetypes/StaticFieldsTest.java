@@ -139,7 +139,7 @@ public class StaticFieldsTest {
 
     @ImplicitlyConstructible
     @LooselyConsistentValue
-    static primitive class ClassG {
+    static value class ClassG {
         @NullRestricted
         static ClassF f;
         int i;
