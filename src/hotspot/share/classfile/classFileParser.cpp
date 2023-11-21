@@ -6448,13 +6448,15 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
     if (EnableValhalla && _access_flags.is_value_class()) {
       const InstanceKlass* k = _super_klass;
-      int inherited_fields= 0;
+      int inherited_instance_fields = 0;
       while (k != nullptr) {
-        inherited_fields += k->total_fields_count();
+        for (AllFieldStream fs(k); !fs.done(); fs.next()) {
+          if (!fs.access_flags().is_static()) inherited_instance_fields++;
+        }
         k = k->super() == nullptr ? nullptr :  InstanceKlass::cast(k->super());
       }
-      if (inherited_fields > 0) {
-        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), "Value classes don't support inherited fields yet");
+      if (inherited_instance_fields > 0) {
+        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), "Value classes don't support inherited non-static fields yet");
       }
     }
   }
