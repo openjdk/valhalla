@@ -1777,9 +1777,12 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Allocate inline type in src block to be able to merge it with oop in target block
           map()->set_req(j, n->as_InlineType()->buffer(this));
         } else if (!n->is_InlineType() && t->is_inlinetypeptr()) {
-          // Scalarize null in src block to be able to merge it with inline type in target block
-          assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
-          map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
+          AllocateNode* alloc = AllocateNode::Ideal_allocation(n);
+          if (alloc == nullptr || !alloc->_larval) {
+            // Scalarize null in src block to be able to merge it with inline type in target block
+            assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
+            map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
+          }
         }
       }
     }
@@ -1884,7 +1887,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       PhiNode* phi;
       if (m->is_Phi() && m->as_Phi()->region() == r) {
         phi = m->as_Phi();
-      } else if (m->is_InlineType() && m->as_InlineType()->has_phi_inputs(r)) {
+      } else if (m->is_InlineType() && n->is_InlineType() && m->as_InlineType()->has_phi_inputs(r)) {
         phi = m->as_InlineType()->get_oop()->as_Phi();
       } else {
         phi = nullptr;
@@ -1923,7 +1926,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       // Merging two inline types?
-      if (phi != nullptr && phi->bottom_type()->is_inlinetypeptr()) {
+      if (phi != nullptr && phi->bottom_type()->is_inlinetypeptr() && m->is_InlineType() && n->is_InlineType()) {
         // Reload current state because it may have been updated by ensure_phi
         m = map()->in(j);
         InlineTypeNode* vtm = m->as_InlineType(); // Current inline type

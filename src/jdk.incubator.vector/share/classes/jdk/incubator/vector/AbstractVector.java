@@ -30,6 +30,7 @@ import jdk.internal.vm.vector.VectorSupport;
 
 import java.nio.ByteOrder;
 import java.util.function.IntUnaryOperator;
+import jdk.internal.misc.Unsafe;
 
 import static jdk.incubator.vector.VectorOperators.*;
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -79,6 +80,8 @@ abstract class AbstractVector<E> extends Vector<E> {
 
     /*package-private*/
     abstract long multiFieldOffset();
+
+    static final Unsafe U = Unsafe.getUnsafe();
 
     @Override
     @ForceInline

@@ -57,8 +57,6 @@ public abstract class ByteVector extends AbstractVector<Byte> {
      */
     public ByteVector() {}
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final ValueLayout.OfByte ELEMENT_LAYOUT = ValueLayout.JAVA_BYTE.withByteAlignment(1);
 
     @ForceInline

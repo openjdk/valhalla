@@ -213,3 +213,4 @@ vmTestbase/nsk/monitoring/ThreadMXBean/ThreadInfo/Multi/Multi005/TestDescription
 
 # lworld+vector
 compiler/vectorapi/VectorReinterpretTest.java
+compiler/vectorapi/reshape/TestVectorReinterpret.java

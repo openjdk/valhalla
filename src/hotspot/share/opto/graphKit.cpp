@@ -54,6 +54,7 @@
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/growableArray.hpp"
+#include "classfile/vmSymbols.hpp"
 
 //----------------------------GraphKit-----------------------------------------
 // Main utility constructor.
@@ -1863,7 +1864,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     if (t->is_inlinetypeptr() && !call->method()->get_Method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
-        assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
         arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
       }
       InlineTypeNode* vt = arg->as_InlineType();
@@ -1955,6 +1955,15 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       const Type* type = TypeOopPtr::make_from_klass(t->as_klass());
       if (type->is_inlinetypeptr()) {
         ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass(), type->inline_klass()->is_null_free());
+      }
+      Node* receiver = !call->method()->is_static() ? call->in(TypeFunc::Parms) : nullptr;
+      if (ret->is_InlineType() &&
+          receiver && receiver->bottom_type()->isa_instptr() &&
+          receiver->bottom_type()->is_instptr()->instance_klass()->name()->get_symbol() == vmSymbols::jdk_internal_misc_Unsafe() &&
+          call->method()->name()->get_symbol() == vmSymbols::makePrivateBuffer_name()) {
+        // Re-buffer scalarized InlineTypeNodes returned from makePrivateBuffer
+        // and transition the allocation into larval state.
+        ret = ret->as_InlineType()->make_larval(this);
       }
     }
   }
@@ -3416,7 +3425,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           assert(safe_for_replace, "must be");
           obj = null_check(obj);
         }
-        assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineType(), "should have been scalarized");
+        assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineType() || obj->bottom_type()->is_inlinetypeptr(), "should have been scalarized");
         return obj;
       case Compile::SSC_always_false:
         if (null_free) {

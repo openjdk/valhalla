@@ -33,6 +33,8 @@ import static jdk.internal.vm.vector.VectorSupport.*;
 abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     static final IntUnaryOperator IDENTITY = i -> i;
 
+    public static final Unsafe U = Unsafe.getUnsafe();
+
     // Internal representation allows for a maximum index of 256
     // Values are clipped to [-VLENGTH..VLENGTH-1].
 
@@ -43,14 +45,14 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         int length = species.length();
         boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
         VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(species.elementType(), length, isMaxShape);
-        payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
+        payload = U.makePrivateBuffer(payload);
         long mf_offset = payload.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             int si = indices[offset + i];
             si = partiallyWrapIndex(si, length);
-            Unsafe.getUnsafe().putByte(payload, mf_offset + i * Byte.BYTES, (byte) si);
+            U.putByte(payload, mf_offset + i * Byte.BYTES, (byte) si);
         }
-        payload = Unsafe.getUnsafe().finishPrivateBuffer(payload);
+        payload = U.finishPrivateBuffer(payload);
         return payload;
     }
 
@@ -58,14 +60,14 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         int length = species.length();
         boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
         VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(species.elementType(), length, isMaxShape);
-        payload = Unsafe.getUnsafe().makePrivateBuffer(payload);
+        payload = U.makePrivateBuffer(payload);
         long offset = payload.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             int si = f.applyAsInt(i);
             si = partiallyWrapIndex(si, length);
-            Unsafe.getUnsafe().putByte(payload, offset + i * Byte.BYTES, (byte) si);
+            U.putByte(payload, offset + i * Byte.BYTES, (byte) si);
         }
-        payload = Unsafe.getUnsafe().finishPrivateBuffer(payload);
+        payload = U.finishPrivateBuffer(payload);
         return payload;
     }
 
@@ -85,7 +87,7 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         int vlen = indices.length();
         long mf_offset = indices.multiFieldOffset();
         for (int i = 0; i < vlen; i++) {
-            int sourceIndex = Unsafe.getUnsafe().getByte(indices, mf_offset + i * Byte.BYTES);
+            int sourceIndex = U.getByte(indices, mf_offset + i * Byte.BYTES);
             assert(sourceIndex >= -vlen && sourceIndex < vlen);
             a[offset + i] = sourceIndex;
         }
@@ -123,7 +125,7 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         if (vecmask.anyTrue()) {
             VectorPayloadMF indices = indices();
             long offset = indices.multiFieldOffset();
-            throw checkIndexFailed(Unsafe.getUnsafe().getByte(indices, offset + vecmask.firstTrue() * Byte.BYTES), length());
+            throw checkIndexFailed(U.getByte(indices, offset + vecmask.firstTrue() * Byte.BYTES), length());
         }
         return this;
     }
@@ -146,9 +148,9 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         boolean is_max_species = ((AbstractSpecies)(vspecies())).is_max_species();
         VectorPayloadMF indices = VectorPayloadMF.newShuffleInstanceFactory(vspecies().elementType(), length, is_max_species);
         long offset = oldIndices.multiFieldOffset();
-        indices = Unsafe.getUnsafe().makePrivateBuffer(indices);
+        indices = U.makePrivateBuffer(indices);
         for (int i = 0; i < length; i++) {
-            int si = Unsafe.getUnsafe().getByte(oldIndices, offset + i * Byte.BYTES);
+            int si = U.getByte(oldIndices, offset + i * Byte.BYTES);
             // FIXME: This does not work unless it's a power of 2.
             if ((length & (length - 1)) == 0) {
                 si += si & length;  // power-of-two optimization
@@ -157,9 +159,9 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
                 si += length;
             }
             assert(si >= 0 && si < length);
-            Unsafe.getUnsafe().putByte(indices, offset + i * Byte.BYTES, (byte) si);
+            U.putByte(indices, offset + i * Byte.BYTES, (byte) si);
         }
-        indices = Unsafe.getUnsafe().finishPrivateBuffer(indices);
+        indices = U.finishPrivateBuffer(indices);
         return vspecies().dummyVectorMF().shuffleFromBytes(indices);
     }
 
@@ -225,7 +227,7 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         int length = indices.length();
         long offset = indices.multiFieldOffset();
         for (int i = 0; i < length; i++) {
-            byte si = Unsafe.getUnsafe().getByte(indices, offset + i * Byte.BYTES);
+            byte si = U.getByte(indices, offset + i * Byte.BYTES);
             if (si >= length || si < -length) {
                 boolean assertsEnabled = false;
                 assert(assertsEnabled = true);

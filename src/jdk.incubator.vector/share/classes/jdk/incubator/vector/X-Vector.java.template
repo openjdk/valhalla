@@ -61,8 +61,6 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
      */
     public $abstractvectortype$() {}
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final ValueLayout.Of$Type$ ELEMENT_LAYOUT = ValueLayout.JAVA_$TYPE$.withByteAlignment(1);
 
     @ForceInline

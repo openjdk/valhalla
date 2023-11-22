@@ -57,8 +57,6 @@ public abstract class DoubleVector extends AbstractVector<Double> {
      */
     public DoubleVector() {}
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final ValueLayout.OfDouble ELEMENT_LAYOUT = ValueLayout.JAVA_DOUBLE.withByteAlignment(1);
 
     @ForceInline

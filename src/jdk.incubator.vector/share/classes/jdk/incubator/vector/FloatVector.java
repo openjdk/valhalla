@@ -57,8 +57,6 @@ public abstract class FloatVector extends AbstractVector<Float> {
      */
     public FloatVector() {}
 
-    static final Unsafe U = Unsafe.getUnsafe();
-
     static final ValueLayout.OfFloat ELEMENT_LAYOUT = ValueLayout.JAVA_FLOAT.withByteAlignment(1);
 
     @ForceInline
