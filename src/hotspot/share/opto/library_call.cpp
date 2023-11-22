@@ -2653,14 +2653,12 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
 bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   Node* receiver = argument(0);
   Node* buffer = argument(1);
-  // Incoming value should be a buffer and not InlineTypeNode.
-  if (buffer->is_InlineType()) {
+
+  // Incoming value should be a buffer with inline type and not InlineTypeNode.
+  if (buffer->is_InlineType() || !buffer->bottom_type()->is_inlinetypeptr()) {
      return false;
   }
-  // Incoming value should be inline type.
-  if (!buffer->bottom_type()->is_inlinetypeptr()) {
-     return false;
-  }
+
   // Allocation node must exist to generate IR for transitioning allocation out
   // of larval state. Disable the intrinsic and take unsafe slow path if allocation
   // is not reachable,  oop returned by Unsafe_finishPrivateBuffer native method
