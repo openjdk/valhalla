@@ -319,17 +319,24 @@ Node* PhaseVector::expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
   // Re-generate an InlineTypeNode to represent the payload field. This is necessary
   // in case the input "vect" is not the original vector value when creating the
   // VectorBox (e.g. original vector value is a PhiNode).
-  ciInlineKlass* payload = vk->declared_nonstatic_field_at(0)->type()->as_inline_klass();
-  Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, true);
-  payload_value->as_InlineType()->set_field_value(0, vect);
-  payload_value = gvn.transform(payload_value);
+  ciField* payload_field = vk->declared_nonstatic_field_at(0);
+  ciInlineKlass* payload = payload_field->type()->as_inline_klass();
+  InlineTypeNode* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, true);
+  payload_value->set_field_value(0, vect);
+  // Allocate a buffer and store the vector value to it if the payload is not flattened.
+  if (!payload_field->is_flat()) {
+    Node* payload_klass = kit.makecon(TypeKlassPtr::make(payload));
+    Node* payload_oop = kit.new_instance(payload_klass, nullptr, nullptr, true);
+    payload_value->store(&kit, payload_oop, payload_oop, payload);
+    payload_value->set_oop(payload_oop);
+  }
+  payload_value = gvn.transform(payload_value)->as_InlineType();
 
   // Re-generate an InlineTypeNode to represent the vector object. New a buffer
   // and save its field value to the buffer.
   InlineTypeNode* vector = InlineTypeNode::make_uninitialized(gvn, vk, false);
   vector->set_field_value(0, payload_value);
   vector = gvn.transform(vector)->as_InlineType();
-
   Node* klass_node = kit.makecon(TypeKlassPtr::make(vk));
   Node* alloc_oop  = kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
   vector->store(&kit, alloc_oop, alloc_oop, vk);

@@ -1251,7 +1251,7 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
       offset > oopDesc::klass_offset_in_bytes()) {
     Node* value = base->as_InlineType()->field_value_by_offset((int)offset, true);
     if (value != nullptr) {
-      if (Opcode() == Op_LoadN) {
+      if (Opcode() == Op_LoadN && !base->is_VectorBox()) {
         // Encode oop value if we are loading a narrow oop
         assert(!phase->type(value)->isa_narrowoop(), "should already be decoded");
         value = phase->transform(new EncodePNode(value, bottom_type()));
