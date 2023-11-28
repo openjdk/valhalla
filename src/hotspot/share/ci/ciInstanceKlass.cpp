@@ -426,6 +426,17 @@ ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) 
       if (field_off > field_offset)
         break;
       // could do binary search or check bins, but probably not worth it
+
+      if (field->secondary_fields_count() > 1) {
+        for (int j = 0; j < field->secondary_fields_count() - 1; j++) {
+          ciField* sec_field = static_cast<ciMultiField*>(field)->secondary_fields()->at(j);
+          int sec_field_offset = sec_field->offset_in_bytes();
+          if (sec_field_offset == field_offset)
+            return sec_field;
+          if (sec_field_offset > field_offset)
+            return nullptr;
+        }
+      }
     }
     return nullptr;
   }

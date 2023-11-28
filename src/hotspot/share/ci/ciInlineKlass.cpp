@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,8 @@ int ciInlineKlass::field_index_by_offset(int offset) {
   int best_offset = 0;
   int best_index = -1;
   // Search the field with the given offset
+  // TODO: Add special handling for the secondary_fields of multifields. This is
+  // needed once this method is used by other compilers besides C2.
   for (int i = 0; i < nof_declared_nonstatic_fields(); ++i) {
     int field_offset = _declared_nonstatic_fields->at(i)->offset_in_bytes();
     if (field_offset == offset) {
