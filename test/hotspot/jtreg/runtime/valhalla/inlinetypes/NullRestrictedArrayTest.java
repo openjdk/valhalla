@@ -36,8 +36,8 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @summary Test of VM.newNullRestrictedArray API
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED NullRestrictedArrayTest.java
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED -XX:+EnableValhalla -XX:+EnablePrimitiveClasses NullRestrictedArrayTest
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED NullRestrictedArrayTest.java
+ * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED -XX:+EnableValhalla NullRestrictedArrayTest
  */
 
 

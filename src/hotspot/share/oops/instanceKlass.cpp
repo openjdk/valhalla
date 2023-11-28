@@ -1325,7 +1325,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
 
   // Step 8
   // Initialize classes of inline fields
-  if (EnablePrimitiveClasses) {
+  if (EnableValhalla) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (fs.is_null_free_inline_type()) {
         Klass* klass = get_inline_type_field_klass_or_null(fs.index());

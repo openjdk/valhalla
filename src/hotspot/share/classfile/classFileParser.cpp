@@ -6578,7 +6578,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_fac != nullptr, "invariant");
   assert(_parsed_annotations != nullptr, "invariant");
 
-  if (EnablePrimitiveClasses) {
+  if (EnableValhalla) {
     _inline_type_field_klasses = MetadataFactory::new_array<InlineKlass*>(_loader_data,
                                                    java_fields_count(),
                                                    nullptr,
@@ -6587,7 +6587,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       FieldInfo fieldinfo = *it;
       Symbol* sig = fieldinfo.signature(cp);
       if (fieldinfo.field_flags().is_null_free_inline_type() && !fieldinfo.access_flags().is_static()) {
-        // Pre-load inline class
+        // Pre-load classes of fields that are candidate for flattening
         Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(sig,
             Handle(THREAD, _loader_data->class_loader()),
             _protection_domain, true, CHECK);

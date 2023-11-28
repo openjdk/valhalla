@@ -32,8 +32,8 @@ import jdk.internal.vm.annotation.NullRestricted;
 * @test
 * @summary Test several scenarios of class initialization failures
 * @library /test/lib
-* @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED ClassInitializationFailuresTest.java
-* @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.ClassInitializationFailuresTest
+* @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED ClassInitializationFailuresTest.java
+* @run main/othervm -XX:+EnableValhalla --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.ClassInitializationFailuresTest
 */
 public class ClassInitializationFailuresTest {
     static boolean failingInitialization = true;
@@ -131,25 +131,27 @@ public class ClassInitializationFailuresTest {
         Asserts.assertNotNull(e, "Error should have been thrown");
         Asserts.assertTrue(e.getClass() == NoClassDefFoundError.class, "Must be a NoClassDefFoundError");
         Asserts.assertTrue(e.getCause().getClass() == ExceptionInInitializerError.class, "Must be an ExceptionInInitializerError");
-        // Transition model (annotations and array factory) doesn't permit multi-dimentional arrays tests
-        // Disabling those tests for now
-        // Testing multianewarray when the primitive element class fails to initialize properly
-        // try {
-        //     BadThree[][] array = new BadThree[10][20];
-        // } catch(Throwable t) {
-        //     e = t;
-        // }
-        // Asserts.assertNotNull(e, "Error should have been thrown");
-        // Asserts.assertTrue(e.getClass() == ExceptionInInitializerError.class, " Must be an ExceptionInInitializerError");
-        // // Second attempt because it doesn't fail the same way
-        // try {
-        //     BadThree[][][] array = new BadThree[10][30][10];
-        // } catch(Throwable t) {
-        //     e = t;
-        // }
-        // Asserts.assertNotNull(e, "Error should have been thrown");
-        // Asserts.assertTrue(e.getClass() == NoClassDefFoundError.class, "Must be a NoClassDefFoundError");
-        // Asserts.assertTrue(e.getCause().getClass() == ExceptionInInitializerError.class, "Must be an ExceptionInInitializerError");
+        /*
+        Transition model (annotations and array factory) doesn't permit multi-dimentional arrays tests
+        Disabling those tests for now
+        Testing multianewarray when the primitive element class fails to initialize properly
+        try {
+            BadThree[][] array = new BadThree[10][20];
+        } catch(Throwable t) {
+            e = t;
+        }
+        Asserts.assertNotNull(e, "Error should have been thrown");
+        Asserts.assertTrue(e.getClass() == ExceptionInInitializerError.class, " Must be an ExceptionInInitializerError");
+        // Second attempt because it doesn't fail the same way
+        try {
+            BadThree[][][] array = new BadThree[10][30][10];
+        } catch(Throwable t) {
+            e = t;
+        }
+        Asserts.assertNotNull(e, "Error should have been thrown");
+        Asserts.assertTrue(e.getClass() == NoClassDefFoundError.class, "Must be a NoClassDefFoundError");
+        Asserts.assertTrue(e.getCause().getClass() == ExceptionInInitializerError.class, "Must be an ExceptionInInitializerError");
+        */
     }
 
     @ImplicitlyConstructible
@@ -189,7 +191,9 @@ public class ClassInitializationFailuresTest {
         Asserts.assertTrue(e.getCause().getClass() == ExceptionInInitializerError.class, "Must be an ExceptionInInitializerError");
     }
 
-    static primitive class BadFive {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class BadFive {
         int i = 0;
         static {
             ClassInitializationFailuresTest.bo = new BadSix();

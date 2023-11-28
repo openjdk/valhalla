@@ -28,8 +28,8 @@ package runtime.valhalla.inlinetypes;
  * @summary check effect of volatile keyword on flattenable fields
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED VolatileTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=128 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.VolatileTest
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED VolatileTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.VolatileTest
  */
 
 import jdk.internal.misc.Unsafe;
