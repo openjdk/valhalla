@@ -177,6 +177,12 @@ final class ValueObjectMethods {
                     Class<?> ftype = fieldType(getter);
                     var f1 = getter.invoke(o1);
                     var f2 = getter.invoke(o2);
+                    if (JLIA.isNullRestrictedField(getter) && (f1 == null || f2 == null)) {
+                        System.out.println("null restricted field " + ftype.getName() + " in container " + type.getName());
+                    }
+
+                    assert JLIA.isNullRestrictedField(getter) && f1 != null && f2 != null :
+                            "null restricted field " + ftype.getName() + " in container " + type.getName();
 
                     boolean substitutable;
                     if (ftype == type) {
@@ -238,6 +244,11 @@ final class ValueObjectMethods {
                 for (MethodHandle getter : getters) {
                     Class<?> ftype = fieldType(getter);
                     var f = getter.invoke(obj);
+                    if (JLIA.isNullRestrictedField(getter) && f == null) {
+                        System.out.println("null restricted field " + ftype.getName() + " in container " + type.getName());
+                    }
+                    assert JLIA.isNullRestrictedField(getter) && f != null :
+                            "null restricted field " + ftype.getName() + " in container " + type.getName();
 
                     int hc;
                     if (ftype == type) {
@@ -505,8 +516,9 @@ final class ValueObjectMethods {
             }
 
             MethodHandle target = valueTypeHashCode(type, nonRecurTypeGetters);
-            System.out.println(type.getName() + " valueHashCode " + nonRecurTypeGetters + " " + recurTypeGetters);
-
+            if (VERBOSE) {
+                System.out.println(type.getName() + " valueHashCode " + nonRecurTypeGetters + " recursive types " + recurTypeGetters);
+            }
             // This value class contains cyclic membership
             // Create a method handle that is capable of calling itself.
             // - the hashCodeBase method first calls the method handle that computes the hash code

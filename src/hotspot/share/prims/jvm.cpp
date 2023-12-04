@@ -423,6 +423,18 @@ JVM_ENTRY(jstring, JVM_GetTemporaryDirectory(JNIEnv *env))
   return (jstring) JNIHandles::make_local(THREAD, h());
 JVM_END
 
+JVM_ENTRY(jobject, JVM_GetZeroInstance(JNIEnv *env, jclass cls)) {
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls));
+  k->initialize(CHECK_NULL);
+  if (!k->is_value_class()) {
+    ResourceMark rm;
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s not a value class", k->external_name()));
+  }
+  InlineKlass* vk = InlineKlass::cast(k);
+  oop v = vk->default_value();
+  return JNIHandles::make_local(THREAD, v); 
+}
+JVM_END
 
 JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len))
   if (len < 0) {
@@ -1293,6 +1305,12 @@ JVM_ENTRY(jboolean, JVM_IsIdentityClass(JNIEnv *env, jclass cls))
   } else {
     return k->is_interface() ? JNI_FALSE : JNI_TRUE;
   }
+JVM_END
+
+JVM_ENTRY(jboolean, JVM_IsImplicitlyConstructibleClass(JNIEnv *env, jclass cls))
+  oop mirror = JNIHandles::resolve_non_null(cls);
+  InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
+  return ik->is_implicitly_constructible();
 JVM_END
 
 JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))

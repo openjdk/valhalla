@@ -433,7 +433,10 @@ final class MemberName implements Member, Cloneable {
     }
 
     /** Query whether this member is a flattened field */
-    public boolean isFlattened() { return (flags & MN_FLATTENED) == MN_FLATTENED; }
+    public boolean isFlat() { return (flags & MN_FLAT_FIELD) == MN_FLAT_FIELD; }
+
+    /** Query whether this member is a null-restricted field */
+    public boolean isNullRestricted() { return (flags & MN_NULL_RESTRICTED) == MN_NULL_RESTRICTED; }
 
     /** Query whether this member is a field of a primitive class. */
     public boolean isInlineableField()  {
@@ -666,7 +669,7 @@ final class MemberName implements Member, Cloneable {
         this.name = fld.getName();
         this.type = fld.getType();
         byte refKind = this.getReferenceKind();
-        assert(refKind == (isStatic() ? REF_getStatic : REF_getField));
+        assert(refKind == (isStatic() ? REF_getStatic : REF_getField)) : " refKind " + refKind;
         if (makeSetter) {
             changeReferenceKind((byte)(refKind + (REF_putStatic - REF_getStatic)), refKind);
         }

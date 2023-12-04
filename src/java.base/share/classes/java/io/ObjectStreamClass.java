@@ -63,6 +63,7 @@ import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.JavaSecurityAccess;
 import jdk.internal.util.ByteArray;
+import jdk.internal.value.ValueClass;
 import sun.reflect.misc.ReflectUtil;
 
 /**
@@ -1961,7 +1962,7 @@ public final class ObjectStreamClass implements Serializable {
          */
         static Object newValueInstance(Class<?> clazz) throws InstantiationException{
             assert clazz.isValue() : "Should be a value class";
-            Object obj = UNSAFE.uninitializedDefaultValue(clazz);
+            Object obj = ValueClass.zeroInstance(clazz);
             return UNSAFE.makePrivateBuffer(obj);
         }
 

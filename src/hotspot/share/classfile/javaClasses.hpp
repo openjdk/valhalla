@@ -770,7 +770,7 @@ class java_lang_reflect_Field : public java_lang_reflect_AccessibleObject {
   static int _type_offset;
   static int _slot_offset;
   static int _modifiers_offset;
-  static int _trusted_final_offset;
+  static int _flags_offset;
   static int _signature_offset;
   static int _annotations_offset;
 
@@ -798,7 +798,7 @@ class java_lang_reflect_Field : public java_lang_reflect_AccessibleObject {
   static int modifiers(oop field);
   static void set_modifiers(oop field, int value);
 
-  static void set_trusted_final(oop field);
+  static void set_flags(oop field, int value);
 
   static void set_signature(oop constructor, oop value);
   static void set_annotations(oop constructor, oop value);
@@ -1301,8 +1301,9 @@ class java_lang_invoke_MemberName: AllStatic {
     MN_TRUSTED_FINAL         = 0x00200000, // trusted final field
     MN_HIDDEN_MEMBER         = 0x00400000, // @Hidden annotation detected
     MN_FLAT_FIELD            = 0x00800000, // flat field
-    MN_REFERENCE_KIND_SHIFT  = 24, // refKind
-    MN_REFERENCE_KIND_MASK   = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT,
+    MN_NULL_RESTRICTED_FIELD = 0x01000000, // null-restricted fiel
+    MN_REFERENCE_KIND_SHIFT  = 26, // refKind
+    MN_REFERENCE_KIND_MASK   = 0x3C000000 >> MN_REFERENCE_KIND_SHIFT,
     MN_NESTMATE_CLASS        = 0x00000001,
     MN_HIDDEN_CLASS          = 0x00000002,
     MN_STRONG_LOADER_LINK    = 0x00000004,

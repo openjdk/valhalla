@@ -579,6 +579,9 @@ JVM_IsHiddenClass(JNIEnv *env, jclass cls);
 JNIEXPORT jboolean JNICALL
 JVM_IsIdentityClass(JNIEnv *env, jclass cls);
 
+JNIEXPORT jboolean JNICALL
+JVM_IsImplicitlyConstructibleClass(JNIEnv *env, jclass cls);
+
 JNIEXPORT jint JNICALL
 JVM_GetClassModifiers(JNIEnv *env, jclass cls);
 
@@ -1133,6 +1136,9 @@ JVM_InitAgentProperties(JNIEnv *env, jobject agent_props);
 
 JNIEXPORT jstring JNICALL
 JVM_GetTemporaryDirectory(JNIEnv *env);
+
+JNIEXPORT jobject JNICALL
+JVM_GetZeroInstance(JNIEnv *env, jclass cls);
 
 JNIEXPORT jarray JNICALL
 JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len);

@@ -137,6 +137,7 @@ JVM_GetSystemPackage
 JVM_GetSystemPackages
 JVM_GetTemporaryDirectory
 JVM_GetVmArguments
+JVM_GetZeroInstance
 JVM_Halt
 JVM_HasReferencePendingList
 JVM_HoldsLock
@@ -156,6 +157,7 @@ JVM_IsDumpingClassList
 JVM_IsFinalizationEnabled
 JVM_IsHiddenClass
 JVM_IsIdentityClass
+JVM_IsImplicitlyConstructibleClass
 JVM_IsInterface
 JVM_IsPreviewEnabled
 JVM_IsValhallaEnabled

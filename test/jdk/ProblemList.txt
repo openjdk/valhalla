@@ -805,5 +805,4 @@ java/awt/FullScreen/TranslucentWindow/TranslucentWindow.java 8258103 linux-all
 java/awt/Focus/FrameMinimizeTest/FrameMinimizeTest.java 8016266 linux-x64
 
 # valhalla
-valhalla/valuetypes/ObjectMethods.java 8317150 generic-all
-valhalla/valuetypes/SubstitutabilityTest.java 8317151 generic-all
+valhalla/valuetypes/RecursiveValueClass.java 8317767 generic-all
