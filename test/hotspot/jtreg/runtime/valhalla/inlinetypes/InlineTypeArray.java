@@ -23,12 +23,15 @@
 
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.misc.VM;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
-
-import jdk.internal.value.PrimitiveClass;
 
 import static jdk.test.lib.Asserts.*;
 
@@ -37,10 +40,10 @@ import static jdk.test.lib.Asserts.*;
  * @summary Plain array test for Inline Types
  * @modules java.base/jdk.internal.value
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=-1 runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=0  runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
+ * @compile --source 22 --enable-preview --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=-1 --enable-preview --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=0 --enable-preview --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions --enable-preview -XX:ForceNonTearable=* --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {
     public static void main(String[] args) {
@@ -67,27 +70,12 @@ public class InlineTypeArray {
 
     void testClassForName() {
         String arrayClsName = "[Lruntime.valhalla.inlinetypes.Point;";
-        String qarrayClsName = "[Qruntime.valhalla.inlinetypes.Point;";
         try {
-            // L-type..
             Class<?> arrayCls = Class.forName(arrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
 
             arrayClsName = "[" + arrayClsName;
             Class<?> mulArrayCls = Class.forName(arrayClsName);
-            assertTrue(mulArrayCls.isArray());
-            assertTrue(mulArrayCls.getComponentType() == arrayCls);
-
-            // Q-type...
-            arrayCls = Class.forName(qarrayClsName);
-            assertTrue(arrayCls.isArray(), "Expected an array class");
-
-            assertTrue(arrayCls.getComponentType() == PrimitiveClass.asValueType(Point.class),
-                       arrayCls +
-                       " Expected component type of Point.class got: " + arrayCls.getComponentType());
-
-            qarrayClsName = "[" + qarrayClsName;
-            mulArrayCls = Class.forName(qarrayClsName);
             assertTrue(mulArrayCls.isArray());
             assertTrue(mulArrayCls.getComponentType() == arrayCls);
         }
@@ -97,7 +85,7 @@ public class InlineTypeArray {
     }
 
     void testSimplePointArray() {
-        Point[] defaultPoint = new Point[1];
+        Point[] defaultPoint = (Point[])VM.newNullRestrictedArray(Point.class, 1);
         Point p = defaultPoint[0];
         assertEquals(p.x, 0, "invalid default loaded from array");
         assertEquals(p.y, 0, "invalid default loaded from array");
@@ -118,7 +106,7 @@ public class InlineTypeArray {
 
         // Locked/unlocked flat array type checks
         points = createSimplePointArray();
-        Point[] pointsCopy = new Point[points.length];
+        Point[] pointsCopy = (Point[])VM.newNullRestrictedArray(Point.class, points.length);
         synchronized (points) {
             assertTrue(points instanceof Point[], "Instance of");
             checkSimplePointArray(points);
@@ -136,7 +124,7 @@ public class InlineTypeArray {
 
     void testSimplePointArrayCopy() {
         Point[] points = createSimplePointArray();
-        Point[] pointsCopy = new Point[points.length];
+        Point[] pointsCopy = (Point[])VM.newNullRestrictedArray(Point.class, points.length);
         System.arraycopy(points, 0, pointsCopy, 0, points.length);
         checkSimplePointArray(pointsCopy);
 
@@ -151,7 +139,7 @@ public class InlineTypeArray {
     }
 
     static Point[] createSimplePointArray() {
-        Point[] ps = new Point[4];
+        Point[] ps = (Point[])VM.newNullRestrictedArray(Point.class, 4);
         assertEquals(ps.length, 4, "Length");
         ps.toString();
         ps[0] = new Point(1, 2);
@@ -178,7 +166,7 @@ public class InlineTypeArray {
     }
 
     void testLong8Array() {
-        Long8Inline[] values = new Long8Inline[3];
+        Long8Inline[] values = (Long8Inline[])VM.newNullRestrictedArray(Long8Inline.class, 3);
         assertEquals(values.length, 3, "length");
         values.toString();
         Long8Inline value = values[1];
@@ -188,14 +176,14 @@ public class InlineTypeArray {
         value = values[1];
         Long8Inline.check(value, 1, 2, 3, 4, 5, 6, 7, 8);
 
-        Long8Inline[] copy = new Long8Inline[values.length];
+        Long8Inline[] copy = (Long8Inline[])VM.newNullRestrictedArray(Long8Inline.class, values.length);
         System.arraycopy(values, 0, copy, 0, values.length);
         value = copy[1];
         Long8Inline.check(value, 1, 2, 3, 4, 5, 6, 7, 8);
     }
 
     void testMixedPersonArray() {
-        Person[] people = new Person[3];
+        Person[] people = (Person[])VM.newNullRestrictedArray(Person.class, 3);
 
         people[0] = new Person(1, "First", "Last");
         assertEquals(people[0].getId(), 1, "Invalid Id person");
@@ -205,7 +193,7 @@ public class InlineTypeArray {
         people[1] = new Person(2, "Jane", "Wayne");
         people[2] = new Person(3, "Bob", "Dobalina");
 
-        Person[] peopleCopy = new Person[people.length];
+        Person[] peopleCopy = (Person[])VM.newNullRestrictedArray(Person.class, people.length);
         System.arraycopy(people, 0, peopleCopy, 0, people.length);
         assertEquals(peopleCopy[2].getId(), 3, "Invalid Id");
         assertEquals(peopleCopy[2].getFirstName(), "Bob", "Invalid First Name");
@@ -213,6 +201,7 @@ public class InlineTypeArray {
     }
 
     void testMultiDimPointArray() {
+        /*
         Point[][][] multiPoints = new Point[2][3][4];
         assertEquals(multiPoints.length, 2, "1st dim length");
         assertEquals(multiPoints[0].length, 3, "2st dim length");
@@ -221,6 +210,7 @@ public class InlineTypeArray {
         Point defaultPoint = multiPoints[1][2][3];
         assertEquals(defaultPoint.x, 0, "invalid point x value");
         assertEquals(defaultPoint.y, 0, "invalid point x value");
+        */
     }
 
     void testReflectArray() {
@@ -236,23 +226,25 @@ public class InlineTypeArray {
         assertTrue(array3[0][0] == null, "Expected NULL");
 
         // Now create ObjArrays of InlineArray...
-        Point.ref[][] barray = (Point.ref[][]) Array.newInstance(Point.ref.class, 1, 2);
+        Point[][] barray = (Point[][]) Array.newInstance(Point.class, 1, 2);
         assertEquals(barray.length, 1, "Incorrect length");
         assertEquals(barray[0].length, 2, "Incorrect length");
         barray[0][1] = new Point(1, 2);
-        Point.ref pb = barray[0][1];
+        Point pb = barray[0][1];
         int x = pb.getX();
         assertEquals(x, 1, "Bad Point Value");
     }
 
-    static final primitive class MyInt implements Comparable<MyInt.ref> {
-        final int value;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyInt implements Comparable<MyInt> {
+        int value;
 
         private MyInt() { this(0); }
         private MyInt(int v) { value = v; }
         public int getValue() { return value; }
         public String toString() { return "MyInt: " + getValue(); }
-        public int compareTo(MyInt.ref that) { return Integer.compare(this.getValue(), that.getValue()); }
+        public int compareTo(MyInt that) { return Integer.compare(this.getValue(), that.getValue()); }
         public boolean equals(Object o) {
             if (o instanceof MyInt) {
                 return this.getValue() == ((MyInt) o).getValue();
@@ -265,32 +257,41 @@ public class InlineTypeArray {
         }
 
         // Null-able fields here are a temp hack to avoid ClassCircularityError
-        public static final MyInt.ref MIN = MyInt.create(Integer.MIN_VALUE);
-        public static final MyInt.ref ZERO = MyInt.create(0);
-        public static final MyInt.ref MAX = MyInt.create(Integer.MAX_VALUE);
+        public static final MyInt MIN = MyInt.create(Integer.MIN_VALUE);
+        public static final MyInt ZERO = MyInt.create(0);
+        public static final MyInt MAX = MyInt.create(Integer.MAX_VALUE);
     }
 
-    static MyInt staticMyInt = MyInt.create(-1);
-    static MyInt[] staticMyIntArray = new MyInt[] { staticMyInt };
-    static MyInt[][] staticMyIntArrayArray = new MyInt[][] { staticMyIntArray, staticMyIntArray };
+    static MyInt staticMyInt;
+    static MyInt[] staticMyIntArray;
+    static MyInt[][] staticMyIntArrayArray;
+
+    static {
+        staticMyInt = MyInt.create(-1);
+        staticMyIntArray = (MyInt[])VM.newNullRestrictedArray(MyInt.class, 1);
+        staticMyIntArray[0] = staticMyInt;
+        staticMyIntArrayArray = new MyInt[][] { staticMyIntArray, staticMyIntArray };
+    }
 
     static interface SomeSecondaryType {
         default String hi() { return "Hi"; }
     }
 
-    static final primitive class MyOtherInt implements SomeSecondaryType {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyOtherInt implements SomeSecondaryType {
         final int value;
         private MyOtherInt() { value = 0; }
     }
 
     void testSanityCheckcasts() {
-        MyInt[] myInts = new MyInt[1];
+        MyInt[] myInts = (MyInt[])VM.newNullRestrictedArray(MyInt.class, 1);
         assertTrue(myInts instanceof Object[]);
         assertTrue(myInts instanceof Comparable[]);
         assertTrue(myInts instanceof MyInt[]);
 
-        Class<?> cls = PrimitiveClass.asValueType(MyInt.class);
-        assertTrue(PrimitiveClass.isPrimitiveValueType(cls));
+        Class<?> cls = MyInt.class;
+        assertTrue(cls.isValue());
         Object arrObj = Array.newInstance(cls, 1);
         assertTrue(arrObj instanceof Object[], "Not Object array");
         assertTrue(arrObj instanceof Comparable[], "Not Comparable array");
@@ -306,30 +307,24 @@ public class InlineTypeArray {
         MyOtherInt[][] matrix = new MyOtherInt[1][1];
         assertTrue(matrix[0] instanceof MyOtherInt[]);
         assertTrue(matrix[0] instanceof SomeSecondaryType[]);
-        assertTrue(matrix[0] instanceof MyOtherInt.ref[]);
+        assertTrue(matrix[0] instanceof MyOtherInt[]);
 
         // Box types vs Inline...
-        MyInt.ref[] myValueRefs = new MyInt.ref[1];
-        assertTrue(myValueRefs instanceof MyInt.ref[]);
+        MyInt[] myValueRefs = new MyInt[1];
+        assertTrue(myValueRefs instanceof MyInt[]);
         assertTrue(myValueRefs instanceof Object[]);
         assertTrue(myValueRefs instanceof Comparable[]);
-        assertFalse(myValueRefs instanceof MyInt[]);
 
-        MyInt.ref[][] myMdValueRefs = new MyInt.ref[1][1];
-        assertTrue(myMdValueRefs[0] instanceof MyInt.ref[]);
+        MyInt[][] myMdValueRefs = new MyInt[1][1];
+        assertTrue(myMdValueRefs[0] instanceof MyInt[]);
         assertTrue(myMdValueRefs[0] instanceof Object[]);
         assertTrue(myMdValueRefs[0] instanceof Comparable[]);
-        assertFalse(myMdValueRefs[0] instanceof MyInt[]);
 
         // Did we break checkcast...
-        MyInt.ref[]     va1 = (MyInt.ref[])null;
-        MyInt.ref[]     va2 = null;
-        MyInt.ref[][]   va3 = (MyInt.ref[][])null;
-        MyInt.ref[][][] va4 = (MyInt.ref[][][])null;
-        MyInt[]      va5 = null;
-        MyInt[]      va6 = (MyInt[])null;
-        MyInt[][]    va7 = (MyInt[][])null;
-        MyInt[][][]  va8 = (MyInt[][][])null;
+        MyInt[]     va1 = (MyInt[])null;
+        MyInt[]     va2 = null;
+        MyInt[][]   va3 = (MyInt[][])null;
+        MyInt[][][] va4 = (MyInt[][][])null;
     }
 
 
@@ -337,21 +332,33 @@ public class InlineTypeArray {
         // Sanity check j.u.Arrays
 
         // cast to q-type temp effect of avoiding circularity error (decl static MyInt.ref)
-        MyInt[] myInts = new MyInt[] { (MyInt) MyInt.MAX, (MyInt) MyInt.MIN };
+        MyInt[] myInts = (MyInt[])VM.newNullRestrictedArray(MyInt.class, 2);
+        myInts[0] = (MyInt) MyInt.MAX;
+        myInts[1] = (MyInt) MyInt.MIN;
         // Sanity sort another copy
         MyInt[] copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
-        checkArrayElementsEqual(copyMyInts, new MyInt[] { myInts[0], myInts[1], (MyInt) MyInt.ZERO});
+        MyInt[] expected = (MyInt[])VM.newNullRestrictedArray(MyInt.class, 3);
+        expected[0] = myInts[0];
+        expected[1] = myInts[1];
+        expected[2] = (MyInt) MyInt.ZERO;
+        checkArrayElementsEqual(copyMyInts, expected);
 
         Arrays.sort(copyMyInts);
-        checkArrayElementsEqual(copyMyInts, new MyInt[] { (MyInt) MyInt.MIN, (MyInt) MyInt.ZERO, (MyInt) MyInt.MAX });
+        expected = (MyInt[])VM.newNullRestrictedArray(MyInt.class, 3);
+        expected[0] = (MyInt) MyInt.MIN;
+        expected[1] = (MyInt) MyInt.ZERO;
+        expected[2] = (MyInt) MyInt.MAX;
+        checkArrayElementsEqual(copyMyInts, expected);
 
         List myIntList = Arrays.asList(copyMyInts);
-        checkArrayElementsEqual(copyMyInts, myIntList.toArray(new MyInt[copyMyInts.length]));
+
+        MyInt[] dest = (MyInt[])VM.newNullRestrictedArray(MyInt.class, copyMyInts.length);
+        checkArrayElementsEqual(copyMyInts, myIntList.toArray(dest));
         // This next line needs testMixedLayoutArrays to work
         checkArrayElementsEqual(copyMyInts, myIntList.toArray());
 
         // Sanity check j.u.ArrayList
-        ArrayList<MyInt.ref> aList = new ArrayList<MyInt.ref>(Arrays.asList(copyMyInts));
+        ArrayList<MyInt> aList = new ArrayList<MyInt>(Arrays.asList(copyMyInts));
         assertTrue(aList.indexOf(MyInt.MIN) == 0, "Bad Index");
         assertTrue(aList.indexOf(MyInt.ZERO) == 1, "Bad Index");
         assertTrue(aList.indexOf(MyInt.MAX) == 2, "Bad Index");
@@ -398,12 +405,12 @@ public class InlineTypeArray {
         comparables[1] = null;
         assertTrue(comparables[0] == null && comparables[1] == null, "Not null ?");
 
-        MyInt.ref[] myIntRefArray = new MyInt.ref[1];
+        MyInt[] myIntRefArray = new MyInt[1];
         assertTrue(myIntRefArray[0] == null, "Got: " + myIntRefArray[0]);
         myIntRefArray[0] = null;
 
-        MyInt.ref[] srcNulls = new MyInt.ref[2];
-        MyInt.ref[] dstNulls = new MyInt.ref[2];
+        MyInt[] srcNulls = new MyInt[2];
+        MyInt[] dstNulls = new MyInt[2];
         System.arraycopy(srcNulls, 0, dstNulls, 0, 2);
         checkArrayElementsEqual(srcNulls, dstNulls);
         srcNulls[1] = MyInt.create(1);
@@ -437,11 +444,17 @@ public class InlineTypeArray {
         System.arraycopy(valArray, 0, compArray, 0, 3);
         checkArrayElementsEqual(valArray, compArray);
 
-        valArray = new MyInt[] { (MyInt) MyInt.ZERO, (MyInt) MyInt.ZERO, (MyInt) MyInt.ZERO };
+        valArray = (MyInt[])VM.newNullRestrictedArray(MyInt.class, 3);
+        valArray[0] = (MyInt) MyInt.ZERO;
+        valArray[1] = (MyInt) MyInt.ZERO;
+        valArray[2] = (MyInt) MyInt.ZERO;
         System.arraycopy(compArray, 0, valArray, 0, 3);
         checkArrayElementsEqual(valArray, compArray);
 
-        valArray = new MyInt[] { (MyInt) MyInt.ZERO, (MyInt) MyInt.ZERO, (MyInt) MyInt.ZERO };
+        valArray = (MyInt[])VM.newNullRestrictedArray(MyInt.class, 3);
+        valArray[0] = (MyInt) MyInt.ZERO;
+        valArray[1] = (MyInt) MyInt.ZERO;
+        valArray[2] = (MyInt) MyInt.ZERO;
         System.arraycopy(objArray, 0, valArray, 0, 3);
         checkArrayElementsEqual(valArray, objArray);
 
@@ -455,7 +468,7 @@ public class InlineTypeArray {
             throw new RuntimeException("Expected ArrayStoreException");
         } catch (ArrayStoreException ase) {}
 
-        MyInt.ref[] myIntRefArray = new MyInt.ref[3];
+        MyInt[] myIntRefArray = new MyInt[3];
         System.arraycopy(valArray, 0, myIntRefArray, 0, 3);
         checkArrayElementsEqual(valArray, myIntRefArray);
 
@@ -466,9 +479,13 @@ public class InlineTypeArray {
         } catch (NullPointerException npe) {}
     }
 
-    static final primitive class MyPoint {
-        final               MyInt x;
-        final               MyInt y;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyPoint {
+        @NullRestricted
+        MyInt x;
+        @NullRestricted
+        MyInt y;
 
         private MyPoint() { this(0, 0); }
         private MyPoint(int x, int y) {
@@ -488,7 +505,8 @@ public class InlineTypeArray {
         static MyPoint create(int x, int y) {
             return new MyPoint(x, y);
         }
-        static final MyPoint.ref ORIGIN = create(0);
+        @NullRestricted
+        static final MyPoint ORIGIN = create(0);
     }
 
     void testComposition() {
@@ -497,11 +515,14 @@ public class InlineTypeArray {
         MyPoint b = MyPoint.create(7, 21);
         MyPoint c = MyPoint.create(Integer.MAX_VALUE, Integer.MIN_VALUE);
 
-        MyPoint[] pts = new MyPoint[3];
+        MyPoint[] pts = (MyPoint[])VM.newNullRestrictedArray(MyPoint.class, 3);
         if (!pts[0].equals(MyPoint.ORIGIN)) {
             throw new RuntimeException("Equals failed: " + pts[0] + " vs " + MyPoint.ORIGIN);
         }
-        pts = new MyPoint[] { a, b, c };
+        pts = (MyPoint[])VM.newNullRestrictedArray(MyPoint.class, 3);
+        pts[0] = a;
+        pts[1] = b;
+        pts[2] = c;
         checkArrayElementsEqual(pts, new Object[] { a, b, c});
         Object[] oarr = new Object[3];
 

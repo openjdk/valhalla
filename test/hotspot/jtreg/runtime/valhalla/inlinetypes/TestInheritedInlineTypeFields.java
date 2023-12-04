@@ -23,17 +23,19 @@
 
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
 /*
  * @test TestInheritedInlineTypeFields
  * @summary Test if inline field klasses are correctly retrieved for inherited fields
  * @library /test/lib
- * @compile -XDallowFlattenabilityModifiers -XDenablePrimitiveClasses Point.java TestInheritedInlineTypeFields.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED Point.java TestInheritedInlineTypeFields.java
+ * @run main/othervm -XX:+EnableValhalla --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
  */
 
 class A {
+    @NullRestricted
     Point p;
 }
 
@@ -50,6 +52,7 @@ class D {
 }
 
 class E extends D {
+    @NullRestricted
     Point p1;
 }
 
@@ -58,6 +61,7 @@ class F extends E {
 }
 
 class G extends F {
+    @NullRestricted
     Point p2;
 }
 

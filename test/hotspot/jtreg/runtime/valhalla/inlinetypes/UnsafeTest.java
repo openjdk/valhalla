@@ -23,16 +23,22 @@
 
 package runtime.valhalla.inlinetypes;
 
+
+
 /*
  * @test UnsafeTest
  * @summary unsafe get/put/with inline type
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses Point.java UnsafeTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
+ * @compile  --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED Point.java UnsafeTest.java
+ * @run main/othervm -XX:+EnableValhalla  -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.VM;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 import java.lang.reflect.*;
 import java.util.List;
@@ -41,7 +47,10 @@ import static jdk.test.lib.Asserts.*;
 public class UnsafeTest {
     static final Unsafe U = Unsafe.getUnsafe();
 
-    static primitive class Value1 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Value1 {
+        @NullRestricted
         Point point;
         Point[] array;
         Value1(Point p, Point... points) {
@@ -50,8 +59,11 @@ public class UnsafeTest {
         }
     }
 
-    static primitive class Value2 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Value2 {
         int i;
+        @NullRestricted
         Value1 v;
 
         Value2(Value1 v, int i) {
@@ -60,8 +72,11 @@ public class UnsafeTest {
         }
     }
 
-    static primitive class Value3 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Value3 {
         Object o;
+        @NullRestricted
         Value2 v;
 
         Value3(Value2 v, Object ref) {

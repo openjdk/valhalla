@@ -57,9 +57,9 @@ public class ClassInitializationFailuresTest {
         BadOne badField = new BadOne();
     }
 
-    // Test handling of errors during the initialization of a primitive class
+    // Test handling of errors during the initialization of a value class
     // Initialization of TestClass1 triggers the initialization of classes
-    // of all its primitive class typed fields, in this case BadOne
+    // of all its value class typed fields, in this case BadOne
     // Static initializer of BadOne throws an exception, so BadOne's initialization
     // fails, which must caused the initialization of TestClass1 to fail too
     // First attempt to instantiate TestClass1 must fail with an ExceptionInInitializerError
@@ -111,9 +111,9 @@ public class ClassInitializationFailuresTest {
         }
     }
 
-    // Same test as above, but for arrays of primitive objects
+    // Same test as above, but for arrays of value objects
     static void testArrayInitialization() {
-        // Testing anewarray when the primitive element class fails to initialize properly
+        // Testing anewarray when the value element class fails to initialize properly
         Throwable e = null;
         try {
             BadTwo[] array = (BadTwo[])VM.newNullRestrictedArray(BadTwo.class, 10);
@@ -134,7 +134,7 @@ public class ClassInitializationFailuresTest {
         /*
         Transition model (annotations and array factory) doesn't permit multi-dimentional arrays tests
         Disabling those tests for now
-        Testing multianewarray when the primitive element class fails to initialize properly
+        Testing multianewarray when the value element class fails to initialize properly
         try {
             BadThree[][] array = new BadThree[10][20];
         } catch(Throwable t) {
@@ -167,7 +167,7 @@ public class ClassInitializationFailuresTest {
         }
     }
 
-    // Even if a primitive class fails to initialize properly, some instances
+    // Even if a value class fails to initialize properly, some instances
     // of this class can escape and be accessible. The JVM must be able to
     // deal with those instances without crashes. The test below checks that
     // escaped values stored in an array are handled correctly

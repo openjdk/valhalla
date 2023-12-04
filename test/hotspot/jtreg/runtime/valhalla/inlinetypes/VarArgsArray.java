@@ -26,16 +26,65 @@ package runtime.valhalla.inlinetypes;
 
 import java.lang.reflect.*;
 import static jdk.test.lib.Asserts.*;
-import jdk.internal.value.PrimitiveClass;
+
+import jdk.internal.misc.VM;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 /*
  * @test VarArgsArray
  * @summary Test if JVM API using varargs work with inline type arrays
  * @modules java.base/jdk.internal.value
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses VarArgsArray.java NewInstanceFromConstructor.java IntValue.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.VarArgsArray
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED VarArgsArray.java
+ * @run main/othervm -XX:+EnableValhalla  --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.VarArgsArray
  */
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class IntValue {
+    int val;
+    public IntValue()       { this(0); }
+    public IntValue(int v)  { val = v; }
+    public int getInt()     { return val; }
+}
+
+
+class NewInstanceFromConstructor {
+
+    int value;
+    static int consCalls = 0;
+
+    public NewInstanceFromConstructor() {
+        this(0);
+    }
+
+    public NewInstanceFromConstructor(int v) {
+        value = v;
+        consCalls++;
+    }
+
+    public NewInstanceFromConstructor(IntValue v) {
+        this(v.getInt());
+    }
+
+    public NewInstanceFromConstructor(IntValue v1,
+                                      IntValue v2) {
+        this(v1.getInt() + v2.getInt());
+    }
+
+    public NewInstanceFromConstructor(IntValue v1,
+                                      String s) {
+        this(v1);
+        throw new RuntimeException(s);
+    }
+
+    public int getValue() { return value; }
+
+    public static int getConsCalls() { return consCalls; }
+}
+
 public class VarArgsArray {
 
     static final int TOKEN_VALUE = 4711;
@@ -58,9 +107,9 @@ public class VarArgsArray {
         MyInt[] array1 = new MyInt[] { new MyInt(TOKEN_VALUE) };
         MyInt[] array2 = new MyInt[] { new MyInt(TOKEN_VALUE), new MyInt(TOKEN_VALUE) };
 
-        Method methodARef = getClass().getDeclaredMethod("methodA", PrimitiveClass.asValueType(MyInt.class));
-        Method methodBRef = getClass().getDeclaredMethod("methodB", PrimitiveClass.asValueType(MyInt.class), PrimitiveClass.asValueType(MyInt.class));
-        Method methodCRef = getClass().getDeclaredMethod("methodC", PrimitiveClass.asValueType(MyInt.class), String.class);
+        Method methodARef = getClass().getDeclaredMethod("methodA", MyInt.class);
+        Method methodBRef = getClass().getDeclaredMethod("methodB", MyInt.class, MyInt.class);
+        Method methodCRef = getClass().getDeclaredMethod("methodC", MyInt.class, String.class);
 
         // Positive tests...
         methodARef.invoke(this, (Object[])array1);
@@ -98,7 +147,7 @@ public class VarArgsArray {
     public void testJvmNewInstanceFromConstructor() throws Throwable {
         // Inner classes use outer in param list, so these won't exercise inline type array
         Class tc = NewInstanceFromConstructor.class;
-        Class pt = PrimitiveClass.asValueType(IntValue.class);
+        Class pt = IntValue.class;
         Constructor consARef = tc.getConstructor(pt);
         Constructor consBRef = tc.getConstructor(pt, pt);
         Constructor consCRef = tc.getConstructor(pt, String.class);
@@ -158,7 +207,9 @@ public class VarArgsArray {
         new VarArgsArray().test();
     }
 
-    primitive class MyInt {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class MyInt {
         int value;
         public MyInt() { this(0); }
         public MyInt(int v) { this.value = v; }
