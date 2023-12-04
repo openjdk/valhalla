@@ -266,6 +266,9 @@ class SerializeClosure;
   template(java_util_concurrent_atomic_AtomicReferenceFieldUpdater_Impl,     "java/util/concurrent/atomic/AtomicReferenceFieldUpdater$AtomicReferenceFieldUpdaterImpl") \
   template(jdk_internal_vm_annotation_Contended_signature,                   "Ljdk/internal/vm/annotation/Contended;")    \
   template(jdk_internal_vm_annotation_ReservedStackAccess_signature,         "Ljdk/internal/vm/annotation/ReservedStackAccess;") \
+  template(jdk_internal_vm_annotation_ImplicitlyConstructible_signature,     "Ljdk/internal/vm/annotation/ImplicitlyConstructible;") \
+  template(jdk_internal_vm_annotation_LooselyConsistentValue_signature,      "Ljdk/internal/vm/annotation/LooselyConsistentValue;") \
+  template(jdk_internal_vm_annotation_NullRestricted_signature,              "Ljdk/internal/vm/annotation/NullRestricted;") \
   template(jdk_internal_ValueBased_signature,                                "Ljdk/internal/ValueBased;") \
                                                                                                   \
   /* class symbols needed by intrinsics */                                                        \

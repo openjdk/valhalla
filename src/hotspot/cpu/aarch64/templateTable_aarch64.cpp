@@ -1175,7 +1175,7 @@ void TemplateTable::aastore() {
 
   // Have a null in r0, r3=array, r2=index.  Store null at ary[idx]
   __ bind(is_null);
-  if (EnablePrimitiveClasses) {
+  if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
     // No way to store null in flat null-free array
@@ -2738,7 +2738,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmp(tos_state, (u1)atos);
   __ br(Assembler::NE, notObj);
   // atos
-  if (!EnablePrimitiveClasses) {
+  if (!EnableValhalla) {
     do_oop_load(_masm, field, r0, IN_HEAP);
     __ push(atos);
     if (rc == may_rewrite) {
@@ -3026,7 +3026,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   // atos
   {
-     if (!EnablePrimitiveClasses) {
+     if (!EnableValhalla) {
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field

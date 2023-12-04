@@ -180,7 +180,7 @@ class InlineKlass: public InstanceKlass {
   address data_for_oop(oop o) const;
 
   // Query if this class promises atomicity one way or another
-  bool is_atomic() { return is_naturally_atomic() || is_declared_atomic(); }
+  bool is_atomic() { return is_naturally_atomic() || must_be_atomic(); }
 
   bool flat_array();
 

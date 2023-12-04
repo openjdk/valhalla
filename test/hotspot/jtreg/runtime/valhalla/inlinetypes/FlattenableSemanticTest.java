@@ -24,28 +24,66 @@ package runtime.valhalla.inlinetypes;
 
 
 import jdk.test.lib.Asserts;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
 
 /*
  * @test
  * @summary Flattenable field semantic test
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses Point.java JumboInline.java FlattenableSemanticTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.FlattenableSemanticTest
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.FlattenableSemanticTest
- * // debug: -XX:+PrintInlineLayout -XX:-ShowMessageBoxOnError
+ * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED FlattenableSemanticTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=64 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.FlattenableSemanticTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.FlattenableSemanticTest
  */
 public class FlattenableSemanticTest {
 
-    static Point.ref nfsp;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Point {
+        final int x = 0;
+        final int y = 0;
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value class JumboInline {
+        final long l0 = 0;
+        final long l1 = 1;
+        final long l2 = 2;
+        final long l3 = 3;
+        final long l4 = 4;
+        final long l5 = 5;
+        final long l6 = 6;
+        final long l7 = 7;
+        final long l8 = 8;
+        final long l9 = 9;
+        final long l10 = 10;
+        final long l11 = 11;
+        final long l12 = 12;
+        final long l13 = 13;
+        final long l14 = 14;
+        final long l15 = 15;
+        final long l16 = 16;
+        final long l17 = 17;
+        final long l18 = 18;
+        final long l19 = 19;
+    }
+
+    static Point nfsp;
+    @NullRestricted
     static Point fsp;
 
-    Point.ref nfip;
+    Point nfip;
+    @NullRestricted
     Point fip;
 
-    static JumboInline.ref nfsj;
+    static JumboInline nfsj;
+    @NullRestricted
     static JumboInline fsj;
 
-    JumboInline.ref nfij;
+    JumboInline nfij;
+    @NullRestricted
     JumboInline fij;
 
     static Object getNull() {
@@ -74,7 +112,7 @@ public class FlattenableSemanticTest {
         // Assigning null must be allowed for non flattenable inline fields
         boolean exception = true;
         try {
-            nfsp = (Point.ref)getNull();
+            nfsp = (Point)getNull();
             nfsp = null;
             exception = false;
         } catch (NullPointerException e) {
@@ -83,7 +121,7 @@ public class FlattenableSemanticTest {
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
         try {
-            nfsj = (JumboInline.ref)getNull();
+            nfsj = (JumboInline)getNull();
             nfsj = null;
             exception = false;
         } catch (NullPointerException e) {
@@ -92,7 +130,7 @@ public class FlattenableSemanticTest {
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
         try {
-            test.nfip = (Point.ref)getNull();
+            test.nfip = (Point)getNull();
             test.nfip = null;
             exception = false;
         } catch (NullPointerException e) {
@@ -101,7 +139,7 @@ public class FlattenableSemanticTest {
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
         try {
-            test.nfij = (JumboInline.ref)getNull();
+            test.nfij = (JumboInline)getNull();
             test.nfij = null;
             exception = false;
         } catch (NullPointerException e) {

@@ -55,3 +55,9 @@ JNIEXPORT jobjectArray JNICALL
 Java_jdk_internal_misc_VM_getRuntimeArguments(JNIEnv *env, jclass cls) {
     return JVM_GetVmArguments(env);
 }
+
+JNIEXPORT jarray JNICALL
+Java_jdk_internal_misc_VM_newNullRestrictedArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
+{
+    return JVM_NewNullRestrictedArray(env, elmClass, len);
+}
