@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,12 @@ package compiler.valhalla.inlinetypes;
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
+import jdk.internal.misc.VM;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
@@ -33,15 +39,15 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 /*
  * @test
  * @key randomness
- * @summary Test on stack replacement (OSR) with inline types
+ * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses TestOnStackReplacement.java
+ * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestOnStackReplacement.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestOnStackReplacement
  */
 
 public class TestOnStackReplacement {
-
 
     public static void main(String[] args) throws Throwable {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
@@ -78,7 +84,7 @@ public class TestOnStackReplacement {
         long result = 0;
         // Long loop to trigger OSR compilation
         for (int i = 0; i < 50_000; ++i) {
-            // Reference local inline type in interpreter state
+            // Reference local value object in interpreter state
             result = v.hash();
             for (int j = 0; j < va.length; ++j) {
                 result += va[j].hash();
@@ -165,7 +171,7 @@ public class TestOnStackReplacement {
         test4();
     }
 
-    // OSR compilation with null inline type local
+    // OSR compilation with null value class local
 
     MyValue1.ref nullField;
 
@@ -185,8 +191,10 @@ public class TestOnStackReplacement {
         test5();
     }
 
-    // Test OSR in method with inline type receiver
-    primitive class Test6Value {
+    // Test OSR in method with value class receiver
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test6Value {
         public int f = 0;
 
         public int test() {
@@ -213,7 +221,9 @@ public class TestOnStackReplacement {
     }
 
     // Similar to test6 but with more fields and reserved stack entry
-    static primitive class Test7Value1 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test7Value1 {
         public int i1 = rI;
         public int i2 = rI;
         public int i3 = rI;
@@ -222,7 +232,9 @@ public class TestOnStackReplacement {
         public int i6 = rI;
     }
 
-    static primitive class Test7Value2 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test7Value2 {
         public int i1 = rI;
         public int i2 = rI;
         public int i3 = rI;
@@ -245,6 +257,7 @@ public class TestOnStackReplacement {
         public int i20 = rI;
         public int i21 = rI;
 
+        @NullRestricted
         public Test7Value1 vt = new Test7Value1();
 
         public int test(String[] args) {
@@ -270,7 +283,7 @@ public class TestOnStackReplacement {
         test7();
     }
 
-    // Test OSR with scalarized inline type return
+    // Test OSR with scalarized value class return
     MyValue3 test8_vt;
 
     @DontInline

@@ -36,6 +36,11 @@ import java.util.Arrays;
 
 import jdk.internal.value.PrimitiveClass;
 
+import jdk.internal.misc.VM;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
@@ -48,7 +53,8 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @modules java.base/jdk.internal.value
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDenablePrimitiveClasses MyValue5.jcod
- * @compile -XDenablePrimitiveClasses TestLWorld.java
+ * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestLWorld.java
  * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestLWorld
  */
 
@@ -1532,19 +1538,21 @@ public class TestLWorld {
     }
 
     // Inline type with some non-flattened fields
-    final primitive class Test51Value {
-        final Object objectField1;
-        final Object objectField2;
-        final Object objectField3;
-        final Object objectField4;
-        final Object objectField5;
-        final Object objectField6;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test51Value {
+        Object objectField1;
+        Object objectField2;
+        Object objectField3;
+        Object objectField4;
+        Object objectField5;
+        Object objectField6;
 
-        final MyValue1 valueField1;
-        final MyValue1 valueField2;
-        final MyValue1.ref valueField3;
-        final MyValue1 valueField4;
-        final MyValue1.ref valueField5;
+        MyValue1 valueField1;
+        MyValue1 valueField2;
+        MyValue1.ref valueField3;
+        MyValue1 valueField4;
+        MyValue1.ref valueField5;
 
         public Test51Value() {
             objectField1 = null;
@@ -1610,6 +1618,7 @@ public class TestLWorld {
     }
 
     // Pass arguments via fields to avoid exzessive spilling leading to compilation bailouts
+    @NullRestricted
     static Test51Value test51_arg1;
     static MyValue1 test51_arg2;
     static Object test51_arg3;
@@ -2033,8 +2042,11 @@ public class TestLWorld {
     }
 
     // Test calling a method on an uninitialized inline type
-    final primitive class Test72Value {
-        final int x = 42;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test72Value {
+        int x = 42;
+
         public int get() {
             return x;
         }
@@ -2195,9 +2207,12 @@ public class TestLWorld {
     }
 
     // Test flattened field with non-flattenend (but flattenable) inline type field
-    static primitive class Small {
-        final int i;
-        final Big big; // Too big to be flattened
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Small {
+        int i;
+        @NullRestricted
+        Big big; // Too big to be flattened
 
         private Small() {
             i = rI;
@@ -2205,7 +2220,9 @@ public class TestLWorld {
         }
     }
 
-    static primitive class Big {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Big {
         long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9;
         long l10,l11,l12,l13,l14,l15,l16,l17,l18,l19;
         long l20,l21,l22,l23,l24,l25,l26,l27,l28,l29;
@@ -2217,9 +2234,13 @@ public class TestLWorld {
         }
     }
 
+    @NullRestricted
     Small small = new Small();
+    @NullRestricted
     Small smallDefault;
+    @NullRestricted
     Big big = new Big();
+    @NullRestricted
     Big bigDefault;
 
     @Test
@@ -2478,8 +2499,11 @@ public class TestLWorld {
         Asserts.assertFalse(test91(new Object()));
     }
 
-    static primitive class Test92Value {
-        final int field;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test92Value {
+        int field;
+
         public Test92Value() {
             field = 0x42;
         }
@@ -2533,7 +2557,7 @@ public class TestLWorld {
             Object result = test93(array);
             Asserts.assertEquals(result, 0x42);
         } else {
-            Object[] array = new Test92Value[1];
+            Object[] array = (Test92Value[])VM.newNullRestrictedArray(Test92Value.class, 1);
             Method m = info.getTest();
             int extra = 3;
             for (int j = 0; j < extra; j++) {
@@ -3020,7 +3044,10 @@ public class TestLWorld {
     }
 
     @ForceCompileClassInitializer
-    static primitive class LongWrapper implements WrapperInterface {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class LongWrapper implements WrapperInterface {
+        @NullRestricted
         final static LongWrapper ZERO = new LongWrapper(0);
         private long val;
 
@@ -3079,10 +3106,10 @@ public class TestLWorld {
     }
 
     static class RefBox {
-        LongWrapper.ref content;
+        LongWrapper content;
 
         @ForceInline
-        RefBox(LongWrapper.ref content) {
+        RefBox(LongWrapper content) {
             this.content = content;
         }
 
@@ -3093,11 +3120,12 @@ public class TestLWorld {
 
         @ForceInline
         static RefBox box(long val) {
-            return new RefBox((LongWrapper.ref)WrapperInterface.wrap(val));
+            return new RefBox((LongWrapper)WrapperInterface.wrap(val));
         }
     }
 
     static class InlineBox {
+        @NullRestricted
         LongWrapper content;
 
         @ForceInline
@@ -3115,8 +3143,8 @@ public class TestLWorld {
         T content;
 
         @ForceInline
-        static GenericBox<LongWrapper.ref> box_sharp(long val) {
-            GenericBox<LongWrapper.ref> res = new GenericBox<>();
+        static GenericBox<LongWrapper> box_sharp(long val) {
+            GenericBox<LongWrapper> res = new GenericBox<>();
             res.content = LongWrapper.wrap(val);
             return res;
         }
@@ -3302,7 +3330,7 @@ public class TestLWorld {
     static interface WrapperInterface2 {
         public long value();
 
-        static final InlineWrapper.ref ZERO = new InlineWrapper(0);
+        static final InlineWrapper ZERO = new InlineWrapper(0);
 
         @ForceInline
         public static WrapperInterface2 wrap(long val) {
@@ -3315,7 +3343,9 @@ public class TestLWorld {
         }
     }
 
-    static primitive class LongWrapper2 implements WrapperInterface2 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class LongWrapper2 implements WrapperInterface2 {
         private long val;
 
         @ForceInline
@@ -3329,7 +3359,9 @@ public class TestLWorld {
         }
     }
 
-    static primitive class InlineWrapper {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class InlineWrapper {
         WrapperInterface2 content;
 
         @ForceInline
@@ -3395,10 +3427,12 @@ public class TestLWorld {
         Asserts.assertEquals(res, 5*rL);
     }
 
-    static MyValueEmpty     fEmpty1;
-    static MyValueEmpty.ref fEmpty2 = MyValueEmpty.default;
-           MyValueEmpty     fEmpty3;
-           MyValueEmpty.ref fEmpty4 = MyValueEmpty.default;
+    @NullRestricted
+    static MyValueEmpty fEmpty1;
+    static MyValueEmpty fEmpty2 = MyValueEmpty.default;
+    @NullRestricted
+           MyValueEmpty fEmpty3;
+           MyValueEmpty fEmpty4 = MyValueEmpty.default;
 
     // Test fields loads/stores with empty inline types
     @Test
@@ -3421,7 +3455,7 @@ public class TestLWorld {
     // Test array loads/stores with empty inline types
     @Test
     @IR(failOn = {ALLOC_G})
-    public MyValueEmpty test117(MyValueEmpty[] arr1, MyValueEmpty.ref[] arr2) {
+    public MyValueEmpty test117(MyValueEmpty[] arr1, MyValueEmpty[] arr2) {
         arr1[0] = arr2[0];
         arr2[0] = new MyValueEmpty();
         return arr1[0];
@@ -3438,7 +3472,7 @@ public class TestLWorld {
     // Test acmp with empty inline types
     @Test
     @IR(failOn = {ALLOC_G})
-    public boolean test118(MyValueEmpty v1, MyValueEmpty.ref v2, Object o1) {
+    public boolean test118(MyValueEmpty v1, MyValueEmpty v2, Object o1) {
         return (v1 == v2) && (v2 == o1);
     }
 
@@ -3448,22 +3482,29 @@ public class TestLWorld {
         Asserts.assertTrue(res);
     }
 
-    static primitive class EmptyContainer {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EmptyContainer {
+        @NullRestricted
         private MyValueEmpty empty = MyValueEmpty.default;
     }
 
-    static primitive class MixedContainer {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MixedContainer {
         public int val = rI;
+        @NullRestricted
         private EmptyContainer empty = EmptyContainer.default;
     }
 
     // Test re-allocation of empty inline type array during deoptimization
     @Test
-    @IR(failOn = {ALLOC_G})
+// TODO fix, we need to intrinsify newNullRestrictedArray
+//    @IR(failOn = {ALLOC_G})
     public void test119(boolean deopt, Method m) {
         MyValueEmpty[]   array1 = new MyValueEmpty[]{MyValueEmpty.default};
-        EmptyContainer[] array2 = new EmptyContainer[]{EmptyContainer.default};
-        MixedContainer[] array3 = new MixedContainer[]{MixedContainer.default};
+        EmptyContainer[] array2 = (EmptyContainer[])VM.newNullRestrictedArray(EmptyContainer.class, 1);
+        MixedContainer[] array3 = (MixedContainer[])VM.newNullRestrictedArray(MixedContainer.class, 1);
         if (deopt) {
             // uncommon trap
             TestFramework.deoptimize(m);
@@ -3890,12 +3931,18 @@ public class TestLWorld {
         Asserts.assertTrue(test138(rI, true));
     }
 
-    static primitive class Test139Value {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test139Value {
         Object obj = null;
+        @NullRestricted
         MyValueEmpty empty = MyValueEmpty.default;
     }
 
-    static primitive class Test139Wrapper {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test139Wrapper {
+        @NullRestricted
         Test139Value value = Test139Value.default;
     }
 
@@ -3913,8 +3960,11 @@ public class TestLWorld {
     }
 
     // Test calling a method on a loaded but not linked inline type
-    final primitive class Test140Value {
-        final int x = 42;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test140Value {
+        int x = 42;
+
         public int get() {
             return x;
         }
@@ -3935,8 +3985,11 @@ public class TestLWorld {
     }
 
     // Test calling a method on a linked but not initialized inline type
-    final primitive class Test141Value {
-        final int x = 42;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test141Value {
+        int x = 42;
+
         public int get() {
             return x;
         }
@@ -4191,7 +4244,9 @@ public class TestLWorld {
         }
     }
 
-    static primitive class MyValue152 extends MyAbstract2 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue152 extends MyAbstract2 {
         private int unused = 0; // Make sure sub-offset of val is field non-zero
         private int val;
 
@@ -4206,8 +4261,11 @@ public class TestLWorld {
         }
     }
 
-    static primitive class MyWrapper152 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyWrapper152 {
         private int unused = 0; // Make sure sub-offset of val field is non-zero
+        @NullRestricted
         MyValue152 val;
 
         @ForceInline

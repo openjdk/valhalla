@@ -33,6 +33,12 @@ import java.util.Arrays;
 
 import jdk.internal.value.PrimitiveClass;
 
+import jdk.internal.misc.VM;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
@@ -40,11 +46,12 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 /*
  * @test
  * @key randomness
- * @summary Test intrinsic support for inline types
+ * @summary Test intrinsic support for value classes.
  * @library /test/lib /
  * @modules java.base/jdk.internal.misc java.base/jdk.internal.value
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses TestIntrinsics.java
+ * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestIntrinsics.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestIntrinsics
  */
 
@@ -54,17 +61,15 @@ public class TestIntrinsics {
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        for (Scenario scenario: scenarios) {
-            scenario.addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                    "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED");
-            // Don't run with DeoptimizeALot until JDK-8239003 is fixed
-            scenario.addFlags("-XX:-DeoptimizeALot");
-        }
         scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UnlockExperimentalVMOptions", "-XX:PerMethodSpecTrapLimit=0", "-XX:PerMethodTrapLimit=0");
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
+                   .addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+                             // Don't run with DeoptimizeALot until JDK-8239003 is fixed
+                             "-XX:-DeoptimizeALot")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)
@@ -173,7 +178,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.hashCode());
     }
 
-    // Test default inline type array creation via reflection
+    // Test default value class array creation via reflection
     @Test
     public Object[] test7(Class<?> componentType, int len) {
         Object[] va = (Object[])Array.newInstance(componentType, len);
@@ -274,7 +279,7 @@ public class TestIntrinsics {
         }
     }
 
-    // inline type array creation via reflection
+    // Value class array creation via reflection
     @Test
     public void test14(int len, long hash) {
         Object[] va = (Object[])Array.newInstance(PrimitiveClass.asValueType(MyValue1.class), len);
@@ -339,7 +344,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, System.identityHashCode(v));
     }
 
-    // hashCode() and toString() with different inline types
+    // hashCode() and toString() with different value objects
     @Test
     public int test19(MyValue1 vt1, MyValue1 vt2, boolean b) {
         MyValue1 res = b ? vt1 : vt2;
@@ -447,15 +452,18 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, test24_vt.x);
     }
 
-    // Test copyOf intrinsic with allocated inline type in it's debug information
-    final primitive class Test25Value {
-        final int x;
+    // Test copyOf intrinsic with allocated value object in it's debug information
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test25Value {
+        int x;
+
         public Test25Value() {
             this.x = 42;
         }
     }
 
-    final Test25Value[] test25Array = new Test25Value[10];
+    final Test25Value[] test25Array = (Test25Value[])VM.newNullRestrictedArray(Test25Value.class, 10);
 
     @Test
     public Test25Value[] test25(Test25Value element) {
@@ -487,7 +495,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(((MyValue1)res[0]).hashPrimitive(), MyValue1.createDefaultInline().hashPrimitive());
     }
 
-    // Load non-flattenable inline type field with unsafe
+    // Load non-flattenable value class field with unsafe
     MyValue1.ref test27_vt;
     private static final long TEST27_OFFSET;
     static {
@@ -538,7 +546,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public long test29(MyValue1 v) {
         // Read the field that's guaranteed to not be last in the
-        // inline type so we don't read out of bounds.
+        // value class so we don't read out of bounds.
         if (X_OFFSET < Y_OFFSET) {
             return U.getInt(v, X_OFFSET+1);
         }
@@ -564,7 +572,7 @@ public class TestIntrinsics {
         }
     }
 
-    // getValue to retrieve flattened field from inline type
+    // getValue to retrieve flattened field from value object
     @Test
     @IR(failOn = {CALL_UNSAFE})
     public MyValue2 test30(MyValue1 v) {
@@ -772,7 +780,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res.hash(), v.hash());
     }
 
-    // Test default inline type array creation via reflection
+    // Test default value class array creation via reflection
     @Test
     public Object[] test40(Class<?> componentType, int len) {
         Object[] va = (Object[])Array.newInstance(componentType, len);
@@ -985,7 +993,7 @@ public class TestIntrinsics {
         }
     }
 
-    // inline type array creation via reflection
+    // Value class array creation via reflection
     @Test
     public void test51(int len) {
         Object[] va = (Object[])Array.newInstance(PrimitiveClass.asPrimaryType(MyValue1.class), len);
@@ -1000,7 +1008,7 @@ public class TestIntrinsics {
         test51(len);
     }
 
-    // multidimensional inline type array creation via reflection
+    // multidimensional value class array creation via reflection
     @Test
     public Object[][] test52(int len, int val) {
         MyValue1[][] va1 = (MyValue1[][])Array.newInstance(MyValue1[].class, len);
@@ -1164,7 +1172,7 @@ public class TestIntrinsics {
         Asserts.assertFalse(res);
     }
 
-    // Test synchronization on unsafe inline type allocation
+    // Test synchronization on unsafe value object allocation
     @Test
     public void test59(Class<?> c) throws Exception {
         Object obj = U.allocateInstance(c);
@@ -1178,13 +1186,13 @@ public class TestIntrinsics {
         test59(Integer.class);
         try {
             test59(PrimitiveClass.asValueType(MyValue1.class));
-            throw new RuntimeException("test59 failed: synchronization on inline type should not succeed");
+            throw new RuntimeException("test59 failed: synchronization on value object should not succeed");
         } catch (IllegalMonitorStateException e) {
 
         }
     }
 
-    // Test mark word load optimization on unsafe inline type allocation
+    // Test mark word load optimization on unsafe value object allocation
     @Test
     public boolean test60(Class<?> c1, Class<?> c2, boolean b1, boolean b2) throws Exception {
         Object obj1 = b1 ? new Object() : U.allocateInstance(c1);
@@ -1255,7 +1263,7 @@ public class TestIntrinsics {
 
         boolean res = test63(test31_vt, vt);
         // Checks are disabled for non-flattened field because reference comparison
-        // fails if C2 scalarizes and re-allocates the inline type arguments.
+        // fails if C2 scalarizes and re-allocates the value class arguments.
         if (TEST31_VT_FLATTENED) {
             Asserts.assertTrue(res);
             Asserts.assertEQ(test31_vt, vt);
@@ -1285,7 +1293,7 @@ public class TestIntrinsics {
 
         boolean res = test64(arr, arr[1], vt);
         // Checks are disabled for non-flattened array because reference comparison
-        // fails if C2 scalarizes and re-allocates the inline type arguments.
+        // fails if C2 scalarizes and re-allocates the value class arguments.
         if (TEST33_FLATTENED_ARRAY) {
             Asserts.assertTrue(res);
             Asserts.assertEQ(arr[1], vt);
@@ -1364,7 +1372,7 @@ public class TestIntrinsics {
 
         Object res = test67(test31_vt, vt);
         // Checks are disabled for non-flattened field because reference comparison
-        // fails if C2 scalarizes and re-allocates the inline type arguments.
+        // fails if C2 scalarizes and re-allocates the value class arguments.
         if (TEST31_VT_FLATTENED) {
             Asserts.assertEQ(res, oldVal);
             Asserts.assertEQ(test31_vt, vt);
@@ -1394,7 +1402,7 @@ public class TestIntrinsics {
 
         Object res = test68(arr, arr[1], vt);
         // Checks are disabled for non-flattened array because reference comparison
-        // fails if C2 scalarizes and re-allocates the inline type arguments.
+        // fails if C2 scalarizes and re-allocates the value class arguments.
         if (TEST33_FLATTENED_ARRAY) {
             Asserts.assertEQ(res, MyValue1.default);
             Asserts.assertEQ(arr[1], vt);
@@ -1457,7 +1465,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(test31_vt, vt);
     }
 
-    // getValue to retrieve flattened field from (nullable) inline type
+    // getValue to retrieve flattened field from (nullable) value class
     @Test
     @IR(failOn = {CALL_UNSAFE})
     public MyValue2 test71(boolean b, MyValue1.val v1, MyValue1.ref v2) {
@@ -1531,11 +1539,15 @@ public class TestIntrinsics {
         Asserts.assertEQ(test73(false, V1_OFFSET), test73_value2.v1);
     }
 
-    static primitive class EmptyInline {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EmptyInline {
 
     }
 
-    static primitive class ByteInline {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ByteInline {
         byte x = 0;
     }
 
@@ -1547,7 +1559,7 @@ public class TestIntrinsics {
 
     @Run(test = "test74")
     public void test74_verifier() {
-        EmptyInline[] emptyArray = new EmptyInline[100];
+        EmptyInline[] emptyArray = (EmptyInline[])VM.newNullRestrictedArray(EmptyInline.class, 100);
         test74(emptyArray);
         for (EmptyInline empty : emptyArray) {
             Asserts.assertEQ(empty, EmptyInline.default);
@@ -1561,7 +1573,7 @@ public class TestIntrinsics {
 
     @Run(test = "test75")
     public void test75_verifier() {
-        EmptyInline[] emptyArray = new EmptyInline[100];
+        EmptyInline[] emptyArray = (EmptyInline[])VM.newNullRestrictedArray(EmptyInline.class, 100);
         test75(emptyArray);
         for (EmptyInline empty : emptyArray) {
             Asserts.assertEQ(empty, EmptyInline.default);
@@ -1576,7 +1588,7 @@ public class TestIntrinsics {
 
     @Run(test = "test76")
     public void test76_verifier() {
-        ByteInline[] byteArray = new ByteInline[100];
+        ByteInline[] byteArray = (ByteInline[])VM.newNullRestrictedArray(ByteInline.class, 100);
         test76(byteArray);
         for (ByteInline b : byteArray) {
             Asserts.assertEQ(b, ByteInline.default);
@@ -1590,7 +1602,7 @@ public class TestIntrinsics {
 
     @Run(test = "test77")
     public void test77_verifier() {
-        ByteInline[] byteArray = new ByteInline[100];
+        ByteInline[] byteArray = (ByteInline[])VM.newNullRestrictedArray(ByteInline.class, 100);
         test77(byteArray);
         for (ByteInline b : byteArray) {
             Asserts.assertEQ(b, ByteInline.default);
@@ -1633,21 +1645,26 @@ public class TestIntrinsics {
     }
     */
 
-    public static final primitive class Test80Value1 {
-        final Test80Value2 v = new Test80Value2();
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public static value class Test80Value1 {
+        @NullRestricted
+        Test80Value2 v = new Test80Value2();
     }
 
-    public static final primitive class Test80Value2 {
-        final long l = rL;
-        final Integer i = rI;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public static value class Test80Value2 {
+        long l = rL;
+        Integer i = rI;
     }
 
     // Test that unsafe access is not incorrectly classified as mismatched
     @Test
     @IR(failOn = {CALL_UNSAFE})
-    public Test80Value2 test80(Test80Value1.ref v, boolean flat, long offset) {
+    public Test80Value2 test80(Test80Value1 v, boolean flat, long offset) {
         if (flat) {
-            return U.getValue(v, offset, PrimitiveClass.asValueType(Test80Value2.class));
+            return U.getValue(v, offset, Test80Value2.class);
         } else {
             return (Test80Value2)U.getReference(v, offset);
         }
@@ -1656,7 +1673,7 @@ public class TestIntrinsics {
     @Run(test = "test80")
     public void test80_verifier() throws Exception {
         Test80Value1 v = new Test80Value1();
-        Field field = PrimitiveClass.asValueType(Test80Value1.class).getDeclaredField("v");
+        Field field = Test80Value1.class.getDeclaredField("v");
         Asserts.assertEQ(test80(v, U.isFlattened(field), U.objectFieldOffset(field)), v.v);
     }
 

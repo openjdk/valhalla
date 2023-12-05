@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,22 +24,25 @@
 /**
  * @test
  * @bug 8247309
- * @summary Test correct handling of aconst_init bytecode with unresolved inline class.
+ * @summary Test correct handling of aconst_init bytecode with unresolved value class.
+ * @library /test/lib
  * @compile -XDenablePrimitiveClasses TestUnresolvedDefault.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp -XX:CompileCommand=compileonly,TestUnresolvedDefault::test TestUnresolvedDefault
+ * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:CompileCommand=compileonly,TestUnresolvedDefault::test TestUnresolvedDefault
  */
+
+import jdk.test.lib.Asserts;
 
 public class TestUnresolvedDefault {
 
-    static primitive class UnresolvedInline {
+    static value class UnresolvedValue {
         int x = 42;
     }
 
     static int test() {
-        return UnresolvedInline.default.x;
+        return UnresolvedValue.default.x;
     }
 
     static public void main(String[] args) {
-        test();
+        Asserts.assertEquals(test(), 0);
     }
 }

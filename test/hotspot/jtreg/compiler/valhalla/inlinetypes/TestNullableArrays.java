@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import java.util.Arrays;
 /*
  * @test
  * @key randomness
- * @summary Test nullable inline type arrays
+ * @summary Test nullable value class arrays.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses TestNullableArrays.java
@@ -79,7 +79,7 @@ public class TestNullableArrays {
 
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
 
-    // Test nullable inline type array creation and initialization
+    // Test nullable value class array creation and initialization
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         counts = {ALLOCA, "= 1"})
@@ -109,7 +109,7 @@ public class TestNullableArrays {
         }
     }
 
-    // Test creation of an inline type array and element access
+    // Test creation of a value class array and element access
     @Test
     @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
     public long test2() {
@@ -124,7 +124,7 @@ public class TestNullableArrays {
         Asserts.assertEQ(result, hash());
     }
 
-    // Test receiving an inline type array from the interpreter,
+    // Test receiving a value class array from the interpreter,
     // updating its elements in a loop and computing a hash.
     @Test
     @IR(failOn = {ALLOCA})
@@ -158,7 +158,7 @@ public class TestNullableArrays {
         }
     }
 
-    // Test returning an inline type array received from the interpreter
+    // Test returning a value class array received from the interpreter
     @Test
     @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue1.ref[] test4(MyValue1.ref[] va) {
@@ -177,7 +177,7 @@ public class TestNullableArrays {
         }
     }
 
-    // Merge inline type arrays created from two branches
+    // Merge value class arrays created from two branches
     @Test
     public MyValue1.ref[] test5(boolean b) {
         MyValue1.ref[] va;
@@ -221,7 +221,7 @@ public class TestNullableArrays {
         Asserts.assertEQ(va[9], null);
     }
 
-    // Test creation of inline type array with single element
+    // Test creation of value class array with single element
     @Test
     @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
     public MyValue1.ref test6() {
@@ -236,7 +236,7 @@ public class TestNullableArrays {
         Asserts.assertEQ(v, null);
     }
 
-    // Test default initialization of inline type arrays
+    // Test default initialization of value class arrays
     @Test
     @IR(failOn = LOAD)
     public MyValue1.ref[] test7(int len) {
@@ -253,7 +253,7 @@ public class TestNullableArrays {
         }
     }
 
-    // Test creation of inline type array with zero length
+    // Test creation of value class array with zero length
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
     public MyValue1.ref[] test8() {
@@ -268,7 +268,7 @@ public class TestNullableArrays {
 
     static MyValue1.ref[] test9_va;
 
-    // Test that inline type array loaded from field has correct type
+    // Test that value class array loaded from field has correct type
     @Test
     @IR(failOn = LOOP)
     public long test9() {
@@ -562,7 +562,7 @@ public class TestNullableArrays {
         }
     }
 
-    // arraycopy() of inline type array with oop fields
+    // arraycopy() of value class array with oop fields
     @Test
     public void test20(MyValue1.ref[] src, MyValue1.ref[] dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
@@ -606,7 +606,7 @@ public class TestNullableArrays {
         }
     }
 
-    // arraycopy() of inline type array with no oop field
+    // arraycopy() of value class array with no oop field
     @Test
     public void test21(MyValue2.ref[] src, MyValue2.ref[] dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
@@ -650,7 +650,7 @@ public class TestNullableArrays {
         }
     }
 
-    // arraycopy() of inline type array with oop field and tightly
+    // arraycopy() of value class array with oop field and tightly
     // coupled allocation as dest
     @Test
     public MyValue1.ref[] test22(MyValue1.ref[] src) {
@@ -680,7 +680,7 @@ public class TestNullableArrays {
         }
     }
 
-    // arraycopy() of inline type array with oop fields and tightly
+    // arraycopy() of value class array with oop fields and tightly
     // coupled allocation as dest
     @Test
     public MyValue1.ref[] test23(MyValue1.ref[] src) {
@@ -710,7 +710,7 @@ public class TestNullableArrays {
         }
     }
 
-    // arraycopy() of inline type array passed as Object
+    // arraycopy() of value class array passed as Object
     @Test
     public void test24(MyValue1.ref[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
@@ -918,7 +918,7 @@ public class TestNullableArrays {
     }
 
     // non escaping allocation with uncommon trap that needs
-    // eliminated inline type array element as debug info
+    // eliminated value class array element as debug info
     @Test
     public MyValue2.ref test30(MyValue2.ref[] src, boolean flag) {
         MyValue2.ref[] dst = new MyValue2.ref[10];
@@ -1115,7 +1115,7 @@ public class TestNullableArrays {
         return false;
     }
 
-    // arraycopy() of inline type array of unknown size
+    // arraycopy() of value class array of unknown size
     @Test
     public void test35(Object src, Object dst, int len) {
         System.arraycopy(src, 0, dst, 0, len);
@@ -1725,7 +1725,7 @@ public class TestNullableArrays {
         verify(verif, result);
     }
 
-    // Test default initialization of inline type arrays: small array
+    // Test default initialization of value class arrays: small array
     @Test
     public MyValue1.ref[] test64() {
         return new MyValue1.ref[8];
@@ -1739,7 +1739,7 @@ public class TestNullableArrays {
         }
     }
 
-    // Test default initialization of inline type arrays: large array
+    // Test default initialization of value class arrays: large array
     @Test
     public MyValue1.ref[] test65() {
         return new MyValue1.ref[32];
@@ -2073,7 +2073,7 @@ public class TestNullableArrays {
         }
     }
 
-    // Same as test76 but with non inline type array cases
+    // Same as test76 but with non value class array cases
     @Test
     public Object[] test78(MyValue1[] vva, MyValue1.ref[] vba, Object val, Object[] out, int n) {
         Object[] result = null;
@@ -2507,8 +2507,8 @@ public class TestNullableArrays {
         Asserts.assertEQ(result, hash());
     }
 
-    // Matrix multiplication test to exercise type flow analysis with nullable inline type arrays
-    primitive static class Complex {
+    // Matrix multiplication test to exercise type flow analysis with nullable value class arrays
+    static value class Complex {
         private final double re;
         private final double im;
 
@@ -2528,12 +2528,12 @@ public class TestNullableArrays {
     }
 
     @Test
-    public Complex.ref[][] test96(Complex.ref[][] A, Complex.ref[][] B) {
+    public Complex[][] test96(Complex[][] A, Complex[][] B) {
         int size = A.length;
-        Complex.ref[][] R = new Complex.ref[size][size];
+        Complex[][] R = new Complex[size][size];
         for (int i = 0; i < size; i++) {
             for (int k = 0; k < size; k++) {
-                Complex.ref aik = A[i][k];
+                Complex aik = A[i][k];
                 for (int j = 0; j < size; j++) {
                     R[i][j] = B[i][j].add(aik.mul((Complex)B[k][j]));
                 }
@@ -2542,9 +2542,9 @@ public class TestNullableArrays {
         return R;
     }
 
-    static Complex.ref[][] test96_A = new Complex.ref[10][10];
-    static Complex.ref[][] test96_B = new Complex.ref[10][10];
-    static Complex.ref[][] test96_R;
+    static Complex[][] test96_A = new Complex[10][10];
+    static Complex[][] test96_B = new Complex[10][10];
+    static Complex[][] test96_R;
 
     static {
         for (int i = 0; i < 10; i++) {
@@ -2557,7 +2557,7 @@ public class TestNullableArrays {
 
     @Run(test = "test96")
     public void test96_verifier() {
-        Complex.ref[][] result = test96(test96_A, test96_B);
+        Complex[][] result = test96(test96_A, test96_B);
         if (test96_R == null) {
             test96_R = result;
         }

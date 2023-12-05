@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,14 +30,13 @@ import jdk.test.lib.Asserts;
  * @test
  * @key randomness
  * @bug 8209009
- * @summary Test bimorphic inlining with inline type receivers.
+ * @summary Test bimorphic inlining with value object receivers.
  * @library /testlibrary /test/lib
- * @compile -XDenablePrimitiveClasses TestBimorphicInlining.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch -XX:TypeProfileLevel=222
+ * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*
  *                   -XX:CompileCommand=quiet -XX:CompileCommand=print,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*
  *                   compiler.valhalla.inlinetypes.TestBimorphicInlining
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch -XX:TypeProfileLevel=222
+ * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:TypeProfileLevel=222
  *                   -XX:+UnlockExperimentalVMOptions -XX:PerMethodTrapLimit=0 -XX:PerMethodSpecTrapLimit=0
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*
  *                   -XX:CompileCommand=quiet -XX:CompileCommand=print,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*
@@ -48,8 +47,8 @@ interface MyInterface {
     public MyInterface hash(MyInterface arg);
 }
 
-primitive final class TestValue1 implements MyInterface {
-    final int x;
+value class TestValue1 implements MyInterface {
+    int x;
 
     public TestValue1(int x) {
         this.x = x;
@@ -60,8 +59,8 @@ primitive final class TestValue1 implements MyInterface {
     }
 }
 
-primitive final class TestValue2 implements MyInterface {
-    final int x;
+value class TestValue2 implements MyInterface {
+    int x;
 
     public TestValue2(int x) {
         this.x = x;

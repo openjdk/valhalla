@@ -27,10 +27,9 @@
  * @bug 8303416
  * @summary Fix JVM crash at Unsafe_FinishPrivateBuffer
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
  *          TestLarvalState.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
  *                   compiler.valhalla.inlinetypes.TestLarvalState
  */
@@ -78,7 +77,7 @@ public class TestLarvalState {
         Asserts.assertEquals(expected, actual);
     }
 
-    primitive static class Value {
+    static value class Value {
         byte field = 0;
 
         static long offset = fieldOffset();

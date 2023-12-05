@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,16 +29,22 @@ import compiler.lib.ir_framework.Scenario;
 import compiler.lib.ir_framework.Test;
 import jdk.test.lib.Asserts;
 
+import jdk.internal.misc.VM;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
 /*
  * @test
  * @key randomness
- * @summary Various tests that are specific for C1.
+ * @summary Various tests that are specific to C1.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses TestC1.java
+ * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestC1.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestC1
  */
 
@@ -46,29 +52,22 @@ public class TestC1 {
     public static void main(String[] args) {
         final Scenario[] scenarios = {
                 // C1 only
-                new Scenario(0,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
-                             "-XX:TieredStopAtLevel=1", "-XX:+TieredCompilation"),
+                new Scenario(0, "-XX:TieredStopAtLevel=1", "-XX:+TieredCompilation"),
                 // C2 only. (Make sure the tests are correctly written)
-                new Scenario(1,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
-                             "-XX:TieredStopAtLevel=4", "-XX:-TieredCompilation"),
+                new Scenario(1, "-XX:TieredStopAtLevel=4", "-XX:-TieredCompilation"),
                 // interpreter only
-                new Scenario(2,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
-                             "-Xint"),
+                new Scenario(2, "-Xint"),
                 // Xcomp Only C1.
-                new Scenario(3,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
-                             "-XX:TieredStopAtLevel=1", "-XX:+TieredCompilation", "-Xcomp"),
+                new Scenario(3, "-XX:TieredStopAtLevel=1", "-XX:+TieredCompilation", "-Xcomp"),
                 // Xcomp Only C2.
-                new Scenario(4,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
-                             "-XX:TieredStopAtLevel=4", "-XX:-TieredCompilation", "-Xcomp")
+                new Scenario(4, "-XX:TieredStopAtLevel=4", "-XX:-TieredCompilation", "-Xcomp")
         };
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
+                   .addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                             "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
@@ -96,8 +95,11 @@ public class TestC1 {
         Asserts.assertEQ(r2, 0x1234567812345678L);
     }
 
-    static primitive class SimpleValue2 {
-        final int value;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class SimpleValue2 {
+        int value;
+
         SimpleValue2(int value) {
             this.value = value;
         }
@@ -113,7 +115,7 @@ public class TestC1 {
 
     @Run(test = "test2")
     public void test2_verifier() {
-        SimpleValue2[] array = new SimpleValue2[1];
+        SimpleValue2[] array = (SimpleValue2[])VM.newNullRestrictedArray(SimpleValue2.class, 1);
         array[0] = new SimpleValue2(rI);
         int result = test2(array);
         Asserts.assertEQ(result, 2*rI);
@@ -197,7 +199,9 @@ public class TestC1 {
     }
 
     // Test 1st level sub-element access to non-flattened field
-    static primitive class Big {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Big {
         long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19 ;
 
         Big(long n) {
@@ -230,8 +234,11 @@ public class TestC1 {
         }
     }
 
-    static primitive class TestValue {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class TestValue {
         int i;
+        @NullRestricted
         Big big;
 
         TestValue(int n) {
@@ -247,7 +254,7 @@ public class TestC1 {
 
     @Run(test = "test7")
     public void test7_verifier() {
-        TestValue[] array = new TestValue[7];
+        TestValue[] array = (TestValue[])VM.newNullRestrictedArray(TestValue.class, 7);
         Big b0 = test7(array, 3);
         b0.check(0, 0);
         TestValue tv = new TestValue(9);
@@ -278,18 +285,20 @@ public class TestC1 {
     // (read/write are not performed, pre-allocated instance is used for reads)
     // Most tests check that error conditions are still correctly handled
     // (OOB, null pointer)
-    static primitive class EmptyType {}
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EmptyType {}
 
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType test9() {
-        EmptyType[] array = new EmptyType[10];
+        EmptyType[] array = (EmptyType[])VM.newNullRestrictedArray(EmptyType.class, 10);
         return array[4];
     }
 
     @Run(test = "test9")
     public void test9_verifier() {
         EmptyType et = test9();
-        Asserts.assertEQ(et, EmptyType.default);
+        Asserts.assertEQ(et, new EmptyType());
     }
 
     @Test(compLevel = CompLevel.C1_SIMPLE)
@@ -299,9 +308,9 @@ public class TestC1 {
 
     @Run(test = "test10")
     public void test10_verifier() {
-        EmptyType[] array = new EmptyType[16];
+        EmptyType[] array = (EmptyType[])VM.newNullRestrictedArray(EmptyType.class, 16);
         EmptyType et = test10(array);
-        Asserts.assertEQ(et, EmptyType.default);
+        Asserts.assertEQ(et, new EmptyType());
     }
 
     @Test(compLevel = CompLevel.C1_SIMPLE)
@@ -312,7 +321,7 @@ public class TestC1 {
     @Run(test = "test11")
     public void test11_verifier() {
         Exception e = null;
-        EmptyType[] array = new EmptyType[10];
+        EmptyType[] array = (EmptyType[])VM.newNullRestrictedArray(EmptyType.class, 10);
         try {
             EmptyType et = test11(array, 11);
         } catch (ArrayIndexOutOfBoundsException ex) {
@@ -342,25 +351,26 @@ public class TestC1 {
 
     @Run(test = "test12")
     public void test12_verifier() {
-        EmptyType[] array = new EmptyType[16];
-        test12(array, 2, EmptyType.default);
+        EmptyType empty = new EmptyType();
+        EmptyType[] array = (EmptyType[])VM.newNullRestrictedArray(EmptyType.class, 16);
+        test12(array, 2, empty);
         Exception e = null;
         try {
-            test12(null, 2, EmptyType.default);
+            test12(null, 2, empty);
         } catch(NullPointerException ex) {
             e = ex;
         }
         Asserts.assertNotNull(e);
         e = null;
         try {
-            test12(array, 17, EmptyType.default);
+            test12(array, 17, empty);
         } catch(ArrayIndexOutOfBoundsException ex) {
             e = ex;
         }
         Asserts.assertNotNull(e);
         e = null;
         try {
-            test12(array, -8, EmptyType.default);
+            test12(array, -8, empty);
         } catch(ArrayIndexOutOfBoundsException ex) {
             e = ex;
         }

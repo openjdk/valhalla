@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,10 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import jdk.internal.value.PrimitiveClass;
+import jdk.internal.misc.VM;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 /*
  * @test
@@ -43,7 +47,8 @@ import jdk.internal.value.PrimitiveClass;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses TestValueClasses.java
+ * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestValueClasses.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestValueClasses
  */
 
@@ -157,7 +162,7 @@ public class TestValueClasses {
         Asserts.assertEquals(testField8, testField4);
     }
 
-    // Non-primitive Wrapper
+    // Non-value class Wrapper
     static class Test3Wrapper {
         MyValueClass1 val;
 
@@ -352,7 +357,7 @@ public class TestValueClasses {
         return vt;
     }
 
-    // Test scalarization in calls and returns with empty nullable inline types
+    // Test scalarization in calls and returns with empty value classes
     @Test
     public Empty1 test6(Empty1 vt) {
         Empty1 empty1 = test6_helper1(vt);
@@ -380,7 +385,7 @@ public class TestValueClasses {
         }
     }
 
-    // Test deoptimization at call return with inline type returned in registers
+    // Test deoptimization at call return with value object returned in registers
     @DontInline
     public SmallNullable1 test7_helper1(boolean deopt, boolean b1, boolean b2) {
         test7_helper2(deopt);
@@ -402,7 +407,7 @@ public class TestValueClasses {
         Asserts.assertEQ(result, b1 ? null : vt);
     }
 
-    // Test calling a method returning a nullable inline type as fields via reflection
+    // Test calling a method returning a value class as fields via reflection
     @Test
     public SmallNullable1 test8(boolean b1, boolean b2) {
         return b1 ? null : new SmallNullable1(b2);
@@ -444,6 +449,7 @@ public class TestValueClasses {
     @Run(test = "test10")
     public void test10_verifier() {
         Asserts.assertEQ(test10(MyValueClass1.class, testValue1), testValue1);
+        // TODO remove
         Asserts.assertEQ(test10(PrimitiveClass.asPrimaryType(MyValueClass1.class), null), null);
         Asserts.assertEQ(test10(PrimitiveClass.asPrimaryType(MyValueClass2.class), null), null);
         Asserts.assertEQ(test10(Integer.class, null), null);
@@ -590,7 +596,9 @@ public class TestValueClasses {
         Asserts.assertEQ(test16(3, true), null);
     }
 
-    static primitive class MyPrimitive17 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyPrimitive17 {
         MyValueClass1 nonFlattened;
 
         public MyPrimitive17(MyValueClass1 val) {
@@ -599,6 +607,7 @@ public class TestValueClasses {
     }
 
     static value class MyValue17 {
+        @NullRestricted
         MyPrimitive17 flattened;
 
         public MyValue17(boolean b) {
@@ -619,7 +628,7 @@ public class TestValueClasses {
     MyValue17 test17_field1;
     MyValue17 test17_field2;
 
-    // Test handling of null when mixing value and primitive classes
+    // Test handling of null when mixing nullable and null-restricted fields
     @Test
     public MyValue17 test17(boolean b1, boolean b2) {
         MyValue17 ret = test17_interpreted(b1, b2);

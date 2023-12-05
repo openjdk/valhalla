@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,17 +29,28 @@ import jdk.test.whitebox.WhiteBox;
 
 import java.lang.reflect.Method;
 
+import jdk.internal.misc.VM;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
  * @test
  * @key randomness
- * @summary Test inline type specific profiling
+ * @summary Test value class specific type profiling.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses TestLWorldProfiling.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestLWorldProfiling
+ * @compile -XDenablePrimitiveClasses
+ *          --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *          TestLWorldProfiling.java
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                               --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                               compiler.valhalla.inlinetypes.TestLWorldProfiling
  */
 
 @ForceCompileClassInitializer
@@ -48,27 +59,23 @@ public class TestLWorldProfiling {
     public static void main(String[] args) {
         final Scenario[] scenarios = {
                 new Scenario(0,
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
                         "-XX:-UseACmpProfile",
                         "-XX:TypeProfileLevel=0",
                         "-XX:-MonomorphicArrayCheck"),
                 new Scenario(1,
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:+UseArrayLoadStoreProfile",
                         "-XX:+UseACmpProfile",
                         "-XX:TypeProfileLevel=0"),
                 new Scenario(2,
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
                         "-XX:-UseACmpProfile",
                         "-XX:TypeProfileLevel=222",
                         "-XX:-MonomorphicArrayCheck"),
                 new Scenario(3,
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
                         "-XX:-UseACmpProfile",
@@ -77,7 +84,6 @@ public class TestLWorldProfiling {
                         "-XX:TieredStopAtLevel=4",
                         "-XX:-TieredCompilation"),
                 new Scenario(4,
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:+UseArrayLoadStoreProfile",
                         "-XX:+UseACmpProfile",
@@ -85,7 +91,6 @@ public class TestLWorldProfiling {
                         "-XX:TieredStopAtLevel=4",
                         "-XX:-TieredCompilation"),
                 new Scenario(5,
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
                         "-XX:-UseACmpProfile",
@@ -97,7 +102,9 @@ public class TestLWorldProfiling {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions")
+                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions", "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                             "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class)
                    .start();
@@ -427,17 +434,20 @@ public class TestLWorldProfiling {
 
     // null free array profiling
 
-    primitive static class NotFlattenable {
-        private final Object o1 = null;
-        private final Object o2 = null;
-        private final Object o3 = null;
-        private final Object o4 = null;
-        private final Object o5 = null;
-        private final Object o6 = null;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class NotFlattenable {
+        private Object o1 = null;
+        private Object o2 = null;
+        private Object o3 = null;
+        private Object o4 = null;
+        private Object o5 = null;
+        private Object o6 = null;
     }
 
+    @NullRestricted
     private static final NotFlattenable notFlattenable = new NotFlattenable();
-    private static final NotFlattenable[] testNotFlattenableArray = new NotFlattenable[] { notFlattenable };
+    private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 1);
 
     @Test
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
@@ -682,7 +692,7 @@ public class TestLWorldProfiling {
         }
     }
 
-    // Input profiled not inline type with known type
+    // Input profiled not value class with known type
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
         failOn = {SUBSTITUTABILITY_TEST},
@@ -846,7 +856,7 @@ public class TestLWorldProfiling {
         }
     }
 
-    // Input profiled not inline type with unknown type
+    // Input profiled not value class with unknown type
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
         failOn = {SUBSTITUTABILITY_TEST},
@@ -1076,7 +1086,10 @@ public class TestLWorldProfiling {
     // Test array access with polluted array type profile
     static abstract class Test40Abstract { }
     static class Test40Class extends Test40Abstract { }
-    static primitive class Test40Inline extends Test40Abstract { }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test40Inline extends Test40Abstract { }
 
     @ForceInline
     public Object test40_access(Object[] array) {
@@ -1125,7 +1138,8 @@ public class TestLWorldProfiling {
             test41_access(new Object[1], new Object());
         } else {
             // When inlining test41_access, profiling contradicts actual type of array
-            test41(new Test40Inline[1], new Test40Inline());
+            Test40Inline[] array = (Test40Inline[])VM.newNullRestrictedArray(Test40Inline.class, 1);
+            test41(array, new Test40Inline());
         }
     }
 }

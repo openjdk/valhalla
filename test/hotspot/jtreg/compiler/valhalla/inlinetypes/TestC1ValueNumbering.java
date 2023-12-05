@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,25 +28,40 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test
- * @summary Test value numbering behaves correctly with flattened fields
+ * @summary Test value numbering behaves correctly with flat fields.
  * @library /testlibrary /test/lib
- * @compile -XDenablePrimitiveClasses TestC1ValueNumbering.java
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestC1ValueNumbering.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp -XX:TieredStopAtLevel=1 -ea
+ *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC1ValueNumbering::*
  *                   compiler.valhalla.inlinetypes.TestC1ValueNumbering
  */
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 public class TestC1ValueNumbering {
-    static primitive class Point {
-        int x,y;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Point {
+        int x;
+        int y;
+
         public Point() {
-            x = 0; y = 0;
+            x = 0;
+            y = 0;
         }
+
         public Point(int x, int y) {
-            this.x = x; this.y = y;
+            this.x = x;
+            this.y = y;
         }
     }
 
+    @NullRestricted
     Point p;
 
     // Notes on test 1:
@@ -69,4 +84,4 @@ public class TestC1ValueNumbering {
             test1();
         }
     }
-  }
+}

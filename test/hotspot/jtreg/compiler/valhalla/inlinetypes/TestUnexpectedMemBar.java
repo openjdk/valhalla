@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,22 +24,22 @@
 /**
  * @test
  * @bug 8270995
- * @summary Membars of non-escaping inline type buffer allocations should be removed.
+ * @summary Membars of non-escaping value class buffer allocations should be removed.
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses TestUnexpectedMemBar.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @compile TestUnexpectedMemBar.java
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-TieredCompilation -XX:-ReduceInitialCardMarks
  *                   -XX:+AlwaysIncrementalInline -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM -XX:StressSeed=851121348
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-TieredCompilation -XX:-ReduceInitialCardMarks -XX:+AlwaysIncrementalInline
  *                   -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM
@@ -50,15 +50,15 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-primitive class MyValue {
-    final int a = 0;
-    final int b = 0;
-    final int c = 0;
-    final int d = 0;
-    final int e = 0;
+value class MyValue {
+    int a = 0;
+    int b = 0;
+    int c = 0;
+    int d = 0;
+    int e = 0;
 
-    final Integer i;
-    final int[] array;
+    Integer i;
+    int[] array;
 
     public MyValue(Integer i, int[] array) {
         this.i = i;
