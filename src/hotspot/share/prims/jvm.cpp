@@ -432,10 +432,11 @@ JVM_ENTRY(jobject, JVM_GetZeroInstance(JNIEnv *env, jclass cls)) {
   }
   InlineKlass* vk = InlineKlass::cast(k);
   if (!vk->is_implicitly_constructible()) {
+    ResourceMark rm;
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s not implicitly constructible", vk->external_name()));
-  }
+  } 
   oop v = vk->default_value();
-  return JNIHandles::make_local(THREAD, v); 
+  return JNIHandles::make_local(THREAD, v);
 }
 JVM_END
 
@@ -447,11 +448,11 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   Klass* klass = java_lang_Class::as_Klass(mirror);
   klass->initialize(CHECK_NULL);
   if (!klass->is_value_class()) {
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s not a value class", klass->external_name()));
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
   }
   InstanceKlass* ik = InstanceKlass::cast(klass);
   if (!ik->is_implicitly_constructible()) {
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s not implicitly constructible", ik->external_name()));
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not annotated with @ImplicitlyConstructible");
   }
   oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);

@@ -312,11 +312,6 @@ public final class Unsafe {
     }
 
     /**
-     * Returns an uninitialized default value of the given value type.
-     */
-    public native <V> V uninitializedDefaultValue(Class<?> type);
-
-    /**
      * Returns an object instance with a private buffered value whose layout
      * and contents is exactly the given value instance.  The return object
      * is in the larval state that can be updated using the unsafe put operation.

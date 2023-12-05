@@ -24,9 +24,9 @@
  */
 package java.lang.invoke;
 
-#if[Object]
+#if[Reference]
 import jdk.internal.value.ValueClass;
-#end[Object]
+#end[Reference]
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 
@@ -45,8 +45,10 @@ final class VarHandle$Type$s {
         final Class<?> receiverType;
 #if[Object]
         final Class<?> fieldType;
-        final boolean nullRestricted;
 #end[Object]
+#if[Reference]
+        final boolean nullRestricted;
+#end[Reference]
 
         FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}) {
             this(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}, FieldInstanceReadOnly.FORM, false);
@@ -59,22 +61,24 @@ final class VarHandle$Type$s {
             this.receiverType = receiverType;
 #if[Object]
             this.fieldType = fieldType;
-            this.nullRestricted = nullRestricted;
 #end[Object]
+#if[Reference]
+            this.nullRestricted = nullRestricted;
+#end[Reference]
         }
 
         @Override
         public FieldInstanceReadOnly withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}, vform, true);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Reference]?, fieldType, nullRestricted}{#if[Value]?, fieldType, true}, vform, true);
         }
 
         @Override
         public FieldInstanceReadOnly withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}, vform, false);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Reference]?, fieldType, nullRestricted}{#if[Value]?, fieldType, true}, vform, false);
         }
 
         @Override
@@ -100,11 +104,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (handle.nullRestricted && value == null) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -113,11 +117,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Volatile(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (handle.nullRestricted && value == null) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -126,11 +130,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Opaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (handle.nullRestricted && value == null) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -139,11 +143,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (handle.nullRestricted && value == null) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -164,14 +168,14 @@ final class VarHandle$Type$s {
         public FieldInstanceReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}, true);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Reference]?, fieldType, nullRestricted}{#if[Value]?, fieldType, true}, true);
         }
 
         @Override
         public FieldInstanceReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}, false);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Reference]?, fieldType, nullRestricted}{#if[Value]?, fieldType, true}, false);
         }
 
 #if[Object]
@@ -480,11 +484,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (handle.nullRestricted && value == null) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -493,11 +497,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Volatile(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (handle.nullRestricted && value == null) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -506,11 +510,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Opaque(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (handle.nullRestricted && value == null) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -519,11 +523,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Acquire(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (handle.nullRestricted && value == null) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -545,14 +549,14 @@ final class VarHandle$Type$s {
         public FieldStaticReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}, true);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType}{#if[Reference]?, nullRestricted}, true);
         }
 
         @Override
         public FieldStaticReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}, false);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType}{#if[Reference]?, nullRestricted}, false);
         }
 
 #if[Object]
