@@ -434,7 +434,7 @@ JVM_ENTRY(jobject, JVM_GetZeroInstance(JNIEnv *env, jclass cls)) {
   if (!vk->is_implicitly_constructible()) {
     ResourceMark rm;
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s not implicitly constructible", vk->external_name()));
-  } 
+  }
   oop v = vk->default_value();
   return JNIHandles::make_local(THREAD, v);
 }
