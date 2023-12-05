@@ -40,7 +40,11 @@ public class ValueClass {
     public static native boolean isImplicitlyConstructible(Class<?> cls);
 
     /**
-     * Returns the default value of the given value type.
+     * Returns the default value of the given value class type.
+     *
+     * @throws IllegalArgumentException if {@code cls} is not a
+     *         value class type or is not annotated with
+     *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
      */
     public static native <T> T zeroInstance(Class<T> cls);
 

@@ -294,7 +294,10 @@ public final class Unsafe {
     /**
      * Fetches a reference value of the given type from a given null-restricted
      * Java variable.  The VM may lazily set a null-restricted non-flat field.
-     * If the reference value is null, return the zero instance.
+     * If the reference value is null, return a zero instance instead.
+     *
+     * @apiNote This API is temporary.  It will be replaced when CheckedType
+     *          is implemented.
      *
      * @param type type
      */

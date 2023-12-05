@@ -177,9 +177,6 @@ final class ValueObjectMethods {
                     Class<?> ftype = fieldType(getter);
                     var f1 = getter.invoke(o1);
                     var f2 = getter.invoke(o2);
-                    if (JLIA.isNullRestrictedField(getter) && (f1 == null || f2 == null)) {
-                        System.out.println("null restricted field " + ftype.getName() + " in container " + type.getName());
-                    }
 
                     assert JLIA.isNullRestrictedField(getter) && f1 != null && f2 != null :
                             "null restricted field " + ftype.getName() + " in container " + type.getName();
@@ -244,9 +241,6 @@ final class ValueObjectMethods {
                 for (MethodHandle getter : getters) {
                     Class<?> ftype = fieldType(getter);
                     var f = getter.invoke(obj);
-                    if (JLIA.isNullRestrictedField(getter) && f == null) {
-                        System.out.println("null restricted field " + ftype.getName() + " in container " + type.getName());
-                    }
                     assert JLIA.isNullRestrictedField(getter) && f != null :
                             "null restricted field " + ftype.getName() + " in container " + type.getName();
 

@@ -21,9 +21,7 @@
  * questions.
  */
 
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
-import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
 import org.junit.jupiter.api.Test;
@@ -42,12 +40,10 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class NullRestrictedTest {
     @ImplicitlyConstructible
-    @LooselyConsistentValue
     static value class MyValueEmpty {
     }
 
     @ImplicitlyConstructible
-    @LooselyConsistentValue
     static value class EmptyContainer {
         @NullRestricted
         MyValueEmpty empty = new MyValueEmpty();
