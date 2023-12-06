@@ -62,16 +62,13 @@ public class TestUnloadedInlineTypeField {
                 new Scenario(3, "-XX:InlineFieldMaxFlatSize=0",
                                 "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+PatchALot")
         };
-        final String[] flags = { "-XX:+EnableValhalla" ,"-XX:+EnablePrimitiveClasses",
-                                // Prevent IR Test Framework from loading classes
-                                "-DIgnoreCompilerControls=true",
-                                // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
-                                "-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1"};
-        for (Scenario s : scenarios) {
-           s.addFlags(flags);
-        }
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
+                   .addFlags("-XX:+EnableValhalla" ,"-XX:+EnablePrimitiveClasses",
+                             // Prevent IR Test Framework from loading classes
+                             "-DIgnoreCompilerControls=true",
+                             // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
+                             "-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1")
                    .start();
     }
 
@@ -1001,7 +998,7 @@ public class TestUnloadedInlineTypeField {
         int x = 0;
         static {
             if (test22FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }
@@ -1044,7 +1041,7 @@ public class TestUnloadedInlineTypeField {
     static value class Test23ClassB {
         static {
             if (test23FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }
@@ -1087,7 +1084,7 @@ public class TestUnloadedInlineTypeField {
         int x = 0;
         static {
             if (test24FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }
@@ -1130,7 +1127,7 @@ public class TestUnloadedInlineTypeField {
         int x = 24;
         static {
             if (test25FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }
@@ -1173,7 +1170,7 @@ public class TestUnloadedInlineTypeField {
     static value class Test26ClassB {
         static {
             if (test26FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }

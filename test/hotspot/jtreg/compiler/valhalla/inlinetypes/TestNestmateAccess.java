@@ -44,6 +44,8 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp -XX:TieredStopAtLevel=1
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.Test*::<init>
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   compiler.valhalla.inlinetypes.TestNestmateAccess
  */
 
 interface MyInterface {

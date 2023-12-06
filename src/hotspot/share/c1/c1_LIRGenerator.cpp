@@ -2075,16 +2075,15 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
 bool LIRGenerator::inline_type_field_access_prolog(AccessField* x) {
   ciField* field = x->field();
   assert(!field->is_flat(), "Flattened field access should have been expanded");
-  if (!field->is_null_free()) {
-    return true; // Not an inline type field
-  }
   // Deoptimize if the access is non-static and requires patching (holder not loaded
   // or not accessible) because then we only have partial field information and the
   // field could be flat (see ciField constructor).
-  bool could_be_flat = !x->is_static() && x->needs_patching();
+  bool could_be_flat = field->type()->is_inlinetype() && InlineFieldMaxFlatSize >= 0 &&
+                       !x->is_static() && x->needs_patching();
   // Deoptimize if we load from a static field with an uninitialized type because we
   // need to throw an exception if initialization of the type failed.
-  bool not_initialized = x->is_static() && x->as_LoadField() != nullptr &&
+  // TODO it seems that this fix for JDK-8273594 is not needed anymore or our tests don't trigger the issue anymore
+  bool not_initialized = false && x->is_static() && x->as_LoadField() != nullptr &&
       !field->type()->as_instance_klass()->is_initialized();
   if (could_be_flat || not_initialized) {
     CodeEmitInfo* info = state_for(x, x->state_before());
