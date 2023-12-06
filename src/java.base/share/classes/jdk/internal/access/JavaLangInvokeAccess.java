@@ -63,6 +63,12 @@ public interface JavaLangInvokeAccess {
     boolean isHiddenMember(int flags);
 
     /**
+     * Returns true if the member of the given method handle is a null-restricted
+     * field.
+     */
+    boolean isNullRestrictedField(MethodHandle mh);
+
+    /**
      * Returns a map of class name in internal forms to its corresponding
      * class bytes per the given stream of LF_RESOLVE and SPECIES_RESOLVE
      * trace logs. Used by GenerateJLIClassesPlugin to enable generation

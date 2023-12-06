@@ -156,6 +156,7 @@ JVM_IsDumpingClassList
 JVM_IsFinalizationEnabled
 JVM_IsHiddenClass
 JVM_IsIdentityClass
+JVM_IsImplicitlyConstructibleClass
 JVM_IsInterface
 JVM_IsPreviewEnabled
 JVM_IsValhallaEnabled

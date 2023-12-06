@@ -579,6 +579,9 @@ JVM_IsHiddenClass(JNIEnv *env, jclass cls);
 JNIEXPORT jboolean JNICALL
 JVM_IsIdentityClass(JNIEnv *env, jclass cls);
 
+JNIEXPORT jboolean JNICALL
+JVM_IsImplicitlyConstructibleClass(JNIEnv *env, jclass cls);
+
 JNIEXPORT jint JNICALL
 JVM_GetClassModifiers(JNIEnv *env, jclass cls);
 
