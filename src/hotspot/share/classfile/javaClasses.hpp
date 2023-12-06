@@ -1301,7 +1301,7 @@ class java_lang_invoke_MemberName: AllStatic {
     MN_TRUSTED_FINAL         = 0x00200000, // trusted final field
     MN_HIDDEN_MEMBER         = 0x00400000, // @Hidden annotation detected
     MN_FLAT_FIELD            = 0x00800000, // flat field
-    MN_NULL_RESTRICTED_FIELD = 0x01000000, // null-restricted fiel
+    MN_NULL_RESTRICTED_FIELD = 0x01000000, // null-restricted field
     MN_REFERENCE_KIND_SHIFT  = 26, // refKind
     MN_REFERENCE_KIND_MASK   = 0x3C000000 >> MN_REFERENCE_KIND_SHIFT,
     MN_NESTMATE_CLASS        = 0x00000001,

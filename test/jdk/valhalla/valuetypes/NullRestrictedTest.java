@@ -21,6 +21,7 @@
  * questions.
  */
 
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
 
@@ -52,24 +53,24 @@ public class NullRestrictedTest {
     @Test
     public void lazyInitializedDefaultValue() {
         // VM lazily sets the null-restricted non-flat field to zero default
-        assertTrue(new EmptyContainer() == EmptyContainer.default);
+        assertTrue(new EmptyContainer() == ValueClass.zeroInstance(EmptyContainer.class));
     }
 
     @Test
     public void testMethodHandle() throws Throwable {
         var mh = MethodHandles.lookup().findGetter(EmptyContainer.class, "empty", MyValueEmpty.class);
-        assertTrue(mh.invoke(new EmptyContainer()) == MyValueEmpty.default);
+        assertTrue(mh.invoke(new EmptyContainer()) == ValueClass.zeroInstance(MyValueEmpty.class));
     }
 
     @Test
     public void testVarHandle() throws Throwable {
         var vh = MethodHandles.lookup().findVarHandle(EmptyContainer.class, "empty", MyValueEmpty.class);
-        assertTrue(vh.get(new EmptyContainer()) == MyValueEmpty.default);
+        assertTrue(vh.get(new EmptyContainer()) == ValueClass.zeroInstance(MyValueEmpty.class));
     }
 
     @Test
     public void testField() throws Throwable {
         var f = EmptyContainer.class.getDeclaredField("empty");
-        assertTrue(f.get(new EmptyContainer()) == MyValueEmpty.default);
+        assertTrue(f.get(new EmptyContainer()) == ValueClass.zeroInstance(MyValueEmpty.class));
     }
 }

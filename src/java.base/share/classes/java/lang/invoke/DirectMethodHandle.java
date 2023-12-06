@@ -631,17 +631,18 @@ sealed class DirectMethodHandle extends MethodHandle {
             FT_LAST_WRAPPER     = Wrapper.COUNT-1,
             FT_UNCHECKED_REF    = Wrapper.OBJECT.ordinal(),
             FT_CHECKED_REF      = FT_LAST_WRAPPER+1,
-            FT_CHECKED_VALUE    = FT_LAST_WRAPPER+2,  // flattened and non-flattened
-            FT_LIMIT            = FT_LAST_WRAPPER+4;
-    private static int afIndex(byte formOp, boolean isVolatile, boolean isFlatValue, int ftypeKind) {
+            FT_CHECKED_VALUE    = FT_LAST_WRAPPER+2,  // flattened and non-flattened and null-restricted
+            FT_LIMIT            = FT_LAST_WRAPPER+6;
+    private static int afIndex(byte formOp, boolean isVolatile, boolean isFlatValue, boolean isNullRestricted, int ftypeKind) {
         return ((formOp * FT_LIMIT * 2)
                 + (isVolatile ? FT_LIMIT : 0)
                 + (isFlatValue ? 1 : 0)
+                + (isNullRestricted ? 1 : 0)
                 + ftypeKind);
     }
     @Stable
     private static final LambdaForm[] ACCESSOR_FORMS
-            = new LambdaForm[afIndex(AF_LIMIT, false, false, 0)];
+            = new LambdaForm[afIndex(AF_LIMIT, false, false, false, 0)];
     static int ftypeKind(Class<?> ftype, boolean isValue) {
         if (ftype.isPrimitive()) {
             return Wrapper.forPrimitiveType(ftype).ordinal();
@@ -686,7 +687,7 @@ sealed class DirectMethodHandle extends MethodHandle {
     private static LambdaForm preparedFieldLambdaForm(byte formOp, boolean isVolatile,
                                                       boolean isValue, boolean isFlat, boolean isNullRestricted, Class<?> ftype) {
         int ftypeKind = ftypeKind(ftype, isValue);
-        int afIndex = afIndex(formOp, isVolatile, isFlat, ftypeKind);
+        int afIndex = afIndex(formOp, isVolatile, isFlat, isNullRestricted, ftypeKind);
         LambdaForm lform = ACCESSOR_FORMS[afIndex];
         if (lform != null)  return lform;
         lform = makePreparedFieldLambdaForm(formOp, isVolatile, isValue, isFlat, isNullRestricted, ftypeKind);

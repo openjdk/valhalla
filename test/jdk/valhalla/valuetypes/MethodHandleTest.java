@@ -125,8 +125,7 @@ public class MethodHandleTest {
         // static fields of reference type
         setField(MixedValues.class, "staticLine", null, l, false);
         setField(MixedValues.class, "staticLine", null, null, false);
-        // FIXME
-        // setField(MixedValues.class, "staticValue", null, vo, false);
+        setField(MixedValues.class, "staticValue", null, vo, false);
     }
 
     @DataProvider(name="arrays")
