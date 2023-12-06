@@ -27,12 +27,13 @@ package jdk.internal.value;
 
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.Unsafe;
 
 /**
  * Utilities to access
  */
 public class ValueClass {
-    private static final JavaLangAccess javaLangAccess = SharedSecrets.getJavaLangAccess();
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
     /**
      * Returns true if the given {@code Class} object is implicitly constructible
@@ -46,7 +47,15 @@ public class ValueClass {
      *         value class type or is not annotated with
      *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
      */
-    public static native <T> T zeroInstance(Class<T> cls);
+    public static <T> T zeroInstance(Class<T> cls) {
+        if (!cls.isValue()) {
+            throw new IllegalArgumentException(cls.getName() + " not a value class");
+        }
+        if (!isImplicitlyConstructible(cls)) {
+            throw new IllegalArgumentException(cls.getName() + " not implicitly constructible");
+        }
+        return UNSAFE.uninitializedDefaultValue(cls);
+    }
 
     /**
      * Allocate an array of a value class type with components that behave in

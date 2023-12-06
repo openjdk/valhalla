@@ -33,11 +33,6 @@ Java_jdk_internal_value_ValueClass_isImplicitlyConstructible(JNIEnv *env, jclass
     return JVM_IsImplicitlyConstructibleClass(env, cls);
 }
 
-JNIEXPORT jobject JNICALL
-Java_jdk_internal_value_ValueClass_zeroInstance(JNIEnv *env, jclass dummy, jclass cls) {
-    return JVM_GetZeroInstance(env, cls);
-}
-
 JNIEXPORT jarray JNICALL
 Java_jdk_internal_value_ValueClass_newNullRestrictedArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
 {

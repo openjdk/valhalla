@@ -1962,7 +1962,8 @@ public final class ObjectStreamClass implements Serializable {
          */
         static Object newValueInstance(Class<?> clazz) throws InstantiationException{
             assert clazz.isValue() : "Should be a value class";
-            Object obj = ValueClass.zeroInstance(clazz);
+            // may not be implicitly constructible; so allocate with Unsafe
+            Object obj = UNSAFE.uninitializedDefaultValue(clazz);
             return UNSAFE.makePrivateBuffer(obj);
         }
 

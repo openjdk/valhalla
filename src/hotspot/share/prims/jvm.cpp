@@ -423,23 +423,6 @@ JVM_ENTRY(jstring, JVM_GetTemporaryDirectory(JNIEnv *env))
   return (jstring) JNIHandles::make_local(THREAD, h());
 JVM_END
 
-JVM_ENTRY(jobject, JVM_GetZeroInstance(JNIEnv *env, jclass cls)) {
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls));
-  k->initialize(CHECK_NULL);
-  if (!k->is_value_class()) {
-    ResourceMark rm;
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s not a value class", k->external_name()));
-  }
-  InlineKlass* vk = InlineKlass::cast(k);
-  if (!vk->is_implicitly_constructible()) {
-    ResourceMark rm;
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s not implicitly constructible", vk->external_name()));
-  }
-  oop v = vk->default_value();
-  return JNIHandles::make_local(THREAD, v);
-}
-JVM_END
-
 JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len))
   if (len < 0) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array length is negative");
