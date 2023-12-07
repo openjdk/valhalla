@@ -27,14 +27,14 @@
  * @bug 8260363
  * @summary C2 compilation fails with assert(n->Opcode() != Op_Phi) failed: cannot match
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestFlatArrayAliasesCardMark.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestFlatArrayAliasesCardMark.java
  * @run main/othervm -XX:+EnableValhalla -XX:-BackgroundCompilation
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestFlatArrayAliasesCardMark
  */
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -62,7 +62,7 @@ public class TestFlatArrayAliasesCardMark {
 
     public static void main(String[] args) {
         TestFlatArrayAliasesCardMark t = new TestFlatArrayAliasesCardMark();
-        Test0[] array = (Test0[])VM.newNullRestrictedArray(Test0.class, 1);
+        Test0[] array = (Test0[])ValueClass.newNullRestrictedArray(Test0.class, 1);
         array[0] = new Test0();
 
         for (int l1 = 0; l1 < 10_000; ++l1) {

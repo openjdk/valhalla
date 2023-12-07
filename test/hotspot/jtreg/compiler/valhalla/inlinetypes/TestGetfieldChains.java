@@ -28,7 +28,7 @@ import compiler.lib.ir_framework.Run;
 import compiler.lib.ir_framework.Scenario;
 import compiler.lib.ir_framework.Test;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -39,12 +39,11 @@ import jdk.test.lib.Asserts;
  * @test
  * @key randomness
  * @summary Verify that chains of getfields on flat fields are correctly optimized.
- * @modules java.base/jdk.internal.misc
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile GetfieldChains.jcod
  * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestGetfieldChains.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestGetfieldChains.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                               compiler.valhalla.inlinetypes.TestGetfieldChains
  */
@@ -83,7 +82,7 @@ public class TestGetfieldChains {
                    .addScenarios(scenarios)
                    .addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
-                             "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED")
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .start();
     }
 
@@ -213,7 +212,7 @@ public class TestGetfieldChains {
 
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType1 test7() {
-        Container1[] ca = (Container1[])VM.newNullRestrictedArray(Container1.class, 10);
+        Container1[] ca = (Container1[])ValueClass.newNullRestrictedArray(Container1.class, 10);
         return ca[3].container0.et;
     }
 

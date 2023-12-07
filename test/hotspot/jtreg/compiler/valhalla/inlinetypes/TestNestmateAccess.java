@@ -25,7 +25,7 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -37,7 +37,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @summary Test nestmate access to flattened field if nest-host is not loaded.
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestNestmateAccess.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestNestmateAccess.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.Test*::<init>
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess

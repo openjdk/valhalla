@@ -32,6 +32,8 @@ import jdk.test.lib.Asserts;
 
 import jdk.test.whitebox.WhiteBox;
 
+// TODO remove @modules
+
 /**
  * @test TestDeoptimizationWhenBuffering
  * @summary Test correct execution after deoptimizing from inline type specific runtime calls.

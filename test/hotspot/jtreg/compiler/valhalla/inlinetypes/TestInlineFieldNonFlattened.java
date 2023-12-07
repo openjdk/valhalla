@@ -39,11 +39,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @summary VM option "InlineFieldMaxFlatSize" does not work well.
  * @library /test/lib /
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestInlineFieldNonFlattened.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:-TieredCompilation
  *                   -XX:InlineFieldMaxFlatSize=0
  *                   compiler.valhalla.inlinetypes.TestInlineFieldNonFlattened
@@ -98,7 +98,7 @@ public class TestInlineFieldNonFlattened {
         testFramework.setDefaultWarmup(10000)
                      .addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                                "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
-                               "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                               "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                                "-XX:-TieredCompilation",
                                "-XX:InlineFieldMaxFlatSize=0")
                      .start();

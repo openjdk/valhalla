@@ -37,6 +37,8 @@ import jdk.internal.value.PrimitiveClass;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
+// TODO remove the @modules
+
 /*
  * @test
  * @key randomness

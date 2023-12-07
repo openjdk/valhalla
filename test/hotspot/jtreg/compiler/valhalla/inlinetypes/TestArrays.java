@@ -26,7 +26,7 @@ package compiler.valhalla.inlinetypes;
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -44,11 +44,10 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @test
  * @key randomness
  * @summary Test value class arrays.
- * @modules java.base/jdk.internal.misc
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestArrays.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestArrays.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestArrays
  */
 
@@ -1905,7 +1904,7 @@ public class TestArrays {
     @Run(test = "test80")
     public void test80_verifier() {
         NotFlattenable vt = new NotFlattenable();
-        NotFlattenable[] array = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 2);
+        NotFlattenable[] array = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 2);
         array[1] = vt;
         Object result = test80(array, 1);
         Asserts.assertEquals(result, vt);
@@ -1957,7 +1956,7 @@ public class TestArrays {
     @Run(test = "test82")
     public void test82_verifier() {
         NotFlattenable vt = new NotFlattenable();
-        NotFlattenable[] array1 = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 3);
+        NotFlattenable[] array1 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 3);
         Object[] array2 = new Object[3];
         Object result = test82(array1, vt, vt, 0);
         Asserts.assertEquals(array1[0], vt);
@@ -2015,7 +2014,7 @@ public class TestArrays {
         Asserts.assertEquals(array2[0], null);
         Asserts.assertEquals(result, null);
         if (!info.isWarmUp()) {
-            NotFlattenable[] array3 = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 2);
+            NotFlattenable[] array3 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 2);
             try {
                 test84(array3, 1);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -2052,7 +2051,7 @@ public class TestArrays {
         test85(array2, null, false);
         Asserts.assertEquals(array2[1], null);
         if (!info.isWarmUp()) {
-            NotFlattenable[] array3 = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 2);
+            NotFlattenable[] array3 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 2);
             try {
                 test85(array3, null, true);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -2088,7 +2087,7 @@ public class TestArrays {
         test86(array1, null, false);
         Asserts.assertEquals(array1[1], null);
         if (!info.isWarmUp()) {
-            NotFlattenable[] array2 = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 2);
+            NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 2);
             try {
                 test86(array2, null, true);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -2246,7 +2245,7 @@ public class TestArrays {
     @Run(test = "test91")
     @Warmup(0)
     public void test91_verifier() {
-        Test91Value[] array = (Test91Value[])VM.newNullRestrictedArray(Test91Value.class, 5);
+        Test91Value[] array = (Test91Value[])ValueClass.newNullRestrictedArray(Test91Value.class, 5);
         for (int i = 0; i < 5; ++i) {
             array[i] = new Test91Value(i);
             array[i].verify();
@@ -2425,7 +2424,7 @@ public class TestArrays {
     @Run(test = "test98")
     public void test98_verifier() {
         MyValue1[] array1 = new MyValue1[1];
-        NotFlattenable[] array2 = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 1);
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
         try {
             test98(array1);
             throw new RuntimeException("Should throw ArrayStoreException");
@@ -2455,7 +2454,7 @@ public class TestArrays {
     @Run(test = "test99")
     public void test99_verifier() {
         MyValue1[] array1 = new MyValue1[1];
-        NotFlattenable[] array2 = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 1);
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
         try {
             test99(array1);
             throw new RuntimeException("Should throw ArrayStoreException");
@@ -2484,7 +2483,7 @@ public class TestArrays {
     @Run(test = "test100")
     public void test100_verifier() {
         MyValue1[] array1 = new MyValue1[1];
-        NotFlattenable[] array2 = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 1);
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
         try {
             test100(array1);
             throw new RuntimeException("Should throw ArrayStoreException");
@@ -2505,7 +2504,7 @@ public class TestArrays {
     @Run(test = "test101")
     public void test101_verifier() {
         MyValue1[] array1 = new MyValue1[1];
-        NotFlattenable[] array2 = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 1);
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
         Asserts.assertTrue(test101(array1));
         Asserts.assertFalse(test101(array2));
     }
@@ -3101,7 +3100,7 @@ public class TestArrays {
     @Run(test = "test130")
     public void test130_verifier() {
         MyValueEmpty empty = new MyValueEmpty();
-        MyValueEmpty[] array = (MyValueEmpty[])VM.newNullRestrictedArray(MyValueEmpty.class, 2);
+        MyValueEmpty[] array = (MyValueEmpty[])ValueClass.newNullRestrictedArray(MyValueEmpty.class, 2);
         MyValueEmpty res = test130(array);
         Asserts.assertEquals(array[0], empty);
         Asserts.assertEquals(res, empty);
@@ -3114,8 +3113,6 @@ public class TestArrays {
         MyValueEmpty empty = new MyValueEmpty();
     }
 
-// TODO fails because of substitutability test
-/*
     // Empty value class container array access
     @Test
 // TODO we need profiling for null-free arrays
@@ -3127,12 +3124,12 @@ public class TestArrays {
 
     @Run(test = "test131")
     public void test131_verifier() {
-        EmptyContainer[] array = (EmptyContainer[])VM.newNullRestrictedArray(EmptyContainer.class, 2);
+        EmptyContainer[] array = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 2);
         MyValueEmpty res = test131(array);
         Asserts.assertEquals(array[0], new EmptyContainer());
         Asserts.assertEquals(res, new MyValueEmpty());
     }
-*/
+
     // Empty value class array access with unknown array type
     @Test
     public Object test132(Object[] array) {
@@ -3143,7 +3140,7 @@ public class TestArrays {
     @Run(test = "test132")
     public void test132_verifier() {
         MyValueEmpty empty = new MyValueEmpty();
-        Object[] array = (MyValueEmpty[])VM.newNullRestrictedArray(MyValueEmpty.class, 2);
+        Object[] array = (MyValueEmpty[])ValueClass.newNullRestrictedArray(MyValueEmpty.class, 2);
         Object res = test132(array);
         Asserts.assertEquals(array[0], empty);
         Asserts.assertEquals(res, empty);
@@ -3153,8 +3150,6 @@ public class TestArrays {
         Asserts.assertEquals(res, null);
     }
 
-// TODO fails because of substitutability test
-/*
     // Empty value class container array access with unknown array type
     @Test
     public Object test133(Object[] array) {
@@ -3165,7 +3160,7 @@ public class TestArrays {
     @Run(test = "test133")
     public void test133_verifier() {
         EmptyContainer empty = new EmptyContainer();
-        Object[] array = (EmptyContainer[])VM.newNullRestrictedArray(EmptyContainer.class, 2);
+        Object[] array = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 2);
         Object res = test133(array);
         Asserts.assertEquals(array[0], empty);
         Asserts.assertEquals(res, empty);
@@ -3174,7 +3169,7 @@ public class TestArrays {
         Asserts.assertEquals(array[0], empty);
         Asserts.assertEquals(res, null);
     }
-*/
+
     // Non-escaping empty value class array access
     @Test
     @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
@@ -3463,8 +3458,6 @@ public class TestArrays {
         test144();
     }
 
-// TODO fails because of substitutability test
-/*
     // Test that array load slow path correctly initializes non-flattened field of empty value class
     @Test
     public Object test145(Object[] array) {
@@ -3473,11 +3466,11 @@ public class TestArrays {
 
     @Run(test = "test145")
     public void test145_verifier() {
-        Object[] array = (EmptyContainer[])VM.newNullRestrictedArray(EmptyContainer.class, 1);
+        Object[] array = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 1);
         EmptyContainer empty = (EmptyContainer)test145(array);
         Asserts.assertEquals(empty, new EmptyContainer());
     }
-*/
+
     // Test that non-flattened array does not block scalarization
     @Test
     @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE})
@@ -3594,7 +3587,7 @@ public class TestArrays {
     // Test that optimizing a checkcast of a load from a flat array works as expected
     @Test
     static String test150() {
-        Test150Value[] array = (Test150Value[])VM.newNullRestrictedArray(Test150Value.class, 1);
+        Test150Value[] array = (Test150Value[])ValueClass.newNullRestrictedArray(Test150Value.class, 1);
         array[0] = new Test150Value();
         return (String)array[0].s;
     }

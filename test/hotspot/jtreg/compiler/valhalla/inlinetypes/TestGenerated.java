@@ -26,21 +26,21 @@
  * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986
  * @summary A selection of generated tests that triggered bugs not covered by other tests.
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestGenerated.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   compiler.valhalla.inlinetypes.TestGenerated
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch -XX:FlatArrayElementMaxSize=0
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 
 package compiler.valhalla.inlinetypes;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -159,7 +159,7 @@ public class TestGenerated {
     MyValue2 f5;
 
     void test7(boolean b) {
-        MyValue2[] array1 = (MyValue2[])VM.newNullRestrictedArray(MyValue2.class, 6);
+        MyValue2[] array1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 6);
         array1[0] = new MyValue2();
         array1[1] = new MyValue2();
         array1[2] = new MyValue2();
@@ -190,7 +190,7 @@ public class TestGenerated {
     }
 
     void test9(boolean b) {
-        MyValue1[] array = (MyValue1[])VM.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         if (b) {
             for (int i = 0; i < 10; ++i) {
                 if (array != array) {
@@ -216,7 +216,7 @@ public class TestGenerated {
         }
     }
 
-    MyValue4[] d = (MyValue4[])VM.newNullRestrictedArray(MyValue4.class, 1);
+    MyValue4[] d = (MyValue4[])ValueClass.newNullRestrictedArray(MyValue4.class, 1);
     @NullRestricted
     MyValue4 e;
     byte f;
@@ -224,7 +224,7 @@ public class TestGenerated {
     byte test12() {
         MyValue4 i = new MyValue4();
         for (int j = 0; j < 6; ++j) {
-            MyValue4[] k = (MyValue4[])VM.newNullRestrictedArray(MyValue4.class, 0);
+            MyValue4[] k = (MyValue4[])ValueClass.newNullRestrictedArray(MyValue4.class, 0);
             if (i.b < 101) {
                 i = e;
             }
@@ -254,7 +254,7 @@ public class TestGenerated {
             for (int j = 0; j < 2; ++j) {
                 test13_iField += array[0].b;
             }
-            MyValue5[] array2 = (MyValue5[])VM.newNullRestrictedArray(MyValue5.class, 1);
+            MyValue5[] array2 = (MyValue5[])ValueClass.newNullRestrictedArray(MyValue5.class, 1);
             test13_c = array[0];
             array2[0] = test13_t;
         }
@@ -265,7 +265,7 @@ public class TestGenerated {
             if (b) {
                 val = new MyValue4();
             }
-            MyValue4[] array = (MyValue4[])VM.newNullRestrictedArray(MyValue4.class, 1);
+            MyValue4[] array = (MyValue4[])ValueClass.newNullRestrictedArray(MyValue4.class, 1);
             array[0] = val;
 
             for (int j = 0; j < 5; ++j) {
@@ -279,7 +279,7 @@ public class TestGenerated {
         MyValue4 val = new MyValue4();
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
-                MyValue4[] array = (MyValue4[])VM.newNullRestrictedArray(MyValue4.class, 1);
+                MyValue4[] array = (MyValue4[])ValueClass.newNullRestrictedArray(MyValue4.class, 1);
                 for (int k = 0; k < 10; ++k) {
                     array[0] = val;
                     val = array[0];
@@ -331,13 +331,13 @@ public class TestGenerated {
 
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
-        EmptyPrimitive[] array1 = (EmptyPrimitive[])VM.newNullRestrictedArray(EmptyPrimitive.class, 1);
-        MyValue1[] array2 = (MyValue1[])VM.newNullRestrictedArray(MyValue1.class, 10);
-        MyValue1[] array3 = (MyValue1[])VM.newNullRestrictedArray(MyValue1.class, 1);
+        EmptyPrimitive[] array1 = (EmptyPrimitive[])ValueClass.newNullRestrictedArray(EmptyPrimitive.class, 1);
+        MyValue1[] array2 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+        MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         array3[0] = new MyValue1();
-        MyValue3[] array4 = (MyValue3[])VM.newNullRestrictedArray(MyValue3.class, 1);
+        MyValue3[] array4 = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         array4[0] = new MyValue3();
-        MyValue5[] array5 = (MyValue5[])VM.newNullRestrictedArray(MyValue5.class, 1);
+        MyValue5[] array5 = (MyValue5[])ValueClass.newNullRestrictedArray(MyValue5.class, 1);
         array5[0] = new MyValue5();
         array4[0].intArray[0] = 42;
 

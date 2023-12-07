@@ -31,10 +31,10 @@ import jdk.test.lib.Asserts;
  * @summary Test value numbering behaves correctly with flat fields.
  * @library /testlibrary /test/lib
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestC1ValueNumbering.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestC1ValueNumbering.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp -XX:TieredStopAtLevel=1 -ea
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC1ValueNumbering::*
  *                   compiler.valhalla.inlinetypes.TestC1ValueNumbering
  */

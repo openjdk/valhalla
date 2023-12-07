@@ -36,10 +36,12 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import jdk.internal.value.PrimitiveClass;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+
+// TODO remove @modules
 
 /*
  * @test
@@ -49,7 +51,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestCallingConvention.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestCallingConvention.java
  * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestCallingConvention
  */
 
@@ -1051,8 +1053,6 @@ public class TestCallingConvention {
         Asserts.assertEquals(c, empty);
     }
 
-// TODO this still fails because substitutability code is not aware of the flat field
-/*
     // Empty value class container (mixed) return
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
@@ -1067,10 +1067,7 @@ public class TestCallingConvention {
         MixedContainer c = test44();
         Asserts.assertEquals(c, new MixedContainer(rI, new EmptyContainer(new MyValueEmpty())));
     }
-*/
 
-// TODO this still fails because substitutability code is not aware of the flat field
-/*
     // Empty value class container argument
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
@@ -1084,7 +1081,7 @@ public class TestCallingConvention {
         EmptyContainer c = test45(empty);
         Asserts.assertEquals(c, empty);
     }
-*/
+
     // Empty value class container and mixed container arguments
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})

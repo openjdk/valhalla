@@ -24,7 +24,6 @@
 /**
  * @test TestNewAcmp
  * @summary Verifies correctness of the acmp bytecode with value object operands.
- * @modules java.base/jdk.internal.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @compile TestNewAcmp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox

@@ -30,7 +30,7 @@ import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 import jdk.internal.misc.Unsafe;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -40,32 +40,32 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Detect tearing on value class buffer writes due to missing barriers.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @modules java.base/jdk.internal.misc java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.misc
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestBufferTearing.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestBufferTearing.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
@@ -117,7 +117,7 @@ public class TestBufferTearing {
     static MyValue vtField1;
     @NullRestricted
     MyValue vtField2;
-    MyValue[] vtField3 = (MyValue[])VM.newNullRestrictedArray(MyValue.class, 1);
+    MyValue[] vtField3 = (MyValue[])ValueClass.newNullRestrictedArray(MyValue.class, 1);
 
     static final MethodHandle incrementAndCheck_mh;
 

@@ -29,16 +29,16 @@ package compiler.valhalla.inlinetypes;
  * @key randomness
  * @summary Tests for C1 missing barriers when buffering value classes.
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestBufferTearingC1.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestBufferTearingC1.java
  * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
  *                   -XX:TieredStopAtLevel=1
  *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
  */
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -67,9 +67,9 @@ value class Rect {
 
 public class TestBufferTearingC1 {
 
-    public static Point[] points = (Point[])VM.newNullRestrictedArray(Point.class, 1);
+    public static Point[] points = (Point[])ValueClass.newNullRestrictedArray(Point.class, 1);
     public static Rect rect = new Rect(new Point(1, 1), new Point(2, 2));
-    public static Rect[] rects = (Rect[])VM.newNullRestrictedArray(Rect.class, 1);
+    public static Rect[] rects = (Rect[])ValueClass.newNullRestrictedArray(Rect.class, 1);
 
     static {
         points[0] = new Point(1, 1);

@@ -35,11 +35,10 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @bug 8280006
  * @summary Test that field flattening works as expected if value classes of
  *          holder and field were loaded by different class loaders (bootstrap + app).
- * @modules java.base/jdk.internal.value
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED ValueOnBootclasspath.java InstallBootstrapClasses.java TestBootClassloader.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED ValueOnBootclasspath.java InstallBootstrapClasses.java TestBootClassloader.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InstallBootstrapClasses

@@ -26,25 +26,25 @@
  * @summary Test accessing value class arrays that exceed the flattening threshold.
  * @library /test/lib
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestFlatArrayThreshold.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestFlatArrayThreshold.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch 
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestFlatArrayThreshold
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxOops=1 -Xbatch
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestFlatArrayThreshold
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=1 -Xbatch
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestFlatArrayThreshold
 
  */
 
 import jdk.test.lib.Asserts;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -100,7 +100,7 @@ public class TestFlatArrayThreshold {
 
     static public void main(String[] args) {
         MyValue1 vt = new MyValue1();
-        MyValue1[] va = (MyValue1[])VM.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
         MyValue1[] vaB = new MyValue1[2];
         va[1] = vt;
         for (int i = 0; i < 10_000; ++i) {

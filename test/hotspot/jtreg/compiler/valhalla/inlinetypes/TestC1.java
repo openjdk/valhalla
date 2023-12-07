@@ -29,7 +29,7 @@ import compiler.lib.ir_framework.Scenario;
 import compiler.lib.ir_framework.Test;
 import jdk.test.lib.Asserts;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -44,7 +44,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestC1.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestC1.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestC1
  */
 
@@ -67,7 +67,7 @@ public class TestC1 {
                    .addScenarios(scenarios)
                    .addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
-                             "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED")
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
@@ -115,7 +115,7 @@ public class TestC1 {
 
     @Run(test = "test2")
     public void test2_verifier() {
-        SimpleValue2[] array = (SimpleValue2[])VM.newNullRestrictedArray(SimpleValue2.class, 1);
+        SimpleValue2[] array = (SimpleValue2[])ValueClass.newNullRestrictedArray(SimpleValue2.class, 1);
         array[0] = new SimpleValue2(rI);
         int result = test2(array);
         Asserts.assertEQ(result, 2*rI);
@@ -254,7 +254,7 @@ public class TestC1 {
 
     @Run(test = "test7")
     public void test7_verifier() {
-        TestValue[] array = (TestValue[])VM.newNullRestrictedArray(TestValue.class, 7);
+        TestValue[] array = (TestValue[])ValueClass.newNullRestrictedArray(TestValue.class, 7);
         Big b0 = test7(array, 3);
         b0.check(0, 0);
         TestValue tv = new TestValue(9);
@@ -291,7 +291,7 @@ public class TestC1 {
 
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType test9() {
-        EmptyType[] array = (EmptyType[])VM.newNullRestrictedArray(EmptyType.class, 10);
+        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedArray(EmptyType.class, 10);
         return array[4];
     }
 
@@ -308,7 +308,7 @@ public class TestC1 {
 
     @Run(test = "test10")
     public void test10_verifier() {
-        EmptyType[] array = (EmptyType[])VM.newNullRestrictedArray(EmptyType.class, 16);
+        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedArray(EmptyType.class, 16);
         EmptyType et = test10(array);
         Asserts.assertEQ(et, new EmptyType());
     }
@@ -321,7 +321,7 @@ public class TestC1 {
     @Run(test = "test11")
     public void test11_verifier() {
         Exception e = null;
-        EmptyType[] array = (EmptyType[])VM.newNullRestrictedArray(EmptyType.class, 10);
+        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedArray(EmptyType.class, 10);
         try {
             EmptyType et = test11(array, 11);
         } catch (ArrayIndexOutOfBoundsException ex) {
@@ -352,7 +352,7 @@ public class TestC1 {
     @Run(test = "test12")
     public void test12_verifier() {
         EmptyType empty = new EmptyType();
-        EmptyType[] array = (EmptyType[])VM.newNullRestrictedArray(EmptyType.class, 16);
+        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedArray(EmptyType.class, 16);
         test12(array, 2, empty);
         Exception e = null;
         try {

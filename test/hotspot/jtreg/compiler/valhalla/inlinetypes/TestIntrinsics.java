@@ -33,7 +33,9 @@ import java.util.Arrays;
 
 import jdk.internal.value.PrimitiveClass;
 
-import jdk.internal.misc.VM;
+// TODO remove @modules
+
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -51,7 +53,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @modules java.base/jdk.internal.misc java.base/jdk.internal.value
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestIntrinsics.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestIntrinsics.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestIntrinsics
  */
 
@@ -463,7 +465,7 @@ public class TestIntrinsics {
         }
     }
 
-    final Test25Value[] test25Array = (Test25Value[])VM.newNullRestrictedArray(Test25Value.class, 10);
+    final Test25Value[] test25Array = (Test25Value[])ValueClass.newNullRestrictedArray(Test25Value.class, 10);
 
     @Test
     public Test25Value[] test25(Test25Value element) {
@@ -1559,7 +1561,7 @@ public class TestIntrinsics {
 
     @Run(test = "test74")
     public void test74_verifier() {
-        EmptyInline[] emptyArray = (EmptyInline[])VM.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
         test74(emptyArray);
         for (EmptyInline empty : emptyArray) {
             Asserts.assertEQ(empty, EmptyInline.default);
@@ -1573,7 +1575,7 @@ public class TestIntrinsics {
 
     @Run(test = "test75")
     public void test75_verifier() {
-        EmptyInline[] emptyArray = (EmptyInline[])VM.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
         test75(emptyArray);
         for (EmptyInline empty : emptyArray) {
             Asserts.assertEQ(empty, EmptyInline.default);
@@ -1588,7 +1590,7 @@ public class TestIntrinsics {
 
     @Run(test = "test76")
     public void test76_verifier() {
-        ByteInline[] byteArray = (ByteInline[])VM.newNullRestrictedArray(ByteInline.class, 100);
+        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedArray(ByteInline.class, 100);
         test76(byteArray);
         for (ByteInline b : byteArray) {
             Asserts.assertEQ(b, ByteInline.default);
@@ -1602,7 +1604,7 @@ public class TestIntrinsics {
 
     @Run(test = "test77")
     public void test77_verifier() {
-        ByteInline[] byteArray = (ByteInline[])VM.newNullRestrictedArray(ByteInline.class, 100);
+        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedArray(ByteInline.class, 100);
         test77(byteArray);
         for (ByteInline b : byteArray) {
             Asserts.assertEQ(b, ByteInline.default);

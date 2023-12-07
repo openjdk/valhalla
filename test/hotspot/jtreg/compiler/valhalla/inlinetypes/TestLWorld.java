@@ -36,13 +36,15 @@ import java.util.Arrays;
 
 import jdk.internal.value.PrimitiveClass;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+// TODO remove @modules
 
 /*
  * @test
@@ -54,7 +56,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDenablePrimitiveClasses MyValue5.jcod
  * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestLWorld.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestLWorld.java
  * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestLWorld
  */
 
@@ -2557,7 +2559,7 @@ public class TestLWorld {
             Object result = test93(array);
             Asserts.assertEquals(result, 0x42);
         } else {
-            Object[] array = (Test92Value[])VM.newNullRestrictedArray(Test92Value.class, 1);
+            Object[] array = (Test92Value[])ValueClass.newNullRestrictedArray(Test92Value.class, 1);
             Method m = info.getTest();
             int extra = 3;
             for (int j = 0; j < extra; j++) {
@@ -3503,8 +3505,8 @@ public class TestLWorld {
 //    @IR(failOn = {ALLOC_G})
     public void test119(boolean deopt, Method m) {
         MyValueEmpty[]   array1 = new MyValueEmpty[]{MyValueEmpty.default};
-        EmptyContainer[] array2 = (EmptyContainer[])VM.newNullRestrictedArray(EmptyContainer.class, 1);
-        MixedContainer[] array3 = (MixedContainer[])VM.newNullRestrictedArray(MixedContainer.class, 1);
+        EmptyContainer[] array2 = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 1);
+        MixedContainer[] array3 = (MixedContainer[])ValueClass.newNullRestrictedArray(MixedContainer.class, 1);
         if (deopt) {
             // uncommon trap
             TestFramework.deoptimize(m);

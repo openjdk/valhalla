@@ -26,11 +26,11 @@
  * @summary Verify that certain array accesses do not trigger deoptimization.
  * @library /test/lib
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestArrayAccessDeopt.java
  * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestArrayAccessDeopt
  */
 
@@ -39,7 +39,7 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -99,14 +99,14 @@ public class TestArrayAccessDeopt {
     static public void main(String[] args) throws Exception {
         if (args.length == 0) {
             // Run test in new VM instance
-            String[] arg = {"-XX:+EnableValhalla", "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED", "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+            String[] arg = {"-XX:+EnableValhalla", "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED", "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                             "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "TestArrayAccessDeopt", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
             String output = oa.getOutput();
             oa.shouldNotContain("Uncommon trap occurred");
         } else {
-            MyValue1[] va = (MyValue1[])VM.newNullRestrictedArray(MyValue1.class, 1);
+            MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
             MyValue1[] vaB = new MyValue1[1];
             MyValue1 vt = new MyValue1();
             for (int i = 0; i < 10_000; ++i) {

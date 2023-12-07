@@ -27,17 +27,17 @@
  * @summary Verify that arraycopy intrinsics properly handle flat value class arrays with oop fields.
  * @library /test/lib
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestArrayCopyWithOops.java
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestArrayCopyWithOops.java
  * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch -XX:FlatArrayElementMaxSize=0
@@ -50,7 +50,7 @@ import java.util.Arrays;
 
 import jdk.test.lib.Asserts;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -76,7 +76,7 @@ public class TestArrayCopyWithOops {
     }
 
     static ManyOops[] createValueClassArray() {
-        ManyOops[] array = (ManyOops[])VM.newNullRestrictedArray(ManyOops.class, LEN);
+        ManyOops[] array = (ManyOops[])ValueClass.newNullRestrictedArray(ManyOops.class, LEN);
         for (int i = 0; i < LEN; ++i) {
             array[i] = new ManyOops();
         }
@@ -112,7 +112,7 @@ public class TestArrayCopyWithOops {
     // System.arraycopy tests (tightly coupled with allocation of dst array)
 
     static Object[] test5() {
-        ManyOops[] dst = (ManyOops[])VM.newNullRestrictedArray(ManyOops.class, LEN);
+        ManyOops[] dst = (ManyOops[])ValueClass.newNullRestrictedArray(ManyOops.class, LEN);
         System.arraycopy(createValueClassArray(), 0, dst, 0, LEN);
         return dst;
     }
@@ -124,7 +124,7 @@ public class TestArrayCopyWithOops {
     }
 
     static Object[] test7() {
-        ManyOops[] dst = (ManyOops[])VM.newNullRestrictedArray(ManyOops.class, LEN);
+        ManyOops[] dst = (ManyOops[])ValueClass.newNullRestrictedArray(ManyOops.class, LEN);
         System.arraycopy(createObjectArray(), 0, dst, 0, LEN);
         return dst;
     }

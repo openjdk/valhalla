@@ -29,7 +29,7 @@ import jdk.test.whitebox.WhiteBox;
 
 import java.lang.reflect.Method;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -45,11 +45,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses
  *          --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestLWorldProfiling.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                               --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                               compiler.valhalla.inlinetypes.TestLWorldProfiling
  */
 
@@ -104,7 +104,7 @@ public class TestLWorldProfiling {
                    .addScenarios(scenarios)
                    .addFlags("-XX:+IgnoreUnrecognizedVMOptions", "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
-                             "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED")
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class)
                    .start();
@@ -447,7 +447,7 @@ public class TestLWorldProfiling {
 
     @NullRestricted
     private static final NotFlattenable notFlattenable = new NotFlattenable();
-    private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])VM.newNullRestrictedArray(NotFlattenable.class, 1);
+    private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
 
     @Test
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
@@ -1138,7 +1138,7 @@ public class TestLWorldProfiling {
             test41_access(new Object[1], new Object());
         } else {
             // When inlining test41_access, profiling contradicts actual type of array
-            Test40Inline[] array = (Test40Inline[])VM.newNullRestrictedArray(Test40Inline.class, 1);
+            Test40Inline[] array = (Test40Inline[])ValueClass.newNullRestrictedArray(Test40Inline.class, 1);
             test41(array, new Test40Inline());
         }
     }
