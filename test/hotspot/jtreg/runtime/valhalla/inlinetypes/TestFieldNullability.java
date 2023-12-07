@@ -24,10 +24,11 @@
 /**
  * @test TestFieldNullability
  * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFieldNullabilityClasses.jasm
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED  TestFieldNullability.java
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED -XX:+EnableValhalla  -Xmx128m -XX:InlineFieldMaxFlatSize=32
+ * @compile TestFieldNullability.java
+ * @run main/othervm -XX:+EnableValhalla  -Xmx128m -XX:InlineFieldMaxFlatSize=32
  *                   runtime.valhalla.inlinetypes.TestFieldNullability
  */
 

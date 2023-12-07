@@ -32,8 +32,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @requires vm.gc == null
  * @summary if_acmpeq/ne bytecode test
  * @modules java.base/jdk.internal.value
- * @compile --source 22 --enable-preview --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED Ifacmp.java
- * @run main/othervm --enable-preview --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ *          java.base/jdk.internal.vm.annotation
+ * @compile --source 22 --enable-preview Ifacmp.java
+ * @run main/othervm --enable-preview
  *                   -XX:+EnableValhalla -Xms16m -Xmx16m -XX:+UseSerialGC
  *                   runtime.valhalla.inlinetypes.Ifacmp
  */

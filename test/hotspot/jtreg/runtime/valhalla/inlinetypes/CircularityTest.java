@@ -31,8 +31,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @test
  * @summary Test initialization of static inline fields with circularity
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED CircularityTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.CircularityTest
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile CircularityTest.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.CircularityTest
  */
 
 

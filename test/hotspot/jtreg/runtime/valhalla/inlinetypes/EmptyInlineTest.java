@@ -26,7 +26,7 @@ import jdk.test.lib.Asserts;
 
 import java.lang.reflect.Field;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -36,8 +36,10 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @test
  * @summary Test support for empty inline types (no instance fields)
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED EmptyInlineTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.EmptyInlineTest
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @compile EmptyInlineTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.EmptyInlineTest
  */
 
 public class EmptyInlineTest {
@@ -94,14 +96,14 @@ public class EmptyInlineTest {
         Asserts.assertTrue(w.empty.isEmpty());
 
         // Create an array of empty inlines
-        EmptyInline[] emptyArray = (EmptyInline[])VM.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
         for(EmptyInline element : emptyArray) {
             Asserts.assertEquals(element.getClass(), EmptyInline.class);
             Asserts.assertTrue(element.isEmpty());
         }
 
         // Testing arrayCopy
-        EmptyInline[] array2 = (EmptyInline[])VM.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] array2 = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
         // with two arrays
         System.arraycopy(emptyArray, 10, array2, 20, 50);
         for(EmptyInline element : array2) {

@@ -27,7 +27,6 @@ package runtime.valhalla.inlinetypes;
 import java.lang.reflect.*;
 import static jdk.test.lib.Asserts.*;
 
-import jdk.internal.misc.VM;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -37,8 +36,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @summary Test if JVM API using varargs work with inline type arrays
  * @modules java.base/jdk.internal.value
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED VarArgsArray.java
- * @run main/othervm -XX:+EnableValhalla  --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.VarArgsArray
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile VarArgsArray.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.VarArgsArray
  */
 
 @ImplicitlyConstructible

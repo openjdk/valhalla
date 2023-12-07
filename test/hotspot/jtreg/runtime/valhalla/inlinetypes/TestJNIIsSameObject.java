@@ -31,10 +31,11 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Test JNI IsSameObject semantic with inline types
  * @library /testlibrary /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires (os.family == "linux" | os.family == "mac")
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestJNIIsSameObject.java
- * @run main/othervm/native -XX:+EnableValhalla --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestJNIIsSameObject
+ * @compile TestJNIIsSameObject.java
+ * @run main/othervm/native -XX:+EnableValhalla TestJNIIsSameObject
  */
 
 public class TestJNIIsSameObject {

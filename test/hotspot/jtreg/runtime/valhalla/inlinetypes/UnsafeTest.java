@@ -30,8 +30,9 @@ package runtime.valhalla.inlinetypes;
  * @summary unsafe get/put/with inline type
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile  --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED Point.java UnsafeTest.java
- * @run main/othervm -XX:+EnableValhalla  -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.UnsafeTest
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile Point.java UnsafeTest.java
+ * @run main/othervm -XX:+EnableValhalla  -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 import jdk.internal.misc.Unsafe;

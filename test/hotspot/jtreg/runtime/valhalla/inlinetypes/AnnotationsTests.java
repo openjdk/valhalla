@@ -35,9 +35,10 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @test
  * @summary Test of ImplicitlyConstructible, NullRestricted and LooselyConsistentValue annotations
  * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED AnnotationsTests.java
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED -XX:+EnableValhalla AnnotationsTests
+ * @compile AnnotationsTests.java
+ * @run main/othervm -XX:+EnableValhalla AnnotationsTests
  */
 
 

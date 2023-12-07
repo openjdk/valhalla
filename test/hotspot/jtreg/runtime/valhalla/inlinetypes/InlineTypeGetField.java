@@ -29,8 +29,9 @@ import jdk.test.lib.Asserts;
  * @test InlineTypeGetField
  * @summary Inline Type get field test
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED  Point.java InlineTypeGetField.java
- * @run main/othervm -XX:+EnableValhalla --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.InlineTypeGetField
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile Point.java InlineTypeGetField.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.InlineTypeGetField
  */
 public class InlineTypeGetField {
 

@@ -32,8 +32,9 @@ import jdk.test.lib.Asserts;
  * @test QuickeningTest
  * @summary Test quickening of getfield and putfield applied to inline fields
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED QuickeningTest.java
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED -XX:+EnableValhalla runtime.valhalla.inlinetypes.QuickeningTest
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile QuickeningTest.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.QuickeningTest
  */
 
 public class QuickeningTest {

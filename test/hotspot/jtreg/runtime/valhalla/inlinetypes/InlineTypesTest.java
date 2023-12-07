@@ -54,16 +54,15 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @summary Test data movement with inline types
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @modules java.base/jdk.internal.vm.annotation
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED InlineTypesTest.java
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @compile InlineTypesTest.java
+ * @run main/othervm -XX:+EnableValhalla
  *                   -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false

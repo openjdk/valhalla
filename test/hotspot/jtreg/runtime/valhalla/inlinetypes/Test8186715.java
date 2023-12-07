@@ -23,7 +23,7 @@
 
 package runtime.valhalla.inlinetypes;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
@@ -31,8 +31,10 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @test Test8186715
  * @summary test return of buffered inline type passed in argument by caller
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED Test8186715.java
- * @run main/othervm -XX:+EnableValhalla --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.Test8186715
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @compile Test8186715.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.Test8186715
  */
 
 public class Test8186715 {
@@ -58,7 +60,7 @@ value class MyValueType {
     }
 
     static MyValueType testDefault() {
-        MyValueType[] array = (MyValueType[])VM.newNullRestrictedArray(MyValueType.class, 1);
+        MyValueType[] array = (MyValueType[])ValueClass.newNullRestrictedArray(MyValueType.class, 1);
         return array[0];
     }
 

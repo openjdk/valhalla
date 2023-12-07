@@ -27,7 +27,7 @@ import java.lang.invoke.*;
 import java.lang.ref.*;
 import java.util.concurrent.*;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -43,13 +43,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.Serial
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
@@ -60,13 +60,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.G1
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
@@ -77,13 +77,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.Parallel
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
@@ -94,13 +94,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.Z
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -112,13 +112,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.Z & vm.opt.final.ZGenerational
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -XX:+ZGenerational -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -203,7 +203,7 @@ public class InlineOops {
 
         // anewarray, aaload, aastore
         int index = 7;
-        Person[] array = (Person[])VM.newNullRestrictedArray(Person.class, NOF_PEOPLE);
+        Person[] array = (Person[])ValueClass.newNullRestrictedArray(Person.class, NOF_PEOPLE);
         validateDefaultPerson(array[index]);
 
         // Now with refs...
@@ -499,7 +499,7 @@ public class InlineOops {
     }
 
     static Person createDefaultPerson() {
-        return (Person)VM.newNullRestrictedArray(Person.class, 1)[0];
+        return (Person)ValueClass.newNullRestrictedArray(Person.class, 1)[0];
     }
 
     static void validateDefaultPerson(Person person) {
@@ -641,7 +641,7 @@ public class InlineOops {
 
         public static void testFrameOopsRefs(String name, String description, String notes, Object[][] oopMaps) {
             FooValue f = new FooValue(4711, name, description, 9876543231L, notes);
-            FooValue[] fa = (FooValue[])VM.newNullRestrictedArray(FooValue.class, 1);
+            FooValue[] fa = (FooValue[])ValueClass.newNullRestrictedArray(FooValue.class, 1);
             fa[0] = f;
             MethodType mt = MethodType.methodType(Void.TYPE, fa.getClass(), oopMaps.getClass());
             int fooArraySlot  = 0;

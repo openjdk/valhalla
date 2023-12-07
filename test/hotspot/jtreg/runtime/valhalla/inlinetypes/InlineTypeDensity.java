@@ -26,7 +26,7 @@ import java.lang.management.MemoryPoolMXBean;
 
 import com.sun.jdi.NativeMethodException;
 
-import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -38,25 +38,23 @@ import jdk.test.whitebox.WhiteBox;
  * @test InlineTypeDensity
  * @summary Heap density test for InlineTypes
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED InlineTypeDensity.java
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:FlatArrayElementMaxSize=-1 -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
- *                   -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UnlockDiagnosticVMOptions -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
@@ -259,7 +257,7 @@ public class InlineTypeDensity {
     void testByteArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             byte[] ba = new byte[testSize];
-            MyByte[] mba = (MyByte[])VM.newNullRestrictedArray(MyByte.class, testSize);
+            MyByte[] mba = (MyByte[])ValueClass.newNullRestrictedArray(MyByte.class, testSize);
             assertArraySameSize(ba, mba, testSize);
         }
     }
@@ -267,7 +265,7 @@ public class InlineTypeDensity {
     void testShortArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             short[] sa = new short[testSize];
-            MyShort[] msa = (MyShort[])VM.newNullRestrictedArray(MyShort.class, testSize);
+            MyShort[] msa = (MyShort[])ValueClass.newNullRestrictedArray(MyShort.class, testSize);
             assertArraySameSize(sa, msa, testSize);
         }
     }
@@ -275,7 +273,7 @@ public class InlineTypeDensity {
     void testIntArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             int[] ia = new int[testSize];
-            MyInt[] mia = (MyInt[])VM.newNullRestrictedArray(MyInt.class, testSize);
+            MyInt[] mia = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, testSize);
             assertArraySameSize(ia, mia, testSize);
         }
     }
@@ -283,7 +281,7 @@ public class InlineTypeDensity {
     void testLongArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             long[] la = new long[testSize];
-            MyLong[] mla = (MyLong[])VM.newNullRestrictedArray(MyLong.class, testSize);
+            MyLong[] mla = (MyLong[])ValueClass.newNullRestrictedArray(MyLong.class, testSize);
             assertArraySameSize(la, mla, testSize);
         }
     }
@@ -315,11 +313,11 @@ public class InlineTypeDensity {
     // Expect aligned array addressing to nearest pow2
     void testAlignedSize() {
         int testSize = 10;
-        assertArraySameSize(new short[testSize], VM.newNullRestrictedArray(bbValue.class, testSize), testSize);
-        assertArraySameSize(new long[testSize], VM.newNullRestrictedArray(siValue.class, testSize), testSize);
-        assertArraySameSize(new long[testSize], VM.newNullRestrictedArray(ssiValue.class, testSize), testSize);
-        assertArraySameSize(new long[testSize*2], VM.newNullRestrictedArray(blValue.class, testSize), testSize);
-        assertArraySameSize(new int[testSize], VM.newNullRestrictedArray(bsValue.class, testSize), testSize);
+        assertArraySameSize(new short[testSize], ValueClass.newNullRestrictedArray(bbValue.class, testSize), testSize);
+        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedArray(siValue.class, testSize), testSize);
+        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedArray(ssiValue.class, testSize), testSize);
+        assertArraySameSize(new long[testSize*2], ValueClass.newNullRestrictedArray(blValue.class, testSize), testSize);
+        assertArraySameSize(new int[testSize], ValueClass.newNullRestrictedArray(bsValue.class, testSize), testSize);
     }
 
     public void test() {
