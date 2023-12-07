@@ -38,6 +38,7 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.util.ClassFileDumper;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import sun.invoke.util.ValueConversions;
 import sun.invoke.util.VerifyAccess;
@@ -5198,7 +5199,7 @@ assert((int)twice.invokeExact(21) == 42);
             return zero(Wrapper.forPrimitiveType(type), type);
         } else if (PrimitiveClass.isPrimitiveValueType(type)) {
             // singleton default value
-            Object value = UNSAFE.uninitializedDefaultValue(type);
+            Object value = ValueClass.zeroInstance(type);
             return identity(type).bindTo(value);
         } else {
             return zero(Wrapper.OBJECT, type);

@@ -23,10 +23,10 @@
 
 
 
+import jdk.internal.value.ValueClass;
 import jdk.test.lib.Asserts;
 import java.lang.reflect.Method;
 import jdk.internal.misc.Unsafe;
-import jdk.internal.misc.VM;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
@@ -34,10 +34,11 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 /*
  * @test
  * @summary Test of VM.newNullRestrictedArray API
- * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED NullRestrictedArrayTest.java
- * @run main/othervm --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED -XX:+EnableValhalla NullRestrictedArrayTest
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ * @run main/othervm -XX:+EnableValhalla NullRestrictedArrayTest
  */
 
 
@@ -66,7 +67,7 @@ public class NullRestrictedArrayTest {
   public void test_0() {
       Throwable exception = null;
       try {
-        VM.newNullRestrictedArray(String.class, 4);
+        ValueClass.newNullRestrictedArray(String.class, 4);
       } catch (IllegalArgumentException e) {
         System.out.println("Received: " + e);
         exception = e;
@@ -85,7 +86,7 @@ public class NullRestrictedArrayTest {
   public void test_1() {
       Throwable exception = null;
       try {
-        VM.newNullRestrictedArray(ValueClass1.class, -1);
+        ValueClass.newNullRestrictedArray(ValueClass1.class, -1);
       } catch (IllegalArgumentException e) {
         System.out.println("Received: " + e);
         exception = e;
@@ -102,7 +103,7 @@ public class NullRestrictedArrayTest {
   public void test_2() {
       Throwable exception = null;
       try {
-        VM.newNullRestrictedArray(ValueClass2.class, 8);
+        ValueClass.newNullRestrictedArray(ValueClass2.class, 8);
       } catch (IllegalArgumentException e) {
         System.out.println("Received: " + e);
         exception = e;
@@ -121,7 +122,7 @@ public class NullRestrictedArrayTest {
   public void test_3() {
       Throwable exception = null;
       try {
-        Object array = VM.newNullRestrictedArray(ValueClass3.class, 8);
+        Object array = ValueClass.newNullRestrictedArray(ValueClass3.class, 8);
         Asserts.assertTrue(UNSAFE.isFlattenedArray(array.getClass()), "Expecting flat array but array is not flat");
       } catch (Throwable e) {
         System.out.println("Received: " + e);
@@ -142,7 +143,7 @@ public class NullRestrictedArrayTest {
   public void test_4() {
       Throwable exception = null;
       try {
-        Object[] array = VM.newNullRestrictedArray(ValueClass4.class, 8);
+        Object[] array = ValueClass.newNullRestrictedArray(ValueClass4.class, 8);
         Asserts.assertNotNull(array[1], "Expecting non null element but null found instead");
       } catch (Throwable e) {
         System.out.println("Received: " + e);
@@ -162,7 +163,7 @@ public class NullRestrictedArrayTest {
   public void test_5() {
       Throwable exception = null;
       try {
-        Object[] array = VM.newNullRestrictedArray(ValueClass4.class, 8);
+        Object[] array = ValueClass.newNullRestrictedArray(ValueClass4.class, 8);
         array[1] = null;
       } catch (NullPointerException e) {
         System.out.println("Received: " + e);

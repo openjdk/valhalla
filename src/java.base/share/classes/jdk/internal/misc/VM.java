@@ -495,20 +495,4 @@ public class VM {
     public static List<BufferPool> getBufferPools() {
         return BufferPoolsHolder.BUFFER_POOLS;
     }
-
-    /**
-     * Allocate an array of a value class type with components that behave in
-     * the same way as a {@link jdk.internal.vm.annotation.NullRestricted}
-     * field.
-     * <p>
-     * Because these behaviors are not specified by Java SE, arrays created with
-     * this method should only be used by internal JDK code for experimental
-     * purposes and should not affect user-observable outcomes.
-     *
-     * @throws IllegalArgumentException if {@code componentType} is not a
-     *         value class type or is not annotated with
-     *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
-     */
-    public static native Object[] newNullRestrictedArray(Class<?> componentType,
-                                                         int length);
 }

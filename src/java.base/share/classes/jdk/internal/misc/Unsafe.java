@@ -27,6 +27,7 @@ package jdk.internal.misc;
 
 import jdk.internal.ref.Cleaner;
 import jdk.internal.value.PrimitiveClass;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
@@ -274,8 +275,8 @@ public final class Unsafe {
         Object ref = getReference(o, offset);
         if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
             // If the type of the returned reference is a primitive value type,
-            // return an uninitialized default value if null
-            ref = uninitializedDefaultValue(type);
+            // return the zero instance if null
+            ref = ValueClass.zeroInstance(type);
         }
         return ref;
     }
@@ -284,14 +285,34 @@ public final class Unsafe {
         Object ref = getReferenceVolatile(o, offset);
         if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
             // If the type of the returned reference is a primitive value type,
-            // return an uninitialized default value if null
-            ref = uninitializedDefaultValue(type);
+            // return the zero instance if null
+            ref = ValueClass.zeroInstance(type);
         }
         return ref;
     }
 
     /**
-     * Returns an uninitialized default value of the given value type.
+     * Fetches a reference value of the given type from a given null-restricted
+     * Java variable.  The VM may lazily set a null-restricted non-flat field.
+     * If the reference value is null, return a zero instance instead.
+     *
+     * @apiNote This API is temporary.  It will be replaced when CheckedType
+     *          is implemented.
+     *
+     * @param type type
+     */
+    public Object getNullRestrictedReference(Object o, long offset, Class<?> type) {
+        Object ref = getReference(o, offset);
+        return ref != null ? ref : ValueClass.zeroInstance(type);
+    }
+
+    public Object getNullRestrictedReferenceVolatile(Object o, long offset, Class<?> type) {
+        Object ref = getReferenceVolatile(o, offset);
+        return ref != null ? ref : ValueClass.zeroInstance(type);
+    }
+
+    /**
+     * Returns an uninitialized default instance of the given value class.
      */
     public native <V> V uninitializedDefaultValue(Class<?> type);
 
