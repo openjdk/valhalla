@@ -247,19 +247,21 @@ JVM_GetExtendedNPEMessage(JNIEnv *env, jthrowable throwable);
  * java.lang.StackWalker
  */
 enum {
-  JVM_STACKWALK_FILL_CLASS_REFS_ONLY       = 0x2,
-  JVM_STACKWALK_GET_CALLER_CLASS           = 0x04,
+  JVM_STACKWALK_CLASS_INFO_ONLY            = 0x2,
   JVM_STACKWALK_SHOW_HIDDEN_FRAMES         = 0x20,
   JVM_STACKWALK_FILL_LIVE_STACK_FRAMES     = 0x100
 };
 
+JNIEXPORT void JNICALL
+JVM_ExpandStackFrameInfo(JNIEnv *env, jobject obj);
+
 JNIEXPORT jobject JNICALL
-JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jlong mode,
+JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jint mode,
                   jint skip_frames, jobject contScope, jobject cont,
                   jint frame_count, jint start_index, jobjectArray frames);
 
 JNIEXPORT jint JNICALL
-JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jlong mode, jlong anchor,
+JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, jlong anchor,
                   jint frame_count, jint start_index,
                   jobjectArray frames);
 
@@ -576,6 +578,9 @@ JVM_IsHiddenClass(JNIEnv *env, jclass cls);
 
 JNIEXPORT jboolean JNICALL
 JVM_IsIdentityClass(JNIEnv *env, jclass cls);
+
+JNIEXPORT jboolean JNICALL
+JVM_IsImplicitlyConstructibleClass(JNIEnv *env, jclass cls);
 
 JNIEXPORT jint JNICALL
 JVM_GetClassModifiers(JNIEnv *env, jclass cls);
@@ -1131,6 +1136,9 @@ JVM_InitAgentProperties(JNIEnv *env, jobject agent_props);
 
 JNIEXPORT jstring JNICALL
 JVM_GetTemporaryDirectory(JNIEnv *env);
+
+JNIEXPORT jarray JNICALL
+JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len);
 
 /* Generics reflection support.
  *

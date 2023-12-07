@@ -35,6 +35,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/bytes.hpp"
+#include "utilities/checkedCast.hpp"
 
 // FIXME: add Deprecated attribute
 // FIXME: fix Synthetic attribute

@@ -442,6 +442,9 @@ int ciMethod::check_overflow(int c, Bytecodes::Code code) {
     case Bytecodes::_aastore:    // fall-through
     case Bytecodes::_checkcast:  // fall-through
     case Bytecodes::_instanceof: {
+      if (VM_Version::profile_all_receivers_at_type_check()) {
+        return (c < 0 ? max_jint : c); // always non-negative
+      }
       return (c > 0 ? min_jint : c); // always non-positive
     }
     default: {
@@ -1434,7 +1437,6 @@ void ciMethod::print_impl(outputStream* st) {
 static BasicType erase_to_word_type(BasicType bt) {
   if (is_subword_type(bt))   return T_INT;
   if (is_reference_type(bt)) return T_OBJECT;
-  if (bt == T_PRIMITIVE_OBJECT)   return T_OBJECT;
   return bt;
 }
 

@@ -809,7 +809,7 @@ void SafepointSynchronize::print_safepoint_timeout() {
 
   // To debug the long safepoint, specify both AbortVMOnSafepointTimeout &
   // ShowMessageBoxOnError.
-  if (AbortVMOnSafepointTimeout) {
+  if (AbortVMOnSafepointTimeout && (os::elapsedTime() * MILLIUNITS > AbortVMOnSafepointTimeoutDelay)) {
     // Send the blocking thread a signal to terminate and write an error file.
     for (JavaThreadIteratorWithHandle jtiwh; JavaThread *cur_thread = jtiwh.next(); ) {
       if (cur_thread->safepoint_state()->is_running()) {
@@ -945,7 +945,6 @@ void ThreadSafepointState::handle_polling_page_exception() {
     Method* method = nm->method();
     bool return_oop = method->is_returning_oop();
     HandleMark hm(self);
-
     GrowableArray<Handle> return_values;
     InlineKlass* vk = nullptr;
     if (return_oop && InlineTypeReturnedAsFields &&

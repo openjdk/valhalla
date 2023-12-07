@@ -266,6 +266,9 @@ class SerializeClosure;
   template(java_util_concurrent_atomic_AtomicReferenceFieldUpdater_Impl,     "java/util/concurrent/atomic/AtomicReferenceFieldUpdater$AtomicReferenceFieldUpdaterImpl") \
   template(jdk_internal_vm_annotation_Contended_signature,                   "Ljdk/internal/vm/annotation/Contended;")    \
   template(jdk_internal_vm_annotation_ReservedStackAccess_signature,         "Ljdk/internal/vm/annotation/ReservedStackAccess;") \
+  template(jdk_internal_vm_annotation_ImplicitlyConstructible_signature,     "Ljdk/internal/vm/annotation/ImplicitlyConstructible;") \
+  template(jdk_internal_vm_annotation_LooselyConsistentValue_signature,      "Ljdk/internal/vm/annotation/LooselyConsistentValue;") \
+  template(jdk_internal_vm_annotation_NullRestricted_signature,              "Ljdk/internal/vm/annotation/NullRestricted;") \
   template(jdk_internal_ValueBased_signature,                                "Ljdk/internal/ValueBased;") \
                                                                                                   \
   /* class symbols needed by intrinsics */                                                        \
@@ -298,7 +301,6 @@ class SerializeClosure;
   template(returnType_name,                           "returnType")                               \
   template(signature_name,                            "signature")                                \
   template(slot_name,                                 "slot")                                     \
-  template(trusted_final_name,                        "trustedFinal")                             \
   template(blackhole_name,                            "<blackhole>")  /*fake name*/               \
                                                                                                   \
   /* Support for annotations (JDK 1.5 and above) */                                               \
@@ -379,6 +381,7 @@ class SerializeClosure;
   /* Support for JVMCI */                                                                         \
   JVMCI_VM_SYMBOLS_DO(template, do_alias)                                                         \
                                                                                                   \
+  template(java_lang_ClassFrameInfo,                  "java/lang/ClassFrameInfo")                 \
   template(java_lang_StackWalker,                     "java/lang/StackWalker")                    \
   template(java_lang_StackFrameInfo,                  "java/lang/StackFrameInfo")                 \
   template(java_lang_LiveStackFrameInfo,              "java/lang/LiveStackFrameInfo")             \

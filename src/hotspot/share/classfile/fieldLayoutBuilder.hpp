@@ -254,13 +254,15 @@ class FieldLayoutBuilder : public ResourceObj {
   int _alignment;
   int _first_field_offset;
   int _exact_size_in_bytes;
+  int _atomic_field_count;
+  int _fields_size_sum;
   bool _has_nonstatic_fields;
   bool _has_inline_type_fields;
   bool _is_contended;
   bool _is_inline_type;
   bool _has_flattening_information;
   bool _has_nonatomic_values;
-  int _atomic_field_count;
+  bool _nullable_atomic_flat_candidate;
 
   FieldGroup* get_or_create_contended_group(int g);
 
@@ -285,14 +287,14 @@ class FieldLayoutBuilder : public ResourceObj {
   }
 
   void build_layout(TRAPS);
-  void compute_regular_layout();
+  void compute_regular_layout(TRAPS);
   void compute_inline_class_layout(TRAPS);
   void insert_contended_padding(LayoutRawBlock* slot);
 
  protected:
   void prologue();
   void epilogue();
-  void regular_field_sorting();
+  void regular_field_sorting(TRAPS);
   void inline_class_field_sorting(TRAPS);
   void add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, InlineKlass* vk, int offset);
   void register_embedded_oops_from_list(OopMapBlocksBuilder* nonstatic_oop_maps, GrowableArray<LayoutRawBlock*>* list);

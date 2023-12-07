@@ -136,7 +136,6 @@ void basic_types_init() {
       case T_DOUBLE:
       case T_LONG:
       case T_OBJECT:
-      case T_PRIMITIVE_OBJECT:
       case T_ADDRESS:     // random raw pointer
       case T_METADATA:    // metadata pointer
       case T_NARROWOOP:   // compressed pointer
@@ -279,7 +278,7 @@ BasicType type2field[T_CONFLICT+1] = {
   T_LONG,                  // T_LONG     = 11,
   T_OBJECT,                // T_OBJECT   = 12,
   T_OBJECT,                // T_ARRAY    = 13,
-  T_PRIMITIVE_OBJECT,      // T_PRIMITIVE_OBJECT = 14,
+  T_OBJECT,                // T_PRIMITIVE_OBJECT = 14,
   T_VOID,                  // T_VOID     = 15,
   T_ADDRESS,               // T_ADDRESS  = 16,
   T_NARROWOOP,             // T_NARROWOOP= 17,

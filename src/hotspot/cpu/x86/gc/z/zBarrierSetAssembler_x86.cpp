@@ -514,7 +514,6 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
                                     Register tmp3) {
   BLOCK_COMMENT("ZBarrierSetAssembler::store_at {");
 
-  assert(type != T_PRIMITIVE_OBJECT, "Not supported yet");
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 
   if (is_reference_type(type)) {
