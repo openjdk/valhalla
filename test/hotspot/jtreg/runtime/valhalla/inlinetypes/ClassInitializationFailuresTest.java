@@ -22,18 +22,20 @@
  */
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.value.ValueClass;
 import jdk.test.lib.Asserts;
-import jdk.internal.misc.VM;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
 /*
-* @test
-* @summary Test several scenarios of class initialization failures
-* @library /test/lib
-* @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED ClassInitializationFailuresTest.java
-* @run main/othervm -XX:+EnableValhalla --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED runtime.valhalla.inlinetypes.ClassInitializationFailuresTest
+ * @test
+ * @summary Test several scenarios of class initialization failures
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @compile ClassInitializationFailuresTest.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.ClassInitializationFailuresTest
 */
 public class ClassInitializationFailuresTest {
     static boolean failingInitialization = true;
@@ -116,7 +118,7 @@ public class ClassInitializationFailuresTest {
         // Testing anewarray when the value element class fails to initialize properly
         Throwable e = null;
         try {
-            BadTwo[] array = (BadTwo[])VM.newNullRestrictedArray(BadTwo.class, 10);
+            BadTwo[] array = (BadTwo[]) ValueClass.newNullRestrictedArray(BadTwo.class, 10);
         } catch(Throwable t) {
             e = t;
         }
@@ -124,7 +126,7 @@ public class ClassInitializationFailuresTest {
         Asserts.assertTrue(e.getClass() == ExceptionInInitializerError.class, " Must be an ExceptionInInitializerError");
         // Second attempt because it doesn't fail the same way
         try {
-            BadTwo[] array = (BadTwo[])VM.newNullRestrictedArray(BadTwo.class, 10);
+            BadTwo[] array = (BadTwo[]) ValueClass.newNullRestrictedArray(BadTwo.class, 10);
         } catch(Throwable t) {
             e = t;
         }
@@ -160,7 +162,7 @@ public class ClassInitializationFailuresTest {
         int i = 0;
         static BadFour[] array;
         static {
-            array = (BadFour[])VM.newNullRestrictedArray(BadFour.class, 10);
+            array = (BadFour[]) ValueClass.newNullRestrictedArray(BadFour.class, 10);
             if (ClassInitializationFailuresTest.failingInitialization) {
                 throw new RuntimeException("Failing initialization");
             }

@@ -3448,7 +3448,7 @@ int java_lang_reflect_Field::_name_offset;
 int java_lang_reflect_Field::_type_offset;
 int java_lang_reflect_Field::_slot_offset;
 int java_lang_reflect_Field::_modifiers_offset;
-int java_lang_reflect_Field::_trusted_final_offset;
+int java_lang_reflect_Field::_flags_offset;
 int java_lang_reflect_Field::_signature_offset;
 int java_lang_reflect_Field::_annotations_offset;
 
@@ -3458,7 +3458,7 @@ int java_lang_reflect_Field::_annotations_offset;
   macro(_type_offset,      k, vmSymbols::type_name(),      class_signature,  false); \
   macro(_slot_offset,      k, vmSymbols::slot_name(),      int_signature,    false); \
   macro(_modifiers_offset, k, vmSymbols::modifiers_name(), int_signature,    false); \
-  macro(_trusted_final_offset,    k, vmSymbols::trusted_final_name(),    bool_signature,       false); \
+  macro(_flags_offset,     k, vmSymbols::flags_name(),     int_signature,    false); \
   macro(_signature_offset,        k, vmSymbols::signature_name(),        string_signature,     false); \
   macro(_annotations_offset,      k, vmSymbols::annotations_name(),      byte_array_signature, false);
 
@@ -3523,8 +3523,8 @@ void java_lang_reflect_Field::set_modifiers(oop field, int value) {
   field->int_field_put(_modifiers_offset, value);
 }
 
-void java_lang_reflect_Field::set_trusted_final(oop field) {
-  field->bool_field_put(_trusted_final_offset, true);
+void java_lang_reflect_Field::set_flags(oop field, int value) {
+  field->int_field_put(_flags_offset, value);
 }
 
 void java_lang_reflect_Field::set_signature(oop field, oop value) {
