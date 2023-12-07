@@ -54,6 +54,7 @@ public class ValueClass {
         if (!isImplicitlyConstructible(cls)) {
             throw new IllegalArgumentException(cls.getName() + " not implicitly constructible");
         }
+        UNSAFE.ensureClassInitialized(cls);
         return UNSAFE.uninitializedDefaultValue(cls);
     }
 

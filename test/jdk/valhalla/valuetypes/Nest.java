@@ -24,58 +24,58 @@
 /*
  * @test
  * @compile -XDenablePrimitiveClasses Nest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses Nest
+ * @run junit/othervm -XX:+EnableValhalla Nest
  * @summary Test substitutability of inner class and anonymous class that
  * has the enclosing instance and possibly other captured outer locals
  */
 
-public interface Nest {
-    public static void main(String... args) {
-        assertEquals(Nest.of(1, null), Nest.of(1, null));
-        assertNotEquals(Nest.of(1, null), Nest.of(2, null));
-
-        Outer n = new Outer(1);
-        Outer.Inner inner = n.new Inner(10);
-        Outer n1 = new Outer(1);
-        Outer n2 = new Outer(2);
-        assertEquals(n1.new Inner(10), inner);
-        assertEquals(n2.new Inner(10), new Outer(2).new Inner(10));
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+public class Nest {
+    static interface I {
+        String toString();
     }
 
-    // o1.new Inner(1) == o2.new Inner(1) iff o1 == o2
-    static primitive class Outer {
-        final int i;
-        Outer(int i) {
-            this.i = i;
-        }
-
-        primitive class Inner {
-            final int ic;
-            Inner(int ic) {
-                this.ic = ic;
-            }
-        }
-    }
-
-    String toString();
-
-    static Nest of(int value, Object next) {
+    static I of(int value, Object next) {
         // anonymous class capturing outer locals
-        return new primitive Nest() {
+        return new value I() {
             public String toString() {
                 return value + " -> " + next;
             }
         };
     }
 
-    static void assertEquals(Object o1, Object o2) {
-        if (o1 != o2) {
-            throw new RuntimeException(o1 + " != " + o2);
-        }
+    @Test
+    public void test1() {
+        assertEquals(Nest.of(1, null), Nest.of(1, null));
+        assertNotEquals(Nest.of(1, null), Nest.of(2, null));
     }
-    static void assertNotEquals(Object o1, Object o2) {
-        if (o1 == o2) {
-            throw new RuntimeException(o1 + " == " + o2);
+
+    @Test
+    public void test2() {
+        Outer n = new Outer(1);
+        Outer.Inner inner = n.new Inner(10);
+        Outer n1 = new Outer(1);
+        Outer n2 = new Outer(2);
+        // o1.new Inner(1) == o2.new Inner(1) iff o1 == o2
+        assertEquals(n1.new Inner(10), inner);
+        assertEquals(n2.new Inner(10), new Outer(2).new Inner(10));
+    }
+
+    @ImplicitlyConstructible
+    value class Outer {
+        final int i;
+        Outer(int i) {
+            this.i = i;
+        }
+
+        @ImplicitlyConstructible
+        value class Inner {
+            final int ic;
+            Inner(int ic) {
+                this.ic = ic;
+            }
         }
     }
 }

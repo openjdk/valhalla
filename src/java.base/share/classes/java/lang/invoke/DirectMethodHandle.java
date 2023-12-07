@@ -516,6 +516,8 @@ sealed class DirectMethodHandle extends MethodHandle {
         }
 
         @Override Object checkCast(Object obj) {
+            if (obj == null && member.isNullRestricted())
+                throw new NullPointerException(member + " null-restricted type");
             return fieldType.cast(obj);
         }
         @Override
@@ -565,6 +567,8 @@ sealed class DirectMethodHandle extends MethodHandle {
         }
 
         @Override Object checkCast(Object obj) {
+            if (obj == null && member.isNullRestricted())
+                throw new NullPointerException(member + " null-restricted type");
             return fieldType.cast(obj);
         }
         @Override

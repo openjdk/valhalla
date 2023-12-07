@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,7 @@
 import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
 
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.DataProvider;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
@@ -33,21 +32,24 @@ import static org.testng.Assert.*;
  * @test
  * @summary Test primitive classes with Reference types
  * @compile -XDenablePrimitiveClasses WeakReferenceTest.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses WeakReferenceTest
+ * @run testng/othervm -XX:+EnableValhalla WeakReferenceTest
  */
 @Test
 public class WeakReferenceTest {
+    @ImplicitlyConstructible
+    static value class Value {
+    }
 
     @Test(expectedExceptions = IdentityException.class)
     static void test1() {
-        Point.ref p = new Point(10,20);
-        WeakReference<Point.ref> r = new WeakReference<>(p);
+        Value v = new Value();
+        WeakReference<Value> r = new WeakReference<>(v);
     }
 
     @Test(expectedExceptions = IdentityException.class)
     static void test2() {
         ReferenceQueue<Object> q = new ReferenceQueue<>();
-        Point.ref p = new Point(1,2);
-        WeakReference<Point.ref> r = new WeakReference<>(p, q);
+        Value v = new Value();
+        WeakReference<Value> r = new WeakReference<>(v, q);
     }
 }

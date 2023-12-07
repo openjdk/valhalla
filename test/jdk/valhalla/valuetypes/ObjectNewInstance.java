@@ -23,8 +23,7 @@
 
 /*
  * @test
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ObjectNewInstance
- * @run testng/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses ObjectNewInstance
+ * @run testng/othervm -XX:+EnableValhalla ObjectNewInstance
  * @summary Method handle and core reflection to invoke on the constructor of
  *          java.lang.Object (abstract class) should return an Identity instance
  */
