@@ -426,9 +426,6 @@ void ArrayCopyNode::copy(GraphKit& kit,
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
       assert(!field->is_flat(), "flat field encountered");
-      if (bt == T_PRIMITIVE_OBJECT) {
-        bt = T_OBJECT;
-      }
       const Type* rt = Type::get_const_type(ft);
       const TypePtr* adr_type = atp_src->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
       assert(!bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), bt, false, false, BarrierSetC2::Optimization), "GC barriers required");

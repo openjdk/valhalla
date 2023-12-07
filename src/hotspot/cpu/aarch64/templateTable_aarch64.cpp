@@ -35,7 +35,7 @@
 #include "interpreter/templateTable.hpp"
 #include "memory/universe.hpp"
 #include "oops/methodData.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/resolvedFieldEntry.hpp"
@@ -1175,7 +1175,7 @@ void TemplateTable::aastore() {
 
   // Have a null in r0, r3=array, r2=index.  Store null at ary[idx]
   __ bind(is_null);
-  if (EnablePrimitiveClasses) {
+  if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
     // No way to store null in flat null-free array
@@ -2332,6 +2332,18 @@ void TemplateTable::_return(TosState state)
   if (_desc->bytecode() == Bytecodes::_return)
     __ membar(MacroAssembler::StoreStore);
 
+  if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {
+    Label no_safepoint;
+    __ ldr(rscratch1, Address(rthread, JavaThread::polling_word_offset()));
+    __ tbz(rscratch1, log2i_exact(SafepointMechanism::poll_bit()), no_safepoint);
+    __ push(state);
+    __ push_cont_fastpath(rthread);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint));
+    __ pop_cont_fastpath(rthread);
+    __ pop(state);
+    __ bind(no_safepoint);
+  }
+
   // Narrow result if state is itos but result type is smaller.
   // Need to narrow in the return bytecode rather than in generate_return_entry
   // since compiled code callers expect the result to already be narrowed.
@@ -2726,7 +2738,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmp(tos_state, (u1)atos);
   __ br(Assembler::NE, notObj);
   // atos
-  if (!EnablePrimitiveClasses) {
+  if (!EnableValhalla) {
     do_oop_load(_masm, field, r0, IN_HEAP);
     __ push(atos);
     if (rc == may_rewrite) {
@@ -3014,7 +3026,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   // atos
   {
-     if (!EnablePrimitiveClasses) {
+     if (!EnableValhalla) {
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field
@@ -4136,7 +4148,7 @@ void TemplateTable::monitorenter()
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
         rfp, frame::interpreter_frame_initial_sp_offset * wordSize);
-  const int entry_size = frame::interpreter_frame_monitor_size() * wordSize;
+  const int entry_size = frame::interpreter_frame_monitor_size_in_bytes();
 
   Label allocated;
 
@@ -4182,7 +4194,8 @@ void TemplateTable::monitorenter()
 
     __ check_extended_sp();
     __ sub(sp, sp, entry_size);           // make room for the monitor
-    __ mov(rscratch1, sp);
+    __ sub(rscratch1, sp, rfp);
+    __ asr(rscratch1, rscratch1, Interpreter::logStackElementSize);
     __ str(rscratch1, Address(rfp, frame::interpreter_frame_extended_sp_offset * wordSize));
 
     __ ldr(c_rarg1, monitor_block_bot);   // c_rarg1: old expression stack bottom
@@ -4256,7 +4269,7 @@ void TemplateTable::monitorexit()
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
         rfp, frame::interpreter_frame_initial_sp_offset * wordSize);
-  const int entry_size = frame::interpreter_frame_monitor_size() * wordSize;
+  const int entry_size = frame::interpreter_frame_monitor_size_in_bytes();
 
   Label found;
 

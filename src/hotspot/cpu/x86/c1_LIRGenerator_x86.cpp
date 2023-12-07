@@ -1366,7 +1366,7 @@ void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {
   __ metadata2reg(ciTypeArrayKlass::make(elem_type)->constant_encoding(), klass_reg);
 
   CodeStub* slow_path = new NewTypeArrayStub(klass_reg, len, reg, info);
-  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, elem_type, klass_reg, slow_path);
+  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, elem_type, klass_reg, slow_path, false);
 
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
@@ -1400,11 +1400,7 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
     BAILOUT("encountered unloaded_ciobjarrayklass due to out of memory error");
   }
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  if (x->is_null_free()) {
-    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_PRIMITIVE_OBJECT, klass_reg, slow_path);
-  } else {
-    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);
-  }
+  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path, x->is_null_free());
 
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);

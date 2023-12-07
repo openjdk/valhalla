@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3557,5 +3557,16 @@ public class TestArrays {
             array[i] = new TestClass149(i);
         }
         Asserts.assertEquals(test149(array), 45000);
+    }
+
+    static primitive class Test150Value {
+        Object s = "test";
+    }
+
+    // Test that optimizing a checkcast of a load from a flat array works as expected
+    @Test
+    static String test150() {
+        Test150Value[] array = { new Test150Value() };
+        return (String)array[0].s;
     }
 }

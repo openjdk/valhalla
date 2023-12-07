@@ -37,6 +37,7 @@ import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.ModuleTree.ModuleKind;
 
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Flags.Flag;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.parser.Tokens.*;
@@ -62,6 +63,7 @@ import static com.sun.tools.javac.parser.Tokens.TokenKind.EQ;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.GT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.IMPORT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.LT;
+import static com.sun.tools.javac.parser.Tokens.TokenKind.SYNCHRONIZED;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.ImplicitAndExplicitNotAllowed;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.VarAndExplicitNotAllowed;
@@ -3477,13 +3479,15 @@ public class JavacParser implements Parser {
                         } else {
                             pendingResult = PatternResult.PATTERN;
                         }
-                    } else if (typeDepth == 0 && allowNullRestrictedTypes &&
+                    } else if (typeDepth == 0 && parenDepth == 0 && (peekToken(lookahead, tk -> tk == ARROW || tk == COMMA))) {
+                        return PatternResult.EXPRESSION;
+                    } /*else if (typeDepth == 0 && allowNullRestrictedTypes &&
                             ((peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COMMA) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, ARROW) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COLON))) ) {
                         // this is a type test pattern
                         return PatternResult.PATTERN;
-                    } else if ( allowNullRestrictedTypes &&
+                    } */else if ( allowNullRestrictedTypes &&
                             (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LT) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, COMMA)) ) {
@@ -4132,7 +4136,7 @@ public class JavacParser implements Parser {
 
         boolean firstTypeDecl = true;   // have we see a class, enum, or interface declaration yet?
         boolean isUnnamedClass = false;
-        while (token.kind != EOF) {
+        OUTER: while (token.kind != EOF) {
             if (token.pos <= endPosTable.errorEndPos) {
                 // error recovery
                 skip(firstTypeDecl, false, false, false);
@@ -4147,6 +4151,8 @@ public class JavacParser implements Parser {
             while (firstTypeDecl && mods == null && token.kind == SEMI) {
                 semiList.append(toP(F.at(token.pos).Skip()));
                 nextToken();
+                if (token.kind == EOF)
+                    break OUTER;
             }
             if (firstTypeDecl && mods == null && token.kind == IMPORT) {
                 if (!semiList.isEmpty()) {
@@ -4213,7 +4219,7 @@ public class JavacParser implements Parser {
                     checkSourceLevel(token.pos, Feature.UNNAMED_CLASSES);
                     defs.appendList(topLevelMethodOrFieldDeclaration(mods));
                     isUnnamedClass = true;
-                } else if (token.kind != EOF) {
+                } else {
                     JCTree def = typeDeclaration(mods, docComment);
                     if (def instanceof JCExpressionStatement statement)
                         def = statement.expr;

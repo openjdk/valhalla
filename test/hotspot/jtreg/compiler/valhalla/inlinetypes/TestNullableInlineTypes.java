@@ -2868,4 +2868,21 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test102(false), new CircularValue1(CircularValue1.default));
         Asserts.assertEQ(test102(true), null);
     }
+
+    // Might be incrementally inlined
+    public static Object hide(Object obj) {
+        return (MyValue1.ref)obj;
+    }
+
+    // Test that the ConstraintCastNode::Ideal transformation propagates null-free information
+    @Test
+    public MyValue1.ref test103() {
+        Object obj = hide(null);
+        return (MyValue1.ref)obj;
+    }
+
+    @Run(test = "test103")
+    public void test103_verifier() {
+        Asserts.assertEQ(test103(), null);
+    }
 }

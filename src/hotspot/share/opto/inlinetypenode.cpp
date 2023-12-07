@@ -740,7 +740,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk, bool null_free) {
   // Create a new InlineTypeNode with uninitialized values and nullptr oop
-  Node* oop = (vk->is_empty() && vk->is_initialized()) ? default_oop(gvn, vk) : gvn.zerocon(T_PRIMITIVE_OBJECT);
+  Node* oop = (vk->is_empty() && vk->is_initialized()) ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop, null_free);
   vt->set_is_buffered(gvn, vk->is_empty() && vk->is_initialized());
   vt->set_is_init(gvn);
@@ -760,7 +760,7 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
 
 InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited) {
   // Create a new InlineTypeNode with default values
-  Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_PRIMITIVE_OBJECT);
+  Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
   vt->set_is_buffered(gvn, vk->is_initialized());
   vt->set_is_init(gvn);

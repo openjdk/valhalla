@@ -96,6 +96,7 @@
 #include "services/attachListener.hpp"
 #include "services/management.hpp"
 #include "services/threadService.hpp"
+#include "utilities/checkedCast.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
@@ -422,6 +423,23 @@ JVM_ENTRY(jstring, JVM_GetTemporaryDirectory(JNIEnv *env))
   return (jstring) JNIHandles::make_local(THREAD, h());
 JVM_END
 
+JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len))
+  if (len < 0) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array length is negative");
+  }
+  oop mirror = JNIHandles::resolve_non_null(elmClass);
+  Klass* klass = java_lang_Class::as_Klass(mirror);
+  klass->initialize(CHECK_NULL);
+  if (!klass->is_value_class()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
+  }
+  InstanceKlass* ik = InstanceKlass::cast(klass);
+  if (!ik->is_implicitly_constructible()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not annotated with @ImplicitlyConstructible");
+  }
+  oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
+  return (jarray) JNIHandles::make_local(THREAD, array);
+JVM_END
 
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
 
@@ -542,14 +560,28 @@ JVM_END
 JVM_ENTRY(void, JVM_InitStackTraceElement(JNIEnv* env, jobject element, jobject stackFrameInfo))
   Handle stack_frame_info(THREAD, JNIHandles::resolve_non_null(stackFrameInfo));
   Handle stack_trace_element(THREAD, JNIHandles::resolve_non_null(element));
-  java_lang_StackFrameInfo::to_stack_trace_element(stack_frame_info, stack_trace_element, THREAD);
+  java_lang_StackFrameInfo::to_stack_trace_element(stack_frame_info, stack_trace_element, CHECK);
 JVM_END
 
 
 // java.lang.StackWalker //////////////////////////////////////////////////////
+JVM_ENTRY(void, JVM_ExpandStackFrameInfo(JNIEnv *env, jobject obj))
+  Handle stack_frame_info(THREAD, JNIHandles::resolve_non_null(obj));
 
+  bool have_name = (java_lang_StackFrameInfo::name(stack_frame_info()) != nullptr);
+  bool have_type = (java_lang_StackFrameInfo::type(stack_frame_info()) != nullptr);
+  Method* method = java_lang_StackFrameInfo::get_method(stack_frame_info());
+  if (!have_name) {
+    oop name = StringTable::intern(method->name(), CHECK);
+    java_lang_StackFrameInfo::set_name(stack_frame_info(), name);
+  }
+  if (!have_type) {
+    Handle type = java_lang_String::create_from_symbol(method->signature(), CHECK);
+    java_lang_StackFrameInfo::set_type(stack_frame_info(), type());
+  }
+JVM_END
 
-JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jlong mode,
+JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jint mode,
                                      jint skip_frames, jobject contScope, jobject cont,
                                      jint frame_count, jint start_index, jobjectArray frames))
   if (!thread->has_last_Java_frame()) {
@@ -559,7 +591,7 @@ JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jlong mod
   Handle stackStream_h(THREAD, JNIHandles::resolve_non_null(stackStream));
   Handle contScope_h(THREAD, JNIHandles::resolve(contScope));
   Handle cont_h(THREAD, JNIHandles::resolve(cont));
-  // frames array is a Class<?>[] array when only getting caller reference,
+  // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
   objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
@@ -576,10 +608,10 @@ JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jlong mod
 JVM_END
 
 
-JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jlong mode, jlong anchor,
+JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, jlong anchor,
                                   jint frame_count, jint start_index,
                                   jobjectArray frames))
-  // frames array is a Class<?>[] array when only getting caller reference,
+  // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
   objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
@@ -1260,6 +1292,12 @@ JVM_ENTRY(jboolean, JVM_IsIdentityClass(JNIEnv *env, jclass cls))
   } else {
     return k->is_interface() ? JNI_FALSE : JNI_TRUE;
   }
+JVM_END
+
+JVM_ENTRY(jboolean, JVM_IsImplicitlyConstructibleClass(JNIEnv *env, jclass cls))
+  oop mirror = JNIHandles::resolve_non_null(cls);
+  InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
+  return ik->is_implicitly_constructible();
 JVM_END
 
 JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))

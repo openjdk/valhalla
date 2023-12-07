@@ -912,8 +912,6 @@ public class JavaCompiler {
             taskListener.started(new TaskEvent(TaskEvent.Kind.COMPILATION));
         }
 
-        if (processors != null && processors.iterator().hasNext())
-            explicitAnnotationProcessingRequested = true;
         // as a JavaCompiler can only be used once, throw an exception if
         // it has been used before.
         if (hasBeenUsed)
@@ -1140,6 +1138,9 @@ public class JavaCompiler {
     public void initProcessAnnotations(Iterable<? extends Processor> processors,
                                        Collection<? extends JavaFileObject> initialFiles,
                                        Collection<String> initialClassNames) {
+        if (processors != null && processors.iterator().hasNext())
+            explicitAnnotationProcessingRequested = true;
+
         // Process annotations if processing is not disabled and there
         // is at least one Processor available.
         if (options.isSet(PROC, "none")) {

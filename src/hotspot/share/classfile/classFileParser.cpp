@@ -78,6 +78,7 @@
 #include "services/threadService.hpp"
 #include "utilities/align.hpp"
 #include "utilities/bitMap.inline.hpp"
+#include "utilities/checkedCast.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/formatBuffer.hpp"
 #include "utilities/exceptions.hpp"
@@ -872,7 +873,6 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
                                        // Remove the spurious const modifiers.
                                        // Many are of the form "const int x"
                                        // or "T* const x".
-                                       bool* const is_declared_atomic,
                                        TRAPS) {
   assert(stream != nullptr, "invariant");
   assert(cp != nullptr, "invariant");
@@ -989,6 +989,9 @@ public:
     _field_Stable,
     _jdk_internal_vm_annotation_ReservedStackAccess,
     _jdk_internal_ValueBased,
+    _jdk_internal_ImplicitlyConstructible,
+    _jdk_internal_LooselyConsistentValue,
+    _jdk_internal_NullRestricted,
     _annotation_LIMIT
   };
   const Location _location;
@@ -1542,6 +1545,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const bool is_static = access_flags.is_static();
     FieldAnnotationCollector parsed_annotations(_loader_data);
 
+    bool is_null_restricted = false;
+
     const u2 attributes_count = cfs->get_u2_fast();
     if (attributes_count > 0) {
       parse_field_attributes(cfs,
@@ -1561,6 +1566,16 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                              CHECK);
         }
         _fields_annotations->at_put(n, parsed_annotations.field_annotations());
+        if (parsed_annotations.has_annotation(AnnotationCollector::_jdk_internal_NullRestricted)) {
+          if (!Signature::has_envelope(sig)) {
+            Exceptions::fthrow(
+              THREAD_AND_LOCATION,
+              vmSymbols::java_lang_ClassFormatError(),
+              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s with signature %s (primitive types can never be null)",
+              name->as_C_string(), sig->as_C_string());
+          }
+          is_null_restricted = true;
+        }
         parsed_annotations.set_field_annotations(nullptr);
       }
       if (parsed_annotations.field_type_annotations() != nullptr) {
@@ -1592,7 +1607,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     // a Q-descriptor. This test will be replaced later by something not relying on Q-desriptors.
     // From this point forward, checking if a field's type is an inline type should be performed
     // using the inline_type flag of FieldFlags, and not by looking for a Q-descriptor in its signature
-    if (type == T_PRIMITIVE_OBJECT) fieldFlags.update_null_free_inline_type(true);
+    if (type == T_PRIMITIVE_OBJECT || is_null_restricted) fieldFlags.update_null_free_inline_type(true);
 
     FieldInfo fi(access_flags, name_index, signature_index, constantvalue_index, fieldFlags);
     fi.set_index(n);
@@ -2065,6 +2080,18 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
       if (_location != _in_class)   break;  // only allow for classes
       if (!privileged)              break;  // only allow in privileged code
       return _jdk_internal_ValueBased;
+    }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_ImplicitlyConstructible_signature): {
+      if (_location != _in_class)   break; // only allow for classes
+      return _jdk_internal_ImplicitlyConstructible;
+    }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_LooselyConsistentValue_signature): {
+      if (_location != _in_class)   break; // only allow for classes
+      return _jdk_internal_LooselyConsistentValue;
+    }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_NullRestricted_signature): {
+      if (_location != _in_field)   break; // only allow for fields
+      return _jdk_internal_NullRestricted;
     }
     default: {
       break;
@@ -5059,6 +5086,16 @@ bool ClassFileParser::verify_unqualified_name(const char* name,
   return true;
 }
 
+bool ClassFileParser::is_class_in_preload_attribute(Symbol *klass) {
+  if (_preload_classes == nullptr) return false;
+  for (int i = 0; i < _preload_classes->length(); i++) {
+        // if (_cp->tag_at(_preload_classes->at(i)).is_klass()) continue;
+        Symbol* class_name = _cp->klass_at_noresolve(_preload_classes->at(i));
+        if (class_name == klass) return true;
+  }
+  return false;
+}
+
 // Take pointer to a UTF8 byte string (not NUL-terminated).
 // Skip over the longest part of the string that could
 // be taken as a fieldname. Allow non-trailing '/'s if slash_ok is true.
@@ -5660,10 +5697,13 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   ik->set_major_version(_major_version);
   ik->set_has_nonstatic_concrete_methods(_has_nonstatic_concrete_methods);
   ik->set_declares_nonstatic_concrete_methods(_declares_nonstatic_concrete_methods);
-  if (_is_declared_atomic) {
-    ik->set_is_declared_atomic();
-  }
 
+  if (_must_be_atomic) {
+    ik->set_must_be_atomic();
+  }
+  if (_is_implicitly_constructible) {
+    ik->set_is_implicitly_constructible();
+  }
   if (_is_hidden) {
     ik->set_is_hidden();
   }
@@ -5936,9 +5976,12 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_nonstatic_fields(false),
   _is_empty_inline_type(false),
   _is_naturally_atomic(false),
-  _is_declared_atomic(false),
+  _must_be_atomic(true),
+  _is_implicitly_constructible(false),
   _carries_value_modifier(false),
   _carries_identity_modifier(false),
+  _has_loosely_consistent_annotation(false),
+  _has_implicitly_constructible_annotation(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
@@ -6264,7 +6307,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                    _itfs_len,
                    cp,
                    &_has_nonstatic_concrete_methods,
-                   &_is_declared_atomic,
                    CHECK);
 
   // Fields (offsets are filled in later)
@@ -6403,16 +6445,56 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     if (_super_klass->has_nonstatic_concrete_methods()) {
       _has_nonstatic_concrete_methods = true;
     }
-    if (_super_klass->is_declared_atomic()) {
-      _is_declared_atomic = true;
+
+    if (EnableValhalla && _access_flags.is_value_class()) {
+      const InstanceKlass* k = _super_klass;
+      int inherited_instance_fields = 0;
+      while (k != nullptr) {
+        for (AllFieldStream fs(k); !fs.done(); fs.next()) {
+          if (!fs.access_flags().is_static()) inherited_instance_fields++;
+        }
+        k = k->super() == nullptr ? nullptr :  InstanceKlass::cast(k->super());
+      }
+      if (inherited_instance_fields > 0) {
+        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), "Value classes don't support inherited non-static fields yet");
+      }
     }
   }
 
-  if (*ForceNonTearable != '\0') {
-    // Allow a command line switch to force the same atomicity property:
-    const char* class_name_str = _class_name->as_C_string();
-    if (StringUtils::class_list_match(ForceNonTearable, class_name_str)) {
-      _is_declared_atomic = true;
+  if (_parsed_annotations->has_annotation(AnnotationCollector::_jdk_internal_LooselyConsistentValue) && !_access_flags.is_value_class()) {
+    THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
+          err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
+                  _class_name->as_klass_external_name()));
+  }
+  if (_parsed_annotations->has_annotation(AnnotationCollector::_jdk_internal_ImplicitlyConstructible) && !_access_flags.is_value_class()) {
+    THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
+          err_msg("class %s cannot have annotation jdk.internal.vm.annotation.ImplicitlyConstructible, because it is not a value class",
+                  _class_name->as_klass_external_name()));
+  }
+
+  // Determining is the class allows tearing or not (default is not)
+  // Test might need extensions when field inheritance is added for value classes
+  if (EnableValhalla && _access_flags.is_value_class()) {
+    if (_access_flags.is_primitive_class()) {
+      _must_be_atomic = false;             // old semantic, primitive classes are always non-atomic
+      _is_implicitly_constructible = true; // old semantic, primitive classes are always implicitly constructible
+    } else {
+      if (_super_klass != nullptr  // not j.l.Object
+               && _parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
+               && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
+        _must_be_atomic = false;
+      }
+      if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible)) {
+        _is_implicitly_constructible = true;
+      }
+    }
+    // Apply VM options override
+    if (*ForceNonTearable != '\0') {
+      // Allow a command line switch to force the same atomicity property:
+      const char* class_name_str = _class_name->as_C_string();
+      if (StringUtils::class_list_match(ForceNonTearable, class_name_str)) {
+        _must_be_atomic = true;
+      }
     }
   }
 
@@ -6458,9 +6540,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       if (InstanceKlass::cast(interf)->has_nonstatic_concrete_methods()) {
         _has_nonstatic_concrete_methods = true;
       }
-      if (InstanceKlass::cast(interf)->is_declared_atomic()) {
-        _is_declared_atomic = true;
-      }
       _local_interfaces->at_put(i, InstanceKlass::cast(interf));
     }
   }
@@ -6499,8 +6578,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_fac != nullptr, "invariant");
   assert(_parsed_annotations != nullptr, "invariant");
 
-
-  if (EnablePrimitiveClasses) {
+  if (EnableValhalla) {
     _inline_type_field_klasses = MetadataFactory::new_array<InlineKlass*>(_loader_data,
                                                    java_fields_count(),
                                                    nullptr,
@@ -6508,9 +6586,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it) {
       FieldInfo fieldinfo = *it;
       Symbol* sig = fieldinfo.signature(cp);
-
       if (fieldinfo.field_flags().is_null_free_inline_type() && !fieldinfo.access_flags().is_static()) {
-        // Pre-load inline class
+        // Pre-load classes of fields that are candidate for flattening
         Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(sig,
             Handle(THREAD, _loader_data->class_loader()),
             _protection_domain, true, CHECK);
@@ -6518,12 +6595,31 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         if (!klass->access_flags().is_value_class()) {
           assert(klass->is_instance_klass(), "Sanity check");
           ResourceMark rm(THREAD);
-            THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                      err_msg("Class %s expects class %s to be an inline type, but it is not",
-                      _class_name->as_C_string(),
-                      InstanceKlass::cast(klass)->external_name()));
+          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                    err_msg("Class %s expects class %s to be an inline type, but it is not",
+                    _class_name->as_C_string(),
+                    InstanceKlass::cast(klass)->external_name()));
         }
         _inline_type_field_klasses->at_put(fieldinfo.index(), InlineKlass::cast(klass));
+      } else {
+        if (sig != _class_name && is_class_in_preload_attribute(sig)) {
+          oop loader = loader_data()->class_loader();
+          Klass* klass = SystemDictionary::resolve_or_null(sig, Handle(THREAD, loader), _protection_domain, THREAD);
+          if (HAS_PENDING_EXCEPTION) {
+            CLEAR_PENDING_EXCEPTION;
+          }
+          // Should we verify that klass is a value class? What the PreLoad attribute spec says about that?
+          if (klass != nullptr) {
+            if (klass->is_inline_klass()) {
+              _inline_type_field_klasses->at_put(fieldinfo.index(), InlineKlass::cast(klass));
+              log_info(class, preload)("Preloading class %s during linking of class %s because of its Preload attribute", sig->as_C_string(), _class_name->as_C_string());
+            } else {
+              log_info(class, preload)("Preloading class %s during linking of class %s because of its Preload attribute but loaded class is not a value class", sig->as_C_string(), _class_name->as_C_string());
+            }
+          } else {
+            log_warning(class, preload)("Preloading of class %s during linking of class %s (Preload attribute) failed", sig->as_C_string(), _class_name->as_C_string());
+          }
+        }
       }
     }
   }
