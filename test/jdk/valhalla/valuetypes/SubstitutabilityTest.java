@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,185 +24,129 @@
 /*
  * @test
  * @modules java.base/java.lang.runtime:open
- *          java.base/jdk.internal.org.objectweb.asm
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @compile -XDenablePrimitiveClasses SubstitutabilityTest.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SubstitutabilityTest
+ * @run junit/othervm -XX:+EnableValhalla SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;
-import java.util.List;
+import java.util.stream.Stream;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class SubstitutabilityTest {
-
-    @DataProvider(name="substitutable")
-    Object[][] substitutableCases() {
-        Point p1 = Point.makePoint(10, 10);
-        Point p2 = Point.makePoint(20, 20);
-        Point.ref box1 = p1;
-        Point.ref box2 = p2;
-        Line l1 = Line.makeLine(p1, p2);
-        var mpath = MutablePath.makePath(10, 20, 30, 40);
-        var mixedValues = new MixedValues(p1, l1, mpath, "value");
-        var number = InlinableValue.Number.intValue(99);
-        var list = List.of("list");
-        return new Object[][] {
-            new Object[] { p1, Point.makePoint(10, 10) },
-            new Object[] { l1, Line.makeLine(10,10, 20,20) },
-            new Object[] { box1, Point.makePoint(10, 10) },
-            new Object[] { mpath, mpath},
-            new Object[] { mixedValues, mixedValues},
-            new Object[] { valueBuilder().setPoint(p1).build(),
-                           valueBuilder().setPoint(Point.makePoint(10, 10)).build() },
-            new Object[] { valueBuilder().setPointRef(p2).build(),
-                           valueBuilder().setPointRef(Point.makePoint(20, 20)).build() },
-            new Object[] { valueBuilder().setReference(p2).build(),
-                           valueBuilder().setReference(Point.makePoint(20, 20)).build() },
-            new Object[] { valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setPoint(p1).build(),
-                           valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setPoint(l1.p1).build() },
-            new Object[] { valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setNumber(number).build(),
-                           valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setNumber(InlinableValue.Number.intValue(99)).build() },
-            new Object[] { valueBuilder().setFloat(+0.0f).setDouble(+0.0).setReference(list).build(),
-                           valueBuilder().setFloat(+0.0f).setDouble(+0.0).setReference(list).build() },
-            new Object[] { valueBuilder().setNumber(InlinableValue.Number.intValue(100)).build(),
-                           valueBuilder().setNumber(InlinableValue.Number.intValue(100)).build() },
-            new Object[] { valueBuilder().setReference(list).build(),
-                           valueBuilder().setReference(list).build() },
-            new Object[] { new ValueOptional(p1), new ValueOptional(p1)},
-            new Object[] { new ValueOptional(p1), new ValueOptional(Point.makePoint(10, 10))},
-            new Object[] { new ValueOptional(list), new ValueOptional(list)},
-            new Object[] { new ValueOptional(null), new ValueOptional(null)},
-        };
+    @ImplicitlyConstructible
+    static value class Point {
+        public int x;
+        public int y;
+        Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
     }
 
-    @Test(dataProvider="substitutable")
+    @ImplicitlyConstructible
+    static value class Line {
+        @NullRestricted
+        Point p1;
+        @NullRestricted
+        Point p2;
+
+        Line(Point p1, Point p2) {
+            this.p1 = p1;
+            this.p2 = p2;
+        }
+        Line(int x1, int y1, int x2, int y2) {
+            this(new Point(x1, y1), new Point(x2, y2));
+        }
+    }
+
+    // contains null-reference and null-restricted fields
+    @ImplicitlyConstructible
+    static value class MyValue {
+        MyValue2 v1;
+        @NullRestricted
+        MyValue2 v2;
+        public MyValue(MyValue2 v1, MyValue2 v2) {
+            this.v1 = v1;
+            this.v2 = v2;
+        }
+    }
+
+    @ImplicitlyConstructible
+    static value class MyValue2 {
+        static int cnt = 0;
+        int x;
+        MyValue2(int x) {
+            this.x = x;
+        }
+    }
+
+    static Stream<Arguments> substitutableCases() {
+        Point p1 = new Point(10, 10);
+        Point p2 = new Point(20, 20);
+        Line l1 = new Line(p1, p2);
+        MyValue v1 = new MyValue(null, ValueClass.zeroInstance(MyValue2.class));
+        MyValue v2 = new MyValue(new MyValue2(2), new MyValue2(3));
+        MyValue2 value2 = new MyValue2(2);
+        MyValue2 value3 = new MyValue2(3);
+        MyValue[] va = new MyValue[1];
+        return Stream.of(
+                Arguments.of(p1, new Point(10, 10)),
+                Arguments.of(p2, new Point(20, 20)),
+                Arguments.of(l1, new Line(10,10, 20,20)),
+                Arguments.of(v1, ValueClass.zeroInstance(MyValue.class)),
+                Arguments.of(v2, new MyValue(value2, value3)),
+                Arguments.of(va[0], null)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("substitutableCases")
     public void substitutableTest(Object a, Object b) {
         assertTrue(isSubstitutable(a, b));
     }
 
-    @DataProvider(name="notSubstitutable")
-    Object[][] notSubstitutableCases() {
-        var point = Point.makePoint(10, 10);
-        var mpath = MutablePath.makePath(10, 20, 30, 40);
-        var number = InlinableValue.Number.intValue(99);
-        return new Object[][] {
-            new Object[] { Point.makePoint(10, 10), Point.makePoint(10, 20)},
-            new Object[] { mpath, MutablePath.makePath(10, 20, 30, 40)},
-            new Object[] { point, mpath},
-            new Object[] { valueBuilder().setFloat(+0.0f).setDouble(+0.0).build(),
-                           valueBuilder().setFloat(-0.0f).setDouble(+0.0).build() },
-            new Object[] { valueBuilder().setFloat(+0.0f).setDouble(+0.0).build(),
-                           valueBuilder().setFloat(+0.0f).setDouble(-0.0).build() },
-            new Object[] { valueBuilder().setPoint(point).build(),
-                           valueBuilder().setPoint(Point.makePoint(20, 20)).build() },
-            new Object[] { valueBuilder().setPointRef(point).build(),
-                           valueBuilder().setPointRef(Point.makePoint(20, 20)).build() },
-            new Object[] { valueBuilder().setNumber(number).build(),
-                           valueBuilder().setNumber(new InlinableValue.IntNumber(99)).build() },
-            new Object[] { valueBuilder().setNumber(InlinableValue.Number.intValue(1)).build(),
-                           valueBuilder().setNumber(InlinableValue.Number.shortValue((short)1)).build() },
-            new Object[] { valueBuilder().setNumber(new InlinableValue.IntNumber(99)).build(),
-                           valueBuilder().setNumber(new InlinableValue.IntNumber(99)).build() },
-            new Object[] { valueBuilder().setReference(List.of("list")).build(),
-                           valueBuilder().setReference(List.of("list")).build() },
-            new Object[] { new ValueOptional(point), new ValueOptional(mpath)},
-            new Object[] { new ValueOptional(InlinableValue.Number.intValue(1)), new ValueOptional(InlinableValue.Number.shortValue((short)1))},
-        };
+    static Stream<Arguments> notSubstitutableCases() {
+        // MyValue![] va = new MyValue![1];
+        MyValue[] va = new MyValue[] { ValueClass.zeroInstance(MyValue.class) };
+        Object[] oa = new Object[] { va };
+        return Stream.of(
+                Arguments.of(new Point(10, 10), new Point(20, 20)),
+                /*
+                 * Verify ValueObjectMethods::isSubstitutable that does not
+                 * throw an exception if any one of parameter is null or if
+                 * the parameters are of different types.
+                 */
+                Arguments.of(va[0], null),
+                Arguments.of(null, va[0]),
+                Arguments.of(va[0], oa),
+                Arguments.of(va[0], oa[0]),
+                Arguments.of(va, oa),
+                Arguments.of(new Point(10, 10), Integer.valueOf(10)),
+                Arguments.of(Integer.valueOf(10), Integer.valueOf(20))
+        );
     }
-    @Test(dataProvider="notSubstitutable")
+
+    @ParameterizedTest
+    @MethodSource("notSubstitutableCases")
     public void notSubstitutableTest(Object a, Object b) {
         assertFalse(isSubstitutable(a, b));
     }
-    private static InlinableValue.Builder valueBuilder() {
-        InlinableValue.Builder builder = new InlinableValue.Builder();
-        return builder.setChar('a')
-                       .setBoolean(true)
-                       .setByte((byte)0x1)
-                       .setShort((short)3)
-                       .setLong(4L);
-    }
-
-    static primitive class MyValue {
-        static int cnt = 0;
-        final int x;
-        final MyValue2 vtField1;
-        final MyValue2.ref vtField2;
-
-        public MyValue() {
-            this.x = ++cnt;
-            this.vtField1 = new MyValue2();
-            this.vtField2 = new MyValue2();
-        }
-    }
-
-    static primitive class MyValue2 {
-        static int cnt = 0;
-        final int x;
-        public MyValue2() {
-            this.x = ++cnt;
-        }
-    }
 
     @Test
-    public void uninitializedArrayElement() throws Exception {
-        MyValue[] va = new MyValue[1];
-        Object[] oa = new Object[] { va };
-        for (int i = 0; i < 100; ++i) {
-            Object o = zerothElement(((i % 2) == 0) ? va : oa);
-            if ((i % 2) == 0) {
-                assertTrue(o instanceof MyValue);
-                assertTrue(o == va[0]);
-                assertFalse(o != va[0]);
-                assertTrue(isSubstitutable(o, va[0]));
-            } else {
-                assertTrue(o.getClass().isArray());
-                assertFalse(o == va[0]);
-                assertTrue(o != va[0]);
-                assertFalse(isSubstitutable(o, va[0]));
-            }
-        }
-    }
-
-    @DataProvider(name="negativeSubstitutableCases")
-    Object[][] negativeSubstitutableCases() {
-        MyValue[] va = new MyValue[1];
-        Object[] oa = new Object[] { va };
-        Point p = Point.makePoint(10, 10);
-        Integer i = Integer.valueOf(10);
-        return new Object[][] {
-                new Object[] { va[0], null },
-                new Object[] { null,  va[0] },
-                new Object[] { va[0], oa },
-                new Object[] { va[0], oa[0] },
-                new Object[] { va,    oa },
-                new Object[] { p,     i },
-                new Object[] { i,     Integer.valueOf(20) },
-        };
-    }
-
-    /*
-     * isSubstitutable method handle invoker requires both parameters are
-     * non-null and of the same primitive class.
-     *
-     * This verifies ValueObjectMethods::isSubstitutable that does not
-     * throw an exception if any one of parameter is null or if
-     * the parameters are of different types.
-     */
-    @Test(dataProvider="negativeSubstitutableCases")
-    public void testIsSubstitutable(Object a, Object b) {
-        assertFalse(isSubstitutable(a, b));
-    }
-
-    @Test
-    public void nullArguments() throws Exception {
+    public void nullArguments() {
         assertTrue(isSubstitutable(null, null));
-    }
-
-    private static Object zerothElement(Object[] oa) {
-        return oa[0];
     }
 
     private static final Method IS_SUBSTITUTABLE;

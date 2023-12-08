@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,116 +24,84 @@
 
 /*
  * @test
- * @summary test VarHandle on primitive class array
+ * @summary test VarHandle on value class array
  * @compile -XDenablePrimitiveClasses ArrayElementVarHandleTest.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=-1 ArrayElementVarHandleTest
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=0  ArrayElementVarHandleTest
+ * @run junit/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=-1 ArrayElementVarHandleTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=0  ArrayElementVarHandleTest
  */
 
 import java.lang.invoke.*;
+import java.util.stream.Stream;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ArrayElementVarHandleTest {
-    private static final Point P = Point.makePoint(10, 20);
-    private static final Line L = Line.makeLine(10, 20, 30, 40);
-    private static final MutablePath PATH = MutablePath.makePath(10, 20, 30, 40);
+    @ImplicitlyConstructible
+    static value class Point {
+        public int x;
+        public int y;
+        Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    @ImplicitlyConstructible
+    static value class Line {
+        @NullRestricted
+        Point p1;
+        @NullRestricted
+        Point p2;
+
+        Line(Point p1, Point p2) {
+            this.p1 = p1;
+            this.p2 = p2;
+        }
+        Line(int x1, int y1, int x2, int y2) {
+            this(new Point(x1, y1), new Point(x2, y2));
+        }
+    }
 
     private static final Point[] POINTS = new Point[]{
-            Point.makePoint(1, 2),
-            Point.makePoint(10, 20),
-            Point.makePoint(100, 200)
-    };
-
-    private static final Point.ref[] NULL_POINTS = new Point.ref[]{
-            Point.makePoint(11, 22),
-            Point.makePoint(110, 220),
+            new Point(1, 2),
+            new Point(10, 20),
+            new Point(100, 200),
             null
     };
 
     private static final Line[] LINES = new Line[]{
-            Line.makeLine(1, 2, 3, 4),
-            Line.makeLine(10, 20, 30, 40),
-            Line.makeLine(15, 25, 35, 45),
-            Line.makeLine(20, 30, 40, 50)
-    };
-
-    private static final Line.ref[] NULL_LINES = new Line.ref[] { null, null };
-
-    private static final NonFlattenValue[] NFV_ARRAY = new NonFlattenValue[]{
-            NonFlattenValue.make(1, 2),
-            NonFlattenValue.make(10, 20),
-            NonFlattenValue.make(100, 200)
-    };
-
-    private static final ValueOptional[] VALUES = new ValueOptional[]{
-            new ValueOptional(null),
-            new ValueOptional(P),
+            new Line(1, 2, 3, 4),
+            new Line(10, 20, 30, 40),
             null
     };
 
-    @DataProvider(name="data")
-    static Object[][] data() throws Throwable {
+    static Stream<Arguments> testCases() throws Throwable {
         int plen = POINTS.length;
         int llen = LINES.length;
-        int vlen = VALUES.length;
-        return new Object[][]{
-                // Point[] <: Point.ref[] <: Object[]
-                new Object[] { newArray(Object[].class, plen),    POINTS },
-                new Object[] { newArray(Object[].class, plen),    NULL_POINTS },
-                new Object[] { newArray(Object[].class, plen),    new Object[] { "abc", Point.makePoint(1, 2) } },
-                new Object[] { newArray(Point.ref[].class, plen), NULL_POINTS },
-                new Object[] { newArray(Point[].class, plen),     POINTS },
-                new Object[] { new Point.ref[plen],               POINTS },
-                new Object[] { new Point.ref[plen],               NULL_POINTS },
-                new Object[] { new Point[plen],                   POINTS },
+        return Stream.of(
+                Arguments.of(newArray(Object[].class, plen),    POINTS),
+                Arguments.of(newArray(Object[].class, plen),    new Object[] { "abc", new Point(1, 2) }),
+                Arguments.of(newArray(Point[].class, plen),     POINTS),
+                Arguments.of(new Point[plen],                   POINTS),
 
-                // Line[] <: Line.ref[]
-                new Object[] { newArray(Object[].class, llen),    LINES },
-                new Object[] { newArray(Object[].class, llen),    NULL_LINES },
-                new Object[] { newArray(Object[].class, llen),    LINES },
-                new Object[] { newArray(Line.ref[].class, llen),  NULL_LINES },
-                new Object[] { newArray(Line[].class, llen),      LINES },
-                new Object[] { new Line.ref[llen],                LINES },
-                new Object[] { new Line.ref[llen],                NULL_LINES },
-                new Object[] { new Line[llen],                    LINES },
-
-                // value class
-                new Object[] { newArray(Object[].class, vlen),        VALUES },
-                new Object[] { newArray(ValueOptional[].class, vlen), VALUES },
-                new Object[] { new ValueOptional[vlen],               VALUES },
-
-                // non flattened values
-                new Object[] { newArray(NonFlattenValue[].class, NFV_ARRAY.length), NFV_ARRAY },
-                new Object[] { new NonFlattenValue[NFV_ARRAY.length], NFV_ARRAY }
-        };
+                Arguments.of(newArray(Object[].class, llen),    LINES),
+                Arguments.of(newArray(Line[].class, llen),      LINES),
+                Arguments.of(new Line[llen],                    LINES)
+        );
     }
 
     /*
      * Test VarHandle to set elements of the given array with
      * various access mode.
      */
-    @Test(dataProvider = "data")
-    public void testSetArrayElements(Object[] array, Object[] data) throws Throwable {
-        setElements(array, data);
-    }
-
-    /*
-     * Constructs a new array of the specified type and size using
-     * MethodHandle.
-     */
-    static Object[] newArray(Class<?> arrayType, int size) throws Throwable {
-        MethodHandle ctor = MethodHandles.arrayConstructor(arrayType);
-        return (Object[]) ctor.invoke(size);
-    }
-
-    /*
-     * Sets the given array with the given elements.
-     * This tests several VarHandle access mode.
-     */
-    void setElements(Object[] array, Object[] elements) {
+    @ParameterizedTest
+    @MethodSource("testCases")
+    public void testSetArrayElements(Object[] array, Object[] elements) {
         Class<?> arrayType = array.getClass();
         assertTrue(array.length >= elements.length);
 
@@ -147,6 +115,15 @@ public class ArrayElementVarHandleTest {
         compareAndExchange(vh, array.clone(), elements);
     }
 
+    /*
+     * Constructs a new array of the specified type and size using
+     * MethodHandle.
+     */
+    static Object[] newArray(Class<?> arrayType, int size) throws Throwable {
+        MethodHandle ctor = MethodHandles.arrayConstructor(arrayType);
+        return (Object[]) ctor.invoke(size);
+    }
+
     // VarHandle::set
     void set(VarHandle vh, Object[] array, Object[] elements) {
         for (int i = 0; i < elements.length; i++) {
@@ -154,7 +131,7 @@ public class ArrayElementVarHandleTest {
         }
         for (int i = 0; i < elements.length; i++) {
             Object v = (Object) vh.get(array, i);
-            assertEquals(v, elements[i]);
+            assertEquals(elements[i], v);
         }
     }
 
@@ -165,7 +142,7 @@ public class ArrayElementVarHandleTest {
         }
         for (int i = 0; i < elements.length; i++) {
             Object v = (Object) vh.getVolatile(array, i);
-            assertEquals(v, elements[i]);
+            assertEquals(elements[i], v);
         }
     }
 
@@ -176,7 +153,7 @@ public class ArrayElementVarHandleTest {
         }
         for (int i = 0; i < elements.length; i++) {
             Object v = (Object) vh.getOpaque(array, i);
-            assertEquals(v, elements[i]);
+            assertEquals(elements[i], v);
         }
     }
 
@@ -187,7 +164,7 @@ public class ArrayElementVarHandleTest {
         }
         for (int i = 0; i < elements.length; i++) {
             Object v = (Object) vh.getAcquire(array, i);
-            assertEquals(v, elements[i]);
+            assertEquals(elements[i], v);
         }
     }
 
@@ -197,7 +174,7 @@ public class ArrayElementVarHandleTest {
         }
         for (int i = 0; i < elements.length; i++) {
             Object v = (Object) vh.get(array, i);
-            assertEquals(v, elements[i]);
+            assertEquals(elements[i], v);
         }
     }
 
@@ -226,7 +203,7 @@ public class ArrayElementVarHandleTest {
         // shift to the right element
         for (int i = 0; i < elements.length; i++) {
             Object v = elements[i + 1 < elements.length ? i + 1 : 0];
-            assertEquals(vh.compareAndExchange(array, i, elements[i], v), elements[i]);
+            assertEquals(elements[i], vh.compareAndExchange(array, i, elements[i], v));
         }
     }
 }
