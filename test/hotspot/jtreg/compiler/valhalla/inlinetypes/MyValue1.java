@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,24 +28,34 @@ import compiler.lib.ir_framework.DontInline;
 import compiler.lib.ir_framework.ForceCompileClassInitializer;
 import compiler.lib.ir_framework.ForceInline;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
 @ForceCompileClassInitializer
-public final primitive class MyValue1 extends MyAbstract {
+public value class MyValue1 extends MyAbstract {
     static int s;
     static final long sf = InlineTypes.rL;
-    final int x;
-    final long y;
-    final short z;
-    final Integer o;
-    final int[] oa;
-    final MyValue2 v1;
-    final MyValue2 v2;
+    int x;
+    long y;
+    short z;
+    Integer o;
+    int[] oa;
+    @NullRestricted
+    MyValue2 v1;
+    @NullRestricted
+    MyValue2 v2;
+    @NullRestricted
     static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypes.rI, InlineTypes.rD);
-    final MyValue2.ref v4;
-    final MyValue2 v5;
-    final int c;
+    MyValue2 v4;
+    @NullRestricted
+    MyValue2 v5;
+    int c;
 
     @ForceInline
-    public MyValue1(int x, long y, short z, Integer o, int[] oa, MyValue2 v1, MyValue2 v2, MyValue2.ref v4, MyValue2.ref v5, int c) {
+    public MyValue1(int x, long y, short z, Integer o, int[] oa, MyValue2 v1, MyValue2 v2, MyValue2 v4, MyValue2 v5, int c) {
         s = 0;
         this.x = x;
         this.y = y;
@@ -66,7 +76,7 @@ public final primitive class MyValue1 extends MyAbstract {
 
     @ForceInline
     static MyValue1 createDefaultInline() {
-        return MyValue1.default;
+        return new MyValue1(0, 0, (short)0, null, null, MyValue2.createDefaultInline(), MyValue2.createDefaultInline(), null, MyValue2.createDefaultInline(), 0);
     }
 
     @DontInline
@@ -174,12 +184,12 @@ public final primitive class MyValue1 extends MyAbstract {
     }
 
     @ForceInline
-    static MyValue1 setV4(MyValue1 v, MyValue2.ref v4) {
+    static MyValue1 setV4(MyValue1 v, MyValue2 v4) {
         return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v4, v.v5, v.c);
     }
 
     @ForceInline
-    static MyValue1 setV5(MyValue1 v, MyValue2.ref v5) {
+    static MyValue1 setV5(MyValue1 v, MyValue2 v5) {
         return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v.v4, v5, v.c);
     }
 }

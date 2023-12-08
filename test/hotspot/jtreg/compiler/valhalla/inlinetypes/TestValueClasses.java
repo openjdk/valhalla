@@ -39,8 +39,6 @@ import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
-// TODO remove @modules
-
 /*
  * @test
  * @key randomness

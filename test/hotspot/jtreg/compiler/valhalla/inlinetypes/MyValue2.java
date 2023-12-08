@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,15 @@ package compiler.valhalla.inlinetypes;
 import compiler.lib.ir_framework.DontInline;
 import compiler.lib.ir_framework.ForceInline;
 
-final primitive class MyValue2Inline {
-    final double d;
-    final long l;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue2Inline {
+    double d;
+    long l;
 
     @ForceInline
     public MyValue2Inline(double d, long l) {
@@ -48,7 +54,7 @@ final primitive class MyValue2Inline {
 
     @ForceInline
     public static MyValue2Inline createDefault() {
-        return MyValue2Inline.default;
+        return new MyValue2Inline(0, 0);
     }
 
     @ForceInline
@@ -60,10 +66,13 @@ final primitive class MyValue2Inline {
     }
 }
 
-public final primitive class MyValue2 extends MyAbstract {
-    final int x;
-    final byte y;
-    final MyValue2Inline v;
+@ImplicitlyConstructible
+@LooselyConsistentValue
+public value class MyValue2 extends MyAbstract {
+    int x;
+    byte y;
+    @NullRestricted
+    MyValue2Inline v;
 
     @ForceInline
     public MyValue2(int x, byte y, MyValue2Inline v) {
@@ -74,7 +83,7 @@ public final primitive class MyValue2 extends MyAbstract {
 
     @ForceInline
     public static MyValue2 createDefaultInline() {
-        return MyValue2.default;
+        return new MyValue2(0, (byte)0, MyValue2Inline.createDefault());
     }
 
     @ForceInline

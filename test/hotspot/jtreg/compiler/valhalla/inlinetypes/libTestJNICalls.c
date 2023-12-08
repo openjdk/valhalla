@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 JNIEXPORT jobject JNICALL
 Java_compiler_valhalla_inlinetypes_TestJNICalls_testMethod1(JNIEnv *env, jobject receiver, jobject vt) {
     jclass cls = (*env)->GetObjectClass(env, receiver);
-    jmethodID mid = (*env)->GetMethodID(env, cls, "test1", "(Qcompiler/valhalla/inlinetypes/MyValue1;Z)Qcompiler/valhalla/inlinetypes/MyValue1;");
+    jmethodID mid = (*env)->GetMethodID(env, cls, "test1", "(Lcompiler/valhalla/inlinetypes/MyValue1;Z)Lcompiler/valhalla/inlinetypes/MyValue1;");
     return (*env)->CallObjectMethod(env, receiver, mid, vt, JNI_TRUE);
 }
 

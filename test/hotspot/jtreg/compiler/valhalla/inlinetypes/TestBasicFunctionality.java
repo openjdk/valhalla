@@ -292,7 +292,7 @@ public class TestBasicFunctionality {
         counts = {SCOBJ, ">= 1", LOAD, "<= 12"}) // TODO 8227588 (loads should be removed)
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1[] va = new MyValue1[Math.abs(rI) % 10];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, Math.abs(rI) % 10);
         for (int i = 0; i < va.length; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -322,7 +322,7 @@ public class TestBasicFunctionality {
     @Test
     public long test13(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
-        MyValue1[] va = new MyValue1[Math.abs(rI) % 10];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, Math.abs(rI) % 10);
         for (int i = 0; i < va.length; ++i) {
             va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
         }
@@ -478,7 +478,7 @@ public class TestBasicFunctionality {
         failOn = LOAD)
     public long test20(boolean deopt, Method m) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue2[] va = new MyValue2[3];
+        MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 3);
         if (deopt) {
             // uncommon trap
             TestFramework.deoptimize(m);
@@ -490,16 +490,21 @@ public class TestBasicFunctionality {
 
     @Run(test = "test20")
     public void test20_verifier(RunInfo info) {
-        MyValue2[] va = new MyValue2[42];
+        MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 42);
         long result = test20(!info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result, hash() + va[0].hash() + va[1].hash() + va[2].hash());
     }
 
     // Value class fields in regular object
+    @NullRestricted
     MyValue1 val1;
+    @NullRestricted
     MyValue2 val2;
+    @NullRestricted
     final MyValue1 val3 = MyValue1.createWithFieldsInline(rI, rL);
+    @NullRestricted
     static MyValue1 val4;
+    @NullRestricted
     static final MyValue1 val5 = MyValue1.createWithFieldsInline(rI, rL);
 
     // Test value class fields in objects
@@ -606,6 +611,7 @@ public class TestBasicFunctionality {
     }
 
     class TestClass27 {
+        @NullRestricted
         public MyValue1 v;
     }
 
@@ -627,7 +633,9 @@ public class TestBasicFunctionality {
         test27(!info.isWarmUp(), info.getTest());
     }
 
+    @NullRestricted
     static MyValue3 staticVal3;
+    @NullRestricted
     static MyValue3 staticVal3_copy;
 
     // Check elimination of redundant value class allocations
@@ -651,7 +659,7 @@ public class TestBasicFunctionality {
 
     @Run(test = "test28")
     public void test28_verifier() {
-        MyValue3[] va = new MyValue3[1];
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 vt = test28(va);
         staticVal3.verify(vt);
         staticVal3.verify(va[0]);
@@ -698,7 +706,7 @@ public class TestBasicFunctionality {
     @Run(test = "test30")
     public void test30_verifier() {
         staticVal3 = MyValue3.create();
-        MyValue3[] va = new MyValue3[1];
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 vt = test30(va);
         staticVal3.verify(vt);
         staticVal3.verify(va[0]);
@@ -720,7 +728,7 @@ public class TestBasicFunctionality {
 
     @Run(test = "test31")
     public void test31_verifier() {
-        MyValue3[] va = new MyValue3[1];
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 vt = test31(va);
         staticVal3.verify(vt);
         staticVal3.verify(va[0]);
@@ -742,7 +750,7 @@ public class TestBasicFunctionality {
     @Run(test = "test32")
     public void test32_verifier() {
         MyValue3 vt = MyValue3.create();
-        MyValue3[] va = new MyValue3[1];
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 result = test32(vt, va);
         staticVal3.verify(vt);
         va[0].verify(vt);
@@ -764,7 +772,7 @@ public class TestBasicFunctionality {
     @Run(test = "test33")
     public void test33_verifier() {
         staticVal3 = MyValue3.create();
-        MyValue3[] va = new MyValue3[1];
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 vt = test33(va);
         Asserts.assertEQ(staticVal3.i, (int)staticVal3.c);
         Asserts.assertEQ(va[0].i, (int)staticVal3.c);
@@ -784,7 +792,7 @@ public class TestBasicFunctionality {
         vt.verify(vt);
 
         // Load default value from uninitialized value class array
-        MyValue3[] dva = new MyValue3[1];
+        MyValue3[] dva = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         staticVal3_copy = dva[0];
         va[1] = dva[0];
         dva[0].verify(dva[0]);
@@ -794,7 +802,7 @@ public class TestBasicFunctionality {
     @Run(test = "test34")
     public void test34_verifier() {
         MyValue3 vt = MyValue3.createDefault();
-        MyValue3[] va = new MyValue3[2];
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 2);
         va[0] = MyValue3.create();
         va[1] = MyValue3.create();
         MyValue3 res = test34(va);
@@ -832,7 +840,7 @@ public class TestBasicFunctionality {
     @Run(test = "test35")
     public void test35_verifier() {
         MyValue3 vt = MyValue3.createDefault();
-        MyValue3[] va = new MyValue3[1];
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         va[0] = MyValue3.create();
         MyValue3 res = test35(va[0], va);
         res.verify(vt);

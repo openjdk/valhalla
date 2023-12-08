@@ -43,11 +43,10 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test value class specific type profiling.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses
- *          --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestLWorldProfiling.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla
  *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                               compiler.valhalla.inlinetypes.TestLWorldProfiling
@@ -110,15 +109,23 @@ public class TestLWorldProfiling {
                    .start();
     }
 
+    @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
+    @NullRestricted
     private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
-    private static final MyValue1[] testValue1Array = new MyValue1[] {testValue1};
-    private static final MyValue2[] testValue2Array = new MyValue2[] {testValue2};
-    private static final Integer[] testIntegerArray = new Integer[] {42};
-    private static final Long[] testLongArray = new Long[] {42L};
-    private static final Double[] testDoubleArray = new Double[] {42.0D};
-    private static final MyValue1.ref[] testValue1NotFlatArray = new MyValue1.ref[] {testValue1};
-    private static final MyValue1[][] testValue1ArrayArray = new MyValue1[][] {testValue1Array};
+    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+    static {
+        testValue1Array[0] = testValue1;
+    }
+    private static final MyValue2[] testValue2Array = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1);
+    static {
+        testValue2Array[0] = testValue2;
+    }
+    private static final Integer[] testIntegerArray = new Integer[] { 42 };
+    private static final Long[] testLongArray = new Long[] { 42L };
+    private static final Double[] testDoubleArray = new Double[] { 42.0D };
+    private static final MyValue1[] testValue1NotFlatArray = new MyValue1[] { testValue1 };
+    private static final MyValue1[][] testValue1ArrayArray = new MyValue1[][] { testValue1Array };
 
     // Wrap these variables into helper class because
     // WhiteBox API needs to be initialized by TestFramework first.

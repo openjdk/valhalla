@@ -31,7 +31,6 @@ import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
-
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
@@ -42,9 +41,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestOnStackReplacement.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestOnStackReplacement
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestOnStackReplacement
  */
 
 public class TestOnStackReplacement {
@@ -77,7 +76,7 @@ public class TestOnStackReplacement {
     @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public long test1() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1[] va = new MyValue1[Math.abs(rI) % 3];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, Math.abs(rI) % 3);
         for (int i = 0; i < va.length; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -173,11 +172,11 @@ public class TestOnStackReplacement {
 
     // OSR compilation with null value class local
 
-    MyValue1.ref nullField;
+    MyValue1 nullField;
 
     @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public void test5() {
-        MyValue1.ref vt = nullField;
+        MyValue1 vt = nullField;
         for (int i = 0; i < 50_000; i++) {
             if (vt != null) {
                 throw new RuntimeException("test5 failed: vt should be null");
@@ -284,6 +283,7 @@ public class TestOnStackReplacement {
     }
 
     // Test OSR with scalarized value class return
+    @NullRestricted
     MyValue3 test8_vt;
 
     @DontInline

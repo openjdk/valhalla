@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,6 @@
  * questions.
  */
 
-// TODO remove @modules
-
 /**
  * @test
  * @bug 8275825 8289686
@@ -31,9 +29,12 @@
  * @requires vm.compiler2.enabled
  * @modules java.base/jdk.internal.value
  * @library /test/lib /compiler/whitebox /
- * @compile -XDenablePrimitiveClasses TestTrivialMethods.java
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestTrivialMethods.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -Xbootclasspath/a:. -XX:+EnableValhalla
+ *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-StressCallingConvention
@@ -48,7 +49,10 @@ import compiler.whitebox.CompilerWhiteBoxTest;
 
 import java.lang.reflect.Method;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
@@ -58,10 +62,12 @@ import jdk.test.whitebox.WhiteBox;
 public class TestTrivialMethods {
     public static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
+    @NullRestricted
     static MyValue3 staticField = MyValue3.create();
-    static MyValue3.ref staticFieldRef = MyValue3.create();
+    static MyValue3 staticFieldRef = MyValue3.create();
+    @NullRestricted
     MyValue3 field = MyValue3.create();
-    MyValue3.ref fieldRef = MyValue3.create();
+    MyValue3 fieldRef = MyValue3.create();
     Object objField = null;
 
     public MyValue3 getter1() {
@@ -84,23 +90,23 @@ public class TestTrivialMethods {
         return 0;
     }
 
-    public MyValue3.ref getter1Ref() {
+    public MyValue3 getter1Ref() {
         return staticFieldRef;
     }
 
-    public static MyValue3.ref getter2Ref() {
+    public static MyValue3 getter2Ref() {
         return staticFieldRef;
     }
 
-    public MyValue3.ref getter3Ref() {
+    public MyValue3 getter3Ref() {
         return fieldRef;
     }
 
-    public Object getter4Ref(MyValue3.ref unusedArg) {
+    public Object getter4Ref(MyValue3 unusedArg) {
         return objField;
     }
 
-    public int constantGetterRef(MyValue3.ref unusedArg) {
+    public int constantGetterRef(MyValue3 unusedArg) {
         return 0;
     }
 
@@ -116,15 +122,15 @@ public class TestTrivialMethods {
         field = val;
     }
 
-    public void setter1Ref(MyValue3.ref val) {
+    public void setter1Ref(MyValue3 val) {
         staticFieldRef = val;
     }
 
-    public static void setter2Ref(MyValue3.ref val) {
+    public static void setter2Ref(MyValue3 val) {
         staticFieldRef = val;
     }
 
-    public void setter3Ref(MyValue3.ref val) {
+    public void setter3Ref(MyValue3 val) {
         fieldRef = val;
     }
 
@@ -156,10 +162,10 @@ public class TestTrivialMethods {
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "getter2 is not C2 compiled");
         m = TestTrivialMethods.class.getMethod("getter3");
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "getter3 is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("setter1", PrimitiveClass.asValueType(MyValue3.class));
-        m = TestTrivialMethods.class.getMethod("getter4", PrimitiveClass.asValueType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("setter1", MyValue3.class);
+        m = TestTrivialMethods.class.getMethod("getter4", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "getter4 is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("constantGetter", PrimitiveClass.asValueType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("constantGetter", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "constantGetter is not C2 compiled");
         m = TestTrivialMethods.class.getMethod("getter1Ref");
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "getter1Ref is not C2 compiled");
@@ -167,21 +173,21 @@ public class TestTrivialMethods {
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "getter2Ref is not C2 compiled");
         m = TestTrivialMethods.class.getMethod("getter3Ref");
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "getter3Ref is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("getter4Ref", PrimitiveClass.asPrimaryType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("getter4Ref", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "getter4Ref is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("constantGetterRef", PrimitiveClass.asPrimaryType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("constantGetterRef", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "constantGetterRef is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("setter1", PrimitiveClass.asValueType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("setter1", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "setter1 is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("setter2", PrimitiveClass.asValueType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("setter2", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "setter2 is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("setter3", PrimitiveClass.asValueType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("setter3", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "setter3 is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("setter1Ref", PrimitiveClass.asPrimaryType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("setter1Ref", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "setter1Ref is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("setter2Ref", PrimitiveClass.asPrimaryType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("setter2Ref", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "setter2Ref is not C2 compiled");
-        m = TestTrivialMethods.class.getMethod("setter3Ref", PrimitiveClass.asPrimaryType(MyValue3.class));
+        m = TestTrivialMethods.class.getMethod("setter3Ref", MyValue3.class);
         Asserts.assertEQ(WHITE_BOX.getMethodCompilationLevel(m, false), CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION, "setter3Ref is not C2 compiled");
     }
 }

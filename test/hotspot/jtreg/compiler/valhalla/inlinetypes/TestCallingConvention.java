@@ -34,14 +34,10 @@ import java.lang.reflect.Method;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
-import jdk.internal.value.PrimitiveClass;
-
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-
-// TODO remove @modules
 
 /*
  * @test
@@ -50,9 +46,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestCallingConvention.java
- * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestCallingConvention
+ * @run main/othervm/timeout=450 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestCallingConvention
  */
 
 @ForceCompileClassInitializer
@@ -63,7 +59,7 @@ public class TestCallingConvention {
             Class<?> clazz = TestCallingConvention.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt = MethodType.methodType(PrimitiveClass.asValueType(MyValue2.class), boolean.class);
+            MethodType mt = MethodType.methodType(MyValue2.class, boolean.class);
             test32_mh = lookup.findVirtual(clazz, "test32_interp", mt);
 
             mt = MethodType.methodType(Object.class, boolean.class);
@@ -308,7 +304,7 @@ public class TestCallingConvention {
     public long test13_interp(MyValue2 v, MyValue1[] va, boolean deopt) {
         if (deopt) {
             // uncommon trap
-            deoptimize("test13", PrimitiveClass.asValueType(MyValue2.class), MyValue1[].class, boolean.class, long.class);
+            deoptimize("test13", MyValue2.class, MyValue1[].class, boolean.class, long.class);
         }
         return v.hash() + va[0].hash() + va[1].hash();
     }
@@ -322,7 +318,7 @@ public class TestCallingConvention {
     @Run(test = "test13")
     public void test13_verifier(RunInfo info) {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue1[] va = new MyValue1[2];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
         va[0] = MyValue1.createWithFieldsDontInline(rI, rL);
         va[1] = MyValue1.createWithFieldsDontInline(rI, rL);
         long result = test13(v, va, !info.isWarmUp(), rL);
@@ -352,13 +348,17 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from interpreter -> compiled
+    @NullRestricted
     final MyValue3 test15_vt = MyValue3.create();
+
     @DontCompile
     public MyValue3 test15_interp() {
         return test15_vt;
     }
 
+    @NullRestricted
     MyValue3 test15_vt2;
+
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC, TRAP})
@@ -373,7 +373,9 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
+    @NullRestricted
     final MyValue3 test16_vt = MyValue3.create();
+
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC, STORE, TRAP})
@@ -388,13 +390,17 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
+    @NullRestricted
     final MyValue3 test17_vt = MyValue3.create();
+
     @DontInline
     public MyValue3 test17_comp() {
         return test17_vt;
     }
 
+    @NullRestricted
     MyValue3 test17_vt2;
+
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC, TRAP})
@@ -417,13 +423,17 @@ public class TestCallingConvention {
     // Same tests as above but with a value class that cannot be returned in registers
 
     // Return value objects in registers from interpreter -> compiled
+    @NullRestricted
     final MyValue4 test18_vt = MyValue4.create();
+
     @DontCompile
     public MyValue4 test18_interp() {
         return test18_vt;
     }
 
+    @NullRestricted
     MyValue4 test18_vt2;
+
     @Test
     public void test18() {
         test18_vt2 = test18_interp();
@@ -436,7 +446,9 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
+    @NullRestricted
     final MyValue4 test19_vt = MyValue4.create();
+
     @Test
     public MyValue4 test19() {
         return test19_vt;
@@ -449,13 +461,17 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
+    @NullRestricted
     final MyValue4 test20_vt = MyValue4.create();
+
     @DontInline
     public MyValue4 test20_comp() {
         return test20_vt;
     }
 
+    @NullRestricted
     MyValue4 test20_vt2;
+
     @Test
     public void test20() {
         test20_vt2 = test20_comp();
@@ -473,7 +489,9 @@ public class TestCallingConvention {
     }
 
     // Test no result from inlined method for incremental inlining
+    @NullRestricted
     final MyValue3 test21_vt = MyValue3.create();
+
     public MyValue3 test21_inlined() {
         throw new RuntimeException();
     }
@@ -494,7 +512,7 @@ public class TestCallingConvention {
     }
 
     // Test returning a non-flattened value object as fields
-    MyValue3.ref test22_vt = MyValue3.create();
+    MyValue3 test22_vt = MyValue3.create();
 
     @Test
     public MyValue3 test22() {
@@ -549,19 +567,19 @@ public class TestCallingConvention {
 
     // Should not return a nullable value object as fields
     @Test
-    public MyValue2.ref test24() {
+    public MyValue2 test24() {
         return null;
     }
 
     @Run(test = "test24")
     public void test24_verifier() {
-        MyValue2.ref vt = test24();
+        MyValue2 vt = test24();
         Asserts.assertEQ(vt, null);
     }
 
     // Same as test24 but with control flow and inlining
     @ForceInline
-    public MyValue2.ref test26_callee(boolean b) {
+    public MyValue2 test26_callee(boolean b) {
         if (b) {
             return null;
         } else {
@@ -570,13 +588,13 @@ public class TestCallingConvention {
     }
 
     @Test
-    public MyValue2.ref test26(boolean b) {
+    public MyValue2 test26(boolean b) {
         return test26_callee(b);
     }
 
     @Run(test = "test26")
     public void test26_verifier() {
-        MyValue2.ref vt = test26(true);
+        MyValue2 vt = test26(true);
         Asserts.assertEQ(vt, null);
         vt = test26(false);
         Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
@@ -642,7 +660,7 @@ public class TestCallingConvention {
         Asserts.assertEQ(result, 8*rI);
     }
 
-    static final MyValue1.ref test28Val = MyValue1.createWithFieldsDontInline(rI, rL);
+    static final MyValue1 test28Val = MyValue1.createWithFieldsDontInline(rI, rL);
 
     @Test
     public String test28() {
@@ -656,6 +674,7 @@ public class TestCallingConvention {
     }
 
     // Test calling a method returning a value object as fields via reflection
+    @NullRestricted
     MyValue3 test29_vt = MyValue3.create();
 
     @Test
@@ -678,11 +697,12 @@ public class TestCallingConvention {
 
     @Run(test = "test30")
     public void test30_verifier() throws Exception {
-        MyValue3[] array = new MyValue3[1];
+        MyValue3[] array = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test30", MyValue3[].class).invoke(this, (Object)array);
         array[0].verify(vt);
     }
 
+    @NullRestricted
     MyValue3 test31_vt;
 
     @Test
@@ -809,6 +829,7 @@ public class TestCallingConvention {
 
     // Same as test31 but with GC in callee to verify that the
     // pre-allocated buffer for the returned value object remains valid.
+    @NullRestricted
     MyValue3 test36_vt;
 
     @Test
@@ -981,7 +1002,7 @@ public class TestCallingConvention {
 
     @Run(test = "test41")
     public void test41_verifier() {
-        MyValueEmpty res = test41(MyValue1.default, new MyValueEmpty(), MyValue1.default);
+        MyValueEmpty res = test41(MyValue1.createDefaultInline(), new MyValueEmpty(), MyValue1.createDefaultInline());
         Asserts.assertEQ(res, new MyValueEmpty());
     }
 
@@ -1092,7 +1113,7 @@ public class TestCallingConvention {
 
     @Run(test = "test46")
     public void test46_verifier() {
-        MyValueEmpty empty = test46(new EmptyContainer(new MyValueEmpty()), MixedContainer.default, new MyValueEmpty());
+        MyValueEmpty empty = test46(new EmptyContainer(new MyValueEmpty()), new MixedContainer(0, new EmptyContainer(new MyValueEmpty())), new MyValueEmpty());
         Asserts.assertEquals(empty, new MyValueEmpty());
     }
 
@@ -1147,7 +1168,9 @@ public class TestCallingConvention {
     }
 
     // Variant of test49 with result verification (triggered different failure mode)
+    @NullRestricted
     final MyValue3 test50_vt = MyValue3.create();
+    @NullRestricted
     final MyValue3 test50_vt2 = test50_vt;
 
     public MyValue3 test50_inlined1(boolean b) {
@@ -1236,7 +1259,7 @@ public class TestCallingConvention {
     static MethodHandle test54_mh;
 
     @DontInline
-    public MyValue2.ref test54_callee() {
+    public MyValue2 test54_callee() {
         return MyValue2.createWithFieldsInline(rI, rD);
     }
 
@@ -1246,7 +1269,7 @@ public class TestCallingConvention {
     public long test54(Method m, boolean b1, boolean b2) throws Throwable {
         MyInterface obj = MyValue2.createWithFieldsInline(rI, rD);
         if (b1) {
-            obj = (MyValue2.ref)test54_mh.invokeExact(this);
+            obj = (MyValue2)test54_mh.invokeExact(this);
         }
         if (b2) {
             // Uncommon trap
@@ -1268,7 +1291,7 @@ public class TestCallingConvention {
     }
 
     @DontInline
-    public MyValue2.ref test55_callee() {
+    public MyValue2 test55_callee() {
         return MyValue2.createWithFieldsInline(rI, rD);
     }
 
@@ -1286,14 +1309,14 @@ public class TestCallingConvention {
     static MethodHandle test56_mh;
 
     @DontInline
-    public MyValue2.ref test56_callee(boolean b) {
+    public MyValue2 test56_callee(boolean b) {
         return b ? MyValue2.createWithFieldsInline(rI, rD) : null;
     }
 
     // Test that scalarization of nullable return works properly for method handle calls
     @Test
-    public MyValue2.ref test56(boolean b) throws Throwable {
-        return (MyValue2.ref)test56_mh.invokeExact(this, b);
+    public MyValue2 test56(boolean b) throws Throwable {
+        return (MyValue2)test56_mh.invokeExact(this, b);
     }
 
     @Run(test = "test56")
