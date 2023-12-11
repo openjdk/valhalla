@@ -362,22 +362,42 @@ public:
 #endif
 };
 
-class ciArrayLoadStoreData : public ArrayLoadStoreData {
-public:
-  ciArrayLoadStoreData(DataLayout* layout) : ArrayLoadStoreData(layout) {}
+class ciArrayStoreData : public ArrayStoreData {
+  // Fake multiple inheritance...  It's a ciReceiverTypeData also.
+  ciReceiverTypeData* rtd_super() const { return (ciReceiverTypeData*) this; }
 
-  ciSingleTypeEntry* array() const { return (ciSingleTypeEntry*)ArrayLoadStoreData::array(); }
-  ciSingleTypeEntry* element() const { return (ciSingleTypeEntry*)ArrayLoadStoreData::element(); }
+public:
+  ciArrayStoreData(DataLayout* layout) : ArrayStoreData(layout) {}
+
+  ciSingleTypeEntry* array() const { return (ciSingleTypeEntry*)ArrayStoreData::array(); }
 
   virtual void translate_from(const ProfileData* data) {
-    array()->translate_type_data_from(data->as_ArrayLoadStoreData()->array());
-    element()->translate_type_data_from(data->as_ArrayLoadStoreData()->element());
+    array()->translate_type_data_from(data->as_ArrayStoreData()->array());
+    rtd_super()->translate_receiver_data_from(data);
   }
 
 #ifndef PRODUCT
   void print_data_on(outputStream* st, const char* extra = nullptr) const;
 #endif
 };
+
+class ciArrayLoadData : public ArrayLoadData {
+public:
+  ciArrayLoadData(DataLayout* layout) : ArrayLoadData(layout) {}
+
+  ciSingleTypeEntry* array() const { return (ciSingleTypeEntry*)ArrayLoadData::array(); }
+  ciSingleTypeEntry* element() const { return (ciSingleTypeEntry*)ArrayLoadData::element(); }
+
+  virtual void translate_from(const ProfileData* data) {
+    array()->translate_type_data_from(data->as_ArrayLoadData()->array());
+    element()->translate_type_data_from(data->as_ArrayLoadData()->element());
+  }
+
+#ifndef PRODUCT
+  void print_data_on(outputStream* st, const char* extra = nullptr) const;
+#endif
+};
+
 
 class ciACmpData : public ACmpData {
 public:
