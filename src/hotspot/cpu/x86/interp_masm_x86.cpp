@@ -1863,9 +1863,9 @@ void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
 // function is recursive, to generate the required tree structured code.
 // It's the interpreter, so we are trading off code space for speed.
 // See below for example code.
-void
-InterpreterMacroAssembler::record_klass_in_profile_helper(Register receiver, Register mdp, Register reg2, int start_row,
-                                                          Label &done) {
+void InterpreterMacroAssembler::record_klass_in_profile_helper(Register receiver, Register mdp,
+                                                               Register reg2, int start_row,
+                                                               Label& done) {
   if (TypeProfileWidth == 0) {
     increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
   } else {

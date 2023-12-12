@@ -638,6 +638,7 @@
   declare_constant(DataLayout::parameters_type_data_tag)                  \
   declare_constant(DataLayout::speculative_trap_data_tag)                 \
   declare_constant(DataLayout::array_store_data_tag)                      \
+  declare_constant(DataLayout::array_load_data_tag)                       \
   declare_constant(DataLayout::acmp_data_tag)                             \
                                                                           \
   declare_constant(Deoptimization::Unpack_deopt)                          \

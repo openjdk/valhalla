@@ -376,6 +376,9 @@ public:
     rtd_super()->translate_receiver_data_from(data);
   }
 
+  ciKlass* receiver(uint row) {
+    return rtd_super()->receiver(row);
+  }
 #ifndef PRODUCT
   void print_data_on(outputStream* st, const char* extra = nullptr) const;
 #endif

@@ -761,7 +761,7 @@ void ciMethodData::dump_replay_data(outputStream* out) {
         ciArrayStoreData* array_store_data = (ciArrayStoreData*)pdata;
         dump_replay_data_type_helper(out, round, count, array_store_data, ciArrayStoreData::array_offset(),
                                      array_store_data->array()->valid_type());
-//        dump_replay_data_receiver_type_helper<ciArrayLoadStoreData>(out, round, count, array_store_data);
+        dump_replay_data_receiver_type_helper<ciArrayStoreData>(out, round, count, array_store_data);
       } else if (pdata->is_ArrayLoadData()) {
         ciArrayLoadData* array_load_data = (ciArrayLoadData*)pdata;
         dump_replay_data_type_helper(out, round, count, array_load_data, ciArrayLoadData::array_offset(),
