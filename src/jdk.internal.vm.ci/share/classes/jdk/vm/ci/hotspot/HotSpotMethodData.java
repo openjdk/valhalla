@@ -105,7 +105,8 @@ final class HotSpotMethodData implements MetaspaceObject {
             new VirtualCallTypeData(this, config.dataLayoutVirtualCallTypeDataTag),
             new UnknownProfileData(this, config.dataLayoutParametersTypeDataTag),
             new UnknownProfileData(this, config.dataLayoutSpeculativeTrapDataTag),
-            new UnknownProfileData(this, config.dataLayoutArrayLoadStoreDataTag),
+            new UnknownProfileData(this, config.dataLayoutArrayLoadDataTag),
+            new UnknownProfileData(this, config.dataLayoutArrayStoreDataTag),
             new UnknownProfileData(this, config.dataLayoutACmpDataTag),
         };
         // @formatter:on
