@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,51 +25,54 @@
  * @test
  * @summary Test lambdas with parameter types or return type of value class
  * @compile -XDenablePrimitiveClasses LambdaTest.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LambdaTest
+ * @run junit/othervm -XX:+EnableValhalla LambdaTest
  */
 
 import java.util.function.Function;
 import java.util.function.IntFunction;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class LambdaTest {
+    @ImplicitlyConstructible
     static value class V {
-        int v;
-        V(int v) {
-            this.v = v;
+        int x;
+        V(int x) {
+            this.x = x;
         }
 
-        static V get(int v) {
-            return new V(v);
+        static V get(int x) {
+            return new V(x);
         }
     }
 
-    static primitive class P {
-        int p;
-        P(int p) {
-            this.p = p;
+    @ImplicitlyConstructible
+    static value class Value {
+        @NullRestricted
+        V v;
+        Value(V v) {
+            this.v = v;
         }
-
-        static P get(int p) {
-            return new P(p);
+        static Value get(int x) {
+            return new Value(new V(x));
         }
     }
 
     static int getV(V v) {
-        return v.v;
+        return v.x;
     }
 
-    static int getP(P p) {
-        return p.p;
+    static int getValue(Value v) {
+        return v.v.x;
     }
 
     @Test
     public void testValueParameterType() {
-        Function<P.ref, Integer> func1 = LambdaTest::getP;
-        assertTrue(func1.apply(new P(100)) == 100);
+        Function<Value, Integer> func1 = LambdaTest::getValue;
+        assertTrue(func1.apply(new Value(new V(100))) == 100);
 
         Function<V, Integer> func2 = LambdaTest::getV;
         assertTrue(func2.apply(new V(200)) == 200);
@@ -77,8 +80,8 @@ public class LambdaTest {
 
     @Test
     public void testValueReturnType() {
-        IntFunction<P.ref> func1 = P::get;
-        assertEquals(func1.apply(10), new P(10));
+        IntFunction<Value> func1 = Value::get;
+        assertEquals(func1.apply(10), new Value(new V(10)));
 
         IntFunction<V> func2 = V::get;
         assertEquals(func2.apply(20), new V(20));

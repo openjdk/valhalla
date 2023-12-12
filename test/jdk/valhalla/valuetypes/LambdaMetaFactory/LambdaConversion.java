@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,21 +24,20 @@
 /*
  * @test
  * @compile -XDenablePrimitiveClasses LambdaConversion.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LambdaConversion
- * @summary test lambda type conversion of primitive class
+ * @run junit/othervm -XX:+EnableValhalla LambdaConversion
+ * @summary test lambda type conversion of value class
  */
 
 import java.util.function.ToIntFunction;
-import java.util.stream.Stream;
 
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class LambdaConversion {
 
     static class c_int { }
-    static primitive class Pointer<X> {
-        final long addr;
+    static value class Pointer<X> {
+        long addr;
 
         public Pointer(long addr) {
             this.addr = addr;
@@ -54,7 +53,7 @@ public class LambdaConversion {
         assertTrue(doAction(p_int, LambdaConversion::two) == 2);
     }
 
-    static <Z> int doAction(Pointer<Z> pointer, ToIntFunction<Pointer.ref<Z>> action) {
+    static <Z> int doAction(Pointer<Z> pointer, ToIntFunction<Pointer<Z>> action) {
         return action.applyAsInt(pointer);
     }
 

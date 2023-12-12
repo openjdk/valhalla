@@ -45,8 +45,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import jdk.internal.value.PrimitiveClass;
-
 public class ObjectMethods {
     @ImplicitlyConstructible
     static value class Point {

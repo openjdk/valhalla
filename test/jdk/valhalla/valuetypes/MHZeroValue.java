@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,101 +21,72 @@
  * questions.
  */
 
-
 /*
  * @test
- * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses MHZeroValue.java
- * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=128 MHZeroValue
- * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=0 MHZeroValue
+ * @compile -XDenablePrimitiveClasses MHZeroValue.java
+ * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 MHZeroValue
+ * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=0 MHZeroValue
  * @summary Test MethodHandles::zero, MethodHandles::empty and MethodHandles::constant
  *          on value classes.
  */
 
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.stream.Stream;
+
 import static java.lang.invoke.MethodType.*;
-
-import jdk.internal.value.PrimitiveClass;
-
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class MHZeroValue {
-    static value class V {
-        public boolean isEmpty() {
-            return true;
-        }
-    }
+    @ImplicitlyConstructible
+    static value class V {}
 
-    static primitive class P {
+    @ImplicitlyConstructible
+    static value class P {
+        @NullRestricted
         V empty;
         P() {
             this.empty = new V();
         }
     }
 
-    @DataProvider
-    public static Object[][] defaultValue() {
-        return new Object[][] {
+    static Stream<Arguments> defaultValue() {
+        return Stream.of(
                 // for any type T, default value is always the same as (new T[1])[0]
-                new Object[] { int.class,               (new int[1])[0] },
-                new Object[] { Integer.class,           (new Integer[1])[0] },
-                new Object[] { PrimitiveClass.asValueType(P.class),   (new P[1])[0] },
-                new Object[] { PrimitiveClass.asPrimaryType(P.class), (new P.ref[1])[0] },
-                new Object[] { V.class,                 (new V[1])[0] },
-        };
-    }
-    @Test(dataProvider = "defaultValue")
-    public void zero(Class<?> type, Object value) throws Throwable {
-        MethodHandle mh = MethodHandles.zero(type);
-        assertEquals(mh.invoke(), value);
+                Arguments.of(int.class,         (new int[1])[0],      0 /* default value */),
+                Arguments.of(Integer.class,     (new Integer[1])[0],  null),
+                Arguments.of(P.class,           (new P[1])[0],        null),
+                Arguments.of(V.class,           (new V[1])[0],        null)
+        );
     }
 
-    @DataProvider
-    public static Object[][] primitives() {
-        return new Object[][] {
-                // int : Integer
-                new Object[] { int.class,             Integer.class },
-                // Point : Point.ref
-                new Object[] { PrimitiveClass.asValueType(P.class), PrimitiveClass.asPrimaryType(P.class) },
-                new Object[] { null,                  V.class },
-        };
-    }
-    @Test(dataProvider = "primitives")
-    public void constant(Class<?> primitiveType, Class<?> refType) throws Throwable {
-        if (primitiveType != null) {
-            try {
-                MethodHandles.constant(primitiveType, null);
-                fail("Expected NPE thrown for " + primitiveType.getName());
-            } catch (NullPointerException e) {
-            }
-        }
-
-        try {
-            MethodHandles.constant(refType, "invalid value");
-            fail("Expected CCE thrown for " + refType.getName());
-        } catch (ClassCastException e) {}
+    @ParameterizedTest
+    @MethodSource("defaultValue")
+    public void zero(Class<?> type, Object value, Object expected) throws Throwable {
+        var mh = MethodHandles.zero(type);
+        assertEquals(mh.invoke(), expected);
+        assertEquals(value, expected);
     }
 
-    @DataProvider
-    public static Object[][] emptyTypes() {
-        Class<?> pref = PrimitiveClass.asPrimaryType(P.class);
-        Class<?> pval = PrimitiveClass.asValueType(P.class);
-        return new Object[][] {
-                new Object[] { methodType(int.class, int.class, Object.class),     new V(), 0 },
-                new Object[] { methodType(Integer.class, int.class, Object.class), new P(), null },
-                new Object[] { methodType(pval, int.class, pref),                  null,    P.default },
-                new Object[] { methodType(pref, int.class, pval),                  new P(), null },
-                new Object[] { methodType(V.class, int.class, pval),               new P(), null },
-                new Object[] { methodType(V.class, int.class, V.class),            new V(), null },
-        };
+    static Stream<Arguments> testCases() {
+        return Stream.of(
+                Arguments.of(methodType(int.class, int.class, Object.class),     new V(), 0),
+                Arguments.of(methodType(Integer.class, int.class, Object.class), new P(), null),
+                Arguments.of(methodType(P.class, int.class, P.class),            new P(), null),
+                Arguments.of(methodType(V.class, int.class, P.class),            new P(), null),
+                Arguments.of(methodType(V.class, int.class, V.class),            new V(), null)
+        );
     }
 
-    @Test(dataProvider = "emptyTypes")
+    @ParameterizedTest
+    @MethodSource("testCases")
     public void empty(MethodType mtype, Object param, Object value) throws Throwable {
-        MethodHandle mh = MethodHandles.empty(mtype);
+        var mh = MethodHandles.empty(mtype);
         assertEquals(mh.invoke(1, param), value);
     }
 }

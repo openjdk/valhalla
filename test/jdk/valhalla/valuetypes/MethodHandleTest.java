@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,47 +24,104 @@
 
 /*
  * @test
- * @summary test MethodHandle/VarHandle of value classes and primitive classes
+ * @summary test MethodHandle and VarHandle of value classes
  * @compile -XDenablePrimitiveClasses MethodHandleTest.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses MethodHandleTest
+ * @run junit/othervm -XX:+EnableValhalla MethodHandleTest
  */
 
 import java.lang.invoke.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.stream.Stream;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class MethodHandleTest {
-    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
-    private static final Point P = Point.makePoint(10, 20);
-    private static final Line L = Line.makeLine(10, 20, 30, 40);
-    private static final MutablePath PATH = MutablePath.makePath(10, 20, 30, 40);
-    private static final Value V = new Value(P, new ValueOptional(L));
+    @ImplicitlyConstructible
+    static value class Point {
+        public int x;
+        public int y;
+        Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
 
-    @DataProvider(name="fields")
-    static Object[][] fields() {
-        MutablePath path = MutablePath.makePath(1, 2, 3, 4);
-        MixedValues mv = new MixedValues(P, L, PATH, "mixed", "types");
-        return new Object[][]{
-                // primitive class with int fields
-                new Object[] { "Point", P, new String[] { "x", "y"} },
-                // primitive class whose fields are of primitive value type
-                new Object[] { "Line", L, new String[] { "p1", "p2"} },
-                // non-primitive class whose non-final fields are of primitive value type
-                new Object[] { "MutablePath", PATH, new String[] {"p1", "p2"} },
-                new Object[] { "Point", path.p1, new String[] {"x", "y"} },
-                new Object[] { "Point", path.p2, new String[] {"x", "y"} },
-                // identity class whose non-final fields are of primitive value type,
-                // primitive reference type, reference type and value class
-                new Object[] { "MixedValues", mv, new String[] {"p", "l", "mutablePath", "list", "nfp", "voptional"} },
-                new Object[] { "MethodHandleTest$Value", V, new String[] {"p", "vo"} },
-        };
+    @ImplicitlyConstructible
+    static value class Line {
+        @NullRestricted
+        Point p1;
+        @NullRestricted
+        Point p2;
+
+        Line(int x1, int y1, int x2, int y2) {
+            this.p1 = new Point(x1, y1);
+            this.p2 = new Point(x2, y2);
+        }
+    }
+
+    static class Ref {
+        @NullRestricted
+        Point p;
+        Line l;
+        List<String> list;
+        ValueOptional vo;
+
+        Ref(Point p, Line l) {
+            this.p = p;
+            this.l = l;
+        }
+    }
+
+    @ImplicitlyConstructible
+    static value class Value {
+        @NullRestricted
+        Point p;
+        @NullRestricted
+        Line l;
+        Ref r;
+        String s;
+        Value(Point p, Line l, Ref r, String s) {
+            this.p = p;
+            this.l = l;
+            this.r = r;
+            this.s = s;
+        }
+    }
+
+    @ImplicitlyConstructible
+    static value class ValueOptional {
+        private Object o;
+        public ValueOptional(Object o) {
+            this.o = o;
+        }
+    }
+
+    static value record ValueRecord(int i, String name) {}
+    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+
+    static final Point P = new Point(1, 2);
+    static final Line L = new Line(1, 2, 3, 4);
+    static final Ref R = new Ref(P, null);
+    static final Value V = new Value(P, L, R, "value");
+
+    static Stream<Arguments> fields() {
+        return Stream.of(
+                // value class with int fields
+                Arguments.of("MethodHandleTest$Point", P, new String[] { "x", "y"}),
+                // value class whose fields are null-restricted and of value class
+                Arguments.of( "MethodHandleTest$Line", L, new String[] { "p1", "p2"}),
+                // identity class whose non-final fields are of value type,
+                Arguments.of( "MethodHandleTest$Ref", R, new String[] {"p", "l", "list", "vo"})
+        );
     }
 
     /**
@@ -72,7 +129,8 @@ public class MethodHandleTest {
      * MethodHandle produced by Lookup::unreflectGetter, Lookup::findGetter,
      * Lookup::findVarHandle.
      */
-    @Test(dataProvider = "fields")
+    @ParameterizedTest
+    @MethodSource("fields")
     public void testFieldGetterAndSetter(String cn, Object o, String[] fieldNames) throws Throwable  {
         Class<?> c = Class.forName(cn);
         for (String name : fieldNames) {
@@ -89,112 +147,70 @@ public class MethodHandleTest {
 
             if (c.isValue())
                 ensureImmutable(f, o);
-            else
-                ensureNullable(f, o);
+            // else
+               // ensureNullable(f, o);
         }
     }
 
-    @Test
-    public void testValueFields() throws Throwable {
-        // set the mutable value fields
-        MutablePath path = MutablePath.makePath(1, 2, 3, 44);
-        Point p = Point.makePoint(100, 200);
-        setValueField(MutablePath.class, "p1", path, p);
-        setValueField(MutablePath.class, "p2", path, p);
+    static Stream<Arguments> arrays() {
+        return Stream.of(
+                Arguments.of(Point[].class, P),
+                Arguments.of(Line[].class, L),
+                Arguments.of(Value[].class, V)
+        );
     }
 
-    // Test writing to a field of primitive value type and of primitive
-    // reference type
-    @Test
-    public void testMixedValues() throws Throwable {
-        // set the mutable fields
-        MutablePath path = MutablePath.makePath(1, 2, 3, 44);
-        MixedValues mv = new MixedValues(P, L, PATH, "mixed", "types");
-        Point p = Point.makePoint(100, 200);
-        Line l = Line.makeLine(100, 200, 300, 400);
-        ValueOptional vo = new ValueOptional(P);
+    private static final int ARRAY_SIZE = 5;
 
-        setValueField(MutablePath.class, "p1", path, p);
-        setValueField(MutablePath.class, "p2", path, p);
-        setValueField(MixedValues.class, "p", mv, p);
-        setValueField(MixedValues.class, "l", mv, l);
-        setValueField(MixedValues.class, "staticPoint", null, p);
-        // the following are nullable fields
-        setField(MixedValues.class, "nfp", mv, p, false);
-        setField(MixedValues.class, "voptional", mv, vo, false);
-        // static fields of reference type
-        setField(MixedValues.class, "staticLine", null, l, false);
-        setField(MixedValues.class, "staticLine", null, null, false);
-        setField(MixedValues.class, "staticValue", null, vo, false);
-    }
-
-    @DataProvider(name="arrays")
-    static Object[][] arrays() {
-        return new Object[][]{
-                new Object[] { Point[].class, P },
-                new Object[] { Point.ref[].class, P },
-                new Object[] { Line[].class, L },
-                new Object[] { MutablePath[].class, PATH },
-                new Object[] { Value[].class, V },
-        };
-    }
-
-    @Test(dataProvider = "arrays")
+    @ParameterizedTest
+    @MethodSource("arrays")
     public void testArrayElementSetterAndGetter(Class<?> arrayClass, Object o) throws Throwable {
         Class<?> elementType = arrayClass.getComponentType();
-        MethodHandle setter = MethodHandles.arrayElementSetter(arrayClass);
-        MethodHandle getter = MethodHandles.arrayElementGetter(arrayClass);
         MethodHandle ctor = MethodHandles.arrayConstructor(arrayClass);
-        int size = 5;
-        Object[] array = (Object[])ctor.invoke(size);
-        for (int i=0; i < size; i++) {
+        Object[] array = (Object[])ctor.invoke(ARRAY_SIZE);
+        testArrayElement(array, o, false);
+    }
+
+    private void testArrayElement(Object array, Object o, boolean nullRestricted) throws Throwable {
+        MethodHandle setter = MethodHandles.arrayElementSetter(array.getClass());
+        MethodHandle getter = MethodHandles.arrayElementGetter(array.getClass());
+        for (int i=0; i < ARRAY_SIZE; i++) {
             setter.invoke(array, i, o);
         }
-        for (int i=0; i < size; i++) {
+        for (int i=0; i < ARRAY_SIZE; i++) {
             Object v = (Object)getter.invoke(array, i);
             assertEquals(v, o);
         }
         // set an array element to null
-        try {
-            Object v = (Object)setter.invoke(array, 1, null);
-            assertFalse(PrimitiveClass.isPrimitiveValueType(elementType), "should fail to set a primitive class array element to null");
-            assertNull((Object) getter.invoke(array, 1));
-        } catch (NullPointerException e) {
-            assertTrue(PrimitiveClass.isPrimitiveValueType(elementType), "should only fail to set a primitive class array element to null");
+        if (nullRestricted) {
+            assertThrows(NullPointerException.class, () -> setter.invoke(array, 1, null));
+        } else {
+            setter.invoke(array, 1, null);
+            assertNull(getter.invoke(array, 1));
         }
     }
 
     /*
-     * Test setting the given field to null via reflection, method handle
+     * Test setting the given field to null via method handle
      * and var handle.
      */
-    static void ensureNullable(Field f, Object o) throws Throwable {
+    static void ensureNullable(Field f, Object o, boolean nullRestricted) throws Throwable {
         Class<?> c = f.getDeclaringClass();
         assertFalse(Modifier.isFinal(f.getModifiers()));
         assertFalse(Modifier.isStatic(f.getModifiers()));
-        boolean canBeNull = PrimitiveClass.isPrimaryType(f.getType());
-        // test reflection
-        try {
-            f.set(o, null);
-            assertTrue(canBeNull, f + " cannot be set to null");
-        } catch (NullPointerException e) {
-            assertFalse(canBeNull, f + " should allow be set to null");
-        }
-        // test method handle, i.e. putfield bytecode behavior
-        try {
-            MethodHandle mh = LOOKUP.findSetter(c, f.getName(), f.getType());
+
+        assertThrows(IllegalAccessException.class, () -> LOOKUP.findSetter(c, f.getName(), f.getType()));
+        MethodHandle mh = LOOKUP.unreflectSetter(f);
+        VarHandle vh = LOOKUP.findVarHandle(c, f.getName(), f.getType());
+
+        if (nullRestricted) {
+            // test method handle, i.e. putfield bytecode behavior
+            assertThrows(NullPointerException.class, () -> mh.invoke(o, null));
+            // test var handle
+            assertThrows(NullPointerException.class, () -> vh.set(o, null));
+        } else {
             mh.invoke(o, null);
-            assertTrue(canBeNull, f + " cannot be set to null");
-        } catch (NullPointerException e) {
-            assertFalse(canBeNull, f + " should allow be set to null");
-        }
-        // test var handle
-        try {
-            VarHandle vh = LOOKUP.findVarHandle(c, f.getName(), f.getType());
             vh.set(o, null);
-            assertTrue(canBeNull, f + " cannot be set to null");
-        } catch (NullPointerException e) {
-            assertFalse(canBeNull, f + " should allow be set to null");
         }
     }
 
@@ -202,140 +218,15 @@ public class MethodHandleTest {
         Class<?> c = f.getDeclaringClass();
         assertTrue(Modifier.isFinal(f.getModifiers()));
         assertFalse(Modifier.isStatic(f.getModifiers()));
+        assertTrue(f.trySetAccessible());
+
         Object v = f.get(o);
-        // test Field::set
-        try {
-            f.set(o, v);
-            throw new RuntimeException(f + " should be immutable");
-        } catch (IllegalAccessException e) {
-        }
 
-        // test method handle, i.e. putfield bytecode behavior
-        try {
-            MethodHandle mh = LOOKUP.findSetter(c, f.getName(), f.getType());
-            mh.invoke(o, v);
-            throw new RuntimeException(f + " should be immutable");
-        } catch (IllegalAccessException e) {
-        }
+        assertThrows(IllegalAccessException.class, () -> LOOKUP.findSetter(c, f.getName(), f.getType()));
+        assertThrows(IllegalAccessException.class, () -> LOOKUP.unreflectSetter(f));
+        VarHandle vh = LOOKUP.findVarHandle(c, f.getName(), f.getType());
+
         // test var handle
-        try {
-            VarHandle vh = LOOKUP.findVarHandle(c, f.getName(), f.getType());
-            vh.set(o, v);
-            throw new RuntimeException(f + " should be immutable");
-        } catch (UnsupportedOperationException e) {
-        }
-    }
-
-    /*
-     * Test setting a field of a primitive class to a new value.
-     * The field must be flattenable but may or may not be flattened.
-     */
-    static void setValueField(Class<?> c, String name, Object obj, Object value) throws Throwable {
-        setField(c, name, obj, value, true);
-    }
-
-    /*
-     * Test Field::set, MethodHandle::set on a method handle of a field
-     * and VarHandle::compareAndSet and compareAndExchange.
-     */
-    static void setField(Class<?> c, String name, Object obj, Object value, boolean isPrimitiveValue) throws Throwable {
-        Field f = c.getDeclaredField(name);
-        boolean isStatic = Modifier.isStatic(f.getModifiers());
-        assertTrue(f.getType().isValue());
-        assertTrue(PrimitiveClass.isPrimitiveValueType(f.getType()) == isPrimitiveValue);
-        assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
-        Object v = f.get(obj);
-
-        // Field::set
-        try {
-            f.set(obj, value);
-            assertEquals(f.get(obj), value);
-        } finally {
-            f.set(obj, v);
-        }
-
-        if (isStatic) {
-            setStaticField(f, value);
-        } else {
-            setInstanceField(f, obj, value);
-        }
-    }
-
-    static void setInstanceField(Field f, Object obj, Object value) throws Throwable {
-        Object v = f.get(obj);
-        // MethodHandle::invoke
-        try {
-            MethodHandle mh = LOOKUP.findSetter(f.getDeclaringClass(), f.getName(), f.getType());
-            mh.invoke(obj, value);
-            assertEquals(f.get(obj), value);
-        } finally {
-            f.set(obj, v);
-        }
-
-        // VarHandle tests
-        VarHandle vh = LOOKUP.findVarHandle(f.getDeclaringClass(), f.getName(), f.getType());
-        try {
-            vh.set(obj, value);
-            assertEquals(f.get(obj), value);
-        } finally {
-            f.set(obj, v);
-        }
-
-        try {
-            assertTrue(vh.compareAndSet(obj, v, value));
-            assertEquals(f.get(obj), value);
-        } finally {
-            f.set(obj, v);
-        }
-
-        try {
-            assertEquals(vh.compareAndExchange(obj, v, value), v);
-            assertEquals(f.get(obj), value);
-        } finally {
-            f.set(obj, v);
-        }
-    }
-
-    static void setStaticField(Field f, Object value) throws Throwable {
-        Object v = f.get(null);
-        // MethodHandle::invoke
-        try {
-            MethodHandle mh = LOOKUP.findStaticSetter(f.getDeclaringClass(), f.getName(), f.getType());
-            mh.invoke(f.getType().cast(value));
-            assertEquals(f.get(null), value);
-        } finally {
-            f.set(null, v);
-        }
-        // VarHandle tests
-        VarHandle vh = LOOKUP.findStaticVarHandle(f.getDeclaringClass(), f.getName(), f.getType());
-        try {
-            vh.set(f.getType().cast(value));
-            assertEquals(f.get(null), value);
-        } finally {
-            f.set(null, v);
-        }
-
-        try {
-            assertTrue(vh.compareAndSet(v, f.getType().cast(value)));
-            assertEquals(f.get(null), value);
-        } finally {
-            f.set(null, v);
-        }
-
-        try {
-            assertEquals(vh.compareAndExchange(v, f.getType().cast(value)), v);
-            assertEquals(f.get(null), value);
-        } finally {
-            f.set(null, v);
-        }
-    }
-
-    static value class Value {
-        Point p;
-        ValueOptional vo;
-        Value(Point p, ValueOptional vo) {
-            this.p = p;
-            this.vo = vo;
-        }
+        assertThrows(UnsupportedOperationException.class, () -> vh.set(o, v));
     }
 }

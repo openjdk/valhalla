@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,152 +24,122 @@
 
 /*
  * @test
- * @summary test reflection on primitive classes
- * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses Reflection.java
- * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses Reflection
+ * @summary test core reflection on value classes
+ * @compile -XDenablePrimitiveClasses Reflection.java
+ * @run junit/othervm -XX:+EnableValhalla Reflection
  */
 
-import java.lang.constant.ClassDesc;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.stream.Stream;
 
-import jdk.internal.value.PrimitiveClass;
-
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class Reflection {
-    @Test
-    public static void testPointClass() throws Exception  {
-        Object o = PrimitiveClass.asValueType(Point.class).newInstance();
-        assertEquals(o.getClass(), PrimitiveClass.asPrimaryType(Point.class));
-
-        Constructor<?> ctor = Point.class.getDeclaredConstructor(int.class, int.class);
-        o = ctor.newInstance(20, 30);
-        assertEquals(o.getClass(), PrimitiveClass.asPrimaryType(Point.class));
-
-        Field field = Point.class.getField("x");
-        if (field.getInt(o) != 20) {
-            fail("Unexpected Point.x value: " +  field.getInt(o));
+    @ImplicitlyConstructible
+    static value class V {
+        int x;
+        V(int x) {
+            this.x = x;
         }
-        try {
-            field.setInt(o, 100);
-            fail("IllegalAccessException not thrown");
-        } catch (IllegalAccessException e) {}
+    }
 
-        // final static field in a primitive class
-        Field f = Point.class.getDeclaredField("STATIC_FIELD");
-        assertTrue(f.getType() == Object.class);
+    @ImplicitlyConstructible
+    static value class Value {
+        @NullRestricted
+        V v1;
+        V v2;
+        Value(V v1, V v2) {
+            this.v1 = v1;
+            this.v2 = v2;
+        }
+
+        static Value newValue(V v1, V v2) {
+            return new Value(v1, v2);
+        }
+    }
+
+    @Test
+    void testNewInstance() throws Exception {
+        V v = new V(10);
+        Constructor<Value> ctor = Value.class.getDeclaredConstructor(V.class, V.class);
+        Value o = ctor.newInstance(v, v);
+        assertEquals(o.getClass(), Value.class);
+    }
+
+    @Test
+    void testAccess() throws Exception {
+        Field field = Value.class.getDeclaredField("v1");
+        V v = new V(10);
+        Value o = new Value(v, null);
+        assertEquals(v, field.get(o));
+
         // accessible but no write access
-        f.trySetAccessible();
-        assertTrue(f.isAccessible());
-        checkToString(f);
-    }
-
-    @Test
-    public static void testLineClass() throws Exception {
-        checkInstanceField(PrimitiveClass.asValueType(Line.class), "p1", PrimitiveClass.asValueType(Point.class));
-        checkInstanceField(PrimitiveClass.asValueType(Line.class), "p2", PrimitiveClass.asValueType(Point.class));
-        checkInstanceMethod(PrimitiveClass.asValueType(Line.class), "p1", PrimitiveClass.asValueType(Point.class));
-        checkInstanceMethod(PrimitiveClass.asValueType(Line.class), "p2", PrimitiveClass.asValueType(Point.class));
-    }
-
-    @Test
-    public static void testNonFlattenValue() throws Exception {
-        checkInstanceField(PrimitiveClass.asValueType(NonFlattenValue.class), "nfp", Point.ref.class);
-        checkInstanceMethod(PrimitiveClass.asValueType(NonFlattenValue.class), "pointValue", PrimitiveClass.asValueType(Point.class));
-        checkInstanceMethod(PrimitiveClass.asValueType(NonFlattenValue.class), "point", Point.ref.class);
-        checkInstanceMethod(PrimitiveClass.asValueType(NonFlattenValue.class), "has", boolean.class, PrimitiveClass.asValueType(Point.class), Point.ref.class);
-    }
-
-    @Test
-    public static void testValueOptionalClass() throws Exception  {
-        Point point = Point.makePoint(10,20);
-        Constructor<ValueOptional> ctor = ValueOptional.class.getDeclaredConstructor(Object.class);
-        ValueOptional o = ctor.newInstance(point);
-        assertEquals(o.getClass(), ValueOptional.class);
-
-        Field field = ValueOptional.class.getDeclaredField("o");
-        // accessible but no write access
-        field.trySetAccessible();
+        assertTrue(field.trySetAccessible());
         assertTrue(field.isAccessible());
-
-        if (field.get(o) != point) {
-            fail("Unexpected ValueOptional.o value: " +  field.get(o));
-        }
-        try {
-            field.set(o, point);
-            fail("IllegalAccessException not thrown");
-        } catch (IllegalAccessException e) {}
-
-        checkToString(field);
+        assertThrows(IllegalAccessException.class, () -> field.set(o, v));
     }
 
-    static void checkInstanceField(Class<?> declaringClass, String name, Class<?> type) throws Exception {
-        Field f = declaringClass.getDeclaredField(name);
-        assertTrue(f.getType() == type);
-        checkToString(f);
+    @Test
+    void testNullRestricted() throws Exception {
+        Method m = Value.class.getDeclaredMethod("newValue", V.class, V.class);
+        Throwable t = assertThrows(InvocationTargetException.class, () -> m.invoke(null, new Object[] {null, null}));
+        assertEquals(NullPointerException.class, t.getCause().getClass());
     }
 
-    static void checkInstanceMethod(Class<?> declaringClass,String name, Class<?> returnType, Class<?>... params) throws Exception {
-        Method m = declaringClass.getDeclaredMethod(name, params);
-        assertTrue(m.getReturnType() == returnType);
-        checkToString(m);
+    static Stream<Arguments> arrays() {
+        V v1 = new V(10);
+        V v2 = new V(20);
+
+        V[] varray = new V[] { v1, v2 };
+        Value[] valuearray = new Value[] { new Value(v1, v2), new Value(v1, null)};
+
+        return Stream.of(
+                Arguments.of(V[].class, varray, false),
+                Arguments.of(Value[].class, valuearray, false)
+        );
     }
 
-    static void checkToString(Field f) {
-        StringBuilder sb = new StringBuilder();
-        int mods = f.getModifiers();
-        if (Modifier.isPublic(mods)) {
-            sb.append("public").append(" ");
-        }
-        if (Modifier.isPrivate(mods)) {
-            sb.append("private").append(" ");
-        }
-        if (Modifier.isStatic(mods)) {
-            sb.append("static").append(" ");
-        }
-        if (Modifier.isFinal(mods)) {
-            sb.append("final").append(" ");
-        }
-        sb.append(displayName(f.getType())).append(" ");
-        sb.append(f.getDeclaringClass().getName()).append(".").append(f.getName());
-        assertEquals(f.toString(), sb.toString());
-    }
+    /**
+     * Setting the elements of an array.
+     * NPE will be thrown if null is set on an element in a null-restricted value class array
+     */
+    @ParameterizedTest
+    @MethodSource("arrays")
+    public void testArrays(Class<?> arrayClass, Object[] array, boolean nullRestricted) {
+        Class<?> componentType = arrayClass.getComponentType();
+        assertTrue(arrayClass.isArray());
+        Object[] newArray = (Object[]) Array.newInstance(componentType, array.length);
+        assertTrue(newArray.getClass().getComponentType() == componentType);
 
-    static void checkToString(Method m) {
-        StringBuilder sb = new StringBuilder();
-        int mods = m.getModifiers();
-        if (Modifier.isPublic(mods)) {
-            sb.append("public").append(" ");
+        // set elements
+        for (int i = 0; i < array.length; i++) {
+            Array.set(newArray, i, array[i]);
         }
-        if (Modifier.isStatic(mods)) {
-            sb.append("static").append(" ");
+        for (int i = 0; i < array.length; i++) {
+            Object o = Array.get(newArray, i);
+            assertEquals(o, array[i]);
         }
-        if (Modifier.isFinal(mods)) {
-            sb.append("final").append(" ");
-        }
-        sb.append(displayName(m.getReturnType())).append(" ");
-        sb.append(m.getDeclaringClass().getName()).append(".").append(m.getName());
-        sb.append("(");
-        int count = m.getParameterCount();
-        for (Class<?> ptype : m.getParameterTypes()) {
-            sb.append(displayName(ptype));
-            if (--count > 0) {
-                sb.append(",");
+        Arrays.setAll(newArray, i -> array[i]);
+
+        for (int i = 0; i < newArray.length; i++) {
+            // test nullable
+            if (nullRestricted) {
+                final int index = i;
+                assertThrows(NullPointerException.class, () -> Array.set(newArray, index, null));
+            } else {
+                Array.set(newArray, i, null);
             }
         }
-        sb.append(")");
-        assertEquals(m.toString(), sb.toString());
-    }
-
-    static String displayName(Class<?> type) {
-        if (type.isPrimitive()) {
-            ClassDesc classDesc = type.describeConstable().get();
-            return classDesc.displayName();
-        }
-        return type.getTypeName();
     }
 }
