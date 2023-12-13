@@ -23,10 +23,10 @@
 
 /*
  * @test
+ * @summary Test ObjectMethods::bootstrap call via condy
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.org.objectweb.asm
  * @run testng/othervm -XX:+EnableValhalla ObjectMethodsViaCondy
- * @summary Test ObjectMethods::bootstrap call via condy
  */
 
 import java.io.IOException;

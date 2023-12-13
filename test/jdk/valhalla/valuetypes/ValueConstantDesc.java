@@ -24,8 +24,8 @@
 
 /*
  * @test
- * @run junit/othervm -XX:+EnableValhalla ValueConstantDesc
  * @summary Test ConstantDesc for value classes
+ * @run junit/othervm -XX:+EnableValhalla ValueConstantDesc
  */
 
 import java.lang.constant.ClassDesc;

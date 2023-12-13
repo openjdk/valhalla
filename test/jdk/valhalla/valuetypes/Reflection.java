@@ -24,8 +24,8 @@
 
 /*
  * @test
- * @run junit/othervm -XX:+EnableValhalla Reflection
  * @summary test core reflection on value classes
+ * @run junit/othervm -XX:+EnableValhalla Reflection
  */
 
 import java.lang.reflect.Array;

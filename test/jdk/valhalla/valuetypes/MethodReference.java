@@ -23,8 +23,8 @@
 
 /*
  * @test
- * @run main/othervm -XX:+EnableValhalla MethodReference
  * @summary test method reference of value class as the parameter type
+ * @run main/othervm -XX:+EnableValhalla MethodReference
  */
 
 import java.util.function.Supplier;

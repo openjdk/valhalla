@@ -24,8 +24,8 @@
 
 /*
  * @test
- * @run junit/othervm -XX:+EnableValhalla MethodHandleTest
  * @summary test MethodHandle and VarHandle of value classes
+ * @run junit/othervm -XX:+EnableValhalla MethodHandleTest
  */
 
 import java.lang.invoke.*;

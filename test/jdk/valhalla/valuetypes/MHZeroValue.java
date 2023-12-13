@@ -23,10 +23,10 @@
 
 /*
  * @test
- * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 MHZeroValue
- * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=0 MHZeroValue
  * @summary Test MethodHandles::zero, MethodHandles::empty and MethodHandles::constant
  *          on value classes.
+ * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 MHZeroValue
+ * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=0 MHZeroValue
  */
 
 import java.lang.invoke.MethodHandles;

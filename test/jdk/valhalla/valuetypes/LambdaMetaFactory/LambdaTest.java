@@ -23,8 +23,8 @@
 
 /*
  * @test
- * @run junit/othervm -XX:+EnableValhalla LambdaTest
  * @summary Test lambdas with parameter types or return type of value class
+ * @run junit/othervm -XX:+EnableValhalla LambdaTest
  */
 
 import java.util.function.Function;

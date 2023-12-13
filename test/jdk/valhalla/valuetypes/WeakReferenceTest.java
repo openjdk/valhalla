@@ -30,8 +30,8 @@ import static org.testng.Assert.*;
 
 /*
  * @test
- * @run testng/othervm -XX:+EnableValhalla WeakReferenceTest
  * @summary Test value classes with Reference types
+ * @run testng/othervm -XX:+EnableValhalla WeakReferenceTest
  */
 @Test
 public class WeakReferenceTest {

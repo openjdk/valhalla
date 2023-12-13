@@ -23,9 +23,9 @@
 
 /*
  * @test
- * @run junit/othervm -XX:+EnableValhalla Nest
  * @summary Test substitutability of inner class and anonymous class that
- * has the enclosing instance and possibly other captured outer locals
+ *          has the enclosing instance and possibly other captured outer locals
+ * @run junit/othervm -XX:+EnableValhalla Nest
  */
 
 import jdk.internal.vm.annotation.ImplicitlyConstructible;

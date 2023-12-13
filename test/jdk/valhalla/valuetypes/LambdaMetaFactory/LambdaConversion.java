@@ -23,8 +23,8 @@
 
 /*
  * @test
- * @run junit/othervm -XX:+EnableValhalla LambdaConversion
  * @summary test lambda type conversion of value class
+ * @run junit/othervm -XX:+EnableValhalla LambdaConversion
  */
 
 import java.util.function.ToIntFunction;
