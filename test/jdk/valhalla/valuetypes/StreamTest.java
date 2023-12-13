@@ -39,6 +39,54 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamTest {
+
+    static value class X {
+        int x;
+        X(int x) {
+            this.x = x;
+        }
+        int x() {
+            return x;
+        }
+    }
+
+    @ImplicitlyConstructible
+    static value class Point {
+        public int x;
+        public int y;
+        Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    @ImplicitlyConstructible
+    static value class Value {
+        int i;
+        @NullRestricted
+        Point p;
+        Point nullable;
+        List<X> list;
+        Value(int i, Point/* Point! */ p, Point np, List<X> list) {
+            this.i = i;
+            this.p = p;
+            this.nullable = np;
+            this.list = list;
+        }
+
+        Point point() {
+            return p;
+        }
+
+        Point nullablePoint() {
+            return nullable;
+        }
+
+        int getI() { return i; }
+
+        List<X> list() { return list; }
+    }
+
     final Value[] values = init();
     private Value[] init() {
         Value[] values = new Value[10];
@@ -92,52 +140,5 @@ public class StreamTest {
                            .filter(x -> x >= 10)
                            .count();
         assertEquals(count, values.length-1);
-    }
-
-    static value class X {
-        int x;
-        X(int x) {
-            this.x = x;
-        }
-        int x() {
-            return x;
-        }
-    }
-
-    @ImplicitlyConstructible
-    static value class Point {
-        public int x;
-        public int y;
-        Point(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-    }
-
-    @ImplicitlyConstructible
-    static value class Value {
-        int i;
-        @NullRestricted
-        Point p;
-        Point nullable;
-        List<X> list;
-        Value(int i, Point/* Point! */ p, Point np, List<X> list) {
-            this.i = i;
-            this.p = p;
-            this.nullable = np;
-            this.list = list;
-        }
-
-        Point point() {
-            return p;
-        }
-
-        Point nullablePoint() {
-            return nullable;
-        }
-
-        int getI() { return i; }
-
-        List<X> list() { return list; }
     }
 }

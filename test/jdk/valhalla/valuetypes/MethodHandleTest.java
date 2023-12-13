@@ -37,7 +37,6 @@ import java.util.stream.Stream;
 
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -82,22 +81,6 @@ public class MethodHandleTest {
     }
 
     @ImplicitlyConstructible
-    static value class Value {
-        @NullRestricted
-        Point p;
-        @NullRestricted
-        Line l;
-        Ref r;
-        String s;
-        Value(Point p, Line l, Ref r, String s) {
-            this.p = p;
-            this.l = l;
-            this.r = r;
-            this.s = s;
-        }
-    }
-
-    @ImplicitlyConstructible
     static value class ValueOptional {
         private Object o;
         public ValueOptional(Object o) {
@@ -105,20 +88,18 @@ public class MethodHandleTest {
         }
     }
 
-    static value record ValueRecord(int i, String name) {}
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
     static final Point P = new Point(1, 2);
     static final Line L = new Line(1, 2, 3, 4);
     static final Ref R = new Ref(P, null);
-    static final Value V = new Value(P, L, R, "value");
 
     static Stream<Arguments> fields() {
         return Stream.of(
                 // value class with int fields
-                Arguments.of("MethodHandleTest$Point", P, new String[] { "x", "y"}),
+                Arguments.of("MethodHandleTest$Point", P, new String[] {"x", "y"}),
                 // value class whose fields are null-restricted and of value class
-                Arguments.of( "MethodHandleTest$Line", L, new String[] { "p1", "p2"}),
+                Arguments.of( "MethodHandleTest$Line", L, new String[] {"p1", "p2"}),
                 // identity class whose non-final fields are of value type,
                 Arguments.of( "MethodHandleTest$Ref", R, new String[] {"p", "l", "list", "vo"})
         );
@@ -135,20 +116,17 @@ public class MethodHandleTest {
         Class<?> c = Class.forName(cn);
         for (String name : fieldNames) {
             Field f = c.getDeclaredField(name);
+            var mh = LOOKUP.findGetter(c, f.getName(), f.getType());
+            var v1 = mh.invoke(o);
 
-            MethodHandle mh = LOOKUP.findGetter(c, f.getName(), f.getType());
-            Object v1 = mh.invoke(o);
+            var vh = LOOKUP.findVarHandle(c, f.getName(), f.getType());
+            var v2 = vh.get(o);
 
-            VarHandle vh = LOOKUP.findVarHandle(c, f.getName(), f.getType());
-            Object v2 = vh.get(o);
-
-            MethodHandle mh3 = LOOKUP.unreflectGetter(f);
-            Object v3 = mh.invoke(o);
+            var mh3 = LOOKUP.unreflectGetter(f);
+            var v3 = mh.invoke(o);
 
             if (c.isValue())
                 ensureImmutable(f, o);
-            // else
-               // ensureNullable(f, o);
         }
     }
 
@@ -156,7 +134,7 @@ public class MethodHandleTest {
         return Stream.of(
                 Arguments.of(Point[].class, P),
                 Arguments.of(Line[].class, L),
-                Arguments.of(Value[].class, V)
+                Arguments.of(Ref[].class, R)
         );
     }
 
@@ -165,7 +143,6 @@ public class MethodHandleTest {
     @ParameterizedTest
     @MethodSource("arrays")
     public void testArrayElementSetterAndGetter(Class<?> arrayClass, Object o) throws Throwable {
-        Class<?> elementType = arrayClass.getComponentType();
         MethodHandle ctor = MethodHandles.arrayConstructor(arrayClass);
         Object[] array = (Object[])ctor.invoke(ARRAY_SIZE);
         testArrayElement(array, o, false);
@@ -187,30 +164,6 @@ public class MethodHandleTest {
         } else {
             setter.invoke(array, 1, null);
             assertNull(getter.invoke(array, 1));
-        }
-    }
-
-    /*
-     * Test setting the given field to null via method handle
-     * and var handle.
-     */
-    static void ensureNullable(Field f, Object o, boolean nullRestricted) throws Throwable {
-        Class<?> c = f.getDeclaringClass();
-        assertFalse(Modifier.isFinal(f.getModifiers()));
-        assertFalse(Modifier.isStatic(f.getModifiers()));
-
-        assertThrows(IllegalAccessException.class, () -> LOOKUP.findSetter(c, f.getName(), f.getType()));
-        MethodHandle mh = LOOKUP.unreflectSetter(f);
-        VarHandle vh = LOOKUP.findVarHandle(c, f.getName(), f.getType());
-
-        if (nullRestricted) {
-            // test method handle, i.e. putfield bytecode behavior
-            assertThrows(NullPointerException.class, () -> mh.invoke(o, null));
-            // test var handle
-            assertThrows(NullPointerException.class, () -> vh.set(o, null));
-        } else {
-            mh.invoke(o, null);
-            vh.set(o, null);
         }
     }
 

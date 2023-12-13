@@ -97,6 +97,9 @@ public class Reflection {
         assertEquals(NullPointerException.class, t.getCause().getClass());
     }
 
+    /*
+     * TODO: null-restricted value class array
+     */
     static Stream<Arguments> arrays() {
         V v1 = new V(10);
         V v2 = new V(20);

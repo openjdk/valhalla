@@ -96,6 +96,15 @@ public class ArrayElementVarHandleTest {
     }
 
     /*
+     * Constructs a new array of the specified type and size using
+     * MethodHandle.
+     */
+    private static Object[] newArray(Class<?> arrayType, int size) throws Throwable {
+        MethodHandle ctor = MethodHandles.arrayConstructor(arrayType);
+        return (Object[]) ctor.invoke(size);
+    }
+
+    /*
      * Test VarHandle to set elements of the given array with
      * various access mode.
      */
@@ -113,15 +122,6 @@ public class ArrayElementVarHandleTest {
         getAndSet(vh, array.clone(), elements);
         compareAndSet(vh, array.clone(), elements);
         compareAndExchange(vh, array.clone(), elements);
-    }
-
-    /*
-     * Constructs a new array of the specified type and size using
-     * MethodHandle.
-     */
-    static Object[] newArray(Class<?> arrayType, int size) throws Throwable {
-        MethodHandle ctor = MethodHandles.arrayConstructor(arrayType);
-        return (Object[]) ctor.invoke(size);
     }
 
     // VarHandle::set
