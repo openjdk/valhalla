@@ -23,8 +23,8 @@
 
 /*
  * @test
- * @summary Test WeakHashMap.ValuePolicy modes
  * @run testng/othervm WeakValuePolicyTest
+ * @summary Test WeakHashMap.ValuePolicy modes
  */
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;

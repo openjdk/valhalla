@@ -23,9 +23,8 @@
 
 /*
  * @test
- * @summary Basic stream tests to iterate on nullable and null-restricted values
- * @compile -XDenablePrimitiveClasses StreamTest.java
  * @run junit/othervm -XX:+EnableValhalla StreamTest
+ * @summary Basic stream tests to iterate on nullable and null-restricted values
  */
 
 import jdk.internal.vm.annotation.ImplicitlyConstructible;

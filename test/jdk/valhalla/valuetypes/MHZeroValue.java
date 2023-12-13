@@ -23,7 +23,6 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses MHZeroValue.java
  * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 MHZeroValue
  * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=0 MHZeroValue
  * @summary Test MethodHandles::zero, MethodHandles::empty and MethodHandles::constant

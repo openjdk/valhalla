@@ -23,9 +23,8 @@
 
 /*
  * @test
- * @summary Test lambdas with parameter types or return type of value class
- * @compile -XDenablePrimitiveClasses LambdaTest.java
  * @run junit/othervm -XX:+EnableValhalla LambdaTest
+ * @summary Test lambdas with parameter types or return type of value class
  */
 
 import java.util.function.Function;

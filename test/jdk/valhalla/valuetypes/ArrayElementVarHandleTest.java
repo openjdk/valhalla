@@ -24,10 +24,9 @@
 
 /*
  * @test
- * @summary test VarHandle on value class array
- * @compile -XDenablePrimitiveClasses ArrayElementVarHandleTest.java
  * @run junit/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=-1 ArrayElementVarHandleTest
- * @run testng/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=0  ArrayElementVarHandleTest
+ * @run junit/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=0  ArrayElementVarHandleTest
+ * @summary test VarHandle on value class array
  */
 
 import java.lang.invoke.*;

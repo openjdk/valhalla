@@ -24,7 +24,6 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses NullRestrictedTest.java
  * @run junit/othervm -XX:+EnableValhalla NullRestrictedTest
  * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=0 NullRestrictedTest
  * @summary Test reflection and method handle on accessing a field of a null-restricted value class

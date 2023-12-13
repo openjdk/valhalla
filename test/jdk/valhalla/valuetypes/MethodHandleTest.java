@@ -24,9 +24,8 @@
 
 /*
  * @test
- * @summary test MethodHandle and VarHandle of value classes
- * @compile -XDenablePrimitiveClasses MethodHandleTest.java
  * @run junit/othervm -XX:+EnableValhalla MethodHandleTest
+ * @summary test MethodHandle and VarHandle of value classes
  */
 
 import java.lang.invoke.*;

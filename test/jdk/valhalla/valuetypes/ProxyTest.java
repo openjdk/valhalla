@@ -23,9 +23,8 @@
 
 /*
  * @test
- * @summary Test dynamic proxies with parameter types or return type of value class
- * @compile -XDenablePrimitiveClasses ProxyTest.java
  * @run testng/othervm -XX:+EnableValhalla ProxyTest
+ * @summary Test dynamic proxies with parameter types or return type of value class
  */
 
 import java.lang.reflect.*;

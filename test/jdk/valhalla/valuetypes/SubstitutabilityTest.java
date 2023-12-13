@@ -26,7 +26,6 @@
  * @modules java.base/java.lang.runtime:open
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile -XDenablePrimitiveClasses SubstitutabilityTest.java
  * @run junit/othervm -XX:+EnableValhalla SubstitutabilityTest
  */
 

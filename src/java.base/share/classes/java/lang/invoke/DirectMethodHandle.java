@@ -827,7 +827,7 @@ sealed class DirectMethodHandle extends MethodHandle {
         final int FIELD_TYPE = (needsZeroInstance && isGetter ? nameCursor++ : -1);
         final int ZERO_INSTANCE = (needsZeroInstance && isGetter ? nameCursor++ : -1);
         final int POST_CAST = (needsCast && isGetter ? nameCursor++ : -1);
-        final int RESULT    = nameCursor-1;  // either the call or the cast
+        final int RESULT    = nameCursor-1;  // either the call, zero instance, or the cast
         Name[] names = arguments(nameCursor - ARG_LIMIT, mtype.invokerType());
         if (needsInit)
             names[INIT_BAR] = new Name(getFunction(NF_ensureInitialized), names[DMH_THIS]);

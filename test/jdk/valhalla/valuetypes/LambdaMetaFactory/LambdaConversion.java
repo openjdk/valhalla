@@ -23,7 +23,6 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses LambdaConversion.java
  * @run junit/othervm -XX:+EnableValhalla LambdaConversion
  * @summary test lambda type conversion of value class
  */

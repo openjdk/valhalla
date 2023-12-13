@@ -24,9 +24,8 @@
 
 /*
  * @test
- * @summary test core reflection on value classes
- * @compile -XDenablePrimitiveClasses Reflection.java
  * @run junit/othervm -XX:+EnableValhalla Reflection
+ * @summary test core reflection on value classes
  */
 
 import java.lang.reflect.Array;

@@ -23,7 +23,6 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses MethodReference.java
  * @run main/othervm -XX:+EnableValhalla MethodReference
  * @summary test method reference of value class as the parameter type
  */

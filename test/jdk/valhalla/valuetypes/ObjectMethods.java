@@ -24,10 +24,9 @@
 
 /*
  * @test
- * @summary test Object methods on value classes
- * @compile -XDenablePrimitiveClasses ObjectMethods.java
  * @run junit/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ObjectMethods
  * @run junit/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
+ * @summary test Object methods on value classes
  */
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
