@@ -261,8 +261,6 @@ class LambdaForm {
         PUT_REFERENCE("putReference"),
         GET_REFERENCE_VOLATILE("getReferenceVolatile"),
         PUT_REFERENCE_VOLATILE("putReferenceVolatile"),
-        GET_NULL_RESTRICTED_REFERENCE("getNullRestrictedReference"),
-        GET_NULL_RESTRICTED_REFERENCE_VOLATILE("getNullRestrictedReferenceVolatile"),
         GET_VALUE("getValue"),
         PUT_VALUE("putValue"),
         GET_VALUE_VOLATILE("getValueVolatile"),

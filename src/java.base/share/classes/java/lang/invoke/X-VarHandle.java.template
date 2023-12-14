@@ -181,6 +181,10 @@ final class VarHandle$Type$s {
 #if[Object]
         @ForceInline
         static Object checkCast(FieldInstanceReadWrite handle, $type$ value) {
+#if[Reference]
+            if (value == null && handle.nullRestricted)
+                throw new NullPointerException("null-restricted field");
+#end[Reference]
             return handle.fieldType.cast(value);
         }
 #end[Object]
