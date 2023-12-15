@@ -318,8 +318,9 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void profile_switch_default(Register mdp);
   void profile_switch_case(Register index_in_scratch, Register mdp,
                            Register scratch2);
-  void profile_array(Register mdp, Register array, Register tmp);
-  void profile_element(Register mdp, Register element, Register tmp);
+  template <class ArrayData> void profile_array_type(Register mdp, Register array, Register tmp);
+  void profile_multiple_element_types(Register mdp, Register element, Register tmp, Register tmp2);
+  void profile_element_type(Register mdp, Register element, Register tmp);
   void profile_acmp(Register mdp, Register left, Register right, Register tmp);
 
   void profile_obj_type(Register obj, const Address& mdo_addr);

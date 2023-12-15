@@ -3144,9 +3144,6 @@ bool GraphKit::seems_never_null(Node* obj, ciProfileData* data, bool& speculatin
     assert(java_bc() == Bytecodes::_checkcast ||
            java_bc() == Bytecodes::_instanceof ||
            java_bc() == Bytecodes::_aastore, "MDO must collect null_seen bit here");
-    if (java_bc() == Bytecodes::_aastore) {
-      return ((ciArrayLoadStoreData*)data->as_ArrayLoadStoreData())->element()->ptr_kind() == ProfileNeverNull;
-    }
     return !data->as_BitData()->null_seen();
   }
   speculating = false;
