@@ -32,8 +32,10 @@ import java.lang.invoke.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -96,11 +98,11 @@ public class MethodHandleTest {
     static Stream<Arguments> fields() {
         return Stream.of(
                 // value class with int fields
-                Arguments.of("MethodHandleTest$Point", P, new String[] {"x", "y"}),
+                Arguments.of("MethodHandleTest$Point", P, Set.of("x", "y")),
                 // value class whose fields are null-restricted and of value class
-                Arguments.of( "MethodHandleTest$Line", L, new String[] {"p1", "p2"}),
+                Arguments.of( "MethodHandleTest$Line", L, Set.of("p1", "p2")),
                 // identity class whose non-final fields are of value type,
-                Arguments.of( "MethodHandleTest$Ref", R, new String[] {"p", "l", "list", "vo"})
+                Arguments.of( "MethodHandleTest$Ref", R, Set.of("p", "l", "list", "vo"))
         );
     }
 
@@ -111,9 +113,9 @@ public class MethodHandleTest {
      */
     @ParameterizedTest
     @MethodSource("fields")
-    public void testFieldGetterAndSetter(String cn, Object o, String[] fieldNames) throws Throwable  {
+    public void testFieldGetter(String cn, Object o, Set<String> fields) throws Throwable  {
         Class<?> c = Class.forName(cn);
-        for (String name : fieldNames) {
+        for (String name : fields) {
             Field f = c.getDeclaredField(name);
             var mh = LOOKUP.findGetter(c, f.getName(), f.getType());
             var v1 = mh.invoke(o);
@@ -122,47 +124,81 @@ public class MethodHandleTest {
             var v2 = vh.get(o);
 
             var mh3 = LOOKUP.unreflectGetter(f);
-            var v3 = mh.invoke(o);
+            var v3 = mh3.invoke(o);
 
             if (c.isValue())
                 ensureImmutable(f, o);
         }
     }
 
-    static Stream<Arguments> arrays() {
+    static Stream<Arguments> setters() {
         return Stream.of(
-                Arguments.of(Point[].class, P),
-                Arguments.of(Line[].class, L),
-                Arguments.of(Ref[].class, R)
+                Arguments.of( Ref.class, R, "p", true),
+                Arguments.of( Ref.class, R, "l", false),
+                Arguments.of( Ref.class, R, "list", false),
+                Arguments.of( Ref.class, R, "vo", false)
+        );
+    }
+    @ParameterizedTest
+    @MethodSource("setters")
+    public void testFieldSetter(Class<?> cls, Object o, String name, boolean nullRestricted) throws Throwable {
+        Field f = cls.getDeclaredField(name);
+        var mh = LOOKUP.findSetter(cls, f.getName(), f.getType());
+        var vh = LOOKUP.findVarHandle(cls, f.getName(), f.getType());
+        var mh3 = LOOKUP.unreflectSetter(f);
+
+        if (nullRestricted) {
+            assertThrows(NullPointerException.class, () -> mh.invoke(o, null));
+            assertThrows(NullPointerException.class, () -> vh.set(o, null));
+            assertThrows(NullPointerException.class, () -> mh3.invoke(o, null));
+        } else {
+            mh.invoke(o, null);
+            vh.set(o, null);
+            mh3.invoke(o, null);
+        }
+    }
+
+    static Stream<Arguments> arrays() throws Throwable {
+        return Stream.of(
+                Arguments.of(Point[].class, newArray(Point[].class), P, false),
+                Arguments.of(Point[].class, newNullRestrictedArray(Point.class), P, true),
+                Arguments.of(Line[].class, newArray(Line[].class), L, false),
+                Arguments.of(Line[].class, newNullRestrictedArray(Line.class), L, true),
+                Arguments.of(Ref[].class, newArray(Ref[].class), R, false)
         );
     }
 
     private static final int ARRAY_SIZE = 5;
+    private static Object[] newArray(Class<?> arrayClass) throws Throwable {
+        MethodHandle ctor = MethodHandles.arrayConstructor(arrayClass);
+        return (Object[])ctor.invoke(ARRAY_SIZE);
+    }
+    private static Object[] newNullRestrictedArray(Class<?> componentClass) throws Throwable {
+        return ValueClass.newNullRestrictedArray(componentClass, ARRAY_SIZE);
+    }
 
     @ParameterizedTest
     @MethodSource("arrays")
-    public void testArrayElementSetterAndGetter(Class<?> arrayClass, Object o) throws Throwable {
-        MethodHandle ctor = MethodHandles.arrayConstructor(arrayClass);
-        Object[] array = (Object[])ctor.invoke(ARRAY_SIZE);
-        testArrayElement(array, o, false);
-    }
-
-    private void testArrayElement(Object array, Object o, boolean nullRestricted) throws Throwable {
+    public void testArrayElementSetterAndGetter(Class<?> arrayClass, Object[] array, Object element, boolean nullRestricted) throws Throwable {
         MethodHandle setter = MethodHandles.arrayElementSetter(array.getClass());
         MethodHandle getter = MethodHandles.arrayElementGetter(array.getClass());
+        VarHandle vh = MethodHandles.arrayElementVarHandle(arrayClass);
+
         for (int i=0; i < ARRAY_SIZE; i++) {
-            setter.invoke(array, i, o);
+            setter.invoke(array, i, element);
         }
         for (int i=0; i < ARRAY_SIZE; i++) {
             Object v = (Object)getter.invoke(array, i);
-            assertEquals(v, o);
+            assertEquals(v, element);
         }
         // set an array element to null
         if (nullRestricted) {
             assertThrows(NullPointerException.class, () -> setter.invoke(array, 1, null));
+            assertThrows(NullPointerException.class, () -> vh.set(array, 1, null));
         } else {
             setter.invoke(array, 1, null);
             assertNull(getter.invoke(array, 1));
+            vh.set(array, 1, null);
         }
     }
 

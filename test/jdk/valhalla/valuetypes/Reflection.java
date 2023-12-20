@@ -34,8 +34,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.stream.Stream;
 
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.api.Test;
@@ -96,19 +98,22 @@ public class Reflection {
         assertEquals(NullPointerException.class, t.getCause().getClass());
     }
 
-    /*
-     * TODO: null-restricted value class array
-     */
     static Stream<Arguments> arrays() {
         V v1 = new V(10);
         V v2 = new V(20);
+        Value value = new Value(v1, v2);
 
-        V[] varray = new V[] { v1, v2 };
-        Value[] valuearray = new Value[] { new Value(v1, v2), new Value(v1, null)};
+        V[] varray = (V[]) Array.newInstance(V.class, 2);
+        V[] varrayNR = (V[]) ValueClass.newNullRestrictedArray(V.class, 3);
+        Value[] valuearray = (Value[]) Array.newInstance(Value.class, 2);
+        Value[] valuearrayNR = (Value[]) ValueClass.newNullRestrictedArray(Value.class, 3);
 
         return Stream.of(
-                Arguments.of(V[].class, varray, false),
-                Arguments.of(Value[].class, valuearray, false)
+                Arguments.of(V[].class, varray, false, v1),
+                Arguments.of(V[].class, varrayNR, true, v2),
+                Arguments.of(Value[].class, valuearray, false, value),
+                Arguments.of(Value[].class, valuearrayNR, true, value)
+
         );
     }
 
@@ -118,29 +123,37 @@ public class Reflection {
      */
     @ParameterizedTest
     @MethodSource("arrays")
-    public void testArrays(Class<?> arrayClass, Object[] array, boolean nullRestricted) {
+    public void testArrays(Class<?> arrayClass, Object[] array, boolean nullRestricted, Object element) {
         Class<?> componentType = arrayClass.getComponentType();
         assertTrue(arrayClass.isArray());
-        Object[] newArray = (Object[]) Array.newInstance(componentType, array.length);
-        assertTrue(newArray.getClass().getComponentType() == componentType);
+        // TODO: check Array.getComponentType(array) instead
+        assertTrue(array.getClass() == arrayClass || nullRestricted);
+        assertTrue(array.getClass().getComponentType() == componentType || nullRestricted);
+
+        for (int i = 0; i < array.length; i++) {
+            Object o = Array.get(array, i);
+            if (nullRestricted) {
+                assertTrue(o == ValueClass.zeroInstance(componentType));
+            } else {
+                assertTrue(o == null);
+            }
+        }
 
         // set elements
         for (int i = 0; i < array.length; i++) {
-            Array.set(newArray, i, array[i]);
+            Array.set(array, i, element);
+            assertEquals(element, Array.get(array, i));
         }
-        for (int i = 0; i < array.length; i++) {
-            Object o = Array.get(newArray, i);
-            assertEquals(o, array[i]);
-        }
-        Arrays.setAll(newArray, i -> array[i]);
 
-        for (int i = 0; i < newArray.length; i++) {
-            // test nullable
+        Arrays.setAll(array, i -> array[i]);
+
+        // test nullable
+        for (int i = 0; i < array.length; i++) {
             if (nullRestricted) {
                 final int index = i;
-                assertThrows(NullPointerException.class, () -> Array.set(newArray, index, null));
+                assertThrows(NullPointerException.class, () -> Array.set(array, index, null));
             } else {
-                Array.set(newArray, i, null);
+                Array.set(array, i, null);
             }
         }
     }
