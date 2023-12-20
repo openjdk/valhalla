@@ -721,7 +721,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       // but later decide to inline the call after the callee code also triggered allocation.
       for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
         AllocateNode* alloc = fast_out(i)->isa_Allocate();
-        if (alloc != nullptr && alloc->in(AllocateNode::InlineType) == this && !alloc->_is_scalar_replaceable) {
+        if (alloc != nullptr && alloc->in(AllocateNode::InlineType) == this && !alloc->_is_scalar_replaceable && !alloc->_larval) {
           // Found a re-allocation
           Node* res = alloc->result_cast();
           if (res != nullptr && res->is_CheckCastPP()) {
@@ -919,34 +919,22 @@ InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi,
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
-InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const {
+Node* InlineTypeNode::make_larval(GraphKit* kit) const {
   ciInlineKlass* vk = inline_klass();
-  InlineTypeNode* res = make_uninitialized(kit->gvn(), vk);
-  for (uint i = 1; i < req(); ++i) {
-    res->set_req(i, in(i));
-  }
 
-  if (allocate) {
-    // Re-execute if buffering triggers deoptimization
-    PreserveReexecuteState preexecs(kit);
-    kit->jvms()->set_should_reexecute(true);
-    Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-    Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, true);
-    AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
-    alloc->_larval = true;
+  // Re-execute if buffering triggers deoptimization
+  PreserveReexecuteState preexecs(kit);
+  kit->jvms()->set_should_reexecute(true);
+  Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
+  Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, true);
+  AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
+  alloc->_larval = true;
 
-    store(kit, alloc_oop, alloc_oop, vk);
-    res->set_oop(alloc_oop);
-  }
-  // TODO 8239003
-  //res->set_type(TypeInlineType::make(vk, true));
-  res = kit->gvn().transform(res)->as_InlineType();
-  assert(!allocate || res->is_allocated(&kit->gvn()), "must be allocated");
-  return res;
+  store(kit, alloc_oop, alloc_oop, vk);
+  return alloc_oop;
 }
 
-InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
-  Node* obj = get_oop();
+InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit, Node* obj, const TypeInstPtr* vk) {
   Node* mark_addr = kit->basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = kit->make_load(nullptr, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
   mark = kit->gvn().transform(new AndXNode(mark, kit->MakeConX(~markWord::larval_bit_in_place)));
@@ -958,15 +946,7 @@ InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
   assert(alloc != nullptr, "must have an allocation node");
   kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
 
-  ciInlineKlass* vk = inline_klass();
-  InlineTypeNode* res = make_uninitialized(kit->gvn(), vk);
-  for (uint i = 1; i < req(); ++i) {
-    res->set_req(i, in(i));
-  }
-  // TODO 8239003
-  //res->set_type(TypeInlineType::make(vk, false));
-  res = kit->gvn().transform(res)->as_InlineType();
-  return res;
+  return InlineTypeNode::make_from_oop(kit, obj, vk->inline_klass(), !vk->maybe_null());
 }
 
 bool InlineTypeNode::is_larval(PhaseGVN* gvn) const {
@@ -1172,7 +1152,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
   // will be removed anyway and changing the memory chain will confuse other optimizations.
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     AllocateNode* alloc = fast_out(i)->isa_Allocate();
-    if (alloc != nullptr && alloc->in(AllocateNode::InlineType) == this && !alloc->_is_scalar_replaceable) {
+    if (alloc != nullptr && alloc->in(AllocateNode::InlineType) == this && !alloc->_is_scalar_replaceable && !alloc->_larval) {
       Node* res = alloc->result_cast();
       if (res == nullptr || !res->is_CheckCastPP()) {
         break; // No unique CheckCastPP

@@ -959,6 +959,11 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
     res_type = _igvn.type(res)->isa_oopptr();
   }
 
+  // Bufferes in larval state should not be scalarized.
+  if (alloc->_larval) {
+    return false;
+  }
+
   // Process the safepoint uses
   assert(safepoints.length() == 0 || !res_type->is_inlinetypeptr(), "Inline type allocations should not have safepoint uses");
   Unique_Node_List value_worklist;

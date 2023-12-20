@@ -2331,6 +2331,17 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   assert(Unsafe_field_offset_to_byte_offset(11) == 11,
          "fieldOffset must be byte-scaled");
 
+  if (_gvn.type(base)->is_inlinetypeptr() && is_store) {
+    // FIXME: Larval bit check is needed to preserve the semantics of value
+    // objects which can be mutated only if its _larval bit is set. Since
+    // the oop is not always an AllocateNode, we have to find an utility way
+    // to check the larval state for all kind of oops.
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(base);
+    if (alloc != nullptr) {
+      assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
+    }
+  }
+
   ciInlineKlass* inline_klass = nullptr;
   if (is_flat) {
     const TypeInstPtr* cls = _gvn.type(argument(4))->isa_instptr();
@@ -2608,12 +2619,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
   }
 
-  if (argument(1)->is_InlineType() && is_store) {
-    InlineTypeNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(argument(1))->inline_klass());
-    value = value->make_larval(this, false);
-    replace_in_map(argument(1), value);
-  }
-
   return true;
 }
 
@@ -2629,31 +2634,29 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
     return true;
   }
 
-  set_result(value->as_InlineType()->make_larval(this, true));
+  set_result(value->as_InlineType()->make_larval(this));
   return true;
 }
 
 bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   Node* receiver = argument(0);
   Node* buffer = argument(1);
-  if (!buffer->is_InlineType()) {
-    return false;
-  }
-  InlineTypeNode* vt = buffer->as_InlineType();
-  if (!vt->is_allocated(&_gvn)) {
-    return false;
-  }
-  // TODO 8239003 Why is this needed?
-  if (AllocateNode::Ideal_allocation(vt->get_oop()) == nullptr) {
-    return false;
+
+  // Incoming value should be a buffer with inline type and not InlineTypeNode.
+  if (buffer->is_InlineType() || !buffer->bottom_type()->is_inlinetypeptr()) {
+     return false;
   }
 
-  receiver = null_check(receiver);
-  if (stopped()) {
-    return true;
+  // Allocation node must exist to generate IR for transitioning allocation out
+  // of larval state. Disable the intrinsic and take unsafe slow path if allocation
+  // is not reachable,  oop returned by Unsafe_finishPrivateBuffer native method
+  // will automatically rematerialize InlineTypeNode.
+  if (AllocateNode::Ideal_allocation(buffer) == nullptr) {
+     return false;
   }
 
-  set_result(vt->finish_larval(this));
+  const TypeInstPtr* ptr = buffer->bottom_type()->isa_instptr();
+  set_result(InlineTypeNode::finish_larval(this, buffer, ptr));
   return true;
 }
 

@@ -405,7 +405,7 @@ public class TestIntrinsics {
 
     MyValue1 test22_vt;
     @Test
-    @IR(failOn = {CALL_UNSAFE, ALLOC})
+    @IR(failOn = {CALL_UNSAFE})
     public void test22(MyValue1 v) {
         v = U.makePrivateBuffer(v);
         U.putInt(v, X_OFFSET, rI);
