@@ -34,7 +34,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
@@ -142,7 +141,7 @@ public class Reflection {
         // set elements
         for (int i = 0; i < array.length; i++) {
             Array.set(array, i, element);
-            assertEquals(element, Array.get(array, i));
+            assertTrue(Array.get(array, i) == element);
         }
 
         Arrays.setAll(array, i -> array[i]);

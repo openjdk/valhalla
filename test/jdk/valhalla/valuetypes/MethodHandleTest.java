@@ -183,13 +183,19 @@ public class MethodHandleTest {
         MethodHandle setter = MethodHandles.arrayElementSetter(array.getClass());
         MethodHandle getter = MethodHandles.arrayElementGetter(array.getClass());
         VarHandle vh = MethodHandles.arrayElementVarHandle(arrayClass);
+        Class<?> componentType = arrayClass.getComponentType();
 
         for (int i=0; i < ARRAY_SIZE; i++) {
-            setter.invoke(array, i, element);
+            var v = getter.invoke(array, i);
+            if (nullRestricted) {
+                assertTrue(v == ValueClass.zeroInstance(componentType));
+            } else {
+                assertTrue(v == null);
+            }
         }
         for (int i=0; i < ARRAY_SIZE; i++) {
-            Object v = (Object)getter.invoke(array, i);
-            assertEquals(v, element);
+            setter.invoke(array, i, element);
+            assertTrue(getter.invoke(array, i) == element);
         }
         // set an array element to null
         if (nullRestricted) {
