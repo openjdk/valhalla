@@ -38,7 +38,7 @@ import jdk.internal.misc.Unsafe;
 
 public class TestMaskedUnsafePutInLoop {
      primitive class Pair {
-         final double d1, d2;
+         double d1, d2;
          public Pair(double d1, double d2) {
              this.d1 = d1;
              this.d2 = d2;
