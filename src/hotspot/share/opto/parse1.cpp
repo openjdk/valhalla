@@ -610,9 +610,15 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     Node* parm = local(i);
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
-      // Create InlineTypeNode from the oop and replace the parameter
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
-      set_local(i, vt);
+      AllocateNode* alloc = AllocateNode::Ideal_allocation(parm);
+      if (alloc && alloc->_larval) {
+        // Pass the larval state value parameter as it is to downstream graph.
+        set_local(i, parm);
+      } else {
+        // Create InlineTypeNode from the oop and replace the parameter
+        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
+        set_local(i, vt);
+      }
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flat)
