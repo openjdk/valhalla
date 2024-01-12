@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.invoke.*;
 import java.lang.ref.*;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -35,9 +36,13 @@ import java.util.concurrent.*;
 
 import static jdk.test.lib.Asserts.*;
 
+
 import jdk.experimental.bytecode.MacroCodeBuilder;
 import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
 import jdk.experimental.bytecode.TypeTag;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Platform;
 import jdk.test.lib.Utils;
 
@@ -49,20 +54,217 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @summary Test data movement with inline types
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @modules java.base/jdk.internal.vm.annotation
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses TestValue1.java TestValue2.java TestValue3.java TestValue4.java InlineTypesTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @compile InlineTypesTest.java
+ * @run main/othervm -XX:+EnableValhalla
  *                   -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   -XX:ForceNonTearable=*
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
  */
+
+ final class ContainerValue1 {
+    static TestValue1 staticInlineField;
+    @NullRestricted
+    TestValue1 nonStaticInlineField;
+    TestValue1[] inlineArray;
+}
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class TestValue1 {
+
+    static TestValue1 staticValue = getInstance();
+
+    final int i;
+    final String name;
+
+    public TestValue1() {
+        i = (int)System.nanoTime();
+        name = Integer.valueOf(i).toString();
+    }
+
+    public TestValue1(int i) {
+        this.i = i;
+        name = Integer.valueOf(i).toString();
+    }
+
+    public static TestValue1 getInstance() {
+        return new TestValue1();
+    }
+
+    public static TestValue1 getNonBufferedInstance() {
+        return (TestValue1) staticValue;
+    }
+
+    public boolean verify() {
+        if (name == null) return i == 0;
+        return Integer.valueOf(i).toString().compareTo(name) == 0;
+    }
+}
+
+final class ContainerValue2 {
+    static TestValue2 staticInlineField;
+    @NullRestricted
+    TestValue2 nonStaticInlineField;
+    TestValue2[] valueArray;
+}
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class TestValue2 {
+    static TestValue2 staticValue = getInstance();
+
+    final long l;
+    final double d;
+    final String s;
+
+    public TestValue2() {
+        l = System.nanoTime();
+        s = Long.valueOf(l).toString();
+        d = Double.parseDouble(s);
+    }
+
+    public TestValue2(long l) {
+        this.l = l;
+        s = Long.valueOf(l).toString();
+        d = Double.parseDouble(s);
+    }
+
+    public static TestValue2 getInstance() {
+        return new TestValue2();
+    }
+
+    public static TestValue2 getNonBufferedInstance() {
+        return (TestValue2) staticValue;
+    }
+
+    public boolean verify() {
+        if (s == null) {
+            return d == 0 && l == 0;
+        }
+        return Long.valueOf(l).toString().compareTo(s) == 0
+                && Double.parseDouble(s) == d;
+    }
+}
+
+final class ContainerValue3 {
+    static TestValue3 staticInlineField;
+    @NullRestricted
+    TestValue3 nonStaticInlineField;
+    TestValue3[] valueArray;
+}
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class TestValue3 {
+
+    static TestValue3 staticValue = getInstance();
+
+    final byte b;
+
+    public TestValue3() {
+        b = 123;
+    }
+
+    public TestValue3(byte b) {
+        this.b = b;
+    }
+
+    public static TestValue3 getInstance() {
+        return new TestValue3();
+    }
+
+    public static TestValue3 getNonBufferedInstance() {
+        return (TestValue3) staticValue;
+    }
+
+    public boolean verify() {
+        return b == 0 || b == 123;
+    }
+}
+
+final class ContainerValue4 {
+    static TestValue4 staticInlineField;
+    @NullRestricted
+    TestValue4 nonStaticInlineField;
+    TestValue4[] valueArray;
+}
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class TestValue4 {
+
+    static TestValue4 staticValue = getInstance();
+
+    final byte b1;
+    final byte b2;
+    final byte b3;
+    final byte b4;
+    final short s1;
+    final short s2;
+    final int i;
+    final long l;
+    final String val;
+
+    public TestValue4() {
+        this((int) System.nanoTime());
+    }
+
+    public TestValue4(int i) {
+        this.i = i;
+        val = Integer.valueOf(i).toString();
+        ByteBuffer bf = ByteBuffer.allocate(8);
+        bf.putInt(0, i);
+        bf.putInt(4, i);
+        l = bf.getLong(0);
+        s1 = bf.getShort(2);
+        s2 = bf.getShort(0);
+        b1 = bf.get(3);
+        b2 = bf.get(2);
+        b3 = bf.get(1);
+        b4 = bf.get(0);
+    }
+
+    public static TestValue4 getInstance() {
+        return new TestValue4();
+    }
+
+    public static TestValue4 getNonBufferedInstance() {
+        return (TestValue4) staticValue;
+    }
+
+    public boolean verify() {
+        if (val == null) {
+            return i == 0 && l == 0 && b1 == 0 && b2 == 0 && b3 == 0 && b4 == 0
+                    && s1 == 0 && s2 == 0;
+        }
+        ByteBuffer bf = ByteBuffer.allocate(8);
+        bf.putInt(0, i);
+        bf.putInt(4, i);
+        long nl =  bf.getLong(0);
+        bf.clear();
+        bf.putShort(0, s2);
+        bf.putShort(2, s1);
+        int from_s = bf.getInt(0);
+        bf.clear();
+        bf.put(0, b4);
+        bf.put(1, b3);
+        bf.put(2, b2);
+        bf.put(3, b1);
+        int from_b = bf.getInt(0);
+        return l == nl && Integer.valueOf(i).toString().compareTo(val) == 0
+                && from_s == i && from_b == i;
+    }
+}
+
 public class InlineTypesTest {
 
     public static void main(String[] args) {
@@ -95,7 +297,7 @@ public class InlineTypesTest {
     static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
     static void testExecutionStackToLocalVariable(Class<?> inlineClass) throws Throwable {
-        String sig = "()Q" + inlineClass.getName() + ";";
+        String sig = "()L" + inlineClass.getName() + ";";
         final String signature = sig.replace('.', '/');
         MethodHandle fromExecStackToLocalVar = InstructionHelper.loadCode(
                 LOOKUP,
@@ -137,9 +339,8 @@ public class InlineTypesTest {
 
     static void testExecutionStackToFields(Class<?> inlineClass, Class<?> containerClass) throws Throwable {
         final int ITERATIONS = Platform.isDebugBuild() ? 3 : 512;
-        String sig = "()Q" + inlineClass.getName() + ";";
+        String sig = "()L" + inlineClass.getName() + ";";
         final String methodSignature = sig.replace('.', '/');
-        final String fieldQSignature = "Q" + inlineClass.getName().replace('.', '/') + ";";
         final String fieldLSignature = "L" + inlineClass.getName().replace('.', '/') + ";";
         System.out.println(methodSignature);
         MethodHandle fromExecStackToFields = InstructionHelper.loadCode(
@@ -161,19 +362,19 @@ public class InlineTypesTest {
                     .ifcmp(TypeTag.I, CondKind.EQ, "end")
                     .aload_1()
                     .invokestatic(inlineClass, "getInstance", methodSignature, false)
-                    .putfield(containerClass, "nonStaticInlineField", fieldQSignature)
+                    .putfield(containerClass, "nonStaticInlineField", fieldLSignature)
                     .invokestatic(System.class, "gc", "()V", false)
                     .aload_1()
-                    .getfield(containerClass, "nonStaticInlineField", fieldQSignature)
+                    .getfield(containerClass, "nonStaticInlineField", fieldLSignature)
                     .invokevirtual(inlineClass, "verify", "()Z", false)
                     .iconst_1()
                     .ifcmp(TypeTag.I, CondKind.NE, "failed")
                     .aload_1()
                     .invokestatic(inlineClass, "getNonBufferedInstance", methodSignature, false)
-                    .putfield(containerClass, "nonStaticInlineField", fieldQSignature)
+                    .putfield(containerClass, "nonStaticInlineField", fieldLSignature)
                     .invokestatic(System.class, "gc", "()V", false)
                     .aload_1()
-                    .getfield(containerClass, "nonStaticInlineField", fieldQSignature)
+                    .getfield(containerClass, "nonStaticInlineField", fieldLSignature)
                     .invokevirtual(inlineClass, "verify", "()Z", false)
                     .iconst_1()
                     .ifcmp(TypeTag.I, CondKind.NE, "failed")
@@ -209,7 +410,7 @@ public class InlineTypesTest {
 
     static void testExecutionStackToInlineArray(Class<?> inlineClass, Class<?> containerClass) throws Throwable {
         final int ITERATIONS = Platform.isDebugBuild() ? 3 : 100;
-        String sig = "()Q" + inlineClass.getName() + ";";
+        String sig = "()L" + inlineClass.getName() + ";";
         final String signature = sig.replace('.', '/');
         final String arraySignature = "[L" + inlineClass.getName().replace('.', '/') + ";";
         System.out.println(arraySignature);
