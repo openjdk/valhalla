@@ -292,26 +292,6 @@ public final class Unsafe {
     }
 
     /**
-     * Fetches a reference value of the given type from a given null-restricted
-     * Java variable.  The VM may lazily set a null-restricted non-flat field.
-     * If the reference value is null, return a zero instance instead.
-     *
-     * @apiNote This API is temporary.  It will be replaced when CheckedType
-     *          is implemented.
-     *
-     * @param type type
-     */
-    public Object getNullRestrictedReference(Object o, long offset, Class<?> type) {
-        Object ref = getReference(o, offset);
-        return ref != null ? ref : ValueClass.zeroInstance(type);
-    }
-
-    public Object getNullRestrictedReferenceVolatile(Object o, long offset, Class<?> type) {
-        Object ref = getReferenceVolatile(o, offset);
-        return ref != null ? ref : ValueClass.zeroInstance(type);
-    }
-
-    /**
      * Returns an uninitialized default instance of the given value class.
      */
     public native <V> V uninitializedDefaultValue(Class<?> type);

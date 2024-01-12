@@ -22,25 +22,31 @@
  */
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
 /*
  * @test
  * @summary Uninitialized inline fields test
  * @library /test/lib
- * @compile -XDallowFlattenabilityModifiers -XDenablePrimitiveClasses Point.java JumboInline.java UninitializedInlineFieldsTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.UninitializedInlineFieldsTest
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile Point.java JumboInline.java UninitializedInlineFieldsTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.UninitializedInlineFieldsTest
  */
 public class UninitializedInlineFieldsTest {
-    static Point.ref nonFlattenableStaticPoint;
+    static Point nonFlattenableStaticPoint;
+    @NullRestricted
     static Point staticPoint;
 
+    @NullRestricted
     Point instancePoint;
 
-    static JumboInline.ref sj1;
+    static JumboInline sj1;
+    @NullRestricted
     static JumboInline sj2;
 
-    JumboInline.ref j1;
+    JumboInline j1;
+    @NullRestricted
     JumboInline j2;
 
     static Object getNull() {

@@ -22,20 +22,26 @@
  */
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
 /*
  * @test InlineTypeGetField
  * @summary Inline Type get field test
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses Point.java InlineTypeGetField.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.InlineTypeGetField
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile Point.java InlineTypeGetField.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.InlineTypeGetField
  */
 public class InlineTypeGetField {
 
+    @NullRestricted
     static Point staticPoint0;
+    @NullRestricted
     static Point staticPoint1;
+    @NullRestricted
     Point instancePoint0;
+    @NullRestricted
     Point instancePoint1;
 
     static {

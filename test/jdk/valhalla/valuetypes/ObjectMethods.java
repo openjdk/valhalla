@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,9 @@
 
 /*
  * @test
- * @summary test Object methods on value classes and primitive classes
- * @modules java.base/jdk.internal.value
- * @compile -XDenablePrimitiveClasses ObjectMethods.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 ObjectMethods
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
+ * @summary test Object methods on value classes
+ * @run junit/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ObjectMethods
+ * @run junit/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -36,73 +34,117 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import jdk.internal.value.PrimitiveClass;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectMethods {
-    static final int SALT = 1;
-    static final Point P1 = Point.makePoint(1, 2);
-    static final Point P2 = Point.makePoint(30, 40);
-    static final Line LINE1 = Line.makeLine(1, 2, 3, 4);
-    static final Line LINE2 = Line.makeLine(10, 20, 3, 4);
-    static final MutablePath MUTABLE_PATH = MutablePath.makePath(10, 20, 30, 40);
-    static final MixedValues MIXED_VALUES = new MixedValues(P1, LINE1, MUTABLE_PATH, "value");
-    static final InlinableValue VALUE = new InlinableValue.Builder()
-                                                .setChar('z')
-                                                .setBoolean(false)
-                                                .setByte((byte)0x1)
-                                                .setShort((short)3)
-                                                .setLong(4L)
-                                                .setPoint(Point.makePoint(200, 200))
-                                                .setNumber(InlinableValue.Number.intValue(10)).build();
-    static final InlinableValue VALUE1 = new InlinableValue.Builder()
-                                                .setChar('z')
-                                                .setBoolean(false)
-                                                .setByte((byte)0x1)
-                                                .setShort((short)3)
-                                                .setLong(4L)
-                                                .setPoint(Point.makePoint(100, 100))
-                                                .setPointRef(Point.makePoint(200, 200))
-                                                .setReference(Point.makePoint(300, 300))
-                                                .setNumber(InlinableValue.Number.intValue(20)).build();
-
-    @DataProvider(name="Identities")
-    Object[][] identitiesData() {
-        return new Object[][]{
-                {new Object(), false, false},
-                {"String", true, false},
-                {String.class, true, false},
-                {Object.class, true, false},
-                {new ValueType1(1), false, true},
-                {new ValueType2(2), false, true},
-                {new PrimitiveRecord(1, "A"), false, true},
-                {new ValueRecord(1,"B"), false, true},
-                {new int[0], true, false},  // arrays of primitive classes are identity objects
-                {new Object[0], true, false},  // arrays of identity classes are identity objects
-                {new String[0], true, false},  // arrays of identity classes are identity objects
-                {new ValueType1[0], true, false},  // arrays of value classes are identity objects
-        };
+    @ImplicitlyConstructible
+    static value class Point {
+        public int x;
+        public int y;
+        Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
     }
 
-    @Test(dataProvider="Identities")
-    void identityTests(Object obj, boolean identityClass, boolean valueClass) {
+    @ImplicitlyConstructible
+    static value class Line {
+        @NullRestricted
+        Point p1;
+        @NullRestricted
+        Point p2;
+
+        Line(int x1, int y1, int x2, int y2) {
+            this.p1 = new Point(x1, y1);
+            this.p2 = new Point(x2, y2);
+        }
+    }
+
+    static class Ref {
+        @NullRestricted
+        Point p;
+        Line l;
+        Ref(Point p, Line l) {
+            this.p = p;
+            this.l = l;
+        }
+    }
+
+    @ImplicitlyConstructible
+    static value class Value {
+        @NullRestricted
+        Point p;
+        @NullRestricted
+        Line l;
+        Ref r;
+        String s;
+        Value(Point p, Line l, Ref r, String s) {
+            this.p = p;
+            this.l = l;
+            this.r = r;
+            this.s = s;
+        }
+    }
+
+    @ImplicitlyConstructible
+    static value class ValueOptional {
+        private Object o;
+        public ValueOptional(Object o) {
+            this.o = o;
+        }
+    }
+
+    static value record ValueRecord(int i, String name) {}
+
+    static final int SALT = 1;
+    static final Point P1 = new Point(1, 2);
+    static final Point P2 = new Point(30, 40);
+    static final Line L1 = new Line(1, 2, 3, 4);
+    static final Line L2 = new Line(10, 20, 3, 4);
+    static final Ref R1 = new Ref(P1, L1);
+    static final Ref R2 = new Ref(P2, null);
+    static final Value V = new Value(P1, L1, R1, "value");
+
+    static Stream<Arguments> identitiesData() {
+        return Stream.of(
+                Arguments.of(new Object(), false, false),
+                Arguments.of("String", true, false),
+                Arguments.of(String.class, true, false),
+                Arguments.of(Object.class, true, false),
+                Arguments.of(L1, false, true),
+                Arguments.of(V, false, true),
+                Arguments.of(new ValueRecord(1, "B"), false, true),
+                Arguments.of(new int[0], true, false),     // arrays of primitive type are identity objects
+                Arguments.of(new Object[0], true, false),  // arrays of identity classes are identity objects
+                Arguments.of(new String[0], true, false),  // arrays of identity classes are identity objects
+                Arguments.of(new Value[0], true, false)    // arrays of value classes are identity objects
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("identitiesData")
+    public void identityTests(Object obj, boolean identityClass, boolean valueClass) {
         Class<?> clazz = obj.getClass();
 
         if (clazz == Object.class) {
             assertTrue(Objects.isIdentityObject(obj), "Objects.isIdentityObject()");
         } else {
-            assertEquals(Objects.isIdentityObject(obj), identityClass, "Objects.isIdentityObject()");
+            assertEquals(identityClass, Objects.isIdentityObject(obj), "Objects.isIdentityObject()");
         }
 
-        assertEquals(Objects.isValueObject(obj), valueClass, "Objects.isValueObject()");
+        assertEquals(valueClass, Objects.isValueObject(obj), "Objects.isValueObject()");
 
-        assertEquals(clazz.isIdentity(), identityClass, "Class.isIdentity()");
+        assertEquals(identityClass, clazz.isIdentity(), "Class.isIdentity()");
 
-        assertEquals(clazz.isValue(), valueClass, "Class.isValue()");
+        assertEquals(valueClass, clazz.isValue(), "Class.isValue()");
 
         // JDK-8294866: Not yet implemented checks of AccessFlags for the array class
 //        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
@@ -112,120 +154,86 @@ public class ObjectMethods {
 //                valueClass, "AccessFlag.VALUE");
     }
 
-    @DataProvider(name="equalsTests")
-    Object[][] equalsTests() {
-        return new Object[][]{
-            { P1, P1, true},
-            { P1, Point.makePoint(1, 2), true},
-            { P1, P2, false},
-            { P1, LINE1, false},
-            { LINE1, Line.makeLine(1, 2, 3, 4), true},
-            { LINE1, LINE2, false},
-            { LINE1, LINE1, true},
-            { VALUE, new InlinableValue.Builder()
-                              .setChar('z')
-                              .setBoolean(false)
-                              .setByte((byte)0x1)
-                              .setShort((short)3)
-                              .setLong(4L)
-                              .setPoint(Point.makePoint(200, 200))
-                              .setNumber(InlinableValue.Number.intValue(10)).build(), true},
-            { new InlinableValue.Builder().setNumber(new InlinableValue.IntNumber(10)).build(),
-              new InlinableValue.Builder().setNumber(new InlinableValue.IntNumber(10)).build(), false},
-            // reference classes containing fields of primitive class
-            { MUTABLE_PATH, MutablePath.makePath(10, 20, 30, 40), false},
-            { MIXED_VALUES, MIXED_VALUES, true},
-            { MIXED_VALUES, new MixedValues(P1, LINE1, MUTABLE_PATH, "value"), false},
-            // uninitialized default value
-            { MyValue1.default, MyValue1.default, true},
-            { MyValue1.default, new MyValue1(0,0, null), true},
-            { new MyValue1(10, 20, P1), new MyValue1(10, 20, Point.makePoint(1,2)), true},
-            { new ReferenceType0(10), new ReferenceType0(10), true},
-            { new ValueType1(10),   new ValueType1(10), true},
-            { new ValueType2(10),   new ValueType2(10), true},
-            { new ValueType1(20),   new ValueType2(20), false},
-            { new ValueType2(20),   new ValueType1(20), true},
-            { new ReferenceType0(30), new ValueType1(30), true},
-            { new ReferenceType0(30), new ValueType2(30), true},
-            { new PrimitiveRecord(40, "forty"), new PrimitiveRecord(40, "forty"), true},
-            { new ValueRecord(50, "fifty"), new ValueRecord(50, "fifty"), true},
-            { new ValueOptional(LINE1), new ValueOptional(LINE1), true},
-            { new ValueOptional(List.of(P1)), new ValueOptional(List.of(P1)), false},
-        };
+    static Stream<Arguments> equalsTests() {
+        return Stream.of(
+                Arguments.of(P1, P1, true),
+                Arguments.of(P1, new Point(1, 2), true),
+                Arguments.of(P1, P2, false),
+                Arguments.of(P1, L1, false),
+                Arguments.of(L1, new Line(1, 2, 3, 4), true),
+                Arguments.of(L1, L2, false),
+                Arguments.of(L1, L1, true),
+                Arguments.of(V, new Value(P1, L1, R1, "value"), true),
+                Arguments.of(V, new Value(new Point(1, 2), new Line(1, 2, 3, 4), R1, "value"), true),
+                Arguments.of(V, new Value(P1, L1, new Ref(P1, L1), "value"), false),
+                Arguments.of(new Value(P1, L1, R2, "value2"), new Value(P1, L1, new Ref(P2, null), "value2"), false),
+                Arguments.of(new ValueRecord(50, "fifty"), new ValueRecord(50, "fifty"), true),
+
+                // reference classes containing fields of value class
+                Arguments.of(R1, new Ref(P1, L1), false),   // identity object
+
+                // uninitialized default value
+                Arguments.of(ValueClass.zeroInstance(Line.class), new Line(0, 0, 0, 0), true),
+                Arguments.of(ValueClass.zeroInstance(Value.class), ValueClass.zeroInstance(Value.class), true),
+                Arguments.of(new ValueOptional(L1), new ValueOptional(L1), true),
+                Arguments.of(new ValueOptional(List.of(P1)), new ValueOptional(List.of(P1)), false)
+        );
     }
 
-    @Test(dataProvider="equalsTests")
+    @ParameterizedTest
+    @MethodSource("equalsTests")
     public void testEquals(Object o1, Object o2, boolean expected) {
         assertTrue(o1.equals(o2) == expected);
     }
 
-    @DataProvider(name="interfaceEqualsTests")
-    Object[][] interfaceEqualsTests() {
-        return new Object[][]{
-                { new ReferenceType0(10), new ReferenceType0(10), false, true},
-                { new ValueType1(10),   new ValueType1(10),   true,  true},
-                { new ValueType2(10),   new ValueType2(10),   true,  true},
-                { new ValueType1(20),   new ValueType2(20),   false, false},
-                { new ValueType2(20),   new ValueType1(20),   false, true},
-                { new ReferenceType0(30), new ValueType1(30),   false, true},
-                { new ReferenceType0(30), new ValueType2(30),   false, true},
-        };
+    static Stream<Arguments> toStringTests() {
+        return Stream.of(
+                Arguments.of(new Point(100, 200)),
+                Arguments.of(new Line(1, 2, 3, 4)),
+                Arguments.of(V),
+                Arguments.of(R1),
+                // enclosing instance field `this$0` should be filtered
+                Arguments.of(ValueClass.zeroInstance(Value.class)),
+                Arguments.of(new Value(P1, L1, null, null)),
+                Arguments.of(new Value(P2, L2, new Ref(P1, null), "value")),
+                Arguments.of(ValueClass.zeroInstance(ValueOptional.class)),
+                Arguments.of(new ValueOptional(P1))
+        );
     }
 
-    @Test(dataProvider="interfaceEqualsTests")
-    public void testNumber(Number n1, Number n2, boolean isSubstitutable, boolean isEquals) {
-        assertTrue((n1 == n2) == isSubstitutable);
-        assertTrue(n1.equals(n2) == isEquals);
-    }
-
-    @DataProvider(name="toStringTests")
-    Object[][] toStringTests() {
-        return new Object[][] {
-            { Point.makePoint(100, 200)  },
-            { Line.makeLine(1, 2, 3, 4) },
-            { VALUE },
-            { VALUE1 },
-            { new InlinableValue.Builder()
-                        .setReference(List.of("ref"))
-                        .setNumber(new InlinableValue.IntNumber(99)).build() },
-            // enclosing instance field `this$0` should be filtered
-            { MyValue1.default },
-            { new MyValue1(0,0, null) },
-            { new MyValue1(0,0, P1) },
-            { ValueOptional.default },
-            { new ValueOptional(P1) },
-        };
-    }
-
-    @Test(dataProvider="toStringTests")
+    @ParameterizedTest
+    @MethodSource("toStringTests")
     public void testToString(Object o) {
         String expected = String.format("%s@%s", o.getClass().getName(), Integer.toHexString(o.hashCode()));
         assertEquals(o.toString(), expected);
     }
 
     @Test
-    public void testPrimitiveRecordToString() {
-        PrimitiveRecord o = new PrimitiveRecord(30, "thirty");
-        assertEquals(o.toString(), "PrimitiveRecord[i=30, name=thirty]");
+    public void testValueRecordToString() {
+        ValueRecord o = new ValueRecord(30, "thirty");
+        assertEquals(o.toString(), "ValueRecord[i=30, name=thirty]");
     }
 
-    @DataProvider(name="hashcodeTests")
-    Object[][] hashcodeTests() {
+
+    static Stream<Arguments> hashcodeTests() {
+        Point p = ValueClass.zeroInstance(Point.class);
+        Line l = ValueClass.zeroInstance(Line.class);
+        Value v = ValueClass.zeroInstance(Value.class);
+
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
-        return new Object[][]{
-            { P1,                   hash(PrimitiveClass.asValueType(Point.class), 1, 2) },
-            { LINE1,                hash(PrimitiveClass.asValueType(Line.class), Point.makePoint(1, 2), Point.makePoint(3, 4)) },
-            { VALUE,                hash(hashCodeComponents(VALUE))},
-            { VALUE1,               hash(hashCodeComponents(VALUE1))},
-            { Point.makePoint(0,0), hash(PrimitiveClass.asValueType(Point.class), 0, 0) },
-            { Point.default,        hash(PrimitiveClass.asValueType(Point.class), 0, 0) },
-            { MyValue1.default,     hash(PrimitiveClass.asValueType(MyValue1.class), Point.default, null) },
-            { new MyValue1(0, 0, null), hash(PrimitiveClass.asValueType(MyValue1.class), Point.makePoint(0,0), null) },
-            { new ValueOptional(P1), hash(ValueOptional.class, P1) },
-        };
+        return Stream.of(
+                Arguments.of(P1, hash(Point.class, 1, 2)),
+                Arguments.of(L1, hash(Line.class, new Point(1, 2), new Point(3, 4))),
+                Arguments.of(V, hash(hashCodeComponents(V))),
+                Arguments.of(new Point(0, 0), hash(Point.class, 0, 0)),
+                Arguments.of(p, hash(Point.class, 0, 0)),
+                Arguments.of(v, hash(Value.class, p, l, null, null)),
+                Arguments.of(new ValueOptional(P1), hash(ValueOptional.class, P1))
+        );
     }
 
-    @Test(dataProvider="hashcodeTests")
+    @ParameterizedTest
+    @MethodSource("hashcodeTests")
     public void testHashCode(Object o, int hash) {
         assertEquals(o.hashCode(), hash);
         assertEquals(System.identityHashCode(o), hash);
@@ -243,9 +251,6 @@ public class ObjectMethods {
                     throw new RuntimeException(e);
                 }
             });
-        if (PrimitiveClass.isPrimitiveClass(type)) {
-            type = PrimitiveClass.asValueType(type);
-        }
         return Stream.concat(Stream.of(type), fields).toArray(Object[]::new);
     }
 
@@ -257,24 +262,14 @@ public class ObjectMethods {
         return hc;
     }
 
-    static primitive class MyValue1 {
-        private Point p;
-        private Point.ref np;
-
-        MyValue1(int x, int y, Point.ref np) {
-            this.p = Point.makePoint(x, y);
-            this.np = np;
-        }
-    }
-
 
     interface Number {
         int value();
     }
 
-    static class ReferenceType0 implements Number {
+    static class ReferenceType implements Number {
         int i;
-        public ReferenceType0(int i) {
+        public ReferenceType(int i) {
             this.i = i;
         }
         public int value() {
@@ -289,7 +284,8 @@ public class ObjectMethods {
         }
     }
 
-    static primitive class ValueType1 implements Number {
+    @ImplicitlyConstructible
+    static value class ValueType1 implements Number {
         int i;
         public ValueType1(int i) {
             this.i = i;
@@ -299,7 +295,8 @@ public class ObjectMethods {
         }
     }
 
-    static primitive class ValueType2 implements Number {
+    @ImplicitlyConstructible
+    static value class ValueType2 implements Number {
         int i;
         public ValueType2(int i) {
             this.i = i;
@@ -316,7 +313,22 @@ public class ObjectMethods {
         }
     }
 
-    static primitive record PrimitiveRecord(int i, String name) {}
-    static value record ValueRecord(int i, String name) {}
+    static Stream<Arguments> interfaceEqualsTests() {
+        return Stream.of(
+                Arguments.of(new ReferenceType(10), new ReferenceType(10), false, true),
+                Arguments.of(new ValueType1(10),    new ValueType1(10),    true,  true),
+                Arguments.of(new ValueType2(10),    new ValueType2(10),    true,  true),
+                Arguments.of(new ValueType1(20),    new ValueType2(20),    false, false),
+                Arguments.of(new ValueType2(20),    new ValueType1(20),    false, true),
+                Arguments.of(new ReferenceType(30), new ValueType1(30),    false, true),
+                Arguments.of(new ReferenceType(30), new ValueType2(30),    false, true)
+        );
+    }
 
+    @ParameterizedTest
+    @MethodSource("interfaceEqualsTests")
+    public void testNumber(Number n1, Number n2, boolean isSubstitutable, boolean isEquals) {
+        assertTrue((n1 == n2) == isSubstitutable);
+        assertTrue(n1.equals(n2) == isEquals);
+    }
 }

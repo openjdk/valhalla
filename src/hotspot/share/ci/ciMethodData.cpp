@@ -356,8 +356,10 @@ ciProfileData* ciMethodData::data_from(DataLayout* data_layout) {
     return new ciVirtualCallTypeData(data_layout);
   case DataLayout::parameters_type_data_tag:
     return new ciParametersTypeData(data_layout);
-  case DataLayout::array_load_store_data_tag:
-    return new ciArrayLoadStoreData(data_layout);
+  case DataLayout::array_store_data_tag:
+    return new ciArrayStoreData(data_layout);
+  case DataLayout::array_load_data_tag:
+    return new ciArrayLoadData(data_layout);
   case DataLayout::acmp_data_tag:
     return new ciACmpData(data_layout);
   };
@@ -755,12 +757,17 @@ void ciMethodData::dump_replay_data(outputStream* out) {
       } else if (pdata->is_CallTypeData()) {
           ciCallTypeData* call_type_data = (ciCallTypeData*)pdata;
           dump_replay_data_call_type_helper<ciCallTypeData>(out, round, count, call_type_data);
-      } else if (pdata->is_ArrayLoadStoreData()) {
-        ciArrayLoadStoreData* array_load_store_data = (ciArrayLoadStoreData*)pdata;
-        dump_replay_data_type_helper(out, round, count, array_load_store_data, ciArrayLoadStoreData::array_offset(),
-                                     array_load_store_data->array()->valid_type());
-        dump_replay_data_type_helper(out, round, count, array_load_store_data, ciArrayLoadStoreData::element_offset(),
-                                     array_load_store_data->element()->valid_type());
+      } else if (pdata->is_ArrayStoreData()) {
+        ciArrayStoreData* array_store_data = (ciArrayStoreData*)pdata;
+        dump_replay_data_type_helper(out, round, count, array_store_data, ciArrayStoreData::array_offset(),
+                                     array_store_data->array()->valid_type());
+        dump_replay_data_receiver_type_helper<ciArrayStoreData>(out, round, count, array_store_data);
+      } else if (pdata->is_ArrayLoadData()) {
+        ciArrayLoadData* array_load_data = (ciArrayLoadData*)pdata;
+        dump_replay_data_type_helper(out, round, count, array_load_data, ciArrayLoadData::array_offset(),
+                                     array_load_data->array()->valid_type());
+        dump_replay_data_type_helper(out, round, count, array_load_data, ciArrayLoadData::element_offset(),
+                                     array_load_data->element()->valid_type());
       } else if (pdata->is_ACmpData()) {
         ciACmpData* acmp_data = (ciACmpData*)pdata;
         dump_replay_data_type_helper(out, round, count, acmp_data, ciACmpData::left_offset(),
@@ -924,7 +931,17 @@ void ciSpeculativeTrapData::print_data_on(outputStream* st, const char* extra) c
   st->cr();
 }
 
-void ciArrayLoadStoreData::print_data_on(outputStream* st, const char* extra) const {
+void ciArrayStoreData::print_data_on(outputStream* st, const char* extra) const {
+  print_shared(st, "ciArrayLoadStoreData", extra);
+  tab(st, true);
+  st->print("array");
+  array()->print_data_on(st);
+  tab(st, true);
+  st->print("element");
+  print_receiver_data_on(st);
+}
+
+void ciArrayLoadData::print_data_on(outputStream* st, const char* extra) const {
   print_shared(st, "ciArrayLoadStoreData", extra);
   tab(st, true);
   st->print("array");

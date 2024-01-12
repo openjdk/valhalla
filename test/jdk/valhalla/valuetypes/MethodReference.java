@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,13 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses MethodReference.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses MethodReference
- * @summary test method reference and primitive reference type as the parameter type
+ * @summary test method reference of value class as the parameter type
+ * @run main/othervm -XX:+EnableValhalla MethodReference
  */
 
 import java.util.function.Supplier;
 
-public primitive class MethodReference {
+public value class MethodReference {
     final int x;
     final int y;
     MethodReference() {
@@ -39,8 +38,8 @@ public primitive class MethodReference {
     }
 
     public static void main(String... args) {
-        Supplier<MethodReference.ref> supplier = MethodReference::new;
-        MethodReference o = (MethodReference) supplier.get();
+        Supplier<MethodReference> supplier = MethodReference::new;
+        MethodReference o = supplier.get();
         if (o.x != 1234 || o.y != 5678)
             throw new AssertionError(o);
     }
