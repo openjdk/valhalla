@@ -130,13 +130,11 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
     static DirectMethodHandle make(MemberName member) {
         if (member.isObjectConstructor() && member.getMethodType().returnType() == void.class)
-            return makeAllocator(member);
+            return makeAllocator(member.getDeclaringClass(), member);
         return make(member.getDeclaringClass(), member);
     }
-    private static DirectMethodHandle makeAllocator(MemberName ctor) {
+    static DirectMethodHandle makeAllocator(Class<?> instanceClass, MemberName ctor) {
         assert(ctor.isObjectConstructor() && !ctor.getDeclaringClass().isValue()) : ctor;
-
-        Class<?> instanceClass = ctor.getDeclaringClass();
         ctor = ctor.asObjectConstructor();
         assert(ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
         MethodType mtype = ctor.getMethodType().changeReturnType(instanceClass);
