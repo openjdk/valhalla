@@ -935,6 +935,23 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         }
     }
 
+    public static final class BoundPreloadAttribute extends BoundAttribute<PreloadAttribute>
+            implements PreloadAttribute {
+        private List<ClassEntry> preloads = null;
+
+        public BoundPreloadAttribute(ClassReader cf, AttributeMapper<PreloadAttribute> mapper, int pos) {
+            super(cf, mapper, pos);
+        }
+
+        @Override
+        public List<ClassEntry> preloads() {
+            if (preloads == null) {
+                preloads = readEntryList(payloadStart);
+            }
+            return preloads;
+        }
+    }
+
     public static abstract sealed class BoundCodeAttribute
             extends BoundAttribute<CodeAttribute>
             implements CodeAttribute

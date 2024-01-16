@@ -64,6 +64,7 @@ import jdk.internal.classfile.attribute.ModuleTargetAttribute;
 import jdk.internal.classfile.attribute.NestHostAttribute;
 import jdk.internal.classfile.attribute.NestMembersAttribute;
 import jdk.internal.classfile.attribute.PermittedSubclassesAttribute;
+import jdk.internal.classfile.attribute.PreloadAttribute;
 import jdk.internal.classfile.attribute.RecordAttribute;
 import jdk.internal.classfile.attribute.RecordComponentInfo;
 import jdk.internal.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
@@ -160,6 +161,9 @@ public class Attributes {
 
     /** PermittedSubclasses */
     public static final String NAME_PERMITTED_SUBCLASSES = "PermittedSubclasses";
+
+    /** Preload */
+    public static final String NAME_PRELOAD = "Preload";
 
     /** Record */
     public static final String NAME_RECORD = "Record";
@@ -716,6 +720,25 @@ public class Attributes {
                 }
             };
 
+    /** Attribute mapper for the {@code Preload} attribute */
+    public static final AttributeMapper<PreloadAttribute>
+            PRELOAD = new AbstractAttributeMapper<>(NAME_PRELOAD, Classfile.JAVA_21_VERSION) {
+                @Override
+                public PreloadAttribute readAttribute(AttributedElement e, ClassReader cf, int p) {
+                    return new BoundAttribute.BoundPreloadAttribute(cf, this, p);
+                }
+
+                @Override
+                protected void writeBody(BufWriter buf, PreloadAttribute attr) {
+                    buf.writeListIndices(attr.preloads());
+                }
+
+                @Override
+                public AttributeMapper.AttributeStability stability() {
+                    return AttributeStability.CP_REFS;
+                }
+            };
+
     /** Attribute mapper for the {@code Record} attribute */
     public static final AttributeMapper<RecordAttribute>
             RECORD = new AbstractAttributeMapper<>(NAME_RECORD, Classfile.JAVA_16_VERSION) {
@@ -1012,6 +1035,7 @@ public class Attributes {
             NEST_HOST,
             NEST_MEMBERS,
             PERMITTED_SUBCLASSES,
+            PRELOAD,
             RECORD,
             RUNTIME_INVISIBLE_ANNOTATIONS,
             RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS,

@@ -72,6 +72,7 @@ import jdk.internal.classfile.attribute.ModuleTargetAttribute;
 import jdk.internal.classfile.attribute.NestHostAttribute;
 import jdk.internal.classfile.attribute.NestMembersAttribute;
 import jdk.internal.classfile.attribute.PermittedSubclassesAttribute;
+import jdk.internal.classfile.attribute.PreloadAttribute;
 import jdk.internal.classfile.attribute.RecordAttribute;
 import jdk.internal.classfile.attribute.RecordComponentInfo;
 import jdk.internal.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
@@ -426,6 +427,22 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
         @Override
         public List<ClassEntry> permittedSubclasses() {
             return permittedSubclasses;
+        }
+    }
+
+    public static final class UnboundPreloadAttribute
+            extends UnboundAttribute<PreloadAttribute>
+            implements PreloadAttribute {
+        private final List<ClassEntry> preloads;
+
+        public UnboundPreloadAttribute(List<ClassEntry> preloads) {
+            super(Attributes.PRELOAD);
+            this.preloads = List.copyOf(preloads);
+        }
+
+        @Override
+        public List<ClassEntry> preloads() {
+            return preloads;
         }
     }
 

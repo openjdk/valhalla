@@ -527,6 +527,14 @@ public class AttributeWriter extends BasicWriter {
                 }
                 indent(-1);
             }
+            case PreloadAttribute attr -> {
+                println("Preload:");
+                indent(+1);
+                for (var sc : attr.preloads()) {
+                    println(constantWriter.stringValue(sc));
+                }
+                indent(-1);
+            }
             case SignatureAttribute attr -> {
                 print("Signature: #" + attr.signature().index());
                 tab();
@@ -606,24 +614,6 @@ public class AttributeWriter extends BasicWriter {
             }
             case SyntheticAttribute attr ->
                 println("Synthetic: true");
-            /*TODO: case PreloadAttribute attr -> {
-                boolean first = true;
-                for (int index : attr.value_class_info_index) {
-                    if (first) {
-                        println("Classes to be preloaded:");
-                        indent(+1);
-                        first = false;
-                    }
-                    print("#" + index);
-                    print(";");
-                    tab();
-                    print("// value ");
-                                constantWriter.write(index);
-                                println();
-                }
-                if (!first)
-                    indent(-1);
-            }*/
             default -> {}
         }
     }
