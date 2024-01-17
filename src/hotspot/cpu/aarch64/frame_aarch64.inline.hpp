@@ -422,7 +422,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   intptr_t* l_sender_sp = (!PreserveFramePointer || _sp_is_trusted) ? unextended_sp() + _cb->frame_size()
                                                                     : sender_sp();
 #ifdef ASSERT
-   address sender_pc_copy = pauth_strip_verifiable((address) *(l_sender_sp-1), (address) *(l_sender_sp-2));
+   address sender_pc_copy = pauth_strip_verifiable((address) *(l_sender_sp-1));
 #endif
 
   assert(!_sp_is_trusted || l_sender_sp == real_fp(), "");
