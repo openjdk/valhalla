@@ -548,7 +548,7 @@ public:
   }
 
   // Replace ith edge of "n" with "in"
-  void replace_input_of(Node* n, int i, Node* in) {
+  void replace_input_of(Node* n, uint i, Node* in) {
     rehash_node_delayed(n);
     n->set_req_X(i, in, this);
   }
@@ -560,13 +560,13 @@ public:
   }
 
   // Delete ith edge of "n"
-  void delete_input_of(Node* n, int i) {
+  void delete_input_of(Node* n, uint i) {
     rehash_node_delayed(n);
     n->del_req(i);
   }
 
   // Delete precedence edge i of "n"
-  void delete_precedence_of(Node* n, int i) {
+  void delete_precedence_of(Node* n, uint i) {
     rehash_node_delayed(n);
     n->rm_prec(i);
   }
