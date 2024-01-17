@@ -27,16 +27,17 @@
  * @test
  * @bug 8222402
  * @summary LW2 array support in javac
- * @compile -XDenablePrimitiveClasses ArrayRelationsTest.java
+ * @compile ArrayRelationsTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ArrayRelationsTest
+ * @ignore
  */
 
-public primitive class ArrayRelationsTest {
+public value class ArrayRelationsTest {
 
-    int x = 42;
+    int x;
 
     public static void main(String [] args) {
-        ArrayRelationsTest.ref [] la = new ArrayRelationsTest.ref[10];
+        ArrayRelationsTest [] la = new ArrayRelationsTest[10];
         ArrayRelationsTest [] qa = new ArrayRelationsTest[10];
         boolean cce = false;
         try {
@@ -48,7 +49,7 @@ public primitive class ArrayRelationsTest {
             throw new AssertionError("Missing CCE");
         }
         la = qa;
-        ArrayRelationsTest.ref[] la2 = qa;
+        ArrayRelationsTest[] la2 = qa;
         ArrayRelationsTest [] qa2 = (ArrayRelationsTest []) la2;
         boolean npe = false;
         try {
@@ -72,7 +73,7 @@ public primitive class ArrayRelationsTest {
 
         // round trip;
         Object o = oa = la = qa;
-        qa = (ArrayRelationsTest[]) (la = (ArrayRelationsTest.ref []) (oa = (Object []) o));
+        qa = (ArrayRelationsTest[]) (la = (ArrayRelationsTest []) (oa = (Object []) o));
         qa [0] = new ArrayRelationsTest();
 
         npe = false;
@@ -83,18 +84,6 @@ public primitive class ArrayRelationsTest {
         }
         if (!npe) {
             throw new AssertionError("Missing NPE");
-        }
-
-        la = new ArrayRelationsTest.ref [10];
-
-        cce = false;
-        try {
-            qa = (ArrayRelationsTest[]) la;
-        } catch (ClassCastException c) {
-            cce = true;
-        }
-        if (!cce) {
-            throw new AssertionError("Unexpected CCE behavior");
         }
     }
 }

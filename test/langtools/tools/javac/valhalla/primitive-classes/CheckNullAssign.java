@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Assignment of null to value types should be disallowed.
- *
+ * @ignore
  * @compile/fail/ref=CheckNullAssign.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckNullAssign.java
  */
 

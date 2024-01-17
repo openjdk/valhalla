@@ -101,7 +101,6 @@ public class Lower extends TreeTranslator {
     private final boolean disableProtectedAccessors; // experimental
     private final PkgInfo pkginfoOpt;
     private final boolean optimizeOuterThis;
-    private final boolean allowPrimitiveClasses;
     private final boolean useMatchException;
 
     @SuppressWarnings("this-escape")
@@ -131,7 +130,6 @@ public class Lower extends TreeTranslator {
             options.getBoolean("optimizeOuterThis", false);
         disableProtectedAccessors = options.isSet("disableProtectedAccessors");
         Source source = Source.instance(context);
-        allowPrimitiveClasses = Source.Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
         Preview preview = Preview.instance(context);
         useMatchException = Feature.PATTERN_SWITCH.allowedInSource(source) &&
                             (preview.isEnabled() || !preview.isPreview(Feature.PATTERN_SWITCH));
@@ -1145,7 +1143,7 @@ public class Lower extends TreeTranslator {
         }
         if ((sym.flags() & PRIVATE) == 0 || sym.owner == currentClass) {
             return false;
-        } else if (names.isInitOrVNew(sym.name) && sym.owner.isDirectlyOrIndirectlyLocal()) {
+        } else if (names.isInit(sym.name) && sym.owner.isDirectlyOrIndirectlyLocal()) {
             // private constructor in local class: relax protection
             sym.flags_field &= ~PRIVATE;
             return false;
@@ -1234,9 +1232,6 @@ public class Lower extends TreeTranslator {
         switch (sym.kind) {
         case TYP:
             if (sym.owner.kind != PCK) {
-                // Make sure not to lose type fidelity due to symbol sharing between projections
-                boolean requireReferenceProjection = allowPrimitiveClasses &&
-                        tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref && tree.type.isReferenceProjection();
                 // Convert type idents to
                 // <flat name> or <package name> . <flat name>
                 Name flatname = Convert.shortName(sym.flatName());
@@ -1252,15 +1247,9 @@ public class Lower extends TreeTranslator {
                 } else if (base == null) {
                     tree = make.at(tree.pos).Ident(sym);
                     ((JCIdent) tree).name = flatname;
-                    if (requireReferenceProjection) {
-                        tree.setType(tree.type.referenceProjection());
-                    }
                 } else {
                     ((JCFieldAccess) tree).selected = base;
                     ((JCFieldAccess) tree).name = flatname;
-                    if (requireReferenceProjection) {
-                        tree.setType(tree.type.referenceProjection());
-                    }
                 }
             }
             break;
@@ -1358,10 +1347,9 @@ public class Lower extends TreeTranslator {
                     argtypes = argtypes
                         .prepend(syms.intType)
                         .prepend(syms.stringType);
-                Name constructorName = accOwner.isConcreteValueClass() ? names.vnew : names.init;
                 aconstr = new MethodSymbol(
                     SYNTHETIC,
-                    constructorName,
+                    names.init,
                     new MethodType(
                         argtypes.append(
                             accessConstructorTag().erasure(types)),
@@ -1405,7 +1393,7 @@ public class Lower extends TreeTranslator {
     void makeAccessible(Symbol sym) {
         JCClassDecl cdef = classDef(sym.owner.enclClass());
         if (cdef == null) Assert.error("class def not found: " + sym + " in " + sym.owner);
-        if (names.isInitOrVNew(sym.name)) {
+        if (names.isInit(sym.name)) {
             cdef.defs = cdef.defs.prepend(
                 accessConstructorDef(cdef.pos, sym, accessConstrs.get(sym)));
         } else {
@@ -1618,9 +1606,9 @@ public class Lower extends TreeTranslator {
         ClassSymbol c = owner.enclClass();
         boolean isMandated =
             // Anonymous constructors
-            (owner.isInitOrVNew() && owner.isAnonymous()) ||
+            (owner.isInit() && owner.isAnonymous()) ||
             // Constructors of non-private inner member classes
-            (owner.isInitOrVNew() && c.isInner() &&
+            (owner.isInit() && c.isInner() &&
              !c.isPrivate() && !c.isStatic());
         long flags =
             FINAL | (isMandated ? MANDATED : SYNTHETIC) | PARAMETER;
@@ -1817,7 +1805,7 @@ public class Lower extends TreeTranslator {
 
     private JCStatement makeResourceCloseInvocation(JCExpression resource) {
         // convert to AutoCloseable if needed
-        if (types.asSuper(resource.type.referenceProjectionOrSelf(), syms.autoCloseableType.tsym) == null) {
+        if (types.asSuper(resource.type, syms.autoCloseableType.tsym) == null) {
             resource = convert(resource, syms.autoCloseableType);
         }
 
@@ -2201,8 +2189,7 @@ public class Lower extends TreeTranslator {
     /** Visitor method: Translate a single node, boxing or unboxing if needed.
      */
     public <T extends JCExpression> T translate(T tree, Type type) {
-        return (tree == null) ? null :
-                applyPrimitiveConversionsAsNeeded(boxIfNeeded(translate(tree), type), type);
+        return (tree == null) ? null : boxIfNeeded(translate(tree), type);
     }
 
     /** Visitor method: Translate tree.
@@ -2793,7 +2780,7 @@ public class Lower extends TreeTranslator {
     }
 
     private void visitMethodDefInternal(JCMethodDecl tree) {
-        if (names.isInitOrVNew(tree.name) &&
+        if (names.isInit(tree.name) &&
             !currentClass.isStatic() &&
             (currentClass.isInner() || currentClass.isDirectlyOrIndirectlyLocal())) {
             // We are seeing a constructor of an inner class.
@@ -2874,7 +2861,7 @@ public class Lower extends TreeTranslator {
                 lambdaTranslationMap = prevLambdaTranslationMap;
             }
         }
-        if (names.isInitOrVNew(tree.name) && ((tree.sym.flags_field & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
+        if (names.isInit(tree.name) && ((tree.sym.flags_field & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
                 (tree.sym.flags_field & (GENERATEDCONSTR | RECORD)) == (GENERATEDCONSTR | RECORD))) {
             // lets find out if there is any field waiting to be initialized
             ListBuffer<VarSymbol> fields = new ListBuffer<>();
@@ -3117,12 +3104,12 @@ public class Lower extends TreeTranslator {
         Symbol meth = TreeInfo.symbol(tree.meth);
         List<Type> argtypes = meth.type.getParameterTypes();
         // TODO - is enum so always <init>.
-        if (names.isInitOrVNew(meth.name) && meth.owner == syms.enumSym)
+        if (names.isInit(meth.name) && meth.owner == syms.enumSym)
             argtypes = argtypes.tail.tail;
         tree.args = boxArgs(argtypes, tree.args, tree.varargsElement);
         tree.varargsElement = null;
         Name methName = TreeInfo.name(tree.meth);
-        if (names.isInitOrVNew(meth.name)) {
+        if (names.isInit(meth.name)) {
             // We are seeing a this(...) or super(...) constructor call.
             // If an access constructor is used, append null as a last argument.
             Symbol constructor = accessConstructor(tree.pos(), meth);
@@ -3228,17 +3215,6 @@ public class Lower extends TreeTranslator {
             if (!anyChanges) return _args;
         }
         return result.toList();
-    }
-
-    /** Apply primitive value/reference conversions as needed */
-    @SuppressWarnings("unchecked")
-    <T extends JCExpression> T applyPrimitiveConversionsAsNeeded(T tree, Type type) {
-        boolean haveValue = tree.type.isPrimitiveClass();
-        if (haveValue == type.isPrimitiveClass())
-            return tree;
-        // For narrowing conversion, insert a cast which should trigger a null check
-        // For widening conversions, insert a cast if emitting a unified class file.
-        return (T) make.TypeCast(type, tree);
     }
 
     /** Expand a boxing or unboxing conversion if needed. */
@@ -3639,7 +3615,7 @@ public class Lower extends TreeTranslator {
         private void visitIterableForeachLoop(JCEnhancedForLoop tree) {
             make_at(tree.expr.pos());
             Type iteratorTarget = syms.objectType;
-            Type iterableType = types.asSuper(types.cvarUpperBound(tree.expr.type.referenceProjectionOrSelf()),
+            Type iterableType = types.asSuper(types.cvarUpperBound(tree.expr.type),
                                               syms.iterableType.tsym);
             if (iterableType.getTypeArguments().nonEmpty())
                 iteratorTarget = types.erasure(iterableType.getTypeArguments().head);
@@ -3649,7 +3625,7 @@ public class Lower extends TreeTranslator {
                                            names.iterator,
                                            tree.expr.type,
                                            List.nil());
-            Assert.check(types.isSameType(types.erasure(types.asSuper(iterator.type.getReturnType().referenceProjectionOrSelf(), syms.iteratorType.tsym)), types.erasure(syms.iteratorType)));
+            Assert.check(types.isSameType(types.erasure(types.asSuper(iterator.type.getReturnType(), syms.iteratorType.tsym)), types.erasure(syms.iteratorType)));
             VarSymbol itvar = new VarSymbol(SYNTHETIC, names.fromString("i" + target.syntheticNameChar()),
                                             types.erasure(syms.iteratorType),
                                             currentMethodSym);
@@ -3726,23 +3702,6 @@ public class Lower extends TreeTranslator {
         tree.cond = translate(tree.cond, syms.booleanType);
         tree.body = translate(tree.body);
         result = tree;
-    }
-
-    public void visitWithField(JCWithField tree) {
-        Type fieldType = tree.field.type;
-        tree.field = translate(tree.field, tree);
-        tree.value = translate(tree.value, fieldType); // important to use pre-translation type.
-
-        // If translated field is an Apply, we are
-        // seeing an access method invocation. In this case, append
-        // right hand side as last argument of the access method.
-        if (tree.field.hasTag(APPLY)) {
-            JCMethodInvocation app = (JCMethodInvocation) tree.field;
-            app.args = List.of(tree.value).prependList(app.args);
-            result = app;
-        } else {
-            result = tree;
-        }
     }
 
     public void visitForLoop(JCForLoop tree) {
@@ -4241,15 +4200,7 @@ public class Lower extends TreeTranslator {
             tree.selected.hasTag(SELECT) &&
             TreeInfo.name(tree.selected) == names._super &&
             !types.isDirectSuperInterface(((JCFieldAccess)tree.selected).selected.type.tsym, currentClass);
-        /* JDK-8269956: Where a reflective (class) literal is needed, the unqualified Point.class is
-         * always the "primary" mirror - representing the primitive reference runtime type - thereby
-         * always matching the behavior of Object::getClass
-         */
-        boolean needPrimaryMirror = tree.name == names._class && tree.selected.type.isReferenceProjection();
         tree.selected = translate(tree.selected);
-        if (needPrimaryMirror && allowPrimitiveClasses && tree.selected.type.isPrimitiveClass()) {
-            tree.selected.setType(tree.selected.type.referenceProjection());
-        }
         if (tree.name == names._class) {
             result = classOf(tree.selected);
         }
@@ -4257,7 +4208,7 @@ public class Lower extends TreeTranslator {
                 types.isDirectSuperInterface(tree.selected.type.tsym, currentClass)) {
             //default super call!! Not a classic qualified super call
             TypeSymbol supSym = tree.selected.type.tsym;
-            Assert.checkNonNull(types.asSuper(currentClass.type.referenceProjectionOrSelf(), supSym));
+            Assert.checkNonNull(types.asSuper(currentClass.type, supSym));
             result = tree;
         }
         else if (tree.name == names._this || tree.name == names._super) {

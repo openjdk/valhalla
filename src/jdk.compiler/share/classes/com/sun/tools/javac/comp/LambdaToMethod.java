@@ -353,8 +353,7 @@ public class LambdaToMethod extends TreeTranslator {
 
 
             boolean init;
-            // TODO - can <vnew> exist in this context?
-            if ((init = names.isInitOrVNew(owner.name)) || owner.name == names.clinit) {
+            if ((init = names.isInit(owner.name)) || owner.name == names.clinit) {
                 owner = owner.owner;
                 apportionTypeAnnotations(tree,
                         init ? owner::getInitTypeAttributes : owner::getClassInitTypeAttributes,
@@ -1669,8 +1668,7 @@ public class LambdaToMethod extends TreeTranslator {
                 return clinit;
             } else {
                 //get the first constructor and treat it as the instance init sym
-                Name constructorName = csym.isConcreteValueClass() ? names.vnew : names.init;
-                for (Symbol s : csym.members_field.getSymbolsByName(constructorName)) {
+                for (Symbol s : csym.members_field.getSymbolsByName(names.init)) {
                     return s;
                 }
             }
@@ -1774,7 +1772,7 @@ public class LambdaToMethod extends TreeTranslator {
         private boolean lambdaIdentSymbolFilter(Symbol sym) {
             return (sym.kind == VAR || sym.kind == MTH)
                     && !sym.isStatic()
-                    && !names.isInitOrVNew(sym.name);
+                    && !names.isInit(sym.name);
         }
 
         /**
@@ -1872,7 +1870,7 @@ public class LambdaToMethod extends TreeTranslator {
                 if (forceSerializable) {
                     return true;
                 }
-                return types.asSuper(tree.target.referenceProjectionOrSelf(), syms.serializableType.tsym) != null;
+                return types.asSuper(tree.target, syms.serializableType.tsym) != null;
             }
 
             /**
@@ -1896,8 +1894,6 @@ public class LambdaToMethod extends TreeTranslator {
                     methodName = "static";
                 } else if (methodName.equals("<init>")) {
                     methodName = "new";
-                } else if (methodName.equals("<vnew>")) {
-                    methodName = "vnew";
                 }
                 return methodName;
             }

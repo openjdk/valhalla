@@ -93,7 +93,6 @@ public class Names {
     public final Name getClass;
     public final Name hasNext;
     public final Name hashCode;
-    public final Name vnew;
     public final Name init;
     public final Name invoke;
     public final Name iterator;
@@ -105,7 +104,6 @@ public class Names {
     public final Name serialVersionUID;
     public final Name toString;
     public final Name value;
-    public final Name primitive;
     public final Name identity;
     public final Name valueOf;
     public final Name values;
@@ -214,8 +212,6 @@ public class Names {
 
     // values
     public final Name dollarValue;
-    public final Name ref;
-    public final Name val;
 
 
     // record related
@@ -301,7 +297,6 @@ public class Names {
         getClass = fromString("getClass");
         hasNext = fromString("hasNext");
         hashCode = fromString("hashCode");
-        vnew = fromString("<vnew>");
         init = fromString("<init>");
         invoke = fromString("invoke");
         iterator = fromString("iterator");
@@ -313,7 +308,6 @@ public class Names {
         serialVersionUID = fromString("serialVersionUID");
         toString = fromString("toString");
         value = fromString("value");
-        primitive = fromString("primitive");
         identity = fromString("identity");
         valueOf = fromString("valueOf");
         values = fromString("values");
@@ -420,10 +414,7 @@ public class Names {
         makeConcat = fromString("makeConcat");
         makeConcatWithConstants = fromString("makeConcatWithConstants");
 
-        // primitive classes
         dollarValue = fromString("$value");
-        ref = fromString("ref");
-        val = fromString("val");
 
         bootstrap = fromString("bootstrap");
         record = fromString("record");
@@ -474,8 +465,8 @@ public class Names {
         return UnsharedNameTable.create(this);
     }
 
-    public boolean isInitOrVNew(Name name) {
-        return name == init || name == vnew;
+    public boolean isInit(Name name) {
+        return name == init;
     }
 
     public void dispose() {

@@ -234,16 +234,6 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
             buf.append(printAnnotations(t));
             buf.append(className(t, true, locale));
         }
-        boolean isReferenceProjection;
-        try {
-            isReferenceProjection = t.isReferenceProjection();
-        } catch (CompletionFailure cf) {
-            isReferenceProjection = false; // handle missing types gracefully.
-        }
-        if (isReferenceProjection) {
-            buf.append('.');
-            buf.append(t.tsym.name.table.names.ref);
-        }
         if (t.getTypeArguments().nonEmpty()) {
             buf.append('<');
             buf.append(visitTypes(t.getTypeArguments(), locale));
@@ -381,7 +371,7 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
         if (s.isStaticOrInstanceInit()) {
             return s.owner.name.toString();
         } else {
-            String ms = s.isInitOrVNew() ? s.owner.name.toString() : s.name.toString();
+            String ms = s.isInit() ? s.owner.name.toString() : s.name.toString();
             if (s.type != null) {
                 if (s.type.hasTag(FORALL)) {
                     ms = "<" + visitTypes(s.type.getTypeArguments(), locale) + ">" + ms;

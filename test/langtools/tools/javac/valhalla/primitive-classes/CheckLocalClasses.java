@@ -30,6 +30,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses CheckLocalClasses.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CheckLocalClasses
+ * @ignore
  */
 
 import com.sun.tools.classfile.*;

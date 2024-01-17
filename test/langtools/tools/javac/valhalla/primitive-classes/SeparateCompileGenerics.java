@@ -30,6 +30,7 @@
  * @compile -XDenablePrimitiveClasses Range.java
  * @compile -XDenablePrimitiveClasses SeparateCompileGenerics.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SeparateCompileGenerics
+ * @ignore
  */
 
 public class SeparateCompileGenerics {

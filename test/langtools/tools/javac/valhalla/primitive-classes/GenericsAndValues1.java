@@ -28,11 +28,12 @@
  * @bug 8222784
  * @summary Check generics and values interplay
  * @compile -XDenablePrimitiveClasses GenericsAndValues1.java
+ * @ignore
  */
 
  primitive class Foo implements Comparable<Foo.ref>{
     final int value;
-  
+
     public Foo(int value) {
       this.value = value;
     }

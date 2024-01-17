@@ -27,6 +27,7 @@
  * @summary Test that qualified this based access to instance fields works ok.
  * @compile -XDenablePrimitiveClasses ValueConstructorRef.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueConstructorRef
+ * @ignore
  */
 
 import java.util.function.Supplier;
@@ -40,8 +41,8 @@ public primitive class ValueConstructorRef {
     	x = 1234;
     	y = 5678;
     }
-    
-    public static void main(String [] args) {   
+
+    public static void main(String [] args) {
        Supplier<ValueConstructorRef.ref> sx = ValueConstructorRef::new;
     	ValueConstructorRef x = (ValueConstructorRef) sx.get();
         if (x.x != 1234 || x.y != 5678)

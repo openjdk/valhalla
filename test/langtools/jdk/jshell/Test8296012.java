@@ -27,6 +27,7 @@
  * @summary jshell crashes on mismatched record pattern
  * @build KullaTesting TestingInputStream
  * @run testng Test8296012
+ * @ignore 8316628
  */
 
 import org.testng.annotations.Test;

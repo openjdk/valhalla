@@ -28,6 +28,7 @@
  * @compile -XDenablePrimitiveClasses ConstantPropagationTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ConstantPropagationTest
  * @modules jdk.compiler
+ * @ignore
  */
 
 import java.io.PrintWriter;

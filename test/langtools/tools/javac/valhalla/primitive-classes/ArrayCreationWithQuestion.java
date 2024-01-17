@@ -26,7 +26,7 @@
  * @bug 8222634
  * @summary Check array creation with V and V.ref
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile -XDenablePrimitiveClasses ArrayCreationWithQuestion.java
+ * @compile ArrayCreationWithQuestion.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ArrayCreationWithQuestion
  * @modules jdk.compiler
  */
@@ -37,11 +37,14 @@ import java.nio.file.Paths;
 
 public class ArrayCreationWithQuestion {
 
-    static primitive class VT {
-        VT.ref[] a1 = new VT.ref[42];
-        VT.ref[] a2 = new VT.ref[42];
-        VT[] a3 = new VT[42];
-        VT[] a4 = new VT[42];
+    static value class VT {
+        VT[] a1;
+        VT[] a2;
+
+        VT(boolean non_implicit) {
+            a1 = new VT[42];
+            a2 = new VT[42];
+        }
     }
 
     public static void main(String[] args) {
@@ -55,8 +58,6 @@ public class ArrayCreationWithQuestion {
         runCheck(params, new String [] {
         "         6: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
         "        17: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
-        "        28: anewarray     #10                 // class \"QArrayCreationWithQuestion$VT;\"",
-        "        39: anewarray     #10                 // class \"QArrayCreationWithQuestion$VT;\"",
          });
 
      }

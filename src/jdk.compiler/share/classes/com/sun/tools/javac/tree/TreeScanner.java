@@ -155,11 +155,6 @@ public class TreeScanner extends Visitor {
         scan(tree.body);
     }
 
-    public void visitWithField(JCWithField tree) {
-        scan(tree.field);
-        scan(tree.value);
-    }
-
     public void visitForLoop(JCForLoop tree) {
         scan(tree.init);
         scan(tree.cond);

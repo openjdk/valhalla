@@ -163,7 +163,7 @@ public class TestLinkOption extends JavadocTester {
         checkExit(Exit.OK);
         checkOutput("pkg3/A.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
+                    <div class="type-signature"><span class="modifiers">public identity class </span><span cl\
                     ass="element-name type-name-label">A</span>
                     <span class="extends-implements">extends java.lang.Object</span></div>
                     <div class="block">Test links.
@@ -188,7 +188,7 @@ public class TestLinkOption extends JavadocTester {
         checkExit(Exit.OK);
         checkOutput("pkg3/A.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
+                    <div class="type-signature"><span class="modifiers">public identity class </span><span cl\
                     ass="element-name type-name-label">A</span>
                     <span class="extends-implements">extends java.lang.Object</span></div>
                     <div class="block">Test links.

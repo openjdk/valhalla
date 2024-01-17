@@ -34,13 +34,11 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Scope.ImportFilter;
-import com.sun.tools.javac.code.Scope.ImportScope;
 import com.sun.tools.javac.code.Scope.NamedImportScope;
 import com.sun.tools.javac.code.Scope.StarImportScope;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
-import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.parser.Parser;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.tree.*;
@@ -59,7 +57,6 @@ import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.ERROR;
-import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 
 import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
@@ -1182,7 +1179,7 @@ public class TypeEnter implements Completer {
                         case MTH:
                             if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                                 return true;
-                            } else if (s.isInitOrVNew()) {
+                            } else if (s.isInit()) {
                                 MethodSymbol m = (MethodSymbol)s;
                                 if (m.getParameters().size() > 0
                                         || m.getTypeParameters().size() > 0
@@ -1392,8 +1389,7 @@ public class TypeEnter implements Completer {
                 } else {
                     flags = (owner().flags() & AccessFlags) | GENERATEDCONSTR;
                 }
-                Name constructorName = owner().isConcreteValueClass() ? names.vnew : names.init;
-                constructorSymbol = new MethodSymbol(flags, constructorName,
+                constructorSymbol = new MethodSymbol(flags, names.init,
                     constructorType(), owner());
             }
             return constructorSymbol;

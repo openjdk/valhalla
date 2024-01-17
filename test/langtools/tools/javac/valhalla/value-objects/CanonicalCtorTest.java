@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,28 +21,48 @@
  * questions.
  */
 
-package com.sun.source.tree;
-
 /**
- * A tree node for a {@code withfield} expression.
- *
- * For example:
- * <pre>
- *   x = __WithField(x.x, val)
- * </pre>
- *
- * @since 1.11
+ * @test
+ * @bug 8208067
+ * @summary Verify that instance methods are callable from ctor after all instance fields are DA.
+ * @ignore
  */
-public interface WithFieldTree extends ExpressionTree {
-    /**
-     * Returns the field being updated.
-     * @return the field
-     */
-    ExpressionTree getField();
 
-    /**
-     * Returns the value to which the field is updated.
-     * @return the value
-     */
-    ExpressionTree getValue();
+// see JDK-8316628
+public value class CanonicalCtorTest {
+
+    private final int x, ymx;
+
+    CanonicalCtorTest(int x, int y) {
+
+        ymx = y - x;
+        this.x = x;
+
+        // ALL fields are assigned now.
+
+        validate();                 // OK: DU = {}
+        this.validate();            // OK: DU = {}
+        CanonicalCtorTest.this.validate();          // OK: DU = {}
+
+        assert (this.x > 0);        // OK: DU = {}
+        assert (this.y() > 0);      // OK: DU = {}
+    }
+
+    int x() {
+        return x;
+    }
+
+    int y() {
+        return ymx + x;
+    }
+
+    void validate() {
+        assert (x() > 0 && y() > 0);
+    }
+
+    public static void main(String... av) {
+        CanonicalCtorTest z = new CanonicalCtorTest(1, 10);
+        assert (z.x() == 1);
+        assert (z.y() == 10);
+    }
 }

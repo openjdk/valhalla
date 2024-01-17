@@ -29,6 +29,7 @@
  * @summary Javac disallows calls to super.{hashCode(), equals(), toString()} on a primitive instance receiver
  * @compile -XDenablePrimitiveClasses SuperHashCodeEqualsToStringTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SuperHashCodeEqualsToStringTest
+ * @ignore
  */
 
 public class SuperHashCodeEqualsToStringTest {

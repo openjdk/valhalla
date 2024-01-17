@@ -30,7 +30,6 @@ import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.ReadOnlyFileSystemException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -84,8 +83,6 @@ import com.sun.tools.javac.util.Log.WriterKind;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 
-import com.sun.tools.javac.code.Lint;
-import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
@@ -1784,7 +1781,7 @@ public class JavaCompiler {
                         case METHODDEF:
                             if (isInterface ||
                                 (((JCMethodDecl) t).mods.flags & (Flags.PROTECTED|Flags.PUBLIC)) != 0 ||
-                                names.isInitOrVNew(((JCMethodDecl) t).sym.name) ||
+                                names.isInit(((JCMethodDecl) t).sym.name) ||
                                 (((JCMethodDecl) t).mods.flags & (Flags.PRIVATE)) == 0 && ((JCMethodDecl) t).sym.packge().getQualifiedName() == names.java_lang)
                                 newdefs.append(t);
                             break;

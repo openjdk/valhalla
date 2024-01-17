@@ -28,6 +28,7 @@
  * @bug 8222974
  * @summary javac doesn't like "?" syntax in instanceof type expression (syntax is dead)
  * @compile -XDenablePrimitiveClasses InstanceofProjectionArray.java
+ * @ignore
  */
 
 

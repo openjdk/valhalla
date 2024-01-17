@@ -42,6 +42,10 @@ import java.io.File;
 
 import java.util.List;
 
+import com.sun.tools.javac.util.Assert;
+
+import com.sun.tools.classfile.Attribute;
+import com.sun.tools.classfile.Attributes;
 import com.sun.tools.classfile.ClassFile;
 import com.sun.tools.classfile.Code_attribute;
 import com.sun.tools.classfile.ConstantPool;
@@ -187,21 +191,13 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     public void testRepeatedModifiers() {
-        String[] previousOptions = getCompileOptions();
-        try {
-            String[] testOptions = {"-XDenablePrimitiveClasses"};
-            setCompileOptions(testOptions);
-            String[] sources = new String[] {
-                    "static static class StaticTest {}",
-                    "native native class NativeTest {}",
-                    "value value primitive class ValueTest {}",
-                    "primitive primitive value class PrimitiveTest {}"
-            };
-            for (String source : sources) {
-                assertFail("compiler.err.repeated.modifier", source);
-            }
-        } finally {
-            setCompileOptions(previousOptions);
+        String[] sources = new String[] {
+                "static static class StaticTest {}",
+                "native native class NativeTest {}",
+                "value value class ValueTest {}"
+        };
+        for (String source : sources) {
+            assertFail("compiler.err.repeated.modifier", source);
         }
     }
 
@@ -746,103 +742,65 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         }
     }
 
-    public void testCheckVnew() throws Exception {
-        for (String source : List.of(
+    public void testSelectors() throws Exception {
+        assertOK(
                 """
-                abstract value class A {}
-                """,
-                """
-                value class A {}
-                """
-        )) {
-            File dir = assertOK(true, source);
-            for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                boolean isAbstract = classFile.access_flags.is(Flags.ABSTRACT);
-                for (Method method : classFile.methods) {
-                    if (isAbstract) {
-                        assertTrue(method.getName(classFile.constant_pool).equals("<init>"));
-                        assertTrue(!method.access_flags.is(Flags.STATIC));
-                    } else {
-                        assertTrue(method.getName(classFile.constant_pool).equals("<vnew>"));
-                        assertTrue(method.access_flags.is(Flags.STATIC));
-                        assertTrue(!method.access_flags.is(Flags.ABSTRACT));
-                        assertTrue(method.descriptor.getReturnType(classFile.constant_pool).equals("A"));
+                value class V {
+                    void selector() {
+                        Class<?> c = int.class;
                     }
+                }
+                """
+        );
+        assertOK(
+                """
+                value class V {
+                    void selector() {
+                        int i = int.default;
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.expected2",
+                """
+                value class V {
+                    void selector() {
+                        int i = int.some_selector;
+                    }
+                }
+                """
+        );
+    }
+
+    private File findClassFileOrFail(File dir, String name) {
+        for (final File fileEntry : dir.listFiles()) {
+            if (fileEntry.getName().equals(name)) {
+                return fileEntry;
+            }
+        }
+        throw new AssertionError("file not found");
+    }
+
+    private Attribute findAttributeOrFail(Attributes attributes, Class<? extends Attribute> attrClass, int numberOfAttributes) {
+        int attrCount = 0;
+        Attribute result = null;
+        for (Attribute attribute : attributes) {
+            if (attribute.getClass() == attrClass) {
+                attrCount++;
+                if (result == null) {
+                    result = attribute;
                 }
             }
         }
+        if (attrCount == 0) throw new AssertionError("attribute not found");
+        if (attrCount != numberOfAttributes) throw new AssertionError("incorrect number of attributes found");
+        return result;
+    }
 
-        // check that <vnew> is invoked with invokestatic
-        for (String source : List.of(
-                """
-                value class A {
-                    void FIND_ME() {
-                        A a = new A();
-                    }
-                }
-                """
-        )) {
-            File dir = assertOK(true, source);
-            for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                for (Method method : classFile.methods) {
-                    if (method.getName(classFile.constant_pool).equals("FIND_ME")) {
-                        Code_attribute code_attribute = (Code_attribute)method.attributes.get("Code");
-                        boolean firstInst = true;
-                        for (Instruction inst: code_attribute.getInstructions()) {
-                            if (firstInst) {
-                                assertTrue(inst.getMnemonic().equals("invokestatic"));
-                                CONSTANT_Methodref_info methodInfo =
-                                        (CONSTANT_Methodref_info)classFile.constant_pool.get(inst.getUnsignedShort(1));
-                                assertTrue(methodInfo.getClassInfo().getName().equals("A"));
-                                assertTrue(methodInfo.getNameAndTypeInfo().getName().equals("<vnew>"));
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // checking the aconst_init and withfield instructions
-        for (String source : List.of(
-                """
-                value class A {
-                    int i;
-                    String s;
-
-                    A(int i, String s) {
-                        this.i = i;
-                        this.s = s;
-                    }
-                }
-                """
-        )) {
-            File dir = assertOK(true, source);
-            for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                for (Method method : classFile.methods) {
-                    if (method.getName(classFile.constant_pool).equals("<vnew>")) {
-                        Code_attribute code_attribute = (Code_attribute)method.attributes.get("Code");
-                        for (Instruction inst: code_attribute.getInstructions()) {
-                            if (inst.getMnemonic().equals("aconst_init")) {
-                                CONSTANT_Class_info classInfo =
-                                        (CONSTANT_Class_info)classFile.constant_pool.get(inst.getUnsignedShort(1));
-                                assertTrue(classInfo.getName().equals("A"));
-                            } else if (inst.getMnemonic().equals("withfield")) {
-                                CONSTANT_Fieldref_info fieldInfo = (CONSTANT_Fieldref_info)classFile.constant_pool.get(inst.getUnsignedShort(1));
-                                assertTrue(fieldInfo.getClassName().equals("A"));
-                                ConstantPool.CONSTANT_NameAndType_info nameAndType = fieldInfo.getNameAndTypeInfo();
-                                if (nameAndType.getName().equals("i")) {
-                                    assertTrue(nameAndType.getType().equals("I"));
-                                } else if (nameAndType.getName().equals("s")) {
-                                    assertTrue(nameAndType.getType().equals("Ljava/lang/String;"));
-                                }
-                            }
-                        }
-                    }
-                }
+    private void checkAttributeNotPresent(Attributes attributes, Class<? extends Attribute> attrClass) {
+        for (Attribute attribute : attributes) {
+            if (attribute.getClass() == attrClass) {
+                throw new AssertionError("attribute found");
             }
         }
     }

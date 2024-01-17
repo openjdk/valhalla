@@ -81,18 +81,7 @@ public class TreeInfo {
     public static boolean isConstructor(JCTree tree) {
         if (tree.hasTag(METHODDEF)) {
             Name name = ((JCMethodDecl) tree).name;
-            return name == name.table.names.init || name == name.table.names.vnew;
-        } else {
-            return false;
-        }
-    }
-
-    /** Is tree a value factory declaration?
-     */
-    public static boolean isValueFactory(JCTree tree) {
-        if (tree.hasTag(METHODDEF)) {
-            Name name = ((JCMethodDecl) tree).name;
-            return name == name.table.names.vnew;
+            return name == name.table.names.init;
         } else {
             return false;
         }
@@ -120,7 +109,7 @@ public class TreeInfo {
      */
     public static boolean hasConstructors(List<JCTree> trees) {
         for (List<JCTree> l = trees; l.nonEmpty(); l = l.tail)
-            if (isConstructor(l.head) || isValueFactory(l.head)) return true;
+            if (isConstructor(l.head)) return true;
         return false;
     }
 
@@ -659,8 +648,6 @@ public class TreeInfo {
                 return getEndPos(((JCTypeCast) tree).expr, endPosTable);
             case TYPETEST:
                 return getEndPos(((JCInstanceOf) tree).pattern, endPosTable);
-            case WITHFIELD:
-                return getEndPos(((JCWithField) tree).value, endPosTable);
             case WHILELOOP:
                 return getEndPos(((JCWhileLoop) tree).body, endPosTable);
             case ANNOTATED_TYPE:

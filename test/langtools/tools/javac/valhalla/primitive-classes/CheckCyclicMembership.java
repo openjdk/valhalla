@@ -2,6 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Value types may not declare fields of its own type either directly or indirectly.
  * @compile/fail/ref=CheckCyclicMembership.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckCyclicMembership.java
+ * @ignore
  */
 
 final primitive class CheckCyclicMembership {

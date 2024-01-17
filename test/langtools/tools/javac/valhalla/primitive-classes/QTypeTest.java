@@ -29,6 +29,7 @@
  * @compile -XDenablePrimitiveClasses QTypedValue.java
  * @run main/othervm -Xverify:none QTypeTest
  * @modules jdk.compiler
+ * @ignore
  */
 
 import java.io.PrintWriter;

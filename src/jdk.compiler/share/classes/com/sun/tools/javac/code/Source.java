@@ -245,7 +245,6 @@ public enum Source {
         UNCONDITIONAL_PATTERN_IN_INSTANCEOF(JDK21, Fragments.FeatureUnconditionalPatternsInInstanceof, DiagKind.PLURAL),
         RECORD_PATTERNS(JDK21, Fragments.FeatureDeconstructionPatterns, DiagKind.PLURAL),
         STRING_TEMPLATES(JDK21, Fragments.FeatureStringTemplates, DiagKind.PLURAL),
-        PRIMITIVE_CLASSES(JDK21, Fragments.FeaturePrimitiveClasses, DiagKind.PLURAL),
         VALUE_CLASSES(JDK21, Fragments.FeatureValueClasses, DiagKind.PLURAL),
         UNNAMED_CLASSES(JDK21, Fragments.FeatureUnnamedClasses, DiagKind.PLURAL),
         WARN_ON_ILLEGAL_UTF8(MIN, JDK21),
@@ -305,9 +304,6 @@ public enum Source {
 
         public Error error(String sourceName) {
             Assert.checkNonNull(optFragment);
-            if (this == PRIMITIVE_CLASSES) {
-                return Errors.PrimitiveClassesNotSupported(minLevel.name);
-            }
             return optKind == DiagKind.NORMAL ?
                     Errors.FeatureNotSupportedInSource(optFragment, sourceName, minLevel.name) :
                     Errors.FeatureNotSupportedInSourcePlural(optFragment, sourceName, minLevel.name);

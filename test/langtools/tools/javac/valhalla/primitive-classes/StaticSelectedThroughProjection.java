@@ -29,6 +29,7 @@
  * @summary Javac chokes on static member selection via the reference projection.
  * @compile -XDenablePrimitiveClasses StaticSelectedThroughProjection.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses StaticSelectedThroughProjection
+ * @ignore
  */
 
 public class StaticSelectedThroughProjection {

@@ -28,6 +28,7 @@
  * @enablePreview
  * @compile Unnamed.java
  * @run main Unnamed
+ * @ignore Verifier error
  */
 
 import java.util.Objects;

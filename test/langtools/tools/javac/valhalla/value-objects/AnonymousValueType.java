@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,26 +23,21 @@
 
 /**
  * @test
- * @bug 8212175
- * @summary Trouble creating an anonymous value class with diamond syntax
- * @compile -XDenablePrimitiveClasses AnonymousValue.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses AnonymousValue
+ * @bug 8209400 8215246
+ * @summary Allow anonymous classes to be value types
+ * @ignore 8316628
  */
 
-import java.util.function.Function;
-
-public class AnonymousValue {
-	 static Function<String, String> capitalizer() {
-        return new primitive Function<>() {
+public class AnonymousValueType {
+    public static void main(String[] args) {
+        Object o = new value Comparable<String>() {
             int x = 10;
-			@Override
-			public String apply(String t) {
-				return t.toUpperCase();
-			}
+            @Override
+            public int compareTo(String o) {
+                return 0;
+            }
         };
-	 }
-     public static void main(String[] args) {
-		 if (!capitalizer().apply("blah").equals("BLAH"))
-            throw new AssertionError("Failed");
-	 }
+        if (!o.toString().equals("AnonymousValueType$1@" + Integer.toHexString(o.hashCode())))
+            throw new AssertionError("Broken");
+    }
 }

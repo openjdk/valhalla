@@ -182,7 +182,6 @@ public class Code {
     final MethodSymbol meth;
 
     private int letExprStackPos = 0;
-    private boolean allowPrimitiveClasses;
 
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
@@ -196,8 +195,7 @@ public class Code {
                 CRTable crt,
                 Symtab syms,
                 Types types,
-                PoolWriter poolWriter,
-                boolean allowPrimitiveClasses) {
+                PoolWriter poolWriter) {
         this.meth = meth;
         this.fatcode = fatcode;
         this.lineMap = lineMap;
@@ -219,7 +217,6 @@ public class Code {
         }
         state = new State();
         lvar = new LocalVar[20];
-        this.allowPrimitiveClasses = allowPrimitiveClasses;
     }
 
 
@@ -463,7 +460,7 @@ public class Code {
         if (!alive) return;
         emit2(poolWriter.putMember(member));
         state.pop(argsize);
-        if (member.isInitOrVNew())
+        if (member.isInit())
             state.markInitialized((UninitializedType)state.peek());
         state.pop(1);
         state.push(mtype.getReturnType());
@@ -1025,11 +1022,6 @@ public class Code {
             state.push(uninitializedObject(t.tsym.erasure(types), cp - 3));
             break;
         }
-        case aconst_init: {
-            Type t = (Type)data;
-            state.push(t.tsym.erasure(types));
-            break;
-        }
         case sipush:
             state.push(syms.intType);
             break;
@@ -1055,9 +1047,6 @@ public class Code {
             break;
         case goto_:
             markDead();
-            break;
-        case withfield:
-            state.pop(((Symbol)data).erasure(types));
             break;
         case putfield:
             state.pop(((Symbol)data).erasure(types));
@@ -1385,7 +1374,7 @@ public class Code {
         if (!meth.isStatic()) {
             Type thisType = meth.owner.type;
             frame.locals = new Type[len+1];
-            if (meth.isInitOrVNew() && thisType != syms.objectType) {
+            if (meth.isInit() && thisType != syms.objectType) {
                 frame.locals[count++] = UninitializedType.uninitializedThis(thisType);
             } else {
                 frame.locals[count++] = types.erasure(thisType);
@@ -1783,12 +1772,8 @@ public class Code {
             case ARRAY:
                 int width = width(t);
                 Type old = stack[stacksize-width];
-                if (!allowPrimitiveClasses) {
-                    Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)));
-                } else {
-                    Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)) ||
-                            (old.isPrimitiveClass() != t.isPrimitiveClass() && types.isConvertible(types.erasure(old), types.erasure(t))));
-                }
+                Assert.check(types.isSubtype(types.erasure(old),
+                                       types.erasure(t)));
                 stack[stacksize-width] = t;
                 break;
             default:
@@ -2464,8 +2449,6 @@ public class Code {
             mnem[goto_w] = "goto_w";
             mnem[jsr_w] = "jsr_w";
             mnem[breakpoint] = "breakpoint";
-            mnem[aconst_init] = "aconst_init";
-            mnem[withfield] = "withfield";
         }
     }
 }

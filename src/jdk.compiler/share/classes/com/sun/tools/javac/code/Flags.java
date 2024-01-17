@@ -99,13 +99,6 @@ public class Flags {
     /** Added in SE8, represents constructs implicitly declared in source. */
     public static final int MANDATED     = 1<<15;
 
-    /** Marks a type as a primitive class. We can't reuse the class file encoding (ACC_PRIMITIVE)
-     * since the latter shares its value (0x800) with ACC_STRICT (javac speak: STRICT_FP) and while
-     * STRICT_FP is not a valid flag for a class in the class file level, javac's ASTs flag a class
-     * as being STRICT_FP so as to propagate the FP strictness to methods of the class thereby causing
-     * a clash */
-    public static final int PRIMITIVE_CLASS  = 1<<16;
-
     public static final int StandardFlags = 0x0fff;
 
     // Because the following access flags are overloaded with other
@@ -455,15 +448,15 @@ public class Flags {
                                             SYNCHRONIZED | FINAL | STRICTFP,
         RecordMethodFlags                 = AccessFlags | ABSTRACT | STATIC |
                                             SYNCHRONIZED | FINAL | STRICTFP,
-        AdjustedClassFlags                = ClassFlags | ACC_PRIMITIVE | ACC_VALUE;
+        AdjustedClassFlags                = ClassFlags | ACC_VALUE;
     public static final long
-        ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
-        ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
-        ExtendedMemberStaticClassFlags    = (long) MemberStaticClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
-        ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
-        ExtendedLocalClassFlags           = (long) LocalClassFlags | PRIMITIVE_CLASS | VALUE_CLASS,
-        ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | PRIMITIVE_CLASS | VALUE_CLASS,
-        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
+        ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
+        ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
+        ExtendedMemberStaticClassFlags    = (long) MemberStaticClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
+        ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
+        ExtendedLocalClassFlags           = (long) LocalClassFlags | VALUE_CLASS,
+        ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | VALUE_CLASS,
+        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,
         LocalVarFlags                     = FINAL | PARAMETER,
@@ -489,8 +482,8 @@ public class Flags {
             if (0 != (flags & NATIVE))    modifiers.add(Modifier.NATIVE);
             if (0 != (flags & STRICTFP))  modifiers.add(Modifier.STRICTFP);
             if (0 != (flags & DEFAULT))   modifiers.add(Modifier.DEFAULT);
-            if (0 != (flags & PRIMITIVE_CLASS))     modifiers.add(Modifier.PRIMITIVE);
             if (0 != (flags & VALUE_CLASS))     modifiers.add(Modifier.VALUE);
+            if (0 != (flags & IDENTITY_TYPE))   modifiers.add(Modifier.IDENTITY);
             modifiers = Collections.unmodifiableSet(modifiers);
             modifierSets.put(flags, modifiers);
         }
@@ -511,7 +504,6 @@ public class Flags {
     public static boolean isConstant(Symbol.VarSymbol symbol) {
         return symbol.getConstValue() != null;
     }
-
 
     public enum Flag {
         PUBLIC(Flags.PUBLIC),
@@ -545,7 +537,6 @@ public class Flags {
         FROM_SOURCE(Flags.FROM_SOURCE),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),
-        PRIMITIVE(Flags.PRIMITIVE_CLASS),
         VALUE(Flags.VALUE_CLASS),
         NOOUTERTHIS(Flags.NOOUTERTHIS),
         EXISTS(Flags.EXISTS),

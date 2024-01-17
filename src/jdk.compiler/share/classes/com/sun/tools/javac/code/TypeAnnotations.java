@@ -216,7 +216,7 @@ public class TypeAnnotations {
                 return AnnotationType.DECLARATION;
         } else if (e.value.name == names.METHOD) {
             if (s.kind == MTH &&
-                    !s.isInitOrVNew())
+                    !s.isInit())
                 return AnnotationType.DECLARATION;
         } else if (e.value.name == names.PARAMETER) {
             if (s.kind == VAR &&
@@ -242,9 +242,9 @@ public class TypeAnnotations {
         } else if (e.value.name == names.TYPE_USE) {
             if (s.kind == TYP ||
                     s.kind == VAR ||
-                    (s.kind == MTH && !s.isInitOrVNew() &&
+                    (s.kind == MTH && !s.isInit() &&
                     !s.type.getReturnType().hasTag(TypeTag.VOID)) ||
-                    (s.kind == MTH && s.isInitOrVNew()))
+                    (s.kind == MTH && s.isInit()))
                 return AnnotationType.TYPE;
         } else if (e.value.name == names.TYPE_PARAMETER) {
             /* Irrelevant in this case */
@@ -604,7 +604,7 @@ public class TypeAnnotations {
                     } else {
                         ClassType ret = new ClassType(t.getEnclosingType().accept(this, s),
                                                       t.typarams_field, t.tsym,
-                                                      t.getMetadata(), t.getFlavor());
+                                                      t.getMetadata());
                         ret.all_interfaces_field = t.all_interfaces_field;
                         ret.allparams_field = t.allparams_field;
                         ret.interfaces_field = t.interfaces_field;
@@ -1022,7 +1022,7 @@ public class TypeAnnotations {
                     final int type_index = invocation.typeargs.indexOf(tree);
                     if (exsym == null) {
                         throw new AssertionError("could not determine symbol for {" + invocation + "}");
-                    } else if (exsym.isInitOrVNew()) {
+                    } else if (exsym.isInit()) {
                         return TypeAnnotationPosition
                             .constructorInvocationTypeArg(location.toList(),
                                                           currentLambda,
@@ -1129,7 +1129,7 @@ public class TypeAnnotations {
             }
             if (sigOnly) {
                 if (!tree.mods.annotations.isEmpty()) {
-                    if (tree.sym.isInitOrVNew()) {
+                    if (tree.sym.isInit()) {
                         final TypeAnnotationPosition pos =
                             TypeAnnotationPosition.methodReturn(tree.pos);
                         // Use null to mark that the annotations go

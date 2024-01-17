@@ -29,6 +29,7 @@
  * @summary Test that inline types work well with enhanced for loop.
  * @compile -XDenablePrimitiveClasses EnhancedForLoopTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses EnhancedForLoopTest
+ * @ignore
  */
 
 import java.util.Iterator;

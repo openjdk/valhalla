@@ -28,20 +28,21 @@
  * @bug 8222784
  * @summary Check generics and values interplay
  * @compile -XDenablePrimitiveClasses GenericsAndValues3.java
+ * @ignore
  */
 
 import java.util.stream.IntStream;
 
 primitive class StreamBug {
   final int value;
-  
+
   public StreamBug(int value) {
     this.value = value;
   }
-  
+
   public static void main(String[] args) {
     //var bug = new StreamBug?(7);
-    
+
     IntStream.range(0, 10).mapToObj(StreamBug::new).forEach(System.out::println);
   }
 }

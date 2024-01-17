@@ -3,6 +3,7 @@
  * @summary Value types and their instance fields are implicitly final
  *
  * @compile/fail/ref=CheckFinal.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckFinal.java
+ * @ignore
  */
 
 primitive class CheckFinal { // implicitly final
