@@ -502,6 +502,7 @@ class RebuildingTransformation {
                     case NestHostAttribute a -> clb.with(NestHostAttribute.of(a.nestHost().asSymbol()));
                     case NestMembersAttribute a -> clb.with(NestMembersAttribute.ofSymbols(a.nestMembers().stream().map(ClassEntry::asSymbol).toArray(ClassDesc[]::new)));
                     case PermittedSubclassesAttribute a -> clb.with(PermittedSubclassesAttribute.ofSymbols(a.permittedSubclasses().stream().map(ClassEntry::asSymbol).toArray(ClassDesc[]::new)));
+                    case PreloadAttribute a -> clb.with(PreloadAttribute.ofSymbols(a.preloads().stream().map(ClassEntry::asSymbol).toArray(ClassDesc[]::new)));
                     case RecordAttribute a -> clb.with(RecordAttribute.of(a.components().stream().map(rci ->
                             RecordComponentInfo.of(rci.name().stringValue(), rci.descriptorSymbol(), rci.attributes().stream().mapMulti((rca, rcac) -> {
                                     switch(rca) {
