@@ -1654,17 +1654,17 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
           assert(value->type() == T_INT, "Agreement.");
           obj->short_field_put(sec_offset, (jshort)value->get_jint());
           break;
-  
+
         case T_CHAR:
           assert(value->type() == T_INT, "Agreement.");
           obj->char_field_put(sec_offset, (jchar)value->get_jint());
           break;
-  
+
         case T_BYTE:
           assert(value->type() == T_INT, "Agreement.");
           obj->byte_field_put(sec_offset, (jbyte)value->get_jint());
           break;
-  
+
         case T_BOOLEAN:
           assert(value->type() == T_INT, "Agreement.");
           obj->bool_field_put(sec_offset, (jboolean)value->get_jint());
