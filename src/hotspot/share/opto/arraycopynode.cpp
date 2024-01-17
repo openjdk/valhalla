@@ -140,13 +140,14 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
       assert (ary_src != nullptr, "not an array or instance?");
       // clone passes a length as a rounded number of longs. If we're
       // cloning an array we'll do it element by element. If the
-      // length input to ArrayCopyNode is constant, length of input
-      // array must be too.
-
-      assert((get_length_if_constant(phase) == -1) != ary_src->size()->is_con() ||
+      // length of the input array is constant, ArrayCopyNode::Length
+      // must be too. Note that the opposite does not need to hold,
+      // because different input array lengths (e.g. int arrays with
+      // 3 or 4 elements) might lead to the same length input
+      // (e.g. 2 double-words).
+      assert(!ary_src->size()->is_con() || (get_length_if_constant(phase) >= 0) ||
              (UseFlatArray && ary_src->elem()->make_oopptr() != nullptr && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
              phase->is_IterGVN() || phase->C->inlining_incrementally() || StressReflectiveCode, "inconsistent");
-
       if (ary_src->size()->is_con()) {
         return ary_src->size()->get_con();
       }
@@ -426,9 +427,6 @@ void ArrayCopyNode::copy(GraphKit& kit,
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
       assert(!field->is_flat(), "flat field encountered");
-      if (bt == T_PRIMITIVE_OBJECT) {
-        bt = T_OBJECT;
-      }
       const Type* rt = Type::get_const_type(ft);
       const TypePtr* adr_type = atp_src->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
       assert(!bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), bt, false, false, BarrierSetC2::Optimization), "GC barriers required");

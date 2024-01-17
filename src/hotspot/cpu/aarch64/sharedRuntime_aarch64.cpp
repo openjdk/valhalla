@@ -472,7 +472,7 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 
   __ mov(c_rarg0, rmethod);
   __ mov(c_rarg1, lr);
-  __ authenticate_return_address(c_rarg1, rscratch1);
+  __ authenticate_return_address(c_rarg1);
   __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::fixup_callers_callsite)));
   __ blr(rscratch1);
 
@@ -495,23 +495,23 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
   if (InlineTypePassFieldsAsArgs) {
      for (int i = 0; i < sig_extended->length(); i++) {
        BasicType bt = sig_extended->at(i)._bt;
-       if (bt == T_PRIMITIVE_OBJECT) {
+       if (bt == T_METADATA) {
          // In sig_extended, an inline type argument starts with:
-         // T_PRIMITIVE_OBJECT, followed by the types of the fields of the
+         // T_METADATA, followed by the types of the fields of the
          // inline type and T_VOID to mark the end of the value
          // type. Inline types are flattened so, for instance, in the
          // case of an inline type with an int field and an inline type
          // field that itself has 2 fields, an int and a long:
-         // T_PRIMITIVE_OBJECT T_INT T_PRIMITIVE_OBJECT T_INT T_LONG T_VOID (second
-         // slot for the T_LONG) T_VOID (inner T_PRIMITIVE_OBJECT) T_VOID
-         // (outer T_PRIMITIVE_OBJECT)
+         // T_METADATA T_INT T_METADATA T_INT T_LONG T_VOID (second
+         // slot for the T_LONG) T_VOID (inner inline type) T_VOID
+         // (outer inline type)
          total_args_passed++;
          int vt = 1;
          do {
            i++;
            BasicType bt = sig_extended->at(i)._bt;
            BasicType prev_bt = sig_extended->at(i-1)._bt;
-           if (bt == T_PRIMITIVE_OBJECT) {
+           if (bt == T_METADATA) {
              vt++;
            } else if (bt == T_VOID &&
                       prev_bt != T_LONG &&
@@ -649,7 +649,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     // Is there an inline type argument?
     bool has_inline_argument = false;
     for (int i = 0; i < sig_extended->length() && !has_inline_argument; i++) {
-      has_inline_argument = (sig_extended->at(i)._bt == T_PRIMITIVE_OBJECT);
+      has_inline_argument = (sig_extended->at(i)._bt == T_METADATA);
     }
     if (has_inline_argument) {
       // There is at least an inline type argument: we're coming from
@@ -711,10 +711,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   // next_arg_comp is the next argument from the compiler point of
   // view (inline type fields are passed in registers/on the stack). In
-  // sig_extended, an inline type argument starts with: T_PRIMITIVE_OBJECT,
+  // sig_extended, an inline type argument starts with: T_METADATA,
   // followed by the types of the fields of the inline type and T_VOID
   // to mark the end of the inline type. ignored counts the number of
-  // T_PRIMITIVE_OBJECT/T_VOID. next_vt_arg is the next inline type argument:
+  // T_METADATA/T_VOID. next_vt_arg is the next inline type argument:
   // used to get the buffer for that argument from the pool of buffers
   // we allocated above and want to pass to the
   // interpreter. next_arg_int is the next argument from the
@@ -725,7 +725,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     assert(next_arg_int <= total_args_passed, "more arguments for the interpreter than expected?");
     BasicType bt = sig_extended->at(next_arg_comp)._bt;
     int st_off = (total_args_passed - next_arg_int - 1) * Interpreter::stackElementSize;
-    if (!InlineTypePassFieldsAsArgs || bt != T_PRIMITIVE_OBJECT) {
+    if (!InlineTypePassFieldsAsArgs || bt != T_METADATA) {
       int next_off = st_off - Interpreter::stackElementSize;
       const int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
       const VMRegPair reg_pair = regs[next_arg_comp-ignored];
@@ -743,7 +743,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     } else {
       ignored++;
       // get the buffer from the just allocated pool of buffers
-      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_PRIMITIVE_OBJECT);
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_OBJECT);
       __ load_heap_oop(buf_oop, Address(buf_array, index), tmp1, tmp2);
       next_vt_arg++; next_arg_int++;
       int vt = 1;
@@ -758,7 +758,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
         BasicType prev_bt = sig_extended->at(next_arg_comp - 1)._bt;
-        if (bt == T_PRIMITIVE_OBJECT) {
+        if (bt == T_METADATA) {
           vt++;
           ignored++;
         } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
@@ -893,8 +893,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   // Now generate the shuffle code.
   for (int i = 0; i < total_args_passed; i++) {
     BasicType bt = sig->at(i)._bt;
-
-    assert(bt != T_PRIMITIVE_OBJECT, "i2c adapter doesn't unpack inline typ args");
     if (bt == T_VOID) {
       assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
@@ -1457,6 +1455,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
       continuation_enter_cleanup(masm);
 
       __ ldr(c_rarg1, Address(rfp, wordSize)); // return address
+      __ authenticate_return_address(c_rarg1);
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address), rthread, c_rarg1);
 
       // see OptoRuntime::generate_exception_blob: r0 -- exception oop, r3 -- exception pc
@@ -2107,7 +2106,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     } else {
       assert(LockingMode == LM_LIGHTWEIGHT, "must be");
       __ ldr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-      __ fast_lock(obj_reg, swap_reg, tmp, rscratch1, slow_path_lock);
+      __ lightweight_lock(obj_reg, swap_reg, tmp, rscratch1, slow_path_lock);
     }
     __ bind(count);
     __ increment(Address(rthread, JavaThread::held_monitor_count_offset()));
@@ -2249,7 +2248,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
       assert(LockingMode == LM_LIGHTWEIGHT, "");
       __ ldr(old_hdr, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
       __ tbnz(old_hdr, exact_log2(markWord::monitor_value), slow_path_unlock);
-      __ fast_unlock(obj_reg, old_hdr, swap_reg, rscratch1, slow_path_unlock);
+      __ lightweight_unlock(obj_reg, old_hdr, swap_reg, rscratch1, slow_path_unlock);
       __ decrement(Address(rthread, JavaThread::held_monitor_count_offset()));
     }
 
@@ -2628,7 +2627,7 @@ void SharedRuntime::generate_deopt_blob() {
   // load throwing pc from JavaThread and patch it as the return address
   // of the current frame. Then clear the field in JavaThread
   __ ldr(r3, Address(rthread, JavaThread::exception_pc_offset()));
-  __ protect_return_address(r3, rscratch1);
+  __ protect_return_address(r3);
   __ str(r3, Address(rfp, wordSize));
   __ str(zr, Address(rthread, JavaThread::exception_pc_offset()));
 
@@ -2734,9 +2733,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ ldrw(r2, Address(r5, Deoptimization::UnrollBlock::size_of_deoptimized_frame_offset()));
   __ sub(r2, r2, 2 * wordSize);
   __ add(sp, sp, r2);
-  __ ldp(rfp, lr, __ post(sp, 2 * wordSize));
-  __ authenticate_return_address();
-  // LR should now be the return address to the caller (3)
+  __ ldp(rfp, zr, __ post(sp, 2 * wordSize));
 
 #ifdef ASSERT
   // Compilers generate code that bang the stack by as much as the
@@ -2951,9 +2948,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
                       size_of_deoptimized_frame_offset()));
   __ sub(r2, r2, 2 * wordSize);
   __ add(sp, sp, r2);
-  __ ldp(rfp, lr, __ post(sp, 2 * wordSize));
-  __ authenticate_return_address();
-  // LR should now be the return address to the caller (3) frame
+  __ ldp(rfp, zr, __ post(sp, 2 * wordSize));
 
 #ifdef ASSERT
   // Compilers generate code that bang the stack by as much as the
@@ -3099,7 +3094,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
     // it later to determine if someone changed the return address for
     // us!
     __ ldr(r20, Address(rthread, JavaThread::saved_exception_pc_offset()));
-    __ protect_return_address(r20, rscratch1);
+    __ protect_return_address(r20);
     __ str(r20, Address(rfp, wordSize));
   }
 
@@ -3140,7 +3135,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
     __ ldr(rscratch1, Address(rfp, wordSize));
     __ cmp(r20, rscratch1);
     __ br(Assembler::NE, no_adjust);
-    __ authenticate_return_address(r20, rscratch1);
+    __ authenticate_return_address(r20);
 
 #ifdef ASSERT
     // Verify the correct encoding of the poll we're about to skip.
@@ -3155,7 +3150,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 #endif
     // Adjust return pc forward to step over the safepoint poll instruction
     __ add(r20, r20, NativeInstruction::instruction_size);
-    __ protect_return_address(r20, rscratch1);
+    __ protect_return_address(r20);
     __ str(r20, Address(rfp, wordSize));
   }
 
@@ -3432,7 +3427,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID) {
@@ -3474,7 +3469,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID) {

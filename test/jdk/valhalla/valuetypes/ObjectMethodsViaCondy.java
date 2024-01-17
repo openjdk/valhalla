@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,8 @@
  * @test
  * @summary Test ObjectMethods::bootstrap call via condy
  * @modules java.base/jdk.internal.value
- * @modules java.base/jdk.internal.org.objectweb.asm
- * @compile -XDenablePrimitiveClasses ObjectMethodsViaCondy.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ObjectMethodsViaCondy
+ *          java.base/jdk.internal.org.objectweb.asm
+ * @run testng/othervm -XX:+EnableValhalla ObjectMethodsViaCondy
  */
 
 import java.io.IOException;
@@ -69,20 +68,16 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
 
 public class ObjectMethodsViaCondy {
-    public static primitive record PrimitiveRecord(int i, String name) {
+    public static value record ValueRecord(int i, String name) {
         static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
-
-        static final MethodType EQUALS_DESC = methodType(boolean.class, PrimitiveClass.asValueType(PrimitiveRecord.class), Object.class);
-        static final MethodType HASHCODE_DESC = methodType(int.class, PrimitiveClass.asValueType(PrimitiveRecord.class));
-        static final MethodType TO_STRING_DESC = methodType(String.class, PrimitiveClass.asValueType(PrimitiveRecord.class));
-
+        static final MethodType TO_STRING_DESC = methodType(String.class, ValueRecord.class);
         static final Handle[] ACCESSORS = accessors();
         static final String NAME_LIST = "i;name";
         private static Handle[] accessors() {
             try {
                 return  new Handle[]{
-                        new Handle(H_GETFIELD, Type.getInternalName(PrimitiveRecord.class), "i", "I", false),
-                        new Handle(H_GETFIELD, Type.getInternalName(PrimitiveRecord.class), "name", String.class.descriptorString(), false)
+                        new Handle(H_GETFIELD, Type.getInternalName(ValueRecord.class), "i", "I", false),
+                        new Handle(H_GETFIELD, Type.getInternalName(ValueRecord.class), "name", String.class.descriptorString(), false)
                 };
             } catch (Exception e) {
                 throw new AssertionError(e);
@@ -90,7 +85,7 @@ public class ObjectMethodsViaCondy {
         }
 
         /**
-         * Returns the method handle for the given method for this PrimitiveRecord class.
+         * Returns the method handle for the given method for this ValueRecord class.
          * This method defines a hidden class to invoke the ObjectMethods::bootstrap method
          * via condy.
          *
@@ -99,7 +94,7 @@ public class ObjectMethodsViaCondy {
          */
         static MethodHandle makeBootstrapMethod(String methodName) throws Throwable {
             ClassFileBuilder builder = new ClassFileBuilder("Test-" + methodName);
-            builder.bootstrapMethod(methodName, TO_STRING_DESC, PrimitiveClass.asValueType(PrimitiveRecord.class), NAME_LIST, ACCESSORS);
+            builder.bootstrapMethod(methodName, TO_STRING_DESC, ValueRecord.class, NAME_LIST, ACCESSORS);
             byte[] bytes = builder.build();
             MethodHandles.Lookup lookup = LOOKUP.defineHiddenClass(bytes, true, ClassOption.NESTMATE);
             MethodType mtype = MethodType.methodType(Object.class);
@@ -110,16 +105,16 @@ public class ObjectMethodsViaCondy {
 
     @Test
     public void testToString() throws Throwable {
-        MethodHandle handle = PrimitiveRecord.makeBootstrapMethod("toString");
-        assertEquals((String)handle.invokeExact(new PrimitiveRecord(10, "ten")), "PrimitiveRecord[i=10, name=ten]");
-        assertEquals((String)handle.invokeExact(new PrimitiveRecord(40, "forty")), "PrimitiveRecord[i=40, name=forty]");
+        MethodHandle handle = ValueRecord.makeBootstrapMethod("toString");
+        assertEquals((String)handle.invokeExact(new ValueRecord(10, "ten")), "ValueRecord[i=10, name=ten]");
+        assertEquals((String)handle.invokeExact(new ValueRecord(40, "forty")), "ValueRecord[i=40, name=forty]");
     }
 
     @Test
     public void testToEquals() throws Throwable {
-        MethodHandle handle = PrimitiveRecord.makeBootstrapMethod("equals");
-        assertTrue((boolean)handle.invoke(new PrimitiveRecord(10, "ten"), new PrimitiveRecord(10, "ten")));
-        assertFalse((boolean)handle.invoke(new PrimitiveRecord(11, "eleven"), new PrimitiveRecord(10, "ten")));
+        MethodHandle handle = ValueRecord.makeBootstrapMethod("equals");
+        assertTrue((boolean)handle.invoke(new ValueRecord(10, "ten"), new ValueRecord(10, "ten")));
+        assertFalse((boolean)handle.invoke(new ValueRecord(11, "eleven"), new ValueRecord(10, "ten")));
     }
 
     static class ClassFileBuilder {

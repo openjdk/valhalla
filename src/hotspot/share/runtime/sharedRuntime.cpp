@@ -242,7 +242,7 @@ const julong double_sign_mask = CONST64(0x7FFFFFFFFFFFFFFF);
 const julong double_infinity  = CONST64(0x7FF0000000000000);
 #endif
 
-#if !defined(X86) || !defined(TARGET_COMPILER_gcc) || defined(_WIN64)
+#if !defined(X86)
 JRT_LEAF(jfloat, SharedRuntime::frem(jfloat x, jfloat y))
 #ifdef _WIN64
   // 64-bit Windows on amd64 returns the wrong values for
@@ -274,7 +274,7 @@ JRT_LEAF(jdouble, SharedRuntime::drem(jdouble x, jdouble y))
   return ((jdouble)fmod((double)x,(double)y));
 #endif
 JRT_END
-#endif // !X86 || !TARGET_COMPILER_gcc || _WIN64
+#endif // !X86
 
 JRT_LEAF(jfloat, SharedRuntime::i2f(jint x))
   return (jfloat)x;
@@ -692,7 +692,7 @@ address SharedRuntime::compute_compiled_exc_handler(CompiledMethod* cm, address 
 #if INCLUDE_JVMCI
   if (cm->is_compiled_by_jvmci()) {
     // lookup exception handler for this pc
-    int catch_pco = ret_pc - cm->code_begin();
+    int catch_pco = pointer_delta_as_int(ret_pc, cm->code_begin());
     ExceptionHandlerTable table(cm);
     HandlerTableEntry *t = table.entry_for(catch_pco, -1, 0);
     if (t != nullptr) {
@@ -751,7 +751,7 @@ address SharedRuntime::compute_compiled_exc_handler(CompiledMethod* cm, address 
   }
 
   // found handling method => lookup exception handler
-  int catch_pco = ret_pc - nm->code_begin();
+  int catch_pco = pointer_delta_as_int(ret_pc, nm->code_begin());
 
   ExceptionHandlerTable table(nm);
   HandlerTableEntry *t = table.entry_for(catch_pco, handler_bci, scope_depth);
@@ -1953,7 +1953,8 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
   // nmethod could be deoptimized by the time we get here
   // so no update to the caller is needed.
 
-  if (caller.is_compiled_frame() && !caller.is_deoptimized_frame()) {
+  if ((caller.is_compiled_frame() && !caller.is_deoptimized_frame()) ||
+      (caller.is_native_frame() && ((CompiledMethod*)caller.cb())->method()->is_continuation_enter_intrinsic())) {
 
     address pc = caller.pc();
 
@@ -2390,7 +2391,7 @@ void SharedRuntime::print_statistics() {
 }
 
 inline double percent(int64_t x, int64_t y) {
-  return 100.0 * x / MAX2(y, (int64_t)1);
+  return 100.0 * (double)x / (double)MAX2(y, (int64_t)1);
 }
 
 class MethodArityHistogram {
@@ -2426,13 +2427,13 @@ class MethodArityHistogram {
     const int N = MIN2(9, n);
     double sum = 0;
     double weighted_sum = 0;
-    for (int i = 0; i <= n; i++) { sum += histo[i]; weighted_sum += i*histo[i]; }
-    if (sum >= 1.0) { // prevent divide by zero or divide overflow
+    for (int i = 0; i <= n; i++) { sum += (double)histo[i]; weighted_sum += (double)(i*histo[i]); }
+    if (sum >= 1) { // prevent divide by zero or divide overflow
       double rest = sum;
       double percent = sum / 100;
       for (int i = 0; i <= N; i++) {
-        rest -= histo[i];
-        tty->print_cr("%4d: " UINT64_FORMAT_W(12) " (%5.1f%%)", i, histo[i], histo[i] / percent);
+        rest -= (double)histo[i];
+        tty->print_cr("%4d: " UINT64_FORMAT_W(12) " (%5.1f%%)", i, histo[i], (double)histo[i] / percent);
       }
       tty->print_cr("rest: " INT64_FORMAT_W(12) " (%5.1f%%)", (int64_t)rest, rest / percent);
       tty->print_cr("(avg. %s = %3.1f, max = %d)", name, weighted_sum / sum, n);
@@ -2511,7 +2512,7 @@ static int _compact; // number of equals calls with compact signature
 class AdapterFingerPrint : public CHeapObj<mtCode> {
  private:
   enum {
-    _basic_type_bits = 4,
+    _basic_type_bits = 5,
     _basic_type_mask = right_n_bits(_basic_type_bits),
     _basic_types_per_int = BitsPerInt / _basic_type_bits,
     _compact_int_count = 3
@@ -2591,7 +2592,7 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         BasicType bt = T_ILLEGAL;
         if (sig_index < total_args_passed) {
           bt = sig->at(sig_index++)._bt;
-          if (bt == T_PRIMITIVE_OBJECT) {
+          if (bt == T_METADATA) {
             // Found start of inline type in signature
             assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
             if (sig_index == 1 && has_ro_adapter) {
@@ -3102,7 +3103,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             _sig_cc->appendAll(vk->extended_sig());
             _sig_cc_ro->appendAll(vk->extended_sig());
             if (bt == T_OBJECT) {
-              // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_PRIMITIVE_OBJECT
+              // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_METADATA delimiter
               _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr));
               _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr));
             }
@@ -3877,7 +3878,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID) {

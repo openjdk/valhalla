@@ -23,7 +23,12 @@
 
 package runtime.valhalla.inlinetypes;
 
-public final primitive class Person {
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+public value class Person {
 
     final int    id;
     final String firstName;

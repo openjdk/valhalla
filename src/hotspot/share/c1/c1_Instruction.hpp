@@ -1007,8 +1007,8 @@ LEAF(LoadIndexed, AccessIndexed)
   DelayedLoadIndexed* delayed() const { return _delayed; }
   void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
 
-  // generic
-  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), type()->tag(), array()->subst(), index()->subst(), vt())
+  // generic;
+  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), vt())
 };
 
 class DelayedLoadIndexed : public CompilationResourceObj {

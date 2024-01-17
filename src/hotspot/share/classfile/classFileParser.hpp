@@ -208,9 +208,12 @@ class ClassFileParser {
   bool _has_nonstatic_fields;
   bool _is_empty_inline_type;
   bool _is_naturally_atomic;
-  bool _is_declared_atomic;
+  bool _must_be_atomic;
+  bool _is_implicitly_constructible;
   bool _carries_value_modifier;      // Has ACC_VALUE mddifier or one of its super types has
   bool _carries_identity_modifier;   // Has ACC_IDENTITY modifier or one of its super types has
+  bool _has_loosely_consistent_annotation;
+  bool _has_implicitly_constructible_annotation;
 
   // precomputed flags
   bool _has_finalizer;
@@ -259,7 +262,6 @@ class ClassFileParser {
                         const int itfs_len,
                         ConstantPool* const cp,
                         bool* has_nonstatic_concrete_methods,
-                        bool* is_declared_atomic,
                         TRAPS);
 
   const InstanceKlass* parse_super_class(ConstantPool* const cp,
@@ -357,7 +359,7 @@ class ClassFileParser {
                                                     const u1* const preload_attribute_start,
                                                     TRAPS);
 
-  u2 parse_classfile_record_attribute(const ClassFileStream* const cfs,
+  u4 parse_classfile_record_attribute(const ClassFileStream* const cfs,
                                       const ConstantPool* cp,
                                       const u1* const record_attribute_start,
                                       TRAPS);
@@ -622,6 +624,8 @@ class ClassFileParser {
   AccessFlags access_flags() const { return _access_flags; }
 
   bool is_internal() const { return INTERNAL == _pub_level; }
+
+  bool is_class_in_preload_attribute(Symbol *klass);
 
   static bool verify_unqualified_name(const char* name, unsigned int length, int type);
 

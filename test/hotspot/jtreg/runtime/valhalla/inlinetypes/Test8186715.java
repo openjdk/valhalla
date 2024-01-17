@@ -23,12 +23,18 @@
 
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+
 /*
  * @test Test8186715
  * @summary test return of buffered inline type passed in argument by caller
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses Test8186715.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.Test8186715
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @compile Test8186715.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.Test8186715
  */
 
 public class Test8186715 {
@@ -42,7 +48,9 @@ public class Test8186715 {
     }
 }
 
-primitive final class MyValueType {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValueType {
     final int i;
     final int j;
 
@@ -52,7 +60,8 @@ primitive final class MyValueType {
     }
 
     static MyValueType testDefault() {
-        return MyValueType.default;
+        MyValueType[] array = (MyValueType[])ValueClass.newNullRestrictedArray(MyValueType.class, 1);
+        return array[0];
     }
 
     static MyValueType testBranchArg1(boolean flag, MyValueType v1) {

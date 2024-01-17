@@ -448,7 +448,7 @@ void RegionNode::verify_can_be_irreducible_entry() const {
 }
 #endif //ASSERT
 
-Node* PhiNode::try_clean_mem_phi(PhaseGVN *phase) {
+void RegionNode::try_clean_mem_phis(PhaseIterGVN* igvn) {
   // Incremental inlining + PhaseStringOpts sometimes produce:
   //
   // cmpP with 1 top input
@@ -465,29 +465,59 @@ Node* PhiNode::try_clean_mem_phi(PhaseGVN *phase) {
   // replaced by If's control input but because there's still a Phi,
   // the Region stays in the graph. The top input from the cmpP is
   // propagated forward and a subgraph that is useful goes away. The
-  // code below replaces the Phi with the MergeMem so that the Region
-  // is simplified.
+  // code in PhiNode::try_clean_memory_phi() replaces the Phi with the
+  // MergeMem in order to remove the Region if its last phi dies.
 
-  if (type() == Type::MEMORY && is_diamond_phi(true)) {
-    MergeMemNode* m = nullptr;
-    assert(req() == 3, "same as region");
-    Node* r = in(0);
-    for (uint i = 1; i < 3; ++i) {
-      Node *mem = in(i);
-      if (mem && mem->is_MergeMem() && r->in(i)->outcnt() == 1) {
-        // Nothing is control-dependent on path #i except the region itself.
-        m = mem->as_MergeMem();
-        uint j = 3 - i;
-        Node* other = in(j);
-        if (other && other == m->base_memory()) {
-          // m is a successor memory to other, and is not pinned inside the diamond, so push it out.
-          // This will allow the diamond to collapse completely.
-          return m;
-        }
-      }
+  if (!is_diamond()) {
+    return;
+  }
+
+  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+    Node* phi = fast_out(i);
+    if (phi->is_Phi() && phi->as_Phi()->try_clean_memory_phi(igvn)) {
+      --i;
+      --imax;
     }
   }
-  return nullptr;
+}
+
+// Does this region merge a simple diamond formed by a proper IfNode?
+//
+//              Cmp
+//              /
+//     ctrl   Bool
+//       \    /
+//       IfNode
+//      /      \
+//  IfFalse   IfTrue
+//      \      /
+//       Region
+bool RegionNode::is_diamond() const {
+  if (req() != 3) {
+    return false;
+  }
+
+  Node* left_path = in(1);
+  Node* right_path = in(2);
+  if (left_path == nullptr || right_path == nullptr) {
+    return false;
+  }
+  Node* diamond_if = left_path->in(0);
+  if (diamond_if == nullptr || !diamond_if->is_If() || diamond_if != right_path->in(0)) {
+    // Not an IfNode merging a diamond or TOP.
+    return false;
+  }
+
+  // Check for a proper bool/cmp
+  const Node* bol = diamond_if->in(1);
+  if (!bol->is_Bool()) {
+    return false;
+  }
+  const Node* cmp = bol->in(1);
+  if (!cmp->is_Cmp()) {
+    return false;
+  }
+  return true;
 }
 
 //------------------------------Ideal------------------------------------------
@@ -501,17 +531,8 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // arm of the same IF.  If found, then the control-flow split is useless.
   bool has_phis = false;
   if (can_reshape) {            // Need DU info to check for Phi users
+    try_clean_mem_phis(phase->is_IterGVN());
     has_phis = (has_phi() != nullptr);       // Cache result
-    if (has_phis) {
-      PhiNode* phi = has_unique_phi();
-      if (phi != nullptr) {
-        Node* m = phi->try_clean_mem_phi(phase);
-        if (m != nullptr) {
-          phase->is_IterGVN()->replace_node(phi, m);
-          has_phis = false;
-        }
-      }
-    }
 
     if (!has_phis) {            // No Phi users?  Nothing merging?
       for (uint i = 1; i < req()-1; i++) {
@@ -1343,40 +1364,59 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
   return ft;
 }
 
-
-//------------------------------is_diamond_phi---------------------------------
 // Does this Phi represent a simple well-shaped diamond merge?  Return the
 // index of the true path or 0 otherwise.
-// If check_control_only is true, do not inspect the If node at the
-// top, and return -1 (not an edge number) on success.
-int PhiNode::is_diamond_phi(bool check_control_only) const {
-  // Check for a 2-path merge
-  Node *region = in(0);
-  if( !region ) return 0;
-  if( region->req() != 3 ) return 0;
-  if(         req() != 3 ) return 0;
-  // Check that both paths come from the same If
-  Node *ifp1 = region->in(1);
-  Node *ifp2 = region->in(2);
-  if( !ifp1 || !ifp2 ) return 0;
-  Node *iff = ifp1->in(0);
-  if( !iff || !iff->is_If() ) return 0;
-  if( iff != ifp2->in(0) ) return 0;
-  if (check_control_only)  return -1;
-  // Check for a proper bool/cmp
-  const Node *b = iff->in(1);
-  if( !b->is_Bool() ) return 0;
-  const Node *cmp = b->in(1);
-  if( !cmp->is_Cmp() ) return 0;
-
-  // Check for branching opposite expected
-  if( ifp2->Opcode() == Op_IfTrue ) {
-    assert( ifp1->Opcode() == Op_IfFalse, "" );
-    return 2;
-  } else {
-    assert( ifp1->Opcode() == Op_IfTrue, "" );
-    return 1;
+int PhiNode::is_diamond_phi() const {
+  Node* region = in(0);
+  assert(region != nullptr && region->is_Region(), "phi must have region");
+  if (!region->as_Region()->is_diamond()) {
+    return 0;
   }
+
+  if (region->in(1)->is_IfTrue()) {
+    assert(region->in(2)->is_IfFalse(), "bad If");
+    return 1;
+  } else {
+    // Flipped projections.
+    assert(region->in(2)->is_IfTrue(), "bad If");
+    return 2;
+  }
+}
+
+// Do the following transformation if we find the corresponding graph shape, remove the involved memory phi and return
+// true. Otherwise, return false if the transformation cannot be applied.
+//
+//           If                                     If
+//          /  \                                   /  \
+//    IfFalse  IfTrue  /- Some Node          IfFalse  IfTrue
+//          \  /      /    /                       \  /        Some Node
+//         Region    / /-MergeMem     ===>        Region          |
+//          /   \---Phi                             |          MergeMem
+// [other phis]      \                        [other phis]        |
+//                   use                                         use
+bool PhiNode::try_clean_memory_phi(PhaseIterGVN* igvn) {
+  if (_type != Type::MEMORY) {
+    return false;
+  }
+  assert(is_diamond_phi() > 0, "sanity");
+  assert(req() == 3, "same as region");
+  const Node* region = in(0);
+  for (uint i = 1; i < 3; i++) {
+    Node* phi_input = in(i);
+    if (phi_input != nullptr && phi_input->is_MergeMem() && region->in(i)->outcnt() == 1) {
+      // Nothing is control-dependent on path #i except the region itself.
+      MergeMemNode* merge_mem = phi_input->as_MergeMem();
+      uint j = 3 - i;
+      Node* other_phi_input = in(j);
+      if (other_phi_input != nullptr && other_phi_input == merge_mem->base_memory()) {
+        // merge_mem is a successor memory to other_phi_input, and is not pinned inside the diamond, so push it out.
+        // This will allow the diamond to collapse completely if there are no other phis left.
+        igvn->replace_node(this, merge_mem);
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 //----------------------------check_cmove_id-----------------------------------
@@ -1442,14 +1482,6 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
       return id;
     }
   }
-
-  if (phase->is_IterGVN()) {
-    Node* m = try_clean_mem_phi(phase);
-    if (m != nullptr) {
-      return m;
-    }
-  }
-
 
   // Looking for phis with identical inputs.  If we find one that has
   // type TypePtr::BOTTOM, replace the current phi with the bottom phi.
@@ -1997,8 +2029,8 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 }
 
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
-InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init) {
-  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
+InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk) {
+  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), !_type->maybe_null());
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -2024,7 +2056,7 @@ InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_res
       n = InlineTypeNode::make_null(*phase, vk);
     } else if (n->is_Phi()) {
       assert(can_reshape, "can only handle phis during IGVN");
-      n = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk, is_init));
+      n = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk));
     }
     while (casts.size() != 0) {
       // Push the cast(s) through the InlineTypeNode
@@ -2157,10 +2189,12 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       // Add casts to carry the control dependency of the Phi that is
       // going away
       Node* cast = nullptr;
+      const TypeTuple* extra_types = collect_types(phase);
       if (phi_type->isa_ptr()) {
         const Type* uin_type = phase->type(uin);
         if (!phi_type->isa_oopptr() && !uin_type->isa_oopptr()) {
-          cast = ConstraintCastNode::make_cast(Op_CastPP, r, uin, phi_type, ConstraintCastNode::StrongDependency);
+          cast = ConstraintCastNode::make_cast(Op_CastPP, r, uin, phi_type, ConstraintCastNode::StrongDependency,
+                                               extra_types);
         } else {
           // Use a CastPP for a cast to not null and a CheckCastPP for
           // a cast to a new klass (and both if both null-ness and
@@ -2170,7 +2204,8 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           // null, uin's type must be casted to not null
           if (phi_type->join(TypePtr::NOTNULL) == phi_type->remove_speculative() &&
               uin_type->join(TypePtr::NOTNULL) != uin_type->remove_speculative()) {
-            cast = ConstraintCastNode::make_cast(Op_CastPP, r, uin, TypePtr::NOTNULL, ConstraintCastNode::StrongDependency);
+            cast = ConstraintCastNode::make_cast(Op_CastPP, r, uin, TypePtr::NOTNULL,
+                                                 ConstraintCastNode::StrongDependency, extra_types);
           }
 
           // If the type of phi and uin, both casted to not null,
@@ -2182,14 +2217,16 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
               cast = phase->transform(cast);
               n = cast;
             }
-            cast = ConstraintCastNode::make_cast(Op_CheckCastPP, r, n, phi_type, ConstraintCastNode::StrongDependency);
+            cast = ConstraintCastNode::make_cast(Op_CheckCastPP, r, n, phi_type, ConstraintCastNode::StrongDependency,
+                                                 extra_types);
           }
           if (cast == nullptr) {
-            cast = ConstraintCastNode::make_cast(Op_CastPP, r, uin, phi_type, ConstraintCastNode::StrongDependency);
+            cast = ConstraintCastNode::make_cast(Op_CastPP, r, uin, phi_type, ConstraintCastNode::StrongDependency,
+                                                 extra_types);
           }
         }
       } else {
-        cast = ConstraintCastNode::make_cast_for_type(r, uin, phi_type, ConstraintCastNode::StrongDependency);
+        cast = ConstraintCastNode::make_cast_for_type(r, uin, phi_type, ConstraintCastNode::StrongDependency, extra_types);
       }
       assert(cast != nullptr, "cast should be set");
       cast = phase->transform(cast);
@@ -2594,8 +2631,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     worklist.push(this);
     bool can_optimize = true;
     ciInlineKlass* vk = nullptr;
-    // true if all IsInit inputs of all InlineType* nodes are true
-    bool is_init = true;
     Node_List casts;
 
     // TODO 8302217 We need to prevent endless pushing through
@@ -2647,14 +2682,9 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         }
         if (n->is_InlineType() && (vk == nullptr || vk == t->inline_klass())) {
           vk = (vk == nullptr) ? t->inline_klass() : vk;
-          if (phase->find_int_con(n->as_InlineType()->get_is_init(), 0) != 1) {
-            is_init = false;
-          }
         } else if (n->is_Phi() && can_reshape && n->bottom_type()->isa_ptr()) {
           worklist.push(n);
-        } else if (t->is_zero_type()) {
-          is_init = false;
-        } else {
+        } else if (!t->is_zero_type()) {
           can_optimize = false;
         }
       }
@@ -2668,9 +2698,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       }
     }
     if (can_optimize && vk != nullptr) {
-// TODO 8302217
-//      assert(!_type->isa_ptr() || _type->maybe_null() || is_init, "Phi not null but a possible null was seen");
-      return push_inline_types_through(phase, can_reshape, vk, is_init);
+      return push_inline_types_through(phase, can_reshape, vk);
     }
   }
 
@@ -2680,6 +2708,52 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
   return progress;              // Return any progress
+}
+
+static int compare_types(const Type* const& e1, const Type* const& e2) {
+  return (intptr_t)e1 - (intptr_t)e2;
+}
+
+// Collect types at casts that are going to be eliminated at that Phi and store them in a TypeTuple.
+// Sort the types using an arbitrary order so a list of some types always hashes to the same TypeTuple (and TypeTuple
+// pointer comparison is enough to tell if 2 list of types are the same or not)
+const TypeTuple* PhiNode::collect_types(PhaseGVN* phase) const {
+  const Node* region = in(0);
+  const Type* phi_type = bottom_type();
+  ResourceMark rm;
+  GrowableArray<const Type*> types;
+  for (uint i = 1; i < req(); i++) {
+    if (region->in(i) == nullptr || phase->type(region->in(i)) == Type::TOP) {
+      continue;
+    }
+    Node* in = Node::in(i);
+    const Type* t = phase->type(in);
+    if (in == nullptr || in == this || t == Type::TOP) {
+      continue;
+    }
+    if (t != phi_type && t->higher_equal_speculative(phi_type)) {
+      types.insert_sorted<compare_types>(t);
+    }
+    while (in != nullptr && in->is_ConstraintCast()) {
+      Node* next = in->in(1);
+      if (phase->type(next)->isa_rawptr() && phase->type(in)->isa_oopptr()) {
+        break;
+      }
+      ConstraintCastNode* cast = in->as_ConstraintCast();
+      for (int j = 0; j < cast->extra_types_count(); ++j) {
+        const Type* extra_t = cast->extra_type_at(j);
+        if (extra_t != phi_type && extra_t->higher_equal_speculative(phi_type)) {
+          types.insert_sorted<compare_types>(extra_t);
+        }
+      }
+      in = next;
+    }
+  }
+  const Type **flds = (const Type **)(phase->C->type_arena()->AmallocWords(types.length()*sizeof(Type*)));
+  for (int i = 0; i < types.length(); ++i) {
+    flds[i] = types.at(i);
+  }
+  return TypeTuple::make(types.length(), flds);
 }
 
 Node* PhiNode::clone_through_phi(Node* root_phi, const Type* t, uint c, PhaseIterGVN* igvn) {

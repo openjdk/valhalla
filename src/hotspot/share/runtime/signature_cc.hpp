@@ -49,7 +49,7 @@ public:
     do {
       _sig_idx += _step;
       bt = _sig->at(_sig_idx)._bt;
-      if (bt == T_PRIMITIVE_OBJECT) {
+      if (bt == T_METADATA) {
         _depth += _step;
       } else if (bt == T_VOID &&
                  _sig->at(_sig_idx-1)._bt != T_LONG &&
@@ -75,7 +75,7 @@ public:
   void reset(int sig_idx, int regs_idx) {
     _sig_idx = sig_idx;
     _regs_idx = regs_idx;
-    assert(_sig->at(_sig_idx)._bt == (_step > 0) ? T_PRIMITIVE_OBJECT : T_VOID, "should be at inline type delimiter");
+    assert(_sig->at(_sig_idx)._bt == (_step > 0) ? T_METADATA : T_VOID, "should be at inline type delimiter");
     _depth = 1;
     DEBUG_ONLY(_finished = false);
   }

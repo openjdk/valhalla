@@ -597,16 +597,16 @@ class SigEntry {
     }
     assert((e1->_bt == T_LONG && (e2->_bt == T_LONG || e2->_bt == T_VOID)) ||
            (e1->_bt == T_DOUBLE && (e2->_bt == T_DOUBLE || e2->_bt == T_VOID)) ||
-           e1->_bt == T_PRIMITIVE_OBJECT || e2->_bt == T_PRIMITIVE_OBJECT || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
+           e1->_bt == T_METADATA || e2->_bt == T_METADATA || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
     if (e1->_bt == e2->_bt) {
-      assert(e1->_bt == T_PRIMITIVE_OBJECT || e1->_bt == T_VOID, "only ones with duplicate offsets");
+      assert(e1->_bt == T_METADATA || e1->_bt == T_VOID, "only ones with duplicate offsets");
       return 0;
     }
     if (e1->_bt == T_VOID ||
-        e2->_bt == T_PRIMITIVE_OBJECT) {
+        e2->_bt == T_METADATA) {
       return 1;
     }
-    if (e1->_bt == T_PRIMITIVE_OBJECT ||
+    if (e1->_bt == T_METADATA ||
         e2->_bt == T_VOID) {
       return -1;
     }
@@ -621,7 +621,7 @@ class SigEntry {
 
 class SigEntryFilter {
 public:
-  bool operator()(const SigEntry& entry) { return entry._bt != T_PRIMITIVE_OBJECT && entry._bt != T_VOID; }
+  bool operator()(const SigEntry& entry) { return entry._bt != T_METADATA && entry._bt != T_VOID; }
 };
 
 // Specialized SignatureStream: used for invoking SystemDictionary to either find

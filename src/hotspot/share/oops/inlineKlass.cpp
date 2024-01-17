@@ -166,7 +166,7 @@ bool InlineKlass::flat_array() {
     return false;
   }
   // Declared atomic but not naturally atomic.
-  if (is_declared_atomic() && !is_naturally_atomic()) {
+  if (must_be_atomic() && !is_naturally_atomic()) {
     return false;
   }
   // VM enforcing InlineArrayAtomicAccess only...
@@ -229,20 +229,20 @@ Klass* InlineKlass::value_array_klass_or_null() {
 // sorted in order of increasing offsets: the adapters and the
 // compiled code need to agree upon the order of fields.
 //
-// The list of basic types that is returned starts with a T_PRIMITIVE_OBJECT
-// and ends with an extra T_VOID. T_PRIMITIVE_OBJECT/T_VOID pairs are used as
+// The list of basic types that is returned starts with a T_METADATA
+// and ends with an extra T_VOID. T_METADATA/T_VOID pairs are used as
 // delimiters. Every entry between the two is a field of the inline
 // type. If there's an embedded inline type in the list, it also starts
-// with a T_PRIMITIVE_OBJECT and ends with a T_VOID. This is so we can
+// with a T_METADATA and ends with a T_VOID. This is so we can
 // generate a unique fingerprint for the method's adapters and we can
 // generate the list of basic types from the interpreter point of view
 // (inline types passed as reference: iterate on the list until a
-// T_PRIMITIVE_OBJECT, drop everything until and including the closing
+// T_METADATA, drop everything until and including the closing
 // T_VOID) or the compiler point of view (each field of the inline
-// types is an argument: drop all T_PRIMITIVE_OBJECT/T_VOID from the list).
+// types is an argument: drop all T_METADATA/T_VOID from the list).
 int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   int count = 0;
-  SigEntry::add_entry(sig, T_PRIMITIVE_OBJECT, name(), base_off);
+  SigEntry::add_entry(sig, T_METADATA, name(), base_off);
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     if (fs.is_multifield()) continue;
@@ -265,7 +265,7 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   if (base_off == 0) {
     sig->sort(SigEntry::compare);
   }
-  assert(sig->at(0)._bt == T_PRIMITIVE_OBJECT && sig->at(sig->length()-1)._bt == T_VOID, "broken structure");
+  assert(sig->at(0)._bt == T_METADATA && sig->at(sig->length()-1)._bt == T_VOID, "broken structure");
   return count;
 }
 
@@ -368,7 +368,7 @@ void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Hand
       assert(Universe::heap()->is_in_or_null(v), "must be heap pointer");
       handles.push(Handle(thread, v));
     }
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID &&
@@ -396,7 +396,7 @@ void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle
       address loc = reg_map.location(pair.first(), nullptr);
       *(oop*)loc = handles.at(k++)();
     }
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID &&
@@ -420,7 +420,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
   int k = 0;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID) {

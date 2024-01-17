@@ -46,7 +46,7 @@ ciType::ciType(BasicType basic_type, int bundle_size) : ciMetadata() {
 }
 
 ciType::ciType(Klass* k) : ciMetadata(k) {
-  _basic_type = k->is_array_klass() ? T_ARRAY : (k->is_inline_klass() ? T_PRIMITIVE_OBJECT : T_OBJECT);
+  _basic_type = k->is_array_klass() ? T_ARRAY : T_OBJECT;
   _bundle_size = 1;
 }
 

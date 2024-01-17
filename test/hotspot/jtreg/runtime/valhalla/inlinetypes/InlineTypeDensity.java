@@ -24,28 +24,37 @@
 
 import java.lang.management.MemoryPoolMXBean;
 
-import jdk.test.whitebox.WhiteBox;
+import com.sun.jdi.NativeMethodException;
+
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
+import jdk.test.whitebox.WhiteBox;
+
 
 /**
  * @test InlineTypeDensity
  * @summary Heap density test for InlineTypes
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses InlineTypeDensity.java
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:FlatArrayElementMaxSize=-1 -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UnlockDiagnosticVMOptions -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
@@ -77,7 +86,9 @@ public class InlineTypeDensity {
 
     interface LocalDateTime extends LocalDate, LocalTime {}
 
-    static final primitive class LocalDateValue implements LocalDate {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class LocalDateValue implements LocalDate {
         final int   year;
         final short month;
         final short day;
@@ -94,7 +105,9 @@ public class InlineTypeDensity {
 
     }
 
-    static final primitive class LocalTimeValue implements LocalTime {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class LocalTimeValue implements LocalTime {
         final byte hour;
         final byte minute;
         final byte second;
@@ -114,9 +127,13 @@ public class InlineTypeDensity {
 
     }
 
-    static final primitive class LocalDateTimeValue implements LocalDateTime {
-        final LocalDateValue date;
-        final LocalTimeValue time;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class LocalDateTimeValue implements LocalDateTime {
+        @NullRestricted
+        LocalDateValue date;
+        @NullRestricted
+        LocalTimeValue time;
 
         public LocalDateTimeValue(LocalDateValue date, LocalTimeValue time) {
             this.date = date;
@@ -215,10 +232,18 @@ public class InlineTypeDensity {
         Asserts.assertLessThan(flatArraySize, objectArraySize, "Flat array accounts for more heap than object array + elements !");
     }
 
-    static primitive class MyByte  { byte  v = 0; }
-    static primitive class MyShort { short v = 0; }
-    static primitive class MyInt   { int   v = 0; }
-    static primitive class MyLong  { long  v = 0; }
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyByte  { byte  v = 0; }
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyShort { short v = 0; }
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyInt   { int   v = 0; }
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyLong  { long  v = 0; }
 
     void assertArraySameSize(Object a, Object b, int nofElements) {
         long aSize = WHITE_BOX.getObjectSize(a);
@@ -232,7 +257,7 @@ public class InlineTypeDensity {
     void testByteArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             byte[] ba = new byte[testSize];
-            MyByte[] mba = new MyByte[testSize];
+            MyByte[] mba = (MyByte[])ValueClass.newNullRestrictedArray(MyByte.class, testSize);
             assertArraySameSize(ba, mba, testSize);
         }
     }
@@ -240,7 +265,7 @@ public class InlineTypeDensity {
     void testShortArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             short[] sa = new short[testSize];
-            MyShort[] msa = new MyShort[testSize];
+            MyShort[] msa = (MyShort[])ValueClass.newNullRestrictedArray(MyShort.class, testSize);
             assertArraySameSize(sa, msa, testSize);
         }
     }
@@ -248,7 +273,7 @@ public class InlineTypeDensity {
     void testIntArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             int[] ia = new int[testSize];
-            MyInt[] mia = new MyInt[testSize];
+            MyInt[] mia = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, testSize);
             assertArraySameSize(ia, mia, testSize);
         }
     }
@@ -256,7 +281,7 @@ public class InlineTypeDensity {
     void testLongArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             long[] la = new long[testSize];
-            MyLong[] mla = new MyLong[testSize];
+            MyLong[] mla = (MyLong[])ValueClass.newNullRestrictedArray(MyLong.class, testSize);
             assertArraySameSize(la, mla, testSize);
         }
     }
@@ -269,20 +294,30 @@ public class InlineTypeDensity {
         testLongArraySizesSame(testSizes);
     }
 
-    static primitive class bbValue { byte b = 0; byte b2 = 0;}
-    static primitive class bsValue { byte b = 0; short s = 0;}
-    static primitive class siValue { short s = 0; int i = 0;}
-    static primitive class ssiValue { short s = 0; short s2 = 0; int i = 0;}
-    static primitive class blValue { byte b = 0; long l = 0; }
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class bbValue { byte b = 0; byte b2 = 0;}
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class bsValue { byte b = 0; short s = 0;}
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class siValue { short s = 0; int i = 0;}
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ssiValue { short s = 0; short s2 = 0; int i = 0;}
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class blValue { byte b = 0; long l = 0; }
 
     // Expect aligned array addressing to nearest pow2
     void testAlignedSize() {
         int testSize = 10;
-        assertArraySameSize(new short[testSize], new bbValue[testSize], testSize);
-        assertArraySameSize(new long[testSize], new siValue[testSize], testSize);
-        assertArraySameSize(new long[testSize], new ssiValue[testSize], testSize);
-        assertArraySameSize(new long[testSize*2], new blValue[testSize], testSize);
-        assertArraySameSize(new int[testSize], new bsValue[testSize], testSize);
+        assertArraySameSize(new short[testSize], ValueClass.newNullRestrictedArray(bbValue.class, testSize), testSize);
+        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedArray(siValue.class, testSize), testSize);
+        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedArray(ssiValue.class, testSize), testSize);
+        assertArraySameSize(new long[testSize*2], ValueClass.newNullRestrictedArray(blValue.class, testSize), testSize);
+        assertArraySameSize(new int[testSize], ValueClass.newNullRestrictedArray(bsValue.class, testSize), testSize);
     }
 
     public void test() {

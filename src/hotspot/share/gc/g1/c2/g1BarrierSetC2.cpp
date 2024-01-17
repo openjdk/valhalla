@@ -208,7 +208,7 @@ void G1BarrierSetC2::pre_barrier(GraphKit* kit,
     if (pre_val->bottom_type() == TypePtr::NULL_PTR) return;
     assert(pre_val->bottom_type()->basic_type() == T_OBJECT, "or we shouldn't be here");
   }
-  assert(bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT, "or we shouldn't be here");
+  assert(bt == T_OBJECT, "or we shouldn't be here");
 
   IdealKit ideal(kit, true);
 
@@ -454,7 +454,7 @@ void G1BarrierSetC2::post_barrier(GraphKit* kit,
     // Should be able to do an unsigned compare of region_size instead of
     // and extra shift. Do we have an unsigned compare??
     // Node* region_size = __ ConI(1 << HeapRegion::LogOfHRGrainBytes);
-    Node* xor_res =  __ URShiftX ( __ XorX( cast,  __ CastPX(__ ctrl(), val)), __ ConI(HeapRegion::LogOfHRGrainBytes));
+    Node* xor_res =  __ URShiftX ( __ XorX( cast,  __ CastPX(__ ctrl(), val)), __ ConI(checked_cast<jint>(HeapRegion::LogOfHRGrainBytes)));
 
     // if (xor_res == 0) same region so skip
     __ if_then(xor_res, BoolTest::ne, zeroX, likely); {

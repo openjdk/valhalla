@@ -1505,6 +1505,9 @@ bool Matcher::match_rule_supported(int opcode) {
     case Op_PopCountL:
       // PopCount supported by H/W from z/Architecture G5 (z196) on.
       return (UsePopCountInstruction && VM_Version::has_PopCount());
+    case Op_FmaF:
+    case Op_FmaD:
+      return UseFMA;
   }
 
   return true; // Per default match rules are supported.
@@ -7159,6 +7162,7 @@ instruct maddF_reg_reg(regF dst, regF src1, regF src2) %{
   size(4);
   format %{ "MAEBR    $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_maebr($dst$$FloatRegister, $src1$$FloatRegister, $src2$$FloatRegister);
   %}
   ins_pipe(pipe_class_dummy);
@@ -7172,6 +7176,7 @@ instruct maddD_reg_reg(regD dst, regD src1, regD src2) %{
   size(4);
   format %{ "MADBR    $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_madbr($dst$$FloatRegister, $src1$$FloatRegister, $src2$$FloatRegister);
   %}
   ins_pipe(pipe_class_dummy);
@@ -7185,6 +7190,7 @@ instruct msubF_reg_reg(regF dst, regF src1, regF src2) %{
   size(4);
   format %{ "MSEBR    $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_msebr($dst$$FloatRegister, $src1$$FloatRegister, $src2$$FloatRegister);
   %}
   ins_pipe(pipe_class_dummy);
@@ -7198,6 +7204,7 @@ instruct msubD_reg_reg(regD dst, regD src1, regD src2) %{
   size(4);
   format %{ "MSDBR    $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_msdbr($dst$$FloatRegister, $src1$$FloatRegister, $src2$$FloatRegister);
   %}
   ins_pipe(pipe_class_dummy);
@@ -7211,6 +7218,7 @@ instruct maddF_reg_mem(regF dst, regF src1, memoryRX src2) %{
   size(6);
   format %{ "MAEB     $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_maeb($dst$$FloatRegister, $src1$$FloatRegister,
               Address(reg_to_register_object($src2$$base), $src2$$index$$Register, $src2$$disp));
   %}
@@ -7225,6 +7233,7 @@ instruct maddD_reg_mem(regD dst, regD src1, memoryRX src2) %{
   size(6);
   format %{ "MADB     $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_madb($dst$$FloatRegister, $src1$$FloatRegister,
               Address(reg_to_register_object($src2$$base), $src2$$index$$Register, $src2$$disp));
   %}
@@ -7239,6 +7248,7 @@ instruct msubF_reg_mem(regF dst, regF src1, memoryRX src2) %{
   size(6);
   format %{ "MSEB     $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_mseb($dst$$FloatRegister, $src1$$FloatRegister,
               Address(reg_to_register_object($src2$$base), $src2$$index$$Register, $src2$$disp));
   %}
@@ -7253,6 +7263,7 @@ instruct msubD_reg_mem(regD dst, regD src1, memoryRX src2) %{
   size(6);
   format %{ "MSDB    $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_msdb($dst$$FloatRegister, $src1$$FloatRegister,
               Address(reg_to_register_object($src2$$base), $src2$$index$$Register, $src2$$disp));
   %}
@@ -7267,6 +7278,7 @@ instruct maddF_mem_reg(regF dst, memoryRX src1, regF src2) %{
   size(6);
   format %{ "MAEB     $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_maeb($dst$$FloatRegister, $src2$$FloatRegister,
               Address(reg_to_register_object($src1$$base), $src1$$index$$Register, $src1$$disp));
   %}
@@ -7281,6 +7293,7 @@ instruct maddD_mem_reg(regD dst, memoryRX src1, regD src2) %{
   size(6);
   format %{ "MADB     $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_madb($dst$$FloatRegister, $src2$$FloatRegister,
               Address(reg_to_register_object($src1$$base), $src1$$index$$Register, $src1$$disp));
   %}
@@ -7295,6 +7308,7 @@ instruct msubF_mem_reg(regF dst, memoryRX src1, regF src2) %{
   size(6);
   format %{ "MSEB     $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_mseb($dst$$FloatRegister, $src2$$FloatRegister,
               Address(reg_to_register_object($src1$$base), $src1$$index$$Register, $src1$$disp));
   %}
@@ -7309,6 +7323,7 @@ instruct msubD_mem_reg(regD dst, memoryRX src1, regD src2) %{
   size(6);
   format %{ "MSDB    $dst, $src1, $src2" %}
   ins_encode %{
+    assert(UseFMA, "Needs FMA instructions support.");
     __ z_msdb($dst$$FloatRegister, $src2$$FloatRegister,
               Address(reg_to_register_object($src1$$base), $src1$$index$$Register, $src1$$disp));
   %}

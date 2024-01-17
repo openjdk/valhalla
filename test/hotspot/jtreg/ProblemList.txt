@@ -51,6 +51,8 @@ compiler/cpuflags/TestAESIntrinsicsOnSupportedConfig.java 8190680 generic-all
 compiler/runtime/Test8168712.java 8211769,8211771 generic-ppc64,generic-ppc64le,linux-s390x
 compiler/loopopts/TestUnreachableInnerLoop.java 8288981 linux-s390x
 
+compiler/rangechecks/TestRangeCheckHoistingScaledIV.java 8315969 generic-all
+
 compiler/rtm/locking/TestRTMAbortRatio.java 8183263 generic-x64,generic-i586
 compiler/rtm/locking/TestRTMAbortThreshold.java 8183263 generic-x64,generic-i586
 compiler/rtm/locking/TestRTMAfterNonRTMDeopt.java 8183263 generic-x64,generic-i586
@@ -71,8 +73,8 @@ compiler/vectorapi/VectorLogicalOpIdentityTest.java 8302459 linux-x64,windows-x6
 
 compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
 
-compiler/gcbarriers/TestZGCBarrierElision.java#ZGen 8313737 generic-all
-compiler/valhalla/inlinetypes/TestArrays.java 8313667 generic-all
+compiler/valhalla/inlinetypes/TestIntrinsics.java 8323781 generic-all
+compiler/valhalla/inlinetypes/TestLWorld.java 8323781 generic-all
 
 #############################################################################
 
@@ -102,18 +104,17 @@ runtime/os/TestTracePageSizes.java#compiler-options 8267460 linux-aarch64
 runtime/os/TestTracePageSizes.java#G1 8267460 linux-aarch64
 runtime/os/TestTracePageSizes.java#Parallel 8267460 linux-aarch64
 runtime/os/TestTracePageSizes.java#Serial 8267460 linux-aarch64
-runtime/os/TestTrimNative.java#trimNative 8312525 linux-all
-runtime/os/TestTrimNative.java#trimNativeLowInterval 8312525 linux-all
 runtime/ErrorHandling/CreateCoredumpOnCrash.java 8267433 macosx-x64
 runtime/CompressedOops/CompressedClassPointers.java 8305765 generic-all
 runtime/StackGuardPages/TestStackGuardPagesNative.java 8303612 linux-all
-runtime/ErrorHandling/TestDwarf.java 8305489 linux-all
+runtime/ErrorHandling/TestDwarf.java#checkDecoder 8305489 linux-all
+runtime/ErrorHandling/MachCodeFramesInErrorFile.java 8313315 linux-ppc64le
+runtime/cds/appcds/customLoader/HelloCustom_JFR.java 8241075 linux-all,windows-x64
 
 applications/jcstress/copy.java 8229852 linux-all
-applications/ctw/modules/jdk_crypto_ec.java 8312194 generic-all
 
 containers/docker/TestJcmd.java 8278102 linux-all
-containers/docker/TestMemoryAwareness.java 8303470 linux-x64
+containers/docker/TestMemoryAwareness.java 8303470 linux-all
 
 # Valhalla
 runtime/AccModule/ConstModule.java 8294051 generic-all
@@ -129,7 +130,7 @@ serviceability/sa/TestRevPtrsForInvokeDynamic.java 8241235 generic-all
 
 serviceability/jvmti/ModuleAwareAgents/ThreadStart/MAAThreadStart.java 8225354 windows-all
 serviceability/jvmti/vthread/GetSetLocalTest/GetSetLocalTest.java 8286836 generic-all
-serviceability/dcmd/gc/RunFinalizationTest.java 8227120 linux-all,windows-x64
+serviceability/dcmd/gc/RunFinalizationTest.java 8227120 linux-all,windows-x64,aix-ppc64
 
 serviceability/sa/ClhsdbCDSCore.java 8267433 macosx-x64
 serviceability/sa/ClhsdbFindPC.java#xcomp-core 8267433 macosx-x64
@@ -138,10 +139,14 @@ serviceability/sa/ClhsdbPmap.java#core 8267433 macosx-x64
 serviceability/sa/ClhsdbPstack.java#core 8267433 macosx-x64
 serviceability/sa/TestJmapCore.java 8267433 macosx-x64
 serviceability/sa/TestJmapCoreMetaspace.java 8267433 macosx-x64
+serviceability/sa/ClhsdbDumpclass.java 8316342 generic-all
 
 serviceability/attach/ConcAttachTest.java 8290043 linux-all
+serviceability/jvmti/RedefineClasses/RedefineLeakThrowable.java 8316658 generic-all
 
 # Valhalla TODO:
+serviceability/jvmti/Valhalla/HeapDump/HeapDump.java 8317416 generic-all
+
 serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
 serviceability/sa/ClhsdbCDSJstackPrintAll.java 8190936 generic-all
 serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
@@ -188,13 +193,12 @@ vmTestbase/metaspace/gc/firstGC_50m/TestDescription.java 8208250 generic-all
 vmTestbase/metaspace/gc/firstGC_99m/TestDescription.java 8208250 generic-all
 vmTestbase/metaspace/gc/firstGC_default/TestDescription.java 8208250 generic-all
 
-vmTestbase/nsk/jvmti/AttachOnDemand/attach002a/TestDescription.java 8307462 generic-all
 vmTestbase/nsk/jvmti/AttachOnDemand/attach045/TestDescription.java 8202971 generic-all
 vmTestbase/nsk/jvmti/scenarios/jni_interception/JI05/ji05t001/TestDescription.java 8219652 aix-ppc64
 vmTestbase/nsk/jvmti/scenarios/jni_interception/JI06/ji06t001/TestDescription.java 8219652 aix-ppc64
 vmTestbase/nsk/jvmti/SetJNIFunctionTable/setjniftab001/TestDescription.java 8219652 aix-ppc64
 vmTestbase/nsk/jvmti/scenarios/capability/CM03/cm03t001/TestDescription.java 8073470 linux-all
-vmTestbase/nsk/jvmti/InterruptThread/intrpthrd003/TestDescription.java 8288911 macosx-x64
+vmTestbase/nsk/jvmti/InterruptThread/intrpthrd003/TestDescription.java 8288911 macosx-all
 
 vmTestbase/gc/lock/jni/jnilock002/TestDescription.java 8192647 generic-all
 
@@ -214,3 +218,4 @@ vmTestbase/nsk/monitoring/ThreadMXBean/ThreadInfo/Multi/Multi005/TestDescription
 # lworld+vector
 compiler/vectorapi/VectorReinterpretTest.java
 compiler/vectorapi/reshape/TestVectorReinterpret.java
+vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all

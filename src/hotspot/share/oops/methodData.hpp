@@ -26,6 +26,7 @@
 #define SHARE_OOPS_METHODDATA_HPP
 
 #include "interpreter/bytecodes.hpp"
+#include "interpreter/invocationCounter.hpp"
 #include "oops/metadata.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.hpp"
@@ -129,7 +130,8 @@ public:
     virtual_call_type_data_tag,
     parameters_type_data_tag,
     speculative_trap_data_tag,
-    array_load_store_data_tag,
+    array_store_data_tag,
+    array_load_data_tag,
     acmp_data_tag
   };
 
@@ -262,6 +264,7 @@ class     CounterData;
 class       ReceiverTypeData;
 class         VirtualCallData;
 class           VirtualCallTypeData;
+class         ArrayStoreData;
 class       RetData;
 class       CallTypeData;
 class   JumpData;
@@ -272,7 +275,7 @@ class     MultiBranchData;
 class     ArgInfoData;
 class     ParametersTypeData;
 class   SpeculativeTrapData;
-class   ArrayLoadStoreData;
+class   ArrayLoadData;
 
 // ProfileData
 //
@@ -401,7 +404,8 @@ public:
   virtual bool is_VirtualCallTypeData()const { return false; }
   virtual bool is_ParametersTypeData() const { return false; }
   virtual bool is_SpeculativeTrapData()const { return false; }
-  virtual bool is_ArrayLoadStoreData() const { return false; }
+  virtual bool is_ArrayStoreData() const { return false; }
+  virtual bool is_ArrayLoadData() const { return false; }
   virtual bool is_ACmpData()           const { return false; }
 
 
@@ -461,9 +465,13 @@ public:
     assert(is_SpeculativeTrapData(), "wrong type");
     return is_SpeculativeTrapData() ? (SpeculativeTrapData*)this : nullptr;
   }
-  ArrayLoadStoreData* as_ArrayLoadStoreData() const {
-    assert(is_ArrayLoadStoreData(), "wrong type");
-    return is_ArrayLoadStoreData() ? (ArrayLoadStoreData*)this : nullptr;
+  ArrayStoreData* as_ArrayStoreData() const {
+    assert(is_ArrayStoreData(), "wrong type");
+    return is_ArrayStoreData() ? (ArrayStoreData*)this : nullptr;
+  }
+  ArrayLoadData* as_ArrayLoadData() const {
+    assert(is_ArrayLoadData(), "wrong type");
+    return is_ArrayLoadData() ? (ArrayLoadData*)this : nullptr;
   }
   ACmpData* as_ACmpData() const {
     assert(is_ACmpData(), "wrong type");
@@ -504,11 +512,12 @@ protected:
   enum : u1 {
     // null_seen:
     //  saw a null operand (cast/aastore/instanceof)
-      null_seen_flag              = DataLayout::first_flag + 0
+      null_seen_flag              = DataLayout::first_flag + 0,
 #if INCLUDE_JVMCI
     // bytecode threw any exception
-    , exception_seen_flag         = null_seen_flag + 1
+      exception_seen_flag         = null_seen_flag + 1,
 #endif
+      last_bit_data_flag
   };
   enum { bit_cell_count = 0 };  // no additional data fields needed.
 public:
@@ -529,7 +538,7 @@ public:
 
   // The null_seen flag bit is specially known to the interpreter.
   // Consulting it allows the compiler to avoid setting up null_check traps.
-  bool null_seen()     { return flag_at(null_seen_flag); }
+  bool null_seen() const  { return flag_at(null_seen_flag); }
   void set_null_seen()    { set_flag_at(null_seen_flag); }
 
 #if INCLUDE_JVMCI
@@ -1095,29 +1104,18 @@ public:
 // ReceiverTypeData
 //
 // A ReceiverTypeData is used to access profiling information about a
-// dynamic type check.  It consists of a counter which counts the total times
-// that the check is reached, and a series of (Klass*, count) pairs
-// which are used to store a type profile for the receiver of the check.
+// dynamic type check.  It consists of a series of (Klass*, count)
+// pairs which are used to store a type profile for the receiver of
+// the check, the associated count is incremented every time the type
+// is seen. A per ReceiverTypeData counter is incremented on type
+// overflow (when there's no more room for a not yet profiled Klass*).
+//
 class ReceiverTypeData : public CounterData {
   friend class VMStructs;
   friend class JVMCIVMStructs;
 protected:
   enum {
-#if INCLUDE_JVMCI
-    // Description of the different counters
-    // ReceiverTypeData for instanceof/checkcast/aastore:
-    //   count is decremented for failed type checks
-    //   JVMCI only: nonprofiled_count is incremented on type overflow
-    // VirtualCallData for invokevirtual/invokeinterface:
-    //   count is incremented on type overflow
-    //   JVMCI only: nonprofiled_count is incremented on method overflow
-
-    // JVMCI is interested in knowing the percentage of type checks involving a type not explicitly in the profile
-    nonprofiled_count_off_set = counter_cell_count,
-    receiver0_offset,
-#else
     receiver0_offset = counter_cell_count,
-#endif
     count0_offset,
     receiver_type_row_cell_count = (count0_offset + 1) - receiver0_offset
   };
@@ -1126,13 +1124,14 @@ public:
   ReceiverTypeData(DataLayout* layout) : CounterData(layout) {
     assert(layout->tag() == DataLayout::receiver_type_data_tag ||
            layout->tag() == DataLayout::virtual_call_data_tag ||
-           layout->tag() == DataLayout::virtual_call_type_data_tag, "wrong type");
+           layout->tag() == DataLayout::virtual_call_type_data_tag ||
+           layout->tag() == DataLayout::array_store_data_tag, "wrong type");
   }
 
   virtual bool is_ReceiverTypeData() const { return true; }
 
   static int static_cell_count() {
-    return counter_cell_count + (uint) TypeProfileWidth * receiver_type_row_cell_count JVMCI_ONLY(+ 1);
+    return counter_cell_count + (uint) TypeProfileWidth * receiver_type_row_cell_count;
   }
 
   virtual int cell_count() const {
@@ -1194,13 +1193,6 @@ public:
     set_count(0);
     set_receiver(row, nullptr);
     set_receiver_count(row, 0);
-#if INCLUDE_JVMCI
-    if (!this->is_VirtualCallData()) {
-      // if this is a ReceiverTypeData for JVMCI, the nonprofiled_count
-      // must also be reset (see "Description of the different counters" above)
-      set_nonprofiled_count(0);
-    }
-#endif
   }
 
   // Code generation support
@@ -1210,17 +1202,6 @@ public:
   static ByteSize receiver_count_offset(uint row) {
     return cell_offset(receiver_count_cell_index(row));
   }
-#if INCLUDE_JVMCI
-  static ByteSize nonprofiled_receiver_count_offset() {
-    return cell_offset(nonprofiled_count_off_set);
-  }
-  uint nonprofiled_count() const {
-    return uint_at(nonprofiled_count_off_set);
-  }
-  void set_nonprofiled_count(uint count) {
-    set_uint_at(nonprofiled_count_off_set, count);
-  }
-#endif // INCLUDE_JVMCI
   static ByteSize receiver_type_data_size() {
     return cell_offset(static_cell_count());
   }
@@ -1865,7 +1846,69 @@ public:
   virtual void print_data_on(outputStream* st, const char* extra = nullptr) const;
 };
 
-class ArrayLoadStoreData : public ProfileData {
+class ArrayStoreData : public ReceiverTypeData {
+private:
+  enum {
+    flat_array_flag = BitData::last_bit_data_flag,
+    null_free_array_flag = flat_array_flag + 1,
+  };
+
+  SingleTypeEntry _array;
+
+public:
+  ArrayStoreData(DataLayout* layout) :
+    ReceiverTypeData(layout),
+    _array(ReceiverTypeData::static_cell_count()) {
+    assert(layout->tag() == DataLayout::array_store_data_tag, "wrong type");
+    _array.set_profile_data(this);
+  }
+
+  const SingleTypeEntry* array() const {
+    return &_array;
+  }
+
+  virtual bool is_ArrayStoreData() const { return true; }
+
+  static int static_cell_count() {
+    return ReceiverTypeData::static_cell_count() + SingleTypeEntry::static_cell_count();
+  }
+
+  virtual int cell_count() const {
+    return static_cell_count();
+  }
+
+  void set_flat_array() { set_flag_at(flat_array_flag); }
+  bool flat_array() const { return flag_at(flat_array_flag); }
+
+  void set_null_free_array() { set_flag_at(null_free_array_flag); }
+  bool null_free_array() const { return flag_at(null_free_array_flag); }
+
+  // Code generation support
+  static int flat_array_byte_constant() {
+    return flag_number_to_constant(flat_array_flag);
+  }
+
+  static int null_free_array_byte_constant() {
+    return flag_number_to_constant(null_free_array_flag);
+  }
+
+  static ByteSize array_offset() {
+    return cell_offset(ReceiverTypeData::static_cell_count());
+  }
+
+  virtual void clean_weak_klass_links(bool always_clean) {
+    ReceiverTypeData::clean_weak_klass_links(always_clean);
+    _array.clean_weak_klass_links(always_clean);
+  }
+
+  static ByteSize array_store_data_size() {
+    return cell_offset(static_cell_count());
+  }
+
+  virtual void print_data_on(outputStream* st, const char* extra = nullptr) const;
+};
+
+class ArrayLoadData : public ProfileData {
 private:
   enum {
     flat_array_flag = DataLayout::first_flag,
@@ -1876,11 +1919,11 @@ private:
   SingleTypeEntry _element;
 
 public:
-  ArrayLoadStoreData(DataLayout* layout) :
+  ArrayLoadData(DataLayout* layout) :
     ProfileData(layout),
     _array(0),
     _element(SingleTypeEntry::static_cell_count()) {
-    assert(layout->tag() == DataLayout::array_load_store_data_tag, "wrong type");
+    assert(layout->tag() == DataLayout::array_load_data_tag, "wrong type");
     _array.set_profile_data(this);
     _element.set_profile_data(this);
   }
@@ -1893,7 +1936,7 @@ public:
     return &_element;
   }
 
-  virtual bool is_ArrayLoadStoreData() const { return true; }
+  virtual bool is_ArrayLoadData() const { return true; }
 
   static int static_cell_count() {
     return SingleTypeEntry::static_cell_count() * 2;
@@ -1931,7 +1974,7 @@ public:
     _element.clean_weak_klass_links(always_clean);
   }
 
-  static ByteSize array_load_store_data_size() {
+  static ByteSize array_load_data_size() {
     return cell_offset(static_cell_count());
   }
 

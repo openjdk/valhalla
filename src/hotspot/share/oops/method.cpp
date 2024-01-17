@@ -1191,7 +1191,7 @@ void Method::clear_code() {
 }
 
 void Method::unlink_code(CompiledMethod *compare) {
-  MutexLocker ml(CompiledMethod_lock->owned_by_self() ? nullptr : CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+  ConditionalMutexLocker ml(CompiledMethod_lock, !CompiledMethod_lock->owned_by_self(), Mutex::_no_safepoint_check_flag);
   // We need to check if either the _code or _from_compiled_code_entry_point
   // refer to this nmethod because there is a race in setting these two fields
   // in Method* as seen in bugid 4947125.
@@ -1202,7 +1202,7 @@ void Method::unlink_code(CompiledMethod *compare) {
 }
 
 void Method::unlink_code() {
-  MutexLocker ml(CompiledMethod_lock->owned_by_self() ? nullptr : CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+  ConditionalMutexLocker ml(CompiledMethod_lock, !CompiledMethod_lock->owned_by_self(), Mutex::_no_safepoint_check_flag);
   clear_code();
 }
 
@@ -2358,12 +2358,12 @@ bool Method::is_scalarized_arg(int idx) const {
   if (!has_scalarized_args()) {
     return false;
   }
-  // Search through signature and check if argument is wrapped in T_PRIMITIVE_OBJECT/T_VOID
+  // Search through signature and check if argument is wrapped in T_METADATA/T_VOID
   int depth = 0;
   const GrowableArray<SigEntry>* sig = adapter()->get_sig_cc();
   for (int i = 0; i < sig->length(); i++) {
     BasicType bt = sig->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       depth++;
     }
     if (idx == 0) {

@@ -30,6 +30,7 @@
 #include "opto/convertnode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/opaquenode.hpp"
+#include "opto/predicates.hpp"
 #include "opto/rootnode.hpp"
 
 //================= Loop Unswitching =====================
@@ -144,17 +145,11 @@ IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, No
 // insert a clone of the test that selects which version to
 // execute.
 void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
-  LoopNode *head = loop->_head->as_Loop();
-  Node* entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
-  if (ParsePredicates::is_success_proj(entry)) {
-    assert(entry->is_IfProj(), "sanity - must be ifProj since there is at least one predicate");
-    if (entry->outcnt() > 1) {
-      // Bailout if there are predicates from which there are additional control dependencies (i.e. from loop
-      // entry 'entry') to previously partially peeled statements since this case is not handled and can lead
-      // to a wrong execution. Remove this bailout, once this is fixed.
-      return;
-    }
+  LoopNode* head = loop->_head->as_Loop();
+  if (has_control_dependencies_from_predicates(head)) {
+    return;
   }
+
   // Find first invariant test that doesn't exit the loop
   Node_List unswitch_iffs;
   IfNode* unswitch_iff = find_unswitching_candidate((const IdealLoopTree *)loop, unswitch_iffs);
@@ -179,24 +174,8 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
 
   IfNode* invar_iff = create_slow_version_of_loop(loop, old_new, unswitch_iffs, CloneIncludesStripMined);
   ProjNode* proj_true = invar_iff->proj_out(1);
-  ProjNode* proj_false = invar_iff->proj_out(0);
+  verify_fast_loop(head, proj_true);
 
-#ifdef ASSERT
-  assert(proj_true->is_IfTrue(), "must be true projection");
-  entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
-  ParsePredicates parse_predicates(entry);
-  if (!parse_predicates.has_any()) {
-    // No Parse Predicate.
-    Node* uniqc = proj_true->unique_ctrl_out();
-    assert((uniqc == head && !head->is_strip_mined()) || (uniqc == head->in(LoopNode::EntryControl)
-           && head->is_strip_mined()), "must hold by construction if no predicates");
-  } else {
-    // There is at least one Parse Predicate. When skipping all predicates/Regular Predicate Blocks, we should end up
-    // at 'proj_true'.
-    assert(proj_true == Predicates::skip_all_predicates(parse_predicates),
-           "must hold by construction if at least one Parse Predicate");
-  }
-#endif
   // Increment unswitch count
   LoopNode* head_clone = old_new[head->_idx]->as_Loop();
   int nct = head->unswitch_count() + 1;
@@ -268,6 +247,21 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
 #endif
 
   C->set_major_progress();
+}
+
+bool PhaseIdealLoop::has_control_dependencies_from_predicates(LoopNode* head) const {
+  Node* entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
+  Predicates predicates(entry);
+  if (predicates.has_any()) {
+    assert(entry->is_IfProj(), "sanity - must be ifProj since there is at least one predicate");
+    if (entry->outcnt() > 1) {
+      // Bailout if there are predicates from which there are additional control dependencies (i.e. from loop
+      // entry 'entry') to previously partially peeled statements since this case is not handled and can lead
+      // to a wrong execution. Remove this bailout, once this is fixed.
+      return true;
+    }
+  }
+  return false;
 }
 
 //-------------------------create_slow_version_of_loop------------------------
@@ -343,6 +337,24 @@ IfNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
 
   return iff;
 }
+
+#ifdef ASSERT
+void PhaseIdealLoop::verify_fast_loop(LoopNode* head, const ProjNode* proj_true) const {
+  assert(proj_true->is_IfTrue(), "must be true projection");
+  Node* entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
+  Predicates predicates(entry);
+  if (!predicates.has_any()) {
+    // No Parse Predicate.
+    Node* uniqc = proj_true->unique_ctrl_out();
+    assert((uniqc == head && !head->is_strip_mined()) || (uniqc == head->in(LoopNode::EntryControl)
+                                                          && head->is_strip_mined()), "must hold by construction if no predicates");
+  } else {
+    // There is at least one Parse Predicate. When skipping all predicates/predicate blocks, we should end up
+    // at 'proj_true'.
+    assert(proj_true == predicates.entry(), "must hold by construction if at least one Parse Predicate");
+  }
+}
+#endif // ASSERT
 
 LoopNode* PhaseIdealLoop::create_reserve_version_of_loop(IdealLoopTree *loop, CountedLoopReserveKit* lk) {
   Node_List old_new;
