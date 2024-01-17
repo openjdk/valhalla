@@ -1636,7 +1636,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
             break;
           }
         }
-          /* no break */
+        /* no break */
 
         case T_LONG: case T_DOUBLE: {
           assert(value->type() == T_INT, "Agreement.");
