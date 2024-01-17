@@ -81,6 +81,14 @@ tools/javac/Diagnostics/8043251/T8043251.java                                   
 tools/javac/annotations/SyntheticParameters.java                                8317415    generic-all
 tools/javac/annotations/typeAnnotations/classfile/SyntheticParameters.java      8317415    generic-all
 
+tools/javac/valhalla/primitive-classes/ArrayCreationWithQuestion.java 8323785    generic-all
+tools/javac/valhalla/primitive-classes/BoxValCastTest.java            8323785    generic-all
+tools/javac/valhalla/primitive-classes/ConstantPropagationTest.java   8323785    generic-all
+tools/javac/valhalla/primitive-classes/ProjectedArrayDotClass.java    8323785    generic-all
+tools/javac/valhalla/primitive-classes/QTypeTest.java                 8323785    generic-all
+tools/javac/valhalla/primitive-classes/UnifiedPrimitiveClassBytecodeTest.java 8323785    generic-all
+tools/javac/valhalla/primitive-classes/ValueCreationTest.java         8323785    generic-all
+tools/javac/valhalla/value-objects/ValueCreationTest.java             8323786    generic-all
 
 ###########################################################################
 #
@@ -88,6 +96,9 @@ tools/javac/annotations/typeAnnotations/classfile/SyntheticParameters.java      
 
 tools/javap/output/RepeatingTypeAnnotations.java                                8057687    generic-all    emit correct byte code an attributes for type annotations
 
+# Valhalla
+tools/javap/8006334/JavapTaskCtorFailWithNPE.java                               8323789    generic-all
+tools/javap/TestSuperclass.java                                                 8323790    generic-all
 ###########################################################################
 #
 # jdeps

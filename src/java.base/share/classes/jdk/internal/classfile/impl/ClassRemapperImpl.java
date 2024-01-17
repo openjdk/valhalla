@@ -57,6 +57,7 @@ import jdk.internal.classfile.attribute.ModuleProvideInfo;
 import jdk.internal.classfile.attribute.NestHostAttribute;
 import jdk.internal.classfile.attribute.NestMembersAttribute;
 import jdk.internal.classfile.attribute.PermittedSubclassesAttribute;
+import jdk.internal.classfile.attribute.PreloadAttribute;
 import jdk.internal.classfile.attribute.RecordAttribute;
 import jdk.internal.classfile.attribute.RecordComponentInfo;
 import jdk.internal.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
@@ -142,6 +143,10 @@ public record ClassRemapperImpl(Function<ClassDesc, ClassDesc> mapFunction) impl
                 clb.with(PermittedSubclassesAttribute.ofSymbols(
                         psa.permittedSubclasses().stream().map(ps ->
                                 map(ps.asSymbol())).toList()));
+            case PreloadAttribute pa ->
+                clb.with(PreloadAttribute.ofSymbols(
+                        pa.preloads().stream().map(pc ->
+                                map(pc.asSymbol())).toList()));
             case RuntimeVisibleAnnotationsAttribute aa ->
                 clb.with(RuntimeVisibleAnnotationsAttribute.of(
                         mapAnnotations(aa.annotations())));
