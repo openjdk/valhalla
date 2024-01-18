@@ -7143,6 +7143,11 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register t1, R
 
   // Load (object->mark() | 1) into hdr
   orr(hdr, hdr, markWord::unlocked_value);
+  if (EnableValhalla) {
+    // Mask inline_type bit such that we go to the slow path if object is an inline type
+    andr(hdr, hdr, ~((int) markWord::inline_type_bit_in_place));
+  }
+
   // Clear lock-bits, into t2
   eor(t2, hdr, markWord::unlocked_value);
   // Try to swing header from unlocked to locked
