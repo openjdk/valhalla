@@ -442,6 +442,9 @@ int ciMethod::check_overflow(int c, Bytecodes::Code code) {
     case Bytecodes::_aastore:    // fall-through
     case Bytecodes::_checkcast:  // fall-through
     case Bytecodes::_instanceof: {
+      if (VM_Version::profile_all_receivers_at_type_check()) {
+        return (c < 0 ? max_jint : c); // always non-negative
+      }
       return (c > 0 ? min_jint : c); // always non-positive
     }
     default: {
@@ -660,14 +663,35 @@ bool ciMethod::parameter_profiled_type(int i, ciKlass*& type, ProfilePtrKind& pt
 bool ciMethod::array_access_profiled_type(int bci, ciKlass*& array_type, ciKlass*& element_type, ProfilePtrKind& element_ptr, bool &flat_array, bool &null_free_array) {
   if (method_data() != nullptr && method_data()->is_mature()) {
     ciProfileData* data = method_data()->bci_to_data(bci);
-    if (data != nullptr && data->is_ArrayLoadStoreData()) {
-      ciArrayLoadStoreData* array_access = (ciArrayLoadStoreData*)data->as_ArrayLoadStoreData();
-      array_type = array_access->array()->valid_type();
-      element_type = array_access->element()->valid_type();
-      element_ptr = array_access->element()->ptr_kind();
-      flat_array = array_access->flat_array();
-      null_free_array = array_access->null_free_array();
-      return true;
+    if (data != nullptr) {
+      if (data->is_ArrayLoadData()) {
+        ciArrayLoadData* array_access = (ciArrayLoadData*) data->as_ArrayLoadData();
+        array_type = array_access->array()->valid_type();
+        element_type = array_access->element()->valid_type();
+        element_ptr = array_access->element()->ptr_kind();
+        flat_array = array_access->flat_array();
+        null_free_array = array_access->null_free_array();
+        return true;
+      } else if (data->is_ArrayStoreData()) {
+        ciArrayStoreData* array_access = (ciArrayStoreData*) data->as_ArrayStoreData();
+        array_type = array_access->array()->valid_type();
+        flat_array = array_access->flat_array();
+        null_free_array = array_access->null_free_array();
+        ciCallProfile call_profile = call_profile_at_bci(bci);
+        if (call_profile.morphism() == 1) {
+          element_type = call_profile.receiver(0);
+        } else {
+          element_type = nullptr;
+        }
+        if (!array_access->null_seen()) {
+          element_ptr = ProfileNeverNull;
+        } else if (call_profile.count() == 0) {
+          element_ptr = ProfileAlwaysNull;
+        } else {
+          element_ptr = ProfileMaybeNull;
+        }
+        return true;
+      }
     }
   }
   return false;
@@ -1434,7 +1458,6 @@ void ciMethod::print_impl(outputStream* st) {
 static BasicType erase_to_word_type(BasicType bt) {
   if (is_subword_type(bt))   return T_INT;
   if (is_reference_type(bt)) return T_OBJECT;
-  if (bt == T_PRIMITIVE_OBJECT)   return T_OBJECT;
   return bt;
 }
 

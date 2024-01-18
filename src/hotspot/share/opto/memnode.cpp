@@ -930,7 +930,6 @@ Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypeP
   case T_FLOAT:   load = new LoadFNode (ctl, mem, adr, adr_type, rt,            mo, control_dependency); break;
   case T_DOUBLE:  load = new LoadDNode (ctl, mem, adr, adr_type, rt,            mo, control_dependency, require_atomic_access); break;
   case T_ADDRESS: load = new LoadPNode (ctl, mem, adr, adr_type, rt->is_ptr(),  mo, control_dependency); break;
-  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {
@@ -1165,7 +1164,6 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       // (This is one of the few places where a generic PhaseTransform
       // can create new nodes.  Think of it as lazily manifesting
       // virtually pre-existing constants.)
-      assert(memory_type() != T_PRIMITIVE_OBJECT, "should not be used for inline types");
       Node* default_value = ld_alloc->in(AllocateNode::DefaultValue);
       if (default_value != nullptr) {
         return default_value;
@@ -2702,7 +2700,6 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
   case T_DOUBLE:  return new StoreDNode(ctl, mem, adr, adr_type, val, mo, require_atomic_access);
   case T_METADATA:
   case T_ADDRESS:
-  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {

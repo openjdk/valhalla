@@ -467,7 +467,7 @@ JRT_ENTRY(void, Runtime1::new_multi_array(JavaThread* current, Klass* klass, int
 JRT_END
 
 
-static void profile_flat_array(JavaThread* current) {
+static void profile_flat_array(JavaThread* current, bool load) {
   ResourceMark rm(current);
   vframeStream vfst(current, true);
   assert(!vfst.at_end(), "Java frame must exist");
@@ -480,15 +480,23 @@ static void profile_flat_array(JavaThread* current) {
   MethodData* md = method->method_data();
   if (md != nullptr) {
     ProfileData* data = md->bci_to_data(bci);
-    assert(data != nullptr && data->is_ArrayLoadStoreData(), "incorrect profiling entry");
-    ArrayLoadStoreData* load_store = (ArrayLoadStoreData*)data;
-    load_store->set_flat_array();
+    assert(data != nullptr, "incorrect profiling entry");
+    if (data->is_ArrayLoadData()) {
+      assert(load, "should be an array load");
+      ArrayLoadData* load_data = (ArrayLoadData*) data;
+      load_data->set_flat_array();
+    } else {
+      assert(data->is_ArrayStoreData(), "");
+      assert(!load, "should be an array store");
+      ArrayStoreData* store_data = (ArrayStoreData*) data;
+      store_data->set_flat_array();
+    }
   }
 }
 
 JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc* array, int index))
   assert(array->klass()->is_flatArray_klass(), "should not be called");
-  profile_flat_array(current);
+  profile_flat_array(current, true);
 
   NOT_PRODUCT(_load_flat_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
@@ -500,7 +508,7 @@ JRT_END
 
 JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
   if (array->klass()->is_flatArray_klass()) {
-    profile_flat_array(current);
+    profile_flat_array(current, false);
   }
 
   NOT_PRODUCT(_store_flat_array_slowcase_cnt++;)

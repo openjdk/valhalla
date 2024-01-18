@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1658,5 +1658,39 @@ public class TestIntrinsics {
         Test80Value1 v = new Test80Value1();
         Field field = PrimitiveClass.asValueType(Test80Value1.class).getDeclaredField("v");
         Asserts.assertEQ(test80(v, U.isFlattened(field), U.objectFieldOffset(field)), v.v);
+    }
+
+    // Test correctness of the Unsafe::isFlattenedArray intrinsic
+    @Test
+    public boolean test81(Class<?> cls) {
+        return U.isFlattenedArray(cls);
+    }
+
+    @Run(test = "test81")
+    public void test81_verifier() {
+        Asserts.assertEQ(test81(MyValue1[].class), TEST33_FLATTENED_ARRAY, "test81_1 failed");
+        Asserts.assertFalse(test81(String[].class), "test81_2 failed");
+        Asserts.assertFalse(test81(String.class), "test81_3 failed");
+        Asserts.assertFalse(test81(int[].class), "test81_4 failed");
+    }
+
+    // Verify that Unsafe::isFlattenedArray checks with statically known classes
+    // are folded
+    @Test
+    @IR(failOn = {LOADK})
+    public boolean test82() {
+        boolean check1 = U.isFlattenedArray(MyValue1[].class);
+        if (!TEST33_FLATTENED_ARRAY) {
+            check1 = !check1;
+        }
+        boolean check2 = !U.isFlattenedArray(String[].class);
+        boolean check3 = !U.isFlattenedArray(String.class);
+        boolean check4 = !U.isFlattenedArray(int[].class);
+        return check1 && check2 && check3 && check4;
+    }
+
+    @Run(test = "test82")
+    public void test82_verifier() {
+        Asserts.assertTrue(test82(), "test82 failed");
     }
 }

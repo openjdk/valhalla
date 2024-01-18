@@ -42,6 +42,7 @@
 #include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -54,6 +55,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature_cc.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/checkedCast.hpp"
 #include "utilities/macros.hpp"
 #include "vmreg_x86.inline.hpp"
 #ifdef COMPILER2
@@ -2901,7 +2903,7 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
+  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::notZero, is_null_free_inline_type);
@@ -2909,7 +2911,7 @@ void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Registe
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
+  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::zero, not_null_free_inline_type);
@@ -2917,7 +2919,7 @@ void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Reg
 
 void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flat_shift);
+  shrl(temp_reg, ResolvedFieldEntry::is_flat_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::notZero, is_flat);
@@ -6344,7 +6346,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                                         VMRegPair* from, int from_count, int& from_index, VMReg to,
                                         RegState reg_state[], Register val_array) {
-  assert(sig->at(sig_index)._bt == T_PRIMITIVE_OBJECT, "should be at end delimiter");
+  assert(sig->at(sig_index)._bt == T_METADATA, "should be at delimiter");
   assert(to->is_valid(), "destination must be valid");
 
   if (reg_state[to->value()] == reg_written) {
@@ -6371,7 +6373,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     val_obj = val_obj_tmp;
   }
 
-  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_PRIMITIVE_OBJECT);
+  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
   load_heap_oop(val_obj, Address(val_array, index));
 
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
@@ -10561,7 +10563,7 @@ void MacroAssembler::check_stack_alignment(Register sp, const char* msg, unsigne
   bind(L_stack_ok);
 }
 
-// Implements fast-locking.
+// Implements lightweight-locking.
 // Branches to slow upon failure to lock the object, with ZF cleared.
 // Falls through upon success with unspecified ZF.
 //
@@ -10569,7 +10571,7 @@ void MacroAssembler::check_stack_alignment(Register sp, const char* msg, unsigne
 // hdr: the (pre-loaded) header of the object, must be rax
 // thread: the thread which attempts to lock obj
 // tmp: a temporary register
-void MacroAssembler::fast_lock_impl(Register obj, Register hdr, Register thread, Register tmp, Label& slow) {
+void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register thread, Register tmp, Label& slow) {
   assert(hdr == rax, "header must be in rax for cmpxchg");
   assert_different_registers(obj, hdr, thread, tmp);
 
@@ -10597,14 +10599,14 @@ void MacroAssembler::fast_lock_impl(Register obj, Register hdr, Register thread,
   movl(Address(thread, JavaThread::lock_stack_top_offset()), tmp);
 }
 
-// Implements fast-unlocking.
+// Implements lightweight-unlocking.
 // Branches to slow upon failure, with ZF cleared.
 // Falls through upon success, with unspecified ZF.
 //
 // obj: the object to be unlocked
 // hdr: the (pre-loaded) header of the object, must be rax
 // tmp: a temporary register
-void MacroAssembler::fast_unlock_impl(Register obj, Register hdr, Register tmp, Label& slow) {
+void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register tmp, Label& slow) {
   assert(hdr == rax, "header must be in rax for cmpxchg");
   assert_different_registers(obj, hdr, tmp);
 

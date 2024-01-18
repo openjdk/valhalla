@@ -376,14 +376,17 @@ class InstanceKlass: public Klass {
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
   // It inherits from supers along with NonTearable.
-  bool is_declared_atomic() const { return _misc_flags.is_declared_atomic(); }
-  void set_is_declared_atomic()   { _misc_flags.set_is_declared_atomic(true); }
+  bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
+  void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
   bool carries_value_modifier() const { return _misc_flags.carries_value_modifier(); }
   void set_carries_value_modifier()   { _misc_flags.set_carries_value_modifier(true); }
 
   bool carries_identity_modifier() const  { return _misc_flags.carries_identity_modifier(); }
   void set_carries_identity_modifier()    { _misc_flags.set_carries_identity_modifier(true); }
+
+  bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
+  void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }
@@ -403,6 +406,7 @@ class InstanceKlass: public Klass {
   ArrayKlass* array_klasses() const     { return _array_klasses; }
   inline ArrayKlass* array_klasses_acquire() const; // load with acquire semantics
   inline void release_set_array_klasses(ArrayKlass* k); // store with release semantics
+  void set_array_klasses(ArrayKlass* k) { _array_klasses = k; }
 
   // methods
   Array<Method*>* methods() const          { return _methods; }
@@ -567,6 +571,14 @@ public:
   static void check_prohibited_package(Symbol* class_name,
                                        ClassLoaderData* loader_data,
                                        TRAPS);
+
+  JavaThread* init_thread()  { return Atomic::load(&_init_thread); }
+  // We can safely access the name as long as we hold the _init_monitor.
+  const char* init_thread_name() {
+    assert(_init_monitor->owned_by_self(), "Must hold _init_monitor here");
+    return init_thread()->name_raw();
+  }
+
  public:
   // initialization state
   bool is_loaded() const                   { return init_state() >= loaded; }
@@ -576,7 +588,7 @@ public:
   bool is_not_initialized() const          { return init_state() <  being_initialized; }
   bool is_being_initialized() const        { return init_state() == being_initialized; }
   bool is_in_error_state() const           { return init_state() == initialization_error; }
-  bool is_init_thread(JavaThread *thread)  { return thread == Atomic::load(&_init_thread); }
+  bool is_init_thread(JavaThread *thread)  { return thread == init_thread(); }
   ClassState  init_state() const           { return Atomic::load(&_init_state); }
   const char* init_state_name() const;
   bool is_rewritten() const                { return _misc_flags.rewritten(); }
@@ -1167,12 +1179,12 @@ public:
   // Lock during initialization
 public:
   // Returns the array class for the n'th dimension
-  virtual Klass* array_klass(int n, TRAPS);
-  virtual Klass* array_klass_or_null(int n);
+  virtual ArrayKlass* array_klass(int n, TRAPS);
+  virtual ArrayKlass* array_klass_or_null(int n);
 
   // Returns the array class with this class as element type
-  virtual Klass* array_klass(TRAPS);
-  virtual Klass* array_klass_or_null();
+  virtual ArrayKlass* array_klass(TRAPS);
+  virtual ArrayKlass* array_klass_or_null();
 
   static void clean_initialization_error_table();
 

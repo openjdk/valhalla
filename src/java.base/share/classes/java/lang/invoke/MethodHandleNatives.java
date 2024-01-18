@@ -116,9 +116,11 @@ class MethodHandleNatives {
             MN_IS_TYPE               = 0x00080000, // nested type
             MN_CALLER_SENSITIVE      = 0x00100000, // @CallerSensitive annotation detected
             MN_TRUSTED_FINAL         = 0x00200000, // trusted final field
-            MN_FLATTENED             = 0x00400000, // flattened field
-            MN_REFERENCE_KIND_SHIFT  = 24, // refKind
-            MN_REFERENCE_KIND_MASK   = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT;
+            MN_HIDDEN_MEMBER         = 0x00400000, // members defined in a hidden class or with @Hidden
+            MN_FLAT_FIELD            = 0x00800000, // flat field
+            MN_NULL_RESTRICTED       = 0x01000000, // null-restricted field
+            MN_REFERENCE_KIND_SHIFT  = 26, // refKind
+            MN_REFERENCE_KIND_MASK   = 0x3C000000 >> MN_REFERENCE_KIND_SHIFT;
 
         /**
          * Constant pool reference-kind codes, as used by CONSTANT_MethodHandle CP entries.

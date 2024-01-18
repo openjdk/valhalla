@@ -22,13 +22,17 @@
  *
  */
 
-public final primitive value class runtime/valhalla/inlinetypes/TestPrimitiveClass
+@+"jdk/internal/vm/annotation/ImplicitlyConstructible" { }
+@+"jdk/internal/vm/annotation/LooselyConsistentValue" { }
+public final value class runtime/valhalla/inlinetypes/TestPrimitiveClass
     version 66:0
 {
     final Field nullableField:   "Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
-    final Field nullfreeField:   "Qruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;"; // flattened
+    @+"jdk/internal/vm/annotation/NullRestricted" { }
+    final Field nullfreeField:   "Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;"; // flattened
     final Field nullField:       "Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;"; // src of null
-    final Field nullfreeBigField:"Qruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;"; // not flattened
+    @+"jdk/internal/vm/annotation/NullRestricted" { }
+    final Field nullfreeBigField:"Lruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;"; // not flattened
     final Field nullBigField:    "Lruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;"; // src of null
 
     public Method withNullableField:"(Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;)Lruntime/valhalla/inlinetypes/TestPrimitiveClass;"
@@ -40,21 +44,21 @@ public final primitive value class runtime/valhalla/inlinetypes/TestPrimitiveCla
         areturn;
     }
 
-    public Method withNullfreeField:"(Qruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;)Lruntime/valhalla/inlinetypes/TestPrimitiveClass;"
+    public Method withNullfreeField:"(Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;)Lruntime/valhalla/inlinetypes/TestPrimitiveClass;"
         stack 2
     {
         aload_0;
         aload_1;
-        withfield nullfreeField:"Qruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
+        withfield nullfreeField:"Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
         areturn;
     }
 
-    public Method withNullfreeBigField:"(Qruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;)Lruntime/valhalla/inlinetypes/TestPrimitiveClass;"
+    public Method withNullfreeBigField:"(Lruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;)Lruntime/valhalla/inlinetypes/TestPrimitiveClass;"
         stack 2
     {
         aload_0;
         aload_1;
-        withfield nullfreeBigField:"Qruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;";
+        withfield nullfreeBigField:"Lruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;";
         areturn;
     }
 

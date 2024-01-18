@@ -364,7 +364,7 @@ void Parse::do_withfield() {
 
   // Clone the inline type node and set the new field value
   InlineTypeNode* new_vt = holder->clone()->as_InlineType();
-  new_vt->set_oop(gvn().zerocon(T_PRIMITIVE_OBJECT));
+  new_vt->set_oop(gvn().zerocon(T_OBJECT));
   new_vt->set_is_buffered(gvn(), false);
 
   BasicType bt = field->type()->basic_type();

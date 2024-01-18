@@ -97,7 +97,6 @@ LIR_Address::Scale LIR_Address::scale(BasicType type) {
 char LIR_Opr::type_char(BasicType t) {
   switch (t) {
     case T_ARRAY:
-    case T_PRIMITIVE_OBJECT:
       t = T_OBJECT;
     case T_BOOLEAN:
     case T_CHAR:
@@ -154,7 +153,6 @@ void LIR_Opr::validate_type() const {
     case T_OBJECT:
     case T_METADATA:
     case T_ARRAY:
-    case T_PRIMITIVE_OBJECT:
       assert((kindfield == cpu_register || kindfield == stack_value) &&
              size_field() == single_size, "must match");
       break;
@@ -1514,7 +1512,7 @@ void LIR_List::allocate_object(LIR_Opr dst, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, 
                            stub));
 }
 
-void LIR_List::allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub) {
+void LIR_List::allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub, bool is_null_free) {
   append(new LIR_OpAllocArray(
                            klass,
                            len,
@@ -1524,7 +1522,8 @@ void LIR_List::allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, L
                            t3,
                            t4,
                            type,
-                           stub));
+                           stub,
+                           is_null_free));
 }
 
 void LIR_List::shift_left(LIR_Opr value, LIR_Opr count, LIR_Opr dst, LIR_Opr tmp) {

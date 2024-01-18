@@ -22,7 +22,12 @@
  */
 package runtime.valhalla.inlinetypes;
 
-public primitive final class Point {
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+public value class Point {
     final int x;
     final int y;
 

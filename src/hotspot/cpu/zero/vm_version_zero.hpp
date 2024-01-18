@@ -38,6 +38,8 @@ class VM_Version : public Abstract_VM_Version {
   static void initialize_cpu_information(void);
 
   static int max_vector_size(BasicType bt) { return -1;}
+
+  static bool profile_all_receivers_at_type_check() { return false; }
 };
 
 #endif // CPU_ZERO_VM_VERSION_ZERO_HPP

@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/metaspaceShared.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/symbolTable.hpp"
@@ -33,11 +34,11 @@
 #include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "oops/arrayKlass.hpp"
-#include "oops/objArrayKlass.hpp"
+#include "oops/arrayKlass.inline.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -98,6 +99,7 @@ ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind) :
   set_layout_helper(Klass::_lh_neutral_value);
   set_is_cloneable(); // All arrays are considered to be cloneable (See JLS 20.1.5)
   JFR_ONLY(INIT_ID(this);)
+  log_array_class_load(this);
 }
 
 Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, bool qdesc, TRAPS) {
@@ -139,6 +141,64 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
   java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), Handle(), CHECK);
 }
 
+ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
+
+  assert(dimension() <= n, "check order of chain");
+  int dim = dimension();
+  if (dim == n) return this;
+
+  // lock-free read needs acquire semantics
+  if (higher_dimension_acquire() == nullptr) {
+
+    ResourceMark rm(THREAD);
+    {
+      // Ensure atomic creation of higher dimensions
+      MutexLocker mu(THREAD, MultiArray_lock);
+
+      // Check if another thread beat us
+      if (higher_dimension() == nullptr) {
+
+        // Create multi-dim klass object and link them together
+        ObjArrayKlass* ak =
+          ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this,
+                                                 false, name()->is_Q_array_signature(), CHECK_NULL);
+        ak->set_lower_dimension(this);
+        // use 'release' to pair with lock-free load
+        release_set_higher_dimension(ak);
+        assert(ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
+      }
+    }
+  }
+
+  ObjArrayKlass *ak = higher_dimension();
+  THREAD->check_possible_safepoint();
+  return ak->array_klass(n, THREAD);
+}
+
+ArrayKlass* ArrayKlass::array_klass_or_null(int n) {
+
+  assert(dimension() <= n, "check order of chain");
+  int dim = dimension();
+  if (dim == n) return this;
+
+  // lock-free read needs acquire semantics
+  if (higher_dimension_acquire() == nullptr) {
+    return nullptr;
+  }
+
+  ObjArrayKlass *ak = higher_dimension();
+  return ak->array_klass_or_null(n);
+}
+
+ArrayKlass* ArrayKlass::array_klass(TRAPS) {
+  return array_klass(dimension() +  1, THREAD);
+}
+
+ArrayKlass* ArrayKlass::array_klass_or_null() {
+  return array_klass_or_null(dimension() +  1);
+}
+
+
 GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
                                                             Array<InstanceKlass*>* transitive_interfaces) {
   // interfaces = { cloneable_klass, serializable_klass };
@@ -152,8 +212,7 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
 objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_NULL);
   size_t size = objArrayOopDesc::object_size(length);
-  Klass* k = array_klass(n+dimension(), CHECK_NULL);
-  ArrayKlass* ak = ArrayKlass::cast(k);
+  ArrayKlass* ak = array_klass(n + dimension(), CHECK_NULL);
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
                                                                 /* do_zero */ true, CHECK_NULL);
   // initialization to null not necessary, area already cleared
@@ -189,7 +248,7 @@ void ArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 void ArrayKlass::remove_unshareable_info() {
   Klass::remove_unshareable_info();
   if (_higher_dimension != nullptr) {
-    ArrayKlass *ak = ArrayKlass::cast(higher_dimension());
+    ArrayKlass *ak = higher_dimension();
     ak->remove_unshareable_info();
   }
 }
@@ -197,18 +256,18 @@ void ArrayKlass::remove_unshareable_info() {
 void ArrayKlass::remove_java_mirror() {
   Klass::remove_java_mirror();
   if (_higher_dimension != nullptr) {
-    ArrayKlass *ak = ArrayKlass::cast(higher_dimension());
+    ArrayKlass *ak = higher_dimension();
     ak->remove_java_mirror();
   }
 }
 
 void ArrayKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
-  assert(loader_data == ClassLoaderData::the_null_class_loader_data(), "array classes belong to null loader");
   Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
   // Klass recreates the component mirror also
 
   if (_higher_dimension != nullptr) {
-    ArrayKlass *ak = ArrayKlass::cast(higher_dimension());
+    ArrayKlass *ak = higher_dimension();
+    log_array_class_load(ak);
     ak->restore_unshareable_info(loader_data, protection_domain, CHECK);
   }
 }
@@ -217,12 +276,27 @@ void ArrayKlass::cds_print_value_on(outputStream* st) const {
   assert(is_klass(), "must be klass");
   st->print("      - array: %s", internal_name());
   if (_higher_dimension != nullptr) {
-    ArrayKlass* ak = ArrayKlass::cast(higher_dimension());
+    ArrayKlass* ak = higher_dimension();
     st->cr();
     ak->cds_print_value_on(st);
   }
 }
 #endif // INCLUDE_CDS
+
+void ArrayKlass::log_array_class_load(Klass* k) {
+  LogTarget(Debug, class, load, array) lt;
+  if (lt.is_enabled()) {
+    LogStream ls(lt);
+    ResourceMark rm;
+    ls.print("%s", k->name()->as_klass_external_name());
+    if (MetaspaceShared::is_shared_dynamic((void*)k)) {
+      ls.print(" source: shared objects file (top)");
+    } else if (MetaspaceShared::is_shared_static((void*)k)) {
+      ls.print(" source: shared objects file");
+    }
+    ls.cr();
+  }
+}
 
 // Printing
 

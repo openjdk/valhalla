@@ -38,6 +38,7 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.util.ClassFileDumper;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import sun.invoke.util.ValueConversions;
 import sun.invoke.util.VerifyAccess;
@@ -176,8 +177,6 @@ public class MethodHandles {
      * Also, it cannot access
      * <a href="MethodHandles.Lookup.html#callsens">caller sensitive methods</a>.
      * @return a lookup object which is trusted minimally
-     *
-     * @revised 9
      */
     public static Lookup publicLookup() {
         return Lookup.PUBLIC_LOOKUP;
@@ -1438,8 +1437,6 @@ public class MethodHandles {
      * so that there can be a secure foundation for lookups.
      * Nearly all other methods in the JSR 292 API rely on lookup
      * objects to check access requests.
-     *
-     * @revised 9
      */
     public static final
     class Lookup {
@@ -1622,8 +1619,6 @@ public class MethodHandles {
          *  @return the lookup modes, which limit the kinds of access performed by this lookup object
          *  @see #in
          *  @see #dropLookupMode
-         *
-         *  @revised 9
          */
         public int lookupModes() {
             return allowedModes & ALL_MODES;
@@ -1705,7 +1700,6 @@ public class MethodHandles {
          * @throws IllegalArgumentException if {@code requestedLookupClass} is a primitive type or void or array class
          * @throws NullPointerException if the argument is null
          *
-         * @revised 9
          * @see #accessClass(Class)
          * @see <a href="#cross-module-lookup">Cross-module lookups</a>
          */
@@ -2601,8 +2595,6 @@ public class MethodHandles {
          * because it requires a direct subclass relationship between
          * caller and callee.)
          * @see #in
-         *
-         * @revised 9
          */
         @Override
         public String toString() {
@@ -3548,6 +3540,33 @@ return mh1;
                 assert(!MethodHandleNatives.isCallerSensitive(ctor));  // must not be caller-sensitive
                 return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), defc, ctor, lookup);
             }
+        }
+
+        /*
+         * Produces a method handle that is capable of creating instances of the given class
+         * and instantiated by the given constructor.  No security manager check.
+         *
+         * This method should only be used by ReflectionFactory::newConstructorForSerialization.
+         */
+        /* package-private */ MethodHandle serializableConstructor(Class<?> decl, Constructor<?> c) throws IllegalAccessException {
+            MemberName ctor = new MemberName(c);
+            assert(ctor.isObjectConstructor() && constructorInSuperclass(decl, c));
+            checkAccess(REF_newInvokeSpecial, decl, ctor);
+            assert(!MethodHandleNatives.isCallerSensitive(ctor));  // maybeBindCaller not relevant here
+            return DirectMethodHandle.makeAllocator(decl, ctor).setVarargs(ctor);
+        }
+
+        private static boolean constructorInSuperclass(Class<?> decl, Constructor<?> ctor) {
+            if (decl == ctor.getDeclaringClass())
+                return true;
+
+            Class<?> cl = decl;
+            while ((cl = cl.getSuperclass()) != null) {
+                if (cl == ctor.getDeclaringClass()) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /**
@@ -5207,7 +5226,7 @@ assert((int)twice.invokeExact(21) == 42);
             return zero(Wrapper.forPrimitiveType(type), type);
         } else if (PrimitiveClass.isPrimitiveValueType(type)) {
             // singleton default value
-            Object value = UNSAFE.uninitializedDefaultValue(type);
+            Object value = ValueClass.zeroInstance(type);
             return identity(type).bindTo(value);
         } else {
             return zero(Wrapper.OBJECT, type);

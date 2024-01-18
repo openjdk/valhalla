@@ -96,6 +96,7 @@
 #include "services/attachListener.hpp"
 #include "services/management.hpp"
 #include "services/threadService.hpp"
+#include "utilities/checkedCast.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
@@ -422,6 +423,23 @@ JVM_ENTRY(jstring, JVM_GetTemporaryDirectory(JNIEnv *env))
   return (jstring) JNIHandles::make_local(THREAD, h());
 JVM_END
 
+JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len))
+  if (len < 0) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array length is negative");
+  }
+  oop mirror = JNIHandles::resolve_non_null(elmClass);
+  Klass* klass = java_lang_Class::as_Klass(mirror);
+  klass->initialize(CHECK_NULL);
+  if (!klass->is_value_class()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
+  }
+  InstanceKlass* ik = InstanceKlass::cast(klass);
+  if (!ik->is_implicitly_constructible()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not annotated with @ImplicitlyConstructible");
+  }
+  oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
+  return (jarray) JNIHandles::make_local(THREAD, array);
+JVM_END
 
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
 
@@ -542,16 +560,30 @@ JVM_END
 JVM_ENTRY(void, JVM_InitStackTraceElement(JNIEnv* env, jobject element, jobject stackFrameInfo))
   Handle stack_frame_info(THREAD, JNIHandles::resolve_non_null(stackFrameInfo));
   Handle stack_trace_element(THREAD, JNIHandles::resolve_non_null(element));
-  java_lang_StackFrameInfo::to_stack_trace_element(stack_frame_info, stack_trace_element, THREAD);
+  java_lang_StackFrameInfo::to_stack_trace_element(stack_frame_info, stack_trace_element, CHECK);
 JVM_END
 
 
 // java.lang.StackWalker //////////////////////////////////////////////////////
+JVM_ENTRY(void, JVM_ExpandStackFrameInfo(JNIEnv *env, jobject obj))
+  Handle stack_frame_info(THREAD, JNIHandles::resolve_non_null(obj));
 
+  bool have_name = (java_lang_StackFrameInfo::name(stack_frame_info()) != nullptr);
+  bool have_type = (java_lang_StackFrameInfo::type(stack_frame_info()) != nullptr);
+  Method* method = java_lang_StackFrameInfo::get_method(stack_frame_info());
+  if (!have_name) {
+    oop name = StringTable::intern(method->name(), CHECK);
+    java_lang_StackFrameInfo::set_name(stack_frame_info(), name);
+  }
+  if (!have_type) {
+    Handle type = java_lang_String::create_from_symbol(method->signature(), CHECK);
+    java_lang_StackFrameInfo::set_type(stack_frame_info(), type());
+  }
+JVM_END
 
-JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jlong mode,
+JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jint mode,
                                      jint skip_frames, jobject contScope, jobject cont,
-                                     jint frame_count, jint start_index, jobjectArray frames))
+                                     jint buffer_size, jint start_index, jobjectArray frames))
   if (!thread->has_last_Java_frame()) {
     THROW_MSG_(vmSymbols::java_lang_InternalError(), "doStackWalk: no stack trace", nullptr);
   }
@@ -559,39 +591,37 @@ JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jlong mod
   Handle stackStream_h(THREAD, JNIHandles::resolve_non_null(stackStream));
   Handle contScope_h(THREAD, JNIHandles::resolve(contScope));
   Handle cont_h(THREAD, JNIHandles::resolve(cont));
-  // frames array is a Class<?>[] array when only getting caller reference,
+  // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
   objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
   objArrayHandle frames_array_h(THREAD, fa);
 
-  int limit = start_index + frame_count;
-  if (frames_array_h->length() < limit) {
+  if (frames_array_h->length() < buffer_size) {
     THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers", nullptr);
   }
 
   oop result = StackWalk::walk(stackStream_h, mode, skip_frames, contScope_h, cont_h,
-                               frame_count, start_index, frames_array_h, CHECK_NULL);
+                               buffer_size, start_index, frames_array_h, CHECK_NULL);
   return JNIHandles::make_local(THREAD, result);
 JVM_END
 
 
-JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jlong mode, jlong anchor,
-                                  jint frame_count, jint start_index,
+JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, jlong anchor,
+                                  jint last_batch_count, jint buffer_size, jint start_index,
                                   jobjectArray frames))
-  // frames array is a Class<?>[] array when only getting caller reference,
+  // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
   objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
   objArrayHandle frames_array_h(THREAD, fa);
 
-  int limit = start_index+frame_count;
-  if (frames_array_h->length() < limit) {
+  if (frames_array_h->length() < buffer_size) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers");
   }
 
   Handle stackStream_h(THREAD, JNIHandles::resolve_non_null(stackStream));
-  return StackWalk::fetchNextBatch(stackStream_h, mode, anchor, frame_count,
+  return StackWalk::fetchNextBatch(stackStream_h, mode, anchor, last_batch_count, buffer_size,
                                   start_index, frames_array_h, THREAD);
 JVM_END
 
@@ -608,7 +638,7 @@ JVM_END
 
 
 JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
-  // as implemented in the classic virtual machine; return 0 if object is nullptr
+  // as implemented in the classic virtual machine; return 0 if object is null
   if (handle == nullptr) {
     return 0;
   }
@@ -629,7 +659,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
       }
       return result.get_jint();
   } else {
-    return ObjectSynchronizer::FastHashCode(THREAD, obj);
+    return checked_cast<jint>(ObjectSynchronizer::FastHashCode(THREAD, obj));
   }
 JVM_END
 
@@ -1262,6 +1292,12 @@ JVM_ENTRY(jboolean, JVM_IsIdentityClass(JNIEnv *env, jclass cls))
   }
 JVM_END
 
+JVM_ENTRY(jboolean, JVM_IsImplicitlyConstructibleClass(JNIEnv *env, jclass cls))
+  oop mirror = JNIHandles::resolve_non_null(cls);
+  InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
+  return ik->is_implicitly_constructible();
+JVM_END
+
 JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
   JvmtiVMObjectAllocEventCollector oam;
   oop mirror = JNIHandles::resolve_non_null(cls);
@@ -1630,7 +1666,7 @@ static bool jvm_get_field_common(jobject field, fieldDescriptor& fd) {
   int modifiers = java_lang_reflect_Field::modifiers(reflected);
 
   InstanceKlass* ik = InstanceKlass::cast(k);
-  intptr_t offset = ik->field_offset(slot);
+  int offset = ik->field_offset(slot);
 
   if (modifiers & JVM_ACC_STATIC) {
     // for static fields we only look in the current class

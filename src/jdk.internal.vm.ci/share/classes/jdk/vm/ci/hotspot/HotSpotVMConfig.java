@@ -302,7 +302,8 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int dataLayoutVirtualCallTypeDataTag = getConstant("DataLayout::virtual_call_type_data_tag", Integer.class);
     final int dataLayoutParametersTypeDataTag = getConstant("DataLayout::parameters_type_data_tag", Integer.class);
     final int dataLayoutSpeculativeTrapDataTag = getConstant("DataLayout::speculative_trap_data_tag", Integer.class);
-    final int dataLayoutArrayLoadStoreDataTag = getConstant("DataLayout::array_load_store_data_tag", Integer.class);
+    final int dataLayoutArrayLoadDataTag = getConstant("DataLayout::array_load_data_tag", Integer.class);
+    final int dataLayoutArrayStoreDataTag = getConstant("DataLayout::array_store_data_tag", Integer.class);
     final int dataLayoutACmpDataTag = getConstant("DataLayout::acmp_data_tag", Integer.class);
 
     final int bciProfileWidth = getFlag("BciProfileWidth", Integer.class);
@@ -378,7 +379,6 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int methodDataCountOffset = getConstant("CounterData::count_off", Integer.class);
     final int jumpDataTakenOffset = getConstant("JumpData::taken_off_set", Integer.class);
     final int jumpDataDisplacementOffset = getConstant("JumpData::displacement_off_set", Integer.class);
-    final int receiverTypeDataNonprofiledCountOffset = getConstant("ReceiverTypeData::nonprofiled_count_off_set", Integer.class);
     final int receiverTypeDataReceiverTypeRowCellCount = getConstant("ReceiverTypeData::receiver_type_row_cell_count", Integer.class);
     final int receiverTypeDataReceiver0Offset = getConstant("ReceiverTypeData::receiver0_offset", Integer.class);
     final int receiverTypeDataCount0Offset = getConstant("ReceiverTypeData::count0_offset", Integer.class);

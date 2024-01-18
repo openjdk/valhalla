@@ -31,6 +31,7 @@
 #include "oops/constantPool.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
+#include "utilities/checkedCast.hpp"
 
 inline Symbol* FieldInfo::name(Array<MultiFieldInfo>* multifield_info, ConstantPool* cp) const {
   if (multifield_info && is_multifield()) {

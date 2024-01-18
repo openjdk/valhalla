@@ -35,6 +35,7 @@
 #include "opto/subnode.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/checkedCast.hpp"
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -650,7 +651,7 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
     movptr(Address(boxReg, 0), tmpReg);
   } else {
     assert(LockingMode == LM_LIGHTWEIGHT, "");
-    fast_lock_impl(objReg, tmpReg, thread, scrReg, NO_COUNT);
+    lightweight_lock(objReg, tmpReg, thread, scrReg, NO_COUNT);
     jmp(COUNT);
   }
   jmp(DONE_LABEL);
@@ -954,7 +955,7 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
     bind  (Stacked);
     if (LockingMode == LM_LIGHTWEIGHT) {
       mov(boxReg, tmpReg);
-      fast_unlock_impl(objReg, boxReg, tmpReg, NO_COUNT);
+      lightweight_unlock(objReg, boxReg, tmpReg, NO_COUNT);
       jmp(COUNT);
     } else if (LockingMode == LM_LEGACY) {
       movptr(tmpReg, Address (boxReg, 0));      // re-fetch

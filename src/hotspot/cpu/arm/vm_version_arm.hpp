@@ -111,6 +111,7 @@ class VM_Version: public Abstract_VM_Version {
   // Max supported vector lane count for a particular lane type.
   static int max_vector_size(BasicType bt);
 
+  static bool profile_all_receivers_at_type_check() { return false; }
 };
 
 #endif // CPU_ARM_VM_VERSION_ARM_HPP

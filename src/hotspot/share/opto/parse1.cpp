@@ -125,7 +125,6 @@ Node* Parse::fetch_interpreter_state(int index,
   case T_INT:     l = new LoadINode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInt::INT,        MemNode::unordered); break;
   case T_FLOAT:   l = new LoadFNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::FLOAT,         MemNode::unordered); break;
   case T_ADDRESS: l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM,  MemNode::unordered); break;
-  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:  l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered); break;
   case T_LONG:
   case T_DOUBLE: {

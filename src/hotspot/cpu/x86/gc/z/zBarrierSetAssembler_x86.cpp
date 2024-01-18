@@ -356,7 +356,7 @@ static void emit_store_fast_path_check_c2(MacroAssembler* masm, Address ref_addr
   // This is a JCC erratum mitigation wrapper for calling the inner check
   int size = store_fast_path_check_size(masm, ref_addr, is_atomic, medium_path);
   // Emit JCC erratum mitigation nops with the right size
-  IntelJccErratumAlignment(*masm, size);
+  IntelJccErratumAlignment intel_alignment(*masm, size);
   // Emit the JCC erratum mitigation guarded code
   emit_store_fast_path_check(masm, ref_addr, is_atomic, medium_path);
 #endif
@@ -514,7 +514,6 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
                                     Register tmp3) {
   BLOCK_COMMENT("ZBarrierSetAssembler::store_at {");
 
-  assert(type != T_PRIMITIVE_OBJECT, "Not supported yet");
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 
   if (is_reference_type(type)) {
