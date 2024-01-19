@@ -141,7 +141,7 @@ bool Instruction::maybe_flat_array() {
       if (type->is_obj_array_klass() && !type->as_obj_array_klass()->is_elem_null_free()) {
         // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-        if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flat_array())) {
+        if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flat_in_array())) {
           return true;
         }
       } else if (type->is_flat_array_klass()) {

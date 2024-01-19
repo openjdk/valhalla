@@ -85,6 +85,7 @@ import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+import jdk.internal.vm.annotation.Stable;
 
 import sun.invoke.util.Wrapper;
 import sun.reflect.generics.factory.CoreReflectionFactory;
@@ -1219,6 +1220,7 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     // set by VM
+    @Stable
     private transient Module module;
 
     // Initialized in JVM not by private constructor
@@ -1327,7 +1329,6 @@ public final class Class<T> implements java.io.Serializable,
      * this method returns {@code null}.
      *
      * @return the package of this class.
-     * @revised 9
      */
     public Package getPackage() {
         if (isPrimitive() || isArray()) {
@@ -3202,7 +3203,6 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @see Module#getResourceAsStream(String)
      * @since  1.1
-     * @revised 9
      */
     @CallerSensitive
     public InputStream getResourceAsStream(String name) {
@@ -3298,7 +3298,6 @@ public final class Class<T> implements java.io.Serializable,
      *         manager.
      * @throws NullPointerException If {@code name} is {@code null}
      * @since  1.1
-     * @revised 9
      */
     @CallerSensitive
     public URL getResource(String name) {

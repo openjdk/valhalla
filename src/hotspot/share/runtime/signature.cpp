@@ -698,7 +698,7 @@ void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* sym
 
 // Returns true if the argument at index 'i' is not an inline type delimiter
 bool SigEntry::skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i) {
-  return (sig->at(i)._bt != T_PRIMITIVE_OBJECT &&
+  return (sig->at(i)._bt != T_METADATA &&
           (sig->at(i)._bt != T_VOID || sig->at(i-1)._bt == T_LONG || sig->at(i-1)._bt == T_DOUBLE));
 }
 
@@ -722,7 +722,7 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
   sig_str[idx++] = '(';
   for (int i = 0; i < length; i++) {
     BasicType bt = sig->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT || bt == T_VOID) {
+    if (bt == T_METADATA || bt == T_VOID) {
       // Ignore
     } else {
       if (bt == T_ARRAY) {

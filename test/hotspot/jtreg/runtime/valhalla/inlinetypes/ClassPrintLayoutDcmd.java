@@ -26,20 +26,37 @@ package runtime.valhalla.inlinetypes;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.JDKToolFinder;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
 
 /*
  * @test
  * @summary Test the VM.class_print_layout command
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses ClassPrintLayoutDcmd.java Point.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile ClassPrintLayoutDcmd.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
  */
 
-public primitive class ClassPrintLayoutDcmd {
-    static primitive class Line {
-        Point p1, p2;
+public value class ClassPrintLayoutDcmd {
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Point {
+        int i = 0;
+        int j = 0;
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Line {
+        @NullRestricted
+        Point p1;
+        @NullRestricted
+        Point p2;
         Line() {
-            this.p1 = this.p2 = new Point(0, 1);
+            this.p1 = this.p2 = new Point();
         }
     }
     static {

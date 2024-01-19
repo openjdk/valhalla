@@ -156,7 +156,6 @@ ValueType* as_ValueType(ciConstant value) {
     case T_FLOAT  : return new FloatConstant (value.as_float ());
     case T_DOUBLE : return new DoubleConstant(value.as_double());
     case T_ARRAY  : // fall through (ciConstant doesn't have an array accessor)
-    case T_PRIMITIVE_OBJECT: // fall through
     case T_OBJECT : {
       // TODO: Common the code with GraphBuilder::load_constant?
       ciObject* obj = value.as_object();

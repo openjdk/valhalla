@@ -115,7 +115,7 @@ public:
 };
 
 //------------------------------AddFNode---------------------------------------
-// Add 2 half-precision floats
+// Add 2 floats
 class AddFNode : public AddNode {
 public:
   AddFNode( Node *in1, Node *in2 ) : AddNode(in1,in2) {}
@@ -132,7 +132,7 @@ public:
 };
 
 //------------------------------AddHFNode---------------------------------------
-// Add 2 floats
+// Add 2 half-precision floats
 class AddHFNode : public AddFNode {
 public:
   AddHFNode( Node *in1, Node *in2 ) : AddFNode(in1,in2) {}

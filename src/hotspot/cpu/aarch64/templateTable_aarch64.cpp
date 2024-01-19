@@ -35,7 +35,7 @@
 #include "interpreter/templateTable.hpp"
 #include "memory/universe.hpp"
 #include "oops/methodData.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/resolvedFieldEntry.hpp"
@@ -817,7 +817,7 @@ void TemplateTable::aaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ profile_array(r2, r0, r4);
+  __ profile_array_type<ArrayLoadData>(r2, r0, r4);
   if (UseFlatArray) {
     Label is_flat_array, done;
 
@@ -833,7 +833,7 @@ void TemplateTable::aaload()
     __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
     do_oop_load(_masm, Address(r0, r1, Address::uxtw(LogBytesPerHeapOop)), r0, IS_ARRAY);
   }
-  __ profile_element(r2, r0, r4);
+  __ profile_element_type(r2, r0, r4);
 }
 
 void TemplateTable::baload()
@@ -1129,8 +1129,8 @@ void TemplateTable::aastore() {
 
   index_check(r3, r2);     // kills r1
 
-  __ profile_array(r4, r3, r5);
-  __ profile_element(r4, r0, r5);
+  __ profile_array_type<ArrayStoreData>(r4, r3, r5);
+  __ profile_multiple_element_types(r4, r0, r5, r6);
 
   __ add(r4, r2, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
   Address element_address(r3, r4, Address::uxtw(LogBytesPerHeapOop));
@@ -1175,7 +1175,7 @@ void TemplateTable::aastore() {
 
   // Have a null in r0, r3=array, r2=index.  Store null at ary[idx]
   __ bind(is_null);
-  if (EnablePrimitiveClasses) {
+  if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
     // No way to store null in flat null-free array
@@ -2332,6 +2332,18 @@ void TemplateTable::_return(TosState state)
   if (_desc->bytecode() == Bytecodes::_return)
     __ membar(MacroAssembler::StoreStore);
 
+  if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {
+    Label no_safepoint;
+    __ ldr(rscratch1, Address(rthread, JavaThread::polling_word_offset()));
+    __ tbz(rscratch1, log2i_exact(SafepointMechanism::poll_bit()), no_safepoint);
+    __ push(state);
+    __ push_cont_fastpath(rthread);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint));
+    __ pop_cont_fastpath(rthread);
+    __ pop(state);
+    __ bind(no_safepoint);
+  }
+
   // Narrow result if state is itos but result type is smaller.
   // Need to narrow in the return bytecode rather than in generate_return_entry
   // since compiled code callers expect the result to already be narrowed.
@@ -2726,7 +2738,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmp(tos_state, (u1)atos);
   __ br(Assembler::NE, notObj);
   // atos
-  if (!EnablePrimitiveClasses) {
+  if (!EnableValhalla) {
     do_oop_load(_masm, field, r0, IN_HEAP);
     __ push(atos);
     if (rc == may_rewrite) {
@@ -3014,7 +3026,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   // atos
   {
-     if (!EnablePrimitiveClasses) {
+     if (!EnableValhalla) {
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field
@@ -4136,7 +4148,7 @@ void TemplateTable::monitorenter()
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
         rfp, frame::interpreter_frame_initial_sp_offset * wordSize);
-  const int entry_size = frame::interpreter_frame_monitor_size() * wordSize;
+  const int entry_size = frame::interpreter_frame_monitor_size_in_bytes();
 
   Label allocated;
 
@@ -4146,8 +4158,10 @@ void TemplateTable::monitorenter()
   // find a free slot in the monitor block (result in c_rarg1)
   {
     Label entry, loop, exit;
-    __ ldr(c_rarg3, monitor_block_top); // points to current entry,
-                                        // starting with top-most entry
+    __ ldr(c_rarg3, monitor_block_top); // derelativize pointer
+    __ lea(c_rarg3, Address(rfp, c_rarg3, Address::lsl(Interpreter::logStackElementSize)));
+    // c_rarg3 points to current entry, starting with top-most entry
+
     __ lea(c_rarg2, monitor_block_bot); // points to word before bottom
 
     __ b(entry);
@@ -4182,14 +4196,20 @@ void TemplateTable::monitorenter()
 
     __ check_extended_sp();
     __ sub(sp, sp, entry_size);           // make room for the monitor
-    __ mov(rscratch1, sp);
+    __ sub(rscratch1, sp, rfp);
+    __ asr(rscratch1, rscratch1, Interpreter::logStackElementSize);
     __ str(rscratch1, Address(rfp, frame::interpreter_frame_extended_sp_offset * wordSize));
 
-    __ ldr(c_rarg1, monitor_block_bot);   // c_rarg1: old expression stack bottom
+    __ ldr(c_rarg1, monitor_block_bot);   // derelativize pointer
+    __ lea(c_rarg1, Address(rfp, c_rarg1, Address::lsl(Interpreter::logStackElementSize)));
+    // c_rarg1 points to the old expression stack bottom
+
     __ sub(esp, esp, entry_size);         // move expression stack top
     __ sub(c_rarg1, c_rarg1, entry_size); // move expression stack bottom
     __ mov(c_rarg3, esp);                 // set start value for copy loop
-    __ str(c_rarg1, monitor_block_bot);   // set new monitor block bottom
+    __ sub(rscratch1, c_rarg1, rfp);      // relativize pointer
+    __ asr(rscratch1, rscratch1, Interpreter::logStackElementSize);
+    __ str(rscratch1, monitor_block_bot);  // set new monitor block bottom
 
     __ b(entry);
     // 2. move expression stack contents
@@ -4256,15 +4276,17 @@ void TemplateTable::monitorexit()
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
         rfp, frame::interpreter_frame_initial_sp_offset * wordSize);
-  const int entry_size = frame::interpreter_frame_monitor_size() * wordSize;
+  const int entry_size = frame::interpreter_frame_monitor_size_in_bytes();
 
   Label found;
 
   // find matching slot
   {
     Label entry, loop;
-    __ ldr(c_rarg1, monitor_block_top); // points to current entry,
-                                        // starting with top-most entry
+    __ ldr(c_rarg1, monitor_block_top); // derelativize pointer
+    __ lea(c_rarg1, Address(rfp, c_rarg1, Address::lsl(Interpreter::logStackElementSize)));
+    // c_rarg1 points to current entry, starting with top-most entry
+
     __ lea(c_rarg2, monitor_block_bot); // points to word before bottom
                                         // of monitor block
     __ b(entry);

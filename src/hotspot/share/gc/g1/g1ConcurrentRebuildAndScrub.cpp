@@ -127,9 +127,9 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
         bool mark_aborted = yield_if_necessary(yielded);
         if (mark_aborted) {
           return true;
-        } else if (yielded && !should_rebuild_or_scrub(hr)) {
+        } else if (!should_rebuild_or_scrub(hr)) {
           // We need to check should_rebuild_or_scrub() again because the region might
-          // have been reclaimed during the yield.
+          // have been reclaimed during above yield/safepoint.
           log_trace(gc, marking)("Rebuild aborted for reclaimed region: %u", hr->hrm_index());
           return false;
         }
@@ -196,8 +196,9 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
         bool mark_aborted = yield_if_necessary(yielded);
         if (mark_aborted) {
           return true;
-        } else if (yielded && !should_rebuild_or_scrub(hr)) {
-          // Region has been reclaimed while yielding. Exit continuing with the next region.
+        } else if (!should_rebuild_or_scrub(hr)) {
+          // We need to check should_rebuild_or_scrub() again because the region might
+          // have been reclaimed during above yield/safepoint.
           log_trace(gc, marking)("Scan and scrub aborted for reclaimed region: %u", hr->hrm_index());
           return false;
         }
@@ -216,7 +217,9 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
         bool mark_aborted = yield_if_necessary(yielded);
         if (mark_aborted) {
           return true;
-        } else if (yielded && !should_rebuild_or_scrub(hr)) {
+        } else if (!should_rebuild_or_scrub(hr)) {
+          // We need to check should_rebuild_or_scrub() again because the region might
+          // have been reclaimed during above yield/safepoint.
           log_trace(gc, marking)("Scan aborted for reclaimed region: %u", hr->hrm_index());
           return false;
         }

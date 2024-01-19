@@ -283,9 +283,6 @@ private:
   static MetaspaceObjToOopHandleTable* _scratch_java_mirror_table;
   static MetaspaceObjToOopHandleTable* _scratch_references_table;
 
-  static ClassLoaderData* _saved_java_platform_loader_data;
-  static ClassLoaderData* _saved_java_system_loader_data;
-
   static void init_seen_objects_table() {
     assert(_seen_objects_table == nullptr, "must be");
     _seen_objects_table = new (mtClass)SeenObjectsTable();

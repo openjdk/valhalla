@@ -241,7 +241,7 @@ const julong double_sign_mask = CONST64(0x7FFFFFFFFFFFFFFF);
 const julong double_infinity  = CONST64(0x7FF0000000000000);
 #endif
 
-#if !defined(X86) || !defined(TARGET_COMPILER_gcc) || defined(_WIN64)
+#if !defined(X86)
 JRT_LEAF(jfloat, SharedRuntime::frem(jfloat x, jfloat y))
 #ifdef _WIN64
   // 64-bit Windows on amd64 returns the wrong values for
@@ -273,7 +273,7 @@ JRT_LEAF(jdouble, SharedRuntime::drem(jdouble x, jdouble y))
   return ((jdouble)fmod((double)x,(double)y));
 #endif
 JRT_END
-#endif // !X86 || !TARGET_COMPILER_gcc || _WIN64
+#endif // !X86
 
 JRT_LEAF(jfloat, SharedRuntime::i2f(jint x))
   return (jfloat)x;
@@ -1949,7 +1949,8 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
   // nmethod could be deoptimized by the time we get here
   // so no update to the caller is needed.
 
-  if (caller.is_compiled_frame() && !caller.is_deoptimized_frame()) {
+  if ((caller.is_compiled_frame() && !caller.is_deoptimized_frame()) ||
+      (caller.is_native_frame() && ((CompiledMethod*)caller.cb())->method()->is_continuation_enter_intrinsic())) {
 
     address pc = caller.pc();
 
@@ -2507,7 +2508,7 @@ static int _compact; // number of equals calls with compact signature
 class AdapterFingerPrint : public CHeapObj<mtCode> {
  private:
   enum {
-    _basic_type_bits = 4,
+    _basic_type_bits = 5,
     _basic_type_mask = right_n_bits(_basic_type_bits),
     _basic_types_per_int = BitsPerInt / _basic_type_bits,
     _compact_int_count = 3
@@ -2587,7 +2588,7 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         BasicType bt = T_ILLEGAL;
         if (sig_index < total_args_passed) {
           bt = sig->at(sig_index++)._bt;
-          if (bt == T_PRIMITIVE_OBJECT) {
+          if (bt == T_METADATA) {
             // Found start of inline type in signature
             assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
             if (sig_index == 1 && has_ro_adapter) {
@@ -3098,7 +3099,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             _sig_cc->appendAll(vk->extended_sig());
             _sig_cc_ro->appendAll(vk->extended_sig());
             if (bt == T_OBJECT) {
-              // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_PRIMITIVE_OBJECT
+              // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_METADATA delimiter
               _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr));
               _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr));
             }
@@ -3625,16 +3626,24 @@ JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *current) )
        kptr2 = fr.next_monitor_in_interpreter_frame(kptr2) ) {
     if (kptr2->obj() != nullptr) {         // Avoid 'holes' in the monitor array
       BasicLock *lock = kptr2->lock();
-      // Inflate so the object's header no longer refers to the BasicLock.
-      if (lock->displaced_header().is_unlocked()) {
-        // The object is locked and the resulting ObjectMonitor* will also be
-        // locked so it can't be async deflated until ownership is dropped.
-        // See the big comment in basicLock.cpp: BasicLock::move_to().
-        ObjectSynchronizer::inflate_helper(kptr2->obj());
+      if (LockingMode == LM_LEGACY) {
+        // Inflate so the object's header no longer refers to the BasicLock.
+        if (lock->displaced_header().is_unlocked()) {
+          // The object is locked and the resulting ObjectMonitor* will also be
+          // locked so it can't be async deflated until ownership is dropped.
+          // See the big comment in basicLock.cpp: BasicLock::move_to().
+          ObjectSynchronizer::inflate_helper(kptr2->obj());
+        }
+        // Now the displaced header is free to move because the
+        // object's header no longer refers to it.
+        buf[i] = (intptr_t)lock->displaced_header().value();
       }
-      // Now the displaced header is free to move because the
-      // object's header no longer refers to it.
-      buf[i++] = (intptr_t)lock->displaced_header().value();
+#ifdef ASSERT
+      else {
+        buf[i] = badDispHeaderOSR;
+      }
+#endif
+      i++;
       buf[i++] = cast_from_oop<intptr_t>(kptr2->obj());
     }
   }
@@ -3873,7 +3882,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_PRIMITIVE_OBJECT) {
+    if (bt == T_METADATA) {
       continue;
     }
     if (bt == T_VOID) {

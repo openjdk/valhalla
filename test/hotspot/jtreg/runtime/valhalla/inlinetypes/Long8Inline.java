@@ -23,9 +23,13 @@
 
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.test.lib.Asserts;
 
-public final primitive class Long8Inline {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+public final value class Long8Inline {
 
     final long longField1;
     final long longField2;

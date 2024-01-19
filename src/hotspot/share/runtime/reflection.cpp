@@ -273,9 +273,14 @@ void Reflection::array_set(jvalue* value, arrayOop a, int index, BasicType value
   if (!a->is_within_bounds(index)) {
     THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
   }
+
   if (a->is_objArray()) {
     if (value_type == T_OBJECT) {
       oop obj = cast_to_oop(value->l);
+      if (a->is_null_free_array() && obj == nullptr) {
+         THROW_MSG(vmSymbols::java_lang_NullPointerException(), "null-restricted array");
+      }
+
       if (obj != nullptr) {
         Klass* element_klass = ObjArrayKlass::cast(a->klass())->element_klass();
         if (!obj->is_a(element_klass)) {
@@ -880,9 +885,16 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   java_lang_reflect_Field::set_slot(rh(), fd->index());
   java_lang_reflect_Field::set_name(rh(), name());
   java_lang_reflect_Field::set_type(rh(), type());
+
+  int flags = 0;
   if (fd->is_trusted_final()) {
-    java_lang_reflect_Field::set_trusted_final(rh());
+    flags |= TRUSTED_FINAL;
   }
+  if (fd->is_null_free_inline_type()) {
+    flags |= NULL_RESTRICTED;
+  }
+  java_lang_reflect_Field::set_flags(rh(), flags);
+
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
   int modifiers = fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS;
   java_lang_reflect_Field::set_modifiers(rh(), modifiers);

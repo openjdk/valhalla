@@ -74,7 +74,7 @@ class Field extends AccessibleObject implements Member {
     private final String              name;
     private final Class<?>            type;
     private final int                 modifiers;
-    private final boolean             trustedFinal;
+    private final int                 flags;
     // Generics and annotations support
     private final transient String    signature;
     // generic info repository; lazily initialized
@@ -127,7 +127,7 @@ class Field extends AccessibleObject implements Member {
           String name,
           Class<?> type,
           int modifiers,
-          boolean trustedFinal,
+          int flags,
           int slot,
           String signature,
           byte[] annotations)
@@ -137,7 +137,7 @@ class Field extends AccessibleObject implements Member {
         this.name = name;
         this.type = type;
         this.modifiers = modifiers;
-        this.trustedFinal = trustedFinal;
+        this.flags = flags;
         this.slot = slot;
         this.signature = signature;
         this.annotations = annotations;
@@ -159,7 +159,7 @@ class Field extends AccessibleObject implements Member {
         if (this.root != null)
             throw new IllegalArgumentException("Can not copy a non-root Field");
 
-        Field res = new Field(clazz, name, type, modifiers, trustedFinal, slot, signature, annotations);
+        Field res = new Field(clazz, name, type, modifiers, flags, slot, signature, annotations);
         res.root = this;
         // Might as well eagerly propagate this if already present
         res.fieldAccessor = fieldAccessor;
@@ -1248,8 +1248,15 @@ class Field extends AccessibleObject implements Member {
         return root;
     }
 
+    private static final int TRUST_FINAL     = 0x0010;
+    private static final int NULL_RESTRICTED = 0x0020;
+
     /* package-private */ boolean isTrustedFinal() {
-        return trustedFinal;
+        return (flags & TRUST_FINAL) == TRUST_FINAL;
+    }
+
+    /* package-private */ boolean isNullRestricted() {
+        return (flags & NULL_RESTRICTED) == NULL_RESTRICTED;
     }
 
     /**

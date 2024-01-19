@@ -125,7 +125,6 @@ Node* Parse::fetch_interpreter_state(int index,
   case T_INT:     l = new LoadINode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInt::INT,        MemNode::unordered); break;
   case T_FLOAT:   l = new LoadFNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::FLOAT,         MemNode::unordered); break;
   case T_ADDRESS: l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM,  MemNode::unordered); break;
-  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:  l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered); break;
   case T_LONG:
   case T_DOUBLE: {
@@ -1647,6 +1646,7 @@ void Parse::do_one_block() {
 #endif //ASSERT
 
     do_one_bytecode();
+    if (failing()) return;
 
     assert(!have_se || stopped() || failing() || (sp() - pre_bc_sp) == depth,
            "incorrect depth prediction: sp=%d, pre_bc_sp=%d, depth=%d", sp(), pre_bc_sp, depth);

@@ -33,6 +33,7 @@
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/templateTable.hpp"
 #include "memory/universe.hpp"
+#include "oops/methodCounters.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -835,7 +836,7 @@ void TemplateTable::aaload() {
   Register index = rax;
 
   index_check(array, index); // kills rbx
-  __ profile_array(rbx, array, rcx);
+  __ profile_array_type<ArrayLoadData>(rbx, array, rcx);
   if (UseFlatArray) {
     Label is_flat_array, done;
     __ test_flat_array_oop(array, rbx, is_flat_array);
@@ -857,7 +858,7 @@ void TemplateTable::aaload() {
                 rax,
                 IS_ARRAY);
   }
-  __ profile_element(rbx, rax, rcx);
+  __ profile_element_type(rbx, rax, rcx);
 }
 
 void TemplateTable::baload() {
@@ -1156,8 +1157,8 @@ void TemplateTable::aastore() {
 
   index_check_without_pop(rdx, rcx);     // kills rbx
 
-  __ profile_array(rdi, rdx, rbx);
-  __ profile_element(rdi, rax, rbx);
+  __ profile_array_type<ArrayStoreData>(rdi, rdx, rbx);
+  __ profile_multiple_element_types(rdi, rax, rbx, rcx);
 
   __ testptr(rax, rax);
   __ jcc(Assembler::zero, is_null);
@@ -1196,7 +1197,7 @@ void TemplateTable::aastore() {
 
   // Have a null in rax, rdx=array, ecx=index.  Store null at ary[idx]
   __ bind(is_null);
-  if (EnablePrimitiveClasses) {
+  if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
     // No way to store null in null-free array
@@ -3101,7 +3102,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmpl(tos_state, atos);
   __ jcc(Assembler::notEqual, notObj);
   // atos
-  if (!EnablePrimitiveClasses) {
+  if (!EnableValhalla) {
     if (!is_static) pop_and_check_object(obj);
     do_oop_load(_masm, field, rax);
     __ push(atos);
@@ -3462,7 +3463,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
 
   // atos
   {
-    if (!EnablePrimitiveClasses) {
+    if (!EnableValhalla) {
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field
@@ -4652,7 +4653,7 @@ void TemplateTable::monitorenter() {
         rbp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
         rbp, frame::interpreter_frame_initial_sp_offset * wordSize);
-  const int entry_size = frame::interpreter_frame_monitor_size() * wordSize;
+  const int entry_size = frame::interpreter_frame_monitor_size_in_bytes();
 
   Label allocated;
 
@@ -4666,8 +4667,10 @@ void TemplateTable::monitorenter() {
   // find a free slot in the monitor block (result in rmon)
   {
     Label entry, loop, exit;
-    __ movptr(rtop, monitor_block_top); // points to current entry,
-                                        // starting with top-most entry
+    __ movptr(rtop, monitor_block_top); // derelativize pointer
+    __ lea(rtop, Address(rbp, rtop, Address::times_ptr));
+    // rtop points to current entry, starting with top-most entry
+
     __ lea(rbot, monitor_block_bot);    // points to word before bottom
                                         // of monitor block
     __ jmpb(entry);
@@ -4699,10 +4702,11 @@ void TemplateTable::monitorenter() {
     Label entry, loop;
     // 1. compute new pointers          // rsp: old expression stack top
     __ movptr(rmon, monitor_block_bot); // rmon: old expression stack bottom
+    __ lea(rmon, Address(rbp, rmon, Address::times_ptr));
     __ subptr(rsp, entry_size);         // move expression stack top
     __ subptr(rmon, entry_size);        // move expression stack bottom
     __ mov(rtop, rsp);                  // set start value for copy loop
-    __ movptr(monitor_block_bot, rmon); // set new monitor block bottom
+    __ subptr(monitor_block_bot, entry_size / wordSize); // set new monitor block bottom
     __ jmp(entry);
     // 2. move expression stack contents
     __ bind(loop);
@@ -4765,7 +4769,7 @@ void TemplateTable::monitorexit() {
         rbp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
         rbp, frame::interpreter_frame_initial_sp_offset * wordSize);
-  const int entry_size = frame::interpreter_frame_monitor_size() * wordSize;
+  const int entry_size = frame::interpreter_frame_monitor_size_in_bytes();
 
   Register rtop = LP64_ONLY(c_rarg1) NOT_LP64(rdx);
   Register rbot = LP64_ONLY(c_rarg2) NOT_LP64(rbx);
@@ -4775,8 +4779,10 @@ void TemplateTable::monitorexit() {
   // find matching slot
   {
     Label entry, loop;
-    __ movptr(rtop, monitor_block_top); // points to current entry,
-                                        // starting with top-most entry
+    __ movptr(rtop, monitor_block_top); // derelativize pointer
+    __ lea(rtop, Address(rbp, rtop, Address::times_ptr));
+    // rtop points to current entry, starting with top-most entry
+
     __ lea(rbot, monitor_block_bot);    // points to word before bottom
                                         // of monitor block
     __ jmpb(entry);
