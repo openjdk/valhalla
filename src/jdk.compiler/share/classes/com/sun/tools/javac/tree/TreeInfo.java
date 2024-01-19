@@ -255,7 +255,7 @@ public class TreeInfo {
     public static JCMethodInvocation firstConstructorCall(JCTree tree) {
         if (!tree.hasTag(METHODDEF)) return null;
         JCMethodDecl md = (JCMethodDecl) tree;
-        if (!md.isInitOrVNew()) return null;
+        if (!md.isInit()) return null;
         if (md.body == null) return null;
         List<JCStatement> stats = md.body.stats;
         // Synthetic initializations can appear before the super call.
@@ -491,8 +491,6 @@ public class TreeInfo {
             }
             case CONDEXPR:
                 return getStartPos(((JCConditional) tree).cond);
-            case DEFAULT_VALUE:
-                return getStartPos(((JCDefaultValue) tree).clazz);
             case EXEC:
                 return getStartPos(((JCExpressionStatement) tree).expr);
             case INDEXED:

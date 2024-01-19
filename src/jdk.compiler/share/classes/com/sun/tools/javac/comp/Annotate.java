@@ -551,7 +551,6 @@ public class Annotate {
 
         if (expectedElementType.hasTag(ARRAY)) {
             return getAnnotationArrayValue(expectedElementType, tree, env);
-
         }
 
         //error recovery

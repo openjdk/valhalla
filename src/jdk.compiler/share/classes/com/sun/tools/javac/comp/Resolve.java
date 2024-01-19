@@ -219,7 +219,7 @@ public class Resolve {
             return;
         }
 
-        if (names.isInit(bestSoFar.name) &&
+        if (bestSoFar.name == names.init &&
                 bestSoFar.owner == syms.objectType.tsym &&
                 !verboseResolutionMode.contains(VerboseResolutionMode.OBJECT_INIT)) {
             return; //skip diags for Object constructor resolution
@@ -292,7 +292,7 @@ public class Resolve {
      */
     static boolean isInitializer(Env<AttrContext> env) {
         Symbol owner = env.info.scope.owner;
-        return owner.isInit() ||
+        return owner.isConstructor() ||
             owner.owner.kind == TYP &&
             (owner.kind == VAR ||
              owner.kind == MTH && (owner.flags() & BLOCK) != 0) &&
@@ -404,7 +404,7 @@ public class Resolve {
         return isAccessible(env, site, sym, false);
     }
     public boolean isAccessible(Env<AttrContext> env, Type site, Symbol sym, boolean checkInner) {
-        if (names.isInit(sym.name) && sym.owner != site.tsym) return false;
+        if (sym.name == names.init && sym.owner != site.tsym) return false;
 
         /* 15.9.5.1: Note that it is possible for the signature of the anonymous constructor
            to refer to an inaccessible type
@@ -469,7 +469,7 @@ public class Resolve {
      * cannot be overridden (e.g. MH.invokeExact(Object[])).
      */
     private boolean notOverriddenIn(Type site, Symbol sym) {
-        if (sym.kind != MTH || sym.isInit() || sym.isStatic())
+        if (sym.kind != MTH || sym.isConstructor() || sym.isStatic())
             return true;
 
         Symbol s2 = ((MethodSymbol)sym).implementation(site.tsym, types, true);
@@ -1866,7 +1866,7 @@ public class Resolve {
         for (TypeSymbol s : isInterface ? List.of(intype.tsym) : superclasses(intype)) {
             bestSoFar = findMethodInScope(env, site, name, argtypes, typeargtypes,
                     s.members(), bestSoFar, allowBoxing, useVarargs, true);
-            if (names.isInit(name)) return bestSoFar;
+            if (name == names.init) return bestSoFar;
             iphase = (iphase == null) ? null : iphase.update(s, this);
             if (iphase != null) {
                 for (Type itype : types.interfaces(s.type)) {
@@ -3082,7 +3082,7 @@ public class Resolve {
                                   List<Type> argtypes,
                                   List<Type> typeargtypes,
                                   MethodResolutionPhase maxPhase) {
-        if (!names.isInit(name)) {
+        if (!name.equals(names.init)) {
             //method reference
             return new MethodReferenceLookupHelper(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
         } else if (site.hasTag(ARRAY)) {
@@ -4115,7 +4115,7 @@ public class Resolve {
                 hasLocation = !location.name.equals(names._this) &&
                         !location.name.equals(names._super);
             }
-            boolean isConstructor = names.isInit(name);
+            boolean isConstructor = name == names.init;
             KindName kindname = isConstructor ? KindName.CONSTRUCTOR : kind.absentKind();
             Name idname = isConstructor ? site.tsym.name : name;
             String errKey = getErrorKey(kindname, typeargtypes.nonEmpty(), hasLocation);
@@ -4214,7 +4214,7 @@ public class Resolve {
                               "cant.apply.symbol.noargs",
                               rewriter,
                               kindName(ws),
-                              names.isInit(ws.name) ? ws.owner.name : ws.name,
+                              ws.name == names.init ? ws.owner.name : ws.name,
                               ws.owner.type,
                               c.snd);
                 default:
@@ -4231,7 +4231,7 @@ public class Resolve {
                               "cant.apply.symbol",
                               rewriter,
                               kindName(ws),
-                              names.isInit(ws.name) ? ws.owner.name : ws.name,
+                              ws.name == names.init ? ws.owner.name : ws.name,
                               methodArguments(ws.type.getParameterTypes()),
                               methodArguments(argtypes),
                               kindName(ws.owner),
@@ -4297,8 +4297,8 @@ public class Resolve {
                         log.currentSource(),
                         pos,
                         "cant.apply.symbols",
-                        isConstructor ? KindName.CONSTRUCTOR : kind.absentKind(),
-                        isConstructor ? site.tsym.name : name,
+                        name == names.init ? KindName.CONSTRUCTOR : kind.absentKind(),
+                        name == names.init ? site.tsym.name : name,
                         methodArguments(argtypes));
                 return new JCDiagnostic.MultilineDiagnostic(err, candidateDetails(filteredCandidates, site));
             } else if (filteredCandidates.size() == 1) {
@@ -4458,7 +4458,7 @@ public class Resolve {
                 Name name,
                 List<Type> argtypes,
                 List<Type> typeargtypes) {
-            if (names.isInit(sym.name) && sym.owner != site.tsym) {
+            if (sym.name == names.init && sym.owner != site.tsym) {
                 return new SymbolNotFoundError(ABSENT_MTH).getDiagnostic(dkind,
                         pos, location, site, name, argtypes, typeargtypes);
             }
@@ -4671,7 +4671,7 @@ public class Resolve {
             Symbol s1 = diagSyms.head;
             Symbol s2 = diagSyms.tail.head;
             Name sname = s1.name;
-            if (names.isInit(sname)) sname = s1.owner.name;
+            if (sname == names.init) sname = s1.owner.name;
             return diags.create(dkind, log.currentSource(),
                     pos, "ref.ambiguous", sname,
                     kindName(s1),

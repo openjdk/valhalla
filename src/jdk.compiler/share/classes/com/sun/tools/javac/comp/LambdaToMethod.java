@@ -353,7 +353,7 @@ public class LambdaToMethod extends TreeTranslator {
 
 
             boolean init;
-            if ((init = names.isInit(owner.name)) || owner.name == names.clinit) {
+            if ((init = (owner.name == names.init)) || owner.name == names.clinit) {
                 owner = owner.owner;
                 apportionTypeAnnotations(tree,
                         init ? owner::getInitTypeAttributes : owner::getClassInitTypeAttributes,
@@ -1772,7 +1772,7 @@ public class LambdaToMethod extends TreeTranslator {
         private boolean lambdaIdentSymbolFilter(Symbol sym) {
             return (sym.kind == VAR || sym.kind == MTH)
                     && !sym.isStatic()
-                    && !names.isInit(sym.name);
+                    && sym.name != names.init;
         }
 
         /**

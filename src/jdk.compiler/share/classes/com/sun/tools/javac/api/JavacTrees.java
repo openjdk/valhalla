@@ -621,7 +621,7 @@ public class JavacTrees extends DocTrees {
         //### Note that this search is not necessarily what the compiler would do!
 
         // do not match constructors
-        if (names.isInit(methodName))
+        if (methodName == names.init)
             return null;
 
         if (searched.contains(tsym))

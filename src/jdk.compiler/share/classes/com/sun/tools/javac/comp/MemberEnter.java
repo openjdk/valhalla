@@ -240,7 +240,7 @@ public class MemberEnter extends JCTree.Visitor {
             annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree.pos());
         }
 
-        if (m.isInit() && m.type.getParameterTypes().size() == 0) {
+        if (m.isConstructor() && m.type.getParameterTypes().size() == 0) {
             int statsSize = tree.body.stats.size();
             if (statsSize == 0) {
                 m.flags_field |= EMPTYNOARGCONSTR;
@@ -358,7 +358,7 @@ public class MemberEnter extends JCTree.Visitor {
     void checkReceiver(JCVariableDecl tree, Env<AttrContext> localEnv) {
         attr.attribExpr(tree.nameexpr, localEnv);
         MethodSymbol m = localEnv.enclMethod.sym;
-        if (m.isInit()) {
+        if (m.isConstructor()) {
             Type outertype = m.owner.owner.type;
             if (outertype.hasTag(TypeTag.METHOD)) {
                 // we have a local inner class

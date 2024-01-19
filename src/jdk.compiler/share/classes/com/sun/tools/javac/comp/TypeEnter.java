@@ -1179,7 +1179,7 @@ public class TypeEnter implements Completer {
                         case MTH:
                             if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                                 return true;
-                            } else if (s.isInit()) {
+                            } else if (s.isConstructor()) {
                                 MethodSymbol m = (MethodSymbol)s;
                                 if (m.getParameters().size() > 0
                                         || m.getTypeParameters().size() > 0

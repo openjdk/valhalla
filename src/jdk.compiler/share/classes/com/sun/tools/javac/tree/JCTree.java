@@ -257,10 +257,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
          */
         SELECT,
 
-        /** Default values, of type DefaultValueTree.
-         */
-        DEFAULT_VALUE,
-
         /** Member references, of type Reference.
          */
         REFERENCE,
@@ -889,9 +885,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public JCExpression defaultValue;
         /** method symbol */
         public MethodSymbol sym;
-        /** nascent value that evolves into the return value for a value factory */
-        public VarSymbol factoryProduct;
-
         /** does this method completes normally */
         public boolean completesNormally;
 
@@ -960,7 +953,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             return METHODDEF;
         }
 
-        public boolean isInitOrVNew() {
+        public boolean isInit() {
             return name.table.names.isInit(name);
         }
   }
@@ -1387,32 +1380,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public Tag getTag() {
             return CASE;
-        }
-    }
-
-    /**
-     * A "Identifier<TA1, TA2>.default" construction.
-     */
-    public static class JCDefaultValue extends JCPolyExpression implements DefaultValueTree {
-        public JCExpression clazz;
-
-        protected JCDefaultValue(JCExpression clazz) {
-            this.clazz = clazz;
-        }
-        @Override
-        public void accept(Visitor v) { v.visitDefaultValue(this); }
-
-        @DefinedBy(Api.COMPILER_TREE)
-        public Kind getKind() { return Kind.DEFAULT_VALUE; }
-        @Override @DefinedBy(Api.COMPILER_TREE)
-        public JCExpression getType() { return clazz; }
-        @Override @DefinedBy(Api.COMPILER_TREE)
-        public <R,D> R accept(TreeVisitor<R,D> v, D d) {
-            return v.visitDefaultValue(this, d);
-        }
-        @Override
-        public Tag getTag() {
-            return DEFAULT_VALUE;
         }
     }
 
@@ -3508,7 +3475,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         JCSwitchExpression SwitchExpression(JCExpression selector, List<JCCase> cases);
         JCCase Case(CaseTree.CaseKind caseKind, List<JCCaseLabel> labels, JCExpression guard,
                     List<JCStatement> stats, JCTree body);
-        JCDefaultValue DefaultValue(JCExpression type);
         JCSynchronized Synchronized(JCExpression lock, JCBlock body);
         JCTry Try(JCBlock body, List<JCCatch> catchers, JCBlock finalizer);
         JCTry Try(List<JCTree> resources,
@@ -3589,7 +3555,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public void visitLabelled(JCLabeledStatement that)   { visitTree(that); }
         public void visitSwitch(JCSwitch that)               { visitTree(that); }
         public void visitCase(JCCase that)                   { visitTree(that); }
-        public void visitDefaultValue(JCDefaultValue that) { visitTree(that); }
         public void visitSwitchExpression(JCSwitchExpression that)               { visitTree(that); }
         public void visitSynchronized(JCSynchronized that)   { visitTree(that); }
         public void visitTry(JCTry that)                     { visitTree(that); }

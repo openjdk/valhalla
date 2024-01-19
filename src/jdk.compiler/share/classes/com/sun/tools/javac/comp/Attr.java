@@ -277,7 +277,7 @@ public class Attr extends JCTree.Visitor {
         boolean isAssignable =
             v.owner == owner
             ||
-            ((names.isInit(owner.name) ||    // i.e. we are in a constructor
+            ((owner.name == names.init ||    // i.e. we are in a constructor
               owner.kind == VAR ||           // i.e. we are in a variable initializer
               (owner.flags() & BLOCK) != 0)  // i.e. we are in an initializer block
              &&
@@ -2658,11 +2658,8 @@ public class Attr extends JCTree.Visitor {
                     methodName == names.getClass &&
                     argtypes.isEmpty()) {
                 // as a special case, x.getClass() has type Class<? extends |X|>
-                // Special treatment for primitive classes: Given an expression v of type V where
-                // V is a primitive class, v.getClass() is typed to be Class<? extends |V.ref|>
-                Type wcb = types.erasure(qualifierType.baseType());
                 return new ClassType(restype.getEnclosingType(),
-                        List.of(new WildcardType(wcb,
+                        List.of(new WildcardType(types.erasure(qualifierType.baseType()),
                                 BoundKind.EXTENDS,
                                 syms.boundClass)),
                         restype.tsym,
@@ -3728,7 +3725,7 @@ public class Attr extends JCTree.Visitor {
                 }
             }
 
-            that.sym = refSym.isInit() ? refSym.baseSymbol() : refSym;
+            that.sym = refSym.isConstructor() ? refSym.baseSymbol() : refSym;
             that.kind = lookupHelper.referenceKind(that.sym);
             that.ownerAccessible = rs.isAccessible(localEnv, that.sym.enclClass());
 
@@ -4744,11 +4741,6 @@ public class Attr extends JCTree.Visitor {
                 // The computed type of a variable is the type of the
                 // variable symbol, taken as a member of the site type.
                 owntype = (sym.owner.kind == TYP &&
-                           /* we shouldn't do a memberType invocation if symbol owner and site are the same
-                            * this has been done in the context of nullness markers due to a loss of the nullness
-                            * markers info when type variables are adapted
-                            */
-                           sym.owner.type != site &&
                            sym.name != names._this && sym.name != names._super)
                     ? types.memberType(site, sym)
                     : sym.type;
@@ -4781,7 +4773,7 @@ public class Attr extends JCTree.Visitor {
             // (for constructors (but not for constructor references), the error
             // was given when the constructor was resolved)
 
-            if (!names.isInit(sym.name) || tree.hasTag(REFERENCE)) {
+            if (sym.name != names.init || tree.hasTag(REFERENCE)) {
                 chk.checkDeprecated(tree.pos(), env.info.scope.owner, sym);
                 chk.checkSunAPI(tree.pos(), sym);
                 chk.checkProfile(tree.pos(), sym);
@@ -5032,37 +5024,6 @@ public class Attr extends JCTree.Visitor {
                     env.tree, sym, site, sym.name, argtypes2, typeargtypes);
             log.report(errDiag);
             return types.createErrorType(site);
-        }
-    }
-
-    public void visitDefaultValue(JCDefaultValue tree) {
-        if (!allowValueClasses) {
-            log.error(DiagnosticFlag.SOURCE_LEVEL, tree.pos(),
-                    Feature.VALUE_CLASSES.error(sourceName));
-        }
-
-        // Attribute the qualifier expression, and determine its symbol (if any).
-        Type site = attribTree(tree.clazz, env, new ResultInfo(KindSelector.TYP_PCK, Type.noType));
-        if (!pkind().contains(KindSelector.TYP_PCK))
-            site = capture(site); // Capture field access
-        if (!allowValueClasses) {
-            result = types.createErrorType(names._default, site.tsym, site);
-        } else {
-            Symbol sym = switch (site.getTag()) {
-                case WILDCARD -> throw new AssertionError(tree);
-                case PACKAGE -> {
-                    log.error(tree.pos, Errors.CantResolveLocation(Kinds.KindName.CLASS, site.tsym.getQualifiedName(), null, null,
-                            Fragments.Location(Kinds.typeKindName(env.enclClass.type), env.enclClass.type, null)));
-                    yield syms.errSymbol;
-                }
-                case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;
-                default -> new VarSymbol(STATIC, names._default, site, site.tsym);
-            };
-
-            if (site.hasTag(TYPEVAR) && sym.kind != ERR) {
-                site = types.skipTypeVars(site, true);
-            }
-            result = checkId(tree, site, sym, env, resultInfo);
         }
     }
 

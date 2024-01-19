@@ -109,7 +109,6 @@ public class Flags {
     public static final int ACC_VALUE    = 0x0040;
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
-    public static final int ACC_PRIMITIVE = 0x0800;
     public static final int ACC_MODULE   = 0x8000;
 
     /*****************************************

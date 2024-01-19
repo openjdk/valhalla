@@ -396,11 +396,6 @@ public class TreeTranslator extends JCTree.Visitor {
         result = tree;
     }
 
-    public void visitDefaultValue(JCDefaultValue tree) {
-        tree.clazz = translate(tree.clazz);
-        result = tree;
-    }
-
     public void visitReference(JCMemberReference tree) {
         tree.expr = translate(tree.expr);
         result = tree;

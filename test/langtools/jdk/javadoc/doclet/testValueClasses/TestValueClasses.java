@@ -110,7 +110,7 @@ public class TestValueClasses extends JavadocTester {
 
         checkOutput("p/IdentityInterface.html", true,
                 """
-                <div class="type-signature"><span class="modifiers">public identity interface </span><span class="element-name type-name-label">IdentityInterface</span></div>
+                <div class="type-signature"><span class="modifiers">public interface </span><span class="element-name type-name-label">IdentityInterface</span></div>
                 """);
     }
 }

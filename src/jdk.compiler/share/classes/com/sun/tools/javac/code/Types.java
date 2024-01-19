@@ -125,7 +125,6 @@ public class Types {
                 return "NO_WARNINGS";
             }
         };
-        Options options = Options.instance(context);
     }
     // </editor-fold>
 
@@ -605,7 +604,6 @@ public class Types {
         if (t.hasTag(ERROR)) {
             return true;
         }
-
         boolean tPrimitive = t.isPrimitive();
         boolean sPrimitive = s.isPrimitive();
         if (tPrimitive == sPrimitive) {
@@ -972,7 +970,7 @@ public class Types {
         private Predicate<Symbol> bridgeFilter = new Predicate<Symbol>() {
             public boolean test(Symbol t) {
                 return t.kind == MTH &&
-                        !names.isInit(t.name) &&
+                        t.name != names.init &&
                         t.name != names.clinit &&
                         (t.flags() & SYNTHETIC) == 0;
             }
@@ -1227,12 +1225,8 @@ public class Types {
                 if (s.hasTag(ARRAY)) {
                     if (t.elemtype.isPrimitive())
                         return isSameType(t.elemtype, elemtype(s));
-                    else {
-                        // if T.ref <: S, then T[] <: S[]
-                        Type es = elemtype(s);
-                        Type et = elemtype(t);
-                        return isSubtypeNoCapture(et, es);
-                    }
+                    else
+                        return isSubtypeNoCapture(t.elemtype, elemtype(s));
                 }
 
                 if (s.hasTag(CLASS)) {
@@ -1614,15 +1608,6 @@ public class Types {
                     return containedBy(s, t);
                 else {
 //                    debugContainsType(t, s);
-
-                    // -----------------------------------  Unspecified behavior ----------------
-
-                    /* If a primitive class V implements an interface I, then does "? extends I" contain V?
-                       It seems widening must be applied here to answer yes to compile some common code
-                       patterns.
-                    */
-
-                    // ---------------------------------------------------------------------------
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
                         || ((t.isExtendsBound() || isSubtypeNoCapture(wildLowerBound(t), wildLowerBound(s))) &&

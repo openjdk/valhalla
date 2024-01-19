@@ -57,7 +57,6 @@ public class Names {
 
     // keywords
     public final Name _class;
-    public final Name _default;
     public final Name _super;
     public final Name _this;
     public final Name var;
@@ -261,7 +260,6 @@ public class Names {
 
         // keywords
         _class = fromString("class");
-        _default = fromString("default");
         _super = fromString("super");
         _this = fromString("this");
         var = fromString("var");

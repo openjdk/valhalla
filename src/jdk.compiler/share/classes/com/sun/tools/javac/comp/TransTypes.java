@@ -321,7 +321,7 @@ public class TransTypes extends TreeTranslator {
                            ClassSymbol origin,
                            ListBuffer<JCTree> bridges) {
         if (sym.kind == MTH &&
-                !names.isInit(sym.name) &&
+                sym.name != names.init &&
                 (sym.flags() & (PRIVATE | STATIC)) == 0 &&
                 (sym.flags() & SYNTHETIC) != SYNTHETIC &&
                 sym.isMemberOf(origin, types)) {

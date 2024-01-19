@@ -568,8 +568,7 @@ public class ClassReader {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        byte prefix = signature[sigp];
-        if (prefix != 'L')
+        if (signature[sigp] != 'L')
             throw badClassFile("bad.class.signature", quoteBadSignature());
         sigp++;
         Type outer = Type.noType;
@@ -585,7 +584,6 @@ public class ClassReader {
                                                          startSbp,
                                                          sbp - startSbp));
 
-                // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
                 try {
                     if (outer == Type.noType) {
                         ClassType et = (ClassType) t.erasure(types);
@@ -601,7 +599,6 @@ public class ClassReader {
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
                                                          sbp - startSbp));
-                // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
                 outer = new ClassType(outer, sigToTypes('>'), t, List.nil()) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
@@ -665,7 +662,6 @@ public class ClassReader {
                     t = enterClass(readName(signatureBuffer,
                                                  startSbp,
                                                  sbp - startSbp));
-                    // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
                     outer = new ClassType(outer, List.nil(), t, List.nil());
                 }
                 signatureBuffer[sbp++] = (byte)'$';
@@ -858,7 +854,7 @@ public class ClassReader {
 
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
-                    if (sym.isInit() && sym.type.getParameterTypes().size() == 0) {
+                    if (sym.isConstructor() && sym.type.getParameterTypes().size() == 0) {
                         try {
                             int code_length = buf.getInt(bp + 4);
                             if ((code_length == 1 && buf.getByte(bp + 8) == (byte) ByteCodes.return_) ||
@@ -1402,7 +1398,7 @@ public class ClassReader {
                 return (MethodSymbol)sym;
         }
 
-        if (!names.isInit(nt.name))
+        if (nt.name != names.init)
             // not a constructor
             return null;
         if ((flags & INTERFACE) != 0)
@@ -2330,15 +2326,8 @@ public class ClassReader {
                                    Integer.toString(minorVersion));
             }
         }
-        if (names.isInit(name) && ((flags & STATIC) != 0)) {
-            flags &= ~STATIC;
-            type = new MethodType(type.getParameterTypes(),
-                    syms.voidType,
-                    type.getThrownTypes(),
-                    syms.methodClass);
-        }
         validateMethodType(name, type);
-        if (names.isInit(name) && currentOwner.hasOuterInstance()) {
+        if (name == names.init && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
@@ -2383,7 +2372,7 @@ public class ClassReader {
 
     void validateMethodType(Name name, Type t) {
         if ((!t.hasTag(TypeTag.METHOD) && !t.hasTag(TypeTag.FORALL)) ||
-            ((name == names.init) && !t.getReturnType().hasTag(TypeTag.VOID))) {
+            (name == names.init && !t.getReturnType().hasTag(TypeTag.VOID))) {
             throw badClassFile("method.descriptor.invalid", name);
         }
     }
@@ -2447,7 +2436,7 @@ public class ClassReader {
         // the first parameter.  Note that this assumes the
         // skipped parameter has a width of 1 -- i.e. it is not
         // a double width type (long or double.)
-        if (names.isInit(sym.name) && currentOwner.hasOuterInstance()) {
+        if (sym.name == names.init && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
@@ -2673,9 +2662,7 @@ public class ClassReader {
             ct.interfaces_field = is.reverse();
 
         Assert.check(fieldCount == nextChar());
-        for (int i = 0; i < fieldCount; i++) {
-            enterMember(c, readField());
-        }
+        for (int i = 0; i < fieldCount; i++) enterMember(c, readField());
         Assert.check(methodCount == nextChar());
         for (int i = 0; i < methodCount; i++) enterMember(c, readMethod());
         if (c.isRecord()) {

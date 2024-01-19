@@ -1781,7 +1781,7 @@ public class JavaCompiler {
                         case METHODDEF:
                             if (isInterface ||
                                 (((JCMethodDecl) t).mods.flags & (Flags.PROTECTED|Flags.PUBLIC)) != 0 ||
-                                names.isInit(((JCMethodDecl) t).sym.name) ||
+                                ((JCMethodDecl) t).sym.name == names.init ||
                                 (((JCMethodDecl) t).mods.flags & (Flags.PRIVATE)) == 0 && ((JCMethodDecl) t).sym.packge().getQualifiedName() == names.java_lang)
                                 newdefs.append(t);
                             break;

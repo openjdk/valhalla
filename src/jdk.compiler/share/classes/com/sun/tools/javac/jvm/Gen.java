@@ -271,16 +271,7 @@ public class Gen extends JCTree.Visitor {
      *  @param type   The type for which a reference is inserted.
      */
     int makeRef(DiagnosticPosition pos, Type type) {
-        return makeRef(pos, type, false);
-    }
-
-    int makeRef(DiagnosticPosition pos, Type type, boolean emitQtype) {
-        checkDimension(pos, type);
-        if (emitQtype) {
-            return poolWriter.putClass(new ConstantPoolQType(type, types));
-        } else {
-            return poolWriter.putClass(type);
-        }
+        return poolWriter.putClass(checkDimension(pos, type));
     }
 
     /** Check if the given type is an array with too many dimensions.
@@ -334,7 +325,7 @@ public class Gen extends JCTree.Visitor {
         Symbol msym = rs.
             resolveInternalMethod(pos, attrEnv, site, name, argtypes, null);
         if (isStatic) items.makeStaticItem(msym).invoke();
-        else items.makeMemberItem(msym, names.isInit(name)).invoke();
+        else items.makeMemberItem(msym, name == names.init).invoke();
     }
 
     /** Is the given method definition an access method
@@ -961,7 +952,7 @@ public class Gen extends JCTree.Visitor {
             MethodSymbol meth = tree.sym;
             int extras = 0;
             // Count up extra parameters
-            if (meth.isInit()) {
+            if (meth.isConstructor()) {
                 extras++;
                 if (meth.enclClass().isInner() &&
                     !meth.enclClass().isStatic()) {
@@ -1065,7 +1056,7 @@ public class Gen extends JCTree.Visitor {
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
                 Type selfType = meth.owner.type;
-                if (meth.isInit() && selfType != syms.objectType)
+                if (meth.isConstructor() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
                         code.newLocal(
@@ -2081,7 +2072,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype, false), type);
+                code.emitAnewarray(makeRef(pos, elemtype), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {
@@ -2373,7 +2364,7 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, false));
+            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type));
             result = items.makeStackItem(pt);
             return;
         }
@@ -2430,19 +2421,6 @@ public class Gen extends JCTree.Visitor {
                 }
             }
         }
-    }
-
-    public void visitDefaultValue(JCDefaultValue tree) {
-        if (tree.type.isValueClass()) {
-            //code.emitop2(aconst_init, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
-            code.emitop0(aconst_null);
-        } else if (tree.type.isReference()) {
-            code.emitop0(aconst_null);
-        } else {
-            code.emitop0(zero(Code.typecode(tree.type)));
-        }
-        result = items.makeStackItem(tree.type);
-        return;
     }
 
     public boolean isInvokeDynamic(Symbol sym) {
