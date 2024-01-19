@@ -119,11 +119,6 @@ protected:
 #ifndef PRODUCT
   AsmRemarks _asm_remarks;
   DbgStrings _dbg_strings;
-
- ~CodeBlob() {
-    _asm_remarks.clear();
-    _dbg_strings.clear();
-  }
 #endif // not PRODUCT
 
   CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset,
@@ -132,9 +127,16 @@ protected:
   CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, CodeBuffer* cb, int frame_complete_offset,
            int frame_size, OopMapSet* oop_maps,
            bool caller_must_gc_arguments, bool compiled = false);
+
+  void operator delete(void* p) { }
+
 public:
   // Only used by unit test.
   CodeBlob() : _type(compiler_none) {}
+
+  virtual ~CodeBlob() {
+    assert(_oop_maps == nullptr, "Not flushed");
+  }
 
   // Returns the space needed for CodeBlob
   static unsigned int allocation_size(CodeBuffer* cb, int header_size);
@@ -407,10 +409,6 @@ class BufferBlob: public RuntimeBlob {
   BufferBlob(const char* name, int header_size, int size, CodeBuffer* cb);
   BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments = false);
 
-  // This ordinary operator delete is needed even though not used, so the
-  // below two-argument operator delete will be treated as a placement
-  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
-  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
  public:
@@ -523,10 +521,6 @@ class RuntimeStub: public RuntimeBlob {
     bool        caller_must_gc_arguments
   );
 
-  // This ordinary operator delete is needed even though not used, so the
-  // below two-argument operator delete will be treated as a placement
-  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
-  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
  public:
@@ -537,7 +531,8 @@ class RuntimeStub: public RuntimeBlob {
     int         frame_complete,
     int         frame_size,
     OopMapSet*  oop_maps,
-    bool        caller_must_gc_arguments
+    bool        caller_must_gc_arguments,
+    bool        alloc_fail_is_fatal=true
   );
 
   static void free(RuntimeStub* stub) { RuntimeBlob::free(stub); }
@@ -563,10 +558,6 @@ class SingletonBlob: public RuntimeBlob {
   friend class VMStructs;
 
  protected:
-  // This ordinary operator delete is needed even though not used, so the
-  // below two-argument operator delete will be treated as a placement
-  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
-  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
  public:
@@ -781,10 +772,6 @@ class UpcallStub: public RuntimeBlob {
                      intptr_t exception_handler_offset,
                      jobject receiver, ByteSize frame_data_offset);
 
-  // This ordinary operator delete is needed even though not used, so the
-  // below two-argument operator delete will be treated as a placement
-  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
-  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
   struct FrameData {

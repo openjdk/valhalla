@@ -552,7 +552,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
     } else if (mem->is_ArrayCopy()) {
       Node* ctl = mem->in(0);
       Node* m = mem->in(TypeFunc::Memory);
-      if (sfpt_ctl->is_Proj() && sfpt_ctl->as_Proj()->is_uncommon_trap_proj(Deoptimization::Reason_none)) {
+      if (sfpt_ctl->is_Proj() && sfpt_ctl->as_Proj()->is_uncommon_trap_proj()) {
         // pin the loads in the uncommon trap path
         ctl = sfpt_ctl;
         m = sfpt_mem;
@@ -892,7 +892,7 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
     if (res_type->is_flat()) {
       ciInlineKlass* vk = res_type->is_aryptr()->elem()->inline_klass();
-      assert(vk->flat_array(), "must be flat");
+      assert(vk->flat_in_array(), "must be flat in array");
       field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), vk, field_addr_type->isa_aryptr(), 0, alloc);
     } else {
       field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
@@ -1076,7 +1076,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         assert(use->as_InlineType()->get_oop() == res, "unexpected inline type ptr use");
         // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
-        use->as_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
+        use->as_InlineType()->set_oop(_igvn.zerocon(T_OBJECT));
         const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
         _igvn.set_type(use, toop);
         use->as_InlineType()->set_type(toop);
@@ -2725,7 +2725,7 @@ void PhaseMacroExpand::expand_subtypecheck_node(SubTypeCheckNode *check) {
       subklass = _igvn.transform(LoadKlassNode::make(_igvn, nullptr, C->immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
     }
 
-    Node* not_subtype_ctrl = Phase::gen_subtype_check(subklass, superklass, &ctrl, nullptr, _igvn);
+    Node* not_subtype_ctrl = Phase::gen_subtype_check(subklass, superklass, &ctrl, nullptr, _igvn, check->method(), check->bci());
 
     _igvn.replace_input_of(iff, 0, C->top());
     _igvn.replace_node(iftrue, not_subtype_ctrl);
@@ -2819,7 +2819,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
         Node* klass_adr = basic_plus_adr(array_or_klass, oopDesc::klass_offset_in_bytes());
         klass = transform_later(LoadKlassNode::make(_igvn, nullptr, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
       } else {
-        assert(t->isa_aryklassptr(), "Unexpected input type");
+        assert(t->isa_klassptr(), "Unexpected input type");
         klass = array_or_klass;
       }
       Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
@@ -2829,8 +2829,20 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
     Node* masked = transform_later(new AndINode(lhs, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
     Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
     Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
+    Node* m2b = transform_later(new Conv2BNode(masked));
+    // The matcher expects the input to If nodes to be produced by a Bool(CmpI..)
+    // pattern, but the input to other potential users (e.g. Phi) to be some
+    // other pattern (e.g. a Conv2B node, possibly idealized as a CMoveI).
     Node* old_bol = check->unique_out();
-    _igvn.replace_node(old_bol, bol);
+    for (DUIterator_Last imin, i = old_bol->last_outs(imin); i >= imin; --i) {
+      Node* user = old_bol->last_out(i);
+      for (uint j = 0; j < user->req(); j++) {
+        Node* n = user->in(j);
+        if (n == old_bol) {
+          _igvn.replace_input_of(user, j, user->is_If() ? bol : m2b);
+        }
+      }
+    }
     _igvn.replace_node(check, C->top());
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,13 @@
 /*
  * @test
  * @summary Test dynamic proxies with parameter types or return type of value class
- * @compile -XDenablePrimitiveClasses ProxyTest.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ProxyTest
+ * @run testng/othervm -XX:+EnableValhalla ProxyTest
  */
 
 import java.lang.reflect.*;
 import java.util.Arrays;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
@@ -42,7 +42,8 @@ public class ProxyTest {
         }
     }
 
-    static primitive class P {
+    @ImplicitlyConstructible
+    static value class P {
         int p;
         P(int p) {
             this.p = p;

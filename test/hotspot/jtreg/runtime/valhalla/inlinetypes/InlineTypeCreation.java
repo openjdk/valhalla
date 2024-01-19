@@ -22,14 +22,18 @@
  */
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
 /*
  * @test InlineTypeCreation
  * @summary Inline Type creation test
  * @library /test/lib
- * @compile -XDallowFlattenabilityModifiers -XDenablePrimitiveClasses InlineTypeCreation.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.InlineTypeCreation
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile InlineTypeCreation.java Point.java Long8Inline.java Person.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.InlineTypeCreation
  */
 public class InlineTypeCreation {
     public static void main(String[] args) {
@@ -72,10 +76,12 @@ public class InlineTypeCreation {
         Asserts.assertEquals(person.getLastName(), "Smith", "Last name incorrect");
     }
 
-    static final primitive class StaticSelf {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class StaticSelf {
 
-        static final StaticSelf.ref DEFAULT = new StaticSelf(0);
-        final int f1;
+        static final StaticSelf DEFAULT = new StaticSelf(0);
+        int f1;
 
         public StaticSelf(int f1) { this.f1 = f1; }
         public String toString() { return "StaticSelf f1=" + f1; }

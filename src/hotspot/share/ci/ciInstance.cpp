@@ -79,7 +79,6 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
     case T_FLOAT:   value = ciConstant(obj->float_field(offset)); break;
     case T_DOUBLE:  value = ciConstant(obj->double_field(offset)); break;
     case T_LONG:    value = ciConstant(obj->long_field(offset)); break;
-    case T_PRIMITIVE_OBJECT:  // fall through
     case T_OBJECT:  // fall through
     case T_ARRAY: {
       oop o = obj->obj_field(offset);
@@ -142,5 +141,6 @@ void ciInstance::print_impl(outputStream* st) {
 
 ciKlass* ciInstance::java_lang_Class_klass() {
   VM_ENTRY_MARK;
+  assert(java_lang_Class::as_Klass(get_oop()) != nullptr, "klass is null");
   return CURRENT_ENV->get_metadata(java_lang_Class::as_Klass(get_oop()))->as_klass();
 }

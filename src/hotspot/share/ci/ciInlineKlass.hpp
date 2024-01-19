@@ -52,7 +52,7 @@ protected:
   };
 
   ciInlineKlass(ciSymbol* name, jobject loader, jobject protection_domain) :
-    ciInstanceKlass(name, loader, protection_domain, T_PRIMITIVE_OBJECT) {}
+    ciInstanceKlass(name, loader, protection_domain, T_OBJECT) {}
 
   int compute_nonstatic_fields();
   const char* type_string() { return "ciInlineKlass"; }
@@ -77,7 +77,7 @@ public:
   int first_field_offset() const;
   int field_index_by_offset(int offset);
 
-  bool flat_array() const;
+  bool flat_in_array() const;
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
   bool is_empty();

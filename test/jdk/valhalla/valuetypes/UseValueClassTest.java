@@ -53,8 +53,8 @@ import java.time.ZonedDateTime;
 
 /*
  * @test
- * @modules java.base/jdk.internal.misc
  * @summary Test that classes are value classes or not depending on --enable-preview
+ * @modules java.base/jdk.internal.misc
  * @run junit/othervm -Xlog --enable-preview UseValueClassTest
  * @run junit/othervm -Xlog UseValueClassTest
  */

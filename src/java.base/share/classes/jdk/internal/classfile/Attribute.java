@@ -47,6 +47,7 @@ import jdk.internal.classfile.attribute.ModuleTargetAttribute;
 import jdk.internal.classfile.attribute.NestHostAttribute;
 import jdk.internal.classfile.attribute.NestMembersAttribute;
 import jdk.internal.classfile.attribute.PermittedSubclassesAttribute;
+import jdk.internal.classfile.attribute.PreloadAttribute;
 import jdk.internal.classfile.attribute.RecordAttribute;
 import jdk.internal.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
 import jdk.internal.classfile.attribute.RuntimeInvisibleParameterAnnotationsAttribute;
@@ -72,6 +73,7 @@ import jdk.internal.classfile.impl.UnboundAttribute;
  * corresponding model type. Additionally, all attributes are accessible
  * directly from the corresponding model type through {@link
  * AttributedElement#findAttribute(AttributeMapper)}.
+ * @param <A> the attribute type
  */
 public sealed interface Attribute<A extends Attribute<A>>
         extends WritableElement<A>
@@ -83,7 +85,7 @@ public sealed interface Attribute<A extends Attribute<A>>
                 MethodParametersAttribute, ModuleAttribute, ModuleHashesAttribute,
                 ModuleMainClassAttribute, ModulePackagesAttribute, ModuleResolutionAttribute,
                 ModuleTargetAttribute, NestHostAttribute, NestMembersAttribute,
-                PermittedSubclassesAttribute,
+                PermittedSubclassesAttribute, PreloadAttribute,
                 RecordAttribute, RuntimeInvisibleAnnotationsAttribute,
                 RuntimeInvisibleParameterAnnotationsAttribute, RuntimeInvisibleTypeAnnotationsAttribute,
                 RuntimeVisibleAnnotationsAttribute, RuntimeVisibleParameterAnnotationsAttribute,

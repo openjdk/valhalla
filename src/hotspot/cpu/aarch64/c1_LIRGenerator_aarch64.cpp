@@ -321,11 +321,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
 
   // "lock" stores the address of the monitor stack slot, so this is not an oop
   LIR_Opr lock = new_register(T_INT);
-  // Need a scratch register for inline type
-  LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (EnableValhalla && x->maybe_inlinetype()) {
-    scratch = new_register(T_INT);
-  }
+  LIR_Opr scratch = new_register(T_INT);
 
   CodeEmitInfo* info_for_exception = nullptr;
   if (x->needs_null_check()) {
@@ -341,7 +337,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   // object is already locked (xhandlers expect object to be unlocked)
   CodeEmitInfo* info = state_for(x, x->state(), true);
   monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
-                        x->monitor_no(), info_for_exception, info, throw_imse_stub);
+                x->monitor_no(), info_for_exception, info, throw_imse_stub);
 }
 
 
@@ -353,8 +349,9 @@ void LIRGenerator::do_MonitorExit(MonitorExit* x) {
 
   LIR_Opr lock = new_register(T_INT);
   LIR_Opr obj_temp = new_register(T_INT);
+  LIR_Opr scratch = new_register(T_INT);
   set_no_result(x);
-  monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no());
+  monitor_exit(obj_temp, lock, syncTempOpr(), scratch, x->monitor_no());
 }
 
 void LIRGenerator::do_NegateOp(NegateOp* x) {
@@ -1187,7 +1184,7 @@ void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {
   __ metadata2reg(ciTypeArrayKlass::make(elem_type)->constant_encoding(), klass_reg);
 
   CodeStub* slow_path = new NewTypeArrayStub(klass_reg, len, reg, info);
-  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, elem_type, klass_reg, slow_path);
+  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, elem_type, klass_reg, slow_path, false);
 
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
@@ -1221,11 +1218,7 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   }
 
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  if (x->is_null_free()) {
-    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_PRIMITIVE_OBJECT, klass_reg, slow_path);
-  } else {
-    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);
-  }
+  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path, x->is_null_free());
 
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);

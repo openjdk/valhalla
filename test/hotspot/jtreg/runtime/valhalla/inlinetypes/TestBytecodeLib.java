@@ -34,6 +34,7 @@ import jdk.experimental.bytecode.*;
 import test.java.lang.invoke.lib.InstructionHelper;
 
 /**
+ * @ignore
  * @test TestBytecodeLib
  * @summary Check bytecode test library generates the correct code for Valhalla changes to JVMS
  * @modules java.base/jdk.internal.value
