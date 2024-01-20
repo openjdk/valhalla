@@ -661,8 +661,8 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
                   _unique(0),
                   _dead_node_count(0),
                   _dead_node_list(comp_arena()),
-                  _node_arena_one(mtCompiler),
-                  _node_arena_two(mtCompiler),
+                  _node_arena_one(mtCompiler, Arena::Tag::tag_node),
+                  _node_arena_two(mtCompiler, Arena::Tag::tag_node),
                   _node_arena(&_node_arena_one),
                   _mach_constant_base_node(nullptr),
                   _Compile_types(mtCompiler),
@@ -2731,6 +2731,8 @@ void Compile::Optimize() {
 
   process_for_unstable_if_traps(igvn);
 
+  if (failing())  return;
+
   inline_incrementally(igvn);
 
   print_method(PHASE_INCREMENTAL_INLINE, 2);
@@ -2740,6 +2742,8 @@ void Compile::Optimize() {
   if (eliminate_boxing()) {
     // Inline valueOf() methods now.
     inline_boxing_calls(igvn);
+
+    if (failing())  return;
 
     if (AlwaysIncrementalInline) {
       inline_incrementally(igvn);
@@ -2756,16 +2760,20 @@ void Compile::Optimize() {
   // CastPP nodes.
   remove_speculative_types(igvn);
 
+  if (failing())  return;
+
   // No more new expensive nodes will be added to the list from here
   // so keep only the actual candidates for optimizations.
   cleanup_expensive_nodes(igvn);
+
+  if (failing())  return;
 
   assert(EnableVectorSupport || !has_vbox_nodes(), "sanity");
   if (EnableVectorSupport && has_vbox_nodes()) {
     TracePhase tp("", &timers[_t_vector]);
     PhaseVector pv(igvn);
     pv.optimize_vector_boxes();
-
+    if (failing())  return;
     print_method(PHASE_ITER_GVN_AFTER_VECTOR, 2);
   }
   assert(!has_vbox_nodes(), "sanity");
@@ -2789,6 +2797,8 @@ void Compile::Optimize() {
   process_inline_types(igvn);
 
   adjust_flat_array_access_aliases(igvn);
+
+  if (failing())  return;
 
   // Perform escape analysis
   if (do_escape_analysis() && ConnectionGraph::has_candidates(this)) {
@@ -2901,6 +2911,8 @@ void Compile::Optimize() {
   C->clear_major_progress(); // ensure that major progress is now clear
 
   process_for_post_loop_opts_igvn(igvn);
+
+  if (failing())  return;
 
 #ifdef ASSERT
   bs->verify_gc_barriers(this, BarrierSetC2::BeforeMacroExpand);
@@ -4528,8 +4540,6 @@ bool Compile::final_graph_reshaping() {
 
       // Recheck with a better notion of 'required_outcnt'
       if (n->outcnt() != required_outcnt) {
-        DEBUG_ONLY( n->dump_bfs(1, 0, "-"); );
-        assert(false, "malformed control flow");
         record_method_not_compilable("malformed control flow");
         return true;            // Not all targets reachable!
       }
@@ -5455,6 +5465,7 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
     igvn.remove_speculative_types();
     if (modified > 0) {
       igvn.optimize();
+      if (failing())  return;
     }
 #ifdef ASSERT
     // Verify that after the IGVN is over no speculative type has resurfaced

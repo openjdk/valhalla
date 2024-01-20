@@ -86,7 +86,8 @@ class GraphKit : public Phase {
 
 #ifdef ASSERT
   ~GraphKit() {
-    assert(!has_exceptions(), "user must call transfer_exceptions_into_jvms");
+    assert(failing() || !has_exceptions(),
+           "unless compilation failed, user must call transfer_exceptions_into_jvms");
 #if 0
     // During incremental inlining, the Node_Array of the C->for_igvn() worklist and the IGVN
     // worklist are shared but the _in_worklist VectorSet is not. To avoid inconsistencies,
