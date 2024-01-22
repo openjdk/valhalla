@@ -700,8 +700,10 @@ void InterpreterMacroAssembler::remove_activation(
     bind(restart);
     // We use c_rarg1 so that if we go slow path it will be the correct
     // register for unlock_object to pass to VM directly
-    ldr(c_rarg1, monitor_block_top); // points to current entry, starting
-                                     // with top-most entry
+    ldr(c_rarg1, monitor_block_top); // derelativize pointer
+    lea(c_rarg1, Address(rfp, c_rarg1, Address::lsl(Interpreter::logStackElementSize)));
+    // c_rarg1 points to current entry, starting with top-most entry
+
     lea(r19, monitor_block_bot);  // points to word before bottom of
                                   // monitor block
     b(entry);
@@ -832,7 +834,7 @@ void InterpreterMacroAssembler::remove_activation(
 //
 // Kills:
 //      r0
-//      c_rarg0, c_rarg1, c_rarg2, c_rarg3, .. (param regs)
+//      c_rarg0, c_rarg1, c_rarg2, c_rarg3, c_rarg4, .. (param regs)
 //      rscratch1, rscratch2 (scratch regs)
 void InterpreterMacroAssembler::lock_object(Register lock_reg)
 {
@@ -847,6 +849,8 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     const Register swap_reg = r0;
     const Register tmp = c_rarg2;
     const Register obj_reg = c_rarg3; // Will contain the oop
+    const Register tmp2 = c_rarg4;
+    const Register tmp3 = c_rarg5;
 
     const int obj_offset = in_bytes(BasicObjectLock::obj_offset());
     const int lock_offset = in_bytes(BasicObjectLock::lock_offset());
@@ -867,7 +871,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
 
     if (LockingMode == LM_LIGHTWEIGHT) {
       ldr(tmp, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-      fast_lock(obj_reg, tmp, rscratch1, rscratch2, slow_case);
+      lightweight_lock(obj_reg, tmp, tmp2, tmp3, slow_case);
       b(count);
     } else if (LockingMode == LM_LEGACY) {
       // Load (object->mark() | 1) into swap_reg
@@ -969,6 +973,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
     const Register swap_reg   = r0;
     const Register header_reg = c_rarg2;  // Will contain the old oopMark
     const Register obj_reg    = c_rarg3;  // Will contain the oop
+    const Register tmp_reg    = c_rarg4;  // Temporary used by lightweight_unlock
 
     save_bcp(); // Save in case of exception
 
@@ -1002,7 +1007,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
 
       ldr(header_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
       tbnz(header_reg, exact_log2(markWord::monitor_value), slow_case);
-      fast_unlock(obj_reg, header_reg, swap_reg, rscratch1, slow_case);
+      lightweight_unlock(obj_reg, header_reg, swap_reg, tmp_reg, slow_case);
       b(count);
       bind(slow_case);
     } else if (LockingMode == LM_LEGACY) {
@@ -1586,9 +1591,9 @@ void InterpreterMacroAssembler::profile_switch_case(Register index,
   }
 }
 
-void InterpreterMacroAssembler::profile_array(Register mdp,
-                                              Register array,
-                                              Register tmp) {
+template <class ArrayData> void InterpreterMacroAssembler::profile_array_type(Register mdp,
+                                                                              Register array,
+                                                                              Register tmp) {
   if (ProfileInterpreter) {
     Label profile_continue;
 
@@ -1596,19 +1601,19 @@ void InterpreterMacroAssembler::profile_array(Register mdp,
     test_method_data_pointer(mdp, profile_continue);
 
     mov(tmp, array);
-    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::array_offset())));
+    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayData::array_offset())));
 
     Label not_flat;
     test_non_flat_array_oop(array, tmp, not_flat);
 
-    set_mdp_flag_at(mdp, ArrayLoadStoreData::flat_array_byte_constant());
+    set_mdp_flag_at(mdp, ArrayData::flat_array_byte_constant());
 
     bind(not_flat);
 
     Label not_null_free;
     test_non_null_free_array_oop(array, tmp, not_null_free);
 
-    set_mdp_flag_at(mdp, ArrayLoadStoreData::null_free_array_byte_constant());
+    set_mdp_flag_at(mdp, ArrayData::null_free_array_byte_constant());
 
     bind(not_null_free);
 
@@ -1616,9 +1621,44 @@ void InterpreterMacroAssembler::profile_array(Register mdp,
   }
 }
 
-void InterpreterMacroAssembler::profile_element(Register mdp,
-                                                Register element,
-                                                Register tmp) {
+template void InterpreterMacroAssembler::profile_array_type<ArrayLoadData>(Register mdp,
+                                                                           Register array,
+                                                                           Register tmp);
+template void InterpreterMacroAssembler::profile_array_type<ArrayStoreData>(Register mdp,
+                                                                            Register array,
+                                                                            Register tmp);
+
+void InterpreterMacroAssembler::profile_multiple_element_types(Register mdp, Register element, Register tmp, const Register tmp2) {
+  if (ProfileInterpreter) {
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    Label done, update;
+    cbnz(element, update);
+    set_mdp_flag_at(mdp, BitData::null_seen_byte_constant());
+    b(done);
+
+    bind(update);
+    load_klass(tmp, element);
+
+    // Record the object type.
+    record_klass_in_profile(tmp, mdp, tmp2);
+
+    bind(done);
+
+    // The method data pointer needs to be updated.
+    update_mdp_by_constant(mdp, in_bytes(ArrayStoreData::array_store_data_size()));
+
+    bind(profile_continue);
+  }
+}
+
+
+void InterpreterMacroAssembler::profile_element_type(Register mdp,
+                                                     Register element,
+                                                     Register tmp) {
   if (ProfileInterpreter) {
     Label profile_continue;
 
@@ -1626,10 +1666,10 @@ void InterpreterMacroAssembler::profile_element(Register mdp,
     test_method_data_pointer(mdp, profile_continue);
 
     mov(tmp, element);
-    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::element_offset())));
+    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadData::element_offset())));
 
     // The method data pointer needs to be updated.
-    update_mdp_by_constant(mdp, in_bytes(ArrayLoadStoreData::array_load_store_data_size()));
+    update_mdp_by_constant(mdp, in_bytes(ArrayLoadData::array_load_data_size()));
 
     bind(profile_continue);
   }

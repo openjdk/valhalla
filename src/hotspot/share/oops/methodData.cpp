@@ -652,8 +652,23 @@ void SpeculativeTrapData::print_data_on(outputStream* st, const char* extra) con
   st->cr();
 }
 
-void ArrayLoadStoreData::print_data_on(outputStream* st, const char* extra) const {
-  print_shared(st, "ArrayLoadStore", extra);
+void ArrayStoreData::print_data_on(outputStream* st, const char* extra) const {
+  print_shared(st, "ArrayStore", extra);
+  st->cr();
+  tab(st, true);
+  st->print("array");
+  _array.print_data_on(st);
+  tab(st, true);
+  st->print("element");
+  if (null_seen()) {
+    st->print(" (null seen)");
+  }
+  tab(st);
+  print_receiver_data_on(st);
+}
+
+void ArrayLoadData::print_data_on(outputStream* st, const char* extra) const {
+  print_shared(st, "ArrayLoad", extra);
   st->cr();
   tab(st, true);
   st->print("array");
@@ -700,8 +715,9 @@ int MethodData::bytecode_cell_count(Bytecodes::Code code) {
       return BitData::static_cell_count();
     }
   case Bytecodes::_aaload:
+    return ArrayLoadData::static_cell_count();
   case Bytecodes::_aastore:
-    return ArrayLoadStoreData::static_cell_count();
+    return ArrayStoreData::static_cell_count();
   case Bytecodes::_invokespecial:
   case Bytecodes::_invokestatic:
     if (MethodData::profile_arguments() || MethodData::profile_return()) {
@@ -1028,9 +1044,12 @@ int MethodData::initialize_data(BytecodeStream* stream,
     }
     break;
   case Bytecodes::_aaload:
+    cell_count = ArrayLoadData::static_cell_count();
+    tag = DataLayout::array_load_data_tag;
+    break;
   case Bytecodes::_aastore:
-    cell_count = ArrayLoadStoreData::static_cell_count();
-    tag = DataLayout::array_load_store_data_tag;
+    cell_count = ArrayStoreData::static_cell_count();
+    tag = DataLayout::array_store_data_tag;
     break;
   case Bytecodes::_invokespecial:
   case Bytecodes::_invokestatic: {
@@ -1180,8 +1199,10 @@ int DataLayout::cell_count() {
     return ((new ParametersTypeData(this))->cell_count());
   case DataLayout::speculative_trap_data_tag:
     return SpeculativeTrapData::static_cell_count();
-  case DataLayout::array_load_store_data_tag:
-    return ((new ArrayLoadStoreData(this))->cell_count());
+  case DataLayout::array_store_data_tag:
+    return ((new ArrayStoreData(this))->cell_count());
+  case DataLayout::array_load_data_tag:
+    return ((new ArrayLoadData(this))->cell_count());
   case DataLayout::acmp_data_tag:
     return ((new ACmpData(this))->cell_count());
   }
@@ -1218,8 +1239,10 @@ ProfileData* DataLayout::data_in() {
     return new ParametersTypeData(this);
   case DataLayout::speculative_trap_data_tag:
     return new SpeculativeTrapData(this);
-  case DataLayout::array_load_store_data_tag:
-    return new ArrayLoadStoreData(this);
+  case DataLayout::array_store_data_tag:
+    return new ArrayStoreData(this);
+  case DataLayout::array_load_data_tag:
+    return new ArrayLoadData(this);
   case DataLayout::acmp_data_tag:
     return new ACmpData(this);
   }

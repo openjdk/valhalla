@@ -273,9 +273,14 @@ void Reflection::array_set(jvalue* value, arrayOop a, int index, BasicType value
   if (!a->is_within_bounds(index)) {
     THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
   }
+
   if (a->is_objArray()) {
     if (value_type == T_OBJECT) {
       oop obj = cast_to_oop(value->l);
+      if (a->is_null_free_array() && obj == nullptr) {
+         THROW_MSG(vmSymbols::java_lang_NullPointerException(), "null-restricted array");
+      }
+
       if (obj != nullptr) {
         Klass* element_klass = ObjArrayKlass::cast(a->klass())->element_klass();
         if (!obj->is_a(element_klass)) {

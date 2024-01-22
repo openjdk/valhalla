@@ -32,9 +32,10 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @test
  * @summary Flattenable field semantic test
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED FlattenableSemanticTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=64 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.FlattenableSemanticTest
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.FlattenableSemanticTest
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile FlattenableSemanticTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.FlattenableSemanticTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.FlattenableSemanticTest
  */
 public class FlattenableSemanticTest {
 

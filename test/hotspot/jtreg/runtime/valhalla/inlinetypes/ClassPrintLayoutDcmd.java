@@ -34,8 +34,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @test
  * @summary Test the VM.class_print_layout command
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED ClassPrintLayoutDcmd.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile ClassPrintLayoutDcmd.java
+ * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
  */
 
 public value class ClassPrintLayoutDcmd {

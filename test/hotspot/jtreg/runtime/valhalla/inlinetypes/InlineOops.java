@@ -27,11 +27,15 @@ import java.lang.invoke.*;
 import java.lang.ref.*;
 import java.util.concurrent.*;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 import static jdk.test.lib.Asserts.*;
 import jdk.test.lib.Utils;
 import jdk.test.whitebox.WhiteBox;
+import runtime.valhalla.inlinetypes.InlineOops.FooValue;
 import test.java.lang.invoke.lib.InstructionHelper;
 
 /**
@@ -39,12 +43,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.Serial
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
@@ -55,12 +60,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.G1
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
@@ -71,12 +77,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.Parallel
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
@@ -87,12 +94,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.Z
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -104,12 +112,13 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @requires vm.gc.Z & vm.opt.final.ZGenerational
  * @summary Test embedding oops into Inline types
  * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -XX:+ZGenerational -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -165,13 +174,19 @@ public class InlineOops {
 
 
     static class Couple {
+        @NullRestricted
         public Person onePerson;
+        @NullRestricted
         public Person otherPerson;
     }
 
-    static final primitive class Composition {
-        public final Person onePerson;
-        public final Person otherPerson;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Composition {
+        @NullRestricted
+        public Person onePerson;
+        @NullRestricted
+        public Person otherPerson;
 
         public Composition(Person onePerson, Person otherPerson) {
             this.onePerson = onePerson;
@@ -188,7 +203,7 @@ public class InlineOops {
 
         // anewarray, aaload, aastore
         int index = 7;
-        Person[] array =  new Person[NOF_PEOPLE];
+        Person[] array = (Person[])ValueClass.newNullRestrictedArray(Person.class, NOF_PEOPLE);
         validateDefaultPerson(array[index]);
 
         // Now with refs...
@@ -351,7 +366,7 @@ public class InlineOops {
      */
     public static void testOverGc() {
         try {
-            Class<?> vtClass = PrimitiveClass.asValueType(Person.class);
+            Class<?> vtClass = Person.class;
 
             System.out.println("vtClass="+vtClass);
 
@@ -484,7 +499,7 @@ public class InlineOops {
     }
 
     static Person createDefaultPerson() {
-        return Person.default;
+        return (Person)ValueClass.newNullRestrictedArray(Person.class, 1)[0];
     }
 
     static void validateDefaultPerson(Person person) {
@@ -530,7 +545,9 @@ public class InlineOops {
 
     // Various field layouts...sanity testing, see MVTCombo testing for full-set
 
-    static final primitive class ObjectValue {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ObjectValue {
         final Object object;
 
         private ObjectValue(Object obj) {
@@ -564,7 +581,9 @@ public class InlineOops {
         String otherStuff;
     }
 
-    public static final primitive class FooValue {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public static value class FooValue {
         public final int id;
         public final String name;
         public final String description;
@@ -591,7 +610,7 @@ public class InlineOops {
                         LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                         CODE->{
                             CODE
-                            .aconst_init(PrimitiveClass.asValueType(FooValue.class))
+                            .aconst_init(FooValue.class)
                             .aload(oopMapsSlot)
                             .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
@@ -601,7 +620,7 @@ public class InlineOops {
                             .iconst_1()  // Test-D1 Slots=R Stack=RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
                             .aastore()
-                            .aconst_init(PrimitiveClass.asValueType(FooValue.class))
+                            .aconst_init(FooValue.class)
                             .astore(vtSlot)
                             .aload(oopMapsSlot)
                             .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV
@@ -622,7 +641,8 @@ public class InlineOops {
 
         public static void testFrameOopsRefs(String name, String description, String notes, Object[][] oopMaps) {
             FooValue f = new FooValue(4711, name, description, 9876543231L, notes);
-            FooValue[] fa = new FooValue[] { f };
+            FooValue[] fa = (FooValue[])ValueClass.newNullRestrictedArray(FooValue.class, 1);
+            fa[0] = f;
             MethodType mt = MethodType.methodType(Void.TYPE, fa.getClass(), oopMaps.getClass());
             int fooArraySlot  = 0;
             int oopMapsSlot   = 1;
@@ -652,12 +672,15 @@ public class InlineOops {
         String otherStuff;
     }
 
-    static final primitive class BarValue {
-        final FooValue foo;
-        final long extendedId;
-        final String moreNotes;
-        final int count;
-        final String otherStuff;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class BarValue {
+        @NullRestricted
+        FooValue foo;
+        long extendedId;
+        String moreNotes;
+        int count;
+        String otherStuff;
 
         private BarValue(FooValue f, long extId, String mNotes, int c, String other) {
             foo = f;

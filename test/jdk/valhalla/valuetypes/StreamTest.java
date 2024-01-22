@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,75 +23,50 @@
 
 /*
  * @test
- * @summary Basic test for Array::get, Array::set, Arrays::setAll on primitive class array
- * @compile -XDenablePrimitiveClasses StreamTest.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses StreamTest
+ * @summary Basic stream tests to iterate on nullable and null-restricted values
+ * @run junit/othervm -XX:+EnableValhalla StreamTest
  */
 
-import org.testng.annotations.Test;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamTest {
-    final Value[] values = init();
-    private Value[] init() {
-        Value[] values = new Value[10];
-        for (int i = 0; i < 10; i++) {
-            values[i] = new Value(i, new Point(i,i*2), (i%2) == 0 ? null : new Point(i*10, i*20),
-                                  List.of(new X(i), new X(i*10)));
+
+    static value class X {
+        int x;
+        X(int x) {
+            this.x = x;
         }
-        return values;
+        int x() {
+            return x;
+        }
     }
 
-    @Test
-    public void testPrimitive() {
-        Arrays.stream(values)
-              .filter(v -> (v.i % 2) == 0)
-              .forEach(System.out::println);
+    @ImplicitlyConstructible
+    static value class Point {
+        public int x;
+        public int y;
+        Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
     }
 
-    @Test
-    public void testValueType() {
-        Arrays.stream(values)
-                .map(Value.ref::point)
-                .filter(p -> p.x >= 5)
-                .forEach(System.out::println);
-
-        Arrays.stream(values)
-                .map(Value.ref::nullablePoint)
-                .filter(p -> p != null)
-                .forEach(System.out::println);
-    }
-
-    @Test
-    public void mapToInt() {
-        Stream<Point.ref> stream = Arrays.stream(values)
-                                         .filter(v -> (v.getI() % 2) == 0)
-                                         .map(Value.ref::point);
-        stream.forEach(p -> assertTrue((p.x % 2) == 0));
-    }
-
-    @Test
-    public void testValue() {
-        long count = Arrays.stream(values)
-                           .map(Value.ref::list)
-                           .flatMap(List::stream)
-                           .map(X::x)
-                           .filter(x -> x >= 10)
-                           .count();
-        assertEquals(count, values.length-1);
-    }
-
-    static primitive class Value {
+    @ImplicitlyConstructible
+    static value class Value {
         int i;
+        @NullRestricted
         Point p;
-        Point.ref nullable;
+        Point nullable;
         List<X> list;
-        Value(int i, Point p, Point.ref np, List<X> list) {
+        Value(int i, Point/* Point! */ p, Point np, List<X> list) {
             this.i = i;
             this.p = p;
             this.nullable = np;
@@ -102,7 +77,7 @@ public class StreamTest {
             return p;
         }
 
-        Point.ref nullablePoint() {
+        Point nullablePoint() {
             return nullable;
         }
 
@@ -111,13 +86,58 @@ public class StreamTest {
         List<X> list() { return list; }
     }
 
-    static value class X {
-        private int x;
-        X(int x) {
-            this.x = x;
+    final Value[] values = init();
+    private Value[] init() {
+        Value[] values = new Value[10];
+        for (int i = 0; i < 10; i++) {
+            values[i] = new Value(i,
+                                  new Point(i,i*2),
+                                  (i%2) == 0 ? null : new Point(i*10, i*20),
+                                  List.of(new X(i), new X(i*10)));
         }
-        int x() {
-            return x;
-        }
+        return values;
+    }
+
+    @Test
+    public void testValues() {
+        Arrays.stream(values)
+              .filter(v -> (v.i % 2) == 0)
+              .forEach(System.out::println);
+    }
+
+    @Test
+    public void testNullRestrictedType() {
+        Arrays.stream(values)
+                .map(Value::point)
+                .filter(p -> p.x >= 5)
+                .forEach(System.out::println);
+
+    }
+
+    @Test
+    public void testNullableValueType() {
+        Arrays.stream(values)
+                .map(Value::nullablePoint)
+                .filter(p -> p != null)
+                .forEach(System.out::println);
+    }
+
+    @Test
+    public void mapToInt() {
+        Stream<Point> stream = Arrays.stream(values)
+                                     .filter(v -> (v.getI() % 2) == 0)
+                                     .map(Value::point);
+        stream.forEach(p -> assertTrue((p.x % 2) == 0));
+    }
+
+    @Test
+    public void testListOfValues() {
+        long count = Arrays.stream(values)
+                           .map(Value::list)
+                           .flatMap(List::stream)
+                           .map(X::x)
+                           .filter(x -> x >= 10)
+                           .count();
+        assertEquals(count, values.length-1);
     }
 }

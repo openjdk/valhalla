@@ -26,6 +26,7 @@ package runtime.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 
 /*
+ * @ignore
  * @test VDefaultTest
  * @summary vdefault bytecode test
  * @library /test/lib

@@ -30,8 +30,8 @@ import static org.junit.Assert.*;
 
 /*
  * @test
- * @modules java.base/jdk.internal.misc
  * @summary Test feature flags reflect command line flags
+ * @modules java.base/jdk.internal.misc
  * @run junit/othervm -Dexpected=true ValhallaFeaturesTest
  * @run junit/othervm -XX:+EnableValhalla -Dexpected=true ValhallaFeaturesTest
  * @run junit/othervm -XX:-EnableValhalla -Dexpected=false ValhallaFeaturesTest

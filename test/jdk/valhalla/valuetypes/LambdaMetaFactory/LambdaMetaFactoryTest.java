@@ -23,12 +23,12 @@
 
 /*
  * @test
+ * @summary LambdaMetaFactory rejects value or identity superinterface
  * @modules jdk.compiler
  * @library /test/lib
  * @build jdk.test.lib.Utils
  *        jdk.test.lib.compiler.CompilerUtils
  * @run junit LambdaMetaFactoryTest
- * @summary LambdaMetaFactory rejects value or identity superinterface
  */
 
 import jdk.test.lib.compiler.CompilerUtils;

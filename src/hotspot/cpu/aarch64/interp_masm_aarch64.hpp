@@ -198,7 +198,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void push(RegSet regs, Register stack) { ((MacroAssembler*)this)->push(regs, stack); }
 
   void empty_expression_stack() {
-    ldr(esp, Address(rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize));
+    ldr(rscratch1, Address(rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize));
+    lea(esp, Address(rfp, rscratch1, Address::lsl(LogBytesPerWord)));
     // null last_sp until next java call
     str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   }
@@ -318,8 +319,9 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void profile_switch_default(Register mdp);
   void profile_switch_case(Register index_in_scratch, Register mdp,
                            Register scratch2);
-  void profile_array(Register mdp, Register array, Register tmp);
-  void profile_element(Register mdp, Register element, Register tmp);
+  template <class ArrayData> void profile_array_type(Register mdp, Register array, Register tmp);
+  void profile_multiple_element_types(Register mdp, Register element, Register tmp, Register tmp2);
+  void profile_element_type(Register mdp, Register element, Register tmp);
   void profile_acmp(Register mdp, Register left, Register right, Register tmp);
 
   void profile_obj_type(Register obj, const Address& mdo_addr);

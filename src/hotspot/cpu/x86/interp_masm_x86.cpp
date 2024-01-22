@@ -1090,8 +1090,10 @@ void InterpreterMacroAssembler::remove_activation(
     bind(restart);
     // We use c_rarg1 so that if we go slow path it will be the correct
     // register for unlock_object to pass to VM directly
-    movptr(rmon, monitor_block_top); // points to current entry, starting
-                                  // with top-most entry
+    movptr(rmon, monitor_block_top); // derelativize pointer
+    lea(rmon, Address(rbp, rmon, Address::times_ptr));
+    // c_rarg1 points to current entry, starting with top-most entry
+
     lea(rbx, monitor_block_bot);  // points to word before bottom of
                                   // monitor block
     jmp(entry);
@@ -1385,7 +1387,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
 #endif
       // Load object header, prepare for CAS from unlocked to locked.
       movptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-      fast_lock_impl(obj_reg, swap_reg, thread, tmp_reg, slow_case);
+      lightweight_lock(obj_reg, swap_reg, thread, tmp_reg, slow_case);
     } else if (LockingMode == LM_LEGACY) {
       // Load immediate 1 into swap_reg %rax
       movl(swap_reg, 1);
@@ -1519,7 +1521,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
       // Try to swing header from locked to unlocked.
       movptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
       andptr(swap_reg, ~(int32_t)markWord::lock_mask_in_place);
-      fast_unlock_impl(obj_reg, swap_reg, header_reg, slow_case);
+      lightweight_unlock(obj_reg, swap_reg, header_reg, slow_case);
     } else if (LockingMode == LM_LEGACY) {
       // Load the old header from BasicLock structure
       movptr(header_reg, Address(swap_reg,
@@ -1843,7 +1845,7 @@ void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
     }
 
     // Record the receiver type.
-    record_klass_in_profile(receiver, mdp, reg2, true);
+    record_klass_in_profile(receiver, mdp, reg2);
     bind(skip_receiver_profile);
 
     // The method data pointer needs to be updated to reflect the new target.
@@ -1863,10 +1865,9 @@ void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
 // function is recursive, to generate the required tree structured code.
 // It's the interpreter, so we are trading off code space for speed.
 // See below for example code.
-void InterpreterMacroAssembler::record_klass_in_profile_helper(
-                                        Register receiver, Register mdp,
-                                        Register reg2, int start_row,
-                                        Label& done, bool is_virtual_call) {
+void InterpreterMacroAssembler::record_klass_in_profile_helper(Register receiver, Register mdp,
+                                                               Register reg2, int start_row,
+                                                               Label& done) {
   if (TypeProfileWidth == 0) {
     increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
   } else {
@@ -1970,13 +1971,11 @@ void InterpreterMacroAssembler::record_item_in_profile_helper(Register item, Reg
 //   }
 //   done:
 
-void InterpreterMacroAssembler::record_klass_in_profile(Register receiver,
-                                                        Register mdp, Register reg2,
-                                                        bool is_virtual_call) {
+void InterpreterMacroAssembler::record_klass_in_profile(Register receiver, Register mdp, Register reg2) {
   assert(ProfileInterpreter, "must be profiling");
   Label done;
 
-  record_klass_in_profile_helper(receiver, mdp, reg2, 0, done, is_virtual_call);
+  record_klass_in_profile_helper(receiver, mdp, reg2, 0, done);
 
   bind (done);
 }
@@ -2053,7 +2052,7 @@ void InterpreterMacroAssembler::profile_typecheck(Register mdp, Register klass, 
       mdp_delta = in_bytes(VirtualCallData::virtual_call_data_size());
 
       // Record the object type.
-      record_klass_in_profile(klass, mdp, reg2, false);
+      record_klass_in_profile(klass, mdp, reg2);
       NOT_LP64(assert(reg2 == rdi, "we know how to fix this blown reg");)
       NOT_LP64(restore_locals();)         // Restore EDI
     }
@@ -2115,9 +2114,9 @@ void InterpreterMacroAssembler::profile_switch_case(Register index,
   }
 }
 
-void InterpreterMacroAssembler::profile_array(Register mdp,
-                                              Register array,
-                                              Register tmp) {
+template <class ArrayData> void InterpreterMacroAssembler::profile_array_type(Register mdp,
+                                                                              Register array,
+                                                                              Register tmp) {
   if (ProfileInterpreter) {
     Label profile_continue;
 
@@ -2125,19 +2124,19 @@ void InterpreterMacroAssembler::profile_array(Register mdp,
     test_method_data_pointer(mdp, profile_continue);
 
     mov(tmp, array);
-    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::array_offset())));
+    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayData::array_offset())));
 
     Label not_flat;
     test_non_flat_array_oop(array, tmp, not_flat);
 
-    set_mdp_flag_at(mdp, ArrayLoadStoreData::flat_array_byte_constant());
+    set_mdp_flag_at(mdp, ArrayData::flat_array_byte_constant());
 
     bind(not_flat);
 
     Label not_null_free;
     test_non_null_free_array_oop(array, tmp, not_null_free);
 
-    set_mdp_flag_at(mdp, ArrayLoadStoreData::null_free_array_byte_constant());
+    set_mdp_flag_at(mdp, ArrayData::null_free_array_byte_constant());
 
     bind(not_null_free);
 
@@ -2145,9 +2144,45 @@ void InterpreterMacroAssembler::profile_array(Register mdp,
   }
 }
 
-void InterpreterMacroAssembler::profile_element(Register mdp,
-                                                Register element,
-                                                Register tmp) {
+template void InterpreterMacroAssembler::profile_array_type<ArrayLoadData>(Register mdp,
+                                                                           Register array,
+                                                                           Register tmp);
+template void InterpreterMacroAssembler::profile_array_type<ArrayStoreData>(Register mdp,
+                                                                            Register array,
+                                                                            Register tmp);
+
+
+void InterpreterMacroAssembler::profile_multiple_element_types(Register mdp, Register element, Register tmp, const Register tmp2) {
+  if (ProfileInterpreter) {
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    Label done, update;
+    testptr(element, element);
+    jccb(Assembler::notZero, update);
+    set_mdp_flag_at(mdp, BitData::null_seen_byte_constant());
+    jmp(done);
+
+    bind(update);
+    load_klass(tmp, element, rscratch1);
+
+    // Record the object type.
+    record_klass_in_profile(tmp, mdp, tmp2);
+
+    bind(done);
+
+    // The method data pointer needs to be updated.
+    update_mdp_by_constant(mdp, in_bytes(ArrayStoreData::array_store_data_size()));
+
+    bind(profile_continue);
+  }
+}
+
+void InterpreterMacroAssembler::profile_element_type(Register mdp,
+                                                     Register element,
+                                                     Register tmp) {
   if (ProfileInterpreter) {
     Label profile_continue;
 
@@ -2155,10 +2190,10 @@ void InterpreterMacroAssembler::profile_element(Register mdp,
     test_method_data_pointer(mdp, profile_continue);
 
     mov(tmp, element);
-    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::element_offset())));
+    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadData::element_offset())));
 
     // The method data pointer needs to be updated.
-    update_mdp_by_constant(mdp, in_bytes(ArrayLoadStoreData::array_load_store_data_size()));
+    update_mdp_by_constant(mdp, in_bytes(ArrayLoadData::array_load_data_size()));
 
     bind(profile_continue);
   }

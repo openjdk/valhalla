@@ -148,7 +148,7 @@ module java.base {
     exports jdk.internal.javac to
         java.compiler,
         jdk.compiler,
-        jdk.incubator.vector, // participates in preview features
+        jdk.incubator.vector,
         jdk.jshell;
     exports jdk.internal.access to
         java.desktop,
@@ -185,15 +185,19 @@ module java.base {
         java.logging;
     exports jdk.internal.classfile to
         jdk.jartool,
+        jdk.jdeps,
         jdk.jlink,
         jdk.jshell;
     exports jdk.internal.classfile.attribute to
         jdk.jartool,
+        jdk.jdeps,
         jdk.jlink;
     exports jdk.internal.classfile.constantpool to
         jdk.jartool,
+        jdk.jdeps,
         jdk.jlink;
     exports jdk.internal.classfile.instruction to
+        jdk.jdeps,
         jdk.jlink,
         jdk.jshell;
     exports jdk.internal.org.objectweb.asm to

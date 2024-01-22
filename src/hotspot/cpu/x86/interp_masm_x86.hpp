@@ -177,7 +177,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void push(TosState state);       // transition state -> vtos
 
   void empty_expression_stack() {
-    movptr(rsp, Address(rbp, frame::interpreter_frame_monitor_block_top_offset * wordSize));
+    movptr(rcx, Address(rbp, frame::interpreter_frame_monitor_block_top_offset * wordSize));
+    lea(rsp, Address(rbp, rcx, Address::times_ptr));
     // null last_sp until next java call
     movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), NULL_WORD);
     NOT_LP64(empty_FPU_stack());
@@ -274,11 +275,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
                         Register test_value_out,
                         Label& not_equal_continue);
 
-  void record_klass_in_profile(Register receiver, Register mdp,
-                               Register reg2, bool is_virtual_call);
-  void record_klass_in_profile_helper(Register receiver, Register mdp,
-                                      Register reg2, int start_row,
-                                      Label& done, bool is_virtual_call);
+  void record_klass_in_profile(Register receiver, Register mdp, Register reg2);
+  void record_klass_in_profile_helper(Register receiver, Register mdp, Register reg2, int start_row, Label &done);
   void record_item_in_profile_helper(Register item, Register mdp, Register reg2, int start_row,
                                      Label& done, int total_rows,
                                      OffsetFunction item_offset_fn,
@@ -303,8 +301,10 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void profile_switch_default(Register mdp);
   void profile_switch_case(Register index_in_scratch, Register mdp,
                            Register scratch2);
-  void profile_array(Register mdp, Register array, Register tmp);
-  void profile_element(Register mdp, Register element, Register tmp);
+  template <class ArrayData> void profile_array_type(Register mdp, Register array, Register tmp);
+
+  void profile_multiple_element_types(Register mdp, Register element, Register tmp, const Register tmp2);
+  void profile_element_type(Register mdp, Register element, Register tmp);
   void profile_acmp(Register mdp, Register left, Register right, Register tmp);
 
   // Debugging
