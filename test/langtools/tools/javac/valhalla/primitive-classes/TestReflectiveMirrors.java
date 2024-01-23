@@ -30,6 +30,7 @@
  * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses TestReflectiveMirrors.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses TestReflectiveMirrors
+ * @ignore
  */
 
 import jdk.internal.value.PrimitiveClass;

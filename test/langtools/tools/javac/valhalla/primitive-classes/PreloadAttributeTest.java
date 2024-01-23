@@ -28,6 +28,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses PreloadAttributeTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses PreloadAttributeTest
+ * @ignore
  */
 
 import com.sun.tools.classfile.*;

@@ -29,6 +29,7 @@
  * @summary Test that primitive classes work well with TWR
  * @compile -XDenablePrimitiveClasses AutoCloseableTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses AutoCloseableTest
+ * @ignore
  */
 
 public class AutoCloseableTest {

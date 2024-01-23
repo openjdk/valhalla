@@ -29,6 +29,7 @@
  * @summary A primitive class field by name val confuses javac
  * @compile -XDenablePrimitiveClasses ValRefTokensTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValRefTokensTest
+ * @ignore
  */
 
 public primitive class ValRefTokensTest  {

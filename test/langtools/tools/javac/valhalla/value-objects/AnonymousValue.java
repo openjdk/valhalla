@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,25 @@
 
 /**
  * @test
- * @bug 8214299
- * @summary Strange errors from javac when mixing box and val types.
- * @compile -XDenablePrimitiveClasses BogusIncompatibility.java
- * @compile -XDenablePrimitiveClasses BogusIncompatibility.java
+ * @bug 8212175
+ * @summary Trouble creating an anonymous value class with diamond syntax
+ * @ignore 8316628
  */
 
-public class BogusIncompatibility {
-  MyValue.ref field = MyValue.create();
-  MyValue.ref field2 = MyValue.create();
+import java.util.function.Function;
+
+public class AnonymousValue {
+    static Function<String, String> capitalizer() {
+        return new value Function<>() {
+            int x = 10;
+            @Override
+            public String apply(String t) {
+                return t.toUpperCase();
+            }
+        };
+    }
+    public static void main(String[] args) {
+        if (!capitalizer().apply("blah").equals("BLAH"))
+            throw new AssertionError("Failed");
+    }
 }

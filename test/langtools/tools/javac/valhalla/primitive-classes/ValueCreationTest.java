@@ -28,6 +28,7 @@
  * @compile -XDenablePrimitiveClasses ValueCreationTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueCreationTest
  * @modules jdk.compiler
+ * @ignore
  */
 
 import java.io.PrintWriter;

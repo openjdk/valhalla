@@ -1598,7 +1598,7 @@ public class Flow {
                     types.interfaces(resource.type).prepend(types.supertype(resource.type)) :
                     List.of(resource.type);
                 for (Type sup : closeableSupertypes) {
-                    if (types.asSuper(sup.referenceProjectionOrSelf(), syms.autoCloseableType.tsym) != null) {
+                    if (types.asSuper(sup, syms.autoCloseableType.tsym) != null) {
                         Symbol closeMethod = rs.resolveQualifiedMethod(tree,
                                 attrEnv,
                                 types.skipTypeVars(sup, false),

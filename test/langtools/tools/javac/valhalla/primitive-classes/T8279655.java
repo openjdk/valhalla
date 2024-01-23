@@ -3,6 +3,7 @@
  * @bug 8279655
  * @summary Bogus error: incompatible types: Object cannot be converted to Foo
  * @compile -XDenablePrimitiveClasses T8279655.java
+ * @ignore
  */
 
 public class T8279655 {

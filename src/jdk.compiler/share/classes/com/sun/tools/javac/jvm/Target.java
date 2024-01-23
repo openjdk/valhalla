@@ -211,6 +211,12 @@ public enum Target {
         return compareTo(JDK1_15) >= 0;
     }
 
+    /** Does the target VM support value classes
+     */
+    public boolean hasValueClasses() {
+        return compareTo(JDK1_19) >= 0;
+    }
+
     /** Is the ACC_STRICT bit redundant and obsolete
      */
     public boolean obsoleteAccStrict() {

@@ -490,19 +490,26 @@ public class PrintingProcessor extends AbstractProcessor {
             modifiers.addAll(e.getModifiers());
 
             switch (kind) {
+            case CLASS:
+                modifiers.remove(Modifier.IDENTITY);
+                break;
+
             case ANNOTATION_TYPE:
             case INTERFACE:
                 modifiers.remove(Modifier.ABSTRACT);
+                modifiers.remove(Modifier.IDENTITY);
                 break;
 
             case ENUM:
                 modifiers.remove(Modifier.FINAL);
                 modifiers.remove(Modifier.ABSTRACT);
                 modifiers.remove(Modifier.SEALED);
+                modifiers.remove(Modifier.IDENTITY);
                 break;
 
             case RECORD:
                 modifiers.remove(Modifier.FINAL);
+                modifiers.remove(Modifier.IDENTITY);
                 break;
 
             case METHOD:

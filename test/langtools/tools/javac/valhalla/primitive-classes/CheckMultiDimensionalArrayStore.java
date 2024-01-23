@@ -2,6 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check null store into multidimensional array
  * @compile/fail/ref=CheckMultiDimensionalArrayStore.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses CheckMultiDimensionalArrayStore.java
+ * @ignore
  */
 
 public class CheckMultiDimensionalArrayStore {

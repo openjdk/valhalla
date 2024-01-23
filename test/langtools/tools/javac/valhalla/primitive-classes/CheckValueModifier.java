@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Compiler should reject value modifier when it features in illegal contexts.
- *
+ * @ignore
  * @compile/fail/ref=CheckValueModifier.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckValueModifier.java
  */
 

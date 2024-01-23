@@ -3,6 +3,7 @@
  * @bug 8244796 8244799
  * @summary Value class literal tests
  * @compile/fail/ref=ClassLiteralNegativeTest.out -XDrawDiagnostics -XDenablePrimitiveClasses ClassLiteralNegativeTest.java
+ * @ignore
  */
 
 final primitive class ClassLiteralNegativeTest {

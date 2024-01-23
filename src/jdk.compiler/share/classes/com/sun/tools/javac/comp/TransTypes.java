@@ -28,7 +28,6 @@ package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.TypeCompound;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -322,7 +321,7 @@ public class TransTypes extends TreeTranslator {
                            ClassSymbol origin,
                            ListBuffer<JCTree> bridges) {
         if (sym.kind == MTH &&
-                !names.isInitOrVNew(sym.name) &&
+                sym.name != names.init &&
                 (sym.flags() & (PRIVATE | STATIC)) == 0 &&
                 (sym.flags() & SYNTHETIC) != SYNTHETIC &&
                 sym.isMemberOf(origin, types)) {
@@ -500,13 +499,6 @@ public class TransTypes extends TreeTranslator {
         tree.cond = translate(tree.cond, syms.booleanType);
         tree.body = translate(tree.body);
         result = tree;
-    }
-
-    public void visitWithField(JCWithField tree) {
-        tree.field = translate(tree.field, null);
-        tree.value = translate(tree.value, erasure(tree.field.type));
-        tree.type = erasure(tree.type);
-        result = retype(tree, tree.type, pt);
     }
 
     public void visitForLoop(JCForLoop tree) {

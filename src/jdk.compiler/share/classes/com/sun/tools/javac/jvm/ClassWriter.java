@@ -40,8 +40,6 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Directive.*;
-import com.sun.tools.javac.code.Scope.WriteableScope;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Types.SignatureGenerator.InvalidSignatureException;
@@ -109,8 +107,6 @@ public class ClassWriter extends ClassFile {
     private Types types;
 
     private Check check;
-
-    private boolean allowPrimitiveClasses;
 
     /**
      * If true, class files will be written in module-specific subdirectories
@@ -197,8 +193,6 @@ public class ClassWriter extends ClassFile {
             dumpInnerClassModifiers = modifierFlags.indexOf('i') != -1;
             dumpMethodModifiers = modifierFlags.indexOf('m') != -1;
         }
-        Source source = Source.instance(context);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     public void addExtraAttributes(ToIntFunction<Symbol> addExtraAttributes) {
@@ -843,7 +837,7 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
-            int flags = adjustFlags(inner.flags_field);
+            int flags = adjustFlags(inner, inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -984,7 +978,7 @@ public class ClassWriter extends ClassFile {
     /** Write field symbol, entering all references into constant pool.
      */
     void writeField(VarSymbol v) {
-        int flags = adjustFlags(v.flags());
+        int flags = adjustFlags(v, v.flags());
         databuf.appendChar(flags);
         if (dumpFieldModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -1013,7 +1007,7 @@ public class ClassWriter extends ClassFile {
     /** Write method symbol, entering all references into constant pool.
      */
     void writeMethod(MethodSymbol m) {
-        int flags = adjustFlags(m.flags());
+        int flags = adjustFlags(m, m.flags());
         databuf.appendChar(flags);
         if (dumpMethodModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -1073,7 +1067,7 @@ public class ClassWriter extends ClassFile {
     private boolean requiresParamNames(MethodSymbol m) {
         if (options.isSet(PARAMETERS))
             return true;
-        if ((m.isInitOrVNew() || m.isValueObjectFactory()) && (m.flags_field & RECORD) != 0)
+        if (m.isConstructor() && (m.flags_field & RECORD) != 0)
             return true;
         return false;
     }
@@ -1300,7 +1294,7 @@ public class ClassWriter extends ClassFile {
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
                 databuf.appendByte(7);
-                databuf.appendChar(allowPrimitiveClasses && t.isPrimitiveClass() ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
+                databuf.appendChar(poolWriter.putClass(types.erasure(t)));
                 break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
@@ -1613,7 +1607,7 @@ public class ClassWriter extends ClassFile {
         if (c.owner.kind == MDL) {
             flags = ACC_MODULE;
         } else {
-            flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
+            flags = adjustFlags(c, c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
             flags = flags & AdjustedClassFlags;
         }
@@ -1776,7 +1770,7 @@ public class ClassWriter extends ClassFile {
         return i;
     }
 
-    int adjustFlags(final long flags) {
+    int adjustFlags(Symbol sym, final long flags) {
         int result = (int)flags;
 
         // Elide strictfp bit in class files
@@ -1789,8 +1783,6 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
-        if ((flags & PRIMITIVE_CLASS) != 0)
-            result |= ACC_PRIMITIVE;
         if ((flags & VALUE_CLASS) != 0)
             result |= ACC_VALUE;
         if ((flags & IDENTITY_TYPE) != 0)

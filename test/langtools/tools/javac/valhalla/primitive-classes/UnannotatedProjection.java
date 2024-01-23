@@ -30,6 +30,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses UnannotatedProjection.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses UnannotatedProjection
+ * @ignore
  */
 
 import java.lang.annotation.ElementType;

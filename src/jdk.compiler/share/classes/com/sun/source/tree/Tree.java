@@ -298,13 +298,6 @@ public interface Tree {
         SWITCH_EXPRESSION(SwitchExpressionTree.class),
 
         /**
-         * Used for instances of {@link DefaultValueTree}.
-         *
-         * @since valhalla
-         */
-        DEFAULT_VALUE(DefaultValueTree.class),
-
-        /**
          * Used for instances of {@link SynchronizedTree}.
          */
         SYNCHRONIZED(SynchronizedTree.class),
@@ -353,11 +346,6 @@ public interface Tree {
          * Used for instances of {@link WhileLoopTree}.
          */
         WHILE_LOOP(WhileLoopTree.class),
-
-        /**
-         * Used for instances of {@link WithFieldTree}.
-         */
-        WITH_FIELD(WithFieldTree.class),
 
         /**
          * Used for instances of {@link UnaryTree} representing postfix

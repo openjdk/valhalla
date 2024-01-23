@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8222790
  * @summary javac diagnostics don't discriminate between inline types and there nullable projection types.
- *
+ * @ignore
  * @compile/fail/ref=CheckQuestionInMessages.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckQuestionInMessages.java
  */
 

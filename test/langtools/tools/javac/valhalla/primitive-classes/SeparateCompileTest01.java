@@ -26,6 +26,7 @@
 /*
  * @bug 8247664
  * @summary Bogus error message: incompatible types while using separate compilation.
+ * @ignore
  */
 
 class Pointer<X> {
