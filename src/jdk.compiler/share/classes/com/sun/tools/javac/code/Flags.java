@@ -106,7 +106,6 @@ public class Flags {
     // files into unique bits positions: ACC_SYNTHETIC <-> SYNTHETIC,
     // for example.
     public static final int ACC_IDENTITY = 0x0020;
-    public static final int ACC_VALUE    = 0x0040;
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
     public static final int ACC_MODULE   = 0x8000;
@@ -138,10 +137,9 @@ public class Flags {
     public static final int EMPTYNOARGCONSTR         = 1<<18;
 
     /** Flag is set for a class or interface whose instances have identity
-     * i.e. class/interface declarations that are expressly declared with
-     * the modifier `identity' or (b) any concrete class not declared with the
-     * modifier `value' (c) abstract class not declared `value' but meets various
-     * stipulations (d) older class files with ACC_SUPER bit set
+     * i.e. any concrete class not declared with the modifier `value'
+     * (a) abstract class not declared `value'
+     * (b) older class files with ACC_SUPER bit set
      */
     public static final int IDENTITY_TYPE            = 1<<19;
 
@@ -451,8 +449,7 @@ public class Flags {
         MethodFlags                       = AccessFlags | ABSTRACT | STATIC | NATIVE |
                                             SYNCHRONIZED | FINAL | STRICTFP,
         RecordMethodFlags                 = AccessFlags | ABSTRACT | STATIC |
-                                            SYNCHRONIZED | FINAL | STRICTFP,
-        AdjustedClassFlags                = ClassFlags | ACC_VALUE;
+                                            SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
         ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
         ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
@@ -487,7 +484,6 @@ public class Flags {
             if (0 != (flags & STRICTFP))  modifiers.add(Modifier.STRICTFP);
             if (0 != (flags & DEFAULT))   modifiers.add(Modifier.DEFAULT);
             if (0 != (flags & VALUE_CLASS))     modifiers.add(Modifier.VALUE);
-            if (0 != (flags & IDENTITY_TYPE))   modifiers.add(Modifier.IDENTITY);
             modifiers = Collections.unmodifiableSet(modifiers);
             modifierSets.put(flags, modifiers);
         }
@@ -536,12 +532,12 @@ public class Flags {
                 return "identity";
             }
         },
+        VALUE(Flags.VALUE_CLASS),
         UNNAMED_CLASS(Flags.UNNAMED_CLASS),
         BLOCK(Flags.BLOCK),
         FROM_SOURCE(Flags.FROM_SOURCE),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),
-        VALUE(Flags.VALUE_CLASS),
         NOOUTERTHIS(Flags.NOOUTERTHIS),
         EXISTS(Flags.EXISTS),
         COMPOUND(Flags.COMPOUND),

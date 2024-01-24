@@ -1609,7 +1609,7 @@ public class ClassWriter extends ClassFile {
         } else {
             flags = adjustFlags(c, c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & AdjustedClassFlags;
+            flags = flags & ClassFlags;
         }
 
         if (dumpClassModifiers) {
@@ -1783,10 +1783,9 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
-        if ((flags & VALUE_CLASS) != 0)
-            result |= ACC_VALUE;
-        if ((flags & IDENTITY_TYPE) != 0)
+        if ((flags & IDENTITY_TYPE) != 0) {
             result |= ACC_IDENTITY;
+        }
         return result;
     }
 

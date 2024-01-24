@@ -1360,7 +1360,7 @@ public class TestModules extends JavadocTester {
                     <section class="class-description" id="class-description">
                     <div class="horizontal-scroll">
                     <hr>
-                    <div class="type-signature"><span class="modifiers">public identity class </span><span cl\
+                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
                     ass="element-name"><a href="../../src-html/moduleA/testpkgmdlA/TestClassInModule\
                     A.html#line-25">TestClassInModuleA</a></span>
                     <span class="extends-implements">extends java.lang.Object</span></div>

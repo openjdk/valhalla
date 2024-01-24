@@ -901,7 +901,7 @@ public class Check {
             }
             return;
         }
-        if (t.isPrimitive() || t.isValueClass() || t.isValueInterface())
+        if (t.isPrimitive() || t.isValueClass())
             typeTagError(pos, diags.fragment(Fragments.TypeReqIdentity), t);
     }
 
@@ -1371,6 +1371,10 @@ public class Check {
             // Interfaces are always ABSTRACT
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
+            if ((flags & (INTERFACE | ENUM | VALUE_CLASS)) == 0) {
+                implicit |= IDENTITY_TYPE;
+            }
+
             if ((flags & ENUM) != 0) {
                 // enums can't be declared abstract, final, sealed or non-sealed or value
                 mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | VALUE_CLASS);
@@ -1431,6 +1435,10 @@ public class Check {
                  &&
                  checkDisjoint(pos, flags,
                         IDENTITY_TYPE,
+                        VALUE_CLASS)
+                 &&
+                 checkDisjoint(pos, flags,
+                        INTERFACE,
                         VALUE_CLASS)
                  &&
                  checkDisjoint(pos, flags,
@@ -2749,7 +2757,6 @@ public class Check {
         checkCompatibleConcretes(pos, c);
 
         boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
-        boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
         Type identitySuper = null, valueSuper = null;
         for (Type t : types.closure(c)) {
             if (t != c) {
@@ -2757,14 +2764,8 @@ public class Check {
                     identitySuper = t;
                 else if ((t.tsym.flags() & VALUE_CLASS) != 0)
                     valueSuper = t;
-                if (cIsValue &&  identitySuper != null) {
+                if (cIsValue && identitySuper != null && identitySuper.tsym != syms.objectType.tsym) { // Object is special
                     log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));
-                    break;
-                } else if (cHasIdentity &&  valueSuper != null) {
-                    log.error(pos, Errors.IdentityTypeHasValueSuperType(c, valueSuper));
-                    break;
-                } else if (identitySuper != null && valueSuper != null) {
-                    log.error(pos, Errors.MutuallyIncompatibleSupers(c, identitySuper, valueSuper));
                     break;
                 }
             }

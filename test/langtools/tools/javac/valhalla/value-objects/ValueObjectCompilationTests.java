@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@
  *     jdk.compiler/com.sun.tools.javac.code
  *     jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
- * @run testng ValueObjectCompilationTests
+ * @run junit ValueObjectCompilationTests
  */
 
 import java.io.File;
@@ -58,21 +58,20 @@ import com.sun.tools.classfile.Method;
 
 import com.sun.tools.javac.code.Flags;
 
-import static org.testng.Assert.assertTrue;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import tools.javac.combo.CompilationTestCase;
 
 import toolbox.ToolBox;
 
-@Test
-public class ValueObjectCompilationTests extends CompilationTestCase {
+class ValueObjectCompilationTests extends CompilationTestCase {
 
     public ValueObjectCompilationTests() {
         setDefaultFilename("ValueObjectsTest.java");
     }
 
-    public void testAbstractValueClassConstraints() {
+    @Test
+    void testAbstractValueClassConstraints() {
         assertFail("compiler.err.instance.field.not.allowed",
                 """
                 abstract value class V {
@@ -109,18 +108,16 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 """);
     }
 
-    public void testAnnotationsConstraints() {
-        assertFail("compiler.err.illegal.combination.of.modifiers",
-                """
-                identity @interface IA {}
-                """);
+    @Test
+    void testAnnotationsConstraints() {
         assertFail("compiler.err.illegal.combination.of.modifiers",
                 """
                 value @interface IA {}
                 """);
     }
 
-    public void testCheckFeatureSourceLevel() {
+    @Test
+    void testCheckFeatureSourceLevel() {
         setCompileOptions(new String[]{"--release", "13"});
         assertFail("compiler.err.feature.not.supported.in.source.plural",
                 """
@@ -131,10 +128,11 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         setCompileOptions(new String[]{});
     }
 
-    public void testSuperClassConstraints() {
+    @Test
+    void testSuperClassConstraints() {
         assertFail("compiler.err.instance.field.not.allowed",
                 """
-                abstract class I { // identity class since it declares an instance field.
+                abstract class I {
                     int f;
                 }
                 value class V extends I {}
@@ -143,14 +141,14 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.abstract.value.class.cannot.be.inner",
                 """
                 class Outer {
-                    abstract class I {} // has identity since is an inner class
+                    abstract class I {}
                     static value class V extends I
                 }
                 """);
 
         assertFail("compiler.err.super.class.method.cannot.be.synchronized",
                 """
-                abstract class I { // has identity since it declared a synchronized instance method.
+                abstract class I {
                     synchronized void foo() {}
                 }
                 value class V extends I {}
@@ -158,7 +156,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
 
         assertFail("compiler.err.abstract.value.class.declares.init.block",
                 """
-                abstract class I { // has identity since it declares an instance initializer
+                abstract class I {
                     { int f = 42; }
                 }
                 value class V extends I {}
@@ -166,7 +164,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
 
         assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
                 """
-                abstract class I { // has identity since it declares a non-trivial constructor
+                abstract class I {
                     I(int x) {}
                 }
                 value class V extends I {}
@@ -179,18 +177,8 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 """);
     }
 
-    public void testSynchronizeOnValueInterfaceInstance() {
-        assertFail("compiler.err.type.found.req",
-                """
-                value interface VI {
-                    default void foo(VI vi) {
-                        synchronized (vi) {} // Error
-                    }
-                }
-                """);
-    }
-
-    public void testRepeatedModifiers() {
+    @Test
+    void testRepeatedModifiers() {
         String[] sources = new String[] {
                 "static static class StaticTest {}",
                 "native native class NativeTest {}",
@@ -201,7 +189,8 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         }
     }
 
-    public void testParserTest() {
+    @Test
+    void testParserTest() {
         assertOK(
                 """
                 value class Substring implements CharSequence {
@@ -243,7 +232,8 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         );
     }
 
-    public void testSemanticsViolations() {
+    @Test
+    void testSemanticsViolations() {
         assertFail("compiler.err.cant.inherit.from.final",
                 """
                 value class Base {}
@@ -291,14 +281,6 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                         // y hasn't been initialized
                     }
                 }
-                """);
-        assertFail("compiler.err.illegal.combination.of.modifiers",
-                """
-                value identity class ValueIdentity {}
-                """);
-        assertFail("compiler.err.illegal.combination.of.modifiers",
-                """
-                identity value class IdentityValue {}
                 """);
         assertFail("compiler.err.call.to.super.not.allowed.in.value.ctor",
                 """
@@ -390,7 +372,8 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 """);
     }
 
-    public void testNontrivialConstructor() {
+    @Test
+    void testNontrivialConstructor() {
         assertOK(
                 """
                 abstract value class V {
@@ -432,153 +415,34 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 """);
     }
 
-    public void testFunctionalInterface() {
-        assertFail("compiler.err.bad.functional.intf.anno.1",
-                """
-                @FunctionalInterface
-                identity interface I { // Error
-                    void m();
-                }
-                """);
-        assertFail("compiler.err.bad.functional.intf.anno.1",
-                """
-                @FunctionalInterface
-                value interface K { // Error
-                    void m();
-                }
-                """);
-        assertFail("compiler.err.prob.found.req",
-                """
-                identity interface L {
-                    void m();
-                }
-                class Test {
-                    void foo() {
-                        var t = (L) () -> {}; // Error
-                    }
-                }
-                """);
-        assertFail("compiler.err.prob.found.req",
-                """
-                value interface M {
-                    void m();
-                }
-                class Test {
-                    void foo() {
-                        var u = (M) () -> {}; // Error
-                    }
-                }
-                """);
-        assertFail("compiler.err.bad.functional.intf.anno.1",
-                """
-                identity interface I {
-                    void m();
-                }
-
-                @FunctionalInterface
-                interface J extends I  {}
-                """);
-        assertFail("compiler.err.bad.functional.intf.anno.1",
-                """
-                value interface I {
-                    void m();
-                }
-
-                @FunctionalInterface
-                interface J extends I  {}
-                """);
-        assertFail("compiler.err.prob.found.req",
-                """
-                identity interface I {}
-                interface K extends I {}
-                interface J {
-                    void m();
-                }
-                class Test {
-                    void foo() {
-                        J j = (J&K)() -> {};
-                    }
-                }
-                """);
-        assertFail("compiler.err.prob.found.req",
-                """
-                value interface I {}
-                interface K extends I {}
-                interface J {
-                    void m();
-                }
-                class Test {
-                    void foo() {
-                        J j = (J&K)() -> {};
-                    }
-                }
-                """);
-    }
-
-    public void testSupers() {
-        assertFail("compiler.err.mutually.incompatible.supers",
-                """
-                identity interface II {}
-                value interface VI {}
-                abstract class X implements II, VI {}
-                """);
-        assertFail("compiler.err.value.type.has.identity.super.type",
-                """
-                identity interface II {}
-                interface GII extends II {} // OK.
-                value interface BVI extends GII {} // Error
-                """);
-        assertFail("compiler.err.identity.type.has.value.super.type",
-                """
-                value interface VI {}
-                interface GVI extends VI {} // OK.
-                identity interface BII extends GVI {} // Error
-                """);
-        assertFail("compiler.err.value.type.has.identity.super.type",
-                """
-                identity interface II {}
-                value class BVC implements II {} // Error
-                """);
-        assertFail("compiler.err.identity.type.has.value.super.type",
-                """
-                value interface VI {}
-                class BIC implements VI {} // Error
-                """);
-        assertFail("compiler.err.identity.type.has.value.super.type",
-                """
-                value interface I {}
-                class Test {
-                    I i = new I() {};
-                }
-                """);
-    }
-
-    public void testInteractionWithSealedClasses() {
+    @Test
+    void testInteractionWithSealedClasses() {
         assertOK(
                 """
                 abstract sealed value class SC {}
                 value class VC extends SC {}
                 """
-        );assertOK(
+        );
+        assertOK(
                 """
-                abstract sealed value interface SI {}
+                abstract sealed interface SI {}
                 value class VC implements SI {}
                 """
         );
         assertOK(
                 """
-                abstract sealed identity class SC {}
-                final identity class IC extends SC {}
-                non-sealed identity class IC2 extends SC {}
-                final identity class IC3 extends IC2 {}
+                abstract sealed class SC {}
+                final class IC extends SC {}
+                non-sealed class IC2 extends SC {}
+                final class IC3 extends IC2 {}
                 """
         );
         assertOK(
                 """
-                abstract sealed identity interface SI {}
-                final identity class IC implements SI {}
-                non-sealed identity class IC2 implements SI {}
-                final identity class IC3 extends IC2 {}
+                abstract sealed interface SI {}
+                final class IC implements SI {}
+                non-sealed class IC2 implements SI {}
+                final class IC3 extends IC2 {}
                 """
         );
         assertFail("compiler.err.mod.not.allowed.here",
@@ -595,7 +459,8 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         );
     }
 
-    public void testCheckClassFileFlags() throws Exception {
+    @Test
+    void testCheckClassFileFlags() throws Exception {
         for (String source : List.of(
                 """
                 interface I {}
@@ -616,7 +481,6 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 """,
                 """
                 class Test {
-                    // abstract inner class is implicitly an `identity` class
                     abstract class Inner {}
                 }
                 """
@@ -625,44 +489,38 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
             for (final File fileEntry : dir.listFiles()) {
                 if (fileEntry.getName().contains("$")) {
                     ClassFile classFile = ClassFile.read(fileEntry);
-                    assertTrue((classFile.access_flags.flags & Flags.ACC_IDENTITY) != 0);
+                    Assert.check((classFile.access_flags.flags & Flags.ACC_IDENTITY) != 0);
                 }
             }
         }
 
         for (String source : List.of(
                 """
-                identity interface I {}
-                class Sub implements I {}
+                class C {}
                 """,
                 """
                 abstract class A {
-                    // declares a non-static field so it is implicitly an identity class
                     int i;
                 }
                 """,
                 """
                 abstract class A {
-                    // declares a synchronized method so it is implicitly an identity class
                     synchronized void m() {}
                 }
                 """,
                 """
                 class C {
-                    // declares a synchronized method so it is implicitly an identity class
                     synchronized void m() {}
                 }
                 """,
                 """
                 abstract class A {
                     int i;
-                    // declares an instance initializer so it is implicitly an identity class
                     { i = 0; }
                 }
                 """,
                 """
                 abstract class A {
-                    // declares a non-trivial constructor
                     A(int i) {}
                 }
                 """,
@@ -670,42 +528,31 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     enum E {}
                 """,
                 """
-                    identity enum E {}
-                """,
-                """
                     record R() {}
-                """,
-                """
-                   identity record R() {}
                 """
         )) {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
                 ClassFile classFile = ClassFile.read(fileEntry);
-                assertTrue(classFile.access_flags.is(Flags.ACC_IDENTITY));
-                assertTrue(!classFile.access_flags.is(Flags.VALUE_CLASS));
+                Assert.check(classFile.access_flags.is(Flags.ACC_IDENTITY));
             }
         }
 
         {
             String source =
                     """
-                            value interface I {}
-                            abstract class A implements I {} // not a value class as it doens't have the value modifier
-                            value class Sub extends A {} //implicitly final
-                            """;
+                    abstract value class A {}
+                    value class Sub extends A {} //implicitly final
+                    """;
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
                 ClassFile classFile = ClassFile.read(fileEntry);
                 switch (classFile.getName()) {
                     case "Sub":
-                        assertTrue((classFile.access_flags.flags & (Flags.VALUE_CLASS | Flags.FINAL)) != 0);
+                        Assert.check((classFile.access_flags.flags & (Flags.VALUE_CLASS | Flags.FINAL)) != 0);
                         break;
                     case "A":
-                        assertTrue((classFile.access_flags.flags & (Flags.ABSTRACT)) != 0);
-                        break;
-                    case "I":
-                        assertTrue((classFile.access_flags.flags & (Flags.INTERFACE | Flags.VALUE_CLASS)) != 0);
+                        Assert.check((classFile.access_flags.flags & (Flags.ABSTRACT)) != 0);
                         break;
                     default:
                         throw new AssertionError("you shoulnd't be here");
@@ -735,14 +582,15 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 ClassFile classFile = ClassFile.read(fileEntry);
                 for (Field field : classFile.fields) {
                     if (!field.access_flags.is(Flags.STATIC)) {
-                        assertTrue(field.access_flags.is(Flags.FINAL));
+                        Assert.check(field.access_flags.is(Flags.FINAL));
                     }
                 }
             }
         }
     }
 
-    public void testSelectors() throws Exception {
+    @Test
+    void testSelectors() throws Exception {
         assertOK(
                 """
                 value class V {
