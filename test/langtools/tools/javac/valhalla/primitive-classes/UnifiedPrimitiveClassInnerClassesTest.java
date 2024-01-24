@@ -30,6 +30,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses UnifiedPrimitiveClassInnerClassesTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses UnifiedPrimitiveClassInnerClassesTest
+ * @ignore
  */
 
 import com.sun.tools.classfile.*;

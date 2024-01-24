@@ -29,6 +29,7 @@
  * @compile -XDenablePrimitiveClasses ProjectedArrayDotClass.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ProjectedArrayDotClass
  * @modules jdk.compiler
+ * @ignore
  */
 
 import java.io.PrintWriter;

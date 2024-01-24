@@ -27,6 +27,7 @@
  * @summary Test overload resolution.
  * @compile -XDenablePrimitiveClasses OverloadingPhaseTest2.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses OverloadingPhaseTest2
+ * @ignore
  */
 
 public class OverloadingPhaseTest2 {

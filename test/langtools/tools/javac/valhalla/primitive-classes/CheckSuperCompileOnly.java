@@ -29,6 +29,7 @@
  *
  * @compile -XDallowWithFieldOperator -XDenablePrimitiveClasses Point.java
  * @compile -XDenablePrimitiveClasses CheckSuperCompileOnly.java
+ * @ignore
  */
 
 public class CheckSuperCompileOnly {

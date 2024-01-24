@@ -37,6 +37,7 @@ import java.util.stream.StreamSupport;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.NestingKind;
+import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileManager;
 
 import com.sun.source.tree.CaseTree;
@@ -184,7 +185,7 @@ public class Check {
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
+        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -228,9 +229,9 @@ public class Check {
      */
     private final boolean allowSealed;
 
-    /** Are primitive classes allowed
+    /** Are value classes allowed
      */
-    private final boolean allowPrimitiveClasses;
+    private final boolean allowValueClasses;
 
 /* *************************************************************************
  * Errors and Warnings
@@ -643,11 +644,6 @@ public class Check {
         if (inferenceContext.free(req) || inferenceContext.free(found)) {
             inferenceContext.addFreeTypeListener(List.of(req, found),
                     solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
-        } else {
-            if (allowPrimitiveClasses && found.hasTag(CLASS)) {
-                if (inferenceContext != infer.emptyContext)
-                    checkParameterizationByPrimitiveClass(pos, found);
-            }
         }
         if (req.hasTag(ERROR))
             return req;
@@ -721,12 +717,12 @@ public class Check {
      *  @param a             The type that should be bounded by bs.
      *  @param bound         The bound.
      */
-    private boolean checkExtends(Type a, Type bound) {
+    private boolean checkExtends(JCTree pos, Type a, Type bound) {
          if (a.isUnbound()) {
              return true;
          } else if (!a.hasTag(WILDCARD)) {
              a = types.cvarUpperBound(a);
-             return types.isSubtype(a, bound);
+             return types.isSubtype(a, bound, true);
          } else if (a.isExtendsBound()) {
              return types.isCastable(bound, types.wildUpperBound(a), types.noWarnings);
          } else if (a.isSuperBound()) {
@@ -778,7 +774,8 @@ public class Check {
                                     : t;
         }
 
-    void checkConstraintsOfValueClass(DiagnosticPosition pos, ClassSymbol c) {
+    void checkConstraintsOfValueClass(JCClassDecl tree, ClassSymbol c) {
+        DiagnosticPosition pos = tree.pos();
         for (Type st : types.closure(c.type)) {
             if (st == null || st.tsym == null || st.tsym.kind == ERR)
                 continue;
@@ -809,7 +806,7 @@ public class Check {
                 case MTH:
                     if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                         log.error(pos, Errors.SuperClassMethodCannotBeSynchronized(s, c, st));
-                    } else if (s.isInitOrVNew()) {
+                    } else if (s.isConstructor()) {
                         MethodSymbol m = (MethodSymbol)s;
                         if (m.getParameters().size() > 0) {
                             log.error(pos, Errors.AbstractValueClassConstructorCannotTakeArguments(m, fragment));
@@ -841,15 +838,6 @@ public class Check {
                 log.error(expr, Errors.EnumCantBeInstantiated);
                 t = types.createErrorType(t);
             } else {
-                // Projection types may not be mentioned in constructor references
-                if (expr.hasTag(SELECT)) {
-                    JCFieldAccess fieldAccess = (JCFieldAccess) expr;
-                    if (allowPrimitiveClasses && fieldAccess.selected.type.isPrimitiveClass() &&
-                            (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
-                        log.error(expr, Errors.ProjectionCantBeInstantiated);
-                        t = types.createErrorType(t);
-                    }
-                }
                 t = checkClassType(expr, t, true);
             }
         } else if (t.hasTag(ARRAY)) {
@@ -885,10 +873,9 @@ public class Check {
      *  or a type variable.
      *  @param pos           Position to be used for error reporting.
      *  @param t             The type to be checked.
-     *  @param primitiveClassOK       If false, a primitive class does not qualify
      */
-    Type checkRefType(DiagnosticPosition pos, Type t, boolean primitiveClassOK) {
-        if (t.isReference() && (!allowPrimitiveClasses || primitiveClassOK || !t.isPrimitiveClass()))
+    Type checkRefType(DiagnosticPosition pos, Type t) {
+        if (t.isReference())
             return t;
         else
             return typeTagError(pos,
@@ -896,9 +883,9 @@ public class Check {
                                 t);
     }
 
-    /** Check that type is an identity type, i.e. not a primitive/value type
-     *  nor its reference projection. When not discernible statically,
-     *  give it the benefit of doubt and defer to runtime.
+    /** Check that type is an identity type, i.e. not a value type.
+     *  When not discernible statically, give it the benefit of doubt
+     *  and defer to runtime.
      *
      *  @param pos           Position to be used for error reporting.
      *  @param t             The type to be checked.
@@ -914,17 +901,8 @@ public class Check {
             }
             return;
         }
-        if (t.isPrimitive() || t.isValueClass() || t.isValueInterface() || t.isReferenceProjection())
+        if (t.isPrimitive() || t.isValueClass() || t.isValueInterface())
             typeTagError(pos, diags.fragment(Fragments.TypeReqIdentity), t);
-    }
-
-    /** Check that type is a reference type, i.e. a class, interface or array type
-     *  or a type variable.
-     *  @param pos           Position to be used for error reporting.
-     *  @param t             The type to be checked.
-     */
-    Type checkRefType(DiagnosticPosition pos, Type t) {
-        return checkRefType(pos, t, true);
     }
 
     /** Check that each type is a reference type, i.e. a class, interface or array type
@@ -935,7 +913,7 @@ public class Check {
     List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types) {
         List<JCExpression> tl = trees;
         for (List<Type> l = types; l.nonEmpty(); l = l.tail) {
-            l.head = checkRefType(tl.head.pos(), l.head, false);
+            l.head = checkRefType(tl.head.pos(), l.head);
             tl = tl.tail;
         }
         return types;
@@ -970,55 +948,6 @@ public class Check {
         } else
             return true;
     }
-
-    void checkParameterizationByPrimitiveClass(DiagnosticPosition pos, Type t) {
-        parameterizationByPrimitiveClassChecker.visit(t, pos);
-    }
-
-    /** parameterizationByPrimitiveClassChecker: A type visitor that descends down the given type looking for instances of primitive classes
-     *  being used as type arguments and issues error against those usages.
-     */
-    private final Types.SimpleVisitor<Void, DiagnosticPosition> parameterizationByPrimitiveClassChecker =
-            new Types.SimpleVisitor<Void, DiagnosticPosition>() {
-
-        @Override
-        public Void visitType(Type t, DiagnosticPosition pos) {
-            return null;
-        }
-
-        @Override
-        public Void visitClassType(ClassType t, DiagnosticPosition pos) {
-            for (Type targ : t.allparams()) {
-                if (allowPrimitiveClasses && targ.isPrimitiveClass()) {
-                    log.error(pos, Errors.GenericParameterizationWithPrimitiveClass(t));
-                }
-                visit(targ, pos);
-            }
-            return null;
-        }
-
-        @Override
-        public Void visitTypeVar(TypeVar t, DiagnosticPosition pos) {
-             return null;
-        }
-
-        @Override
-        public Void visitCapturedType(CapturedType t, DiagnosticPosition pos) {
-            return null;
-        }
-
-        @Override
-        public Void visitArrayType(ArrayType t, DiagnosticPosition pos) {
-            return visit(t.elemtype, pos);
-        }
-
-        @Override
-        public Void visitWildcardType(WildcardType t, DiagnosticPosition pos) {
-            return visit(t.type, pos);
-        }
-    };
-
-
 
     /** Check that usage of diamond operator is correct (i.e. diamond should not
      * be used with non-generic classes or in anonymous class creation expressions)
@@ -1152,7 +1081,7 @@ public class Check {
     //where
         private boolean isTrustMeAllowedOnMethod(Symbol s) {
             return (s.flags() & VARARGS) != 0 &&
-                (s.isInitOrVNew() ||
+                (s.isConstructor() ||
                     (s.flags() & (STATIC | FINAL |
                                   (Feature.PRIVATE_SAFE_VARARGS.allowedInSource(source) ? PRIVATE : 0) )) != 0);
         }
@@ -1168,11 +1097,7 @@ public class Check {
         }
 
         //upward project the initializer type
-        Type varType = types.upward(t, types.captures(t)).baseType();
-        if (allowPrimitiveClasses && varType.hasTag(CLASS)) {
-            checkParameterizationByPrimitiveClass(pos, varType);
-        }
-        return varType;
+        return types.upward(t, types.captures(t)).baseType();
     }
 
     Type checkMethod(final Type mtype,
@@ -1195,7 +1120,6 @@ public class Check {
         List<Type> nonInferred = sym.type.getParameterTypes();
         if (nonInferred.length() != formals.length()) nonInferred = formals;
         Type last = useVarargs ? formals.last() : null;
-        // TODO - is enum so <init>
         if (sym.name == names.init && sym.owner == syms.enumSym) {
             formals = formals.tail.tail;
             nonInferred = nonInferred.tail.tail;
@@ -1263,10 +1187,14 @@ public class Check {
      * @return true if 't' is well-formed
      */
     public boolean checkValidGenericType(Type t) {
-        return firstIncompatibleTypeArg(t) == null;
+        return checkValidGenericType(null, t);
+    }
+
+    public boolean checkValidGenericType(JCTree pos, Type t) {
+        return firstIncompatibleTypeArg(pos, t) == null;
     }
     //WHERE
-        private Type firstIncompatibleTypeArg(Type type) {
+        private Type firstIncompatibleTypeArg(JCTree pos, Type type) {
             List<Type> formals = type.tsym.type.allparams();
             List<Type> actuals = type.allparams();
             List<Type> args = type.getTypeArguments();
@@ -1303,7 +1231,7 @@ public class Check {
                 Type actual = args.head;
                 if (!isTypeArgErroneous(actual) &&
                         !bounds.head.isErroneous() &&
-                        !checkExtends(actual, bounds.head)) {
+                        !checkExtends(pos, actual, bounds.head)) {
                     return args.head;
                 }
                 args = args.tail;
@@ -1379,7 +1307,7 @@ public class Check {
             }
             break;
         case MTH:
-            if (names.isInitOrVNew(sym.name)) {
+            if (sym.name == names.init) {
                 if ((sym.owner.flags_field & ENUM) != 0) {
                     // enum constructors cannot be declared public or
                     // protected and must be implicitly or explicitly
@@ -1444,8 +1372,8 @@ public class Check {
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract, final, sealed or non-sealed or primitive/value
-                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS);
+                // enums can't be declared abstract, final, sealed or non-sealed or value
+                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | VALUE_CLASS);
                 implicit |= implicitEnumFinalFlag(tree);
             }
             if ((flags & RECORD) != 0) {
@@ -1458,10 +1386,6 @@ public class Check {
             }
             // Imply STRICTFP if owner has STRICTFP set.
             implicit |= sym.owner.flags_field & STRICTFP;
-
-            // primitive classes are implicitly final value classes.
-            if ((flags & PRIMITIVE_CLASS) != 0)
-                implicit |= VALUE_CLASS | FINAL;
 
             // concrete value classes are implicitly final
             if ((flags & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS) {
@@ -1503,11 +1427,11 @@ public class Check {
                  &&
                  checkDisjoint(pos, flags,
                                ABSTRACT | INTERFACE,
-                               FINAL | NATIVE | SYNCHRONIZED | PRIMITIVE_CLASS)
+                               FINAL | NATIVE | SYNCHRONIZED)
                  &&
                  checkDisjoint(pos, flags,
                         IDENTITY_TYPE,
-                        PRIMITIVE_CLASS | VALUE_CLASS)
+                        VALUE_CLASS)
                  &&
                  checkDisjoint(pos, flags,
                                PUBLIC,
@@ -1653,7 +1577,7 @@ public class Check {
                 List<JCExpression> args = tree.arguments;
                 List<Type> forms = tree.type.tsym.type.getTypeArguments();
 
-                Type incompatibleArg = firstIncompatibleTypeArg(tree.type);
+                Type incompatibleArg = firstIncompatibleTypeArg(tree, tree.type);
                 if (incompatibleArg != null) {
                     for (JCTree arg : tree.arguments) {
                         if (arg.type == incompatibleArg) {
@@ -1712,13 +1636,10 @@ public class Check {
 
         public void visitSelectInternal(JCFieldAccess tree) {
             if (tree.type.tsym.isStatic() &&
-                tree.selected.type.isParameterized() &&
-                    (tree.name != names.ref || !tree.type.isReferenceProjection())) {
+                tree.selected.type.isParameterized()) {
                 // The enclosing type is not a class, so we are
                 // looking at a static member type.  However, the
                 // qualifying expression is parameterized.
-                // Tolerate the pseudo-select V.ref: V<T>.ref will be static if V<T> is and
-                // should not be confused as selecting a static member of a parameterized type.
                 log.error(tree.pos(), Errors.CantSelectStaticClassFromParamType);
             } else {
                 // otherwise validate the rest of the expression
@@ -1782,7 +1703,7 @@ public class Check {
     //where
         private boolean withinAnonConstr(Env<AttrContext> env) {
             return env.enclClass.name.isEmpty() &&
-                    env.enclMethod != null && names.isInitOrVNew(env.enclMethod.name);
+                    env.enclMethod != null && env.enclMethod.name == names.init;
         }
 
 /* *************************************************************************
@@ -2383,7 +2304,7 @@ public class Check {
         // or by virtue of being a member of a diamond inferred anonymous class. Latter case is to
         // be treated "as if as they were annotated" with @Override.
         boolean mustOverride = explicitOverride ||
-                (env.info.isAnonymousDiamond && !m.isInitOrVNew() && !m.isPrivate());
+                (env.info.isAnonymousDiamond && !m.isConstructor() && !m.isPrivate());
         if (mustOverride && !isOverrider(m)) {
             DiagnosticPosition pos = tree.pos();
             for (JCAnnotation a : tree.getModifiers().annotations) {
@@ -2541,7 +2462,7 @@ public class Check {
 
     // A primitive class cannot contain a field of its own type either or indirectly.
     void checkNonCyclicMembership(JCClassDecl tree) {
-        if (allowPrimitiveClasses) {
+        if (allowValueClasses) {
             Assert.check((tree.sym.flags_field & LOCKED) == 0);
             try {
                 tree.sym.flags_field |= LOCKED;
@@ -2575,7 +2496,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            return (symbol.flags() & STATIC) == 0 && allowPrimitiveClasses && symbol.type.isPrimitiveClass();
+            return false; // (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && symbol.type.isNonNullable();
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {
@@ -2943,7 +2864,7 @@ public class Check {
                      (s.flags() & SYNTHETIC) == 0 &&
                      !shouldSkip(s) &&
                      s.isInheritedIn(site.tsym, types) &&
-                     !s.isInitOrVNew();
+                     !s.isConstructor();
          }
      }
 
@@ -3002,7 +2923,7 @@ public class Check {
              return s.kind == MTH &&
                      (s.flags() & DEFAULT) != 0 &&
                      s.isInheritedIn(site.tsym, types) &&
-                     !s.isInitOrVNew();
+                     !s.isConstructor();
          }
      }
 
@@ -3885,7 +3806,7 @@ public class Check {
                     applicableTargets.add(names.RECORD_COMPONENT);
                 }
             } else if (target == names.METHOD) {
-                if (s.kind == MTH && !s.isInitOrVNew())
+                if (s.kind == MTH && !s.isConstructor())
                     applicableTargets.add(names.METHOD);
             } else if (target == names.PARAMETER) {
                 if (s.kind == VAR &&
@@ -3893,7 +3814,7 @@ public class Check {
                     applicableTargets.add(names.PARAMETER);
                 }
             } else if (target == names.CONSTRUCTOR) {
-                if (s.kind == MTH && s.isInitOrVNew())
+                if (s.kind == MTH && s.isConstructor())
                     applicableTargets.add(names.CONSTRUCTOR);
             } else if (target == names.LOCAL_VARIABLE) {
                 if (s.kind == VAR && s.owner.kind == MTH &&
@@ -3912,9 +3833,9 @@ public class Check {
                     //cannot type annotate implicitly typed locals
                     continue;
                 } else if (s.kind == TYP || s.kind == VAR ||
-                        (s.kind == MTH && !s.isInitOrVNew() &&
+                        (s.kind == MTH && !s.isConstructor() &&
                                 !s.type.getReturnType().hasTag(VOID)) ||
-                        (s.kind == MTH && s.isInitOrVNew())) {
+                        (s.kind == MTH && s.isConstructor())) {
                     applicableTargets.add(names.TYPE_USE);
                 }
             } else if (target == names.TYPE_PARAMETER) {
@@ -4504,6 +4425,7 @@ public class Check {
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);
             }
+            this.warned = true;
         }
     }
 
@@ -5255,7 +5177,7 @@ public class Check {
         private void checkCtorAccess(JCClassDecl tree, ClassSymbol c) {
             if (isExternalizable(c.type)) {
                 for(var sym : c.getEnclosedElements()) {
-                    if (sym.isInitOrVNew() &&
+                    if (sym.isConstructor() &&
                         ((sym.flags() & PUBLIC) == PUBLIC)) {
                         if (((MethodSymbol)sym).getParameters().isEmpty()) {
                             return;
@@ -5283,7 +5205,7 @@ public class Check {
                 try {
                     ClassSymbol supertype = ((ClassSymbol)(((DeclaredType)superClass).asElement()));
                     for(var sym : supertype.getEnclosedElements()) {
-                        if (sym.isInitOrVNew()) {
+                        if (sym.isConstructor()) {
                             MethodSymbol ctor = (MethodSymbol)sym;
                             if (ctor.getParameters().isEmpty()) {
                                 if (((ctor.flags() & PRIVATE) == PRIVATE) ||

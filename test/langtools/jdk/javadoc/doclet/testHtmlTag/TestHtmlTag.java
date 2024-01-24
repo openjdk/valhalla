@@ -159,7 +159,7 @@ public class TestHtmlTag extends JavadocTester {
 
         checkOutput("pkg3/A.ActivationDesc.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
+                    <div class="type-signature"><span class="modifiers">public identity class </span><span cl\
                     ass="element-name type-name-label">A.ActivationDesc</span>
                     <span class="extends-implements">extends java.lang.Object
                     implements java.io.Serializable</span></div>
@@ -182,7 +182,7 @@ public class TestHtmlTag extends JavadocTester {
 
         checkOutput("pkg3/A.ActivationGroupID.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
+                    <div class="type-signature"><span class="modifiers">public identity class </span><span cl\
                     ass="element-name type-name-label">A.ActivationGroupID</span>
                     <span class="extends-implements">extends java.lang.Object
                     implements java.io.Serializable</span></div>

@@ -26,6 +26,7 @@
  * @bug 8210122
  * @summary [lworld] javac issues bogus "no comment" doclint warning while compiling primitive class
  * @compile -Xdoclint:all -Werror -XDenablePrimitiveClasses DocLintSyntheticsTest.java
+ * @ignore
  */
 
 /**
@@ -39,7 +40,7 @@ public primitive class DocLintSyntheticsTest {
    * Constructor
    */
   public DocLintSyntheticsTest() { this.value = 0; }
- 
+
   /**
    * test method
    */

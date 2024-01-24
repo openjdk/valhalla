@@ -28,6 +28,7 @@
  * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses ValueBootstrapMethodsTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 ValueBootstrapMethodsTest
+ * @ignore
  */
 
 import java.util.List;

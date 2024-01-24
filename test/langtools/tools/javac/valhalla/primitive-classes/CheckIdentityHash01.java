@@ -26,6 +26,7 @@
  * @bug 8237071
  * @summary Totalize System.identityHashCode for inline types.
  * @compile -XDenablePrimitiveClasses CheckIdentityHash01.java
+ * @ignore
  */
 import static java.lang.System.*;
 

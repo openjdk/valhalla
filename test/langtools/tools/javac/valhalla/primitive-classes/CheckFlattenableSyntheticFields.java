@@ -30,6 +30,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses CheckFlattenableSyntheticFields.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CheckFlattenableSyntheticFields
+ * @ignore
  */
 
 import com.sun.tools.classfile.*;

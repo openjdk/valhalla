@@ -29,6 +29,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDallowWithFieldOperator -XDenablePrimitiveClasses Point.java
  * @run main CheckFlags
+ * @ignore
  */
 
 import com.sun.tools.classfile.*;

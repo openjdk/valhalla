@@ -106,7 +106,7 @@ public class TestHtmlDefinitionListTag extends JavadocTester {
         // for default value.
         checkOutput("pkg1/C1.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">C1</span>
+                    <div class="type-signature"><span class="modifiers">public identity class </span><span class="element-name type-name-label">C1</span>
                     <span class="extends-implements">extends java.lang.Object
                     implements java.io.Serializable</span></div>""");
         checkOutput("pkg1/C4.html", true,

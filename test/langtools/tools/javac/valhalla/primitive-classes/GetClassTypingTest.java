@@ -29,6 +29,7 @@
  * @summary [lworld] Improve typing of primitiveObject.getClass()
  * @compile -XDenablePrimitiveClasses GetClassTypingTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses GetClassTypingTest
+ * @ignore
  */
 
 public class GetClassTypingTest {

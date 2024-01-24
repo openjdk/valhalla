@@ -30,6 +30,7 @@
  * @compile -XDenablePrimitiveClasses SmallSetTest.java
  * @compile -XDenablePrimitiveClasses SmallSetTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SmallSetTest
+ * @ignore
  */
 
 public class SmallSetTest {

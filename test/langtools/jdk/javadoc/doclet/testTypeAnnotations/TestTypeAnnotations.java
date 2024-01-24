@@ -83,7 +83,7 @@ public class TestTypeAnnotations extends JavadocTester {
 
         checkOutput("typeannos/ExtendsGeneric.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">class </span><span class="el\
+                    <div class="type-signature"><span class="modifiers">identity class </span><span class="el\
                     ement-name type-name-label">ExtendsGeneric&lt;K extends <a href="ClassParamA.htm\
                     l" title="annotation interface in typeannos">@ClassParamA</a> <a href="Unannotat\
                     ed.html" title="class in typeannos">Unannotated</a>&lt;<a href="ClassParamB.html\
@@ -92,7 +92,7 @@ public class TestTypeAnnotations extends JavadocTester {
 
         checkOutput("typeannos/TwoBounds.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">class </span><span class="el\
+                    <div class="type-signature"><span class="modifiers">identity class </span><span class="el\
                     ement-name type-name-label">TwoBounds&lt;K extends <a href="ClassParamA.html" ti\
                     tle="annotation interface in typeannos">@ClassParamA</a> java.lang.String,<wbr>V\
                      extends <a href="ClassParamB.html" title="annotation interface in typeannos">@C\
@@ -466,7 +466,7 @@ public class TestTypeAnnotations extends JavadocTester {
                     tle="annotation interface in typeannos">@RepTypeA</a>
                     <a href="RepTypeB.html" title="annotation interface in typeannos">@RepTypeB</a> \
                     <a href="RepTypeB.html" title="annotation interface in typeannos">@RepTypeB</a>
-                    </span><span class="modifiers">class </span><span class="element-name type-name-\
+                    </span><span class="modifiers">identity class </span><span class="element-name type-name-\
                     label">RepeatingAtClassLevel</span>
                     <span class="extends-implements">extends java.lang.Object</span></div>""");
 

@@ -30,6 +30,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses CheckFieldDescriptors.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CheckFieldDescriptors
+ * @ignore
  */
 
 import com.sun.tools.classfile.*;

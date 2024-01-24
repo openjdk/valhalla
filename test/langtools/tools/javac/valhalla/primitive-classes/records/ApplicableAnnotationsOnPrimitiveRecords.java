@@ -30,6 +30,7 @@
  *          jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses ApplicableAnnotationsOnPrimitiveRecords.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ApplicableAnnotationsOnPrimitiveRecords
+ * @ignore
  */
 import com.sun.tools.classfile.*;
 import com.sun.tools.javac.util.Assert;
@@ -51,7 +52,7 @@ import java.io.InputStream;
 @interface ParameterAnnotation {
 }
 
-public primitive record ApplicableAnnotationsOnPrimitiveRecords(@FieldAnnotation @MethodAnnotation @ParameterAnnotation String s, @FieldAnnotation @MethodAnnotation @ParameterAnnotation int i) {
+public value record ApplicableAnnotationsOnPrimitiveRecords(@FieldAnnotation @MethodAnnotation @ParameterAnnotation String s, @FieldAnnotation @MethodAnnotation @ParameterAnnotation int i) {
 
     public static void main(String... args) throws Exception {
         try ( InputStream in = ApplicableAnnotationsOnPrimitiveRecords.class.getResourceAsStream("ApplicableAnnotationsOnPrimitiveRecords.class")) {

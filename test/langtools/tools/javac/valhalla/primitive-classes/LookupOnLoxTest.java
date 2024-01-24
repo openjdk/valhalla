@@ -27,6 +27,7 @@
  * @summary [lworld] Javac forbids look ups on the light weight box type of a value type
  * @compile -XDenablePrimitiveClasses LookupOnLoxTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LookupOnLoxTest
+ * @ignore
  */
 
 public primitive class LookupOnLoxTest {

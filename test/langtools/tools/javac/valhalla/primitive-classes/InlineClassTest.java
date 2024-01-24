@@ -29,6 +29,7 @@
  * @summary Test inline modifier
  * @compile -XDenablePrimitiveClasses InlineClassTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InlineClassTest
+ * @ignore
  */
 
 public primitive class InlineClassTest {

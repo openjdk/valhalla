@@ -28,6 +28,7 @@
  * @bug 8222634
  * @summary Check null assignment/comparisons against VT.ref
  * @compile -XDenablePrimitiveClasses CheckNullWithQuestion.java
+ * @ignore
  */
 
 primitive class CheckNullWithQuestion {

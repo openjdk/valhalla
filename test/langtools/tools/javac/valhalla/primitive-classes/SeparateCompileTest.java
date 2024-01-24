@@ -30,6 +30,7 @@
  * @compile -XDenablePrimitiveClasses SeparateCompileTest01.java
  * @compile -XDenablePrimitiveClasses SeparateCompileTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SeparateCompileTest
+ * @ignore
  */
 
 public class SeparateCompileTest {

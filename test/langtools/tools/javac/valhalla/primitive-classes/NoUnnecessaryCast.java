@@ -29,6 +29,7 @@
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses NoUnnecessaryCast.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses NoUnnecessaryCast
+ * @ignore
  */
 
 import java.io.File;

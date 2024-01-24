@@ -25,14 +25,15 @@
  * @test
  * @bug 8209400 8215246
  * @summary Allow anonymous classes to be value types
- * @compile -XDenablePrimitiveClasses AnonymousValueType.java
+ * @compile AnonymousValueType.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:none AnonymousValueType
+ * @ignore
  */
 
 
 public class AnonymousValueType {
     public static void main(String[] args) {
-        Object o = new primitive Comparable<String>() {
+        Object o = new value Comparable<String>() {
             int x = 10;
             @Override
             public int compareTo(String o) {

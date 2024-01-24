@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check behavior of synzhronized key word on primitive class instances and methods.
- *
+ * @ignore
  * @compile/fail/ref=CheckSynchronized.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckSynchronized.java
  */
 

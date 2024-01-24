@@ -3,6 +3,7 @@
  * @summary Check for cycles through fields declared flattenable.
  *
  * @compile/fail/ref=CheckFlattenableCycles.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckFlattenableCycles.java
+ * @ignore
  */
 
 final primitive class CheckFlattenableCycles {
