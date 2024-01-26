@@ -1371,7 +1371,7 @@ public class Check {
             // Interfaces are always ABSTRACT
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
-            if ((flags & (INTERFACE | ENUM | VALUE_CLASS)) == 0) {
+            if ((flags & (INTERFACE | VALUE_CLASS)) == 0) {
                 implicit |= IDENTITY_TYPE;
             }
 
