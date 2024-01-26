@@ -225,7 +225,7 @@ public class ClassWriter extends ClassFile {
         int i = 0;
         long f = flags & StandardFlags;
         while (f != 0) {
-            if ((f & 1) != 0) {
+            if ((f & 1) != 0 && flagName[i] != "") {
                 sbuf.append(" ");
                 sbuf.append(flagName[i]);
             }
@@ -237,7 +237,8 @@ public class ClassWriter extends ClassFile {
     //where
         private static final String[] flagName = {
             "PUBLIC", "PRIVATE", "PROTECTED", "STATIC", "FINAL",
-            "IDENTITY", "VOLATILE", "TRANSIENT", "NATIVE", "INTERFACE",
+            // the empty position should be for synchronized but right now we don't have any test checking it
+            "", "VOLATILE", "TRANSIENT", "NATIVE", "INTERFACE",
             "ABSTRACT", "STRICTFP"};
 
 /******************************************************************
