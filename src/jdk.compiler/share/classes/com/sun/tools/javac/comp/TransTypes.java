@@ -669,7 +669,6 @@ public class TransTypes extends TreeTranslator {
         List<Type> argtypes = useInstantiatedPtArgs ?
                 tree.meth.type.getParameterTypes() :
                 mt.getParameterTypes();
-        // TODO - is enum so <init>
         if (meth.name == names.init && meth.owner == syms.enumSym)
             argtypes = argtypes.tail.tail;
         if (tree.varargsElement != null)
