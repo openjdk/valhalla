@@ -3675,7 +3675,6 @@ public class Resolve {
 
         ArrayConstructorReferenceLookupHelper(JCMemberReference referenceTree, Type site, List<Type> argtypes,
                 List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
-            // TODO - array constructor will be <init>
             super(referenceTree, names.init, site, argtypes, typeargtypes, maxPhase);
         }
 

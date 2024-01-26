@@ -1596,8 +1596,7 @@ public class JavacParser implements Parser {
                     case LT:
                         if (!isMode(TYPE) && isParameterizedTypePrefix()) {
                             //this is either an unbound method reference whose qualifier
-                            //is a generic type i.e. A<S>::m or a default value creation of
-                            //the form ValueType<S>.default
+                            //is a generic type i.e. A<S>::m
                             int pos1 = token.pos;
                             accept(LT);
                             ListBuffer<JCExpression> args = new ListBuffer<>();
