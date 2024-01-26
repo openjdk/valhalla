@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -631,12 +631,14 @@ public class TestIntrinsics {
 
     private static final int TEST33_BASE_OFFSET;
     private static final int TEST33_INDEX_SCALE;
+    private static final MyValue1[] TEST33_ARRAY;
     private static final boolean TEST33_FLATTENED_ARRAY;
     static {
         try {
-            TEST33_BASE_OFFSET = U.arrayBaseOffset(MyValue1[].class);
-            TEST33_INDEX_SCALE = U.arrayIndexScale(MyValue1[].class);
-            TEST33_FLATTENED_ARRAY = U.isFlattenedArray(MyValue1[].class);
+            TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+            TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY.getClass());
+            TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY.getClass());
+            TEST33_FLATTENED_ARRAY = U.isFlattenedArray(TEST33_ARRAY.getClass());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -644,39 +646,37 @@ public class TestIntrinsics {
     // getValue to retrieve flattened field from array
     @Test
     @IR(failOn = {CALL_UNSAFE})
-    public MyValue1 test33(MyValue1[] arr) {
+    public MyValue1 test33() {
         if (TEST33_FLATTENED_ARRAY) {
-            return U.getValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class);
+            return U.getValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class);
         }
-        return (MyValue1)U.getReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE);
+        return (MyValue1)U.getReference(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE);
     }
 
     @Run(test = "test33")
     public void test33_verifier() {
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        arr[1] = vt;
-        MyValue1 res = test33(arr);
+        TEST33_ARRAY[1] = vt;
+        MyValue1 res = test33();
         Asserts.assertEQ(res.hash(), vt.hash());
     }
 
     // putValue to set flattened field in array
     @Test
     @IR(failOn = {CALL_UNSAFE})
-    public void test34(MyValue1[] arr, MyValue1 vt) {
+    public void test34(MyValue1 vt) {
         if (TEST33_FLATTENED_ARRAY) {
-            U.putValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class, vt);
+            U.putValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class, vt);
         } else {
-            U.putReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, vt);
+            U.putReference(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, vt);
         }
     }
 
     @Run(test = "test34")
     public void test34_verifier() {
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        test34(arr, vt);
-        Asserts.assertEQ(arr[1].hash(), vt.hash());
+        test34(vt);
+        Asserts.assertEQ(TEST33_ARRAY[1].hash(), vt.hash());
     }
 
     // getValue to retrieve flattened field from object with unknown
@@ -1698,7 +1698,7 @@ public class TestIntrinsics {
 
     @Run(test = "test81")
     public void test81_verifier() {
-        Asserts.assertEQ(test81(MyValue1[].class), TEST33_FLATTENED_ARRAY, "test81_1 failed");
+        Asserts.assertEQ(test81(TEST33_ARRAY.getClass()), TEST33_FLATTENED_ARRAY, "test81_1 failed");
         Asserts.assertFalse(test81(String[].class), "test81_2 failed");
         Asserts.assertFalse(test81(String.class), "test81_3 failed");
         Asserts.assertFalse(test81(int[].class), "test81_4 failed");
@@ -1709,7 +1709,7 @@ public class TestIntrinsics {
     @Test
     @IR(failOn = {LOADK})
     public boolean test82() {
-        boolean check1 = U.isFlattenedArray(MyValue1[].class);
+        boolean check1 = U.isFlattenedArray(TEST33_ARRAY.getClass());
         if (!TEST33_FLATTENED_ARRAY) {
             check1 = !check1;
         }

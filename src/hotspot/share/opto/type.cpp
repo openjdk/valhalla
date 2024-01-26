@@ -2180,6 +2180,7 @@ const TypeTuple *TypeTuple::LONG_CC_PAIR;
 static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, uint& pos) {
   for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
     ciField* field = vk->nonstatic_field_at(j);
+    // TODO the field could be null free, right?
     BasicType bt = field->type()->basic_type();
     const Type* ft = Type::get_const_type(field->type());
     field_array[pos++] = ft;

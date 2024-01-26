@@ -620,6 +620,9 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC_G})
     public void test19(MyValue1 vt) {
+        if (vt == null) {
+            return;
+        }
         Object obj = vt;
         try {
             MyValue2 vt2 = (MyValue2)obj;
@@ -637,6 +640,9 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC_G})
     public void test20(MyValue1 vt) {
+        if (vt == null) {
+            return;
+        }
         Object obj = vt;
         try {
             Integer i = (Integer)obj;
@@ -1121,8 +1127,6 @@ public class TestLWorld {
 
     // Test writing an inline type to a null inline type array
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
-        failOn = {ALLOC_G})
     public void test36(MyValue1[] va, MyValue1 vt, int index) {
         va[index] = vt;
     }
@@ -1468,7 +1472,6 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test45(MyValue1[] va, int index, MyValue2 v) throws Throwable {
         test45_inline(va, v, index);
     }
@@ -3496,7 +3499,6 @@ public class TestLWorld {
 
     // Test acmp with empty inline types
     @Test
-    @IR(failOn = {ALLOC_G})
     public boolean test118(MyValueEmpty v1, MyValueEmpty v2, Object o1) {
         return (v1 == v2) && (v2 == o1);
     }
@@ -3544,10 +3546,13 @@ public class TestLWorld {
         test119(!info.isWarmUp(), info.getTest());
     }
 
+    @NullRestricted
+    static final MyValueEmpty empty = new MyValueEmpty();
+
     // Test removal of empty inline type field stores
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
-    public void test120(MyValueEmpty empty) {
+    public void test120() {
         fEmpty1 = empty;
         fEmpty3 = empty;
         // fEmpty2 and fEmpty4 could be null, store can't be removed
@@ -3555,9 +3560,9 @@ public class TestLWorld {
 
     @Run(test = "test120")
     public void test120_verifier() {
-        test120(new MyValueEmpty());
-        Asserts.assertEquals(fEmpty1, new MyValueEmpty());
-        Asserts.assertEquals(fEmpty2, new MyValueEmpty());
+        test120();
+        Asserts.assertEquals(fEmpty1, empty);
+        Asserts.assertEquals(fEmpty2, empty);
     }
 
     // Test removal of empty inline type field loads

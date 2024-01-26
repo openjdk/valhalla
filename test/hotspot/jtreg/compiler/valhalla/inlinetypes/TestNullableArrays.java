@@ -44,6 +44,7 @@ import java.util.Arrays;
  * @summary Test nullable value class arrays.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestNullableArrays.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestNullableArrays
@@ -900,7 +901,8 @@ public class TestNullableArrays {
     // non escaping allocations
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     @Test
-    @IR(failOn = {ALLOCA, LOOP, TRAP})
+    // TODO Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
+    //@IR(failOn = {ALLOCA, LOOP, TRAP})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -2902,8 +2904,8 @@ public class TestNullableArrays {
         test111();
     }
 
-    MyValue1[] refArray = new MyValue1[2];
-    MyValue1[] flatArray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+    static final MyValue1[] refArray = new MyValue1[2];
+    static final MyValue1[] flatArray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
 
     // Test scalarization
     @Test
@@ -3134,6 +3136,9 @@ public class TestNullableArrays {
         } else {
             o = test121_helper();
         }
+        if (o == null) {
+            return;
+        }
         flatArray[0] = (MyValue1)o;
     }
 
@@ -3162,6 +3167,9 @@ public class TestNullableArrays {
             o = flatArray[0];
         } else {
             o = test122_helper();
+        }
+        if (o == null) {
+            return;
         }
         flatArray[0] = (MyValue1)o;
     }

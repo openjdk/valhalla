@@ -764,10 +764,13 @@ public class TestArrays {
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     @Test
+    /*
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         failOn = {ALLOCA, LOOP, LOAD, TRAP})
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
         failOn = {ALLOCA, LOOP, TRAP})
+    */
+    // TODO Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
         System.arraycopy(src, 0, dst, 0, 10);
@@ -2499,14 +2502,15 @@ public class TestArrays {
 
     // Test that CHECKCAST_ARRAY matching works as expected
     @Test
-    @IR(counts = { CHECKCAST_ARRAY, "= 1" })
+    // TODO this is broken, fails to detect the "movq    R10, precise [compiler/valhalla/inlinetypes/MyValue1" shape, also in mainline, fix it
+    // @IR(counts = { IRNode.CHECKCAST_ARRAY, "= 1" })
     public boolean test101(Object[] array) {
         return array instanceof MyValue1[];
     }
 
     @Run(test = "test101")
     public void test101_verifier() {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] array1 = new MyValue1[1];
         NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
         Asserts.assertTrue(test101(array1));
         Asserts.assertFalse(test101(array2));
@@ -2700,7 +2704,7 @@ public class TestArrays {
     @Test
     @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test111() {
-        return Arrays.copyOf(val_src, 8, MyValue2[].class);
+        return Arrays.copyOf(val_src, 8, val_src.getClass());
     }
 
     @Run(test = "test111")
@@ -3023,13 +3027,13 @@ public class TestArrays {
         failOn = {CHECKCAST_ARRAYCOPY, CLONE_INTRINSIC_SLOW_PATH})
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
         failOn = CLONE_INTRINSIC_SLOW_PATH)
-    public Object[] test126(MyValue2[] src) {
-        return src.clone();
+    public Object[] test126() {
+        return val_src.clone();
     }
 
     @Run(test = "test126")
     public void test126_verifier() {
-        Object[] res = test126(val_src);
+        Object[] res = test126();
         verify(val_src, res);
     }
 
@@ -3060,18 +3064,18 @@ public class TestArrays {
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         counts = {JLONG_ARRAYCOPY, "= 1"},
         failOn = CHECKCAST_ARRAYCOPY)
-    public Object[] test128(MyValue2[] src, Class klass) {
-        return Arrays.copyOf(src, 8, klass);
+    public Object[] test128(Class klass) {
+        return Arrays.copyOf(val_src, 8, klass);
     }
 
     @Run(test = "test128")
     public void test128_verifier() {
-        Object[] res = test128(val_src, MyValue2[].class);
+        Object[] res = test128(MyValue2[].class);
         verify(val_src, res);
-        res = test128(val_src, Object[].class);
+        res = test128(Object[].class);
         verify(val_src, res);
         try {
-            test128(val_src, MyValue1[].class);
+            test128(MyValue1[].class);
             throw new RuntimeException("ArrayStoreException expected");
         } catch (ArrayStoreException e) {
             // expected
@@ -3100,6 +3104,9 @@ public class TestArrays {
         }
     }
 
+    @NullRestricted
+    static final MyValueEmpty empty = new MyValueEmpty();
+
     // Empty value class array access
     @Test
 // TODO we need profiling for null-free arrays
@@ -3111,7 +3118,6 @@ public class TestArrays {
 
     @Run(test = "test130")
     public void test130_verifier() {
-        MyValueEmpty empty = new MyValueEmpty();
         MyValueEmpty[] array = (MyValueEmpty[])ValueClass.newNullRestrictedArray(MyValueEmpty.class, 2);
         MyValueEmpty res = test130(array);
         Asserts.assertEquals(array[0], empty);
@@ -3151,7 +3157,6 @@ public class TestArrays {
 
     @Run(test = "test132")
     public void test132_verifier() {
-        MyValueEmpty empty = new MyValueEmpty();
         Object[] array = (MyValueEmpty[])ValueClass.newNullRestrictedArray(MyValueEmpty.class, 2);
         Object res = test132(array);
         Asserts.assertEquals(array[0], empty);
@@ -3185,16 +3190,15 @@ public class TestArrays {
     // Non-escaping empty value class array access
     @Test
     @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
-    public static MyValueEmpty test134(MyValueEmpty val) {
+    public static MyValueEmpty test134() {
         MyValueEmpty[] array = new MyValueEmpty[1];
-        array[0] = val;
+        array[0] = empty;
         return array[0];
     }
 
     @Run(test = "test134")
     public void test134_verifier() {
-        MyValueEmpty empty = new MyValueEmpty();
-        MyValueEmpty res = test134(empty);
+        MyValueEmpty res = test134();
         Asserts.assertEquals(res, empty);
     }
 

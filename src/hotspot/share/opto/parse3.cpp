@@ -232,15 +232,22 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   BasicType bt = field->layout_type();
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
 
+    inc_sp(1);
+  if (field->is_null_free()) {
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+    val = null_check(val);
+  }
+    dec_sp(1);
   if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
     return;
   } else if (field->is_flat()) {
     // Storing to a flat inline type field.
+    inc_sp(1);
     if (!val->is_InlineType()) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
-    inc_sp(1);
     val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset);
     dec_sp(1);
   } else {

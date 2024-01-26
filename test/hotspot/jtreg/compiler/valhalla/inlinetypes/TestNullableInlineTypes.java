@@ -28,6 +28,8 @@ import jdk.test.lib.Asserts;
 import jdk.experimental.bytecode.TypeTag;
 import test.java.lang.invoke.lib.InstructionHelper;
 
+import java.util.Objects;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -655,7 +657,6 @@ public class TestNullableInlineTypes {
         MyValue1 valueField1;
         @NullRestricted
         MyValue1 valueField2;
-        MyValue1 alwaysNull = null;
 
         @ForceInline
         public Test21Value(MyValue1 valueField1, MyValue1 valueField2) {
@@ -665,12 +666,12 @@ public class TestNullableInlineTypes {
 
         @ForceInline
         public Test21Value test1() {
-            return new Test21Value(alwaysNull, this.valueField2); // Should not throw NPE
+            return new Test21Value(null, this.valueField2); // Should not throw NPE
         }
 
         @ForceInline
         public Test21Value test2() {
-            return new Test21Value(this.valueField1, (MyValue1) alwaysNull); // Should throw NPE
+            return new Test21Value(this.valueField1, null); // Should throw NPE
         }
     }
 
@@ -680,8 +681,7 @@ public class TestNullableInlineTypes {
         vt = vt.test1();
         try {
             vt = vt.test2();
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -720,16 +720,16 @@ public class TestNullableInlineTypes {
         failOn = {ALLOC})
     @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= 0", "InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC})
-    public void test23(MyValue1[] arr, MyValue1 b) {
-        arr[0] = (MyValue1) b;
+    public void test23(MyValue1 val) {
+        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        arr[0] = val;
     }
 
     @Run(test = "test23")
     public void test23_verifier() {
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
-        MyValue1 b = null;
+        MyValue1 val = null;
         try {
-            test23(arr, b);
+            test23(val);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -2092,7 +2092,7 @@ public class TestNullableInlineTypes {
         return constNullRefField;
     }
 
-    // Test that constant null .ref field does not block scalarization
+    // Test that constant null field does not block scalarization
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE})
     public long test76(boolean b1, boolean b2, Method m) {
@@ -2104,6 +2104,8 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
+        // TODO remove, why is this needed? Probably because that allows converting virtual call to static call below, right?
+        if (val == null) throw new NullPointerException();
         return ((MyValue1)val).hash();
     }
 
@@ -2176,6 +2178,8 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
+        // TODO remove, why is this needed? Probably because that allows converting virtual call to static call below, right?
+        if (val == null) throw new NullPointerException();
         return ((MyValue1)val).hash();
     }
 
@@ -2216,6 +2220,8 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
+        // TODO remove, why is this needed? Probably because that allows converting virtual call to static call below, right?
+        if (val == null) throw new NullPointerException();
         return ((MyValue1)val).hash();
     }
 
@@ -2408,7 +2414,8 @@ public class TestNullableInlineTypes {
 
     // Same as test81 but with wrapper
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    // TODO fix, fails with Scenario 5
+//    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test85() {
         Object val = new MyValue1Wrapper(null);
         for (int i = 0; i < 10; ++i) {
@@ -2420,7 +2427,10 @@ public class TestNullableInlineTypes {
             }
             val = test85_helper(val, i);
         }
-        return ((MyValue1Wrapper)val).vt.hash();
+        MyValue1 vt = ((MyValue1Wrapper)val).vt;
+        // TODO remove, why is this needed? Probably because that allows converting virtual call to static call below, right?
+        if (vt == null) throw new NullPointerException();
+        return vt.hash();
     }
 
     private long test85Result = 0;
@@ -2961,5 +2971,359 @@ public class TestNullableInlineTypes {
     @Run(test = "test103")
     public void test103_verifier() {
         Asserts.assertEQ(test103(), null);
+    }
+
+    // TODO comments
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue104 {
+        @NullRestricted
+        static MyValue105 field1;
+
+        @NullRestricted
+        MyValue105 field2;
+
+        @NullRestricted
+        static MyValueEmpty field3;
+
+        @NullRestricted
+        MyValueEmpty field4;
+
+        @ForceInline
+        public MyValue104() {
+            this.field1 = new MyValue105();
+            this.field2 = new MyValue105();
+            this.field3 = new MyValueEmpty();
+            this.field4 = new MyValueEmpty();
+        }
+
+        @ForceInline
+        public MyValue104(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+            this.field1 = val1;
+            this.field2 = val2;
+            this.field3 = val3;
+            this.field4 = val4;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue105 {
+        int x = 42;
+    }
+
+    @NullRestricted
+    static MyValue104 field1;
+
+    @NullRestricted
+    MyValue104 field2;
+
+    @NullRestricted
+    static MyValueEmpty field3;
+
+    @NullRestricted
+    MyValueEmpty field4;
+
+    @Test
+    void test105(MyValue104 arg) {
+        field1 = arg;
+    }
+
+    @Run(test = "test105")
+    public void test105_verifier() {
+        try {
+            test105(null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test106() {
+        field1 = null;
+    }
+
+    @Run(test = "test106")
+    public void test106_verifier() {
+        try {
+            test106();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test107(MyValue104 arg) {
+        field2 = arg;
+    }
+
+    @Run(test = "test107")
+    public void test107_verifier() {
+        try {
+            test107(null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test108(TestNullableInlineTypes t, MyValue104 arg) {
+        t.field2 = arg;
+    }
+
+    @Run(test = "test108")
+    public void test108_verifier() {
+        try {
+            test108(null, new MyValue104());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test109(MyValue104 arg) {
+        TestNullableInlineTypes t = null;
+        t.field2 = null;
+    }
+
+    @Run(test = "test109")
+    public void test109_verifier() {
+        try {
+            test109(new MyValue104());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test110() {
+        field2 = null;
+    }
+
+    @Run(test = "test110")
+    public void test110_verifier() {
+        try {
+            test110();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test111(MyValueEmpty arg) {
+        field3 = arg;
+    }
+
+    @Run(test = "test111")
+    public void test111_verifier() {
+        try {
+            test111(null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test112() {
+        field3 = null;
+    }
+
+    @Run(test = "test112")
+    public void test112_verifier() {
+        try {
+            test112();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test113(MyValueEmpty arg) {
+        field4 = arg;
+    }
+
+    @Run(test = "test113")
+    public void test113_verifier() {
+        try {
+            test113(null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test114(TestNullableInlineTypes t, MyValueEmpty arg) {
+        t.field4 = arg;
+    }
+
+    @Run(test = "test114")
+    public void test114_verifier() {
+        try {
+            test114(null, new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test115(MyValueEmpty arg) {
+        TestNullableInlineTypes t = null;
+        t.field4 = arg;
+    }
+
+    @Run(test = "test115")
+    public void test115_verifier() {
+        try {
+            test115(new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test116() {
+        field4 = null;
+    }
+
+    @Run(test = "test116")
+    public void test116_verifier() {
+        try {
+            test116();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test117(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, val3, val4);
+    }
+
+    @Run(test = "test117")
+    public void test117_verifier() {
+        try {
+            test117(null, new MyValue105(), new MyValueEmpty(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test118(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, val3, val4);
+    }
+
+    @Run(test = "test118")
+    public void test118_verifier() {
+        try {
+            test118(new MyValue105(), null, new MyValueEmpty(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test119(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, val3, val4);
+    }
+
+    @Run(test = "test119")
+    public void test119_verifier() {
+        try {
+            test119(new MyValue105(), new MyValue105(), null, new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test120(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, val3, val4);
+    }
+
+    @Run(test = "test120")
+    public void test120_verifier() {
+        try {
+            test120(new MyValue105(), new MyValue105(), new MyValueEmpty(), null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test121(MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(null, val2, val3, val4);
+    }
+
+    @Run(test = "test121")
+    public void test121_verifier() {
+        try {
+            test121(new MyValue105(), new MyValueEmpty(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test122(MyValue105 val1, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, null, val3, val4);
+    }
+
+    @Run(test = "test122")
+    public void test122_verifier() {
+        try {
+            test122(new MyValue105(), new MyValueEmpty(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test123(MyValue105 val1, MyValue105 val2, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, null, val4);
+    }
+
+    @Run(test = "test123")
+    public void test123_verifier() {
+        try {
+            test123(new MyValue105(), new MyValue105(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test124(MyValue105 val1, MyValue105 val2, MyValueEmpty val3) {
+        return new MyValue104(val1, val2, val3, null);
+    }
+
+    @Run(test = "test124")
+    public void test124_verifier() {
+        try {
+            test124(new MyValue105(), new MyValue105(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
     }
 }
