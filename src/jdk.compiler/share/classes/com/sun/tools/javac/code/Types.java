@@ -791,16 +791,6 @@ public class Types {
                     throw failure(incompatibleDescriptors);
                 }
             }
-            // an interface must be neither an identity interface nor a value interface to be functional.
-            List<Type> allInterfaces = closure(origin.type);
-            for (Type iface : allInterfaces) {
-                if (iface.isValueInterface()) {
-                    throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.ValueInterfaceNonfunctional));
-                }
-                if (iface.isIdentityInterface()) {
-                    throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.IdentityInterfaceNonfunctional));
-                }
-            }
             return descRes;
         }
 

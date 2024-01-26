@@ -203,7 +203,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
         // Signature of subclass that has type parameters.
         checkOutput("pkg/TypeParameterSubClass.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public identity class </span><span cl\
+                    <div class="type-signature"><span class="modifiers">public class </span><span cl\
                     ass="element-name type-name-label">TypeParameterSubClass&lt;T extends java.lang.\
                     String&gt;</span>
                     <span class="extends-implements">extends <a href="TypeParameterSuperClass.html" \
@@ -540,7 +540,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
                     ml" title="annotation interface in pkg">@AnnotationType</a>(<a href="AnnotationT\
                     ype.html#optional()">optional</a>="Class Annotation",
                                     <a href="AnnotationType.html#required()">required</a>=1994)
-                    </span><span class="modifiers">public identity class </span><span class="element-name type-name-l\
+                    </span><span class="modifiers">public class </span><span class="element-name type-name-l\
                     abel">AnnotationTypeUsage</span>
                     <span class="extends-implements">extends java.lang.Object</span></div>""",
                 // FIELD

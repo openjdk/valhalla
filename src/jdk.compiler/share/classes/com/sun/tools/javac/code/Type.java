@@ -235,15 +235,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return false;
     }
 
-    public boolean isValueInterface() {
-        return false;
-    }
-
     public boolean isIdentityClass() {
-        return false;
-    }
-
-    public boolean isIdentityInterface() {
         return false;
     }
 
@@ -1036,10 +1028,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public List<Type> all_interfaces_field;
 
-        /*
-         * Use of this constructor is kinda sorta deprecated, use the other constructor
-         * that forces the call site to consider and include the class type flavor.
-         */
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym) {
             this(outer, typarams, tsym, List.nil());
         }
@@ -1202,18 +1190,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         @Override
-        public boolean isValueInterface() {
-            return tsym != null && tsym.isValueInterface();
-        }
-
-        @Override
         public boolean isIdentityClass() {
             return tsym != null && tsym.isIdentityClass();
-        }
-
-        @Override
-        public boolean isIdentityInterface() {
-            return isInterface() && tsym.isIdentityInterface();
         }
 
         @Override

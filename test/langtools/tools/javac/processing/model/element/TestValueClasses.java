@@ -99,22 +99,19 @@ public class TestValueClasses extends TestRunner {
 
         tb.writeJavaFiles(r,
                 """
-                value interface ValueInterface {}
-
-                identity interface IdentityInterface {}
+                interface Interface {}
 
                 value class ValueClass {}
 
-                identity class IdentityClass {}
+                class IdentityClass {}
                 """
         );
 
         List<String> expected = List.of(
-                "- compiler.note.proc.messager: visiting: ValueInterface Modifiers: [abstract, value]",
-                "- compiler.note.proc.messager: visiting: IdentityInterface Modifiers: [abstract, identity]",
+                "- compiler.note.proc.messager: visiting: Interface Modifiers: [abstract]",
                 "- compiler.note.proc.messager: visiting: ValueClass Modifiers: [value, final]",
                 "- compiler.note.proc.messager:     constructor modifiers: []",
-                "- compiler.note.proc.messager: visiting: IdentityClass Modifiers: [identity]",
+                "- compiler.note.proc.messager: visiting: IdentityClass Modifiers: []",
                 "- compiler.note.proc.messager:     constructor modifiers: []"
         );
 

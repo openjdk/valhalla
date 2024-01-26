@@ -2946,7 +2946,7 @@ public class JavacParser implements Parser {
                 }
             }
         }
-        if ((isValueModifier() || isIdentityModifier()) && allowValueClasses) {
+        if ((isValueModifier()) && allowValueClasses) {
             dc = token.docComment();
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         }
@@ -3547,10 +3547,6 @@ public class JavacParser implements Parser {
                     flag = Flags.VALUE_CLASS;
                     break;
                 }
-                if (isIdentityModifier()) {
-                    flag = Flags.IDENTITY_TYPE;
-                    break;
-                }
                 break loop;
             }
             default: break loop;
@@ -3821,11 +3817,6 @@ public class JavacParser implements Parser {
             if (allowValueClasses) {
                 return Source.JDK18;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
-            }
-        }
-        if (name == names.identity) {
-            if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
             }
         }
@@ -4908,39 +4899,13 @@ public class JavacParser implements Parser {
                 case CLASS: case INTERFACE: case ENUM:
                     isValueModifier = true;
                     break;
-                case IDENTIFIER: // value record R || value value || value identity || new value Comparable() {} ??
-                    if (next.name() == names.record || next.name() == names.value || next.name() == names.identity
+                case IDENTIFIER: // value record R || value value || new value Comparable() {} ??
+                    if (next.name() == names.record || next.name() == names.value
                             || (mode & EXPR) != 0)
                         isValueModifier = true;
                     break;
             }
             if (isValueModifier) {
-                checkSourceLevel(Feature.VALUE_CLASSES);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    protected boolean isIdentityModifier() {
-        if (token.kind == IDENTIFIER && token.name() == names.identity) {
-            boolean isIdentityModifier = false;
-            Token next = S.token(1);
-            switch (next.kind) {
-                case PRIVATE: case PROTECTED: case PUBLIC: case STATIC: case TRANSIENT:
-                case FINAL: case ABSTRACT: case NATIVE: case VOLATILE: case SYNCHRONIZED:
-                case STRICTFP: case MONKEYS_AT: case DEFAULT: case BYTE: case SHORT:
-                case CHAR: case INT: case LONG: case FLOAT: case DOUBLE: case BOOLEAN: case VOID:
-                case CLASS: case INTERFACE: case ENUM:
-                    isIdentityModifier = true;
-                    break;
-                case IDENTIFIER: // identity record R || identity primitive || || identity identity || identity value || new identity Comparable() {}
-                    if (next.name() == names.record || next.name() == names.identity
-                            || next.name() == names.value || (mode & EXPR) != 0)
-                        isIdentityModifier = true;
-                    break;
-            }
-            if (isIdentityModifier) {
                 checkSourceLevel(Feature.VALUE_CLASSES);
                 return true;
             }
@@ -4977,8 +4942,7 @@ public class JavacParser implements Parser {
                 case PUBLIC, PROTECTED, PRIVATE, ABSTRACT, STATIC, FINAL, STRICTFP, CLASS, INTERFACE, ENUM -> true;
                 case IDENTIFIER -> isNonSealedIdentifier(next, currentIsNonSealed ? 3 : 1) ||
                         next.name() == names.sealed ||
-                        next.name() == names.value ||
-                        next.name() == names.identity;
+                        next.name() == names.value;
                 default -> false;
             };
     }

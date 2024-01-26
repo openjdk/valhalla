@@ -185,7 +185,7 @@ public class Attr extends JCTree.Visitor {
         recoveryInfo = new RecoveryInfo(deferredAttr.emptyDeferredAttrContext);
     }
 
-    /** Switch: allow primitive classes ?
+    /** Switch: allow value classes ?
      */
     boolean allowValueClasses;
 

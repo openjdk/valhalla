@@ -103,7 +103,6 @@ public class Names {
     public final Name serialVersionUID;
     public final Name toString;
     public final Name value;
-    public final Name identity;
     public final Name valueOf;
     public final Name values;
     public final Name readResolve;
@@ -306,7 +305,6 @@ public class Names {
         serialVersionUID = fromString("serialVersionUID");
         toString = fromString("toString");
         value = fromString("value");
-        identity = fromString("identity");
         valueOf = fromString("valueOf");
         values = fromString("values");
         readResolve = fromString("readResolve");

@@ -2328,7 +2328,7 @@ public class Lower extends TreeTranslator {
 
         // Convert a protected modifier to public, mask static modifier.
         if ((tree.mods.flags & PROTECTED) != 0) tree.mods.flags |= PUBLIC;
-        tree.mods.flags &= AdjustedClassFlags;
+        tree.mods.flags &= ClassFlags;
 
         // Convert name to flat representation, replacing '.' by '$'.
         tree.name = Convert.shortName(currentClass.flatName());

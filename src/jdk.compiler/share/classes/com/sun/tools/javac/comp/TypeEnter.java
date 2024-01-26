@@ -1140,61 +1140,10 @@ public class TypeEnter implements Completer {
                 tree.sym.setAnnotationTypeMetadata(new AnnotationTypeMetadata(tree.sym, annotate.annotationTypeSourceCompleter()));
             }
 
-            if (tree.sym != syms.objectType.tsym && tree.sym != syms.recordType.tsym) {
-                if ((tree.sym.flags() & (ABSTRACT | INTERFACE | VALUE_CLASS)) == 0) {
-                    tree.sym.flags_field |= IDENTITY_TYPE;
-                }
-                if ((tree.sym.flags() & (ABSTRACT | IDENTITY_TYPE | INTERFACE)) == ABSTRACT) {
-                    if (abstractClassHasImplicitIdentity(tree)) {
-                        tree.sym.flags_field |= IDENTITY_TYPE;
-                    }
-                }
+            if ((tree.sym.flags() & (INTERFACE | VALUE_CLASS)) == 0) {
+                tree.sym.flags_field |= IDENTITY_TYPE;
             }
         }
-
-            // where
-            private boolean abstractClassHasImplicitIdentity(JCClassDecl tree) {
-
-                Type t = tree.sym.type;
-
-                if (t == null || t.tsym == null || t.tsym.kind == ERR)
-                    return false;
-
-                if ((t.tsym.flags() & HASINITBLOCK) != 0) {
-                    return true;
-                }
-
-                // No instance fields and no arged constructors both mean inner classes cannot be value class supers.
-                Type encl = t.getEnclosingType();
-                if (encl != null && encl.hasTag(CLASS)) {
-                    return true;
-                }
-                for (Symbol s : t.tsym.members().getSymbols(NON_RECURSIVE)) {
-                    switch (s.kind) {
-                        case VAR:
-                            if ((s.flags() & STATIC) == 0) {
-                                return true;
-                            }
-                            break;
-                        case MTH:
-                            if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
-                                return true;
-                            } else if (s.isConstructor()) {
-                                MethodSymbol m = (MethodSymbol)s;
-                                if (m.getParameters().size() > 0
-                                        || m.getTypeParameters().size() > 0
-                                        || m.type.getThrownTypes().nonEmpty()
-                                        || (m.flags() & EMPTYNOARGCONSTR) == 0
-                                        || (Check.protection(m.flags()) > Check.protection(m.owner.flags()))) {
-                                    return true;
-                                }
-                            }
-                            break;
-                    }
-                }
-                return false;
-            }
-
 
         private void addAccessor(JCVariableDecl tree, Env<AttrContext> env) {
             MethodSymbol implSym = lookupMethod(env.enclClass.sym, tree.sym.name, List.nil());

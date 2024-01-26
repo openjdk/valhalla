@@ -2606,9 +2606,6 @@ public class ClassReader {
         // read flags, or skip if this is an inner class
         long f = nextChar();
         long flags = adjustClassFlags(f);
-        if (c == syms.objectType.tsym) {
-            flags &= ~IDENTITY_TYPE; // jlO lacks identity even while being a concrete class.
-        }
         if ((flags & MODULE) == 0) {
             if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
             // read own class name and check that it matches
@@ -2868,22 +2865,15 @@ public class ClassReader {
     }
 
     long adjustClassFlags(long flags) {
-        if ((flags & (ABSTRACT | INTERFACE | ACC_VALUE | ACC_MODULE)) == 0) {
-            flags |= ACC_IDENTITY;
-        }
         if ((flags & ACC_MODULE) != 0) {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_VALUE) != 0) {
-            flags &= ~ACC_VALUE;
-            if (allowValueClasses) {
-                flags |= VALUE_CLASS;
-            }
-        }
         if ((flags & ACC_IDENTITY) != 0) {
             flags &= ~ACC_IDENTITY;
             flags |= IDENTITY_TYPE;
+        } else if ((flags & INTERFACE) == 0 && allowValueClasses) {
+            flags |= VALUE_CLASS;
         }
         return flags;
     }

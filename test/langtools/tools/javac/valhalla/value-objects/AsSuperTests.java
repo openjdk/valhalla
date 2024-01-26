@@ -36,7 +36,7 @@
    com.sun.tools.javac.comp.Resolve#mostSpecific
    com.sun.tools.javac.comp.Attr#visitSelect
    com.sun.tools.javac.comp.Resolve.UnboundMethodReferenceLookupHelper#UnboundMethodReferenceLookupHelper
-   work correctly with primitive types.
+   work correctly with value classes.
 */
 
 interface I {
@@ -45,7 +45,7 @@ interface I {
     }
 }
 
-abstract class Base<T> {
+abstract value class Base<T> {
     static void goo() {}
     void zoo() {}
     interface SAM {
