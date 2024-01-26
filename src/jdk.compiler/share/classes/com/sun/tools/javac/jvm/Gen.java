@@ -64,7 +64,6 @@ import static com.sun.tools.javac.tree.JCTree.Tag.*;
  *  deletion without notice.</b>
  */
 public class Gen extends JCTree.Visitor {
-    private static final Object[] NO_STATIC_ARGS = new Object[0];
     protected static final Context.Key<Gen> genKey = new Context.Key<>();
 
     private final Log log;
@@ -2364,7 +2363,7 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type));
+            code.emitLdc((LoadableConstant)checkDimension(tree.pos(), tree.selected.type));
             result = items.makeStackItem(pt);
             return;
         }

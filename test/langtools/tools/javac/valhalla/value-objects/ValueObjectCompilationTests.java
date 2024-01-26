@@ -72,38 +72,12 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testAbstractValueClassConstraints() {
-        assertFail("compiler.err.instance.field.not.allowed",
-                """
-                abstract value class V {
-                    int f;  // Error, abstract value class may not declare an instance field.
-                }
-                """);
-        assertFail("compiler.err.abstract.value.class.cannot.be.inner",
-                """
-                class Outer {
-                    abstract value class V {
-                        // Error, an abstract value class cant be an inner class
-                    }
-                }
-                """);
         assertFail("compiler.err.mod.not.allowed.here",
                 """
                 abstract value class V {
                     synchronized void foo() {
                      // Error, abstract value class may not declare a synchronized instance method.
                     }
-                }
-                """);
-        assertFail("compiler.err.abstract.value.class.declares.init.block",
-                """
-                abstract value class V {
-                    { int f = 42; } // Error, abstract value class may not declare an instance initializer.
-                }
-                """);
-        assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
-                """
-                abstract value class V {
-                    V(int x) {}  // Error, abstract value class may not declare a non-trivial constructor.
                 }
                 """);
     }
@@ -130,42 +104,10 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testSuperClassConstraints() {
-        assertFail("compiler.err.instance.field.not.allowed",
-                """
-                abstract class I {
-                    int f;
-                }
-                value class V extends I {}
-                """);
-
-        assertFail("compiler.err.abstract.value.class.cannot.be.inner",
-                """
-                class Outer {
-                    abstract class I {}
-                    static value class V extends I
-                }
-                """);
-
         assertFail("compiler.err.super.class.method.cannot.be.synchronized",
                 """
                 abstract class I {
                     synchronized void foo() {}
-                }
-                value class V extends I {}
-                """);
-
-        assertFail("compiler.err.abstract.value.class.declares.init.block",
-                """
-                abstract class I {
-                    { int f = 42; }
-                }
-                value class V extends I {}
-                """);
-
-        assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
-                """
-                abstract class I {
-                    I(int x) {}
                 }
                 value class V extends I {}
                 """);
@@ -238,12 +180,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """
                 value class Base {}
                 class Subclass extends Base {}
-                """);
-        assertFail("compiler.err.abstract.value.class.cannot.be.inner",
-                """
-                class Outer {
-                    abstract value class AbsValue {}
-                }
                 """);
         assertFail("compiler.err.cant.assign.val.to.var",
                 """
@@ -368,49 +304,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     void bar(Object o) {
                         synchronized ((I & VI)o) {} // error
                     }
-                }
-                """);
-    }
-
-    @Test
-    void testNontrivialConstructor() {
-        assertOK(
-                """
-                abstract value class V {
-                    public V() {} // trivial ctor
-                }
-                """
-        );
-        assertFail("compiler.err.abstract.value.class.constructor.has.weaker.access",
-                """
-                abstract value class V {
-                    private V() {} // non-trivial, more restrictive access than the class.
-                }
-                """);
-        assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
-                """
-                abstract value class V {
-                    public V(int x) {} // non-trivial ctor as it declares formal parameters.
-                }
-                """);
-        assertFail("compiler.err.abstract.value.class.constructor.cannot.be.generic",
-                """
-                abstract value class V {
-                    <T> V() {} // non trivial as it declares type parameters.
-                }
-                """);
-        assertFail("compiler.err.abstract.value.class.constructor.cannot.throw",
-                """
-                abstract value class V {
-                    V() throws Exception {} // non-trivial as it throws
-                }
-                """);
-        assertFail("compiler.err.abstract.value.class.no.arg.constructor.must.be.empty",
-                """
-                abstract value class V {
-                    V() {
-                        System.out.println("");
-                    } // non-trivial as it has a body.
                 }
                 """);
     }

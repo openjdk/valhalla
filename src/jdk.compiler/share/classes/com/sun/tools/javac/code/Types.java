@@ -766,12 +766,10 @@ public class Types {
                 //t must define a suitable non-generic method
                 throw failure("not.a.functional.intf.1", origin,
                             diags.fragment(Fragments.NoAbstracts(Kinds.kindName(origin), origin)));
-            }
-            FunctionDescriptor descRes;
-            if (abstracts.size() == 1) {
-                descRes = new FunctionDescriptor(abstracts.first());
+            } else if (abstracts.size() == 1) {
+                return new FunctionDescriptor(abstracts.first());
             } else { // size > 1
-                descRes = mergeDescriptors(origin, abstracts.toList());
+                FunctionDescriptor descRes = mergeDescriptors(origin, abstracts.toList());
                 if (descRes == null) {
                     //we can get here if the functional interface is ill-formed
                     ListBuffer<JCDiagnostic> descriptors = new ListBuffer<>();
@@ -790,8 +788,8 @@ public class Types {
                             new JCDiagnostic.MultilineDiagnostic(msg, descriptors.toList());
                     throw failure(incompatibleDescriptors);
                 }
+                return descRes;
             }
-            return descRes;
         }
 
         /**
@@ -1116,6 +1114,7 @@ public class Types {
             if (s != lower && !lower.hasTag(BOT))
                 return isSubtype(capture ? capture(t) : t, lower, false);
         }
+
         return isSubtype.visit(capture ? capture(t) : t, s);
     }
     // where
@@ -1137,8 +1136,8 @@ public class Types {
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
                      return
-                             s.hasTag(BOT) || s.hasTag(CLASS) ||
-                             s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
+                         s.hasTag(BOT) || s.hasTag(CLASS) ||
+                         s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
                      return false;
@@ -1436,8 +1435,8 @@ public class Types {
                     return tMap.isEmpty();
                 }
                 return t.tsym == s.tsym
-                        && visit(t.getEnclosingType(), s.getEnclosingType())
-                        && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
+                    && visit(t.getEnclosingType(), s.getEnclosingType())
+                    && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
             }
 
             @Override
@@ -2471,7 +2470,7 @@ public class Types {
             public Type visitClassType(ClassType t, Boolean recurse) {
                 Type erased = t.tsym.erasure(Types.this);
                 if (recurse) {
-                    erased = new ErasedClassType(erased.getEnclosingType(), erased.tsym,
+                    erased = new ErasedClassType(erased.getEnclosingType(),erased.tsym,
                             t.dropMetadata(Annotations.class).getMetadata());
                     return erased;
                 } else {

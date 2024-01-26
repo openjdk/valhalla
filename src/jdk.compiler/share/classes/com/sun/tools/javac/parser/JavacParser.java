@@ -524,22 +524,6 @@ public class JavacParser implements Parser {
         }
     }
 
-    /** If next input token matches one of the two given tokens, skip it, otherwise report
-     *  an error.
-     *
-     * @return The actual token kind.
-     */
-    public TokenKind accept2(TokenKind tk1, TokenKind tk2) {
-        TokenKind returnValue = token.kind;
-        if (token.kind == tk1 || token.kind == tk2) {
-            nextToken();
-        } else {
-            setErrorEndPos(token.pos);
-            reportSyntaxError(S.prevToken().endPos, Errors.Expected2(tk1, tk2));
-        }
-        return returnValue;
-    }
-
     /** Report an illegal start of expression/type error at given position.
      */
     JCExpression illegal(int pos) {

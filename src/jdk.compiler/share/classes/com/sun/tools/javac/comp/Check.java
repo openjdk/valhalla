@@ -717,7 +717,7 @@ public class Check {
      *  @param a             The type that should be bounded by bs.
      *  @param bound         The bound.
      */
-    private boolean checkExtends(JCTree pos, Type a, Type bound) {
+    private boolean checkExtends(Type a, Type bound) {
          if (a.isUnbound()) {
              return true;
          } else if (!a.hasTag(WILDCARD)) {
@@ -788,37 +788,10 @@ public class Check {
                 continue;
             }
             // dealing with an abstract value or value super class below.
-            Fragment fragment = c.isAbstract() && c.isValueClass() && c == st.tsym ? Fragments.AbstractValueClass(c) : Fragments.SuperclassOfValueClass(c, st);
-            if ((st.tsym.flags() & HASINITBLOCK) != 0) {
-                log.error(pos, Errors.AbstractValueClassDeclaresInitBlock(fragment));
-            }
-            Type encl = st.getEnclosingType();
-            if (encl != null && encl.hasTag(CLASS)) {
-                log.error(pos, Errors.AbstractValueClassCannotBeInner(fragment));
-            }
             for (Symbol s : st.tsym.members().getSymbols(NON_RECURSIVE)) {
-                switch (s.kind) {
-                case VAR:
-                    if ((s.flags() & STATIC) == 0) {
-                        log.error(pos, Errors.InstanceFieldNotAllowed(s, fragment));
-                    }
-                    break;
-                case MTH:
+                if (s.kind == MTH) {
                     if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                         log.error(pos, Errors.SuperClassMethodCannotBeSynchronized(s, c, st));
-                    } else if (s.isConstructor()) {
-                        MethodSymbol m = (MethodSymbol)s;
-                        if (m.getParameters().size() > 0) {
-                            log.error(pos, Errors.AbstractValueClassConstructorCannotTakeArguments(m, fragment));
-                        } else if (m.getTypeParameters().size() > 0) {
-                            log.error(pos, Errors.AbstractValueClassConstructorCannotBeGeneric(m, fragment));
-                        } else if (m.type.getThrownTypes().size() > 0) {
-                            log.error(pos, Errors.AbstractValueClassConstructorCannotThrow(m, fragment));
-                        } else if (protection(m.flags()) > protection(m.owner.flags())) {
-                            log.error(pos, Errors.AbstractValueClassConstructorHasWeakerAccess(m, fragment));
-                        } else if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
-                                log.error(pos, Errors.AbstractValueClassNoArgConstructorMustBeEmpty(m, fragment));
-                        }
                     }
                     break;
                 }
@@ -1231,7 +1204,7 @@ public class Check {
                 Type actual = args.head;
                 if (!isTypeArgErroneous(actual) &&
                         !bounds.head.isErroneous() &&
-                        !checkExtends(pos, actual, bounds.head)) {
+                        !checkExtends(actual, bounds.head)) {
                     return args.head;
                 }
                 args = args.tail;

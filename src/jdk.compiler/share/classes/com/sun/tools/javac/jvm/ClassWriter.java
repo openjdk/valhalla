@@ -838,7 +838,7 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
-            int flags = adjustFlags(inner, inner.flags_field);
+            int flags = adjustFlags(inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -979,7 +979,7 @@ public class ClassWriter extends ClassFile {
     /** Write field symbol, entering all references into constant pool.
      */
     void writeField(VarSymbol v) {
-        int flags = adjustFlags(v, v.flags());
+        int flags = adjustFlags(v.flags());
         databuf.appendChar(flags);
         if (dumpFieldModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -1008,7 +1008,7 @@ public class ClassWriter extends ClassFile {
     /** Write method symbol, entering all references into constant pool.
      */
     void writeMethod(MethodSymbol m) {
-        int flags = adjustFlags(m, m.flags());
+        int flags = adjustFlags(m.flags());
         databuf.appendChar(flags);
         if (dumpMethodModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -1293,10 +1293,6 @@ public class ClassWriter extends ClassFile {
                 break;
             case CLASS:
             case ARRAY:
-                if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
-                databuf.appendByte(7);
-                databuf.appendChar(poolWriter.putClass(types.erasure(t)));
-                break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
                 databuf.appendByte(7);
@@ -1608,7 +1604,7 @@ public class ClassWriter extends ClassFile {
         if (c.owner.kind == MDL) {
             flags = ACC_MODULE;
         } else {
-            flags = adjustFlags(c, c.flags() & ~(DEFAULT | STRICTFP));
+            flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
             flags = flags & ClassFlags;
         }
@@ -1638,14 +1634,14 @@ public class ClassWriter extends ClassFile {
             case VAR: fieldsCount++; break;
             case MTH: if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
-            case TYP: poolWriter.enterInnerClass((ClassSymbol)sym); break;
+            case TYP: poolWriter.enterInner((ClassSymbol)sym); break;
             default : Assert.error();
             }
         }
 
         if (c.trans_local != null) {
             for (ClassSymbol local : c.trans_local) {
-                poolWriter.enterInnerClass(local);
+                poolWriter.enterInner(local);
             }
         }
 
@@ -1771,7 +1767,7 @@ public class ClassWriter extends ClassFile {
         return i;
     }
 
-    int adjustFlags(Symbol sym, final long flags) {
+    int adjustFlags(final long flags) {
         int result = (int)flags;
 
         // Elide strictfp bit in class files

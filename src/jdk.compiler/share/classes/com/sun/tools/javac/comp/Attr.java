@@ -804,9 +804,9 @@ public class Attr extends JCTree.Visitor {
             a.tsym.flags_field |= UNATTRIBUTED;
             a.setUpperBound(Type.noType);
             if (!tvar.bounds.isEmpty()) {
-                List<Type> bounds = List.of(chk.checkRefType(tvar.bounds.head, attribType(tvar.bounds.head, env)));
+                List<Type> bounds = List.of(attribType(tvar.bounds.head, env));
                 for (JCExpression bound : tvar.bounds.tail)
-                    bounds = bounds.prepend(chk.checkRefType(bound, attribType(bound, env)));
+                    bounds = bounds.prepend(attribType(bound, env));
                 types.setBounds(a, bounds.reverse());
             } else {
                 // if no bounds are given, assume a single bound of
@@ -2914,9 +2914,8 @@ public class Attr extends JCTree.Visitor {
                 return;
             }
 
-            if (tree.constructor != null && tree.constructor.kind == MTH) {
+            if (tree.constructor != null && tree.constructor.kind == MTH)
                 owntype = clazztype;
-            }
         }
         result = check(tree, owntype, KindSelector.VAL, resultInfo);
         InferenceContext inferenceContext = resultInfo.checkContext.inferenceContext();
@@ -3632,13 +3631,13 @@ public class Attr extends JCTree.Visitor {
                 return;
             }
 
-            Symbol lhsSym = TreeInfo.symbol(that.expr);
             if (TreeInfo.isStaticSelector(that.expr, names)) {
                 //if the qualifier is a type, validate it; raw warning check is
                 //omitted as we don't know at this stage as to whether this is a
                 //raw selector (because of inference)
                 chk.validate(that.expr, env, false);
             } else {
+                Symbol lhsSym = TreeInfo.symbol(that.expr);
                 localEnv.info.selectSuper = lhsSym != null && lhsSym.name == names._super;
             }
             //attrib type-arguments
@@ -4424,7 +4423,7 @@ public class Attr extends JCTree.Visitor {
                 log.error(tree.pos(), Errors.TypeVarCantBeDeref);
                 result = tree.type = types.createErrorType(tree.name, site.tsym, site);
                 tree.sym = tree.type.tsym;
-                return;
+                return ;
             }
         }
 
@@ -4674,20 +4673,20 @@ public class Attr extends JCTree.Visitor {
             switch (sym.kind) {
             case TYP:
                 // For types, the computed type equals the symbol's type,
-                // except for three situations:
+                // except for two situations:
                 owntype = sym.type;
                 if (owntype.hasTag(CLASS)) {
                     chk.checkForBadAuxiliaryClassAccess(tree.pos(), env, (ClassSymbol)sym);
                     Type ownOuter = owntype.getEnclosingType();
 
-                    // If the symbol's type is parameterized, erase it
+                    // (a) If the symbol's type is parameterized, erase it
                     // because no type parameters were given.
                     // We recover generic outer type later in visitTypeApply.
                     if (owntype.tsym.type.getTypeArguments().nonEmpty()) {
                         owntype = types.erasure(owntype);
                     }
 
-                    // (c) If the symbol's type is an inner class, then
+                    // (b) If the symbol's type is an inner class, then
                     // we have to interpret its outer type as a superclass
                     // of the site type. Example:
                     //
@@ -5053,7 +5052,6 @@ public class Attr extends JCTree.Visitor {
 
         tree.type = resultType;
         result = resultType;
-
         check(tree, resultType, KindSelector.VAL, resultInfo);
     }
 

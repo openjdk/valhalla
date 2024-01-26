@@ -32,10 +32,24 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
 import java.util.function.ToIntBiFunction;
+import java.util.function.ToIntFunction;
 
 import static com.sun.tools.javac.code.TypeTag.BOT;
+import static com.sun.tools.javac.code.TypeTag.DOUBLE;
 import static com.sun.tools.javac.code.TypeTag.INT;
+import static com.sun.tools.javac.code.TypeTag.LONG;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Class;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Double;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Fieldref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Float;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Integer;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_InterfaceMethodref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Long;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodHandle;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodType;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Methodref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_String;
 import static com.sun.tools.javac.jvm.UninitializedType.*;
 import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableFrame;
 import java.util.Arrays;
@@ -387,23 +401,14 @@ public class Code {
 
     /** Emit a ldc (or ldc_w) instruction, taking into account operand size
     */
-    public void emitLdc(LoadableConstant constant, int od) {
-        if (od <= 255) {
-            emitop1(ldc1, od, constant);
-        }
-        else {
-            emitop2(ldc2, od, constant);
-        }
-    }
-
-    /** Emit a ldc (or ldc_w) instruction, taking into account operand size
-     */
     public void emitLdc(LoadableConstant constant) {
         int od = poolWriter.putConstant(constant);
-        if (od <= 255) {
+        Type constantType = types.constantType(constant);
+        if (constantType.hasTag(LONG) || constantType.hasTag(DOUBLE)) {
+            emitop2(ldc2w, od, constant);
+        } else if (od <= 255) {
             emitop1(ldc1, od, constant);
-        }
-        else {
+        } else {
             emitop2(ldc2, od, constant);
         }
     }
