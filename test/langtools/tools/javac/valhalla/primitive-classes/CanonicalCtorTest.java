@@ -32,38 +32,38 @@
 
 public primitive class CanonicalCtorTest {
 
-	private final int x, ymx;
+    private final int x, ymx;
 
-	CanonicalCtorTest(int x, int y) {
+    CanonicalCtorTest(int x, int y) {
 
-		ymx = y - x;
-		this.x = x;
+        ymx = y - x;
+        this.x = x;
 
         // ALL fields are assigned now.
 
-		validate();                 // OK: DU = {}
-		this.validate();            // OK: DU = {}
-		CanonicalCtorTest.this.validate();          // OK: DU = {}
+        validate();                 // OK: DU = {}
+        this.validate();            // OK: DU = {}
+        CanonicalCtorTest.this.validate();          // OK: DU = {}
 
-		assert (this.x > 0);        // OK: DU = {}
-		assert (this.y() > 0);      // OK: DU = {}
-	}
+        assert (this.x > 0);        // OK: DU = {}
+        assert (this.y() > 0);      // OK: DU = {}
+    }
 
-	int x() {
-		return x;
-	}
+    int x() {
+        return x;
+    }
 
-	int y() {
-		return ymx + x;
-	}
+    int y() {
+        return ymx + x;
+    }
 
-	void validate() {
-		assert (x() > 0 && y() > 0);
-	}
+    void validate() {
+        assert (x() > 0 && y() > 0);
+    }
 
-	public static void main(String... av) {
-		CanonicalCtorTest z = new CanonicalCtorTest(1, 10);
-		assert (z.x() == 1);
-		assert (z.y() == 10);
-	}
+    public static void main(String... av) {
+        CanonicalCtorTest z = new CanonicalCtorTest(1, 10);
+        assert (z.x() == 1);
+        assert (z.y() == 10);
+    }
 }
