@@ -123,19 +123,6 @@ public class Flags {
      */
     public static final int HASINIT          = 1<<18;
 
-    /** Flag is set for a class symbol if it defines one or more non-empty
-     *  instance initializer block(s). This is relevenat only for class symbols
-     *  that originate from source types. For binary types the instance initializer
-     *  blocks are "normalized" into the constructors.
-     */
-    public static final int HASINITBLOCK         = 1<<18;
-
-    /** Flag is set for a method symbol if it is an empty no-arg ctor.
-     *  i.e. one that simply returns (jlO) or merely chains to a super's
-     *  no-arg ctor
-     */
-    public static final int EMPTYNOARGCONSTR         = 1<<18;
-
     /** Flag is set for a class or interface whose instances have identity
      * i.e. any concrete class not declared with the modifier `value'
      * (a) abstract class not declared `value'
@@ -524,8 +511,6 @@ public class Flags {
         ANNOTATION(Flags.ANNOTATION),
         DEPRECATED(Flags.DEPRECATED),
         HASINIT(Flags.HASINIT),
-        HASINITBLOCK(Flags.HASINITBLOCK),
-        EMPTYNOARGCONSTR(Flags.EMPTYNOARGCONSTR),
         IDENTITY_TYPE(Flags.IDENTITY_TYPE) {
             @Override
             public String toString() {

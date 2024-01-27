@@ -1000,6 +1000,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
     public static class ClassType extends Type implements DeclaredType, LoadableConstant,
                                                           javax.lang.model.type.ErrorType {
+
         /** The enclosing type of this type. If this is the type of an inner
          *  class, outer_field refers to the type of its enclosing
          *  instance class, in all other cases it refers to noType.

@@ -225,13 +225,13 @@ public class PoolWriter {
     /**
      * Enter an inner class into the `innerClasses' set.
      */
-    void enterInnerClass(ClassSymbol c) {
+    void enterInner(ClassSymbol c) {
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }
         c.complete();
         if (c.owner.enclClass() != null && !innerClasses.contains(c)) {
-            enterInnerClass(c.owner.enclClass());
+            enterInner(c.owner.enclClass());
             innerClasses.add(c);
         }
     }
@@ -331,7 +331,7 @@ public class PoolWriter {
 
         @Override
         protected void classReference(ClassSymbol c) {
-            enterInnerClass(c);
+            enterInner(c);
         }
 
         protected void reset() {
@@ -388,7 +388,7 @@ public class PoolWriter {
                     poolbuf.appendByte(tag);
                     poolbuf.appendChar(putName(name));
                     if (ct.hasTag(CLASS)) {
-                        enterInnerClass((ClassSymbol)ct.tsym);
+                        enterInner((ClassSymbol)ct.tsym);
                     }
                     break;
                 }

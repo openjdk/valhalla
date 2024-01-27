@@ -766,12 +766,10 @@ public class Types {
                 //t must define a suitable non-generic method
                 throw failure("not.a.functional.intf.1", origin,
                             diags.fragment(Fragments.NoAbstracts(Kinds.kindName(origin), origin)));
-            }
-            FunctionDescriptor descRes;
-            if (abstracts.size() == 1) {
-                descRes = new FunctionDescriptor(abstracts.first());
+            } else if (abstracts.size() == 1) {
+                return new FunctionDescriptor(abstracts.first());
             } else { // size > 1
-                descRes = mergeDescriptors(origin, abstracts.toList());
+                FunctionDescriptor descRes = mergeDescriptors(origin, abstracts.toList());
                 if (descRes == null) {
                     //we can get here if the functional interface is ill-formed
                     ListBuffer<JCDiagnostic> descriptors = new ListBuffer<>();
@@ -790,8 +788,8 @@ public class Types {
                             new JCDiagnostic.MultilineDiagnostic(msg, descriptors.toList());
                     throw failure(incompatibleDescriptors);
                 }
+                return descRes;
             }
-            return descRes;
         }
 
         /**
@@ -1027,38 +1025,28 @@ public class Types {
     }
     //where
         private boolean isSubtypeUncheckedInternal(Type t, Type s, boolean capture, Warner warn) {
-            try {
-                warnStack = warnStack.prepend(warn);
-                if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
-                    if (((ArrayType)t).elemtype.isPrimitive()) {
-                        return isSameType(elemtype(t), elemtype(s));
-                    } else {
-                        // if T.ref <: S, then T[] <: S[]
-                        Type es = elemtype(s);
-                        Type et = elemtype(t);
-                        if (!isSubtypeUncheckedInternal(et, es, false, warn))
-                            return false;
-                        return true;
-                    }
-                } else if (isSubtype(t, s, capture)) {
-                    return true;
-                } else if (t.hasTag(TYPEVAR)) {
-                    return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
-                } else if (!s.isRaw()) {
-                    Type t2 = asSuper(t, s.tsym);
-                    if (t2 != null && t2.isRaw()) {
-                        if (isReifiable(s)) {
-                            warn.silentWarn(LintCategory.UNCHECKED);
-                        } else {
-                            warn.warn(LintCategory.UNCHECKED);
-                        }
-                        return true;
-                    }
+            if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
+                if (((ArrayType)t).elemtype.isPrimitive()) {
+                    return isSameType(elemtype(t), elemtype(s));
+                } else {
+                    return isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
                 }
-                return false;
-            } finally {
-                warnStack = warnStack.tail;
+            } else if (isSubtype(t, s, capture)) {
+                return true;
+            } else if (t.hasTag(TYPEVAR)) {
+                return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
+            } else if (!s.isRaw()) {
+                Type t2 = asSuper(t, s.tsym);
+                if (t2 != null && t2.isRaw()) {
+                    if (isReifiable(s)) {
+                        warn.silentWarn(LintCategory.UNCHECKED);
+                    } else {
+                        warn.warn(LintCategory.UNCHECKED);
+                    }
+                    return true;
+                }
             }
+            return false;
         }
 
         private void checkUnsafeVarargsConversion(Type t, Type s, Warner warn) {
@@ -1116,11 +1104,12 @@ public class Types {
             if (s != lower && !lower.hasTag(BOT))
                 return isSubtype(capture ? capture(t) : t, lower, false);
         }
+
         return isSubtype.visit(capture ? capture(t) : t, s);
     }
     // where
-        private IsSubtype isSubtype = new IsSubtype();
-        class IsSubtype extends TypeRelation {
+        private TypeRelation isSubtype = new TypeRelation()
+        {
             @Override
             public Boolean visitType(Type t, Type s) {
                 switch (t.getTag()) {
@@ -1137,8 +1126,8 @@ public class Types {
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
                      return
-                             s.hasTag(BOT) || s.hasTag(CLASS) ||
-                             s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
+                         s.hasTag(BOT) || s.hasTag(CLASS) ||
+                         s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
                      return false;
@@ -1248,7 +1237,7 @@ public class Types {
             public Boolean visitErrorType(ErrorType t, Type s) {
                 return true;
             }
-        }
+        };
 
     /**
      * Is t a subtype of every type in given list `ts'?<br>
@@ -1436,8 +1425,8 @@ public class Types {
                     return tMap.isEmpty();
                 }
                 return t.tsym == s.tsym
-                        && visit(t.getEnclosingType(), s.getEnclosingType())
-                        && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
+                    && visit(t.getEnclosingType(), s.getEnclosingType())
+                    && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
             }
 
             @Override
@@ -2152,16 +2141,6 @@ public class Types {
     }
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="warn stack">
-    public void pushWarner(Warner warner) {
-        warnStack = warnStack.prepend(warner);
-    }
-
-    public void popWarner() {
-        warnStack = warnStack.tail;
-    }
-    // </editor-fold>
-
     // <editor-fold defaultstate="collapsed" desc="asSuper">
     /**
      * Return the (most specific) base type of t that starts with the
@@ -2471,7 +2450,7 @@ public class Types {
             public Type visitClassType(ClassType t, Boolean recurse) {
                 Type erased = t.tsym.erasure(Types.this);
                 if (recurse) {
-                    erased = new ErasedClassType(erased.getEnclosingType(), erased.tsym,
+                    erased = new ErasedClassType(erased.getEnclosingType(),erased.tsym,
                             t.dropMetadata(Annotations.class).getMetadata());
                     return erased;
                 } else {
@@ -2827,16 +2806,7 @@ public class Types {
      * @return true if t is a subsignature of s.
      */
     public boolean isSubSignature(Type t, Type s) {
-        return isSubSignature(t, s, noWarnings);
-    }
-
-    public boolean isSubSignature(Type t, Type s, Warner warn) {
-        try {
-            warnStack = warnStack.prepend(warn);
-            return hasSameArgs(t, s, true) || hasSameArgs(t, erasure(s), true);
-        } finally {
-            warnStack = warnStack.tail;
-        }
+        return hasSameArgs(t, s, true) || hasSameArgs(t, erasure(s), true);
     }
 
     /**
@@ -4307,24 +4277,19 @@ public class Types {
     public boolean returnTypeSubstitutable(Type r1,
                                            Type r2, Type r2res,
                                            Warner warner) {
-        try {
-            warnStack = warnStack.prepend(warner);
-            if (isSameType(r1.getReturnType(), r2res))
-                return true;
-            if (r1.getReturnType().isPrimitive() || r2res.isPrimitive())
-                return false;
-
-            if (hasSameArgs(r1, r2))
-                return covariantReturnType(r1.getReturnType(), r2res, warner);
-            if (isSubtypeUnchecked(r1.getReturnType(), r2res, warner))
-                return true;
-            if (!isSubtype(r1.getReturnType(), erasure(r2res), false))
-                return false;
-            warner.warn(LintCategory.UNCHECKED);
+        if (isSameType(r1.getReturnType(), r2res))
             return true;
-        } finally {
-            warnStack = warnStack.tail;
-        }
+        if (r1.getReturnType().isPrimitive() || r2res.isPrimitive())
+            return false;
+
+        if (hasSameArgs(r1, r2))
+            return covariantReturnType(r1.getReturnType(), r2res, warner);
+        if (isSubtypeUnchecked(r1.getReturnType(), r2res, warner))
+            return true;
+        if (!isSubtype(r1.getReturnType(), erasure(r2res)))
+            return false;
+        warner.warn(LintCategory.UNCHECKED);
+        return true;
     }
 
     /**

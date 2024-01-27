@@ -239,21 +239,6 @@ public class MemberEnter extends JCTree.Visitor {
             m.defaultValue = annotate.unfinishedDefaultValue(); // set it to temporary sentinel for now
             annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree.pos());
         }
-
-        if (m.isConstructor() && m.type.getParameterTypes().size() == 0) {
-            int statsSize = tree.body.stats.size();
-            if (statsSize == 0) {
-                m.flags_field |= EMPTYNOARGCONSTR;
-            } else if (statsSize == 1 && TreeInfo.isSuperCall(tree.body.stats.head)) {
-                JCExpressionStatement exec = (JCExpressionStatement) tree.body.stats.head;
-                JCMethodInvocation meth = (JCMethodInvocation)exec.expr;
-                if (meth.args.size() == 0) {
-                    // Deem a constructor "empty" even if it contains a 'super' call,
-                    // as long as it has no argument expressions (to respect common coding style).
-                    m.flags_field |= EMPTYNOARGCONSTR;
-                }
-            }
-        }
     }
 
     /** Create a fresh environment for method bodies.
@@ -272,12 +257,6 @@ public class MemberEnter extends JCTree.Visitor {
         if ((tree.mods.flags & STATIC) != 0) localEnv.info.staticLevel++;
         localEnv.info.yieldResult = null;
         return localEnv;
-    }
-
-    @Override
-    public void visitBlock(JCBlock tree) {
-        if ((tree.flags & STATIC) == 0 && tree.stats.size() > 0)
-            env.info.scope.owner.flags_field |= HASINITBLOCK;
     }
 
     public void visitVarDef(JCVariableDecl tree) {

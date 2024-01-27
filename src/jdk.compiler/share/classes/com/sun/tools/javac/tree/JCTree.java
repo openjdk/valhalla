@@ -952,10 +952,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public Tag getTag() {
             return METHODDEF;
         }
-
-        public boolean isInit() {
-            return name.table.names.isInit(name);
-        }
   }
 
     /**

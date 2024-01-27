@@ -287,7 +287,7 @@ public class Symtab {
     public VarSymbol getClassField(Type type, Types types) {
         return classFields.computeIfAbsent(
             new UniqueType(type, types), k -> {
-                Type arg;
+                Type arg = null;
                 if (type.getTag() == ARRAY || type.getTag() == CLASS)
                     arg = types.erasure(type);
                 else if (type.isPrimitiveOrVoid())
@@ -679,6 +679,7 @@ public class Symtab {
 
         if (java_base != noModule)
             java_base.completer = moduleCompleter::complete; //bootstrap issues
+
     }
 
     /** Define a new class given its name and owner.

@@ -524,22 +524,6 @@ public class JavacParser implements Parser {
         }
     }
 
-    /** If next input token matches one of the two given tokens, skip it, otherwise report
-     *  an error.
-     *
-     * @return The actual token kind.
-     */
-    public TokenKind accept2(TokenKind tk1, TokenKind tk2) {
-        TokenKind returnValue = token.kind;
-        if (token.kind == tk1 || token.kind == tk2) {
-            nextToken();
-        } else {
-            setErrorEndPos(token.pos);
-            reportSyntaxError(S.prevToken().endPos, Errors.Expected2(tk1, tk2));
-        }
-        return returnValue;
-    }
-
     /** Report an illegal start of expression/type error at given position.
      */
     JCExpression illegal(int pos) {
@@ -2713,8 +2697,7 @@ public class JavacParser implements Parser {
             JCModifiers mods = F.at(Position.NOPOS).Modifiers(flags);
             body = toP(F.at(pos).AnonymousClassDef(mods, defs));
         }
-        JCNewClass newClass = toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body));
-        return newClass;
+        return toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body));
     }
 
     /** ArrayInitializer = "{" [VariableInitializer {"," VariableInitializer}] [","] "}"

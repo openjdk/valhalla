@@ -2301,22 +2301,6 @@ public class Resolve {
                           Type site,
                           Name name,
                           TypeSymbol c) {
-        return findMemberTypeInternal(env,site, name, c);
-    }
-
-    /** Find qualified member type.
-     *  @param env       The current environment.
-     *  @param site      The original type from where the selection takes
-     *                   place.
-     *  @param name      The type's name.
-     *  @param c         The class to search for the member type. This is
-     *                   always a superclass or implemented interface of
-     *                   site's class.
-     */
-    Symbol findMemberTypeInternal(Env<AttrContext> env,
-                          Type site,
-                          Name name,
-                          TypeSymbol c) {
         Symbol sym = findImmediateMemberType(env, site, name, c);
 
         if (sym != typeNotFound)
@@ -2365,14 +2349,6 @@ public class Resolve {
      *  @param name      The type's name.
      */
     Symbol findType(Env<AttrContext> env, Name name) {
-        return findTypeInternal(env, name);
-    }
-
-    /** Find an unqualified type symbol.
-     *  @param env       The current environment.
-     *  @param name      The type's name.
-     */
-    Symbol findTypeInternal(Env<AttrContext> env, Name name) {
         if (name == names.empty)
             return typeNotFound; // do not allow inadvertent "lookup" of anonymous types
         Symbol bestSoFar = typeNotFound;
@@ -3711,7 +3687,7 @@ public class Resolve {
             if (site.isRaw()) {
                 this.site = new ClassType(site.getEnclosingType(),
                         !(site.tsym.isInner() && site.getEnclosingType().isRaw()) ?
-                            site.tsym.type.getTypeArguments() : List.nil(), site.tsym, site.getMetadata());
+                                site.tsym.type.getTypeArguments() : List.nil(), site.tsym, site.getMetadata());
                 needsInference = true;
             }
         }
@@ -4606,7 +4582,11 @@ public class Resolve {
     class StaticError extends InvalidSymbolError {
 
         StaticError(Symbol sym) {
-            super(STATICERR, sym, "static error");
+            this(sym, "static error");
+        }
+
+        StaticError(Symbol sym, String debugName) {
+            super(STATICERR, sym, debugName);
         }
 
         @Override
@@ -4738,7 +4718,7 @@ public class Resolve {
         boolean unboundLookup;
 
         public BadMethodReferenceError(Symbol sym, boolean unboundLookup) {
-            super(sym);
+            super(sym, "bad method ref error");
             this.unboundLookup = unboundLookup;
         }
 
