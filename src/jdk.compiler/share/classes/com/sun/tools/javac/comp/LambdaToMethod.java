@@ -372,7 +372,7 @@ public class LambdaToMethod extends TreeTranslator {
         //create the method declaration hoisting the lambda body
         JCMethodDecl lambdaDecl = make.MethodDef(make.Modifiers(sym.flags_field),
                 sym.name,
-                make.QualIdent(lambdaType.getReturnType().tsym).setType(lambdaType.getReturnType()),
+                make.QualIdent(lambdaType.getReturnType().tsym),
                 List.nil(),
                 localContext.syntheticParams,
                 lambdaType.getThrownTypes() == null ?
