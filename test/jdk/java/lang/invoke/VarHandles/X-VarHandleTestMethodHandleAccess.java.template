@@ -26,13 +26,11 @@
 /*
  * @test
 #if[Value]
- * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodHandleAccess$Type$.java
+ * @modules java.base/jdk.internal.vm.annotation
+#end[Value]
  * @comment Set CompileThresholdScaling to 0.1 so that the warmup loop sets to 2000 iterations
  *          to hit compilation thresholds
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=200 -XX:CompileThresholdScaling=0.1 VarHandleTestMethodHandleAccess$Type$
-#else[Value]
  * @run testng/othervm -Diters=2000 -XX:CompileThresholdScaling=0.1 VarHandleTestMethodHandleAccess$Type$
-#end[Value]
  */
 
 import org.testng.annotations.BeforeClass;
@@ -46,21 +44,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-#if[Point]
-import jdk.internal.value.PrimitiveClass;
-#end[Point]
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
-#if[Point]
-    static final Class<?> type = PrimitiveClass.asValueType($type$.class);
-#else[Point]
-    static final Class<?> type = $type$.class;
-#end[Point]
-
     static final $type$ static_final_v = $value1$;
 
-    static $type$ static_v = $value1$;
+    static $type$ static_v;
 
     final $type$ final_v = $value1$;
 
@@ -79,16 +68,16 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccess$Type$.class, "final_v", type);
+                VarHandleTestMethodHandleAccess$Type$.class, "final_v", $type$.class);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccess$Type$.class, "v", type);
+                VarHandleTestMethodHandleAccess$Type$.class, "v", $type$.class);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccess$Type$.class, "static_final_v", type);
+            VarHandleTestMethodHandleAccess$Type$.class, "static_final_v", $type$.class);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccess$Type$.class, "static_v", type);
+            VarHandleTestMethodHandleAccess$Type$.class, "static_v", $type$.class);
 
         vhArray = MethodHandles.arrayElementVarHandle($type$[].class);
     }

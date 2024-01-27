@@ -44,11 +44,9 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessByte extends VarHandleBaseTest {
-    static final Class<?> type = byte.class;
-
     static final byte static_final_v = (byte)0x01;
 
-    static byte static_v = (byte)0x01;
+    static byte static_v;
 
     final byte final_v = (byte)0x01;
 
@@ -67,16 +65,16 @@ public class VarHandleTestMethodHandleAccessByte extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessByte.class, "final_v", type);
+                VarHandleTestMethodHandleAccessByte.class, "final_v", byte.class);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessByte.class, "v", type);
+                VarHandleTestMethodHandleAccessByte.class, "v", byte.class);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessByte.class, "static_final_v", type);
+            VarHandleTestMethodHandleAccessByte.class, "static_final_v", byte.class);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessByte.class, "static_v", type);
+            VarHandleTestMethodHandleAccessByte.class, "static_v", byte.class);
 
         vhArray = MethodHandles.arrayElementVarHandle(byte[].class);
     }
