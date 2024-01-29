@@ -2432,45 +2432,6 @@ public class Check {
         }
     }
 
-    // A primitive class cannot contain a field of its own type either or indirectly.
-    void checkNonCyclicMembership(JCClassDecl tree) {
-        if (allowValueClasses) {
-            Assert.check((tree.sym.flags_field & LOCKED) == 0);
-            try {
-                tree.sym.flags_field |= LOCKED;
-                for (List<? extends JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
-                    if (l.head.hasTag(VARDEF)) {
-                        JCVariableDecl field = (JCVariableDecl) l.head;
-                        if (cyclePossible(field.sym)) {
-                            checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
-                        }
-                    }
-                }
-            } finally {
-                tree.sym.flags_field &= ~LOCKED;
-            }
-        }
-    }
-    // where
-    private void checkNonCyclicMembership(ClassSymbol c, DiagnosticPosition pos) {
-        if ((c.flags_field & LOCKED) != 0) {
-            log.error(pos, Errors.CyclicPrimitiveClassMembership(c));
-            return;
-        }
-        try {
-            c.flags_field |= LOCKED;
-            for (Symbol fld : c.members().getSymbols(s -> s.kind == VAR && cyclePossible((VarSymbol) s), NON_RECURSIVE)) {
-                checkNonCyclicMembership((ClassSymbol) fld.type.tsym, pos);
-            }
-        } finally {
-            c.flags_field &= ~LOCKED;
-        }
-    }
-        // where
-        private boolean cyclePossible(VarSymbol symbol) {
-            return false; // (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && symbol.type.isNonNullable();
-        }
-
     void checkNonCyclicDecl(JCClassDecl tree) {
         CycleChecker cc = new CycleChecker();
         cc.scan(tree);

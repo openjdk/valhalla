@@ -2822,8 +2822,6 @@ public class ClassReader {
             foundTypeVariables = List.nil();
             filling = false;
         }
-        // we need to do some checks now that the class has been loaded
-        checkNonCyclicMembership(c);
     }
 
     /** We can only read a single class file at a time; this
@@ -3092,56 +3090,5 @@ public class ClassReader {
             currentModule.provides = provides.toList();
             currentModule.directives = directives.toList();
         }
-    }
-
-    // A value class cannot contain a non-nullable instance field of its own type either directly or indirectly.
-    void checkNonCyclicMembership(ClassSymbol csym) {
-        if (!allowValueClasses) {
-            // nothing to see here
-            return;
-        }
-        Assert.check((csym.flags_field & LOCKED) == 0);
-        try {
-            ListBuffer<Symbol> fields = new ListBuffer<>();
-            // invoking c::members can provoke symbol completion and thus the LOCKED flag can be set before expected
-            for (Symbol field : csym.members().getSymbols(s -> s.kind == VAR && cyclePossible((VarSymbol) s), NON_RECURSIVE)) {
-                fields.add(field);
-            }
-            csym.flags_field |= LOCKED;
-            for (Symbol field : fields) {
-                checkNonCyclicMembershipHelper((ClassSymbol) field.type.tsym);
-            }
-        } finally {
-            csym.flags_field &= ~LOCKED;
-        }
-    }
-    // where
-    private void checkNonCyclicMembershipHelper(ClassSymbol c) {
-        if ((c.flags_field & LOCKED) != 0) {
-            JavaFileObject prevSource = log.useSource(currentClassFile);
-            try {
-                log.error(CompilerProperties.Errors.CyclicPrimitiveClassMembership(c));
-                return;
-            } finally {
-                log.useSource(prevSource);
-            }
-        }
-        try {
-            ListBuffer<Symbol> fields = new ListBuffer<>();
-            // invoking c::members can provoke symbol completion and thus the LOCKED flag can be set before expected
-            for (Symbol fld : c.members().getSymbols(s -> s.kind == VAR && cyclePossible((VarSymbol) s), NON_RECURSIVE)) {
-                fields.add(fld);
-            }
-            c.flags_field |= LOCKED;
-            for (Symbol field : fields) {
-                checkNonCyclicMembershipHelper((ClassSymbol) field.type.tsym);
-            }
-        } finally {
-            c.flags_field &= ~LOCKED;
-        }
-    }
-    // where
-    private boolean cyclePossible(VarSymbol symbol) {
-        return false; //(symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && symbol.type.isNonNullable();
     }
 }
