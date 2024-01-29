@@ -569,7 +569,6 @@ public class TypeEnter implements Completer {
             Env<AttrContext> localEnv = outer.dup(tree, outer.info.dup(baseScope));
             localEnv.baseClause = true;
             localEnv.outer = outer;
-            localEnv.info.isSelfCall = false;
             return localEnv;
         }
 
