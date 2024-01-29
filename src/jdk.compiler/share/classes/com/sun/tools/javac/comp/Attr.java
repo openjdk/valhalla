@@ -5326,11 +5326,6 @@ public class Attr extends JCTree.Visitor {
         try {
             annotate.flush();
             attribClass(c);
-            if (c.type.isValueClass()) {
-                final Env<AttrContext> env = typeEnvs.get(c);
-                if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
-                    chk.checkNonCyclicMembership((JCClassDecl)env.tree);
-            }
         } catch (CompletionFailure ex) {
             chk.completionError(pos, ex);
         }
