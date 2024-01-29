@@ -1218,46 +1218,6 @@ public class TestIntrinsics {
         Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, true, true));
     }
 
-// TODO remove?
-/*
-    // Test asPrimaryType intrinsic with non-value mirror
-    @Test
-    public Class<?> test61(Class<?> c) {
-        if (PrimitiveClass.asPrimaryType(c) != Integer.class) {
-            throw new RuntimeException("Unexpected class");
-        }
-        return PrimitiveClass.asPrimaryType(Integer.class);
-    }
-
-    @Run(test = "test61")
-    public void test61_verifier() {
-        Class<?> result = test61(Integer.class);
-        Asserts.assertEQ(result, Integer.class);
-    }
-
-    // Test asValueType intrinsic with non-value mirror
-    @Test
-    public Class<?> test62(Class<?> c) {
-        try {
-            PrimitiveClass.asValueType(c);
-            throw new RuntimeException("No exception thrown");
-        } catch (UnsupportedOperationException ex) {
-            // Expected
-        }
-        return PrimitiveClass.asValueType(Integer.class);
-    }
-
-    @Run(test = "test62")
-    public void test62_verifier() {
-        try {
-            test62(Integer.class);
-            throw new RuntimeException("No exception thrown");
-        } catch (UnsupportedOperationException ex) {
-            // Expected
-        }
-    }
-*/
-
     // compareAndSet to flattened field in object
     @Test
     public boolean test63(MyValue1 oldVal, MyValue1 newVal) {

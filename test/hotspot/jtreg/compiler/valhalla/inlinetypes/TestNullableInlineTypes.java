@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -143,7 +143,7 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test2")
     public void test2_verifier() {
-        long result = test2(nullField);
+        long result = test2(null);
         Asserts.assertEquals(result, 0L);
     }
 
@@ -173,9 +173,8 @@ public class TestNullableInlineTypes {
     @IR(failOn = {ALLOC})
     public void test4() {
         try {
-            valueField1 = (MyValue1) nullField;
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            valueField1 = nullField;
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -191,16 +190,8 @@ public class TestNullableInlineTypes {
     @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
         failOn = {ALLOC})
     public MyValue1 test5(MyValue1 vt) {
-        try {
-            Object o = vt;
-            vt = (MyValue1)o;
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // Expected
-        }
-
-        // Should not throw
+        Object o = vt;
+        vt = (MyValue1)o;
         vt = test5_dontinline(vt);
         vt = test5_inline(vt);
         return vt;
@@ -209,8 +200,8 @@ public class TestNullableInlineTypes {
     @Run(test = "test5")
     public void test5_verifier() {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 vt = test5(nullField);
-        Asserts.assertEquals(vt, null);
+        Asserts.assertEquals(test5(val), val);
+        Asserts.assertEquals(test5(null), null);
     }
 
     @DontInline
@@ -224,13 +215,10 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
     public MyValue1 test6(Object obj) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         try {
-            vt = (MyValue1)obj;
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            vt = (MyValue1)Objects.requireNonNull(obj);
         } catch (NullPointerException e) {
             // Expected
         }
@@ -240,8 +228,7 @@ public class TestNullableInlineTypes {
     @Run(test = "test6")
     public void test6_verifier() {
         MyValue1 vt = test6(null);
-// TODO no null-free casts
-//        Asserts.assertEquals(vt.hash(), testValue1.hash());
+        Asserts.assertEquals(vt.hash(), testValue1.hash());
     }
 
     @ForceInline
@@ -260,16 +247,14 @@ public class TestNullableInlineTypes {
         nullField = getNullInline();     // Should not throw
         nullField = getNullDontInline(); // Should not throw
         try {
-            valueField1 = (MyValue1) getNullInline();
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            valueField1 = getNullInline();
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
-            valueField1 = (MyValue1) getNullDontInline();
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            valueField1 = getNullDontInline();
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -284,9 +269,8 @@ public class TestNullableInlineTypes {
     @IR(failOn = {ALLOC})
     public void test8() {
         try {
-            valueField1 = (MyValue1) nullField;
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            valueField1 = nullField;
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -305,7 +289,7 @@ public class TestNullableInlineTypes {
         if (flag) {
             v = valueField1;
         } else {
-            v = (MyValue1) nullField;
+            v = nullField;
         }
         valueField1 = v;
     }
@@ -315,8 +299,7 @@ public class TestNullableInlineTypes {
         test9(true);
         try {
             test9(false);
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -327,7 +310,7 @@ public class TestNullableInlineTypes {
     @IR(failOn = {ALLOC})
     public void test10(boolean flag) {
         MyValue1 val = flag ? valueField1 : null;
-        valueField1 = (MyValue1) val;
+        valueField1 = val;
     }
 
     @Run(test = "test10")
@@ -335,8 +318,7 @@ public class TestNullableInlineTypes {
         test10(true);
         try {
             test10(false);
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -347,7 +329,7 @@ public class TestNullableInlineTypes {
     @IR(failOn = {ALLOC})
     public void test11(boolean flag) {
         MyValue1 val = flag ? null : valueField1;
-        valueField1 = (MyValue1) val;
+        valueField1 = val;
     }
 
     @Run(test = "test11")
@@ -355,8 +337,7 @@ public class TestNullableInlineTypes {
         test11(false);
         try {
             test11(true);
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -374,7 +355,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public void test12() {
-        valueField1 = (MyValue1) test12_helper();
+        valueField1 = test12_helper();
     }
 
     @Run(test = "test12")
@@ -382,8 +363,7 @@ public class TestNullableInlineTypes {
         try {
             test12_cnt = 0;
             test12();
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -401,7 +381,7 @@ public class TestNullableInlineTypes {
 
     class B extends A {
         public MyValue1 test13_helper() {
-            return (MyValue1) nullField;
+            return nullField;
         }
     }
 
@@ -413,14 +393,14 @@ public class TestNullableInlineTypes {
 
     class D extends C {
         public MyValue1 test13_helper() {
-            return (MyValue1) nullField;
+            return nullField;
         }
     }
 
     @Test
     @IR(failOn = {ALLOC})
     public void test13(A a) {
-        valueField1 = (MyValue1) a.test13_helper();
+        valueField1 = a.test13_helper();
     }
 
     @Run(test = "test13")
@@ -431,29 +411,25 @@ public class TestNullableInlineTypes {
         A d = new D();
         try {
             test13(a);
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
             test13(b);
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
             test13(c);
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
             test13(d);
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -490,7 +466,7 @@ public class TestNullableInlineTypes {
 
     @DontInline
     MyValue1 getNullField2() {
-        return (MyValue1) nullField;
+        return null;
     }
 
     @Test
@@ -498,16 +474,14 @@ public class TestNullableInlineTypes {
     public void test15() {
         nullField = getNullField1(); // should not throw
         try {
-            valueField1 = (MyValue1) getNullField1();
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            valueField1 = getNullField1();
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
             valueField1 = getNullField2();
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -695,7 +669,7 @@ public class TestNullableInlineTypes {
 
     @DontInline
     public MyValue1 test22_helper() {
-        return (MyValue1) nullField;
+        return nullField;
     }
 
     @Test
@@ -708,8 +682,7 @@ public class TestNullableInlineTypes {
     public void test22_verifier() {
         try {
             test22();
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -741,15 +714,14 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public MyValue1 test24() {
-        return (MyValue1) nullBox;
+        return Objects.requireNonNull(nullBox);
     }
 
     @Run(test = "test24")
     public void test24_verifier() {
         try {
             test24();
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -777,9 +749,8 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(res, testValue1.x);
         if (!info.isWarmUp()) {
             try {
-                test25(false, null, testValue1);
-// TODO no null-free casts
-//                throw new RuntimeException("NullPointerException expected");
+                test25(true, null, testValue1);
+                throw new RuntimeException("NullPointerException expected");
             } catch (NullPointerException e) {
                 // Expected
             }
@@ -900,14 +871,8 @@ public class TestNullableInlineTypes {
 
     @Test
     @IR(failOn = {ALLOC})
-    public void test31(Object o) {
-        try {
-            o = (Test31Value)o;
-// TODO null-free casts are not possible anymore...
-//            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // Expected
-        }
+    public Object test31(Object o) {
+        return (Test31Value)o;
     }
 
     @Run(test = "test31")
@@ -1066,15 +1031,15 @@ public class TestNullableInlineTypes {
     @IR(failOn = {ALLOC})
     public MyValue1 test40() {
         Object NULL = null;
-        return (MyValue1)NULL;
+        MyValue1 val = (MyValue1)NULL;
+        return Objects.requireNonNull(val);
     }
 
     @Run(test = "test40")
     public void test40_verifier() {
         try {
             test40();
-// TODO no null-free casts
-//            throw new RuntimeException("NullPointerException expected");
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -2104,8 +2069,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
-        // TODO remove, why is this needed? Probably because that allows converting virtual call to static call below, right?
-        if (val == null) throw new NullPointerException();
+        val = Objects.requireNonNull(val);
         return ((MyValue1)val).hash();
     }
 
@@ -2178,8 +2142,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
-        // TODO remove, why is this needed? Probably because that allows converting virtual call to static call below, right?
-        if (val == null) throw new NullPointerException();
+        val = Objects.requireNonNull(val);
         return ((MyValue1)val).hash();
     }
 
@@ -2220,8 +2183,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
-        // TODO remove, why is this needed? Probably because that allows converting virtual call to static call below, right?
-        if (val == null) throw new NullPointerException();
+        val = Objects.requireNonNull(val);
         return ((MyValue1)val).hash();
     }
 
@@ -2428,8 +2390,7 @@ public class TestNullableInlineTypes {
             val = test85_helper(val, i);
         }
         MyValue1 vt = ((MyValue1Wrapper)val).vt;
-        // TODO remove, why is this needed? Probably because that allows converting virtual call to static call below, right?
-        if (vt == null) throw new NullPointerException();
+        vt = Objects.requireNonNull(vt);
         return vt.hash();
     }
 
@@ -2495,8 +2456,7 @@ public class TestNullableInlineTypes {
         Test87C1 field = new Test87C1();
     }
 
-// TODO remove?
-    // Test merging .val and .ref in return
+    // Test merging field loads in return
     @Test
     public Test87C1 test87(boolean b, Test87C2 v1, Test87C2 v2) {
         if (b) {
@@ -2926,7 +2886,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    // Same as test100 but with different combination of .ref/.val fields
+    // Same as test100 but with different combination of field types
     @Test
     public CircularValue6 test101(CircularValue6 val) {
         return new CircularValue6(new CircularValue5(val, rI));
@@ -2973,7 +2933,7 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test103(), null);
     }
 
-    // TODO comments
+    // Test null restricted fields
 
     @ImplicitlyConstructible
     @LooselyConsistentValue

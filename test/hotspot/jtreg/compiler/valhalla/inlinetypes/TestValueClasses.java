@@ -449,12 +449,10 @@ public class TestValueClasses {
     @Run(test = "test10")
     public void test10_verifier() {
         Asserts.assertEQ(test10(MyValueClass1.class, testValue1), testValue1);
-        // TODO remove
-        Asserts.assertEQ(test10(PrimitiveClass.asPrimaryType(MyValueClass1.class), null), null);
-        Asserts.assertEQ(test10(PrimitiveClass.asPrimaryType(MyValueClass2.class), null), null);
+        Asserts.assertEQ(test10(MyValueClass1.class, null), null);
         Asserts.assertEQ(test10(Integer.class, null), null);
         try {
-            test10(PrimitiveClass.asPrimaryType(MyValueClass2.class), testValue1);
+            test10(MyValueClass2.class, testValue1);
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected

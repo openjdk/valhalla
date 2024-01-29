@@ -2751,7 +2751,7 @@ public class TestLWorld {
         Asserts.assertEQ(result, 11*vt.hash() + 2*def.hashPrimitive());
     }
 
-    class MyObject2 extends MyAbstract {
+    value class MyObject2 extends MyAbstract {
         public int x;
 
         public MyObject2(int x) {
