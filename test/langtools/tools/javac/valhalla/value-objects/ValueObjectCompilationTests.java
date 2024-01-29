@@ -218,14 +218,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
-        assertFail("compiler.err.call.to.super.not.allowed.in.value.ctor",
-                """
-                value class V {
-                    V() {
-                        super();
-                    }
-                }
-                """);
         assertFail("compiler.err.mod.not.allowed.here",
                 """
                 value class V {
