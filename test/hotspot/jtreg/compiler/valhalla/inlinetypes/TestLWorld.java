@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,12 +27,14 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 import test.java.lang.invoke.lib.InstructionHelper;
 
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import jdk.experimental.bytecode.TypeTag;
 import java.util.Arrays;
+import java.util.Objects;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
@@ -2040,13 +2042,11 @@ public class TestLWorld {
         Asserts.assertEQ(result, rI * testValue1Array.length);
     }
 
-// TODO null-free casts
-/*
     // Test that allocated inline type is not used in non-dominated path
     public MyValue1 test71_inline(Object obj) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         try {
-            vt = (MyValue1)obj;
+            vt = (MyValue1)Objects.requireNonNull(obj);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -2065,7 +2065,6 @@ public class TestLWorld {
         MyValue1 vt = test71();
         Asserts.assertEquals(vt.hash(), hash());
     }
-*/
 
     // Test calling a method on an uninitialized inline type
     @ImplicitlyConstructible
@@ -2139,32 +2138,6 @@ public class TestLWorld {
         test75(42);
     }
 
-// TODO null-free casts
-/*
-    // Casting a null Integer to a (non-nullable) inline type should throw a NullPointerException
-    @ForceInline
-    public MyValue1 test76_helper(Object o) {
-        return (MyValue1)o;
-    }
-
-    @Test
-    @IR(failOn = {ALLOC_G})
-    public MyValue1 test76(Integer i) throws Throwable {
-        return test76_helper(i);
-    }
-
-    @Run(test = "test76")
-    public void test76_verifier() throws Throwable {
-        try {
-            test76(null);
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("test76 failed: unexpected exception", e);
-        }
-    }
-*/
     // Casting an Integer to a (non-nullable) inline type should throw a ClassCastException
     @ForceInline
     public MyValue1 test77_helper(Object o) {
@@ -3491,7 +3464,7 @@ public class TestLWorld {
 
     @Run(test = "test117")
     public void test117_verifier() {
-        MyValueEmpty[] arr1 = new MyValueEmpty[]{new MyValueEmpty()};
+        MyValueEmpty[] arr1 = new MyValueEmpty[] { new MyValueEmpty() };
         MyValueEmpty res = test117(arr1, arr1);
         Asserts.assertEquals(res, new MyValueEmpty());
         Asserts.assertEquals(arr1[0], new MyValueEmpty());
@@ -3524,30 +3497,37 @@ public class TestLWorld {
         private EmptyContainer empty = new EmptyContainer();
     }
 
+    @NullRestricted
+    static final MyValueEmpty empty = new MyValueEmpty();
+
+    @NullRestricted
+    static final EmptyContainer emptyC = new EmptyContainer();
+
+    @NullRestricted
+    static final MixedContainer mixedContainer = new MixedContainer();
+
     // Test re-allocation of empty inline type array during deoptimization
     @Test
-// TODO fix, we need to intrinsify newNullRestrictedArray
-//    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC_G})
     public void test119(boolean deopt, Method m) {
-        MyValueEmpty[]   array1 = new MyValueEmpty[]{new MyValueEmpty()};
+        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty };
         EmptyContainer[] array2 = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 1);
+        array2[0] = emptyC;
         MixedContainer[] array3 = (MixedContainer[])ValueClass.newNullRestrictedArray(MixedContainer.class, 1);
+        array3[0] = mixedContainer;
         if (deopt) {
             // uncommon trap
             TestFramework.deoptimize(m);
         }
-        Asserts.assertEquals(array1[0], new MyValueEmpty());
-        Asserts.assertEquals(array2[0], new EmptyContainer());
-        Asserts.assertEquals(array3[0], new MixedContainer());
+        Asserts.assertEquals(array1[0], empty);
+        Asserts.assertEquals(array2[0], emptyC);
+        Asserts.assertEquals(array3[0], mixedContainer);
     }
 
     @Run(test = "test119")
     public void test119_verifier(RunInfo info) {
         test119(!info.isWarmUp(), info.getTest());
     }
-
-    @NullRestricted
-    static final MyValueEmpty empty = new MyValueEmpty();
 
     // Test removal of empty inline type field stores
     @Test
@@ -4123,26 +4103,6 @@ public class TestLWorld {
             return_();
         });
 
-// TODO remove?
-    // Same as test44
-    @Test
-    public void test145(MyValue1[] va, int index, MyValue2 v) throws Throwable {
-        setArrayElementIncompatibleRef.invoke(this, va, index, v);
-    }
-
-    @Run(test = "test145")
-    @Warmup(10000)
-    public void test145_verifier() throws Throwable {
-        int index = Math.abs(rI) % 3;
-        try {
-            test145(testValue1Array, index, testValue2);
-            throw new RuntimeException("No ArrayStoreException thrown");
-        } catch (ArrayStoreException e) {
-            // Expected
-        }
-        Asserts.assertEQ(testValue1Array[index].hash(), hash());
-    }
-
     // Test inline type connected to result node
     @Test
     @IR(failOn = {ALLOC_G})
@@ -4154,21 +4114,6 @@ public class TestLWorld {
     @Warmup(10000)
     public void test146_verifier() {
         Asserts.assertEQ(test146(testValue1), testValue1);
-    }
-
-// TODO remove?
-    // Same as test146
-    @Test
-    @IR(failOn = {ALLOC_G})
-    public MyValue1 test147(Object obj) {
-        return (MyValue1)obj;
-    }
-
-    @Run(test = "test147")
-    @Warmup(10000)
-    public void test147_verifier() {
-        Asserts.assertEQ(test147(testValue1), testValue1);
-        Asserts.assertEQ(test147(null), null);
     }
 
     @ForceInline
@@ -4401,21 +4346,6 @@ public class TestLWorld {
         }
     }
 
-// TODO remove
-/*
-    // Test withfield directly operating on inline type arg (instead of on defaultvalue)
-    @Test
-    public MyValue5 test156(MyValue5 vt) {
-        return vt.withField(rI);
-    }
-
-    @Run(test = "test156")
-    @Warmup(10000)
-    public void test156_verifier() {
-        Asserts.assertEquals(test156(new MyValue5()).x, rI);
-    }
-*/
-
     @NullRestricted
     final static MyValue1 test157Cache = MyValue1.createWithFieldsInline(rI, 0);
 
@@ -4446,28 +4376,6 @@ public class TestLWorld {
         Asserts.assertEquals(test158(rL).hash(), testValue1.hash());
     }
 
-// TODO remove
-/*
-    // Test null check on withfield receiver
-    @Test
-    public MyValue5 test159(MyValue5 vt) {
-        return MyValue5.withField(vt, rI);
-    }
-
-    @Run(test = "test159")
-    @Warmup(10000)
-    public void test159_verifier(RunInfo info) {
-        Asserts.assertEquals(test159(new MyValue5()).x, rI);
-        if (!info.isWarmUp()) {
-            try {
-                test159(null);
-                throw new RuntimeException("No NPE thrown");
-            } catch (NullPointerException e) {
-                // Expected
-            }
-        }
-    }
-*/
     // Verify that cast that with incompatible types is properly handled
     @Test
     public void test160(Integer arg) {
@@ -4484,14 +4392,6 @@ public class TestLWorld {
         } catch (ClassCastException e) {
             // Expected
         }
-// TODO can not cast to null-free
-        /*
-        try {
-            test160(null);
-            throw new RuntimeException("No NPE thrown");
-        } catch (NullPointerException e) {
-            // Expected
-        }
-        */
+        test160(null);
     }
 }

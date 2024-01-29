@@ -2356,54 +2356,53 @@ public class TestNullableArrays {
         Asserts.assertEQ(result, hash());
     }
 
-// TODO we can't cast to null-free arrays
-/*
-    // Test narrowing conversion from [L to [Q
+
+    // Test casting to null restricted array
     @Test
     @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
-    public static MyValue1[] test88(MyValue1[] va) {
-        return (MyValue1[])va;
+    public static MyValue1[] test88(Class c, MyValue1[] va) {
+        return (MyValue1[])c.cast(va);
     }
 
     @Run(test = "test88")
     public void test88_verifier() {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         va[0] = testValue1;
-        MyValue1[] res = test88(va);
+        MyValue1[] res = test88(va.getClass(), va);
         Asserts.assertEquals(res[0].hash(), testValue1.hash());
         res[0] = testValue1;
-        test88(null); // Should not throw NPE
+        test88(va.getClass(), null); // Should not throw NPE
         try {
-            test88(new MyValue1[1]);
+            test88(va.getClass(), new MyValue1[1]);
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException cce) {
             // Expected
         }
     }
 
-    // Same as test88 but with explicit cast and Object argument
+    // Same as test88 but with Object argument
     @Test
     @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
-    public static MyValue1[] test89(Object[] va) {
-        return (MyValue1[])va;
+    public static MyValue1[] test89(Class c, Object[] va) {
+        return (MyValue1[])c.cast(va);
     }
 
     @Run(test = "test89")
     public void test89_verifier() {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         va[0] = testValue1;
-        MyValue1[] res = test89(va);
+        MyValue1[] res = test89(va.getClass(), va);
         Asserts.assertEquals(((MyValue1)res[0]).hash(), testValue1.hash());
         res[0] = testValue1;
-        test89(null); // Should not throw NPE
+        test89(va.getClass(), null); // Should not throw NPE
         try {
-            test89(new MyValue1[1]);
+            test89(va.getClass(), new MyValue1[1]);
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException cce) {
             // Expected
         }
     }
-*/
+
     // More cast tests
     @Test
     public static MyValue1[] test90(Object va) {
