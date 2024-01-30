@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
 
 package compiler.valhalla.inlinetypes;
 
-// TODO clean up imports in all test files and use a consistent location (before/after jtreg header?)
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
