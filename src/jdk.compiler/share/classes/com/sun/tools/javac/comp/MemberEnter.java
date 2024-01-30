@@ -67,7 +67,6 @@ public class MemberEnter extends JCTree.Visitor {
     private final Types types;
     private final Names names;
     private final DeferredLintHandler deferredLintHandler;
-    private final boolean allowValueClasses;
 
     public static MemberEnter instance(Context context) {
         MemberEnter instance = context.get(memberEnterKey);
@@ -89,8 +88,6 @@ public class MemberEnter extends JCTree.Visitor {
         source = Source.instance(context);
         names = Names.instance(context);
         deferredLintHandler = DeferredLintHandler.instance(context);
-        Source source = Source.instance(context);
-        allowValueClasses = Source.Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Construct method type from method signature.

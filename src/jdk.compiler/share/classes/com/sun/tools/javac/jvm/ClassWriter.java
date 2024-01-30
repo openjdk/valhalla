@@ -141,8 +141,6 @@ public class ClassWriter extends ClassFile {
     /** The name table. */
     private final Names names;
 
-    private final Symtab syms;
-
     /** Access to files. */
     private final JavaFileManager fileManager;
 
@@ -177,7 +175,6 @@ public class ClassWriter extends ClassFile {
         check = Check.instance(context);
         fileManager = context.get(JavaFileManager.class);
         poolWriter = Gen.instance(context).poolWriter;
-        syms = Symtab.instance(context);
 
         verbose        = options.isSet(VERBOSE);
         genCrt         = options.isSet(XJCOV);

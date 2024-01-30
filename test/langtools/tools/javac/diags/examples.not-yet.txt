@@ -226,7 +226,3 @@ compiler.warn.proc.use.proc.or.implicit
 
 # Value Objects
 compiler.misc.feature.value.classes
-
-# Primitive Classes
-compiler.err.cyclic.primitive.class.membership
-compiler.err.generic.parameterization.with.primitive.class
