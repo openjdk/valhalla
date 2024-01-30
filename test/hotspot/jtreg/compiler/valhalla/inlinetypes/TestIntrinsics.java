@@ -839,14 +839,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(result, null);
         result = test43(MyValue1.class, vt);
         Asserts.assertEQ(result, vt);
-        // TODO can not cast to null free
-        /*
-        try {
-            test43(MyValue1.class, null);
-            throw new RuntimeException("should have thrown");
-        } catch (NullPointerException npe) {
-        }
-        */
         result = test43(Integer.class, null);
         Asserts.assertEQ(result, null);
     }
@@ -871,14 +863,6 @@ public class TestIntrinsics {
             throw new RuntimeException("should have thrown");
         } catch (ClassCastException cce) {
         }
-        // TODO can not cast to null free
-        /*
-        try {
-            test44(MyValue2.class, null);
-            throw new RuntimeException("should have thrown");
-        } catch (NullPointerException npe) {
-        }
-        */
     }
 
     @Test
@@ -922,14 +906,8 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test47(vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
-        // TODO can not cast to null free
-        /*
-        try {
-            test47(null);
-            throw new RuntimeException("should have thrown");
-        } catch (NullPointerException npe) {
-        }
-        */
+        result = test47(null);
+        Asserts.assertEQ(result, null);
     }
 
     @Test
@@ -942,14 +920,8 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test48(MyValue1.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
-        // TODO can not cast to null free
-        /*
-        try {
-            test48(MyValue1.class, null);
-            throw new RuntimeException("should have thrown");
-        } catch (NullPointerException npe) {
-        }
-        */
+        result = test48(MyValue1.class, null);
+        Asserts.assertEQ(result, null);
     }
 
     @Test
@@ -984,19 +956,13 @@ public class TestIntrinsics {
         Asserts.assertEQ(result, vba);
         result = test50(MyValue1[].class, va);
         Asserts.assertEQ(result, va);
-        // TODO can not cast to null free
-        /*
+        result = test50(MyValue1.class, null);
+        Asserts.assertEQ(result, null);
         try {
-            test50(MyValue1.class, null);
-            throw new RuntimeException("should have thrown");
-        } catch (NullPointerException npe) {
-        }
-        try {
-            test50(MyValue1[].class, vba);
+            test50(va.getClass(), vba);
             throw new RuntimeException("should have thrown");
         } catch (ClassCastException cce) {
         }
-        */
     }
 
     // Value class array creation via reflection
@@ -1017,7 +983,6 @@ public class TestIntrinsics {
     // multidimensional value class array creation via reflection
     @Test
     public Object[][] test52(int len, int val) {
-// TODO
         MyValue1[][] va1 = (MyValue1[][])Array.newInstance(MyValue1[].class, len);
         MyValue1[][] va2 = (MyValue1[][])Array.newInstance(MyValue1[].class, len);
         Object[][] result;
@@ -1045,7 +1010,6 @@ public class TestIntrinsics {
 
     @Test
     public Object[][] test53(Class<?> c1, Class<?> c2, int len, int val) {
-    // TODO
         MyValue1[][] va1 = (MyValue1[][])Array.newInstance(MyValue1[].class, len);
         MyValue1[][] va2 = (MyValue1[][])Array.newInstance(MyValue1[].class, len);
         Object[][] va3 = (Object[][])Array.newInstance(c1, len);

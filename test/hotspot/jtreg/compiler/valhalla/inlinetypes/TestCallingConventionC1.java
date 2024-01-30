@@ -1778,8 +1778,6 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(result, n);
     }
 
-// TODO is this now obsolete?
-
     //-------------------------------------------------------------------------------
     // Tests for how C1 handles InlineTypeReturnedAsFields in both calls and returns
     //-------------------------------------------------------------------------------

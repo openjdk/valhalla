@@ -2086,7 +2086,7 @@ bool LIRGenerator::inline_type_field_access_prolog(AccessField* x) {
                        !x->is_static() && x->needs_patching();
   // Deoptimize if we load from a static field with an uninitialized type because we
   // need to throw an exception if initialization of the type failed.
-  // TODO it seems that this fix for JDK-8273594 is not needed anymore or our tests don't trigger the issue anymore
+  // TODO 8324949 It seems that this fix for JDK-8273594 is not needed anymore or our tests don't trigger the issue anymore
   bool not_initialized = false && x->is_static() && x->as_LoadField() != nullptr &&
       !field->type()->as_instance_klass()->is_initialized();
   if (could_be_flat || not_initialized) {

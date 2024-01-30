@@ -4422,8 +4422,8 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
 //-----------------------inline_newNullRestrictedArray--------------------------
 // public static native Object[] newNullRestrictedArray(Class<?> componentType, int length);
 bool LibraryCallKit::inline_newNullRestrictedArray() {
-  // TODO improve this
-  // TODO add required checks
+  // TODO 8324949
+  // Improve this and add required runtime checks
   Node* componentType = argument(0);
   Node* length = argument(1);
 
@@ -4437,7 +4437,6 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
         ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
-
           Node* obj = new_array(makecon(array_klass_type), length, 0);  // no arguments to push
           set_result(obj);
           return true;
@@ -4446,26 +4445,6 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
     }
   }
   return false;
-
-  //_gvn.type(componentType)->is_klassptr()->
-
-  /*
-  // Check that array_klass object is loaded
-  if (!array_klass->is_loaded()) {
-    // Generate uncommon_trap for unloaded array_class
-    uncommon_trap(Deoptimization::Reason_unloaded,
-                  Deoptimization::Action_reinterpret,
-                  array_klass);
-    return;
-  } else if (array_klass->element_klass() != nullptr &&
-             array_klass->element_klass()->is_inlinetype() &&
-             !array_klass->element_klass()->as_inline_klass()->is_initialized()) {
-    uncommon_trap(Deoptimization::Reason_uninitialized,
-                  Deoptimization::Action_reinterpret,
-                  nullptr);
-    return;
-  }
-  */
 }
 
 //-----------------------inline_native_newArray--------------------------

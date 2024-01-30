@@ -299,9 +299,9 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
   // If the inline type has a constant or loaded oop, use the oop instead of scalarization
   // in the safepoint to avoid keeping field loads live just for the debug info.
   Node* oop = get_oop();
-  // TODO TestBasicFunctionality::test3 fails without this
-  // TODO add proj nodes here?
-  // TODO recursive handling of phis required? we need a test that fails without
+  // TODO 8324949
+  // TestBasicFunctionality::test3 fails without this. Add more tests?
+  // Add proj nodes here? Recursive handling of phis required? We need a test that fails without.
   bool use_oop = false;
   if (allow_oop && is_allocated(igvn) && oop->is_Phi()) {
     Unique_Node_List worklist;

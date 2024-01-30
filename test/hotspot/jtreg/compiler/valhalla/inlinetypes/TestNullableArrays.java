@@ -901,7 +901,7 @@ public class TestNullableArrays {
     // non escaping allocations
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     @Test
-    // TODO Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
+    // TODO 8324949 Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
     //@IR(failOn = {ALLOCA, LOOP, TRAP})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
