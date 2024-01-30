@@ -5598,7 +5598,8 @@ JVMState* LibraryCallKit::arraycopy_restore_alloc_state(AllocateArrayNode* alloc
       }
 
       if (no_interfering_store) {
-        // TODO TestArrays::test94 hits an assert because we create a wrong JVMState for before the newNullRestrictedArray intrinsic because above code does not account for the class argument on stack in addition to the size
+        // TODO 8324949
+        // TestArrays::test94 hits an assert because we create a wrong JVMState for before the newNullRestrictedArray intrinsic because above code does not account for the class argument on stack in addition to the size
         // See https://github.com/openjdk/jdk/commit/5a478ef7759e64da6d17426673700ff0d9c66b33
         // Check why this isn't optimized for Array.newInstance(MyValue.class, 10);
         // Re-enable IR matching in TestArrays::test29 and TestNullableArrays::test29

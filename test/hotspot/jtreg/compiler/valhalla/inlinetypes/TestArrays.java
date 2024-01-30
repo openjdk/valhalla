@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -764,13 +764,13 @@ public class TestArrays {
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     @Test
+    // TODO 8324949 Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
     /*
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         failOn = {ALLOCA, LOOP, LOAD, TRAP})
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
         failOn = {ALLOCA, LOOP, TRAP})
     */
-    // TODO Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
         System.arraycopy(src, 0, dst, 0, 10);
@@ -1417,11 +1417,9 @@ public class TestArrays {
         }
     }
 
-// TODO Arrays.copyOf
-/*
     @Test
     public Object[] test59(MyValue1[] va) {
-        return Arrays.copyOf(va, va.length+1, MyValue1[].class);
+        return Arrays.copyOf(va, va.length+1, va.getClass());
     }
 
     @Run(test = "test59")
@@ -1451,10 +1449,10 @@ public class TestArrays {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
             verif[i] = (MyValue1)va[i];
         }
-        Object[] result = test60(va, MyValue1[].class);
+        Object[] result = test60(va, va.getClass());
         verify(verif, result);
     }
-*/
+
     @Test
     public Object[] test61(Object[] va, Class klass) {
         return Arrays.copyOf(va, va.length+1, klass);
@@ -2502,7 +2500,7 @@ public class TestArrays {
 
     // Test that CHECKCAST_ARRAY matching works as expected
     @Test
-    // TODO this is broken, fails to detect the "movq    R10, precise [compiler/valhalla/inlinetypes/MyValue1" shape, also in mainline, fix it
+    // TODO 8324949 This fails to detect the "movq    R10, precise [compiler/valhalla/inlinetypes/MyValue1" shape, also affects mainline
     // @IR(counts = { IRNode.CHECKCAST_ARRAY, "= 1" })
     public boolean test101(Object[] array) {
         return array instanceof MyValue1[];
@@ -2522,13 +2520,21 @@ public class TestArrays {
     static final Object[]   obj_null_src = new Object[8];
     static final Object[]   obj_dst = new Object[8];
 
+    @ForceInline
     static Object get_val_src() { return val_src; }
+    @ForceInline
     static Object get_val_dst() { return val_dst; }
-    static Class get_val_class() { return MyValue2[].class; }
+    @ForceInline
+    static Class get_val_class() { return val_src.getClass(); }
+    @ForceInline
     static Class get_int_class() { return Integer[].class; }
+    @ForceInline
     static Object get_obj_src() { return obj_src; }
+    @ForceInline
     static Object get_obj_null_src() { return obj_null_src; }
+    @ForceInline
     static Object get_obj_dst() { return obj_dst; }
+    @ForceInline
     static Class get_obj_class() { return Object[].class; }
 
     static {
@@ -2739,13 +2745,11 @@ public class TestArrays {
         verify(obj_src, res);
     }
 
-// TODO Arrays.copyOf
-/*
     // Same as test111 but with Object[] src containing null
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, " = 1"})
     public Object[] test113_null() {
-        return Arrays.copyOf(obj_null_src, 8, MyValue2[].class);
+        return Arrays.copyOf(obj_null_src, 8, val_src.getClass());
     }
 
     @Run(test = "test113_null")
@@ -2757,7 +2761,7 @@ public class TestArrays {
             // expected
         }
     }
-*/
+
     // Below tests are equal to test110-test113 but hide the src/dst types until
     // after the arraycopy intrinsic is emitted (with incremental inlining).
 
@@ -2815,8 +2819,6 @@ public class TestArrays {
         verify(obj_src, res);
     }
 
-// TODO Arrays.copyOf
-/*
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, " = 1"})
     public Object[] test117_null() {
@@ -2839,7 +2841,7 @@ public class TestArrays {
     @IR(counts = {CLASS_CHECK_TRAP, "= 1"},
         failOn = INTRINSIC_SLOW_PATH)
     public Object[] test118(Object[] src) {
-        return Arrays.copyOf(src, 8, MyValue2[].class);
+        return Arrays.copyOf(src, 8, val_src.getClass());
     }
 
     @Run(test = "test118")
@@ -2855,7 +2857,6 @@ public class TestArrays {
             // expected
         }
     }
-*/
 
     @Test
     public Object[] test119(Object[] src) {
@@ -2893,11 +2894,9 @@ public class TestArrays {
         }
     }
 
-// TODO Arrays.copyOf
-/*
     @Test
     public Object[] test121(Object[] src) {
-        return Arrays.copyOf(src, 8, MyValue2[].class);
+        return Arrays.copyOf(src, 8, val_src.getClass());
     }
 
     @Run(test = "test121")
@@ -2933,7 +2932,6 @@ public class TestArrays {
             // expected
         }
     }
-*/
 
     @Test
     public Object[] test123(Object[] src) {
@@ -2979,8 +2977,6 @@ public class TestArrays {
         }
     }
 
-// TODO Arrays.copyOf
-/*
     @Test
     public Object[] test125(Object[] src, Class klass) {
         return Arrays.copyOf(src, 8, klass);
@@ -2995,18 +2991,18 @@ public class TestArrays {
         }
         Object[] res = test125(arr, Integer[].class);
         verify((Object[])arr, res);
-        res = test125(val_src, MyValue2[].class);
+        res = test125(val_src, val_src.getClass());
         verify(val_src, res);
-        res = test125(obj_src, MyValue2[].class);
+        res = test125(obj_src, val_src.getClass());
         verify(val_src, res);
         try {
-            test125(obj_null_src, MyValue2[].class);
+            test125(obj_null_src, val_src.getClass());
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // expected
         }
         try {
-            test125(arr, MyValue2[].class);
+            test125(arr, val_src.getClass());
             throw new RuntimeException("ArrayStoreException expected");
         } catch (ArrayStoreException e) {
             // expected
@@ -3018,7 +3014,6 @@ public class TestArrays {
             // expected
         }
     }
-*/
 
     // Verify that clone from (flat) value class array not containing oops is always optimized.
     @Test
@@ -3109,8 +3104,8 @@ public class TestArrays {
 
     // Empty value class array access
     @Test
-// TODO we need profiling for null-free arrays
-//    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
+    // TODO 8324949 Shouldn't profiling determine that the array is null restricted?
+    //@IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
     public MyValueEmpty test130(MyValueEmpty[] array) {
         array[0] = new MyValueEmpty();
         return array[1];
@@ -3133,8 +3128,8 @@ public class TestArrays {
 
     // Empty value class container array access
     @Test
-// TODO we need profiling for null-free arrays
-//    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
+    // TODO 8324949 Shouldn't profiling determine that the array is null restricted?
+    //@IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
     public MyValueEmpty test131(EmptyContainer[] array) {
         array[0] = new EmptyContainer();
         return array[1].empty;
