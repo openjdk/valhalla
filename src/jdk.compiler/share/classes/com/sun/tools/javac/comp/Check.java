@@ -37,7 +37,6 @@ import java.util.stream.StreamSupport;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.NestingKind;
-import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileManager;
 
 import com.sun.source.tree.CaseTree;
@@ -713,7 +712,7 @@ public class Check {
              return true;
          } else if (!a.hasTag(WILDCARD)) {
              a = types.cvarUpperBound(a);
-             return types.isSubtype(a, bound, true);
+             return types.isSubtype(a, bound);
          } else if (a.isExtendsBound()) {
              return types.isCastable(bound, types.wildUpperBound(a), types.noWarnings);
          } else if (a.isSuperBound()) {
@@ -792,21 +791,21 @@ public class Check {
 
     /** Check that type is a valid qualifier for a constructor reference expression
      */
-    Type checkConstructorRefType(JCExpression expr, Type t) {
-        t = checkClassOrArrayType(expr, t);
+    Type checkConstructorRefType(DiagnosticPosition pos, Type t) {
+        t = checkClassOrArrayType(pos, t);
         if (t.hasTag(CLASS)) {
             if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0) {
-                log.error(expr, Errors.AbstractCantBeInstantiated(t.tsym));
+                log.error(pos, Errors.AbstractCantBeInstantiated(t.tsym));
                 t = types.createErrorType(t);
             } else if ((t.tsym.flags() & ENUM) != 0) {
-                log.error(expr, Errors.EnumCantBeInstantiated);
+                log.error(pos, Errors.EnumCantBeInstantiated);
                 t = types.createErrorType(t);
             } else {
-                t = checkClassType(expr, t, true);
+                t = checkClassType(pos, t, true);
             }
         } else if (t.hasTag(ARRAY)) {
             if (!types.isReifiable(((ArrayType)t).elemtype)) {
-                log.error(expr, Errors.GenericArrayCreation);
+                log.error(pos, Errors.GenericArrayCreation);
                 t = types.createErrorType(t);
             }
         }
@@ -1151,14 +1150,10 @@ public class Check {
      * @return true if 't' is well-formed
      */
     public boolean checkValidGenericType(Type t) {
-        return checkValidGenericType(null, t);
-    }
-
-    public boolean checkValidGenericType(JCTree pos, Type t) {
-        return firstIncompatibleTypeArg(pos, t) == null;
+        return firstIncompatibleTypeArg(t) == null;
     }
     //WHERE
-        private Type firstIncompatibleTypeArg(JCTree pos, Type type) {
+        private Type firstIncompatibleTypeArg(Type type) {
             List<Type> formals = type.tsym.type.allparams();
             List<Type> actuals = type.allparams();
             List<Type> args = type.getTypeArguments();
@@ -1549,7 +1544,7 @@ public class Check {
                 List<JCExpression> args = tree.arguments;
                 List<Type> forms = tree.type.tsym.type.getTypeArguments();
 
-                Type incompatibleArg = firstIncompatibleTypeArg(tree, tree.type);
+                Type incompatibleArg = firstIncompatibleTypeArg(tree.type);
                 if (incompatibleArg != null) {
                     for (JCTree arg : tree.arguments) {
                         if (arg.type == incompatibleArg) {
@@ -4474,7 +4469,6 @@ public class Check {
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);
             }
-            this.warned = true;
         }
     }
 
