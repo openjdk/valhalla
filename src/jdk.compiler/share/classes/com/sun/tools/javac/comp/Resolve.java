@@ -106,7 +106,6 @@ public class Resolve {
     JCDiagnostic.Factory diags;
     public final boolean allowModules;
     public final boolean allowRecords;
-    public final boolean allowValueClasses;
     private final boolean compactMethodDiags;
     private final boolean allowLocalVariableTypeInference;
     private final boolean allowYieldStatement;
@@ -149,7 +148,6 @@ public class Resolve {
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         dumpMethodReferenceSearchResults = options.isSet("debug.dumpMethodReferenceSearchResults");
-        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** error symbols, which are returned when resolution fails
@@ -471,10 +469,11 @@ public class Resolve {
     private boolean notOverriddenIn(Type site, Symbol sym) {
         if (sym.kind != MTH || sym.isConstructor() || sym.isStatic())
             return true;
-
-        Symbol s2 = ((MethodSymbol)sym).implementation(site.tsym, types, true);
-        return (s2 == null || s2 == sym || sym.owner == s2.owner || (sym.owner.isInterface() && s2.owner == syms.objectType.tsym) ||
-                !types.isSubSignature(types.memberType(site, s2), types.memberType(site, sym)));
+        else {
+            Symbol s2 = ((MethodSymbol)sym).implementation(site.tsym, types, true);
+            return (s2 == null || s2 == sym || sym.owner == s2.owner || (sym.owner.isInterface() && s2.owner == syms.objectType.tsym) ||
+                    !types.isSubSignature(types.memberType(site, s2), types.memberType(site, sym)));
+        }
     }
     //where
         /** Is given protected symbol accessible if it is selected from given site
@@ -4274,7 +4273,6 @@ public class Resolve {
             }
             boolean truncatedDiag = candidatesMap.size() != filteredCandidates.size();
             if (filteredCandidates.size() > 1) {
-                boolean isConstructor = names.isInit(name);
                 JCDiagnostic err = diags.create(dkind,
                         null,
                         truncatedDiag ?
