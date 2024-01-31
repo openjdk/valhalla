@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,11 +44,9 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessLong extends VarHandleBaseTest {
-    static final Class<?> type = long.class;
-
     static final long static_final_v = 0x0123456789ABCDEFL;
 
-    static long static_v = 0x0123456789ABCDEFL;
+    static long static_v;
 
     final long final_v = 0x0123456789ABCDEFL;
 
@@ -67,16 +65,16 @@ public class VarHandleTestMethodHandleAccessLong extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessLong.class, "final_v", type);
+                VarHandleTestMethodHandleAccessLong.class, "final_v", long.class);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessLong.class, "v", type);
+                VarHandleTestMethodHandleAccessLong.class, "v", long.class);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessLong.class, "static_final_v", type);
+            VarHandleTestMethodHandleAccessLong.class, "static_final_v", long.class);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessLong.class, "static_v", type);
+            VarHandleTestMethodHandleAccessLong.class, "static_v", long.class);
 
         vhArray = MethodHandles.arrayElementVarHandle(long[].class);
     }
