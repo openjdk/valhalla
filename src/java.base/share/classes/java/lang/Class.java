@@ -85,6 +85,7 @@ import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+import jdk.internal.vm.annotation.Stable;
 
 import sun.invoke.util.Wrapper;
 import sun.reflect.generics.factory.CoreReflectionFactory;
@@ -1231,6 +1232,7 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     // set by VM
+    @Stable
     private transient Module module;
 
     // Initialized in JVM not by private constructor

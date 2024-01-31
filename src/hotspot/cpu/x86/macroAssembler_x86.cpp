@@ -10054,6 +10054,17 @@ void MacroAssembler::evporq(XMMRegister dst, XMMRegister nds, AddressLiteral src
   }
 }
 
+void MacroAssembler::vpshufb(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    vpshufb(dst, nds, as_Address(src), vector_len);
+  } else {
+    lea(rscratch, src);
+    vpshufb(dst, nds, Address(rscratch, 0), vector_len);
+  }
+}
+
 void MacroAssembler::vpternlogq(XMMRegister dst, int imm8, XMMRegister src2, AddressLiteral src3, int vector_len, Register rscratch) {
   assert(rscratch != noreg || always_reachable(src3), "missing");
 
@@ -10588,6 +10599,10 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register threa
   movptr(tmp, hdr);
   // Set unlocked_value bit.
   orptr(hdr, markWord::unlocked_value);
+  if (EnableValhalla) {
+    // Mask inline_type bit such that we go to the slow path if object is an inline type
+    andptr(hdr, ~((int) markWord::inline_type_bit_in_place));
+  }
   lock();
   cmpxchgptr(tmp, Address(obj, oopDesc::mark_offset_in_bytes()));
   jcc(Assembler::notEqual, slow);

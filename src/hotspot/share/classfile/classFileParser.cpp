@@ -24,6 +24,7 @@
 
 #include "oops/inlineKlass.hpp"
 #include "precompiled.hpp"
+#include "cds/cdsConfig.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
@@ -3047,7 +3048,7 @@ static const intArray* sort_methods(Array<Method*>* methods) {
   // We temporarily use the vtable_index field in the Method* to store the
   // class file index, so we can read in after calling qsort.
   // Put the method ordering in the shared archive.
-  if (JvmtiExport::can_maintain_original_method_order() || Arguments::is_dumping_archive()) {
+  if (JvmtiExport::can_maintain_original_method_order() || CDSConfig::is_dumping_archive()) {
     for (int index = 0; index < length; index++) {
       Method* const m = methods->at(index);
       assert(!m->valid_vtable_index(), "vtable index should not be set");
@@ -3061,7 +3062,7 @@ static const intArray* sort_methods(Array<Method*>* methods) {
   intArray* method_ordering = nullptr;
   // If JVMTI original method ordering or sharing is enabled construct int
   // array remembering the original ordering
-  if (JvmtiExport::can_maintain_original_method_order() || Arguments::is_dumping_archive()) {
+  if (JvmtiExport::can_maintain_original_method_order() || CDSConfig::is_dumping_archive()) {
     method_ordering = new intArray(length, length, -1);
     for (int index = 0; index < length; index++) {
       Method* const m = methods->at(index);
@@ -4633,6 +4634,7 @@ void ClassFileParser::check_super_interface_access(const InstanceKlass* this_kla
           (same_module) ? this_klass->joint_in_module_of_loader(k) : this_klass->class_in_module_of_loader(),
           (same_module) ? "" : "; ",
           (same_module) ? "" : k->class_in_module_of_loader());
+        return;
       } else {
         // Add additional message content.
         Exceptions::fthrow(
@@ -4640,6 +4642,7 @@ void ClassFileParser::check_super_interface_access(const InstanceKlass* this_kla
           vmSymbols::java_lang_IllegalAccessError(),
           "superinterface check failed: %s",
           msg);
+        return;
       }
     }
   }
