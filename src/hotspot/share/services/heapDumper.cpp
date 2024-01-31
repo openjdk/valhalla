@@ -486,7 +486,7 @@ InlinedObjects *InlinedObjects::_instance = nullptr;
 
 // Supports I/O operations for a dump
 // Base class for dump and parallel dump
-class AbstractDumpWriter : public ResourceObj {
+class AbstractDumpWriter : public CHeapObj<mtInternal> {
  protected:
   enum {
     io_buffer_max_size = 1*M,
@@ -2446,7 +2446,9 @@ void DumpMerger::do_merge() {
       merge_file(path);
     }
     // Delete selected segmented heap file nevertheless
-    remove(path);
+    if (remove(path) != 0) {
+      log_info(heapdump)("Removal of segment file (%d) failed (%d)", i, errno);
+    }
   }
 
   // restore compressor for further use
@@ -2864,6 +2866,7 @@ void VM_HeapDumper::work(uint worker_id) {
       _dumper_controller->wait_all_dumpers_complete();
     } else {
       _dumper_controller->dumper_complete(local_writer, writer());
+      delete local_writer;
       return;
     }
   }

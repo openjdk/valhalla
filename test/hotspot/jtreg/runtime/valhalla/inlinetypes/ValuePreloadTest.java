@@ -41,7 +41,7 @@ public class ValuePreloadTest {
         Collections.addAll(argsList, "-XX:+EnableValhalla", "-XX:-EnablePrimitiveClasses");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
         Collections.addAll(argsList, args);
-        return ProcessTools.createJavaProcessBuilder(argsList);
+        return ProcessTools.createTestJavaProcessBuilder(argsList);
     }
 
     static void checkFor(ProcessBuilder pb, String expected) throws Exception {
