@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "cds/archiveBuilder.hpp"
 #include "cds/archiveHeapLoader.hpp"
+#include "cds/cdsConfig.hpp"
 #include "cds/heapShared.hpp"
 #include "cds/metaspaceShared.hpp"
 #include "classfile/altHashing.hpp"
@@ -1088,7 +1089,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
       set_primary_mirror(mirror(), mirror());
       set_secondary_mirror(mirror(), secondary_mirror);
     }
-    if (DumpSharedSpaces) {
+    if (CDSConfig::is_dumping_heap()) {
       create_scratch_mirror(k, CHECK);
     }
   } else {
@@ -1443,7 +1444,7 @@ BasicType java_lang_Class::primitive_type(oop java_class) {
     assert(java_class == Universe::void_mirror(), "only valid non-array primitive");
   }
 #ifdef ASSERT
-  if (DumpSharedSpaces) {
+  if (CDSConfig::is_dumping_heap()) {
     oop mirror = Universe::java_mirror(type);
     oop scratch_mirror = HeapShared::scratch_java_mirror(type);
     assert(java_class == mirror || java_class == scratch_mirror, "must be consistent");

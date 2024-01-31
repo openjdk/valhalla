@@ -118,7 +118,7 @@ public class Flags {
     public static final int ACC_VALUE      = 0x0040;
     public static final int ACC_BRIDGE     = 0x0040;
     public static final int ACC_VARARGS    = 0x0080;
-    public static final int ACC_PRIMITIVE = 0x0800;
+    public static final int ACC_PRIMITIVE  = 0x0800;
     public static final int ACC_MODULE     = 0x8000;
 
     /*****************************************
@@ -425,6 +425,11 @@ public class Flags {
     public static final long SEALED = 1L<<62; // ClassSymbols
 
     /**
+     * Flag to indicate restricted method declaration.
+     */
+    public static final long RESTRICTED = 1L<<62; // MethodSymbols
+
+    /**
      * Flag to indicate that the class/interface was declared with the non-sealed modifier.
      */
     public static final long NON_SEALED = 1L<<63; // ClassSymbols
@@ -435,7 +440,7 @@ public class Flags {
     public static final int IMPLICIT    = 1<<59; // MethodSymbols
 
     /**
-     * Describe modifier flags as they migh appear in source code, i.e.,
+     * Describe modifier flags as they might appear in source code, i.e.,
      * separated by spaces and in the order suggested by JLS 8.1.1.
      */
     public static String toSource(long flags) {
@@ -520,6 +525,7 @@ public class Flags {
     public static boolean isConstant(Symbol.VarSymbol symbol) {
         return symbol.getConstValue() != null;
     }
+
 
     public enum Flag {
         PUBLIC(Flags.PUBLIC),

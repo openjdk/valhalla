@@ -321,11 +321,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
 
   // "lock" stores the address of the monitor stack slot, so this is not an oop
   LIR_Opr lock = new_register(T_INT);
-  // Need a scratch register for inline type
-  LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (EnableValhalla && x->maybe_inlinetype()) {
-    scratch = new_register(T_INT);
-  }
+  LIR_Opr scratch = new_register(T_INT);
 
   CodeEmitInfo* info_for_exception = nullptr;
   if (x->needs_null_check()) {
@@ -341,7 +337,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   // object is already locked (xhandlers expect object to be unlocked)
   CodeEmitInfo* info = state_for(x, x->state(), true);
   monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
-                        x->monitor_no(), info_for_exception, info, throw_imse_stub);
+                x->monitor_no(), info_for_exception, info, throw_imse_stub);
 }
 
 
@@ -353,8 +349,9 @@ void LIRGenerator::do_MonitorExit(MonitorExit* x) {
 
   LIR_Opr lock = new_register(T_INT);
   LIR_Opr obj_temp = new_register(T_INT);
+  LIR_Opr scratch = new_register(T_INT);
   set_no_result(x);
-  monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no());
+  monitor_exit(obj_temp, lock, syncTempOpr(), scratch, x->monitor_no());
 }
 
 void LIRGenerator::do_NegateOp(NegateOp* x) {

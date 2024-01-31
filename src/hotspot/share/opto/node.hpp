@@ -70,6 +70,7 @@ class CodeBuffer;
 class ConstraintCastNode;
 class ConNode;
 class ConINode;
+class ConvertNode;
 class CompareAndSwapNode;
 class CompareAndExchangeNode;
 class CountedLoopNode;
@@ -739,6 +740,7 @@ public:
       DEFINE_CLASS_ID(Con, Type, 9)
           DEFINE_CLASS_ID(ConI, Con, 0)
       DEFINE_CLASS_ID(SafePointScalarMerge, Type, 10)
+      DEFINE_CLASS_ID(Convert, Type, 11)
 
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
@@ -899,6 +901,7 @@ public:
   DEFINE_CLASS_QUERY(ClearArray)
   DEFINE_CLASS_QUERY(CMove)
   DEFINE_CLASS_QUERY(Cmp)
+  DEFINE_CLASS_QUERY(Convert)
   DEFINE_CLASS_QUERY(CountedLoop)
   DEFINE_CLASS_QUERY(CountedLoopEnd)
   DEFINE_CLASS_QUERY(DecodeNarrowPtr)
