@@ -75,6 +75,9 @@ compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
 
 compiler/codecache/CheckLargePages.java 8317831 linux-x64
 
+compiler/floatingpoint/TestSubnormalFloat.java 8317810 generic-i586
+compiler/floatingpoint/TestSubnormalDouble.java 8317810 generic-i586
+
 #############################################################################
 
 # :hotspot_gc
@@ -179,9 +182,6 @@ serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 
 #############################################################################
 
-gtest/GTestWrapper.java 8306561 aix-ppc64
-gtest/NMTGtests.java#nmt-detail 8306561 aix-ppc64
-gtest/NMTGtests.java#nmt-summary 8306561 aix-ppc64
 
 #############################################################################
 
