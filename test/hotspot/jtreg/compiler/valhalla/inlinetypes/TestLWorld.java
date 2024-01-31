@@ -25,7 +25,7 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
-import test.java.lang.invoke.lib.InstructionHelper;
+import test.java.lang.invoke.lib.OldInstructionHelper;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -46,7 +46,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile -XDenablePrimitiveClasses MyValue5.jcod
  * @compile -XDenablePrimitiveClasses TestLWorld.java
  * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestLWorld
@@ -1073,7 +1073,7 @@ public class TestLWorld {
 
     // Test writing constant null to a (flattened) inline type array
 
-    private static final MethodHandle setArrayElementNull = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementNull = OldInstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementNull",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class),
         CODE -> {
@@ -1410,7 +1410,7 @@ public class TestLWorld {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatible = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatible = OldInstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, PrimitiveClass.asValueType(MyValue2.class)),
         CODE -> {
@@ -3979,7 +3979,7 @@ public class TestLWorld {
 
     public int intField;
 
-    private static final MethodHandle withfieldWithInvalidHolder = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle withfieldWithInvalidHolder = OldInstructionHelper.loadCode(MethodHandles.lookup(),
         "withfieldWithInvalidHolder",
         MethodType.methodType(void.class, TestLWorld.class, int.class),
         CODE -> {
@@ -4028,7 +4028,7 @@ public class TestLWorld {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatibleRef = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatibleRef = OldInstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatibleRef",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, PrimitiveClass.asPrimaryType(MyValue2.class)),
         CODE -> {

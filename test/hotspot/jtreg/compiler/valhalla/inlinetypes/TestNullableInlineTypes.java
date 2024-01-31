@@ -26,7 +26,7 @@ package compiler.valhalla.inlinetypes;
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 import jdk.experimental.bytecode.TypeTag;
-import test.java.lang.invoke.lib.InstructionHelper;
+import test.java.lang.invoke.lib.OldInstructionHelper;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -45,7 +45,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile -XDenablePrimitiveClasses TestNullableInlineTypes.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestNullableInlineTypes
  */
@@ -2548,7 +2548,7 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test92(), testValue1);
     }
 
-    private static final MethodHandle refCheckCast = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle refCheckCast = OldInstructionHelper.loadCode(MethodHandles.lookup(),
         "refCheckCast",
         MethodType.methodType(PrimitiveClass.asPrimaryType(MyValue2.class), TestNullableInlineTypes.class, PrimitiveClass.asPrimaryType(MyValue1.class)),
         CODE -> {
