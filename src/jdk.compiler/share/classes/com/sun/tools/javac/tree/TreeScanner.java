@@ -333,7 +333,6 @@ public class TreeScanner extends Visitor {
     }
 
     @Override
-    @PreviewFeature(feature=PreviewFeature.Feature.UNNAMED)
     public void visitAnyPattern(JCAnyPattern that) {
     }
 

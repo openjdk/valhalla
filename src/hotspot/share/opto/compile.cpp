@@ -29,6 +29,7 @@
 #include "classfile/javaClasses.hpp"
 #include "code/exceptionHandlerTable.hpp"
 #include "code/nmethod.hpp"
+#include "compiler/compilationMemoryStatistic.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
 #include "compiler/disassembler.hpp"
@@ -676,6 +677,7 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
                   _vector_reboxing_late_inlines(comp_arena(), 2, 0, nullptr),
                   _late_inlines_pos(0),
                   _number_of_mh_late_inlines(0),
+                  _oom(false),
                   _print_inlining_stream(new (mtCompiler) stringStream()),
                   _print_inlining_list(nullptr),
                   _print_inlining_idx(0),
@@ -962,6 +964,7 @@ Compile::Compile( ciEnv* ci_env,
     _types(nullptr),
     _node_hash(nullptr),
     _number_of_mh_late_inlines(0),
+    _oom(false),
     _print_inlining_stream(new (mtCompiler) stringStream()),
     _print_inlining_list(nullptr),
     _print_inlining_idx(0),
@@ -5809,3 +5812,6 @@ Node* Compile::narrow_value(BasicType bt, Node* value, const Type* type, PhaseGV
   return result;
 }
 
+void Compile::record_method_not_compilable_oom() {
+  record_method_not_compilable(CompilationMemoryStatistic::failure_reason_memlimit());
+}
