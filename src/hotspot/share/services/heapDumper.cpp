@@ -38,6 +38,7 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -53,7 +54,6 @@
 #include "runtime/javaThread.inline.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/os.hpp"
-#include "runtime/reflectionUtils.hpp"
 #include "runtime/threads.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframe.hpp"
@@ -895,12 +895,12 @@ class DumperSupport : AllStatic {
   }
 
   // helper methods for inlined fields.
-  static bool is_inlined_field(const FieldStream& fld) {
-    return fld.field_descriptor().is_flat();
+  static bool is_inlined_field(const fieldDescriptor& fld) {
+    return fld.is_flat();
   }
-  static InlineKlass* get_inlined_field_klass(const FieldStream &fld) {
+  static InlineKlass* get_inlined_field_klass(const fieldDescriptor& fld) {
     assert(is_inlined_field(fld), "must be inlined field");
-    InstanceKlass* holder_klass = fld.field_descriptor().field_holder();
+    InstanceKlass* holder_klass = fld.field_holder();
     return InlineKlass::cast(holder_klass->get_inline_type_field_klass(fld.index()));
   }
 };
@@ -1056,10 +1056,10 @@ void DumperSupport::dump_field_value(AbstractDumpWriter* writer, char type, oop 
 u4 DumperSupport::instance_size(InstanceKlass *ik) {
   u4 size = 0;
 
-  for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
+  for (HierarchicalFieldStream<JavaFieldStream> fld(ik); !fld.done(); fld.next()) {
     if (!fld.access_flags().is_static()) {
-      if (is_inlined_field(fld)) {
-        size += instance_size(get_inlined_field_klass(fld));
+      if (is_inlined_field(fld.field_descriptor())) {
+        size += instance_size(get_inlined_field_klass(fld.field_descriptor()));
       } else {
         size += sig2size(fld.signature());
       }
@@ -1072,9 +1072,9 @@ u4 DumperSupport::get_static_fields_size(InstanceKlass* ik, u2& field_count) {
   field_count = 0;
   u4 size = 0;
 
-  for (FieldStream fldc(ik, true, true); !fldc.eos(); fldc.next()) {
+  for (JavaFieldStream fldc(ik); !fldc.done(); fldc.next()) {
     if (fldc.access_flags().is_static()) {
-      assert(!is_inlined_field(fldc), "static fields cannot be inlined");
+      assert(!is_inlined_field(fldc.field_descriptor()), "static fields cannot be inlined");
 
       field_count++;
       size += sig2size(fldc.signature());
@@ -1108,9 +1108,9 @@ void DumperSupport::dump_static_fields(AbstractDumpWriter* writer, Klass* k) {
   InstanceKlass* ik = InstanceKlass::cast(k);
 
   // dump the field descriptors and raw values
-  for (FieldStream fld(ik, true, true); !fld.eos(); fld.next()) {
+  for (JavaFieldStream fld(ik); !fld.done(); fld.next()) {
     if (fld.access_flags().is_static()) {
-      assert(!is_inlined_field(fld), "static fields cannot be inlined");
+      assert(!is_inlined_field(fld.field_descriptor()), "static fields cannot be inlined");
 
       Symbol* sig = fld.signature();
 
@@ -1143,11 +1143,11 @@ void DumperSupport::dump_static_fields(AbstractDumpWriter* writer, Klass* k) {
 // dump the raw values of the instance fields of the given identity or inlined object;
 // for identity objects offset is 0 and 'klass' is o->klass(),
 // for inlined objects offset is the offset in the holder object, 'klass' is inlined object class.
-void DumperSupport::dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, InstanceKlass *klass) {
-  for (FieldStream fld(klass, false, false); !fld.eos(); fld.next()) {
+void DumperSupport::dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, InstanceKlass *ik) {
+  for (HierarchicalFieldStream<JavaFieldStream> fld(ik); !fld.done(); fld.next()) {
     if (!fld.access_flags().is_static()) {
-      if (is_inlined_field(fld)) {
-        InlineKlass* field_klass = get_inlined_field_klass(fld);
+      if (is_inlined_field(fld.field_descriptor())) {
+        InlineKlass* field_klass = get_inlined_field_klass(fld.field_descriptor());
         // the field is inlined, so all its fields are stored without headers.
         int fields_offset = offset + fld.offset() - field_klass->first_field_offset();
         dump_inlined_object_fields(writer, o, offset + fld.offset(), field_klass);
@@ -1168,11 +1168,11 @@ void DumperSupport::dump_inlined_object_fields(AbstractDumpWriter* writer, oop o
 u2 DumperSupport::get_instance_fields_count(InstanceKlass* ik) {
   u2 field_count = 0;
 
-  for (FieldStream fldc(ik, true, true); !fldc.eos(); fldc.next()) {
+  for (JavaFieldStream fldc(ik); !fldc.done(); fldc.next()) {
     if (!fldc.access_flags().is_static()) {
-      if (is_inlined_field(fldc)) {
+      if (is_inlined_field(fldc.field_descriptor())) {
         // add "synthetic" fields for inlined fields.
-        field_count += get_instance_fields_count(get_inlined_field_klass(fldc));
+        field_count += get_instance_fields_count(get_inlined_field_klass(fldc.field_descriptor()));
       } else {
         field_count++;
       }
@@ -1193,15 +1193,15 @@ void DumperSupport::dump_instance_field_descriptors(AbstractDumpWriter* writer, 
   uintx inlined_id = 0;
 
   // dump the field descriptors
-  for (FieldStream fld(ik, true, true); !fld.eos(); fld.next()) {
+  for (JavaFieldStream fld(ik); !fld.done(); fld.next()) {
     if (!fld.access_flags().is_static()) {
-      if (is_inlined_field(fld)) {
+      if (is_inlined_field(fld.field_descriptor())) {
         // dump "synthetic" fields for inlined fields.
         if (this_klass_inlined_fields_id == nullptr) {
           inlined_id = InlinedObjects::get_instance()->get_base_index_for(ik);
           this_klass_inlined_fields_id = &inlined_id;
         }
-        dump_instance_field_descriptors(writer, get_inlined_field_klass(fld), this_klass_inlined_fields_id);
+        dump_instance_field_descriptors(writer, get_inlined_field_klass(fld.field_descriptor()), this_klass_inlined_fields_id);
       } else {
         Symbol* sig = fld.signature();
         Symbol* name = nullptr;
@@ -1576,10 +1576,10 @@ private:
 
   void dump_inlined_field_names(GrowableArray<Symbol*>* super_names, Symbol* field_name, InlineKlass* klass) {
     super_names->push(field_name);
-    for (FieldStream fld(klass, false, false); !fld.eos(); fld.next()) {
+    for (HierarchicalFieldStream<JavaFieldStream> fld(klass); !fld.done(); fld.next()) {
       if (!fld.access_flags().is_static()) {
-        if (DumperSupport::is_inlined_field(fld)) {
-          dump_inlined_field_names(super_names, fld.name(), DumperSupport::get_inlined_field_klass(fld));
+        if (DumperSupport::is_inlined_field(fld.field_descriptor())) {
+          dump_inlined_field_names(super_names, fld.name(), DumperSupport::get_inlined_field_klass(fld.field_descriptor()));
         } else {
           // get next string ID.
           uintx next_index = _owner->get_next_string_id(_index);
@@ -1634,10 +1634,10 @@ public:
     uintx base_index = _index;
     int count = 0;
 
-    for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
+    for (HierarchicalFieldStream<JavaFieldStream> fld(ik); !fld.done(); fld.next()) {
       if (!fld.access_flags().is_static()) {
-        if (DumperSupport::is_inlined_field(fld)) {
-          dump_inlined_field_names(fld.name(), DumperSupport::get_inlined_field_klass(fld));
+        if (DumperSupport::is_inlined_field(fld.field_descriptor())) {
+          dump_inlined_field_names(fld.name(), DumperSupport::get_inlined_field_klass(fld.field_descriptor()));
           count++;
         }
       }
@@ -1672,9 +1672,9 @@ public:
     }
 
     u2 inlined_count = 0;
-    for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
+    for (HierarchicalFieldStream<JavaFieldStream> fld(ik); !fld.done(); fld.next()) {
       if (!fld.access_flags().is_static()) {
-        if (DumperSupport::is_inlined_field(fld)) {
+        if (DumperSupport::is_inlined_field(fld.field_descriptor())) {
           inlined_count++;
         }
       }
@@ -1687,18 +1687,18 @@ public:
       // number of inlined fields
       _writer->write_u2(inlined_count);
       u2 index = 0;
-      for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
+      for (HierarchicalFieldStream<JavaFieldStream> fld(ik); !fld.done(); fld.next()) {
         if (!fld.access_flags().is_static()) {
-          if (DumperSupport::is_inlined_field(fld)) {
+          if (DumperSupport::is_inlined_field(fld.field_descriptor())) {
             // inlined field index
             _writer->write_u2(index);
             // synthetic field count
-            u2 field_count = DumperSupport::get_instance_fields_count(DumperSupport::get_inlined_field_klass(fld));
+            u2 field_count = DumperSupport::get_instance_fields_count(DumperSupport::get_inlined_field_klass(fld.field_descriptor()));
             _writer->write_u2(field_count);
             // original field name
             _writer->write_symbolID(fld.name());
             // inlined field class ID
-            _writer->write_classID(DumperSupport::get_inlined_field_klass(fld));
+            _writer->write_classID(DumperSupport::get_inlined_field_klass(fld.field_descriptor()));
 
             index += field_count;
           } else {
