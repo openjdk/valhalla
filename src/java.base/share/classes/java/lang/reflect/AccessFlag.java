@@ -360,14 +360,19 @@ public enum AccessFlag {
      * major versions 46 through 60, inclusive (JVMS {@jvms 4.6}),
      * corresponding to Java SE 1.2 through 16.
      */
-    STRICT(Modifier.STRICT, true, Location.EMPTY_SET,
+    STRICT(Modifier.STRICT, true, !ValhallaFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_FIELD,
              new Function<ClassFileFormatVersion, Set<Location>>() {
                @Override
                public Set<Location> apply(ClassFileFormatVersion cffv) {
-                   return (cffv.compareTo(ClassFileFormatVersion.RELEASE_2)  >= 0 &&
-                           cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) ?
-                       Location.SET_METHOD:
-                       Location.EMPTY_SET;}
+                   if (ValhallaFeatures.isEnabled() && cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0) {
+                       return Location.SET_FIELD;
+                   } else {
+                       return (cffv.compareTo(ClassFileFormatVersion.RELEASE_2) >= 0 &&
+                               cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) ?
+                               Location.SET_METHOD :
+                               Location.EMPTY_SET;
+                   }
+               }
            }),
 
     /**
@@ -527,7 +532,7 @@ public enum AccessFlag {
         Set<AccessFlag> result = java.util.EnumSet.noneOf(AccessFlag.class);
         for (var accessFlag : LocationToFlags.locationToFlags.get(location)) {
             int accessMask = accessFlag.mask();
-            if ((mask & accessMask) != 0) {
+            if ((mask &  accessMask) != 0) {
                 result.add(accessFlag);
                 mask = mask & ~accessMask;
                 if (mask == 0) {
@@ -704,7 +709,7 @@ public enum AccessFlag {
                           entry(Location.FIELD,
                                 Set.of(PUBLIC, PRIVATE, PROTECTED,
                                        STATIC, FINAL, VOLATILE,
-                                       TRANSIENT, SYNTHETIC, ENUM)),
+                                       TRANSIENT, SYNTHETIC, ENUM, STRICT)),
                           entry(Location.METHOD,
                                 Set.of(PUBLIC, PRIVATE, PROTECTED,
                                        STATIC, FINAL, SYNCHRONIZED,

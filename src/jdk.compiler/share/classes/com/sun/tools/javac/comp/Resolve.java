@@ -1513,7 +1513,7 @@ public class Resolve {
                         (sym.flags() & STATIC) == 0) {
                     if (staticOnly)
                         return new StaticError(sym);
-                    if (env1.info.ctorPrologue && (sym.flags_field & SYNTHETIC) == 0)
+                    if (env1.info.ctorPrologue && (sym.flags_field & SYNTHETIC) == 0 && !sym.owner.isValueClass())
                         return new RefBeforeCtorCalledError(sym);
                 }
                 return sym;

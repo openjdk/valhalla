@@ -1259,9 +1259,10 @@ public class Check {
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
             else {
-                mask = VarFlags;
-                if (sym.owner.type.isValueClass() && (flags & STATIC) == 0) {
-                    implicit |= FINAL;
+                boolean isInstanceFieldOfValueClass = sym.owner.type.isValueClass() && (flags & STATIC) == 0;
+                mask = !isInstanceFieldOfValueClass ? VarFlags : ExtendedVarFlags;
+                if (isInstanceFieldOfValueClass) {
+                    implicit |= FINAL | STRICT;
                 }
             }
             break;
@@ -4091,8 +4092,10 @@ public class Check {
         private JCReturn earlyReturn;       // first return prior to the super()/init(), if any
         private Name initCall;              // whichever of "super" or "init" we've seen already
         private int scanDepth;              // current scan recursion depth in method body
+        ClassSymbol classSym;
 
         public void check(JCClassDecl classDef) {
+            classSym = classDef.sym;
             scan(classDef.defs);
         }
 
@@ -4165,7 +4168,7 @@ public class Check {
                 }
 
                 // If super()/this() isn't first, require "statements before super()" feature
-                if (!firstStatement)
+                if (!firstStatement && !classSym.isValueClass()) // let's wave value classes for now
                     preview.checkSourceLevel(apply.pos(), Feature.SUPER_INIT);
 
                 // We found a legitimate super()/this() call; remember it

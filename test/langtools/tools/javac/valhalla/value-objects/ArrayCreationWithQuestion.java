@@ -56,8 +56,8 @@ public class ArrayCreationWithQuestion {
                 Paths.get(System.getProperty("test.classes"),
                         "ArrayCreationWithQuestion$VT.class").toString() };
         runCheck(params, new String [] {
-                "         7: anewarray     #7                  // class ArrayCreationWithQuestion$VT",
-                "        16: anewarray     #7                  // class ArrayCreationWithQuestion$VT",
+                "         3: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
+                "        12: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
         });
 
     }

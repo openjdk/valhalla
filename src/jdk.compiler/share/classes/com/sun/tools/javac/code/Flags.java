@@ -108,8 +108,8 @@ public class Flags {
     public static final int ACC_IDENTITY = 0x0020;
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
+    public static final int ACC_STRICT   = 0x0800;
     public static final int ACC_MODULE   = 0x8000;
-    public static final int ACC_STRICT   = 0x8000;
 
     /*****************************************
      * Internal compiler flags (no bits in the lower 16).
@@ -450,6 +450,7 @@ public class Flags {
         ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
         ExtendedLocalClassFlags           = (long) LocalClassFlags | VALUE_CLASS,
         ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | VALUE_CLASS,
+        ExtendedVarFlags                  = (long) VarFlags | STRICT,
         ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,

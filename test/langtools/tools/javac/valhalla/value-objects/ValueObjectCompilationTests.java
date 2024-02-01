@@ -243,7 +243,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     synchronized static void soo() {} // OK.
                 }
                 """);
-        assertFail("compiler.err.this.exposed.prematurely",
+        assertFail("compiler.err.cant.ref.before.ctor.called",
                 """
                 value class V {
                     int x;
@@ -254,13 +254,13 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     void foo(V v) {}
                 }
                 """);
-        assertOK(
+        assertFail("compiler.err.cant.ref.before.ctor.called",
                 """
                 value class V {
                     int x;
                     V() {
                         x = 10;
-                        foo(this); // Ok.
+                        foo(this); // error
                     }
                     void foo(V v) {}
                 }
