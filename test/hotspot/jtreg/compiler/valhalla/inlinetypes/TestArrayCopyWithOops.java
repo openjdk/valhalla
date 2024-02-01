@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,10 @@
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch -XX:FlatArrayElementMaxSize=0
+ *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
+ * @run main/othervm -XX:+EnableValhalla
+ *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */
 
@@ -137,8 +141,11 @@ public class TestArrayCopyWithOops {
 
     // Arrays.copyOf tests
 
+    // TODO 8325106 test9/test11 and test10/test12 are equivalent
+    // Using ManyOops[].class in both test9/11 and running with -XX:+IgnoreUnrecognizedVMOptions -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline triggers an exception
     static Object[] test9() {
-        return Arrays.copyOf(createValueClassArray(), LEN, ManyOops[].class);
+        ManyOops[] src = createValueClassArray();
+        return Arrays.copyOf(src, LEN, src.getClass());
     }
 
     static Object[] test10() {
@@ -146,7 +153,8 @@ public class TestArrayCopyWithOops {
     }
 
     static Object[] test11() {
-        return Arrays.copyOf(createValueClassArray(), LEN, ManyOops[].class);
+        ManyOops[] src = createValueClassArray();
+        return Arrays.copyOf(src, LEN, src.getClass());
     }
 
     static Object[] test12() {
