@@ -2376,7 +2376,7 @@ public class TestNullableInlineTypes {
 
     // Same as test81 but with wrapper
     @Test
-    // TODO 8324949 Fails with Scenario 5
+    // TODO 8325106 Fails with Scenario 5
     // @IR(failOn = {ALLOC, LOAD, STORE})
     public long test85() {
         Object val = new MyValue1Wrapper(null);
@@ -2806,7 +2806,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    // TODO 8324949 fix assert in InlineTypeNode::merge_with
+    // TODO 8325106 fix assert in InlineTypeNode::merge_with
 /*
     // Same as test98 but with circularity in class of flattened field
     @Test

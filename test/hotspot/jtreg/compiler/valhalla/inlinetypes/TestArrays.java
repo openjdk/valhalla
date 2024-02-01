@@ -764,7 +764,7 @@ public class TestArrays {
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     @Test
-    // TODO 8324949 Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
+    // TODO 8325106 Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
     /*
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         failOn = {ALLOCA, LOOP, LOAD, TRAP})
@@ -2500,7 +2500,7 @@ public class TestArrays {
 
     // Test that CHECKCAST_ARRAY matching works as expected
     @Test
-    // TODO 8324949 This fails to detect the "movq    R10, precise [compiler/valhalla/inlinetypes/MyValue1" shape, also affects mainline
+    // TODO 8325106 This fails to detect the "movq    R10, precise [compiler/valhalla/inlinetypes/MyValue1" shape, also affects mainline
     // @IR(counts = { IRNode.CHECKCAST_ARRAY, "= 1" })
     public boolean test101(Object[] array) {
         return array instanceof MyValue1[];
@@ -3104,7 +3104,7 @@ public class TestArrays {
 
     // Empty value class array access
     @Test
-    // TODO 8324949 Shouldn't profiling determine that the array is null restricted?
+    // TODO 8325106 Shouldn't profiling determine that the array is null restricted?
     //@IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
     public MyValueEmpty test130(MyValueEmpty[] array) {
         array[0] = new MyValueEmpty();
@@ -3128,7 +3128,7 @@ public class TestArrays {
 
     // Empty value class container array access
     @Test
-    // TODO 8324949 Shouldn't profiling determine that the array is null restricted?
+    // TODO 8325106 Shouldn't profiling determine that the array is null restricted?
     //@IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
     public MyValueEmpty test131(EmptyContainer[] array) {
         array[0] = new EmptyContainer();

@@ -213,7 +213,7 @@ public class TestBasicFunctionality {
         counts = {ALLOC, "= 1", LOAD, "= 19",
                   STORE, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
         failOn = {TRAP})
-    // TODO 8324949
+    // TODO 8325106
     // @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
     //     counts = {ALLOC, "= 2", STORE, "= 19"},
     //     failOn = {LOAD, TRAP})
