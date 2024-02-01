@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,8 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Test calling native methods with value class arguments from compiled code.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestJNICalls.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestJNICalls
  */
 
