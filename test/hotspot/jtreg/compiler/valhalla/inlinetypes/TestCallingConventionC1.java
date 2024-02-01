@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,9 +41,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Test calls from {C1} to {C2, Interpreter}, and vice versa.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestCallingConventionC1.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestCallingConventionC1
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestCallingConventionC1
  */
 
 @ForceCompileClassInitializer
@@ -53,13 +53,13 @@ public class TestCallingConventionC1 {
         final Scenario[] scenarios = {
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
                 new Scenario(0,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "-XX:+EnableValhalla",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation"),
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
                 new Scenario(1,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "-XX:+EnableValhalla",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
@@ -68,21 +68,21 @@ public class TestCallingConventionC1 {
                 // Same as above, but flip all the compLevel=CompLevel.C1_SIMPLE and compLevel=CompLevel.C2, so we test
                 // the compliment of the above scenario.
                 new Scenario(2,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "-XX:+EnableValhalla",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
                              "-DFlipC1C2=true"),
                 // Only C1. Tiered compilation disabled.
                 new Scenario(3,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "-XX:+EnableValhalla",
                              "-XX:TieredStopAtLevel=1",
                              "-XX:+TieredCompilation",
                              "-XX:+IgnoreUnrecognizedVMOptions",
                              "-XX:-PatchALot"),
                 // Only C2.
                 new Scenario(4,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "-XX:+EnableValhalla",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:-TieredCompilation")
         };

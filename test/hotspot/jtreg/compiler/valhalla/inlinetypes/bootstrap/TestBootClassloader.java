@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,8 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED ValueOnBootclasspath.java InstallBootstrapClasses.java TestBootClassloader.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InstallBootstrapClasses
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla InstallBootstrapClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
  *                   -XX:CompileCommand=inline,*::get* TestBootClassloader

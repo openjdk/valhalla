@@ -47,9 +47,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestArrays.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestArrays
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestArrays
  */
 
 @ForceCompileClassInitializer
@@ -57,10 +57,10 @@ public class TestArrays {
 
     public static void main(String[] args) {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[2].addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
-        scenarios[3].addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1", "-XX:-UncommonNullCast");
-        scenarios[4].addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
-        scenarios[5].addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
+        scenarios[2].addFlags("-XX:+EnableValhalla", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
+        scenarios[3].addFlags("-XX:+EnableValhalla", "-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1", "-XX:-UncommonNullCast");
+        scenarios[4].addFlags("-XX:+EnableValhalla", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
+        scenarios[5].addFlags("-XX:+EnableValhalla", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
@@ -2328,7 +2328,7 @@ public class TestArrays {
         }
         for (int i = 0; i < 10; ++i) {
             long res = test94(src, i, !info.isWarmUp());
-            long expected = src[i].hash() + 9*MyValue2.default.hash();
+            long expected = src[i].hash() + 9*MyValue2.createDefaultInline().hash();
             Asserts.assertEQ(res, expected);
         }
     }
@@ -3385,7 +3385,7 @@ public class TestArrays {
     @Run(test = "test141")
     public void test141_verifier() {
         Object res = test141();
-        Asserts.assertEquals(res, MyValue1.default);
+        Asserts.assertEquals(res, MyValue1.createDefaultInline());
     }
 
     // Test store to array that is only known to be not a value class array after parsing
@@ -3406,8 +3406,8 @@ public class TestArrays {
 
     @Run(test = "test142")
     public void test142_verifier(RunInfo info) {
-        Object[] res = test142(MyValue1.default);
-        Asserts.assertEquals(res[0], MyValue1.default);
+        Object[] res = test142(MyValue1.createDefaultInline());
+        Asserts.assertEquals(res[0], MyValue1.createDefaultInline());
         if (!info.isWarmUp()) {
             try {
                 test142(null);

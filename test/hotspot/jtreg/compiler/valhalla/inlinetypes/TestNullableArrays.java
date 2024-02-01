@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,9 +45,9 @@ import java.util.Arrays;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestNullableArrays.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestNullableArrays
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestNullableArrays
  */
 
 @ForceCompileClassInitializer
@@ -679,7 +679,7 @@ public class TestNullableArrays {
         MyValue1[] dst2 = test22(src2);
         if (len > 0) {
             Asserts.assertEQ(dst1[0], null);
-            Asserts.assertEQ(dst2[0].hash(), MyValue1.default.hash());
+            Asserts.assertEQ(dst2[0].hash(), MyValue1.createDefaultInline().hash());
         }
         for (int i = 1; i < len; ++i) {
             Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
@@ -867,9 +867,9 @@ public class TestNullableArrays {
         test27(src4, dst4);
         for (int i = 0; i < 2; ++i) {
             Asserts.assertEQ(dst1[i], null);
-            Asserts.assertEQ(dst2[i].hash(), MyValue1.default.hash());
+            Asserts.assertEQ(dst2[i].hash(), MyValue1.createDefaultInline().hash());
             Asserts.assertEQ(dst3[i], null);
-            Asserts.assertEQ(dst4[i].hash(), MyValue1.default.hash());
+            Asserts.assertEQ(dst4[i].hash(), MyValue1.createDefaultInline().hash());
         }
         for (int i = 2; i < 8; ++i) {
             Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
@@ -1000,7 +1000,7 @@ public class TestNullableArrays {
         MyValue1[] result2 = (MyValue1[])test32(va2);
         if (len > 0) {
             Asserts.assertEQ(result1[0], null);
-            Asserts.assertEQ(result2[0].hash(), MyValue1.default.hash());
+            Asserts.assertEQ(result2[0].hash(), MyValue1.createDefaultInline().hash());
         }
         for (int i = 1; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)result1[i]).hash(), ((MyValue1)va1[i]).hash());
@@ -2493,7 +2493,7 @@ public class TestNullableArrays {
     @Run(test = "test94")
     public static void test94_verifier() {
         long result = test94();
-        Asserts.assertEquals(result, MyValue1.default.hash());
+        Asserts.assertEquals(result, MyValue1.createDefaultInline().hash());
     }
 
     // Test meeting constant TypeInstPtr with InlineTypeNode
@@ -2613,7 +2613,7 @@ public class TestNullableArrays {
             MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
             MyValue1[] vab = new MyValue1[1];
             result = test98((Object[])va);
-            Asserts.assertEquals(((MyValue1)result).hash(), MyValue1.default.hash());
+            Asserts.assertEquals(((MyValue1)result).hash(), MyValue1.createDefaultInline().hash());
             result = test98((Object[])vab);
             Asserts.assertEquals(result, null);
         }
@@ -2813,7 +2813,7 @@ public class TestNullableArrays {
             MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
             MyValue1[] vab = new MyValue1[1];
             result = test106(va, (Object[])va);
-            Asserts.assertEquals(((MyValue1)result[0]).hash(), MyValue1.default.hash());
+            Asserts.assertEquals(((MyValue1)result[0]).hash(), MyValue1.createDefaultInline().hash());
             result = test106(vab, (Object[])vab);
             Asserts.assertEquals(((MyValue1)result[0]).hash(), testValue1.hash());
         }
@@ -2835,8 +2835,8 @@ public class TestNullableArrays {
         long res1 = test107_helper(va, testValue1);
         long res2 = test107_helper(va, testValue1);
         Asserts.assertEquals(va[0].hash(), testValue1.hash());
-        Asserts.assertEquals(res1, MyValue1.default.hash());
-        Asserts.assertEquals(res2, MyValue1.default.hash());
+        Asserts.assertEquals(res1, MyValue1.createDefaultInline().hash());
+        Asserts.assertEquals(res2, MyValue1.createDefaultInline().hash());
     }
 
     @Run(test = "test107")
@@ -3209,9 +3209,9 @@ public class TestNullableArrays {
 
     @Run(test = "test123")
     public void test123_verifier(RunInfo info) {
-        refArray[0] = MyValue1.default;
+        refArray[0] = MyValue1.createDefaultInline();
         Asserts.assertEquals(test123(true, testValue1, info.getTest(), false), testValue1.hash());
-        Asserts.assertEquals(test123(false, testValue1, info.getTest(), false), MyValue1.default.hash());
+        Asserts.assertEquals(test123(false, testValue1, info.getTest(), false), MyValue1.createDefaultInline().hash());
         if (!info.isWarmUp()) {
             Asserts.assertEquals(test123(true, testValue1, info.getTest(), true), testValue1.hash());
         }
@@ -3242,7 +3242,7 @@ public class TestNullableArrays {
 
     @Run(test = "test124")
     public void test124_verifier(RunInfo info) {
-        refArray[0] = MyValue1.default;
+        refArray[0] = MyValue1.createDefaultInline();
         MyValue2 val1 = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
         Asserts.assertEquals(test124(true, val1, info.getTest(), false), val2.hash());
@@ -3276,7 +3276,7 @@ public class TestNullableArrays {
 
     @Run(test = "test125")
     public void test125_verifier(RunInfo info) {
-        refArray[0] = MyValue1.default;
+        refArray[0] = MyValue1.createDefaultInline();
         MyValue2 val1 = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
         Asserts.assertEquals(test125(true, val1, info.getTest(), false), val2.hash());

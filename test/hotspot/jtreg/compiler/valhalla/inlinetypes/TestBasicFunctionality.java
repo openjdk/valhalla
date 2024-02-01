@@ -43,9 +43,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
  * @library /test/lib /
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestBasicFunctionality.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestBasicFunctionality
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestBasicFunctionality
  */
 
 @ForceCompileClassInitializer
@@ -579,7 +579,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, 2 * MyValue1.createDefaultInline().hashPrimitive());
     }
 
-    // Test withfield
+    // Test field initialization
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
     public long test25() {
@@ -593,7 +593,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, MyValue2.createWithFieldsInline(rI, rD).hash());
     }
 
-    // Test withfield
+    // Test field initialization
     @Test
     @IR(failOn = {ALLOC, STORE, LOOP, TRAP})
     public long test26() {

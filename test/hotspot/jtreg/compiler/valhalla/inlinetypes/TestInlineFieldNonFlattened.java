@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2023, Arm Limited. All rights reserved.
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestInlineFieldNonFlattened.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:-TieredCompilation
@@ -96,7 +96,7 @@ public class TestInlineFieldNonFlattened {
     public static void main(String[] args) {
         TestFramework testFramework = new TestFramework();
         testFramework.setDefaultWarmup(10000)
-                     .addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                     .addFlags("-XX:+EnableValhalla",
                                "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                                "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                                "-XX:-TieredCompilation",

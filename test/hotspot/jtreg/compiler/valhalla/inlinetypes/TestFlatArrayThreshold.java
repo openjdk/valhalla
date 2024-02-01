@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,15 +27,15 @@
  * @library /test/lib
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestFlatArrayThreshold.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch 
+ * @run main/othervm -XX:+EnableValhalla -Xbatch 
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestFlatArrayThreshold
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxOops=1 -Xbatch
+ * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxOops=1 -Xbatch
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestFlatArrayThreshold
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=1 -Xbatch
+ * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=1 -Xbatch
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestFlatArrayThreshold

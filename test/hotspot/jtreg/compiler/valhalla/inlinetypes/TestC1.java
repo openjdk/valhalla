@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,9 +43,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Various tests that are specific to C1.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestC1.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestC1
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestC1
  */
 
 public class TestC1 {
@@ -65,7 +65,7 @@ public class TestC1 {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                   .addFlags("-XX:+EnableValhalla",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,

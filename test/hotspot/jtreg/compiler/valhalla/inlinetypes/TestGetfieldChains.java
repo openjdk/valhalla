@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,9 +42,9 @@ import jdk.test.lib.Asserts;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile GetfieldChains.jcod
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestGetfieldChains.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla
  *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                               compiler.valhalla.inlinetypes.TestGetfieldChains
@@ -115,7 +115,7 @@ public class TestGetfieldChains {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                   .addFlags("-XX:+EnableValhalla",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .start();
@@ -153,6 +153,7 @@ public class TestGetfieldChains {
         NullPointerException npe = null;
         try {
             NamedRectangle.getP1X(null);
+            throw new RuntimeException("No NullPointerException thrown");
         } catch (NullPointerException e) {
             npe = e;
         }
@@ -167,14 +168,13 @@ public class TestGetfieldChains {
         Asserts.assertEQ(st.getMethodName(), "getP1X");
     }
 
-// TODO fix
-/*
-    // Chain of getfields but one getfield in the middle of the chain trigger an illegal access
+    // Chain of getfields but one getfield in the middle of the chain triggers an illegal access
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public IllegalAccessError test4() {
         IllegalAccessError iae = null;
         try {
-            int i = NamedRectangleP.getP1X(new NamedRectangleP());
+            int i = NamedRectangleP.getP1Y(new NamedRectangleP());
+            throw new RuntimeException("No IllegalAccessError thrown");
         } catch (IllegalAccessError e) {
             iae = e;
         }
@@ -186,16 +186,17 @@ public class TestGetfieldChains {
         IllegalAccessError iae = test4();
         Asserts.assertNE(iae, null);
         StackTraceElement st = iae.getStackTrace()[0];
-        Asserts.assertEQ(st.getMethodName(), "getP1X");
+        Asserts.assertEQ(st.getMethodName(), "getP1Y");
         Asserts.assertTrue(iae.getMessage().contains("class compiler.valhalla.inlinetypes.NamedRectangleP tried to access private field compiler.valhalla.inlinetypes.RectangleP.p1"));
     }
-*/
-    // Chain of getfields but the last getfield trigger a NoSuchFieldError
+
+    // Chain of getfields but the last getfield triggers a NoSuchFieldError
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public NoSuchFieldError test5() {
         NoSuchFieldError nsfe = null;
         try {
             int i = NamedRectangleN.getP1X(new NamedRectangleN());
+            throw new RuntimeException("No NoSuchFieldError thrown");
         } catch (NoSuchFieldError e) {
             nsfe = e;
         }

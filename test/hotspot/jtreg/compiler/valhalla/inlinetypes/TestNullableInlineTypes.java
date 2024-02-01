@@ -946,7 +946,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    // Same as test17 but with non-allocated value object at withfield
+    // Same as test17 but with non-allocated value object
     @Test
     public Test17Value test35(boolean b) {
         Test17Value vt1 = new Test17Value(null);

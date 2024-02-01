@@ -43,27 +43,27 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.misc
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestBufferTearing.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0

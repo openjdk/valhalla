@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,7 +101,7 @@ public class TestLWorldProfiling {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions", "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions", "-XX:+EnableValhalla",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,

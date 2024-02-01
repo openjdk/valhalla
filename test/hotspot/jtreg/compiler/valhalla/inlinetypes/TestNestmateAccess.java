@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,15 +36,15 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @bug 8253416
  * @summary Test nestmate access to flattened field if nest-host is not loaded.
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestNestmateAccess.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp
+ * @run main/othervm -XX:+EnableValhalla -Xcomp
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.Test*::<init>
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp -XX:TieredStopAtLevel=1
+ * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:TieredStopAtLevel=1
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.Test*::<init>
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess
  */
 

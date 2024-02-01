@@ -4040,36 +4040,6 @@ public class TestLWorld {
         Asserts.assertEquals(res, testValue2.hash());
     }
 
-    public int intField;
-
-    private static final MethodHandle withfieldWithInvalidHolder = InstructionHelper.loadCode(MethodHandles.lookup(),
-        "withfieldWithInvalidHolder",
-        MethodType.methodType(void.class, TestLWorld.class, int.class),
-        CODE -> {
-            CODE.
-            aload_0().
-            iload_1().
-            withfield(TestLWorld.class, "intField", "I").
-            return_();
-        });
-
-    // Test withfield on identity class
-    @Test
-    public void test143() throws Throwable {
-        withfieldWithInvalidHolder.invoke(this, 0);
-    }
-
-    @Run(test = "test143")
-    @Warmup(10000)
-    public void test143_verifier() throws Throwable {
-        try {
-            test143();
-            throw new RuntimeException("IncompatibleClassChangeError expected");
-        } catch (IncompatibleClassChangeError e) {
-            // Expected
-        }
-    }
-
     // Test merging of buffered default and non-default inline types
     @Test
     @IR(failOn = {ALLOC_G})

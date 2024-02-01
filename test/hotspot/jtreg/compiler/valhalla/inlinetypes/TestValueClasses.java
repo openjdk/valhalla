@@ -47,9 +47,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestValueClasses.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestValueClasses
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestValueClasses
  */
 
 @ForceCompileClassInitializer
@@ -328,13 +328,13 @@ public class TestValueClasses {
     }
 
     static value class Empty1 {
-        Empty2 empty2 = Empty2.default;
+        Empty2 empty2 = new Empty2();
     }
 
     static value class Container {
         int x = 0;
         Empty1 empty1;
-        Empty2 empty2 = Empty2.default;
+        Empty2 empty2 = new Empty2();
 
         @ForceInline
         public Container(Empty1 val) {
@@ -369,7 +369,7 @@ public class TestValueClasses {
     @Run(test = "test6")
     @Warmup(10000) // Warmup to make sure helper methods are compiled as well
     public void test6_verifier() {
-        Asserts.assertEQ(test6(Empty1.default), Empty1.default);
+        Asserts.assertEQ(test6(new Empty1()), new Empty1());
         Asserts.assertEQ(test6(null), null);
     }
 
@@ -471,7 +471,7 @@ public class TestValueClasses {
         Asserts.assertTrue(test12(null, null));
         Asserts.assertFalse(test12(testValue1, null));
         Asserts.assertFalse(test12(null, testValue1));
-        Asserts.assertFalse(test12(testValue1, MyValueClass1.default));
+        Asserts.assertFalse(test12(testValue1, MyValueClass1.createDefaultInline()));
     }
 
     // Same as test13 but with Object argument
@@ -486,7 +486,7 @@ public class TestValueClasses {
         Asserts.assertTrue(test13(null, null));
         Asserts.assertFalse(test13(testValue1, null));
         Asserts.assertFalse(test13(null, testValue1));
-        Asserts.assertFalse(test13(testValue1, MyValueClass1.default));
+        Asserts.assertFalse(test13(testValue1, MyValueClass1.createDefaultInline()));
     }
 
     static MyValueClass1 test14_field1;

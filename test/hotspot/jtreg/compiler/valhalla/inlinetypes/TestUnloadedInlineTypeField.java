@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,10 +39,10 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rI;
  * @summary Test the handling of fields of unloaded value classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses hack/GetUnresolvedInlineFieldWrongSignature.java
- * @compile -XDenablePrimitiveClasses --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestUnloadedInlineTypeField.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla
  *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                               compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
@@ -64,7 +64,7 @@ public class TestUnloadedInlineTypeField {
         };
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+EnableValhalla" ,"-XX:+EnablePrimitiveClasses",
+                   .addFlags("-XX:+EnableValhalla",
                              // Prevent IR Test Framework from loading classes
                              "-DIgnoreCompilerControls=true",
                              // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
@@ -1075,7 +1075,7 @@ public class TestUnloadedInlineTypeField {
     @LooselyConsistentValue
     static value class Test24ClassA {
         @NullRestricted
-        Test24ClassB b = Test24ClassB.default;
+        Test24ClassB b = new Test24ClassB();
     }
 
     @ImplicitlyConstructible
@@ -1092,7 +1092,7 @@ public class TestUnloadedInlineTypeField {
     // Test that access to non-static field of uninitialized value class throws an exception
     @Test
     public Object test24() {
-        return Test24ClassA.default.b.x;
+        return (new Test24ClassA()).b.x;
     }
 
     @Run(test = "test24")
@@ -1118,7 +1118,7 @@ public class TestUnloadedInlineTypeField {
     @LooselyConsistentValue
     static value class Test25ClassA {
         @NullRestricted
-        Test25ClassB b = Test25ClassB.default;
+        Test25ClassB b = new Test25ClassB();
     }
 
     @ImplicitlyConstructible
@@ -1135,7 +1135,7 @@ public class TestUnloadedInlineTypeField {
     // Same as test24 but with field access outside of test method
     @Test
     public Test25ClassB test25() {
-        return Test25ClassA.default.b;
+        return (new Test25ClassA()).b;
     }
 
     @Run(test = "test25")
@@ -1162,7 +1162,7 @@ public class TestUnloadedInlineTypeField {
     @LooselyConsistentValue
     static value class Test26ClassA {
         @NullRestricted
-        Test26ClassB b = Test26ClassB.default;
+        Test26ClassB b = new Test26ClassB();
     }
 
     @ImplicitlyConstructible
@@ -1178,7 +1178,7 @@ public class TestUnloadedInlineTypeField {
     // Same as test25 but with empty ClassB
     @Test
     public Object test26() {
-        return Test26ClassA.default.b;
+        return (new Test26ClassA()).b;
     }
 
     @Run(test = "test26")

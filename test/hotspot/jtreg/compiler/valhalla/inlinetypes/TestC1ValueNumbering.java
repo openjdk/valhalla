@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import jdk.test.lib.Asserts;
  * @library /testlibrary /test/lib
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestC1ValueNumbering.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp -XX:TieredStopAtLevel=1 -ea
+ * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:TieredStopAtLevel=1 -ea
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC1ValueNumbering::*
