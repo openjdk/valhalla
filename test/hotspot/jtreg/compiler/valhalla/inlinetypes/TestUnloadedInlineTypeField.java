@@ -172,67 +172,6 @@ public class TestUnloadedInlineTypeField {
         }
     }
 
-    // Test case 3: same as test1, except we are using an incorrect signature to
-    // refer to the value class.
-    // The value class field class has been loaded, but the holder class has not been loaded.
-    //
-    // GetUnresolvedInlineFieldWrongSignature::test3() {
-    //     aload_0
-    //     getfield  MyValue3Holder.v:LMyValue3;
-    //               ^ not loaded    ^ already loaded (but should have been "Q")
-    //     ...
-    // }
-    //
-    // MyValue3 has already been loaded, because it's in the preload attribute of
-    // TestUnloadedInlineTypeField, due to TestUnloadedInlineTypeField.test3_precondition().
-    @ImplicitlyConstructible
-    @LooselyConsistentValue
-    static value class MyValue3 {
-        int foo;
-
-        public MyValue3() {
-            foo = rI;
-        }
-    }
-
-    static class MyValue3Holder {
-        @NullRestricted
-        MyValue3 v;
-
-        public MyValue3Holder() {
-            v = new MyValue3();
-        }
-    }
-
-    static MyValue3 test3_precondition() {
-        return new MyValue3();
-    }
-
-    @Test
-    public int test3(Object holder) {
-        // Don't use MyValue3Holder in the signature, it might trigger class loading
-        return GetUnresolvedInlineFieldWrongSignature.test3(holder);
-    }
-
-    @Run(test = "test3")
-    public void test3_verifier(RunInfo info) {
-        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
-            test3(null);
-        } else {
-            // Make sure klass is resolved
-            for (int i = 0; i < 10; ++i) {
-                MyValue3Holder holder = new MyValue3Holder();
-                try {
-                    test3(holder);
-// TODO                    
-//                    Asserts.fail("Should have thrown NoSuchFieldError");
-                } catch (NoSuchFieldError e) {
-                    // OK
-                }
-            }
-        }
-    }
-
     // Test case 4:
     // Same as case 1, except we use putfield instead of getfield.
     @ImplicitlyConstructible
@@ -492,59 +431,6 @@ public class TestUnloadedInlineTypeField {
         }
     }
 
-    // Test case 10:
-    // Same as case 4, but with putfield
-    @ImplicitlyConstructible
-    @LooselyConsistentValue
-    static value class MyValue10 {
-        int foo;
-
-        public MyValue10() {
-            foo = rI;
-        }
-    }
-
-    static class MyValue10Holder {
-        @NullRestricted
-        MyValue10 v1;
-        @NullRestricted
-        MyValue10 v2;
-
-        public MyValue10Holder() {
-            v1 = new MyValue10();
-            v2 = new MyValue10();
-        }
-    }
-
-    static MyValue10 test10_precondition() {
-        return new MyValue10();
-    }
-
-    @Test
-    public void test10(Object holder) {
-        // Don't use MyValue10Holder in the signature, it might trigger class loading
-        GetUnresolvedInlineFieldWrongSignature.test10(holder);
-    }
-
-    @Run(test = "test10")
-    public void test10_verifier(RunInfo info) {
-        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
-            test10(null);
-        } else {
-            // Make sure klass is resolved
-            for (int i = 0; i < 10; ++i) {
-                MyValue10Holder holder = new MyValue10Holder();
-                try {
-                    test10(holder);
-// TODO
-//                    Asserts.fail("Should have thrown NoSuchFieldError");
-                } catch (NoSuchFieldError e) {
-                    // OK
-                }
-            }
-        }
-    }
-
     // Test case 11:
     // Same as case 4, except holder is allocated in test method (-> no holder null check required)
     @ImplicitlyConstructible
@@ -675,59 +561,6 @@ public class TestUnloadedInlineTypeField {
                     test13(holder);
                     Asserts.fail("Should have thrown InstantiationError");
                 } catch (InstantiationError e) {
-                    // OK
-                }
-            }
-        }
-    }
-
-    // Test case 14:
-    // Same as case 10, except storing null
-    @ImplicitlyConstructible
-    @LooselyConsistentValue
-    static value class MyValue14 {
-        int foo;
-
-        public MyValue14() {
-            foo = rI;
-        }
-    }
-
-    static class MyValue14Holder {
-        @NullRestricted
-        MyValue14 v;
-
-        public MyValue14Holder() {
-            v = new MyValue14();
-        }
-    }
-
-    static MyValue14 test14_precondition() {
-        return new MyValue14();
-    }
-
-    @Test
-    public void test14(Object holder) {
-        // Don't use MyValue14Holder in the signature, it might trigger class loading
-        GetUnresolvedInlineFieldWrongSignature.test14(holder);
-    }
-
-    @Run(test = "test14")
-    public void test14_verifier(RunInfo info) {
-        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
-            test14(null);
-        } else {
-            // Make sure klass is resolved
-            for (int i = 0; i < 10; ++i) {
-                MyValue14Holder holder = new MyValue14Holder();
-                try {
-                    test14(holder);
-// TODO
-//                    Asserts.fail("Should have thrown NoSuchFieldError");
-                } catch (NullPointerException e) {
-// TODO remove
-                    // OK
-                } catch (NoSuchFieldError e) {
                     // OK
                 }
             }

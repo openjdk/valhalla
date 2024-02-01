@@ -75,33 +75,11 @@ class TestUnloadedInlineTypeField {
 }
 
 class GetUnresolvedInlineFieldWrongSignature {
-    static int test3(Object holder) {
-        if (holder != null) {
-            // Don't use MyValue3Holder in the signature, it might trigger class loading
-            return ((TestUnloadedInlineTypeField.MyValue3Holder)holder).v.foo + 3;
-        } else {
-            return 0;
-        }
-    }
-
-    static void test10(Object holder) {
-        if (holder != null) {
-            // Don't use MyValue10Holder in the signature, it might trigger class loading
-            ((TestUnloadedInlineTypeField.MyValue10Holder)holder).v1 = ((TestUnloadedInlineTypeField.MyValue10Holder)holder).v2;
-        }
-    }
 
     static void test13(Object holder) {
         if (holder != null) {
             // Don't use MyValue13Holder in the signature, it might trigger class loading
             ((TestUnloadedInlineTypeField.MyValue13Holder)holder).v = new TestUnloadedInlineTypeField.MyValue13();
-        }
-    }
-
-    static void test14(Object holder) {
-        if (holder != null) {
-            // Don't use MyValue14Holder in the signature, it might trigger class loading
-            ((TestUnloadedInlineTypeField.MyValue14Holder)holder).v = null;
         }
     }
 
