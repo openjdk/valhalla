@@ -360,7 +360,7 @@ public enum AccessFlag {
      * major versions 46 through 60, inclusive (JVMS {@jvms 4.6}),
      * corresponding to Java SE 1.2 through 16.
      */
-    STRICT(Modifier.STRICT, true, !ValhallaFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_FIELD,
+    STRICT(0x0000_0800, true, !ValhallaFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_FIELD,
              new Function<ClassFileFormatVersion, Set<Location>>() {
                @Override
                public Set<Location> apply(ClassFileFormatVersion cffv) {
