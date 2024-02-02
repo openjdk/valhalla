@@ -54,7 +54,7 @@ public class AccessFlags {
     public static final int ACC_INTERFACE     = 0x0200; // class, inner
     public static final int ACC_ABSTRACT      = 0x0400; // class, inner,        method
     public static final int ACC_PRIMITIVE     = 0x0800; //                      class
-    public static final int ACC_STRICT        = 0x0800; //                      field
+    public static final int ACC_STRICT        = 0x0800; //                      method, field
     public static final int ACC_SYNTHETIC     = 0x1000; // class, inner, field, method
     public static final int ACC_ANNOTATION    = 0x2000; // class, inner
     public static final int ACC_ENUM          = 0x4000; // class, inner, field

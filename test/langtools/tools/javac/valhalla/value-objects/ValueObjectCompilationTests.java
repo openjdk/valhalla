@@ -41,6 +41,7 @@
 import java.io.File;
 
 import java.util.List;
+import java.util.Set;
 
 import com.sun.tools.javac.util.Assert;
 
@@ -434,7 +435,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 ClassFile classFile = ClassFile.read(fileEntry);
                 switch (classFile.getName()) {
                     case "Sub":
-                        Assert.check((classFile.access_flags.flags & (Flags.VALUE_CLASS | Flags.FINAL)) != 0);
+                        Assert.check((classFile.access_flags.flags & (Flags.FINAL)) != 0);
                         break;
                     case "A":
                         Assert.check((classFile.access_flags.flags & (Flags.ABSTRACT)) != 0);
@@ -467,11 +468,102 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 ClassFile classFile = ClassFile.read(fileEntry);
                 for (Field field : classFile.fields) {
                     if (!field.access_flags.is(Flags.STATIC)) {
-                        Assert.check(field.access_flags.is(Flags.FINAL));
+                        Set<String> fieldFlags = field.access_flags.getFieldFlags();
+                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains("ACC_FINAL") && fieldFlags.contains("ACC_STRICT"));
                     }
                 }
             }
         }
+    }
+
+    @Test
+    void testConstruction() throws Exception {
+        for (String source : List.of(
+                """
+                value class Test {
+                    int i = 100;
+                }
+                """,
+                """
+                value class Test {
+                    int i;
+                    Test() {
+                        i = 100;
+                    }
+                }
+                """,
+                """
+                value class Test {
+                    int i;
+                    Test() {
+                        i = 100;
+                        super();
+                    }
+                }
+                """,
+                """
+                value class Test {
+                    int i;
+                    Test() {
+                        this.i = 100;
+                        super();
+                    }
+                }
+                """
+        )) {
+            String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,return,";
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                ClassFile classFile = ClassFile.read(fileEntry);
+                for (Method method : classFile.methods) {
+                    if (method.getName(classFile.constant_pool).equals("<init>")) {
+                        Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                        String foundCodeSequence = "";
+                        for (Instruction inst: code.getInstructions()) {
+                            foundCodeSequence += inst.getMnemonic() + ",";
+                        }
+                        Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                    }
+                }
+            }
+        }
+
+        String source =
+                """
+                value class Test {
+                    int i = 100;
+                    int j;
+                    {
+                        j = 200;
+                    }
+                }
+                """;
+        String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,aload_0,sipush,putfield,return,";
+        File dir = assertOK(true, source);
+        for (final File fileEntry : dir.listFiles()) {
+            ClassFile classFile = ClassFile.read(fileEntry);
+            for (Method method : classFile.methods) {
+                if (method.getName(classFile.constant_pool).equals("<init>")) {
+                    Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                    String foundCodeSequence = "";
+                    for (Instruction inst: code.getInstructions()) {
+                        foundCodeSequence += inst.getMnemonic() + ",";
+                    }
+                    Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                }
+            }
+        }
+
+        assertFail("compiler.err.cant.ref.before.ctor.called",
+                """
+                value class Test {
+                    Test() {
+                        m();
+                    }
+                    void m() {}
+                }
+                """
+        );
     }
 
     @Test

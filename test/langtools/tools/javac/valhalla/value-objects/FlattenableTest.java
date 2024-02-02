@@ -15,7 +15,7 @@ public class FlattenableTest {
 
             X() {
                 this.v = null;
-                this.v2 = v;    // OK, null not constant propagated.
+                this.v2 = null;
             }
 
             X(V v) {

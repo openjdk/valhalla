@@ -1513,8 +1513,15 @@ public class Resolve {
                         (sym.flags() & STATIC) == 0) {
                     if (staticOnly)
                         return new StaticError(sym);
-                    if (env1.info.ctorPrologue && (sym.flags_field & SYNTHETIC) == 0 && !sym.owner.isValueClass())
-                        return new RefBeforeCtorCalledError(sym);
+                    if (env1.info.ctorPrologue && (sym.flags_field & SYNTHETIC) == 0) {
+                        if (sym.owner.isValueClass()) {
+                            if (!env.tree.hasTag(ASSIGN) || !TreeInfo.isIdentOrThisDotIdent(((JCAssign)env.tree).lhs)) {
+                                return new RefBeforeCtorCalledError(sym);
+                            }
+                        } else {
+                            return new RefBeforeCtorCalledError(sym);
+                        }
+                    }
                 }
                 return sym;
             } else {
