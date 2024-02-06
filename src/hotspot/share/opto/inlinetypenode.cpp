@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1250,13 +1250,6 @@ InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk,
     vt->set_field_value(i, value);
   }
   return gvn.transform(vt)->as_InlineType();
-}
-
-Node* InlineTypeNode::Identity(PhaseGVN* phase) {
-  if (get_oop()->is_InlineType()) {
-    return get_oop();
-  }
-  return this;
 }
 
 const Type* InlineTypeNode::Value(PhaseGVN* phase) const {

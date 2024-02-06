@@ -2397,6 +2397,10 @@ void Compile::process_for_unstable_if_traps(PhaseIterGVN& igvn) {
     if (next_bci != -1 && !modified) {
       assert(!_dead_node_list.test(unc->_idx), "changing a dead node!");
       JVMState* jvms = unc->jvms();
+      // TODO 8325106 TestLWorld::test118 will fail with -DWarmup=10000 -DVerifyIR=false
+      // because Parse::do_acmp uses Parse::do_if with custom ctrl_taken which puts uncommon traps on some paths and sets the next_bci incorrectly
+      // It also seems that TestOptimizeUnstableIf is not working. It still passes, even if this optimization is turned off.
+      if (jvms->should_reexecute()) continue;
       ciMethod* method = jvms->method();
       ciBytecodeStream iter(method);
 
@@ -2421,7 +2425,7 @@ void Compile::process_for_unstable_if_traps(PhaseIterGVN& igvn) {
         Node* local = unc->local(jvms, i);
         // kill local using the liveness of next_bci.
         // give up when the local looks like an operand to secure reexecution.
-        if (!live_locals.at(i) && !local->is_top() && local != lhs && local!= rhs) {
+        if (!live_locals.at(i) && !local->is_top() && local != lhs && local != rhs) {
           uint idx = jvms->locoff() + i;
 #ifdef ASSERT
           if (PrintOpto && Verbose) {
@@ -2436,7 +2440,7 @@ void Compile::process_for_unstable_if_traps(PhaseIterGVN& igvn) {
       }
     }
 
-    // keep the mondified trap for late query
+    // keep the modified trap for late query
     if (modified) {
       trap->set_modified();
     } else {

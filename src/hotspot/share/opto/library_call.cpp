@@ -4433,7 +4433,7 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
     if (ik == C->env()->Class_klass()) {
       bool null_free;
       ciType* t = tp->java_mirror_type(&null_free);
-      if (t != nullptr) {
+      if (t != nullptr && t->is_inlinetype()) {
         ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);

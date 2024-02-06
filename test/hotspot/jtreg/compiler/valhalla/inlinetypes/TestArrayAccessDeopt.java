@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,9 @@
  * questions.
  */
 
+// TODO 8325106 Investigate why this suddenly started to throw java.lang.OutOfMemoryError without -Xmx200m
+// and -XX:-UseCompressedOops -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=0 -Xmx20m -Xmn1m -XX:G1HeapRegionSize=1m -XX:-ReduceInitialCardMarks
+
 /**
  * @test
  * @summary Verify that certain array accesses do not trigger deoptimization.
@@ -28,7 +31,7 @@
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestArrayAccessDeopt.java
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla -Xmx200m
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestArrayAccessDeopt
