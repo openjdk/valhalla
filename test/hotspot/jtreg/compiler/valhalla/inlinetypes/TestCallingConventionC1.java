@@ -352,7 +352,7 @@ public class TestCallingConventionC1 {
             f8 = 8.8f;
         }
     }
-    
+
     static EightFloats eightFloatsField = new EightFloats();
 
     static class Number {

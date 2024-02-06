@@ -27,7 +27,7 @@
  * @library /test/lib
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestFlatArrayThreshold.java
- * @run main/othervm -XX:+EnableValhalla -Xbatch 
+ * @run main/othervm -XX:+EnableValhalla -Xbatch
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestFlatArrayThreshold

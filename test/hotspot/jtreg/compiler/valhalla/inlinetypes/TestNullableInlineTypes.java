@@ -2864,7 +2864,7 @@ public class TestNullableInlineTypes {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue5 {
-        @NullRestricted 
+        @NullRestricted
         CircularValue6 val;
         int x;
 
