@@ -1685,11 +1685,6 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   }
 #endif
 
-  if (!inline_type_field_access_prolog(x)) {
-    // Field store will always deopt due to unloaded field or holder klass
-    return;
-  }
-
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
@@ -2076,30 +2071,6 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
   }
 }
 
-bool LIRGenerator::inline_type_field_access_prolog(AccessField* x) {
-  ciField* field = x->field();
-  assert(!field->is_flat(), "Flattened field access should have been expanded");
-  // Deoptimize if the access is non-static and requires patching (holder not loaded
-  // or not accessible) because then we only have partial field information and the
-  // field could be flat (see ciField constructor).
-  bool could_be_flat = field->type()->is_inlinetype() && InlineFieldMaxFlatSize >= 0 &&
-                       !x->is_static() && x->needs_patching();
-  // Deoptimize if we load from a static field with an uninitialized type because we
-  // need to throw an exception if initialization of the type failed.
-  // TODO 8325106 It seems that this fix for JDK-8273594 is not needed anymore or our tests don't trigger the issue anymore
-  bool not_initialized = false && x->is_static() && x->as_LoadField() != nullptr &&
-      !field->type()->as_instance_klass()->is_initialized();
-  if (could_be_flat || not_initialized) {
-    CodeEmitInfo* info = state_for(x, x->state_before());
-    CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
-                                        Deoptimization::Reason_unloaded,
-                                        Deoptimization::Action_make_not_entrant);
-    __ jump(stub);
-    return false;
-  }
-  return true;
-}
-
 void LIRGenerator::do_LoadField(LoadField* x) {
   bool needs_patching = x->needs_patching();
   bool is_volatile = x->field()->is_volatile();
@@ -2128,13 +2099,6 @@ void LIRGenerator::do_LoadField(LoadField* x) {
                   x->is_static() ?  "static" : "field", x->printable_bci());
   }
 #endif
-
-  if (!inline_type_field_access_prolog(x)) {
-    // Field load will always deopt due to unloaded field or holder klass
-    LIR_Opr result = rlock_result(x, field_type);
-    __ move(LIR_OprFact::oopConst(nullptr), result);
-    return;
-  }
 
   bool stress_deopt = StressLoopInvariantCodeMotion && info && info->deoptimize_on_exception();
   if (x->needs_null_check() &&
