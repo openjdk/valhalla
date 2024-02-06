@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,7 @@ public value class MyValueClass1 extends MyAbstract {
 
     @ForceInline
     static MyValueClass1 createDefaultInline() {
-        return MyValueClass1.default;
+        return new MyValueClass1(0, 0, (short)0, null, null, null, null, null, 0);
     }
 
     @DontInline

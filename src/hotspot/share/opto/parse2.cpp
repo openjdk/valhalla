@@ -2121,6 +2121,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     eq_region = new RegionNode(3);
     {
       PreserveJVMState pjvms(this);
+      jvms()->set_should_reexecute(true);
       do_if(btest, cmp, false, &is_not_equal);
       if (!stopped()) {
         eq_region->init_req(1, control());

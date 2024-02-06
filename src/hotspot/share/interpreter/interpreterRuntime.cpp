@@ -324,7 +324,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ResolvedFieldE
       if (memcmp(old_value_h()->field_addr<jdouble>(offset), (jdouble*)ptr, sizeof(jdouble)) == 0) can_skip = true;
       break;
     case atos:
-      if (!entry->is_flat() && old_value_h()->obj_field(offset) == ref_h()) can_skip = true;
+      if (!entry->is_null_free_inline_type() && old_value_h()->obj_field(offset) == ref_h()) can_skip = true;
       break;
     default:
       break;
@@ -365,10 +365,10 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ResolvedFieldE
     case atos:
       {
         if (entry->is_null_free_inline_type())  {
+          if (ref_h() == nullptr) {
+            THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
+          }
           if (!entry->is_flat()) {
-            if (ref_h() == nullptr) {
-              THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
-            }
             new_value_h()->obj_field_put(offset, ref_h());
           } else {
             int field_index = entry->field_index();

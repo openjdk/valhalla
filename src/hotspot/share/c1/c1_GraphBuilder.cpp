@@ -1950,6 +1950,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
+      if (field->is_null_free()) {
+        null_check(val);
+      }
       if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
         // Storing to a field of an empty inline type. Ignore.
         break;
@@ -2127,7 +2130,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
         // Storing to a field of an empty inline type. Ignore.
         null_check(obj);
+        null_check(val);
       } else if (!field->is_flat()) {
+        if (field->is_null_free()) {
+          null_check(val);
+        }
         StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
         if (!needs_patching) store = _memory->store(store);
         if (store != nullptr) {
@@ -2208,6 +2215,9 @@ void GraphBuilder::withfield(int field_index) {
   if (field_type == T_BOOLEAN) {
     Value mask = append(new Constant(new IntConstant(1)));
     val = append(new LogicOp(Bytecodes::_iand, val, mask));
+  }
+  if (field_modify->is_null_free()) {
+    null_check(val);
   }
   if (field_modify->is_flat()) {
     assert(!needs_patching, "Can't patch flat inline type field access");

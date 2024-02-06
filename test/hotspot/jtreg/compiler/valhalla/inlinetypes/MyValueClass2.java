@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@ value class MyValueClass2Inline {
 
     @ForceInline
     public static MyValueClass2Inline createDefault() {
-        return MyValueClass2Inline.default;
+        return new MyValueClass2Inline(0, 0);
     }
 
     @ForceInline
@@ -74,7 +74,7 @@ public value class MyValueClass2 extends MyAbstract {
 
     @ForceInline
     public static MyValueClass2 createDefaultInline() {
-        return MyValueClass2.default;
+        return new MyValueClass2(0, (byte)0, null);
     }
 
     @ForceInline
