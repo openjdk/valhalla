@@ -6483,7 +6483,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     } else {
       if (_super_klass != nullptr  // not j.l.Object
                && _parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
-               && (_super_klass == vmClasses::Object_klass() || _super_klass->is_abstract() || !_super_klass->must_be_atomic())) {
+               && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
         _must_be_atomic = false;
       }
       if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible)) {
