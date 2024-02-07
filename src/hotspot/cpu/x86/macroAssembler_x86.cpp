@@ -4486,7 +4486,7 @@ void MacroAssembler::get_inline_type_field_klass(Register klass, Register index,
     bind(done);
   }
 #endif
-  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr));
+  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr, Array<InlineKlass*>::base_offset_in_bytes()));
 }
 
 void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {

@@ -414,7 +414,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
           Handle(THREAD, klass->protection_domain()),
           true, CHECK);
       assert(field_k != nullptr, "Should have been loaded or an exception thrown above");
-      klass->set_inline_type_field_klass(index, field_k);
+      klass->set_inline_type_field_klass(index, InlineKlass::cast(field_k));
     }
     field_k->initialize(CHECK);
     oop defaultvalue = InlineKlass::cast(field_k)->default_value();
