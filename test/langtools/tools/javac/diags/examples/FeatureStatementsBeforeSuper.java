@@ -21,8 +21,6 @@
  * questions.
  */
 
- // key: compiler.misc.feature.super.init
- // key: compiler.warn.preview.feature.use
  // options: --enable-preview -source ${jdk.version} -Xlint:preview
 
 class FeatureStatementsBeforeSuper {

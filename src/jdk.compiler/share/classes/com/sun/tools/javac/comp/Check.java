@@ -4167,9 +4167,12 @@ public class Check {
                     break;
                 }
 
+                // valhalla is using this feature so commenting this code for now so that the
+                // build doesn't depend on preview code
                 // If super()/this() isn't first, require "statements before super()" feature
-                if (!firstStatement && !classSym.isValueClass()) // let's wave value classes for now
+                /*if (!firstStatement) {
                     preview.checkSourceLevel(apply.pos(), Feature.SUPER_INIT);
+                }*/
 
                 // We found a legitimate super()/this() call; remember it
                 initCall = methodName;

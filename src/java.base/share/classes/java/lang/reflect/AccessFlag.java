@@ -532,7 +532,7 @@ public enum AccessFlag {
         Set<AccessFlag> result = java.util.EnumSet.noneOf(AccessFlag.class);
         for (var accessFlag : LocationToFlags.locationToFlags.get(location)) {
             int accessMask = accessFlag.mask();
-            if ((mask &  accessMask) != 0) {
+            if ((mask & accessMask) != 0) {
                 result.add(accessFlag);
                 mask = mask & ~accessMask;
                 if (mask == 0) {

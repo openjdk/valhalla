@@ -226,3 +226,5 @@ compiler.warn.proc.use.proc.or.implicit
 
 # Value Objects
 compiler.misc.feature.value.classes
+compiler.misc.feature.super.init                            # temporary as we are using statements before super in value classes
+compiler.warn.preview.feature.use                           # temporary as we are using statements before super in value classes

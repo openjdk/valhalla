@@ -1514,11 +1514,7 @@ public class Resolve {
                     if (staticOnly)
                         return new StaticError(sym);
                     if (env1.info.ctorPrologue && (sym.flags_field & SYNTHETIC) == 0) {
-                        if (sym.owner.isValueClass()) {
-                            if (!env.tree.hasTag(ASSIGN) || !TreeInfo.isIdentOrThisDotIdent(((JCAssign)env.tree).lhs)) {
-                                return new RefBeforeCtorCalledError(sym);
-                            }
-                        } else {
+                        if (!env.tree.hasTag(ASSIGN) || !TreeInfo.isIdentOrThisDotIdent(((JCAssign)env.tree).lhs)) {
                             return new RefBeforeCtorCalledError(sym);
                         }
                     }
