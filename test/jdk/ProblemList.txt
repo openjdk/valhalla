@@ -816,6 +816,5 @@ java/awt/FullScreen/TranslucentWindow/TranslucentWindow.java 8258103 linux-all
 java/awt/Focus/FrameMinimizeTest/FrameMinimizeTest.java 8016266 linux-x64
 
 # valhalla
-java/lang/reflect/Proxy/ClassRestrictions.java 8325343 generic-all
 java/lang/instrument/valhalla/RedefinePrimitive.java 8325344 generic-all
 
