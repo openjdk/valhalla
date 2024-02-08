@@ -29,6 +29,8 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Modifier;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,6 +78,28 @@ final class ValueObjectMethods {
     private static final JavaLangInvokeAccess JLIA = SharedSecrets.getJavaLangInvokeAccess();
 
     static class MethodHandleBuilder {
+        static final HashMap<Class<?>, MethodHandle> primitiveSubstitutable = new HashMap<>();
+
+        static {
+            try {
+                MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+                @SuppressWarnings("removal")
+                ClassLoader loader = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+                    @Override public ClassLoader run() { return ClassLoader.getPlatformClassLoader(); }
+                });
+
+                primitiveSubstitutable.putAll(primitiveEquals); // adopt all the primitive eq methods
+                primitiveSubstitutable.put(float.class, lookup.findStatic(MethodHandleBuilder.class, "eqValue",
+                        MethodType.fromMethodDescriptorString("(FF)Z", loader)));
+                primitiveSubstitutable.put(double.class, lookup.findStatic(MethodHandleBuilder.class, "eqValue",
+                        MethodType.fromMethodDescriptorString("(DD)Z", loader)));
+
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         static Stream<MethodHandle> getterStream(Class<?> type, Comparator<MethodHandle> comparator) {
             // filter static fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
@@ -106,8 +130,8 @@ final class ValueObjectMethods {
             }
         }
 
-        static MethodHandle builtinPrimitiveEquals(Class<?> type) {
-            return primitiveEquals.get(type);
+        static MethodHandle builtinPrimitiveSubstitutable(Class<?> type) {
+            return primitiveSubstitutable.get(type);
         }
 
         /*
@@ -587,6 +611,14 @@ final class ValueObjectMethods {
 
         private static final MethodHandle FALSE = constant(boolean.class, false);
         private static final MethodHandle TRUE = constant(boolean.class, true);
+        // Substitutability test for float
+        private static boolean eqValue(float a, float b) {
+            return Float.floatToRawIntBits(a) == Float.floatToRawIntBits(b);
+        }
+        // Substitutability test for double
+        private static boolean eqValue(double a, double b) {
+            return Double.doubleToRawLongBits(a) == Double.doubleToRawLongBits(b);
+        }
         private static final MethodHandle OBJECT_EQUALS =
             findStatic("eq", methodType(boolean.class, Object.class, Object.class));
         private static final MethodHandle IS_SAME_VALUE_CLASS =
@@ -771,7 +803,7 @@ final class ValueObjectMethods {
      */
     private static <T> MethodHandle substitutableInvoker(Class<T> type) {
         if (type.isPrimitive())
-            return MethodHandleBuilder.builtinPrimitiveEquals(type);
+            return MethodHandleBuilder.builtinPrimitiveSubstitutable(type);
 
         if (isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type)) {
             return SUBST_TEST_METHOD_HANDLES.get(type);
