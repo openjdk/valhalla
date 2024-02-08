@@ -586,7 +586,7 @@ public class TestLWorldProfiling {
 
     // branch frequency profiling causes not equal branch to be optimized out
     @Test
-    @IR(failOn = {SUBSTITUTABILITY_TEST})
+    @IR(counts = {IRNode.UNSTABLE_IF_TRAP, " = 1"})
     public boolean test21(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -1036,9 +1036,9 @@ public class TestLWorldProfiling {
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
         failOn = {SUBSTITUTABILITY_TEST},
-        counts = {CLASS_CHECK_TRAP, "= 1"})
+        counts = {CLASS_CHECK_TRAP, "= 2"})
     @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {SUBSTITUTABILITY_TEST, "= 1"})
+        counts = {SUBSTITUTABILITY_TEST, "= 2"})
     public void test38(Object o1, Object o2, Object o3) {
         if (o1 == o2) {
             test38_helper2();
@@ -1061,13 +1061,12 @@ public class TestLWorldProfiling {
         test38_helper(testValue1, testValue2);
     }
 
-
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
         failOn = {SUBSTITUTABILITY_TEST},
-        counts = {CLASS_CHECK_TRAP, "= 1"})
+        counts = {CLASS_CHECK_TRAP, "= 2"})
     @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {SUBSTITUTABILITY_TEST, "= 1"})
+        counts = {SUBSTITUTABILITY_TEST, "= 2"})
     public void test39(Object o1, Object o2, Object o3) {
         if (o1 == o2) {
             test39_helper2();

@@ -148,6 +148,7 @@ public class TestMethodHandles {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
+                   .addFlags("-XX:CompileCommand=inline,java.lang.invoke.MethodHandleImpl::*")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
