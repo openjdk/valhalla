@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -304,7 +304,7 @@ public class RedefinePrimitive {
 
             for (int i = 0; i < tests.length; i++) {
                 log("Starting " + tests[i].name + "...");
-                ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(
                         "-javaagent:redefineagent.jar",
                         "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         getPropOpt("test.jdk"),
