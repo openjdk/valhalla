@@ -4092,10 +4092,8 @@ public class Check {
         private JCReturn earlyReturn;       // first return prior to the super()/init(), if any
         private Name initCall;              // whichever of "super" or "init" we've seen already
         private int scanDepth;              // current scan recursion depth in method body
-        ClassSymbol classSym;
 
         public void check(JCClassDecl classDef) {
-            classSym = classDef.sym;
             scan(classDef.defs);
         }
 

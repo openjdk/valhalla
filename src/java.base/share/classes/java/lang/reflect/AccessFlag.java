@@ -366,11 +366,11 @@ public enum AccessFlag {
                public Set<Location> apply(ClassFileFormatVersion cffv) {
                    if (ValhallaFeatures.isEnabled() && cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0) {
                        return Location.SET_FIELD;
+                   } else if (cffv.compareTo(ClassFileFormatVersion.RELEASE_2) >= 0 &&
+                              cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) {
+                       return Location.SET_METHOD;
                    } else {
-                       return (cffv.compareTo(ClassFileFormatVersion.RELEASE_2) >= 0 &&
-                               cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) ?
-                               Location.SET_METHOD :
-                               Location.EMPTY_SET;
+                       return Location.EMPTY_SET;
                    }
                }
            }),

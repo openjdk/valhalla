@@ -378,7 +378,7 @@ public class Modifier {
     public static final int ABSTRACT         = 0x00000400;
 
     /**
-     * The {@code int} value representing the {@code strict}
+     * The {@code int} value representing the {@code strictfp}
      * modifier.
      * @see AccessFlag#STRICT
      */
