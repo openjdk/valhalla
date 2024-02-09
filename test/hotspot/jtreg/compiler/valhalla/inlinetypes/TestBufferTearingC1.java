@@ -34,6 +34,11 @@ package compiler.valhalla.inlinetypes;
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
+ *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
+ * @run main/othervm -XX:+EnableValhalla
+ *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ *                   -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
  *                   -XX:TieredStopAtLevel=1
  *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
  */
