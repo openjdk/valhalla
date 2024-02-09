@@ -21,7 +21,7 @@
  * questions.
  */
 
-// key: compiler.err.this.exposed.prematurely
+// key: compiler.err.cant.ref.before.ctor.called
 
 value class ThisExposedPrematurely {
     int x;

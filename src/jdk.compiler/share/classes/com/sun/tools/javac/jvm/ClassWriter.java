@@ -1780,6 +1780,9 @@ public class ClassWriter extends ClassFile {
         if ((flags & IDENTITY_TYPE) != 0) {
             result |= ACC_IDENTITY;
         }
+        if ((flags & STRICT) != 0) {
+            result |= ACC_STRICT;
+        }
         return result;
     }
 

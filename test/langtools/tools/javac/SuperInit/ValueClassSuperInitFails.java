@@ -1,29 +1,39 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8194743
+ * @bug 8324873
  * @summary Permit additional statements before this/super in constructors
- * @compile/fail/ref=SuperInitFails.out -XDrawDiagnostics SuperInitFails.java
+ * @compile/fail/ref=ValueClassSuperInitFails.out -XDrawDiagnostics ValueClassSuperInitFails.java
  * @enablePreview
  */
-import java.util.concurrent.atomic.AtomicReference;
-public class SuperInitFails extends AtomicReference<Object> implements Iterable<Object> {
+
+abstract value class AR<V> implements java.io.Serializable {
+    public AR(V initialValue) {
+    }
+
+    public AR() {
+    }
+}
+
+value class ValueClassSuperInitFails extends AR <Object> implements Iterable<Object> {
 
     private int x;
 
 /// GOOD EXAMPLES
 
-    public SuperInitFails() {           // this should be OK
+    public ValueClassSuperInitFails() {           // this should be OK
+        // super()
     }
 
-    public SuperInitFails(Object x) {
+    public ValueClassSuperInitFails(Object x) {
         this.x = x.hashCode();          // this should be OK
+        // super();  the compiler will introduce the super call at this location
     }
 
-    public SuperInitFails(byte x) {
+    public ValueClassSuperInitFails(byte x) {
         super();                        // this should be OK
     }
 
-    public SuperInitFails(char x) {
+    public ValueClassSuperInitFails(char x) {
         this((int)x);                   // this should be OK
     }
 
@@ -53,67 +63,67 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
         Runnable r = () -> this();      // this should FAIL
     }
 
-    public SuperInitFails(short x) {
+    public ValueClassSuperInitFails(short x) {
         hashCode();                     // this should FAIL
-        super();
+        //super();
     }
 
-    public SuperInitFails(float x) {
+    public ValueClassSuperInitFails(float x) {
         this.hashCode();                // this should FAIL
-        super();
+        //super();
     }
 
-    public SuperInitFails(int x) {
+    public ValueClassSuperInitFails(int x) {
         super.hashCode();               // this should FAIL
-        super();
+        //super();
     }
 
-    public SuperInitFails(long x) {
-        SuperInitFails.this.hashCode();      // this should FAIL
-        super();
+    public ValueClassSuperInitFails(long x) {
+        ValueClassSuperInitFails.this.hashCode();      // this should FAIL
+        //super();
     }
 
-    public SuperInitFails(double x) {
-        SuperInitFails.super.hashCode();     // this should FAIL
-        super();
+    public ValueClassSuperInitFails(double x) {
+        ValueClassSuperInitFails.super.hashCode();     // this should FAIL
+        //super();
     }
 
-    public SuperInitFails(byte[] x) {
+    public ValueClassSuperInitFails(byte[] x) {
         {
             super();                    // this should FAIL
         }
     }
 
-    public SuperInitFails(char[] x) {
+    public ValueClassSuperInitFails(char[] x) {
         if (x.length == 0)
             return;                     // this should FAIL
-        super();
+        //super();
     }
 
-    public SuperInitFails(short[] x) {
-        this.x = x.length;              // this should work
-        super();
+    public ValueClassSuperInitFails(short[] x) {
+        this.x = x.length;              // this should be OK
+        //super();
     }
 
-    public SuperInitFails(float[] x) {
+    public ValueClassSuperInitFails(float[] x) {
         System.identityHashCode(this);  // this should FAIL
-        super();
+        //super();
     }
 
-    public SuperInitFails(int[] x) {
+    public ValueClassSuperInitFails(int[] x) {
         this(this);                     // this should FAIL
     }
 
-    public SuperInitFails(long[] x) {
+    public ValueClassSuperInitFails(long[] x) {
         this(Object.this);              // this should FAIL
     }
 
-    public SuperInitFails(double[] x) {
+    public ValueClassSuperInitFails(double[] x) {
         Iterable.super.spliterator();   // this should FAIL
-        super();
+        //super();
     }
 
-    public SuperInitFails(byte[][] x) {
+    public ValueClassSuperInitFails(byte[][] x) {
         super(new Object() {
             {
                 super();                // this should FAIL
@@ -121,9 +131,9 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
         });
     }
 
-    public SuperInitFails(char[][] x) {
+    public ValueClassSuperInitFails(char[][] x) {
         new Inner1();                   // this should FAIL
-        super();
+        //super();
     }
 
     class Inner1 {
@@ -145,27 +155,27 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
         return null;
     }
 
-    public SuperInitFails(short[][] x) {
+    public ValueClassSuperInitFails(short[][] x) {
         class Foo {
             Foo() {
-                SuperInitFails.this.hashCode();
+                ValueClassSuperInitFails.this.hashCode();
             }
         };
         new Foo();                      // this should FAIL
-        super();
+        //super();
     }
 
-    public SuperInitFails(float[][] x) {
+    public ValueClassSuperInitFails(float[][] x) {
         Runnable r = () -> {
             super();                    // this should FAIL
         };
     }
 
-    public SuperInitFails(int[][] z) {
+    public ValueClassSuperInitFails(int[][] z) {
         super((Runnable)() -> x);       // this should FAIL
     }
 
-    public SuperInitFails(long[][] z) {
+    public ValueClassSuperInitFails(long[][] z) {
         super(new Inner1());            // this should FAIL
     }
 }

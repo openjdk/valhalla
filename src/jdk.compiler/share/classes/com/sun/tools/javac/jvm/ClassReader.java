@@ -3136,6 +3136,10 @@ public class ClassReader {
  ***********************************************************************/
 
     long adjustFieldFlags(long flags) {
+        if ((flags & ACC_STRICT) != 0) {
+            flags &= ~ACC_STRICT;
+            flags |= STRICT;
+        }
         return flags;
     }
 

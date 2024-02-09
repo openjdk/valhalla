@@ -1259,9 +1259,10 @@ public class Check {
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
             else {
-                mask = VarFlags;
-                if (sym.owner.type.isValueClass() && (flags & STATIC) == 0) {
-                    implicit |= FINAL;
+                boolean isInstanceFieldOfValueClass = sym.owner.type.isValueClass() && (flags & STATIC) == 0;
+                mask = !isInstanceFieldOfValueClass ? VarFlags : ExtendedVarFlags;
+                if (isInstanceFieldOfValueClass) {
+                    implicit |= FINAL | STRICT;
                 }
             }
             break;
@@ -4164,9 +4165,12 @@ public class Check {
                     break;
                 }
 
+                // valhalla is using this feature so commenting this code for now so that the
+                // build doesn't depend on preview code
                 // If super()/this() isn't first, require "statements before super()" feature
-                if (!firstStatement)
+                /*if (!firstStatement) {
                     preview.checkSourceLevel(apply.pos(), Feature.SUPER_INIT);
+                }*/
 
                 // We found a legitimate super()/this() call; remember it
                 initCall = methodName;

@@ -108,6 +108,7 @@ public class Flags {
     public static final int ACC_IDENTITY = 0x0020;
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
+    public static final int ACC_STRICT   = 0x0800;
     public static final int ACC_MODULE   = 0x8000;
 
     /*****************************************
@@ -410,6 +411,11 @@ public class Flags {
     public static final long NON_SEALED = 1L<<63; // ClassSymbols
 
     /**
+     * Flag to indicate that a field is strict
+     */
+    public static final long STRICT = 1L<<51; // VarSymbols
+
+    /**
      * Describe modifier flags as they might appear in source code, i.e.,
      * separated by spaces and in the order suggested by JLS 8.1.1.
      */
@@ -444,6 +450,7 @@ public class Flags {
         ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
         ExtendedLocalClassFlags           = (long) LocalClassFlags | VALUE_CLASS,
         ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | VALUE_CLASS,
+        ExtendedVarFlags                  = (long) VarFlags | STRICT,
         ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,
@@ -569,7 +576,8 @@ public class Flags {
             public String toString() {
                 return "non-sealed";
             }
-        };
+        },
+        STRICT(Flags.STRICT);
 
         Flag(long flag) {
             this.value = flag;
