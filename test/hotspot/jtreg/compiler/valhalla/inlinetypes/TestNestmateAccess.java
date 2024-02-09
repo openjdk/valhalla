@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,29 @@
  */
 
 package compiler.valhalla.inlinetypes;
+
 import jdk.test.lib.Asserts;
+
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 
 /**
  * @test
  * @bug 8253416
  * @summary Test nestmate access to flattened field if nest-host is not loaded.
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses TestNestmateAccess.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestNestmateAccess.java
+ * @run main/othervm -XX:+EnableValhalla -Xcomp
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.Test*::<init>
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp -XX:TieredStopAtLevel=1
+ * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:TieredStopAtLevel=1
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.Test*::<init>
+ *                   compiler.valhalla.inlinetypes.TestNestmateAccess
+ * @run main/othervm -XX:+EnableValhalla
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess
  */
 
@@ -42,7 +52,9 @@ interface MyInterface {
     int hash();
 }
 
-primitive class MyValue implements MyInterface {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue implements MyInterface {
     int x = 42;
     int y = 43;
 
@@ -52,6 +64,7 @@ primitive class MyValue implements MyInterface {
 
 // Test load from flattened field in nestmate when nest-host is not loaded.
 class Test1 {
+    @NullRestricted
     private MyValue vt;
 
     public Test1(final MyValue vt) {
@@ -69,8 +82,11 @@ class Test1 {
     }
 }
 
-// Same as Test1 but outer class is an inline type
-primitive class Test2 {
+// Same as Test1 but outer class is a value class
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class Test2 {
+    @NullRestricted
     private MyValue vt;
 
     public Test2(final MyValue vt) {
@@ -91,6 +107,7 @@ primitive class Test2 {
 
 // Test store to flattened field in nestmate when nest-host is not loaded.
 class Test3 {
+    @NullRestricted
     private MyValue vt;
 
     public MyInterface test(MyValue init) {
@@ -106,6 +123,7 @@ class Test3 {
 
 // Same as Test1 but with static field
 class Test4 {
+    @NullRestricted
     private static MyValue vt;
 
     public Test4(final MyValue vt) {
@@ -124,7 +142,10 @@ class Test4 {
 }
 
 // Same as Test2 but with static field
-primitive class Test5 {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class Test5 {
+    @NullRestricted
     private static MyValue vt;
 
     public Test5(final MyValue vt) {
@@ -145,6 +166,7 @@ primitive class Test5 {
 
 // Same as Test3 but with static field
 class Test6 {
+    @NullRestricted
     private static MyValue vt;
 
     public MyInterface test(MyValue init) {
@@ -158,8 +180,11 @@ class Test6 {
     }
 }
 
-// Same as Test6 but outer class is an inline type
-primitive class Test7 {
+// Same as Test6 but outer class is a value class
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class Test7 {
+    @NullRestricted
     private static MyValue vt;
 
     public MyInterface test(MyValue init) {

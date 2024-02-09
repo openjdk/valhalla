@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,22 +25,24 @@ import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 /*
  * @test
  * @key randomness
  * @bug 8280006
- * @summary Test that field flattening works as expected if primitive classes of
+ * @summary Test that field flattening works as expected if value classes of
  *          holder and field were loaded by different class loaders (bootstrap + app).
- * @modules java.base/jdk.internal.value
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses ValueOnBootclasspath.java InstallBootstrapClasses.java TestBootClassloader.java
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED ValueOnBootclasspath.java InstallBootstrapClasses.java TestBootClassloader.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InstallBootstrapClasses
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla InstallBootstrapClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
  *                   -XX:CompileCommand=inline,*::get* TestBootClassloader
@@ -50,7 +52,10 @@ public class TestBootClassloader {
     private static final WhiteBox WB = WhiteBox.getWhiteBox();
     private static final int COMP_LEVEL_FULL_OPTIMIZATION = 4;
 
-    static primitive class Wrapper1 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Wrapper1 {
+        @NullRestricted
         ValueOnBootclasspath val; // Type will be loaded by boot classloader
 
         public Wrapper1(ValueOnBootclasspath val) {
@@ -62,7 +67,10 @@ public class TestBootClassloader {
         }
     }
 
-    static primitive class Wrapper2 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Wrapper2 {
+        @NullRestricted
         Wrapper1 val;
 
         public Wrapper2(Wrapper1 val) {
@@ -89,11 +97,11 @@ public class TestBootClassloader {
             test1(wrapper1);
             test2(wrapper2);
         }
-        Method method = TestBootClassloader.class.getDeclaredMethod("test1", PrimitiveClass.asValueType(Wrapper1.class));
+        Method method = TestBootClassloader.class.getDeclaredMethod("test1", Wrapper1.class);
         Asserts.assertTrue(WB.isMethodCompilable(method, COMP_LEVEL_FULL_OPTIMIZATION, false), "Test1 method not compilable");
         Asserts.assertTrue(WB.isMethodCompiled(method), "Test1 method not compiled");
 
-        method = TestBootClassloader.class.getDeclaredMethod("test2", PrimitiveClass.asValueType(Wrapper2.class));
+        method = TestBootClassloader.class.getDeclaredMethod("test2", Wrapper2.class);
         Asserts.assertTrue(WB.isMethodCompilable(method, COMP_LEVEL_FULL_OPTIMIZATION, false), "Test2 method not compilable");
         Asserts.assertTrue(WB.isMethodCompiled(method), "Test2 method not compiled");
     }

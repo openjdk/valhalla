@@ -1090,6 +1090,8 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
   BasicType patch_field_type = T_ILLEGAL;
   bool deoptimize_for_volatile = false;
   bool deoptimize_for_atomic = false;
+  bool deoptimize_for_null_free = false;
+  bool deoptimize_for_flat = false;
   int patch_field_offset = -1;
   Klass* init_klass = nullptr; // klass needed by load_klass_patching code
   Klass* load_klass = nullptr; // klass needed by load_klass_patching code
@@ -1106,7 +1108,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
     constantPoolHandle constants(current, caller_method->constants());
     LinkResolver::resolve_field_access(result, constants, field_access.index(), caller_method, Bytecodes::java_code(code), CHECK);
     patch_field_offset = result.offset();
-    assert(!result.is_flat(), "Can not patch access to flat field");
 
     // If we're patching a field which is volatile then at compile it
     // must not have been know to be volatile, so the generated code
@@ -1133,6 +1134,16 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
 
     patch_field_type = result.field_type();
     deoptimize_for_atomic = (AlwaysAtomicAccesses && (patch_field_type == T_DOUBLE || patch_field_type == T_LONG));
+
+    // The field we are patching is null-free. Deoptimize and regenerate
+    // the compiled code if we patch a putfield/putstatic because it
+    // does not contain the required null check.
+    deoptimize_for_null_free = result.is_null_free_inline_type() && (field_access.is_putfield() || field_access.is_putstatic());
+
+    // The field we are patching is flat. Deoptimize and regenerate
+    // the compiled code which can't handle the layout of the flat
+    // field because it was unknown at compile time.
+    deoptimize_for_flat = result.is_flat();
 
   } else if (load_klass_or_mirror_patch_id) {
     Klass* k = nullptr;
@@ -1219,7 +1230,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
     ShouldNotReachHere();
   }
 
-  if (deoptimize_for_volatile || deoptimize_for_atomic) {
+  if (deoptimize_for_volatile || deoptimize_for_atomic || deoptimize_for_null_free || deoptimize_for_flat) {
     // At compile time we assumed the field wasn't volatile/atomic but after
     // loading it turns out it was volatile/atomic so we have to throw the
     // compiled code out and let it be regenerated.
@@ -1229,6 +1240,12 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
       }
       if (deoptimize_for_atomic) {
         tty->print_cr("Deoptimizing for patching atomic field reference");
+      }
+      if (deoptimize_for_null_free) {
+        tty->print_cr("Deoptimizing for patching null-free field reference");
+      }
+      if (deoptimize_for_flat) {
+        tty->print_cr("Deoptimizing for patching flat field reference");
       }
     }
 
