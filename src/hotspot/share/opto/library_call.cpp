@@ -524,6 +524,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_allocateUninitializedArray: return inline_unsafe_newArray(true);
   case vmIntrinsics::_newArray:                   return inline_unsafe_newArray(false);
+  case vmIntrinsics::_newNullRestrictedArray:   return inline_newNullRestrictedArray();
 
   case vmIntrinsics::_isAssignableFrom:         return inline_native_subtype_check();
 
@@ -4418,6 +4419,33 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   return generate_fair_guard(bol, region);
 }
 
+//-----------------------inline_newNullRestrictedArray--------------------------
+// public static native Object[] newNullRestrictedArray(Class<?> componentType, int length);
+bool LibraryCallKit::inline_newNullRestrictedArray() {
+  // TODO 8325106
+  // Improve this and add required runtime checks
+  Node* componentType = argument(0);
+  Node* length = argument(1);
+
+  const TypeInstPtr* tp = _gvn.type(componentType)->isa_instptr();
+  if (tp != nullptr) {
+    ciInstanceKlass* ik = tp->instance_klass();
+    if (ik == C->env()->Class_klass()) {
+      bool null_free;
+      ciType* t = tp->java_mirror_type(&null_free);
+      if (t != nullptr && t->is_inlinetype()) {
+        ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
+        if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
+          const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
+          Node* obj = new_array(makecon(array_klass_type), length, 0);  // no arguments to push
+          set_result(obj);
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 
 //-----------------------inline_native_newArray--------------------------
 // private static native Object java.lang.reflect.Array.newArray(Class<?> componentType, int length);
@@ -5549,6 +5577,12 @@ JVMState* LibraryCallKit::arraycopy_restore_alloc_state(AllocateArrayNode* alloc
       }
 
       if (no_interfering_store) {
+        // TODO 8325106
+        // TestArrays::test94 hits an assert because we create a wrong JVMState for before the newNullRestrictedArray intrinsic because above code does not account for the class argument on stack in addition to the size
+        // See https://github.com/openjdk/jdk/commit/5a478ef7759e64da6d17426673700ff0d9c66b33
+        // Check why this isn't optimized for Array.newInstance(MyValue.class, 10);
+        // Re-enable IR matching in TestArrays::test29 and TestNullableArrays::test29 and deopt checks in TestArrayCopyNoInitDeopt
+        return nullptr;
         SafePointNode* sfpt = create_safepoint_with_state_before_array_allocation(alloc);
 
         JVMState* saved_jvms = jvms();

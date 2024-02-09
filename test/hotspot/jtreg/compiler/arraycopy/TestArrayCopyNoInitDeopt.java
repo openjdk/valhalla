@@ -111,7 +111,8 @@ public class TestArrayCopyNoInitDeopt {
 
             // should deoptimize for type check
             if (!deoptimize(method_m1, src_obj)) {
-                throw new RuntimeException("m1 not deoptimized");
+                // TODO 8325106 Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
+                // throw new RuntimeException("m1 not deoptimized");
             }
 
             WHITE_BOX.enqueueMethodForCompilation(method_m1, CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION);
@@ -141,7 +142,8 @@ public class TestArrayCopyNoInitDeopt {
 
                 // should deoptimize for speculative type check
                 if (!deoptimize(method_m2, src_obj)) {
-                    throw new RuntimeException("m2 not deoptimized");
+                    // TODO 8325106 Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
+                    // throw new RuntimeException("m2 not deoptimized");
                 }
 
                 WHITE_BOX.enqueueMethodForCompilation(method_m2, CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION);
@@ -152,7 +154,8 @@ public class TestArrayCopyNoInitDeopt {
 
                 // should deoptimize for actual type check
                 if (!deoptimize(method_m2, src_obj)) {
-                    throw new RuntimeException("m2 not deoptimized");
+                    // TODO 8325106 Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
+                    // throw new RuntimeException("m2 not deoptimized");
                 }
 
                 WHITE_BOX.enqueueMethodForCompilation(method_m2, CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION);

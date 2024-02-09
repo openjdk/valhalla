@@ -9,7 +9,7 @@ SPP=build.tools.spp.Spp
 # desirable to generate code using ASM which will allow more flexibility
 # in the kinds of tests that are generated.
 
-for type in boolean byte short char int long float double String Point Value
+for type in boolean byte short char int long float double String Value
 do
   Type="$(tr '[:lower:]' '[:upper:]' <<< ${type:0:1})${type:1}"
   args="-K$type -Dtype=$type -DType=$Type"
@@ -28,13 +28,13 @@ do
       ;;
   esac
 
-# Object = object of identity class or value class
-# Value = value class or primitive class
+ # Object = objects of identity or value class
+ # Value = value class 
   case $type in
     String)
       args="$args -KObject"
       ;;
-    Point|Value)
+    Value)
       args="$args -KObject -KValue"
       ;;
   esac
@@ -88,15 +88,10 @@ do
       value2=\"bar\"
       value3=\"baz\"
       ;;
-    Point)
-      value1="Point.getInstance(1,1)"
-      value2="Point.getInstance(2,2)"
-      value3="Point.getInstance(3,3)"
-      ;;
     Value)
-      value1="Value.getInstance(Point.getInstance(1,1))"
-      value2="Value.getInstance(Point.getInstance(2,2))"
-      value3="Value.getInstance(Point.getInstance(3,3))"
+      value1="Value.getInstance(10)"
+      value2="Value.getInstance(20)"
+      value3="Value.getInstance(30)"
       ;;
   esac
 

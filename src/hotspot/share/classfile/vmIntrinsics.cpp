@@ -265,6 +265,7 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_Class_cast:
   case vmIntrinsics::_getLength:
   case vmIntrinsics::_newArray:
+  case vmIntrinsics::_newNullRestrictedArray:
   case vmIntrinsics::_getClass:
     if (!InlineClassNatives) return true;
     break;
