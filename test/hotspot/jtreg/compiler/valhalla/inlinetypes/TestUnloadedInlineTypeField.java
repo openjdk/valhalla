@@ -1056,4 +1056,28 @@ public class TestUnloadedInlineTypeField {
     public void test27_verifier() {
         Asserts.assertEQ(test27(), 0);
     }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue28 {
+        @NullRestricted
+        static MyValue28 field1;
+    }
+
+    // Test null store to null restricted field with unloaded holder
+    @Test
+    public static void test28() {
+        MyValue28.field1 = null;
+    }
+
+    @Run(test = "test28")
+    @Warmup(0) // Make sure that MyValue28 is not loaded
+    public void test28_verifier() {
+        try {
+            test28();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
 }
