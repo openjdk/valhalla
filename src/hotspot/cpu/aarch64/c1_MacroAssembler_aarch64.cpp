@@ -323,16 +323,6 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
   verify_oop(obj);
 }
 
-
-void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
-  verify_oop(receiver);
-  // explicit null check not needed since load from [klass_offset] causes a trap
-  // check against inline cache
-  assert(!MacroAssembler::needs_explicit_null_check(oopDesc::klass_offset_in_bytes()), "must add explicit null check");
-
-  cmp_klass(receiver, iCache, rscratch1);
-}
-
 void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offset_for_orig_pc, int sp_inc, bool reset_orig_pc, bool needs_stack_repair) {
   MacroAssembler::build_frame(frame_size_in_bytes);
 

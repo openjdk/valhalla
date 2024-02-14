@@ -31,7 +31,6 @@
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
 #include "code/debugInfoRec.hpp"
-#include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
@@ -40,7 +39,6 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_aarch64.hpp"
-#include "oops/compiledICHolder.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -986,42 +984,17 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
 }
 
 static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
+  Register data = rscratch2;
+  __ ic_check(1 /* end_alignment */);
+  __ ldr(rmethod, Address(data, CompiledICData::speculated_method_offset()));
 
-  Label ok;
-
-  Register holder = rscratch2;
-  Register receiver = j_rarg0;
-  Register tmp = r10;  // A call-clobbered register not used for arg passing
-
-  // -------------------------------------------------------------------------
-  // Generate a C2I adapter.  On entry we know rmethod holds the Method* during calls
-  // to the interpreter.  The args start out packed in the compiled layout.  They
-  // need to be unpacked into the interpreter layout.  This will almost always
-  // require some stack space.  We grow the current (compiled) stack, then repack
-  // the args.  We  finally end in a jump to the generic interpreter entry point.
-  // On exit from the interpreter, the interpreter will restore our SP (lest the
-  // compiled code, which relies solely on SP and not FP, get sick).
-
-  {
-    __ block_comment("c2i_unverified_entry {");
-    __ load_klass(rscratch1, receiver);
-    __ ldr(tmp, Address(holder, CompiledICHolder::holder_klass_offset()));
-    __ cmp(rscratch1, tmp);
-    __ ldr(rmethod, Address(holder, CompiledICHolder::holder_metadata_offset()));
-    __ br(Assembler::EQ, ok);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-
-    __ bind(ok);
-    // Method might have been compiled since the call site was patched to
-    // interpreted; if that is the case treat it as a miss so we can get
-    // the call site corrected.
-    __ ldr(rscratch1, Address(rmethod, in_bytes(Method::code_offset())));
-    __ cbz(rscratch1, skip_fixup);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-    __ block_comment("} c2i_unverified_entry");
-  }
+  // Method might have been compiled since the call site was patched to
+  // interpreted; if that is the case treat it as a miss so we can get
+  // the call site corrected.
+  __ ldr(rscratch1, Address(rmethod, in_bytes(Method::code_offset())));
+  __ cbz(rscratch1, skip_fixup);
+  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
 }
-
 
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
@@ -1038,6 +1011,15 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
 
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
+
+  // -------------------------------------------------------------------------
+  // Generate a C2I adapter.  On entry we know rmethod holds the Method* during calls
+  // to the interpreter.  The args start out packed in the compiled layout.  They
+  // need to be unpacked into the interpreter layout.  This will almost always
+  // require some stack space.  We grow the current (compiled) stack, then repack
+  // the args.  We  finally end in a jump to the generic interpreter entry point.
+  // On exit from the interpreter, the interpreter will restore our SP (lest the
+  // compiled code, which relies solely on SP and not FP, get sick).
 
   address c2i_unverified_entry        = __ pc();
   address c2i_unverified_inline_entry = __ pc();
@@ -1402,7 +1384,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ b(exit);
 
     CodeBuffer* cbuf = masm->code_section()->outer();
-    address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, tr_call);
+    address stub = CompiledDirectCall::emit_to_interp_stub(*cbuf, tr_call);
     if (stub == nullptr) {
       fatal("CodeCache is full at gen_continuation_enter");
     }
@@ -1467,7 +1449,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
   }
 
   CodeBuffer* cbuf = masm->code_section()->outer();
-  address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, tr_call);
+  address stub = CompiledDirectCall::emit_to_interp_stub(*cbuf, tr_call);
   if (stub == nullptr) {
     fatal("CodeCache is full at gen_continuation_enter");
   }
@@ -1823,25 +1805,15 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // restoring them except rfp. rfp is the only callee save register
   // as far as the interpreter and the compiler(s) are concerned.
 
-
-  const Register ic_reg = rscratch2;
   const Register receiver = j_rarg0;
 
-  Label hit;
   Label exception_pending;
 
-  assert_different_registers(ic_reg, receiver, rscratch1);
+  assert_different_registers(receiver, rscratch1);
   __ verify_oop(receiver);
-  __ cmp_klass(receiver, ic_reg, rscratch1);
-  __ br(Assembler::EQ, hit);
-
-  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+  __ ic_check(8 /* end_alignment */);
 
   // Verified entry point must be aligned
-  __ align(8);
-
-  __ bind(hit);
-
   int vep_offset = ((intptr_t)__ pc()) - start;
 
   // If we have to make this method not-entrant we'll overwrite its

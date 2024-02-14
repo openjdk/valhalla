@@ -31,7 +31,6 @@
 #include "classfile/symbolTable.hpp"
 #include "code/compiledIC.hpp"
 #include "code/debugInfoRec.hpp"
-#include "code/icBuffer.hpp"
 #include "code/nativeInst.hpp"
 #include "code/vtableStubs.hpp"
 #include "compiler/oopMap.hpp"
@@ -43,7 +42,6 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "oops/compiledICHolder.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -1236,19 +1234,10 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 }
 
 static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
-  Label ok;
+  Register data = rax;
+  __ ic_check(1 /* end_alignment */);
+  __ movptr(rbx, Address(data, CompiledICData::speculated_method_offset()));
 
-  Register holder = rax;
-  Register receiver = j_rarg0;
-  Register temp = rbx;
-
-  __ load_klass(temp, receiver, rscratch1);
-  __ cmpptr(temp, Address(holder, CompiledICHolder::holder_klass_offset()));
-  __ movptr(rbx, Address(holder, CompiledICHolder::holder_metadata_offset()));
-  __ jcc(Assembler::equal, ok);
-  __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-
-  __ bind(ok);
   // Method might have been compiled since the call site was patched to
   // interpreted if that is the case treat it as a miss so we can get
   // the call site corrected.
@@ -1317,7 +1306,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
     gen_c2i_adapter(masm, sig, regs, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
                     inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
   }
-
 
   // The c2i adapters might safepoint and trigger a GC. The caller must make sure that
   // the GC knows about the location of oop argument locations passed to the c2i adapter.
@@ -1724,7 +1712,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
     // Emit stub for static call
     CodeBuffer* cbuf = masm->code_section()->outer();
-    address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, __ pc());
+    address stub = CompiledDirectCall::emit_to_interp_stub(*cbuf, __ pc());
     if (stub == nullptr) {
       fatal("CodeCache is full at gen_continuation_enter");
     }
@@ -1761,7 +1749,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
 
   // Emit stub for static call
   CodeBuffer* cbuf = masm->code_section()->outer();
-  address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, __ pc());
+  address stub = CompiledDirectCall::emit_to_interp_stub(*cbuf, __ pc());
   if (stub == nullptr) {
     fatal("CodeCache is full at gen_continuation_enter");
   }
@@ -2157,25 +2145,13 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // restoring them except rbp. rbp is the only callee save register
   // as far as the interpreter and the compiler(s) are concerned.
 
-
-  const Register ic_reg = rax;
   const Register receiver = j_rarg0;
 
-  Label hit;
   Label exception_pending;
 
-  assert_different_registers(ic_reg, receiver, rscratch1, rscratch2);
+  assert_different_registers(receiver, rscratch1, rscratch2);
   __ verify_oop(receiver);
-  __ load_klass(rscratch1, receiver, rscratch2);
-  __ cmpq(ic_reg, rscratch1);
-  __ jcc(Assembler::equal, hit);
-
-  __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-
-  // Verified entry point must be aligned
-  __ align(8);
-
-  __ bind(hit);
+  __ ic_check(8 /* end_alignment */);
 
   int vep_offset = ((intptr_t)__ pc()) - start;
 
