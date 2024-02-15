@@ -653,21 +653,21 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """
                 value final class V {
                     final int x = 10;
-                            
+
                     value final class X {
                         final V v;
                         final V v2;
-                            
+
                         X() {
                             this.v = null;
                             this.v2 = null;
                         }
-                            
+
                         X(V v) {
                             this.v = v;
                             this.v2 = v;
                         }
-                            
+
                         V foo(X x) {
                             x = new X(null);  // OK
                             return x.v;
@@ -677,7 +677,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         x = new X(null); // OK
                         return x.v;
                     }
-                            
+
                     class Y {
                         V v;
                         V [] va = { null }; // OK: array initialization
