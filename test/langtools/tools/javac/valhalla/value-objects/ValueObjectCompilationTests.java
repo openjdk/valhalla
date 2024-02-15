@@ -84,10 +84,30 @@ class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     @Test
-    void testAnnotationsConstraints() {
+    void testValueModifierConstraints() {
         assertFail("compiler.err.illegal.combination.of.modifiers",
                 """
                 value @interface IA {}
+                """);
+        assertFail("compiler.err.illegal.combination.of.modifiers",
+                """
+                value interface I {}
+                """);
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                class Test {
+                    value int x;
+                }
+                """);
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                class Test {
+                    value int foo();
+                }
+                """);
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                value enum Enum {}
                 """);
     }
 
@@ -122,14 +142,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testRepeatedModifiers() {
-        String[] sources = new String[] {
-                "static static class StaticTest {}",
-                "native native class NativeTest {}",
-                "value value class ValueTest {}"
-        };
-        for (String source : sources) {
-            assertFail("compiler.err.repeated.modifier", source);
-        }
+        assertFail("compiler.err.repeated.modifier", "value value class ValueTest {}");
     }
 
     @Test
@@ -269,7 +282,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.type.found.req",
                 """
                 interface I {}
-                value interface VI extends I {}
+                interface VI extends I {}
                 class C {}
                 value class VC<T extends VC> {
                     void m(T t) {
@@ -280,7 +293,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.type.found.req",
                 """
                 interface I {}
-                value interface VI extends I {}
+                interface VI extends I {}
                 class C {}
                 value class VC<T extends VC> {
                     void foo(Object o) {
@@ -291,11 +304,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.type.found.req",
                 """
                 interface I {}
-                value interface VI extends I {}
+                abstract value class VI implements I {}
                 class C {}
                 value class VC<T extends VC> {
                     void bar(Object o) {
-                        synchronized ((I & VI)o) {} // error
+                        synchronized ((VI & I)o) {} // error
                     }
                 }
                 """);
@@ -331,16 +344,16 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 final class IC3 extends IC2 {}
                 """
         );
-        assertFail("compiler.err.mod.not.allowed.here",
+        assertFail("compiler.err.illegal.combination.of.modifiers",
                 """
                 abstract sealed value class SC {}
                 non-sealed value class VC extends SC {}
                 """
         );
-        assertFail("compiler.err.mod.not.allowed.here",
+        assertFail("compiler.err.illegal.combination.of.modifiers",
                 """
-                sealed value interface SI {}
-                non-sealed value class VC implements SI {}
+                sealed value class SI {}
+                non-sealed value class VC extends SI {}
                 """
         );
     }
@@ -564,6 +577,20 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+        assertOK(
+                """
+                class UnrelatedThisLeak {
+                    value class V {
+                        int f;
+                        V() {
+                            UnrelatedThisLeak x = UnrelatedThisLeak.this;
+                            f = 10;
+                            x = UnrelatedThisLeak.this;
+                        }
+                    }
+                }
+                """
+        );
     }
 
     @Test
@@ -582,6 +609,85 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 value class V {
                     void selector() {
                         int i = int.some_selector;
+                    }
+                }
+                """
+        );
+    }
+
+    @Test
+    void testAnonymousValue() throws Exception {
+        assertOK(
+                """
+                class Test {
+                    void m() {
+                        Object o = new value Comparable<String>() {
+                            @Override
+                            public int compareTo(String o) {
+                                return 0;
+                            }
+                        };
+                    }
+                }
+                """
+        );
+        assertOK(
+                """
+                class Test {
+                    void m() {
+                        Object o = new value Comparable<>() {
+                            @Override
+                            public int compareTo(Object o) {
+                                return 0;
+                            }
+                        };
+                    }
+                }
+                """
+        );
+    }
+
+    @Test
+    void testNullAssigment() throws Exception {
+        assertOK(
+                """
+                value final class V {
+                    final int x = 10;
+
+                    value final class X {
+                        final V v;
+                        final V v2;
+
+                        X() {
+                            this.v = null;
+                            this.v2 = null;
+                        }
+
+                        X(V v) {
+                            this.v = v;
+                            this.v2 = v;
+                        }
+
+                        V foo(X x) {
+                            x = new X(null);  // OK
+                            return x.v;
+                        }
+                    }
+                    V bar(X x) {
+                        x = new X(null); // OK
+                        return x.v;
+                    }
+
+                    class Y {
+                        V v;
+                        V [] va = { null }; // OK: array initialization
+                        V [] va2 = new V[] { null }; // OK: array initialization
+                        void ooo(X x) {
+                            x = new X(null); // OK
+                            v = null; // legal assignment.
+                            va[0] = null; // legal.
+                            va = new V[] { null }; // legal
+                        }
                     }
                 }
                 """

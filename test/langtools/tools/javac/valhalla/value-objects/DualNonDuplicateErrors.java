@@ -1,12 +1,11 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8267843
- * @summary Check that javac diagnoses `this` being passed around and instance method being invoked before primitive class instance is fully initialized.
+ * @summary Check that javac diagnoses `this` being passed around and instance method being invoked before value class instance is fully initialized.
  * @compile/fail/ref=DualNonDuplicateErrors.out -XDrawDiagnostics -XDenablePrimitiveClasses DualNonDuplicateErrors.java
- * @ignore
  */
 
-public primitive class DualNonDuplicateErrors {
+public value class DualNonDuplicateErrors {
 
     int x;
 
@@ -14,9 +13,10 @@ public primitive class DualNonDuplicateErrors {
         // The call below should trigger two errors - they are not duplicates really.
         // First one is for `this` being passed around ("exposed")
         // Second is for instance method being invoked thereby allowing that method to
-        // observe the primitive class instance in a partially initialized state.
+        // observe the value class instance in a partially initialized state.
         foo(this);
         x = 10;
+        super();
         foo(this); // No error here.
     }
 

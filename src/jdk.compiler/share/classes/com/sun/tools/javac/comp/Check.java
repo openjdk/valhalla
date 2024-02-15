@@ -1354,11 +1354,6 @@ public class Check {
             // concrete value classes are implicitly final
             if ((flags & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS) {
                 implicit |= FINAL;
-                if ((flags & NON_SEALED) != 0) {
-                    // cant declare a final value class non-sealed
-                    log.error(pos,
-                            Errors.ModNotAllowedHere(asFlagSet(NON_SEALED)));
-                }
             }
 
             // TYPs can't be declared synchronized
@@ -1394,10 +1389,6 @@ public class Check {
                                FINAL | NATIVE | SYNCHRONIZED)
                  &&
                  checkDisjoint(pos, flags,
-                        IDENTITY_TYPE,
-                        VALUE_CLASS)
-                 &&
-                 checkDisjoint(pos, flags,
                         INTERFACE,
                         VALUE_CLASS)
                  &&
@@ -1426,12 +1417,15 @@ public class Check {
                  && checkDisjoint(pos, flags,
                                 SEALED,
                                 ANNOTATION)
-                 && checkDisjoint(pos, flags,
-                                IDENTITY_TYPE,
+                && checkDisjoint(pos, flags,
+                                VALUE_CLASS,
                                 ANNOTATION)
                 && checkDisjoint(pos, flags,
                                 VALUE_CLASS,
-                                ANNOTATION) ) {
+                                NON_SEALED)
+                && checkDisjoint(pos, flags,
+                                VALUE_CLASS,
+                                INTERFACE) ) {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;

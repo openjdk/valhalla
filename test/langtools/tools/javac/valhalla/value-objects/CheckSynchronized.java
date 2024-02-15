@@ -1,18 +1,18 @@
 /*
  * @test /nodynamiccopyright/
- * @summary Check behavior of synzhronized key word on primitive class instances and methods.
+ * @summary Check behavior of synzhronized key word on value classes instances and methods.
  * @ignore
- * @compile/fail/ref=CheckSynchronized.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckSynchronized.java
+ * @compile/fail/ref=CheckSynchronized.out -XDrawDiagnostics CheckSynchronized.java
  */
 
-primitive final class CheckSynchronized implements java.io.Serializable {
+value final class CheckSynchronized implements java.io.Serializable {
     synchronized void foo() { // <<-- ERROR, no monitor associated with `this'
     }
     void goo() {
         synchronized(this) {} // <<-- ERROR, no monitor associated with `this'
     }
     synchronized static void zoo(CheckSynchronized cs) { // OK, static method.
-        synchronized(cs) {    // <<-- ERROR, no monitor associated with primitive class instance.
+        synchronized(cs) {    // <<-- ERROR, no monitor associated with value class instance.
         }
 
         CheckSynchronized.ref csr = cs;
@@ -35,7 +35,7 @@ primitive final class CheckSynchronized implements java.io.Serializable {
     }
     static int x = 10;
 
-    primitive record CheckSynchronizedRecord(int x, int y) {
+    value record CheckSynchronizedRecord(int x, int y) {
         synchronized void foo() { // <<-- ERROR, no monitor associated with `this'
         }
         synchronized static void zoo() { // OK, static method.
