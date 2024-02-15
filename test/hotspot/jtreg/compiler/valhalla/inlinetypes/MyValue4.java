@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,18 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.ForceInline;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 // Inline type definition with too many fields to return in registers
-final primitive class MyValue4 extends MyAbstract {
-    final MyValue3 v1;
-    final MyValue3 v2;
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue4 extends MyAbstract {
+    @NullRestricted
+    MyValue3 v1;
+    @NullRestricted
+    MyValue3 v2;
 
     @ForceInline
     public MyValue4(MyValue3 v1, MyValue3 v2) {
@@ -48,7 +56,7 @@ final primitive class MyValue4 extends MyAbstract {
 
     @ForceInline
     public static MyValue4 createDefault() {
-        return MyValue4.default;
+        return new MyValue4(MyValue3.createDefault(), MyValue3.createDefault());
     }
 
     @ForceInline

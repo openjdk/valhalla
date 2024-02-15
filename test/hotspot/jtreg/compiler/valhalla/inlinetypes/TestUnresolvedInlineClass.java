@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,10 @@
 /**
  * @test
  * @bug 8187679
- * @summary The VM should exit gracefully when unable to resolve an inline type argument
+ * @summary The VM should exit gracefully when unable to preload an inline type argument
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses SimpleInlineType.java TestUnresolvedInlineClass.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses TestUnresolvedInlineClass
+ * @compile SimpleInlineType.java TestUnresolvedInlineClass.java
+ * @run main/othervm -XX:+EnableValhalla TestUnresolvedInlineClass
  */
 
 import java.io.File;
@@ -44,20 +44,19 @@ public class TestUnresolvedInlineClass {
 
     static public void main(String[] args) throws Exception {
         if (args.length == 0) {
-            // Delete SimpleInlineType.class to cause a NoClassDefFoundError
+            // Delete SimpleInlineType.class
             File unresolved = new File(TEST_CLASSES, "SimpleInlineType.class");
             if (!unresolved.exists() || !unresolved.delete()) {
                 throw new RuntimeException("Could not delete: " + unresolved);
             }
 
             // Run test in new VM instance
-            String[] arg = {"-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:+InlineTypePassFieldsAsArgs", "TestUnresolvedInlineClass", "run"};
+            String[] arg = {"-XX:+EnableValhalla", "-XX:+InlineTypePassFieldsAsArgs", "TestUnresolvedInlineClass", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
 
-            // Adapter creation for TestUnresolvedInlineClass::test1 should fail with a
-            // ClassNotFoundException because the class for argument 'vt' was not found.
+            // Verify that a warning is printed
             String output = oa.getOutput();
-            oa.shouldContain("java.lang.NoClassDefFoundError: SimpleInlineType");
+            oa.shouldContain("Preloading of class SimpleInlineType during linking of class TestUnresolvedInlineClass (Preload attribute) failed");
         }
     }
 }

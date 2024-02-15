@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,12 @@
 
 package compiler.valhalla.inlinetypes;
 
-public final primitive class MyValueEmpty extends MyAbstract {
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+public value class MyValueEmpty extends MyAbstract {
     public long hash() { return 0; }
 
     public MyValueEmpty copy(MyValueEmpty other) { return other; }

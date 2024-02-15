@@ -121,8 +121,7 @@ jdk_lang = \
 # valhalla lworld tests
 jdk_valhalla = \
     java/lang/invoke \
-    valhalla \
-    java/lang/instrument/valhalla
+    valhalla
 
 
 # All of the java.util package
