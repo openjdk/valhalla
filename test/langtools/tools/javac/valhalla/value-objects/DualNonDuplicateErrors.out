@@ -1,0 +1,3 @@
+DualNonDuplicateErrors.java:17:13: compiler.err.cant.ref.before.ctor.called: this
+DualNonDuplicateErrors.java:17:9: compiler.err.cant.ref.before.ctor.called: foo(DualNonDuplicateErrors)
+2 errors
