@@ -3160,12 +3160,12 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_IDENTITY) != 0) {
-            flags &= ~ACC_IDENTITY;
+        if ((flags & ACC_IDENTITY) != 0 || (majorVersion <= V66.major && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
-        } else if ((flags & INTERFACE) == 0 && allowValueClasses) {
+        } else if ((flags & INTERFACE) == 0 && allowValueClasses && majorVersion > V66.major) {
             flags |= VALUE_CLASS;
         }
+        flags &= ~ACC_IDENTITY; // ACC_IDENTITY and SYNCHRONIZED bits overloaded
         return flags;
     }
 

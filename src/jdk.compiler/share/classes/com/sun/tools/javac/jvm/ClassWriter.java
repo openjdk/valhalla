@@ -1601,9 +1601,11 @@ public class ClassWriter extends ClassFile {
         if (c.owner.kind == MDL) {
             flags = ACC_MODULE;
         } else {
+            long originalFlags = c.flags();
             flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
             flags = flags & ClassFlags;
+            flags |= (originalFlags & IDENTITY_TYPE) != 0 ? ACC_IDENTITY : flags;
         }
 
         if (dumpClassModifiers) {
