@@ -901,8 +901,7 @@ public class TestNullableArrays {
     // non escaping allocations
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     @Test
-    // TODO 8325106 Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
-    //@IR(failOn = {ALLOCA, LOOP, TRAP})
+    @IR(failOn = {ALLOCA, LOOP, TRAP})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -2819,7 +2818,7 @@ public class TestNullableArrays {
         }
     }
 
-    // TODO 8325106 Fails with "matching stack sizes" in Scenario 5 with -XX:TypeProfileLevel=222
+    // TODO 8325632 Fails with "matching stack sizes" in Scenario 5 with -XX:TypeProfileLevel=222
     /*
     // Test that allocation is not replaced by non-dominating allocation
     @ForceInline
