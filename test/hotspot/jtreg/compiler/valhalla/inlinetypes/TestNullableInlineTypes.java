@@ -2806,8 +2806,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-    // TODO 8325106 fix assert in InlineTypeNode::merge_with
-/*
     // Same as test98 but with circularity in class of flattened field
     @Test
     public CircularValue2 test99(CircularValue2 val) {
@@ -2821,7 +2819,7 @@ public class TestNullableInlineTypes {
         CircularValue2 res = test99(val2);
         Asserts.assertEQ(res.val, val1);
     }
-*/
+
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue3 {

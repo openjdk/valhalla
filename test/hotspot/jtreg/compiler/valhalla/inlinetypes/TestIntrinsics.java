@@ -1647,4 +1647,28 @@ public class TestIntrinsics {
     public void test82_verifier() {
         Asserts.assertTrue(test82(), "test82 failed");
     }
+
+    // Test that LibraryCallKit::arraycopy_move_allocation_here works as expected
+    @Test
+    public MyValue1 test83(Object[] src) {
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+        System.arraycopy(src, 0, dst, 0, 10);
+        return dst[0];
+    }
+
+    @Run(test = "test83")
+    public void test83_verifier(RunInfo info) {
+        if (info.isWarmUp()) {
+            MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+            Asserts.assertEQ(test83(src), src[0]);
+        } else {
+            // Trigger deoptimization to verify that re-execution works
+            try {
+                test83(new Integer[10]);
+                throw new RuntimeException("No NullPointerException thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+        }
+    }
 }
