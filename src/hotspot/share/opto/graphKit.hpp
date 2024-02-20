@@ -702,7 +702,7 @@ class GraphKit : public Phase {
 
   // Do a null check on the receiver as it would happen before the call to
   // callee (with all arguments still on the stack).
-  Node* null_check_receiver_before_call(ciMethod* callee, bool replace_value = true) {
+  Node* null_check_receiver_before_call(ciMethod* callee) {
     assert(!callee->is_static(), "must be a virtual method");
     // Callsite signature can be different from actual method being called (i.e _linkTo* sites).
     // Use callsite signature always.

@@ -819,8 +819,10 @@ void DumpWriter::do_compress() {
   }
 }
 
-// Support class with a collection of functions used when dumping the heap
+class DumperClassCacheTable;
+class DumperClassCacheTableEntry;
 
+// Support class with a collection of functions used when dumping the heap
 class DumperSupport : AllStatic {
  public:
 
@@ -835,7 +837,7 @@ class DumperSupport : AllStatic {
   static u4 sig2size(Symbol* sig);
 
   // calculates the total size of the all fields of the given class.
-  static u4 instance_size(InstanceKlass* ik);
+  static u4 instance_size(InstanceKlass* ik, DumperClassCacheTableEntry* class_cache_entry = nullptr);
 
   // dump a jfloat
   static void dump_float(AbstractDumpWriter* writer, jfloat f);
@@ -850,17 +852,17 @@ class DumperSupport : AllStatic {
   // dump the raw values of the instance fields of the given identity or inlined object;
   // for identity objects offset is 0 and 'klass' is o->klass(),
   // for inlined objects offset is the offset in the holder object, 'klass' is inlined object class
-  static void dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, InstanceKlass* klass);
+  static void dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, DumperClassCacheTable* class_cache, DumperClassCacheTableEntry* class_cache_entry);
   // dump the raw values of the instance fields of the given inlined object;
   // dump_instance_fields wrapper for inlined objects
-  static void dump_inlined_object_fields(AbstractDumpWriter* writer, oop o, int offset, InlineKlass* klass);
+  static void dump_inlined_object_fields(AbstractDumpWriter* writer, oop o, int offset, DumperClassCacheTable* class_cache, DumperClassCacheTableEntry* class_cache_entry);
 
   // get the count of the instance fields for a given class
   static u2 get_instance_fields_count(InstanceKlass* ik);
   // dumps the definition of the instance fields for a given class
   static void dump_instance_field_descriptors(AbstractDumpWriter* writer, InstanceKlass* k, uintx *inlined_fields_index = nullptr);
   // creates HPROF_GC_INSTANCE_DUMP record for the given object
-  static void dump_instance(AbstractDumpWriter* writer, oop o);
+  static void dump_instance(AbstractDumpWriter* writer, oop o, DumperClassCacheTable* class_cache);
   // creates HPROF_GC_CLASS_DUMP record for the given instance class
   static void dump_instance_class(AbstractDumpWriter* writer, Klass* k);
   // creates HPROF_GC_CLASS_DUMP record for a given array class
@@ -869,7 +871,7 @@ class DumperSupport : AllStatic {
   // creates HPROF_GC_OBJ_ARRAY_DUMP record for the given object array
   static void dump_object_array(AbstractDumpWriter* writer, objArrayOop array);
   // creates HPROF_GC_PRIM_ARRAY_DUMP record for the given flat array
-  static void dump_flat_array(AbstractDumpWriter* writer, flatArrayOop array);
+  static void dump_flat_array(AbstractDumpWriter* writer, flatArrayOop array, DumperClassCacheTable* class_cache);
   // creates HPROF_GC_PRIM_ARRAY_DUMP record for the given type array
   static void dump_prim_array(AbstractDumpWriter* writer, typeArrayOop array);
   // create HPROF_FRAME record for the given method and bci
@@ -902,6 +904,118 @@ class DumperSupport : AllStatic {
     assert(is_inlined_field(fld), "must be inlined field");
     InstanceKlass* holder_klass = fld.field_holder();
     return InlineKlass::cast(holder_klass->get_inline_type_field_klass(fld.index()));
+  }
+};
+
+// Hash table of klasses to the klass metadata. This should greatly improve the
+// hash dumping performance. This hash table is supposed to be used by a single
+// thread only.
+//
+class DumperClassCacheTableEntry : public CHeapObj<mtServiceability> {
+  friend class DumperClassCacheTable;
+private:
+  GrowableArray<char> _sigs_start;
+  GrowableArray<int> _offsets;
+  GrowableArray<InlineKlass*> _inline_klasses;
+  u4 _instance_size;
+  int _entries;
+
+public:
+  DumperClassCacheTableEntry() : _instance_size(0), _entries(0) {};
+
+  int field_count()             { return _entries; }
+  char sig_start(int field_idx) { return _sigs_start.at(field_idx); }
+  void push_sig_start_inlined() { _sigs_start.push('Q'); }
+  bool is_inlined(int field_idx){ return _sigs_start.at(field_idx) == 'Q'; }
+  InlineKlass* inline_klass(int field_idx) { assert(is_inlined(field_idx), "Not inlined"); return _inline_klasses.at(field_idx); }
+  int offset(int field_idx)     { return _offsets.at(field_idx); }
+  u4 instance_size()            { return _instance_size; }
+};
+
+class DumperClassCacheTable {
+private:
+  // ResourceHashtable SIZE is specified at compile time so we
+  // use 1031 which is the first prime after 1024.
+  static constexpr size_t TABLE_SIZE = 1031;
+
+  // Maintain the cache for N classes. This limits memory footprint
+  // impact, regardless of how many classes we have in the dump.
+  // This also improves look up performance by keeping the statically
+  // sized table from overloading.
+  static constexpr int CACHE_TOP = 256;
+
+  typedef ResourceHashtable<InstanceKlass*, DumperClassCacheTableEntry*,
+                            TABLE_SIZE, AnyObj::C_HEAP, mtServiceability> PtrTable;
+  PtrTable* _ptrs;
+
+  // Single-slot cache to handle the major case of objects of the same
+  // class back-to-back, e.g. from T[].
+  InstanceKlass* _last_ik;
+  DumperClassCacheTableEntry* _last_entry;
+
+  void unlink_all(PtrTable* table) {
+    class CleanupEntry: StackObj {
+    public:
+      bool do_entry(InstanceKlass*& key, DumperClassCacheTableEntry*& entry) {
+        delete entry;
+        return true;
+      }
+    } cleanup;
+    table->unlink(&cleanup);
+  }
+
+public:
+  DumperClassCacheTableEntry* lookup_or_create(InstanceKlass* ik) {
+    if (_last_ik == ik) {
+      return _last_entry;
+    }
+
+    DumperClassCacheTableEntry* entry;
+    DumperClassCacheTableEntry** from_cache = _ptrs->get(ik);
+    if (from_cache == nullptr) {
+      entry = new DumperClassCacheTableEntry();
+      for (HierarchicalFieldStream<JavaFieldStream> fld(ik); !fld.done(); fld.next()) {
+        if (!fld.access_flags().is_static()) {
+          InlineKlass* inlineKlass = nullptr;
+          if (DumperSupport::is_inlined_field(fld.field_descriptor())) {
+            inlineKlass = DumperSupport::get_inlined_field_klass(fld.field_descriptor());
+            entry->push_sig_start_inlined();
+            entry->_instance_size += DumperSupport::instance_size(inlineKlass);
+          } else {
+            Symbol* sig = fld.signature();
+            entry->_sigs_start.push(sig->char_at(0));
+            entry->_instance_size += DumperSupport::sig2size(sig);
+          }
+          entry->_inline_klasses.push(inlineKlass);
+          entry->_offsets.push(fld.offset());
+          entry->_entries++;
+        }
+      }
+
+      if (_ptrs->number_of_entries() >= CACHE_TOP) {
+        // We do not track the individual hit rates for table entries.
+        // Purge the entire table, and let the cache catch up with new
+        // distribution.
+        unlink_all(_ptrs);
+      }
+
+      _ptrs->put(ik, entry);
+    } else {
+      entry = *from_cache;
+    }
+
+    // Remember for single-slot cache.
+    _last_ik = ik;
+    _last_entry = entry;
+
+    return entry;
+  }
+
+  DumperClassCacheTable() : _ptrs(new (mtServiceability) PtrTable), _last_ik(nullptr), _last_entry(nullptr) {}
+
+  ~DumperClassCacheTable() {
+    unlink_all(_ptrs);
+    delete _ptrs;
   }
 };
 
@@ -1053,19 +1167,22 @@ void DumperSupport::dump_field_value(AbstractDumpWriter* writer, char type, oop 
 }
 
 // calculates the total size of the all fields of the given class.
-u4 DumperSupport::instance_size(InstanceKlass *ik) {
-  u4 size = 0;
-
-  for (HierarchicalFieldStream<JavaFieldStream> fld(ik); !fld.done(); fld.next()) {
-    if (!fld.access_flags().is_static()) {
-      if (is_inlined_field(fld.field_descriptor())) {
-        size += instance_size(get_inlined_field_klass(fld.field_descriptor()));
-      } else {
-        size += sig2size(fld.signature());
+u4 DumperSupport::instance_size(InstanceKlass* ik, DumperClassCacheTableEntry* class_cache_entry) {
+  if (class_cache_entry != nullptr) {
+    return class_cache_entry->instance_size();
+  } else {
+    u4 size = 0;
+    for (HierarchicalFieldStream<JavaFieldStream> fld(ik); !fld.done(); fld.next()) {
+      if (!fld.access_flags().is_static()) {
+        if (is_inlined_field(fld.field_descriptor())) {
+          size += instance_size(get_inlined_field_klass(fld.field_descriptor()));
+        } else {
+          size += sig2size(fld.signature());
+        }
       }
     }
+    return size;
   }
-  return size;
 }
 
 u4 DumperSupport::get_static_fields_size(InstanceKlass* ik, u2& field_count) {
@@ -1143,25 +1260,23 @@ void DumperSupport::dump_static_fields(AbstractDumpWriter* writer, Klass* k) {
 // dump the raw values of the instance fields of the given identity or inlined object;
 // for identity objects offset is 0 and 'klass' is o->klass(),
 // for inlined objects offset is the offset in the holder object, 'klass' is inlined object class.
-void DumperSupport::dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, InstanceKlass *ik) {
-  for (HierarchicalFieldStream<JavaFieldStream> fld(ik); !fld.done(); fld.next()) {
-    if (!fld.access_flags().is_static()) {
-      if (is_inlined_field(fld.field_descriptor())) {
-        InlineKlass* field_klass = get_inlined_field_klass(fld.field_descriptor());
-        // the field is inlined, so all its fields are stored without headers.
-        int fields_offset = offset + fld.offset() - field_klass->first_field_offset();
-        dump_inlined_object_fields(writer, o, offset + fld.offset(), field_klass);
-      } else {
-        Symbol* sig = fld.signature();
-        dump_field_value(writer, sig->char_at(0), o, offset + fld.offset());
-      }
+void DumperSupport::dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, DumperClassCacheTable* class_cache, DumperClassCacheTableEntry* class_cache_entry) {
+  assert(class_cache_entry != nullptr, "Pre-condition: must be provided");
+  for (int idx = 0; idx < class_cache_entry->field_count(); idx++) {
+    if (class_cache_entry->is_inlined(idx)) {
+      InlineKlass* field_klass = class_cache_entry->inline_klass(idx);
+      int fields_offset = offset + (class_cache_entry->offset(idx) - field_klass->first_field_offset());
+      DumperClassCacheTableEntry* inline_class_cache_entry = class_cache->lookup_or_create(field_klass);
+      dump_inlined_object_fields(writer, o, fields_offset, class_cache, inline_class_cache_entry);
+    } else {
+      dump_field_value(writer, class_cache_entry->sig_start(idx), o, class_cache_entry->offset(idx));
     }
   }
 }
 
-void DumperSupport::dump_inlined_object_fields(AbstractDumpWriter* writer, oop o, int offset, InlineKlass* klass) {
+void DumperSupport::dump_inlined_object_fields(AbstractDumpWriter* writer, oop o, int offset, DumperClassCacheTable* class_cache, DumperClassCacheTableEntry* class_cache_entry) {
   // the object is inlined, so all its fields are stored without headers.
-  dump_instance_fields(writer, o, offset - klass->first_field_offset(), klass);
+  dump_instance_fields(writer, o, offset, class_cache, class_cache_entry);
 }
 
 // gets the count of the instance fields for a given class
@@ -1227,9 +1342,12 @@ void DumperSupport::dump_instance_field_descriptors(AbstractDumpWriter* writer, 
 }
 
 // creates HPROF_GC_INSTANCE_DUMP record for the given object
-void DumperSupport::dump_instance(AbstractDumpWriter* writer, oop o) {
+void DumperSupport::dump_instance(AbstractDumpWriter* writer, oop o, DumperClassCacheTable* class_cache) {
   InstanceKlass* ik = InstanceKlass::cast(o->klass());
-  u4 is = instance_size(ik);
+
+  DumperClassCacheTableEntry* cache_entry = class_cache->lookup_or_create(ik);
+
+  u4 is = instance_size(ik, cache_entry);
   u4 size = 1 + sizeof(address) + 4 + sizeof(address) + 4 + is;
 
   writer->start_sub_record(HPROF_GC_INSTANCE_DUMP, size);
@@ -1243,7 +1361,7 @@ void DumperSupport::dump_instance(AbstractDumpWriter* writer, oop o) {
   writer->write_u4(is);
 
   // field values
-  dump_instance_fields(writer, o, 0, ik);
+  dump_instance_fields(writer, o, 0, class_cache, cache_entry);
 
   writer->end_sub_record();
 }
@@ -1404,7 +1522,7 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop ar
 }
 
 // creates HPROF_GC_PRIM_ARRAY_DUMP record for the given flat array
-void DumperSupport::dump_flat_array(AbstractDumpWriter* writer, flatArrayOop array) {
+void DumperSupport::dump_flat_array(AbstractDumpWriter* writer, flatArrayOop array, DumperClassCacheTable* class_cache) {
   FlatArrayKlass* array_klass = FlatArrayKlass::cast(array->klass());
   InlineKlass* element_klass = array_klass->element_klass();
   int element_size = instance_size(element_klass);
@@ -1433,7 +1551,8 @@ void DumperSupport::dump_flat_array(AbstractDumpWriter* writer, flatArrayOop arr
     // need offset in the holder to read inlined object. calculate it from flatArrayOop::value_at_addr()
     int offset = (int)((address)array->value_at_addr(index, array_klass->layout_helper())
                   - cast_from_oop<address>(array));
-    dump_inlined_object_fields(writer, array, offset, element_klass);
+    DumperClassCacheTableEntry* class_cache_entry = class_cache->lookup_or_create(element_klass);
+    dump_inlined_object_fields(writer, array, offset, class_cache, class_cache_entry);
   }
 
   // TODO: write padding bytes for T_SHORT/T_INT/T_LONG
@@ -2248,6 +2367,8 @@ class HeapObjectDumper : public ObjectClosure {
   AbstractDumpWriter* _writer;
   AbstractDumpWriter* writer()                  { return _writer; }
 
+  DumperClassCacheTable _class_cache;
+
  public:
   HeapObjectDumper(AbstractDumpWriter* writer) {
     _writer = writer;
@@ -2272,12 +2393,12 @@ void HeapObjectDumper::do_object(oop o) {
 
   if (o->is_instance()) {
     // create a HPROF_GC_INSTANCE record for each object
-    DumperSupport::dump_instance(writer(), o);
+    DumperSupport::dump_instance(writer(), o, &_class_cache);
   } else if (o->is_objArray()) {
     // create a HPROF_GC_OBJ_ARRAY_DUMP record for each object array
     DumperSupport::dump_object_array(writer(), objArrayOop(o));
   } else if (o->is_flatArray()) {
-    DumperSupport::dump_flat_array(writer(), flatArrayOop(o));
+    DumperSupport::dump_flat_array(writer(), flatArrayOop(o), &_class_cache);
   } else if (o->is_typeArray()) {
     // create a HPROF_GC_PRIM_ARRAY_DUMP record for each type array
     DumperSupport::dump_prim_array(writer(), typeArrayOop(o));
@@ -2842,6 +2963,7 @@ void VM_HeapDumper::work(uint worker_id) {
   if (!is_parallel_dump()) {
     assert(is_vm_dumper(worker_id), "must be");
     // == Serial dump
+    ResourceMark rm;
     TraceTime timer("Dump heap objects", TRACETIME_LOG(Info, heapdump));
     HeapObjectDumper obj_dumper(writer());
     Universe::heap()->object_iterate(&obj_dumper);
