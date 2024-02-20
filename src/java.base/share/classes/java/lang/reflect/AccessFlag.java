@@ -206,7 +206,7 @@ public enum AccessFlag {
      * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
      * @jvms 4.1 -B. Class access and property modifiers
      */
-    IDENTITY(Modifier.IDENTITY, true,
+    IDENTITY(Modifier.IDENTITY, false,
             ValhallaFeatures.isEnabled() ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET,
             new Function<ClassFileFormatVersion, Set<Location>>() {
                 @Override
