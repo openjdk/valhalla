@@ -26,7 +26,7 @@ package compiler.valhalla.inlinetypes;
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 import jdk.experimental.bytecode.TypeTag;
-import test.java.lang.invoke.lib.InstructionHelper;
+import test.java.lang.invoke.lib.OldInstructionHelper;
 
 import java.util.Objects;
 
@@ -50,7 +50,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestNullableInlineTypes.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestNullableInlineTypes
@@ -2576,7 +2576,7 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test92(), testValue1);
     }
 
-    private static final MethodHandle refCheckCast = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle refCheckCast = OldInstructionHelper.loadCode(MethodHandles.lookup(),
         "refCheckCast",
         MethodType.methodType(MyValue2.class, TestNullableInlineTypes.class, MyValue1.class),
         CODE -> {
@@ -2806,8 +2806,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-    // TODO 8325106 fix assert in InlineTypeNode::merge_with
-/*
     // Same as test98 but with circularity in class of flattened field
     @Test
     public CircularValue2 test99(CircularValue2 val) {
@@ -2821,7 +2819,7 @@ public class TestNullableInlineTypes {
         CircularValue2 res = test99(val2);
         Asserts.assertEQ(res.val, val1);
     }
-*/
+
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue3 {
