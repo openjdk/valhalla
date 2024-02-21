@@ -1211,11 +1211,6 @@ public class ClassfileInspector {
             }
             default -> {}
         }
-
-        @Override
-        public Void visitPreload(Preload_attribute attr, T p) {
-            return null;
-        }
     }
 
     private void paramMatcher(Attribute<?> attr, ExpectedParameterAnnotation expected) {

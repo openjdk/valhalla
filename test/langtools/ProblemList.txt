@@ -78,8 +78,6 @@ tools/javac/varargs/warning/Warn5.java                                          
 
 # javac Valhalla
 tools/javac/Diagnostics/8043251/T8043251.java                                   8301662    generic-all
-tools/javac/annotations/SyntheticParameters.java                                8317415    generic-all
-tools/javac/annotations/typeAnnotations/classfile/SyntheticParameters.java      8317415    generic-all
 
 tools/javac/valhalla/primitive-classes/ArrayCreationWithQuestion.java 8323785    generic-all
 tools/javac/valhalla/primitive-classes/BoxValCastTest.java            8323785    generic-all
@@ -90,7 +88,6 @@ tools/javac/valhalla/primitive-classes/UnifiedPrimitiveClassBytecodeTest.java 83
 tools/javac/valhalla/primitive-classes/ValueCreationTest.java         8323785    generic-all
 tools/javac/valhalla/value-objects/ValueCreationTest.java             8323786    generic-all
 tools/javac/valhalla/primitive-classes/PrimitiveClassesCompilationTests.java    8325322    generic-all
-tools/javac/valhalla/value-objects/ValueObjectCompilationTests.java             8325322    generic-all
 
 ###########################################################################
 #
@@ -100,7 +97,6 @@ tools/javap/output/RepeatingTypeAnnotations.java                                
 
 # Valhalla
 tools/javap/8006334/JavapTaskCtorFailWithNPE.java                               8323789    generic-all
-tools/javap/TestSuperclass.java                                                 8323790    generic-all
 ###########################################################################
 #
 # jdeps

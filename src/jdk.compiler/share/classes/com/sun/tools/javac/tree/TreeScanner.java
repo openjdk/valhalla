@@ -155,11 +155,6 @@ public class TreeScanner extends Visitor {
         scan(tree.body);
     }
 
-    public void visitWithField(JCWithField tree) {
-        scan(tree.field);
-        scan(tree.value);
-    }
-
     public void visitForLoop(JCForLoop tree) {
         scan(tree.init);
         scan(tree.cond);
@@ -186,10 +181,6 @@ public class TreeScanner extends Visitor {
         scan(tree.labels);
         scan(tree.guard);
         scan(tree.stats);
-    }
-
-    public void visitDefaultValue(JCDefaultValue tree) {
-        scan(tree.clazz);
     }
 
     public void visitSwitchExpression(JCSwitchExpression tree) {
