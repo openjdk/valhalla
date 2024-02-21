@@ -3311,8 +3311,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
-        counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR})
+        // TODO 8326401
+        // counts = {PREDICATE_TRAP, "= 1"})
     public long test113_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
