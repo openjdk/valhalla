@@ -1421,7 +1421,7 @@ void CallRuntimeNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs
     SharedRuntime::java_return_convention(sig_bt, parm_regs, argcnt);
     return;
   }
-  SharedRuntime::c_calling_convention(sig_bt, parm_regs, /*regs2=*/nullptr, argcnt);
+  SharedRuntime::c_calling_convention(sig_bt, parm_regs, argcnt);
 }
 
 void CallLeafVectorNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
