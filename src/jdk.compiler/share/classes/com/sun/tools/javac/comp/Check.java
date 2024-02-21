@@ -4587,8 +4587,7 @@ public class Check {
             if (typeArguments.size() == 2) {
                 resultType = typeArguments.head;
             } else {
-                log.error(DiagnosticFlag.RESOLVE_ERROR, processor.pos,
-                        Errors.ProcessorTypeCannotBeARawType(processorType.tsym));
+                resultType = syms.objectType;
             }
         } else {
             log.error(DiagnosticFlag.RESOLVE_ERROR, processor.pos,
