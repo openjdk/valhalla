@@ -1124,6 +1124,7 @@ bool LibraryCallKit::inline_countPositives() {
   Node* ba_start = array_element_address(ba, offset, T_BYTE);
   Node* result = new CountPositivesNode(control(), memory(TypeAryPtr::BYTES), ba_start, len);
   set_result(_gvn.transform(result));
+  clear_upper_avx();
   return true;
 }
 
@@ -1378,6 +1379,7 @@ bool LibraryCallKit::inline_string_indexOfChar(StrIntrinsicNode::ArgEnc ae) {
   set_control(_gvn.transform(region));
   record_for_igvn(region);
   set_result(_gvn.transform(phi));
+  clear_upper_avx();
 
   return true;
 }

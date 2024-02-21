@@ -460,7 +460,7 @@ bool LateInlineMHCallGenerator::do_late_inline_check(Compile* C, JVMState* jvms)
       assert(cg != nullptr, "inline call generator expected");
     }
 
-    assert(!cg->is_late_inline() || cg->is_mh_late_inline() || AlwaysIncrementalInline, "we're doing late inlining");
+    assert(!cg->is_late_inline() || cg->is_mh_late_inline() || AlwaysIncrementalInline || StressIncrementalInlining, "we're doing late inlining");
     _inline_cg = cg;
     C->dec_number_of_mh_late_inlines();
     return true;
@@ -582,7 +582,7 @@ bool LateInlineVirtualCallGenerator::do_late_inline_check(Compile* C, JVMState* 
                                         true /*allow_intrinsics*/);
 
   if (cg != nullptr) {
-    assert(!cg->is_late_inline() || cg->is_mh_late_inline() || AlwaysIncrementalInline, "we're doing late inlining");
+    assert(!cg->is_late_inline() || cg->is_mh_late_inline() || AlwaysIncrementalInline || StressIncrementalInlining, "we're doing late inlining");
     _inline_cg = cg;
     return true;
   } else {
@@ -1139,8 +1139,9 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   bool input_not_const;
   CallGenerator* cg = CallGenerator::for_method_handle_inline(jvms, caller, callee, allow_inline, input_not_const);
   Compile* C = Compile::current();
+  bool should_delay = C->should_delay_inlining();
   if (cg != nullptr) {
-    if (AlwaysIncrementalInline) {
+    if (should_delay) {
       return CallGenerator::for_late_inline(callee, cg);
     } else {
       return cg;
@@ -1151,7 +1152,7 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   int call_site_count = caller->scale_count(profile.count());
 
   if (IncrementalInlineMH && (AlwaysIncrementalInline ||
-                            (call_site_count > 0 && (input_not_const || !C->inlining_incrementally() || C->over_inlining_cutoff())))) {
+                            (call_site_count > 0 && (should_delay || input_not_const || !C->inlining_incrementally() || C->over_inlining_cutoff())))) {
     return CallGenerator::for_mh_late_inline(caller, callee, input_not_const);
   } else {
     // Out-of-line call.
