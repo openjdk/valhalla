@@ -173,7 +173,6 @@ int ciBytecodeStream::get_klass_index() const {
   case Bytecodes::_anewarray:
   case Bytecodes::_multianewarray:
   case Bytecodes::_new:
-  case Bytecodes::_aconst_init:
   case Bytecodes::_newarray:
     return get_index_u2();
   default:
@@ -206,16 +205,6 @@ ciKlass* ciBytecodeStream::get_klass() {
     klass = CURRENT_ENV->get_unloaded_klass(_holder, klass->name());
   }
   return klass;
-}
-
-// ------------------------------------------------------------------
-// ciBytecodeStream::is_inline_klass
-//
-// Check if the klass is an inline klass.
-bool ciBytecodeStream::has_Q_signature() const {
-  VM_ENTRY_MARK;
-  constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
-  return CURRENT_ENV->has_Q_signature(cpool, get_klass_index());
 }
 
 // ------------------------------------------------------------------
@@ -308,8 +297,7 @@ int ciBytecodeStream::get_field_index() {
   assert(cur_bc() == Bytecodes::_getfield ||
          cur_bc() == Bytecodes::_putfield ||
          cur_bc() == Bytecodes::_getstatic ||
-         cur_bc() == Bytecodes::_putstatic ||
-         cur_bc() == Bytecodes::_withfield, "wrong bc");
+         cur_bc() == Bytecodes::_putstatic, "wrong bc");
   return get_index_u2();
 }
 

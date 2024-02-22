@@ -1082,7 +1082,6 @@ class CompileReplay : public StackObj {
       }
       case T_ARRAY:
       case T_OBJECT:
-      case T_PRIMITIVE_OBJECT:
         if (!fd->is_null_free_inline_type()) {
           JavaThread* THREAD = JavaThread::current();
           bool res = _replay->process_staticfield_reference(string_value, _vt, fd, THREAD);
@@ -1149,8 +1148,7 @@ class CompileReplay : public StackObj {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           parse_klass(CHECK_(true)); // eat up the array class name
           value = oopFactory::new_objArray(kelem, length, CHECK_(true));
-        } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
-                   field_signature[1] == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
+        } else if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           parse_klass(CHECK_(true)); // eat up the array class name
           value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
@@ -1239,7 +1237,7 @@ class CompileReplay : public StackObj {
       const char* string_value = parse_escaped_string();
       double value = atof(string_value);
       java_mirror->double_field_put(fd.offset(), value);
-    } else if (field_signature[0] == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
+    } else if (fd.is_null_free_inline_type()) {
       Klass* kelem = resolve_klass(field_signature, CHECK);
       InlineKlass* vk = InlineKlass::cast(kelem);
       oop value = vk->allocate_instance(CHECK);

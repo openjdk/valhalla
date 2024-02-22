@@ -690,7 +690,6 @@ protected:
   bool is_interface() const             { return _access_flags.is_interface(); }
   bool is_abstract() const              { return _access_flags.is_abstract(); }
   bool is_synthetic() const             { return _access_flags.is_synthetic(); }
-  bool is_value_class() const           { return _access_flags.is_value_class(); }
   bool is_identity_class() const        { return _access_flags.is_identity_class(); }
   void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
   bool has_finalizer() const            { return _access_flags.has_finalizer(); }

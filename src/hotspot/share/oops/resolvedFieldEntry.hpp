@@ -97,7 +97,6 @@ public:
       return (get_code() == code);
     case Bytecodes::_putstatic:
     case Bytecodes::_putfield:
-    case Bytecodes::_withfield:
       return (put_code() == code);
     default:
       ShouldNotReachHere();

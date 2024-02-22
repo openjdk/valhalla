@@ -28,17 +28,18 @@
  * @run driver ValuePreloadTest
  */
 
-import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.process.OutputAnalyzer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 public class ValuePreloadTest {
 
     static ProcessBuilder exec(String... args) throws Exception {
         List<String> argsList = new ArrayList<>();
-        Collections.addAll(argsList, "-XX:+EnableValhalla", "-XX:-EnablePrimitiveClasses");
+        Collections.addAll(argsList, "-XX:+EnableValhalla");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
         Collections.addAll(argsList, args);
         return ProcessTools.createTestJavaProcessBuilder(argsList);

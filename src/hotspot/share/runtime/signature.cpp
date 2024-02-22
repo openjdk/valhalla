@@ -249,7 +249,6 @@ void Fingerprinter::do_type_calling_convention(BasicType type) {
   case T_OBJECT:
   case T_ARRAY:
   case T_ADDRESS:
-  case T_PRIMITIVE_OBJECT:
     if (_int_args < Argument::n_int_register_parameters_j) {
       _int_args++;
     } else {
@@ -336,7 +335,6 @@ inline int SignatureStream::scan_type(BasicType type) {
   const u1* tem;
   switch (type) {
   case T_OBJECT:
-  case T_PRIMITIVE_OBJECT:
     tem = (const u1*) memchr(&base[end], JVM_SIGNATURE_ENDCLASS, limit - end);
     return (tem == nullptr ? limit : pointer_delta_as_int(tem + 1, base));
 
@@ -421,7 +419,6 @@ bool Signature::is_valid_array_signature(const Symbol* sig) {
     // If it is an array, the type is the last character
     return (i + 1 == len);
   case JVM_SIGNATURE_CLASS:
-  case JVM_SIGNATURE_PRIMITIVE_OBJECT:
     // If it is an object, the last character must be a ';'
     return sig->char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
   }
@@ -557,8 +554,7 @@ oop SignatureStream::as_java_mirror(Handle class_loader, Handle protection_domai
   if (klass == nullptr) {
     return nullptr;
   }
-  return has_Q_descriptor() ? InlineKlass::cast(klass)->val_mirror()
-                            : klass->java_mirror();
+  return klass->java_mirror();
 }
 
 void SignatureStream::skip_to_return_type() {
@@ -668,7 +664,6 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
     case JVM_SIGNATURE_BOOLEAN:
     case JVM_SIGNATURE_VOID:
       return index + 1;
-    case JVM_SIGNATURE_PRIMITIVE_OBJECT: // fall through
     case JVM_SIGNATURE_CLASS:
       for (index = index + 1; index < limit; ++index) {
         char c = type[index];

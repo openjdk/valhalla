@@ -87,8 +87,9 @@ value class TestValue1 {
     final String name;
 
     public TestValue1() {
-        i = (int)System.nanoTime();
-        name = Integer.valueOf(i).toString();
+        int now =  (int)System.nanoTime();
+        i = now;
+        name = Integer.valueOf(now).toString();
     }
 
     public TestValue1(int i) {
@@ -127,15 +128,18 @@ value class TestValue2 {
     final String s;
 
     public TestValue2() {
-        l = System.nanoTime();
-        s = Long.valueOf(l).toString();
-        d = Double.parseDouble(s);
+        long now = System.nanoTime();
+        l = now;
+        String stringNow = Long.valueOf(now).toString();
+        s = stringNow;
+        d = Double.parseDouble(stringNow);
     }
 
     public TestValue2(long l) {
         this.l = l;
-        s = Long.valueOf(l).toString();
-        d = Double.parseDouble(s);
+        String txt = Long.valueOf(l).toString();
+        s = txt;
+        d = Double.parseDouble(txt);
     }
 
     public static TestValue2 getInstance() {

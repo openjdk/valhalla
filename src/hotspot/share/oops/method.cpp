@@ -931,11 +931,6 @@ bool Method::is_object_constructor() const {
   return name() == vmSymbols::object_initializer_name();
 }
 
-// A method named <vnew> is a factory for an inline class.
-bool Method::is_static_vnew_factory() const {
-  return name() == vmSymbols::inline_factory_name();
-}
-
 bool Method::needs_clinit_barrier() const {
   return is_static() && !method_holder()->is_initialized();
 }

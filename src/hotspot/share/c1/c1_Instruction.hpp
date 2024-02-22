@@ -1364,18 +1364,13 @@ LEAF(NewInstance, StateSplit)
 
 LEAF(NewInlineTypeInstance, StateSplit)
   ciInlineKlass* _klass;
-  bool _in_larval_state;
-  int _first_local_index;
-  int _on_stack_count;
+
 public:
 
   // Default creation, always allocated for now
   NewInlineTypeInstance(ciInlineKlass* klass, ValueStack* state_before)
   : StateSplit(instanceType, state_before)
    , _klass(klass)
-   , _in_larval_state(true)
-   , _first_local_index(-1)
-   , _on_stack_count(1)
   {
     set_null_free(true);
   }
@@ -1391,24 +1386,6 @@ public:
 
   // Only done in LIR Generator -> map everything to object
   void set_to_object_type() { set_type(instanceType); }
-
-  void set_local_index(int index) {
-    decrement_on_stack_count();
-    if (_first_local_index != index) {
-      if (_first_local_index == -1) {
-        _first_local_index = index;
-      } else {
-        set_not_larva_anymore();
-      }
-    }
-  }
-
-  bool in_larval_state() const { return _in_larval_state; }
-  void set_not_larva_anymore() { _in_larval_state = false; }
-
-  int on_stack_count() const { return _on_stack_count; }
-  void increment_on_stack_count() { _on_stack_count++; }
-  void decrement_on_stack_count() { _on_stack_count--; }
 };
 
 BASE(NewArray, StateSplit)

@@ -633,11 +633,11 @@ void FieldLayoutBuilder::regular_field_sorting(TRAPS) {
       break;
     case T_OBJECT:
     case T_ARRAY:
-    case T_PRIMITIVE_OBJECT:  // T_PRIMITIVE_OBJECT is going to me removed, inline types are detected below
       if (!fieldinfo.field_flags().is_null_free_inline_type()) {
         if (group != _static_fields) _nonstatic_oopmap_count++;
         group->add_oop_field(idx);
       } else {
+        assert(type != T_ARRAY, "null free ptr to array not supported");
         _has_inline_type_fields = true;
         if (group == _static_fields) {
           // static fields are never flat
@@ -649,9 +649,7 @@ void FieldLayoutBuilder::regular_field_sorting(TRAPS) {
           Klass* klass =  _inline_type_field_klasses->at(idx);
           assert(klass != nullptr, "Sanity check");
           InlineKlass* vk = InlineKlass::cast(klass);
-          if (!vk->is_implicitly_constructible()) {
-            THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), "Null restricted fields with a non-implicitly constructible class are not supported");
-          }
+          assert(vk->is_implicitly_constructible(), "must be, should have been checked in post_process_parsed_stream()");
           _has_flattening_information = true;
           // Flattening decision to be taken here
           // This code assumes all verification already have been performed
@@ -736,7 +734,6 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
       break;
     case T_OBJECT:
     case T_ARRAY:
-    case T_PRIMITIVE_OBJECT: // T_PRIMITIVE_OBJECT is going to be removed, online types are detected below
       if (!fieldinfo.field_flags().is_null_free_inline_type()) {
         if (group != _static_fields) {
           _nonstatic_oopmap_count++;
@@ -744,6 +741,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
         }
         group->add_oop_field(fieldinfo.index());
       } else {
+        assert(type != T_ARRAY, "null free ptr to array not supported");
         _has_inline_type_fields = true;
         if (group == _static_fields) {
           // static fields are never flat
@@ -755,9 +753,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
           Klass* klass =  _inline_type_field_klasses->at(fieldinfo.index());
           assert(klass != nullptr, "Sanity check");
           InlineKlass* vk = InlineKlass::cast(klass);
-          if (!vk->is_implicitly_constructible()) {
-            THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), "Null restricted fields with a non-implicitly constructible class are not supported");
-          }
+          assert(vk->is_implicitly_constructible(), "must be, should have been checked in post_process_parsed_stream()");
           // Flattening decision to be taken here
           // This code assumes all verifications have already been performed
           // (field's type has been loaded and it is an inline klass)

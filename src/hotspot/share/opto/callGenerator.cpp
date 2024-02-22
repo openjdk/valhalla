@@ -798,7 +798,8 @@ void CallGenerator::do_late_inline_helper() {
     InlineTypeNode* vt = result->isa_InlineType();
     if (vt != nullptr) {
       if (call->tf()->returns_inline_type_as_fields()) {
-        vt->replace_call_results(&kit, call, C, inline_method->signature()->returns_null_free_inline_type());
+        // vt->replace_call_results(&kit, call, C, inline_method->signature()->returns_null_free_inline_type());
+        vt->replace_call_results(&kit, call, C, false); // JDK-8325660: revisit this code after removal of Q-descriptors
       } else if (vt->is_InlineType()) {
         // Result might still be allocated (for example, if it has been stored to a non-flat field)
         if (!vt->is_allocated(&kit.gvn())) {
@@ -807,7 +808,8 @@ void CallGenerator::do_late_inline_helper() {
 
           // Check if result is null
           Node* null_ctl = kit.top();
-          if (!inline_method->signature()->returns_null_free_inline_type()) {
+          // if (!inline_method->signature()->returns_null_free_inline_type()) {
+          if (!false) { // JDK-8325660: revisit this code after removal of Q-descriptors
             kit.null_check_common(vt->get_is_init(), T_INT, false, &null_ctl);
           }
           region->init_req(1, null_ctl);

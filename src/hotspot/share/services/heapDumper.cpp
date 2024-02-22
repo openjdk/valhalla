@@ -1030,7 +1030,6 @@ void DumperSupport:: write_header(AbstractDumpWriter* writer, hprofTag tag, u4 l
 hprofTag DumperSupport::sig2tag(Symbol* sig) {
   switch (sig->char_at(0)) {
     case JVM_SIGNATURE_CLASS    : return HPROF_NORMAL_OBJECT;
-    case JVM_SIGNATURE_PRIMITIVE_OBJECT: return HPROF_NORMAL_OBJECT; // not inlined Q-object, i.e. identity object.
     case JVM_SIGNATURE_ARRAY    : return HPROF_NORMAL_OBJECT;
     case JVM_SIGNATURE_BYTE     : return HPROF_BYTE;
     case JVM_SIGNATURE_CHAR     : return HPROF_CHAR;
@@ -1061,7 +1060,6 @@ hprofTag DumperSupport::type2tag(BasicType type) {
 u4 DumperSupport::sig2size(Symbol* sig) {
   switch (sig->char_at(0)) {
     case JVM_SIGNATURE_CLASS:
-    case JVM_SIGNATURE_PRIMITIVE_OBJECT:
     case JVM_SIGNATURE_ARRAY: return sizeof(address);
     case JVM_SIGNATURE_BOOLEAN:
     case JVM_SIGNATURE_BYTE: return 1;
@@ -1105,7 +1103,6 @@ void DumperSupport::dump_double(AbstractDumpWriter* writer, jdouble d) {
 void DumperSupport::dump_field_value(AbstractDumpWriter* writer, char type, oop obj, int offset) {
   switch (type) {
     case JVM_SIGNATURE_CLASS :
-    case JVM_SIGNATURE_PRIMITIVE_OBJECT: // not inlined Q-object, i.e. identity object.
     case JVM_SIGNATURE_ARRAY : {
       oop o = obj->obj_field_access<ON_UNKNOWN_OOP_REF | AS_NO_KEEPALIVE>(offset);
       if (o != nullptr && log_is_enabled(Debug, cds, heap) && mask_dormant_archived_object(o) == nullptr) {
@@ -1481,8 +1478,11 @@ int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayO
   BasicType type = ArrayKlass::cast(array->klass())->element_type();
   assert((type >= T_BOOLEAN && type <= T_OBJECT) || type == T_PRIMITIVE_OBJECT, "invalid array element type");
   int type_size;
-  if (type == T_OBJECT || type == T_PRIMITIVE_OBJECT) {  // TODO: FIXME
+  if (type == T_OBJECT) {
     type_size = sizeof(address);
+  } else if (type == T_PRIMITIVE_OBJECT) {
+      // TODO: FIXME
+      fatal("Not supported yet"); // FIXME: JDK-8325678
   } else {
     type_size = type2aelembytes(type);
   }

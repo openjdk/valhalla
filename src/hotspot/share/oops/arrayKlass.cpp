@@ -107,7 +107,7 @@ ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind) :
   log_array_class_load(this);
 }
 
-Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, bool qdesc, TRAPS) {
+Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
   ResourceMark rm(THREAD);
   Symbol* name = nullptr;
   char *name_str = element_klass->name()->as_C_string();
@@ -116,11 +116,7 @@ Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, bool q
   int idx = 0;
   new_str[idx++] = JVM_SIGNATURE_ARRAY;
   if (element_klass->is_instance_klass()) { // it could be an array or simple type
-    if (qdesc) {
-      new_str[idx++] = JVM_SIGNATURE_PRIMITIVE_OBJECT;
-    } else {
-      new_str[idx++] = JVM_SIGNATURE_CLASS;
-    }
+    new_str[idx++] = JVM_SIGNATURE_CLASS;
   }
   memcpy(&new_str[idx], name_str, len * sizeof(char));
   idx += len;
@@ -166,7 +162,7 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
         // Create multi-dim klass object and link them together
         ObjArrayKlass* ak =
           ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this,
-                                                 false, name()->is_Q_array_signature(), CHECK_NULL);
+                                                 false, CHECK_NULL);
         ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load
         release_set_higher_dimension(ak);

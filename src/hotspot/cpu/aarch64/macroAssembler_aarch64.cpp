@@ -1811,8 +1811,8 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
 
 void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
   ldrw(temp_reg, Address(klass, Klass::access_flags_offset()));
-  andr(temp_reg, temp_reg, JVM_ACC_VALUE);
-  cbnz(temp_reg, is_inline_type);
+  andr(temp_reg, temp_reg, JVM_ACC_IDENTITY);
+  cbz(temp_reg, is_inline_type);
 }
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {

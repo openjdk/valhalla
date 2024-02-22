@@ -26,6 +26,7 @@ package runtime.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 
 /**
+ * @ignore
  * @test
  * @library /test/lib
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*

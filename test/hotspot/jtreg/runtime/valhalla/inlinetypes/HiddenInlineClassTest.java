@@ -27,13 +27,12 @@
  * @library /test/lib
  * @modules jdk.compiler
  * @compile HiddenPoint.jcod
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses HiddenInlineClassTest
+ * @run main/othervm -XX:+EnableValhalla HiddenInlineClassTest
  */
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
-import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;

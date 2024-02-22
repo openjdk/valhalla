@@ -586,15 +586,12 @@ public:
   // valid static initializer flags.
   bool is_class_initializer() const;
 
-  // returns true if the method name is <init> and the method is not a static factory
+  // returns true if the method name is <init>
   bool is_object_constructor() const;
 
   // returns true if the method is an object constructor or class initializer
-  // (non-static <init> or <clinit>), but false for factories (static <vnew>).
-  bool is_object_constructor_or_class_initializer() const;
-
-  // returns true if the method name is <vnew> and the method is static
-  bool is_static_vnew_factory() const;
+  // (non-static <init> or <clinit>).
+  bool is_object_constructor_or_class_initializer() const; // JDK-8325660: revisit this method because it didn't exist before Valhalla and seems to be related to value factories (<vnew) that are now gone
 
   // compiled code support
   // NOTE: code() is inherently racy as deopt can be clearing code

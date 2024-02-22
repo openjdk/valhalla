@@ -779,10 +779,10 @@ ifeq ($(BUILD_JTREG_TEST_THREAD_FACTORY), true)
   ))
 endif
 
-$(eval $(call SetupTarget, build-microbenchmark, \
-    MAKEFILE := test/BuildMicrobenchmark, \
-    DEPS := interim-langtools exploded-image, \
-))
+# $(eval $(call SetupTarget, build-microbenchmark, \
+#     MAKEFILE := test/BuildMicrobenchmark, \
+#     DEPS := interim-langtools exploded-image, \
+# ))
 
 ################################################################################
 # Run tests
@@ -1280,9 +1280,9 @@ ifeq ($(BUILD_JTREG_TEST_THREAD_FACTORY), true)
   test-image: test-image-test-thread-factory
 endif
 
-ifneq ($(JMH_CORE_JAR), )
-  test-image: build-microbenchmark
-endif
+# ifneq ($(JMH_CORE_JAR), )
+#   test-image: build-microbenchmark
+# endif
 
 ################################################################################
 

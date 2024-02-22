@@ -432,7 +432,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   oop mirror = JNIHandles::resolve_non_null(elmClass);
   Klass* klass = java_lang_Class::as_Klass(mirror);
   klass->initialize(CHECK_NULL);
-  if (!klass->is_value_class()) {
+  if (klass->is_identity_class()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
   }
   InstanceKlass* ik = InstanceKlass::cast(klass);
@@ -1914,8 +1914,7 @@ JVM_ENTRY(jobjectArray, JVM_GetRecordComponents(JNIEnv* env, jclass ofClass))
 JVM_END
 
 static bool select_method(const methodHandle& method, bool want_constructor) {
-  bool is_ctor = (method->is_object_constructor() ||
-                  method->is_static_vnew_factory());
+  bool is_ctor = (method->is_object_constructor());
   if (want_constructor) {
     return is_ctor;
   } else {
@@ -1984,8 +1983,7 @@ static jobjectArray get_class_declared_methods_helper(
     } else {
       oop m;
       if (want_constructor) {
-        assert(method->is_object_constructor() ||
-               method->is_static_vnew_factory(), "must be");
+        assert(method->is_object_constructor(), "must be");
         m = Reflection::new_constructor(method, CHECK_NULL);
       } else {
         m = Reflection::new_method(method, false, CHECK_NULL);
@@ -2268,7 +2266,7 @@ static jobject get_method_at_helper(const constantPoolHandle& cp, jint index, bo
     THROW_MSG_0(vmSymbols::java_lang_RuntimeException(), "Unable to look up method in target class");
   }
   oop method;
-  if (m->is_object_constructor() || m->is_static_vnew_factory()) {
+  if (m->is_object_constructor()) {
     method = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     method = Reflection::new_method(m, true, CHECK_NULL);

@@ -1160,18 +1160,9 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
           k = caller_method->constants()->klass_at(bnew.index(), CHECK);
         }
         break;
-      case Bytecodes::_aconst_init:
-        { Bytecode_aconst_init baconst_init(caller_method(), caller_method->bcp_from(bci));
-          k = caller_method->constants()->klass_at(baconst_init.index(), CHECK);
-        }
-        break;
       case Bytecodes::_multianewarray:
         { Bytecode_multianewarray mna(caller_method(), caller_method->bcp_from(bci));
           k = caller_method->constants()->klass_at(mna.index(), CHECK);
-          if (k->name()->is_Q_array_signature()) {
-            // Logically creates elements, ensure klass init
-            k->initialize(CHECK);
-          }
         }
         break;
       case Bytecodes::_instanceof:

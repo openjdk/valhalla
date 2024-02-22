@@ -187,7 +187,7 @@ Symbol* ClassLoader::package_from_class_name(const Symbol* name, bool* bad_class
     // Set bad_class_name to true to indicate that the package name
     // could not be obtained due to an error condition.
     // In this situation, is_same_class_package returns false.
-    if (*start == JVM_SIGNATURE_CLASS || *start == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
+    if (*start == JVM_SIGNATURE_CLASS) {
       if (bad_class_name != nullptr) {
         *bad_class_name = true;
       }

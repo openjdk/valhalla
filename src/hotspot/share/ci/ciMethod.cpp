@@ -1024,16 +1024,6 @@ bool ciMethod::is_object_constructor() const {
 }
 
 // ------------------------------------------------------------------
-// ciMethod::is_static_vnew_factory
-//
-bool ciMethod::is_static_vnew_factory() const {
-   return (name() == ciSymbols::inline_factory_name()
-           && !signature()->return_type()->is_void());
-   // Note:  We can't test is_static, because that would
-   // require the method to be loaded.  Sometimes it isn't.
-}
-
-// ------------------------------------------------------------------
 // ciMethod::has_member_arg
 //
 // Return true if the method is a linker intrinsic like _linkToVirtual.

@@ -620,7 +620,8 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
-  bool null_free = str->has_Q_signature();
+  // bool null_free = str->has_Q_signature();
+  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
   if (!will_link) {
     if (null_free) {
       trap(str, klass,
@@ -1024,7 +1025,8 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       if (!will_link) {
         trap(str, element_klass, str->get_klass_index());
       } else {
-        bool null_free = str->has_Q_signature();
+        //bool null_free = str->has_Q_signature();
+        bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
         push_object(ciArrayKlass::make(element_klass, null_free));
       }
       break;
@@ -1556,9 +1558,6 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
   case Bytecodes::_multianewarray: do_multianewarray(str);          break;
 
   case Bytecodes::_new:      do_new(str);                           break;
-
-  case Bytecodes::_aconst_init: do_aconst_init(str);              break;
-  case Bytecodes::_withfield: do_withfield(str);                    break;
 
   case Bytecodes::_newarray: do_newarray(str);                      break;
 

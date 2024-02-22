@@ -4115,17 +4115,15 @@ bool LibraryCallKit::inline_primitive_Class_conversion(vmIntrinsics::ID id) {
     return false;
   }
 
-  bool is_val_mirror = true;
-  ciType* tm = mirror_con->java_mirror_type(&is_val_mirror);
+  // // JDK-8325660: Code has been modified because secondary mirror are gone in JEP 401
+  ciType* tm = mirror_con->java_mirror_type();
   if (tm != nullptr) {
     Node* result = mirror;
-    if ((id == vmIntrinsics::_asPrimaryType || id == vmIntrinsics::_asPrimaryTypeArg) && is_val_mirror) {
-      result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->ref_mirror()));
-    } else if (id == vmIntrinsics::_asValueType || id == vmIntrinsics::_asValueTypeArg) {
+    if (id == vmIntrinsics::_asValueType || id == vmIntrinsics::_asValueTypeArg) {
       if (!tm->is_inlinetype()) {
         return false; // Throw UnsupportedOperationException
-      } else if (!is_val_mirror) {
-        result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->val_mirror()));
+      } else {
+        result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->java_mirror()));
       }
     }
     set_result(result);
@@ -4149,8 +4147,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-  bool requires_null_check = false;
-  ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
+  ciType* tm = mirror_con->java_mirror_type();
   if (tm != nullptr && tm->is_klass() &&
       tp != nullptr) {
     if (!tp->is_loaded()) {
@@ -4160,9 +4157,6 @@ bool LibraryCallKit::inline_Class_cast() {
       int static_res = C->static_subtype_check(TypeKlassPtr::make(tm->as_klass(), Type::trust_interfaces), tp->as_klass_type());
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
-        if (requires_null_check) {
-          obj = null_check(obj);
-        }
         set_result(obj);
         return true;
       } else if (static_res == Compile::SSC_always_false) {
@@ -4183,9 +4177,6 @@ bool LibraryCallKit::inline_Class_cast() {
   // Class.cast() is java implementation of _checkcast bytecode.
   // Do checkcast (Parse::do_checkcast()) optimizations here.
 
-  if (requires_null_check) {
-    obj = null_check(obj);
-  }
   mirror = null_check(mirror);
   // If mirror is dead, only null-path is taken.
   if (stopped()) {
@@ -4206,26 +4197,27 @@ bool LibraryCallKit::inline_Class_cast() {
   Node* io = i_o();
   Node* mem = merged_memory();
   if (!stopped()) {
-    if (EnableValhalla && !requires_null_check) {
-      // Check if we are casting to QMyValue
-      Node* ctrl_val_mirror = generate_fair_guard(is_val_mirror(mirror), nullptr);
-      if (ctrl_val_mirror != nullptr) {
-        RegionNode* r = new RegionNode(3);
-        record_for_igvn(r);
-        r->init_req(1, control());
+    // JDK-8325660: JEP 401 removed notions of Q-descriptors and secondary mirrors
+    // if (EnableValhalla && !requires_null_check) {
+    //   // Check if we are casting to QMyValue
+    //   Node* ctrl_val_mirror = generate_fair_guard(is_val_mirror(mirror), nullptr);
+    //   if (ctrl_val_mirror != nullptr) {
+    //     RegionNode* r = new RegionNode(3);
+    //     record_for_igvn(r);
+    //     r->init_req(1, control());
 
-        // Casting to QMyValue, check for null
-        set_control(ctrl_val_mirror);
-        { // PreserveJVMState because null check replaces obj in map
-          PreserveJVMState pjvms(this);
-          Node* null_ctr = top();
-          null_check_oop(obj, &null_ctr);
-          region->init_req(_npe_path, null_ctr);
-          r->init_req(2, control());
-        }
-        set_control(_gvn.transform(r));
-      }
-    }
+    //     // Casting to QMyValue, check for null
+    //     set_control(ctrl_val_mirror);
+    //     { // PreserveJVMState because null check replaces obj in map
+    //       PreserveJVMState pjvms(this);
+    //       Node* null_ctr = top();
+    //       null_check_oop(obj, &null_ctr);
+    //       region->init_req(_npe_path, null_ctr);
+    //       r->init_req(2, control());
+    //     }
+    //     set_control(_gvn.transform(r));
+    //   }
+    // }
 
     Node* bad_type_ctrl = top();
     // Do checkcast optimizations.
@@ -4431,8 +4423,7 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
   if (tp != nullptr) {
     ciInstanceKlass* ik = tp->instance_klass();
     if (ik == C->env()->Class_klass()) {
-      bool null_free;
-      ciType* t = tp->java_mirror_type(&null_free);
+      ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
         ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {

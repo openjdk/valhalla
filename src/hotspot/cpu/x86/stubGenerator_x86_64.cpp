@@ -307,13 +307,11 @@ address StubGenerator::generate_call_stub(address& return_address) {
   return_address = __ pc();
 
   // store result depending on type (everything that is not
-  // T_OBJECT, T_PRIMITIVE_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+  // T_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
   __ movptr(r13, result);
   Label is_long, is_float, is_double, check_prim, exit;
   __ movl(rbx, result_type);
   __ cmpl(rbx, T_OBJECT);
-  __ jcc(Assembler::equal, check_prim);
-  __ cmpl(rbx, T_PRIMITIVE_OBJECT);
   __ jcc(Assembler::equal, check_prim);
   __ cmpl(rbx, T_LONG);
   __ jcc(Assembler::equal, is_long);

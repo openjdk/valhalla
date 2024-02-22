@@ -933,7 +933,8 @@ void Compile::return_values(JVMState* jvms) {
       } else {
         // Return the tagged klass pointer to signal scalarization to the caller
         Node* tagged_klass = vt->tagged_klass(kit.gvn());
-        if (!method()->signature()->returns_null_free_inline_type()) {
+        // if (!method()->signature()->returns_null_free_inline_type()) {
+        if (!false) { // JDK-8325660: revisit this code after removal of Q-descriptors
           // Return null if the inline type is null (IsInit field is not set)
           Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
           Node* shl    = kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
@@ -943,7 +944,8 @@ void Compile::return_values(JVMState* jvms) {
         ret->init_req(TypeFunc::Parms, tagged_klass);
       }
       uint idx = TypeFunc::Parms + 1;
-      vt->pass_fields(&kit, ret, idx, false, method()->signature()->returns_null_free_inline_type());
+      // vt->pass_fields(&kit, ret, idx, false, method()->signature()->returns_null_free_inline_type());
+      vt->pass_fields(&kit, ret, idx, false, false); // JDK-8325660: revisit this code after removal of Q-descriptors
     } else {
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.
@@ -2371,7 +2373,8 @@ void Parse::return_current(Node* value) {
         return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
+        // value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
+        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), false); // JDK-8325660: revisit this code after removal of Q-descriptors
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flat

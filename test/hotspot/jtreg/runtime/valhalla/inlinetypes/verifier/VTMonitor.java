@@ -25,11 +25,11 @@
  * @test
  * @bug 8227373
  * @summary Test that verifier allows monitor operations on inline types.
- * @compile -XDenablePrimitiveClasses VTMonitor.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:remote VTMonitor
+ * @compile  VTMonitor.java
+ * @run main/othervm -XX:+EnableValhalla -Xverify:remote VTMonitor
  */
 
-public primitive final class VTMonitor {
+public value final class VTMonitor {
     final int x;
     final int y;
 

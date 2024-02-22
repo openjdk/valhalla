@@ -957,37 +957,6 @@ bool InstanceKlass::link_class_impl(TRAPS) {
   // class uses inline types?
   if (EnableValhalla) {
     ResourceMark rm(THREAD);
-    if (EnablePrimitiveClasses) {
-      for (int i = 0; i < methods()->length(); i++) {
-        Method* m = methods()->at(i);
-        for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
-          if (ss.is_reference()) {
-            if (ss.is_array()) {
-              continue;
-            }
-            if (ss.type() == T_PRIMITIVE_OBJECT) {
-              Symbol* symb = ss.as_symbol();
-              if (symb == name()) continue;
-              oop loader = class_loader();
-              oop protection_domain = this->protection_domain();
-              Klass* klass = SystemDictionary::resolve_or_fail(symb,
-                                                              Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
-                                                              CHECK_false);
-              if (klass == nullptr) {
-                THROW_(vmSymbols::java_lang_LinkageError(), false);
-              }
-              if (!klass->is_inline_klass()) {
-                Exceptions::fthrow(
-                  THREAD_AND_LOCATION,
-                  vmSymbols::java_lang_IncompatibleClassChangeError(),
-                  "class %s is not an inline type",
-                  klass->external_name());
-              }
-            }
-          }
-        }
-      }
-    }
     // Aggressively preloading all classes from the Preload attribute
     if (preload_classes() != nullptr) {
       for (int i = 0; i < preload_classes()->length(); i++) {
@@ -1775,7 +1744,7 @@ ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
       // Check if update has already taken place
       if (array_klasses() == nullptr) {
         ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this,
-                                                                  false, false, CHECK_NULL);
+                                                                  false, CHECK_NULL);
         // use 'release' to pair with lock-free load
         release_set_array_klasses(k);
       }
@@ -2353,9 +2322,8 @@ Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
     if (method != nullptr) {
       return method;
     }
-    if (name == vmSymbols::object_initializer_name() ||
-        name == vmSymbols::inline_factory_name()) {
-      break;  // <init> and <vnew> is never inherited
+    if (name == vmSymbols::object_initializer_name()) {
+      break;  // <init> is never inherited
     }
     klass = klass->super();
     overpass_local_mode = OverpassLookupMode::skip;   // Always ignore overpass methods in superclasses
