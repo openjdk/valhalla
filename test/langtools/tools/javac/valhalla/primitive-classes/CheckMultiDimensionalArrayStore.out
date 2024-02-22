@@ -1,5 +1,0 @@
-CheckMultiDimensionalArrayStore.java:11:43: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.V)
-CheckMultiDimensionalArrayStore.java:12:30: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.V)
-CheckMultiDimensionalArrayStore.java:14:38: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.V)
-CheckMultiDimensionalArrayStore.java:15:31: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.V)
-4 errors

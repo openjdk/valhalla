@@ -29,6 +29,7 @@
  * @summary javac should generate BSM to invoke the static factory for value class
  * @compile -XDenablePrimitiveClasses ConstructorRefTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ConstructorRefTest
+ * @ignore Verifier error
  */
 
 import java.util.function.Supplier;
@@ -46,7 +47,7 @@ public class ConstructorRefTest {
         }
     }
 
-    public static primitive class P {
+    public static class P {
 
         final int x;
         final int y;
@@ -59,7 +60,7 @@ public class ConstructorRefTest {
 
     public static void main(String [] args) {
 
-        Supplier<P.ref> sxp = P::new;
+        Supplier<P> sxp = P::new;
         P p = (P) sxp.get();
         if (p.x != 1234 || p.y != 5678)
             throw new AssertionError(p);

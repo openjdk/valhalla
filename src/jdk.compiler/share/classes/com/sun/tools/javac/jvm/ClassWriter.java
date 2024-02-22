@@ -40,8 +40,6 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Directive.*;
-import com.sun.tools.javac.code.Scope.WriteableScope;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Types.SignatureGenerator.InvalidSignatureException;
@@ -110,8 +108,6 @@ public class ClassWriter extends ClassFile {
 
     private Check check;
 
-    private boolean allowPrimitiveClasses;
-
     /**
      * If true, class files will be written in module-specific subdirectories
      * of the CLASS_OUTPUT location.
@@ -144,8 +140,6 @@ public class ClassWriter extends ClassFile {
 
     /** The name table. */
     private final Names names;
-
-    private final Symtab syms;
 
     /** Access to files. */
     private final JavaFileManager fileManager;
@@ -181,7 +175,6 @@ public class ClassWriter extends ClassFile {
         check = Check.instance(context);
         fileManager = context.get(JavaFileManager.class);
         poolWriter = Gen.instance(context).poolWriter;
-        syms = Symtab.instance(context);
 
         verbose        = options.isSet(VERBOSE);
         genCrt         = options.isSet(XJCOV);
@@ -197,8 +190,6 @@ public class ClassWriter extends ClassFile {
             dumpInnerClassModifiers = modifierFlags.indexOf('i') != -1;
             dumpMethodModifiers = modifierFlags.indexOf('m') != -1;
         }
-        Source source = Source.instance(context);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     public void addExtraAttributes(ToIntFunction<Symbol> addExtraAttributes) {
@@ -231,7 +222,7 @@ public class ClassWriter extends ClassFile {
         int i = 0;
         long f = flags & StandardFlags;
         while (f != 0) {
-            if ((f & 1) != 0) {
+            if ((f & 1) != 0 && flagName[i] != "") {
                 sbuf.append(" ");
                 sbuf.append(flagName[i]);
             }
@@ -243,7 +234,8 @@ public class ClassWriter extends ClassFile {
     //where
         private static final String[] flagName = {
             "PUBLIC", "PRIVATE", "PROTECTED", "STATIC", "FINAL",
-            "IDENTITY", "VOLATILE", "TRANSIENT", "NATIVE", "INTERFACE",
+            // the empty position should be for synchronized but right now we don't have any test checking it
+            "", "VOLATILE", "TRANSIENT", "NATIVE", "INTERFACE",
             "ABSTRACT", "STRICTFP"};
 
 /******************************************************************
@@ -1073,7 +1065,7 @@ public class ClassWriter extends ClassFile {
     private boolean requiresParamNames(MethodSymbol m) {
         if (options.isSet(PARAMETERS))
             return true;
-        if ((m.isInitOrVNew() || m.isValueObjectFactory()) && (m.flags_field & RECORD) != 0)
+        if (m.isConstructor() && (m.flags_field & RECORD) != 0)
             return true;
         return false;
     }
@@ -1298,10 +1290,6 @@ public class ClassWriter extends ClassFile {
                 break;
             case CLASS:
             case ARRAY:
-                if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
-                databuf.appendByte(7);
-                databuf.appendChar(allowPrimitiveClasses && t.isPrimitiveClass() ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
-                break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
                 databuf.appendByte(7);
@@ -1613,9 +1601,11 @@ public class ClassWriter extends ClassFile {
         if (c.owner.kind == MDL) {
             flags = ACC_MODULE;
         } else {
+            long originalFlags = c.flags();
             flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & AdjustedClassFlags;
+            flags = flags & ClassFlags;
+            flags |= (originalFlags & IDENTITY_TYPE) != 0 ? ACC_IDENTITY : flags;
         }
 
         if (dumpClassModifiers) {
@@ -1643,14 +1633,14 @@ public class ClassWriter extends ClassFile {
             case VAR: fieldsCount++; break;
             case MTH: if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
-            case TYP: poolWriter.enterInnerClass((ClassSymbol)sym); break;
+            case TYP: poolWriter.enterInner((ClassSymbol)sym); break;
             default : Assert.error();
             }
         }
 
         if (c.trans_local != null) {
             for (ClassSymbol local : c.trans_local) {
-                poolWriter.enterInnerClass(local);
+                poolWriter.enterInner(local);
             }
         }
 
@@ -1789,12 +1779,12 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
-        if ((flags & PRIMITIVE_CLASS) != 0)
-            result |= ACC_PRIMITIVE;
-        if ((flags & VALUE_CLASS) != 0)
-            result |= ACC_VALUE;
-        if ((flags & IDENTITY_TYPE) != 0)
+        if ((flags & IDENTITY_TYPE) != 0) {
             result |= ACC_IDENTITY;
+        }
+        if ((flags & STRICT) != 0) {
+            result |= ACC_STRICT;
+        }
         return result;
     }
 

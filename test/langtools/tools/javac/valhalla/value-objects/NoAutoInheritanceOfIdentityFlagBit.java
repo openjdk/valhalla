@@ -33,21 +33,19 @@
 
 import com.sun.tools.classfile.*;
 
-public class NoAutoInheritanceOfIdentityFlagBit { // ACC_IDENTITY - concrete class
+public class NoAutoInheritanceOfIdentityFlagBit { // ACC_IDENTITY not a value class
 
-    abstract class A {}  // ACC_IDENTITY: Inner class
+    abstract class A {}  // ACC_IDENTITY not a value class
 
-    static abstract class B {}  // NO ACC_IDENTITY: No an inner class with an enclosing instance
+    static abstract class B {}  // ACC_IDENTITY not a value class
 
-    static abstract class C {
-        int f; // ACC_IDENTITY since an instance field is declared.
-    }
+    static abstract class C {} // ACC_IDENTITY not a value class
 
     static abstract value class D {} // No ACC_IDENTITY since an express abstract value class.
 
     static value class E {} // No ACC_IDENTITY since an express concrete value class.
 
-    static abstract class F extends C {} // No ACC_IDENTITY - since no auto propagation.
+    static abstract class F extends C {} // ACC_IDENTITY no value class
 
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(NoAutoInheritanceOfIdentityFlagBit.class.getResourceAsStream("NoAutoInheritanceOfIdentityFlagBit.class"));
@@ -59,8 +57,8 @@ public class NoAutoInheritanceOfIdentityFlagBit { // ACC_IDENTITY - concrete cla
             throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(NoAutoInheritanceOfIdentityFlagBit.class.getResourceAsStream("NoAutoInheritanceOfIdentityFlagBit$B.class"));
-        if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
-            throw new Exception("ACC_IDENTITY flag should NOT be set!");
+        if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
+            throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(NoAutoInheritanceOfIdentityFlagBit.class.getResourceAsStream("NoAutoInheritanceOfIdentityFlagBit$C.class"));
         if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
@@ -75,7 +73,7 @@ public class NoAutoInheritanceOfIdentityFlagBit { // ACC_IDENTITY - concrete cla
             throw new Exception("ACC_IDENTITY flag should NOT be set!");
 
         cls = ClassFile.read(NoAutoInheritanceOfIdentityFlagBit.class.getResourceAsStream("NoAutoInheritanceOfIdentityFlagBit$F.class"));
-        if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
-            throw new Exception("ACC_IDENTITY flag should NOT be set!");
+        if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
+            throw new Exception("ACC_IDENTITY flag should be set!");
     }
 }
