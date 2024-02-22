@@ -54,7 +54,7 @@ class ArrayKlass: public Klass {
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
   ArrayKlass(Symbol* name, KlassKind kind);
-  ArrayKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
+  ArrayKlass();
 
   // Create array_name for element klass
   static Symbol* create_element_klass_array_name(Klass* element_klass, bool qdesc, TRAPS);

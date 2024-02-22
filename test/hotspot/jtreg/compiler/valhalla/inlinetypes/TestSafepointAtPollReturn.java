@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,8 @@
 
 /**
  * @test
- * @summary Test that oop fields of value/primitive classes are preserved over safepoints at returns.
- * @compile -XDenablePrimitiveClasses TestSafepointAtPollReturn.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @summary Test that oop fields of value classes are preserved over safepoints at returns.
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:CompileCommand=dontinline,TestSafepointAtPollReturn::test* -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+SafepointALot -XX:-TieredCompilation TestSafepointAtPollReturn
  */
@@ -37,24 +36,12 @@ public class TestSafepointAtPollReturn {
         Integer val = INT_VAL;
     }
 
-    static primitive class MyPrimitive {
-        Integer val = INT_VAL;
-    }
-
     static public MyValue testValueCallee(boolean b) {
         return b ? null : new MyValue();
     }
 
     static public MyValue testValue(boolean b) {
         return testValueCallee(b);
-    }
-
-    static public MyPrimitive testPrimitiveCallee() {
-        return new MyPrimitive();
-    }
-
-    static public MyPrimitive testPrimitive() {
-        return testPrimitiveCallee();
     }
 
     public static void main(String[] args) {
@@ -71,10 +58,6 @@ public class TestSafepointAtPollReturn {
                 if (res != i) {
                     throw new RuntimeException("testValue failed: " + res + " != " + i);
                 }
-            }
-            int res = testPrimitive().val;
-            if (res != i) {
-                throw new RuntimeException("testPrimitive failed: " + res + " != " + i);
             }
         }
     }

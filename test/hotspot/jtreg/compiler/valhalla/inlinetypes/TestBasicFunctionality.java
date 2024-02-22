@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,19 +28,24 @@ import jdk.test.lib.Asserts;
 
 import java.lang.reflect.Method;
 
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
  * @test
  * @key randomness
- * @summary Test the basic inline type implementation in C2
- *
+ * @summary Test the basic value class implementation in C2.
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /
- * @compile InlineTypes.java
- * @compile -XDenablePrimitiveClasses TestBasicFunctionality.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestBasicFunctionality
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestBasicFunctionality.java
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestBasicFunctionality
  */
 
 @ForceCompileClassInitializer
@@ -65,8 +70,7 @@ public class TestBasicFunctionality {
         return MyValue1.createWithFieldsInline(x, y).hash();
     }
 
-
-    // Receive inline type through call to interpreter
+    // Receive value class through call to interpreter
     @Test
     @IR(failOn = {ALLOC, STORE, TRAP})
     public long test1() {
@@ -80,8 +84,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-
-    // Receive inline type from interpreter via parameter
+    // Receive value object from interpreter via parameter
     @Test
     @IR(failOn = {ALLOC, STORE, TRAP})
     public long test2(MyValue1 v) {
@@ -95,8 +98,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-
-    // Return incoming inline type without accessing fields
+    // Return incoming value object without accessing fields
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC, "= 1", STORE, "= 19"},
@@ -115,8 +117,8 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(v1.y, v2.y);
     }
 
-    // Create an inline type in compiled code and only use fields.
-    // Allocation should go away because inline type does not escape.
+    // Create a value object in compiled code and only use fields.
+    // Allocation should go away because value object does not escape.
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public long test4() {
@@ -130,7 +132,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create an inline type in compiled code and pass it to
+    // Create a value object in compiled code and pass it to
     // an inlined compiled method via a call.
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
@@ -150,7 +152,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create an inline type in compiled code and pass it to
+    // Create a value object in compiled code and pass it to
     // the interpreter via a call.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
@@ -171,7 +173,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create an inline type in compiled code and pass it to
+    // Create a value object in compiled code and pass it to
     // the interpreter by returning.
     @Test
     @IR(counts = {ALLOC, "= 2"},
@@ -186,7 +188,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(v.hash(), hash());
     }
 
-    // Merge inline types created from two branches
+    // Merge value objects created from two branches
     @Test
     @IR(failOn = {ALLOC, STORE, TRAP})
     public long test8(boolean b) {
@@ -205,35 +207,36 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(test8(false), hash(rI + 1, rL + 1));
     }
 
-    // Merge inline types created from two branches
+    // Merge value objects created from two branches
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC, "= 1", LOAD, "= 19",
                   STORE, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
         failOn = {TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2", STORE, "= 19"},
-        failOn = {LOAD, TRAP})
+    // TODO 8325106
+    // @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    //     counts = {ALLOC, "= 2", STORE, "= 19"},
+    //     failOn = {LOAD, TRAP})
     public MyValue1 test9(boolean b, int localrI, long localrL) {
         MyValue1 v;
         if (b) {
-            // Inline type is not allocated
+            // Value object is not allocated
             // Do not use rI/rL directly here as null values may cause
             // some redundant null initializations to be optimized out
             // and matching to fail.
             v = MyValue1.createWithFieldsInline(localrI, localrL);
         } else {
-            // Inline type is allocated by the callee
+            // Value object is allocated by the callee
             v = MyValue1.createWithFieldsDontInline(rI + 1, rL + 1);
         }
-        // Need to allocate inline type if 'b' is true
+        // Need to allocate value object if 'b' is true
         long sum = v.hashInterpreted();
         if (b) {
             v = MyValue1.createWithFieldsDontInline(rI, sum);
         } else {
             v = MyValue1.createWithFieldsDontInline(rI, sum + 1);
         }
-        // Don't need to allocate inline type because both branches allocate
+        // Don't need to allocate value object because both branches allocate
         return v;
     }
 
@@ -247,7 +250,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(v.y, hash(rI + 1, rL + 1) + 1);
     }
 
-    // Merge inline types created in a loop (not inlined)
+    // Merge value objects created in a loop (not inlined)
     @Test
     @IR(failOn = {ALLOC, STORE, TRAP})
     public long test10(int x, long y) {
@@ -264,7 +267,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash(rI + 10, rL + 10));
     }
 
-    // Merge inline types created in a loop (inlined)
+    // Merge value objects created in a loop (inlined)
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public long test11(int x, long y) {
@@ -281,13 +284,13 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash(rI + 10, rL + 10));
     }
 
-    // Test loop with uncommon trap referencing an inline type
+    // Test loop with uncommon trap referencing a value object
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         counts = {SCOBJ, ">= 1", LOAD, "<= 12"}) // TODO 8227588 (loads should be removed)
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1[] va = new MyValue1[Math.abs(rI) % 10];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, Math.abs(rI) % 10);
         for (int i = 0; i < va.length; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -313,11 +316,11 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, info.isWarmUp() ? rL + (1000 * rI) : ((Math.abs(rI) % 10) + 1) * hash());
     }
 
-    // Test loop with uncommon trap referencing an inline type
+    // Test loop with uncommon trap referencing a value object
     @Test
     public long test13(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
-        MyValue1[] va = new MyValue1[Math.abs(rI) % 10];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, Math.abs(rI) % 10);
         for (int i = 0; i < va.length; ++i) {
             va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
         }
@@ -343,8 +346,8 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, info.isWarmUp() ? rL + (1000 * rI) : ((Math.abs(rI) % 10) + 1) * hash());
     }
 
-    // Create an inline type in a non-inlined method and then call a
-    // non-inlined method on that inline type.
+    // Create a value object in a non-inlined method and then call a
+    // non-inlined method on that value object.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC, STORE, TRAP},
@@ -362,8 +365,8 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create an inline type in an inlined method and then call a
-    // non-inlined method on that inline type.
+    // Create a value object in an inlined method and then call a
+    // non-inlined method on that value object.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {LOAD, TRAP},
@@ -382,8 +385,8 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create an inline type in a non-inlined method and then call an
-    // inlined method on that inline type.
+    // Create a value object in a non-inlined method and then call an
+    // inlined method on that value object.
     @Test
     @IR(failOn = {ALLOC, STORE, TRAP})
     public long test16() {
@@ -397,8 +400,8 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create an inline type in an inlined method and then call an
-    // inlined method on that inline type.
+    // Create a value object in an inlined method and then call an
+    // inlined method on that value object.
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public long test17() {
@@ -412,8 +415,8 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create an inline type in compiled code and pass it to the
-    // interpreter via a call. The inline type is live at the first call so
+    // Create a value object in compiled code and pass it to the
+    // interpreter via a call. The value object is live at the first call so
     // debug info should include a reference to all its fields.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
@@ -434,8 +437,8 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create an inline type in compiled code and pass it to the
-    // interpreter via a call. The inline type is passed twice but
+    // Create a value object in compiled code and pass it to the
+    // interpreter via a call. The value object is passed twice but
     // should only be allocated once.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
@@ -460,9 +463,9 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create an inline type (array) in compiled code and pass it to the
-    // interpreter via a call. The inline type is live at the uncommon
-    // trap: verify that deoptimization causes the inline type to be
+    // Create a value type (array) in compiled code and pass it to the
+    // interpreter via a call. The value object is live at the uncommon
+    // trap: verify that deoptimization causes the value object to be
     // correctly allocated.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
@@ -473,7 +476,7 @@ public class TestBasicFunctionality {
         failOn = LOAD)
     public long test20(boolean deopt, Method m) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue2[] va = new MyValue2[3];
+        MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 3);
         if (deopt) {
             // uncommon trap
             TestFramework.deoptimize(m);
@@ -485,24 +488,29 @@ public class TestBasicFunctionality {
 
     @Run(test = "test20")
     public void test20_verifier(RunInfo info) {
-        MyValue2[] va = new MyValue2[42];
+        MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 42);
         long result = test20(!info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result, hash() + va[0].hash() + va[1].hash() + va[2].hash());
     }
 
-    // Inline type fields in regular object
+    // Value class fields in regular object
+    @NullRestricted
     MyValue1 val1;
+    @NullRestricted
     MyValue2 val2;
+    @NullRestricted
     final MyValue1 val3 = MyValue1.createWithFieldsInline(rI, rL);
+    @NullRestricted
     static MyValue1 val4;
+    @NullRestricted
     static final MyValue1 val5 = MyValue1.createWithFieldsInline(rI, rL);
 
-    // Test inline type fields in objects
+    // Test value class fields in objects
     @Test
     @IR(counts = {ALLOC, "= 2"},
         failOn = TRAP)
     public long test21(int x, long y) {
-        // Compute hash of inline type fields
+        // Compute hash of value class fields
         long result = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
         // Update fields
         val1 = MyValue1.createWithFieldsInline(x, y);
@@ -522,13 +530,13 @@ public class TestBasicFunctionality {
         long hash = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
         long result = test21(rI + 1, rL + 1);
         Asserts.assertEQ(result, hash);
-        // Check if inline type fields were updated
+        // Check if value class fields were updated
         Asserts.assertEQ(val1.hash(), hash(rI + 1, rL + 1));
         Asserts.assertEQ(val2.hash(), MyValue2.createWithFieldsInline(rI + 1, rD).hash());
         Asserts.assertEQ(val4.hash(), hash(rI + 1, rL + 1));
     }
 
-    // Test folding of constant inline type fields
+    // Test folding of constant value class fields
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
     public long test22() {
@@ -571,7 +579,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, 2 * MyValue1.createDefaultInline().hashPrimitive());
     }
 
-    // Test withfield
+    // Test field initialization
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
     public long test25() {
@@ -585,7 +593,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, MyValue2.createWithFieldsInline(rI, rD).hash());
     }
 
-    // Test withfield
+    // Test field initialization
     @Test
     @IR(failOn = {ALLOC, STORE, LOOP, TRAP})
     public long test26() {
@@ -601,10 +609,11 @@ public class TestBasicFunctionality {
     }
 
     class TestClass27 {
+        @NullRestricted
         public MyValue1 v;
     }
 
-    // Test allocation elimination of unused object with initialized inline type field
+    // Test allocation elimination of unused object with initialized value class field
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, LOOP})
     public void test27(boolean deopt, Method m) {
@@ -622,20 +631,22 @@ public class TestBasicFunctionality {
         test27(!info.isWarmUp(), info.getTest());
     }
 
+    @NullRestricted
     static MyValue3 staticVal3;
+    @NullRestricted
     static MyValue3 staticVal3_copy;
 
-    // Check elimination of redundant inline type allocations
+    // Check elimination of redundant value class allocations
     @Test
     @IR(counts = {ALLOC, "= 1"})
     public MyValue3 test28(MyValue3[] va) {
-        // Create inline type and force allocation
+        // Create value object and force allocation
         MyValue3 vt = MyValue3.create();
         va[0] = vt;
         staticVal3 = vt;
         vt.verify(staticVal3);
 
-        // Inline type is now allocated, make a copy and force allocation.
+        // Value object is now allocated, make a copy and force allocation.
         // Because copy is equal to vt, C2 should remove this redundant allocation.
         MyValue3 copy = MyValue3.setC(vt, vt.c);
         va[0] = copy;
@@ -646,7 +657,7 @@ public class TestBasicFunctionality {
 
     @Run(test = "test28")
     public void test28_verifier() {
-        MyValue3[] va = new MyValue3[1];
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 vt = test28(va);
         staticVal3.verify(vt);
         staticVal3.verify(va[0]);
@@ -677,14 +688,16 @@ public class TestBasicFunctionality {
         }
     }
 
-    // Verify that C2 recognizes inline type loads and re-uses the oop to avoid allocations
+    // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         failOn = {ALLOC, ALLOCA, STORE})
-    public MyValue3 test30(MyValue3[] va) {
+    public MyValue3 test30() {
         // C2 can re-use the oop of staticVal3 because staticVal3 is equal to copy
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 copy = MyValue3.copy(staticVal3);
         va[0] = copy;
+        copy.verify(va[0]);
         staticVal3 = copy;
         copy.verify(staticVal3);
         return copy;
@@ -693,21 +706,21 @@ public class TestBasicFunctionality {
     @Run(test = "test30")
     public void test30_verifier() {
         staticVal3 = MyValue3.create();
-        MyValue3[] va = new MyValue3[1];
-        MyValue3 vt = test30(va);
+        MyValue3 vt = test30();
         staticVal3.verify(vt);
-        staticVal3.verify(va[0]);
     }
 
-    // Verify that C2 recognizes inline type loads and re-uses the oop to avoid allocations
+    // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, ALLOCA, STORE})
-    public MyValue3 test31(MyValue3[] va) {
+    public MyValue3 test31() {
         // C2 can re-use the oop returned by createDontInline()
-        // because the corresponding inline type is equal to 'copy'.
+        // because the corresponding value object is equal to 'copy'.
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 copy = MyValue3.copy(MyValue3.createDontInline());
         va[0] = copy;
+        copy.verify(va[0]);
         staticVal3 = copy;
         copy.verify(staticVal3);
         return copy;
@@ -715,20 +728,20 @@ public class TestBasicFunctionality {
 
     @Run(test = "test31")
     public void test31_verifier() {
-        MyValue3[] va = new MyValue3[1];
-        MyValue3 vt = test31(va);
+        MyValue3 vt = test31();
         staticVal3.verify(vt);
-        staticVal3.verify(va[0]);
     }
 
-    // Verify that C2 recognizes inline type loads and re-uses the oop to avoid allocations
+    // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, ALLOCA, STORE})
-    public MyValue3 test32(MyValue3 vt, MyValue3[] va) {
+    public MyValue3 test32(MyValue3 vt) {
         // C2 can re-use the oop of vt because vt is equal to 'copy'.
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 copy = MyValue3.copy(vt);
         va[0] = copy;
+        copy.verify(vt);
         staticVal3 = copy;
         copy.verify(staticVal3);
         return copy;
@@ -737,20 +750,20 @@ public class TestBasicFunctionality {
     @Run(test = "test32")
     public void test32_verifier() {
         MyValue3 vt = MyValue3.create();
-        MyValue3[] va = new MyValue3[1];
-        MyValue3 result = test32(vt, va);
+        MyValue3 result = test32(vt);
         staticVal3.verify(vt);
-        va[0].verify(vt);
         result.verify(vt);
     }
 
-    // Test correct identification of inline type copies
+    // Test correct identification of value object copies
     @Test
-    public MyValue3 test33(MyValue3[] va) {
+    public MyValue3 test33() {
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 vt = MyValue3.copy(staticVal3);
         vt = MyValue3.setI(vt, vt.c);
         // vt is not equal to staticVal3, so C2 should not re-use the oop
         va[0] = vt;
+        Asserts.assertEQ(va[0].i, (int)vt.c);
         staticVal3 = vt;
         vt.verify(staticVal3);
         return vt;
@@ -759,29 +772,29 @@ public class TestBasicFunctionality {
     @Run(test = "test33")
     public void test33_verifier() {
         staticVal3 = MyValue3.create();
-        MyValue3[] va = new MyValue3[1];
-        MyValue3 vt = test33(va);
+        MyValue3 vt = test33();
         Asserts.assertEQ(staticVal3.i, (int)staticVal3.c);
-        Asserts.assertEQ(va[0].i, (int)staticVal3.c);
         Asserts.assertEQ(vt.i, (int)staticVal3.c);
     }
 
-    // Verify that the default inline type is never allocated.
+    static final MyValue3[] test34Array = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 2);
+
+    // Verify that the default value class is never allocated.
     // C2 code should load and use the default oop from the java mirror.
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
-    public MyValue3 test34(MyValue3[] va) {
+    public MyValue3 test34() {
         // Explicitly create default value
         MyValue3 vt = MyValue3.createDefault();
-        va[0] = vt;
+        test34Array[0] = vt;
         staticVal3 = vt;
         vt.verify(vt);
 
-        // Load default value from uninitialized inline type array
-        MyValue3[] dva = new MyValue3[1];
+        // Load default value from uninitialized value class array
+        MyValue3[] dva = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         staticVal3_copy = dva[0];
-        va[1] = dva[0];
+        test34Array[1] = dva[0];
         dva[0].verify(dva[0]);
         return vt;
     }
@@ -789,22 +802,23 @@ public class TestBasicFunctionality {
     @Run(test = "test34")
     public void test34_verifier() {
         MyValue3 vt = MyValue3.createDefault();
-        MyValue3[] va = new MyValue3[2];
-        va[0] = MyValue3.create();
-        va[1] = MyValue3.create();
-        MyValue3 res = test34(va);
+        test34Array[0] = MyValue3.create();
+        test34Array[1] = MyValue3.create();
+        MyValue3 res = test34();
         res.verify(vt);
         staticVal3.verify(vt);
         staticVal3_copy.verify(vt);
-        va[0].verify(vt);
-        va[1].verify(vt);
+        test34Array[0].verify(vt);
+        test34Array[1].verify(vt);
     }
 
-    // Same as above but manually initialize inline type fields to default.
+    static final MyValue3[] test35Array = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+
+    // Same as above but manually initialize value class fields to default.
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
-    public MyValue3 test35(MyValue3 vt, MyValue3[] va) {
+    public MyValue3 test35(MyValue3 vt) {
         vt = MyValue3.setC(vt, (char)0);
         vt = MyValue3.setBB(vt, (byte)0);
         vt = MyValue3.setS(vt, (short)0);
@@ -818,7 +832,7 @@ public class TestBasicFunctionality {
         vt = MyValue3.setF5(vt, 0);
         vt = MyValue3.setF6(vt, 0);
         vt = MyValue3.setV1(vt, MyValue3Inline.createDefault());
-        va[0] = vt;
+        test35Array[0] = vt;
         staticVal3 = vt;
         vt.verify(vt);
         return vt;
@@ -827,15 +841,14 @@ public class TestBasicFunctionality {
     @Run(test = "test35")
     public void test35_verifier() {
         MyValue3 vt = MyValue3.createDefault();
-        MyValue3[] va = new MyValue3[1];
-        va[0] = MyValue3.create();
-        MyValue3 res = test35(va[0], va);
+        test35Array[0] = MyValue3.create();
+        MyValue3 res = test35(test35Array[0]);
         res.verify(vt);
         staticVal3.verify(vt);
-        va[0].verify(vt);
+        test35Array[0].verify(vt);
     }
 
-    // Merge inline types created from two branches
+    // Merge value objects created from two branches
 
     private Object test36_helper(Object v) {
         return v;
@@ -861,15 +874,20 @@ public class TestBasicFunctionality {
     }
 
     // Test correct loading of flattened fields
-    primitive class Test37Value2 {
-        final int x = 0;
-        final int y = 0;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test37Value2 {
+        int x = 0;
+        int y = 0;
     }
 
-    primitive class Test37Value1 {
-        final double d = 0;
-        final float f = 0;
-        final Test37Value2 v = new Test37Value2();
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test37Value1 {
+        double d = 0;
+        float f = 0;
+        @NullRestricted
+        Test37Value2 v = new Test37Value2();
     }
 
     @Test
@@ -883,12 +901,15 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(test37(vt), vt);
     }
 
-    // Test elimination of inline type allocations without a unique CheckCastPP
-    primitive class Test38Value {
+    // Test elimination of value class allocations without a unique CheckCastPP
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test38Value {
         public int i;
         public Test38Value(int i) { this.i = i; }
     }
 
+    @NullRestricted
     static Test38Value test38Field;
 
     @Test
@@ -905,13 +926,15 @@ public class TestBasicFunctionality {
 
     @Run(test = "test38")
     public void test38_verifier() {
-        test38Field = Test38Value.default;
+        test38Field = new Test38Value(0);
         test38();
         Asserts.assertEQ(test38Field, new Test38Value(99));
     }
 
-    // Tests split if with inline type Phi users
-    static primitive class Test39Value {
+    // Tests split if with value class Phi users
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test39Value {
         public int iFld1;
         public int iFld2;
 
@@ -920,7 +943,8 @@ public class TestBasicFunctionality {
 
     static int test39A1[][] = new int[400][400];
     static double test39A2[] = new double[400];
-    static Test39Value test39Val = Test39Value.default;
+    @NullRestricted
+    static Test39Value test39Val = new Test39Value(0, 0);
 
     @DontInline
     public int[] getArray() {
@@ -964,7 +988,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, 1552);
     }
 
-    // Test scalar replacement of inline type array containing inline type with oop fields
+    // Test scalar replacement of value class array containing value class with oop fields
     @Test
     public long test40(boolean b) {
         MyValue1[] va = {MyValue1.createWithFieldsInline(rI, rL)};

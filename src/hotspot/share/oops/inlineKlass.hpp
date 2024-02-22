@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
+#include "cds/cdsConfig.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/javaClasses.hpp"
 #include "oops/instanceKlass.hpp"
@@ -43,7 +44,7 @@ class InlineKlass: public InstanceKlass {
  public:
   static const KlassKind Kind = InlineKlassKind;
 
-  InlineKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+  InlineKlass() { assert(CDSConfig::is_dumping_archive() || UseSharedSpaces, "only for CDS"); }
 
  private:
 

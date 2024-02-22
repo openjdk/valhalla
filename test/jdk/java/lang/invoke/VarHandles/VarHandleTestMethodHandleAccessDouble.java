@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,11 +44,9 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessDouble extends VarHandleBaseTest {
-    static final Class<?> type = double.class;
-
     static final double static_final_v = 1.0d;
 
-    static double static_v = 1.0d;
+    static double static_v;
 
     final double final_v = 1.0d;
 
@@ -67,16 +65,16 @@ public class VarHandleTestMethodHandleAccessDouble extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessDouble.class, "final_v", type);
+                VarHandleTestMethodHandleAccessDouble.class, "final_v", double.class);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessDouble.class, "v", type);
+                VarHandleTestMethodHandleAccessDouble.class, "v", double.class);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessDouble.class, "static_final_v", type);
+            VarHandleTestMethodHandleAccessDouble.class, "static_final_v", double.class);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessDouble.class, "static_v", type);
+            VarHandleTestMethodHandleAccessDouble.class, "static_v", double.class);
 
         vhArray = MethodHandles.arrayElementVarHandle(double[].class);
     }

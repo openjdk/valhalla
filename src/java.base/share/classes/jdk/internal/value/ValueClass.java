@@ -28,6 +28,7 @@ package jdk.internal.value;
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
  * Utilities to access
@@ -71,6 +72,7 @@ public class ValueClass {
      *         value class type or is not annotated with
      *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
      */
+    @IntrinsicCandidate
     public static native Object[] newNullRestrictedArray(Class<?> componentType,
                                                          int length);
 }

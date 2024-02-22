@@ -524,6 +524,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_allocateUninitializedArray: return inline_unsafe_newArray(true);
   case vmIntrinsics::_newArray:                   return inline_unsafe_newArray(false);
+  case vmIntrinsics::_newNullRestrictedArray:   return inline_newNullRestrictedArray();
 
   case vmIntrinsics::_isAssignableFrom:         return inline_native_subtype_check();
 
@@ -1123,6 +1124,7 @@ bool LibraryCallKit::inline_countPositives() {
   Node* ba_start = array_element_address(ba, offset, T_BYTE);
   Node* result = new CountPositivesNode(control(), memory(TypeAryPtr::BYTES), ba_start, len);
   set_result(_gvn.transform(result));
+  clear_upper_avx();
   return true;
 }
 
@@ -1377,6 +1379,7 @@ bool LibraryCallKit::inline_string_indexOfChar(StrIntrinsicNode::ArgEnc ae) {
   set_control(_gvn.transform(region));
   record_for_igvn(region);
   set_result(_gvn.transform(phi));
+  clear_upper_avx();
 
   return true;
 }
@@ -4418,6 +4421,33 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   return generate_fair_guard(bol, region);
 }
 
+//-----------------------inline_newNullRestrictedArray--------------------------
+// public static native Object[] newNullRestrictedArray(Class<?> componentType, int length);
+bool LibraryCallKit::inline_newNullRestrictedArray() {
+  Node* componentType = argument(0);
+  Node* length = argument(1);
+
+  const TypeInstPtr* tp = _gvn.type(componentType)->isa_instptr();
+  if (tp != nullptr) {
+    ciInstanceKlass* ik = tp->instance_klass();
+    if (ik == C->env()->Class_klass()) {
+      bool null_free;
+      ciType* t = tp->java_mirror_type(&null_free);
+      if (t != nullptr && t->is_inlinetype()) {
+        ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
+        if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
+          const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
+          Node* obj = new_array(makecon(array_klass_type), length, 0);  // no arguments to push
+          AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(obj);
+          alloc->set_null_free();
+          set_result(obj);
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 
 //-----------------------inline_native_newArray--------------------------
 // private static native Object java.lang.reflect.Array.newArray(Class<?> componentType, int length);
@@ -5574,12 +5604,23 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
   for (uint i = 0; i < size; i++) {
     sfpt->init_req(i, alloc->in(i));
   }
+  int adjustment = 1;
+  if (alloc->is_null_free()) {
+    // A null-free, tightly coupled array allocation can only come from LibraryCallKit::inline_newNullRestrictedArray
+    // which requires both the component type and the array length on stack for re-execution. Re-create and push
+    // the component type.
+    ciArrayKlass* klass = alloc->in(AllocateNode::KlassNode)->bottom_type()->is_aryklassptr()->exact_klass()->as_array_klass();
+    ciInstance* instance = klass->component_mirror_instance();
+    const TypeInstPtr* t_instance = TypeInstPtr::make(instance);
+    sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp(), makecon(t_instance));
+    adjustment++;
+  }
   // re-push array length for deoptimization
-  sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp(), alloc->in(AllocateNode::ALength));
-  old_jvms->set_sp(old_jvms->sp()+1);
-  old_jvms->set_monoff(old_jvms->monoff()+1);
-  old_jvms->set_scloff(old_jvms->scloff()+1);
-  old_jvms->set_endoff(old_jvms->endoff()+1);
+  sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp() + adjustment - 1, alloc->in(AllocateNode::ALength));
+  old_jvms->set_sp(old_jvms->sp() + adjustment);
+  old_jvms->set_monoff(old_jvms->monoff() + adjustment);
+  old_jvms->set_scloff(old_jvms->scloff() + adjustment);
+  old_jvms->set_endoff(old_jvms->endoff() + adjustment);
   old_jvms->set_should_reexecute(true);
 
   sfpt->set_i_o(map()->i_o());

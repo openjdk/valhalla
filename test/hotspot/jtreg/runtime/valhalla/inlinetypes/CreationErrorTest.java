@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.concurrent.*;
 
 import static jdk.test.lib.Asserts.*;
-import test.java.lang.invoke.lib.InstructionHelper;
+import test.java.lang.invoke.lib.OldInstructionHelper;
 
 import jdk.experimental.bytecode.MacroCodeBuilder;
 import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
@@ -49,7 +49,7 @@ import javax.tools.*;
  * @summary Test data movement with inline types
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile -XDenablePrimitiveClasses CreationErrorTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xmx128m
  *                   runtime.valhalla.inlinetypes.CreationErrorTest
@@ -73,7 +73,7 @@ public class CreationErrorTest {
     }
 
     static void testErroneousObjectCreation() {
-        MethodHandle testNewOnInlineClass = InstructionHelper.loadCode(
+        MethodHandle testNewOnInlineClass = OldInstructionHelper.loadCode(
                 LOOKUP,
                 "testNewOnInlineClass",
                 MethodType.methodType(boolean.class),
@@ -95,7 +95,7 @@ public class CreationErrorTest {
 
     // Note: this test might become obsolete if aconst_init is extended to accept identity classes
     static void testErroneousValueCreation() {
-        MethodHandle testAconstInitOnIdentityClass = InstructionHelper.loadCode(
+        MethodHandle testAconstInitOnIdentityClass = OldInstructionHelper.loadCode(
                 LOOKUP,
                 "testAconstInitOnIdentityClass",
                 MethodType.methodType(boolean.class),
