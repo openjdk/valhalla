@@ -31,7 +31,7 @@ import static jdk.test.lib.Asserts.*;
 
 import jdk.experimental.bytecode.*;
 
-import test.java.lang.invoke.lib.InstructionHelper;
+import test.java.lang.invoke.lib.OldInstructionHelper;
 
 /**
  * @ignore
@@ -39,7 +39,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @summary Check bytecode test library generates the correct code for Valhalla changes to JVMS
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile -XDenablePrimitiveClasses Point.java TestBytecodeLib.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.TestBytecodeLib
  */
@@ -63,7 +63,7 @@ public class TestBytecodeLib {
 
         String methodName = "anewarrayLQClass";
         MethodType methodType = MethodType.methodType(void.class);
-        byte[] codeBytes = InstructionHelper.buildCode(LOOKUP, methodName, methodType,
+        byte[] codeBytes = OldInstructionHelper.buildCode(LOOKUP, methodName, methodType,
             CODE -> {
                 CODE
                 .iconst_3()
@@ -82,7 +82,7 @@ public class TestBytecodeLib {
         dumpBytes(methodName + ".class", codeBytes);
 
         // Verify it works
-        InstructionHelper.loadCodeBytes(LOOKUP, methodName, methodType, codeBytes).invokeExact();
+        OldInstructionHelper.loadCodeBytes(LOOKUP, methodName, methodType, codeBytes).invokeExact();
     }
 
     // checkcast accepts reference and inline reference type
@@ -92,7 +92,7 @@ public class TestBytecodeLib {
 
         String methodName = "checkcastLQClass";
         MethodType methodType = MethodType.methodType(void.class);
-        byte[] codeBytes = InstructionHelper.buildCode(LOOKUP, methodName, methodType,
+        byte[] codeBytes = OldInstructionHelper.buildCode(LOOKUP, methodName, methodType,
             CODE -> {
                 CODE
                 .aconst_init(Point.class)
@@ -107,7 +107,7 @@ public class TestBytecodeLib {
         dumpBytes(methodName + ".class", codeBytes);
 
         // Verify it works
-        InstructionHelper.loadCodeBytes(LOOKUP, methodName, methodType, codeBytes).invokeExact();
+        OldInstructionHelper.loadCodeBytes(LOOKUP, methodName, methodType, codeBytes).invokeExact();
     }
 
     // multianewarray accepts reference and inline reference type...it naturally does, but...
@@ -119,7 +119,7 @@ public class TestBytecodeLib {
         String methodName = "multianewarrayLQClass";
         MethodType methodType = MethodType.methodType(void.class);
         byte dimCnt = (byte) 2;
-        byte[] codeBytes = InstructionHelper.buildCode(LOOKUP, methodName, methodType,
+        byte[] codeBytes = OldInstructionHelper.buildCode(LOOKUP, methodName, methodType,
             CODE -> {
                 CODE
                 .iconst_3()
@@ -140,7 +140,7 @@ public class TestBytecodeLib {
         dumpBytes(methodName + ".class", codeBytes);
 
         // Verify it works
-        InstructionHelper.loadCodeBytes(LOOKUP, methodName, methodType, codeBytes).invokeExact();
+        OldInstructionHelper.loadCodeBytes(LOOKUP, methodName, methodType, codeBytes).invokeExact();
     }
 
     /*

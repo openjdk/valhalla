@@ -100,9 +100,9 @@ public class MethodHandleTest {
                 // value class with int fields
                 Arguments.of("MethodHandleTest$Point", P, Set.of("x", "y")),
                 // value class whose fields are null-restricted and of value class
-                Arguments.of( "MethodHandleTest$Line", L, Set.of("p1", "p2")),
+                Arguments.of("MethodHandleTest$Line", L, Set.of("p1", "p2")),
                 // identity class whose non-final fields are of value type,
-                Arguments.of( "MethodHandleTest$Ref", R, Set.of("p", "l", "list", "vo"))
+                Arguments.of("MethodHandleTest$Ref", R, Set.of("p", "l", "list", "vo"))
         );
     }
 
@@ -133,10 +133,10 @@ public class MethodHandleTest {
 
     static Stream<Arguments> setters() {
         return Stream.of(
-                Arguments.of( Ref.class, R, "p", true),
-                Arguments.of( Ref.class, R, "l", false),
-                Arguments.of( Ref.class, R, "list", false),
-                Arguments.of( Ref.class, R, "vo", false)
+                Arguments.of(Ref.class, R, "p", true),
+                Arguments.of(Ref.class, R, "l", false),
+                Arguments.of(Ref.class, R, "list", false),
+                Arguments.of(Ref.class, R, "vo", false)
         );
     }
     @ParameterizedTest

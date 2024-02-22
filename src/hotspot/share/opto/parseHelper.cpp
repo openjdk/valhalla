@@ -347,9 +347,18 @@ void Parse::do_withfield() {
   Node* val = pop_node(field->layout_type());
   Node* holder = pop();
 
+  if (field->is_null_free()) {
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+    int nargs = 1 + field->type()->size();
+    inc_sp(nargs);
+    val = null_check(val);
+    if (stopped()) {
+      return;
+    }
+  }
   if (!val->is_InlineType() && field->type()->is_inlinetype()) {
     // Scalarize inline type field value
-    assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to null-free field");
     val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
   } else if (val->is_InlineType() && !field->is_flat()) {
     // Field value needs to be allocated because it can be merged with an oop.

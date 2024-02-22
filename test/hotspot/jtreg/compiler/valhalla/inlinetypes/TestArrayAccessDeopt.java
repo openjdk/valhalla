@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,20 @@
  * questions.
  */
 
+// TODO 8325106 Investigate why this suddenly started to throw java.lang.OutOfMemoryError without -Xmx200m
+// and -XX:-UseCompressedOops -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=0 -Xmx20m -Xmn1m -XX:G1HeapRegionSize=1m -XX:-ReduceInitialCardMarks
+
 /**
  * @test
  * @summary Verify that certain array accesses do not trigger deoptimization.
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses TestArrayAccessDeopt.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses TestArrayAccessDeopt
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ *          TestArrayAccessDeopt.java
+ * @run main/othervm -XX:+EnableValhalla -Xmx200m
+ *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ *                   TestArrayAccessDeopt
  */
 
 import java.io.File;
@@ -34,8 +42,15 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
-final primitive class MyValue1 {
-    public final int x = 0;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue1 {
+    public int x = 0;
 }
 
 public class TestArrayAccessDeopt {
@@ -44,15 +59,15 @@ public class TestArrayAccessDeopt {
         va[0] = vt;
     }
 
-    public static void test2(Object[] va, MyValue1.ref vt) {
+    public static void test2(Object[] va, MyValue1 vt) {
         va[0] = vt;
     }
 
-    public static void test3(MyValue1.ref[] va, Object vt) {
-        va[0] = (MyValue1.ref)vt;
+    public static void test3(MyValue1[] va, Object vt) {
+        va[0] = (MyValue1)vt;
     }
 
-    public static void test4(MyValue1.ref[] va, MyValue1.ref vt) {
+    public static void test4(MyValue1[] va, MyValue1 vt) {
         va[0] = vt;
     }
 
@@ -68,11 +83,11 @@ public class TestArrayAccessDeopt {
         va[0] = vt;
     }
 
-    public static void test8(MyValue1.ref[] va, MyValue1 vt) {
+    public static void test8(MyValue1[] va, MyValue1 vt) {
         va[0] = vt;
     }
 
-    public static void test9(MyValue1[] va, MyValue1.ref vt) {
+    public static void test9(MyValue1[] va, MyValue1 vt) {
         va[0] = (MyValue1)vt;
     }
 
@@ -80,22 +95,22 @@ public class TestArrayAccessDeopt {
         va[0] = null;
     }
 
-    public static void test11(MyValue1.ref[] va) {
+    public static void test11(MyValue1[] va) {
         va[0] = null;
     }
 
     static public void main(String[] args) throws Exception {
         if (args.length == 0) {
             // Run test in new VM instance
-            String[] arg = {"-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+            String[] arg = {"-XX:+EnableValhalla", "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED", "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                             "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "TestArrayAccessDeopt", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
             String output = oa.getOutput();
             oa.shouldNotContain("Uncommon trap occurred");
         } else {
-            MyValue1[] va = new MyValue1[1];
-            MyValue1.ref[] vaB = new MyValue1.ref[1];
+            MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            MyValue1[] vaB = new MyValue1[1];
             MyValue1 vt = new MyValue1();
             for (int i = 0; i < 10_000; ++i) {
                 test1(va, vt);

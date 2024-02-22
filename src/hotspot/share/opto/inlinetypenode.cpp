@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,9 +71,9 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, boo
     ciType* type = vt->field_type(i);
     Node*  value = vt->field_value(i);
     // We limit scalarization for inline types with circular fields and can therefore observe nodes
-    // of the same type but with different scalarization depth during IGVN. To avoid inconsistencies
+    // of the same type but with different scalarization depth during GVN. To avoid inconsistencies
     // during merging, make sure that we only create Phis for fields that are guaranteed to be scalarized.
-    bool no_circularity = !gvn->C->has_circular_inline_type() || !gvn->is_IterGVN() || field_is_flat(i);
+    bool no_circularity = !gvn->C->has_circular_inline_type() || field_is_flat(i);
     if (value->is_InlineType() && no_circularity) {
       // Handle inline type fields recursively
       value = value->as_InlineType()->clone_with_phis(gvn, region);
@@ -299,8 +299,32 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
   // If the inline type has a constant or loaded oop, use the oop instead of scalarization
   // in the safepoint to avoid keeping field loads live just for the debug info.
   Node* oop = get_oop();
-  bool use_oop = allow_oop && is_allocated(igvn) &&
-                 (oop->is_Con() || oop->is_Parm() || oop->is_Load() || (oop->isa_DecodeN() && oop->in(1)->is_Load()));
+  // TODO 8325106
+  // TestBasicFunctionality::test3 fails without this. Add more tests?
+  // Add proj nodes here? Recursive handling of phis required? We need a test that fails without.
+  bool use_oop = false;
+  if (allow_oop && is_allocated(igvn) && oop->is_Phi()) {
+    Unique_Node_List worklist;
+    worklist.push(oop);
+    use_oop = true;
+    while (worklist.size() > 0 && use_oop) {
+      Node* n = worklist.pop();
+      for (uint i = 1; i < n->req(); i++) {
+        Node* in = n->in(i);
+        if (in->is_Phi()) {
+          worklist.push(in);
+        // TestNullableArrays.test123 fails when enabling this, probably we should make sure that we don't load from a just allocated object
+        //} else if (!(in->is_Con() || in->is_Parm() || in->is_Load() || (in->isa_DecodeN() && in->in(1)->is_Load()))) {
+        } else if (!(in->is_Con() || in->is_Parm())) {
+          use_oop = false;
+          break;
+        }
+      }
+    }
+  } else {
+    use_oop = allow_oop && is_allocated(igvn) &&
+              (oop->is_Con() || oop->is_Parm() || oop->is_Load() || (oop->isa_DecodeN() && oop->in(1)->is_Load()));
+  }
 
   ResourceMark rm;
   Unique_Node_List safepoints;
@@ -361,9 +385,9 @@ const TypePtr* InlineTypeNode::field_adr_type(Node* base, int offset, ciInstance
   return adr_type;
 }
 
-// We limit scalarization for inline types with circular fields and can therefore observe
-// nodes of same type but with different scalarization depth during GVN. This method adjusts
-// the scalarization depth to avoid inconsistencies during merging.
+// We limit scalarization for inline types with circular fields and can therefore observe nodes
+// of the same type but with different scalarization depth during GVN. This method adjusts the
+// scalarization depth to avoid inconsistencies during merging.
 InlineTypeNode* InlineTypeNode::adjust_scalarization_depth(GraphKit* kit) {
   if (!kit->C->has_circular_inline_type()) {
     return this;
@@ -740,9 +764,10 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk, bool null_free) {
   // Create a new InlineTypeNode with uninitialized values and nullptr oop
-  Node* oop = (vk->is_empty() && vk->is_initialized()) ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
+  bool use_default_oop = vk->is_empty() && vk->is_initialized() && null_free;
+  Node* oop = use_default_oop ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop, null_free);
-  vt->set_is_buffered(gvn, vk->is_empty() && vk->is_initialized());
+  vt->set_is_buffered(gvn, use_default_oop);
   vt->set_is_init(gvn);
   return vt;
 }
@@ -1128,6 +1153,9 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       // Non-flat inline type field
       if (type->is_inlinetype()) {
         if (null_check_region != nullptr) {
+          // We limit scalarization for inline types with circular fields and can therefore observe nodes
+          // of the same type but with different scalarization depth during GVN. To avoid inconsistencies
+          // during merging, make sure that we only create Phis for fields that are guaranteed to be scalarized.
           if (parm->is_InlineType() && kit->C->has_circular_inline_type()) {
             parm = parm->as_InlineType()->get_oop();
           }
@@ -1225,13 +1253,6 @@ InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk,
     vt->set_field_value(i, value);
   }
   return gvn.transform(vt)->as_InlineType();
-}
-
-Node* InlineTypeNode::Identity(PhaseGVN* phase) {
-  if (get_oop()->is_InlineType()) {
-    return get_oop();
-  }
-  return this;
 }
 
 const Type* InlineTypeNode::Value(PhaseGVN* phase) const {

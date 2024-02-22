@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,26 @@ package compiler.valhalla.inlinetypes;
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 
 /*
  * @test
  * @key randomness
- * @summary Test the handling of fields of unloaded inline classes.
+ * @summary Test the handling of fields of unloaded value classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses hack/GetUnresolvedInlineFieldWrongSignature.java
- * @compile -XDenablePrimitiveClasses TestUnloadedInlineTypeField.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
+ * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestUnloadedInlineTypeField.java
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla
+ *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ *                               compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
  */
 
 public class TestUnloadedInlineTypeField {
@@ -53,30 +62,29 @@ public class TestUnloadedInlineTypeField {
                 new Scenario(3, "-XX:InlineFieldMaxFlatSize=0",
                                 "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+PatchALot")
         };
-        final String[] flags = { "-XX:+EnableValhalla" ,"-XX:+EnablePrimitiveClasses",
-                                // Prevent IR Test Framework from loading classes
-                                "-DIgnoreCompilerControls=true",
-                                // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
-                                "-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1"};
-        for (Scenario s : scenarios) {
-           s.addFlags(flags);
-        }
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
+                   .addFlags("-XX:+EnableValhalla",
+                             // Prevent IR Test Framework from loading classes
+                             "-DIgnoreCompilerControls=true",
+                             // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
+                             "-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1")
                    .start();
     }
 
     // Test case 1:
-    // The inline type field class has been loaded, but the holder class has not been loaded.
+    // The value class field class has been loaded, but the holder class has not been loaded.
     //
     //     aload_0
-    //     getfield  MyValue1Holder.v:QMyValue1;
+    //     getfield  MyValue1Holder.v:LMyValue1;
     //               ^ not loaded      ^ already loaded
     //
-    // MyValue1 has already been loaded, because it's in the InlineType attribute of
+    // MyValue1 has already been loaded, because it's in the preload attribute of
     // TestUnloadedInlineTypeField, due to TestUnloadedInlineTypeField.test1_precondition().
-    static final primitive class MyValue1 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue1 {
+        int foo;
 
         MyValue1() {
             foo = rI;
@@ -84,6 +92,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue1Holder {
+        @NullRestricted
         MyValue1 v;
 
         public MyValue1Holder() {
@@ -116,16 +125,18 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 2:
-    // Both the inline type field class, and the holder class have not been loaded.
+    // Both the value class field class, and the holder class have not been loaded.
     //
     //     aload_0
-    //     getfield  MyValue2Holder.v:QMyValue2;
+    //     getfield  MyValue2Holder.v:LMyValue2;
     //               ^ not loaded     ^ not loaded
     //
     // MyValue2 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedInlineTypeField.
-    static final primitive class MyValue2 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue2 {
+        int foo;
 
         public MyValue2(int n) {
             foo = n;
@@ -133,6 +144,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue2Holder {
+        @NullRestricted
         MyValue2 v;
 
         public MyValue2Holder() {
@@ -160,67 +172,12 @@ public class TestUnloadedInlineTypeField {
         }
     }
 
-    // Test case 3: same as test1, except we are using an incorrect signature to
-    // refer to the inline class.
-    // The inline type field class has been loaded, but the holder class has not been loaded.
-    //
-    // GetUnresolvedInlineFieldWrongSignature::test3() {
-    //     aload_0
-    //     getfield  MyValue3Holder.v:LMyValue3;
-    //               ^ not loaded    ^ already loaded (but should have been "Q")
-    //     ...
-    // }
-    //
-    // MyValue3 has already been loaded, because it's in the InlineType attribute of
-    // TestUnloadedInlineTypeField, due to TestUnloadedInlineTypeField.test3_precondition().
-    static final primitive class MyValue3 {
-        final int foo;
-
-        public MyValue3() {
-            foo = rI;
-        }
-    }
-
-    static class MyValue3Holder {
-        MyValue3 v;
-
-        public MyValue3Holder() {
-            v = new MyValue3();
-        }
-    }
-
-    static MyValue3 test3_precondition() {
-        return new MyValue3();
-    }
-
-    @Test
-    public int test3(Object holder) {
-        // Don't use MyValue3Holder in the signature, it might trigger class loading
-        return GetUnresolvedInlineFieldWrongSignature.test3(holder);
-    }
-
-    @Run(test = "test3")
-    public void test3_verifier(RunInfo info) {
-        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
-            test3(null);
-        } else {
-            // Make sure klass is resolved
-            for (int i = 0; i < 10; ++i) {
-                MyValue3Holder holder = new MyValue3Holder();
-                try {
-                    test3(holder);
-                    Asserts.fail("Should have thrown NoSuchFieldError");
-                } catch (NoSuchFieldError e) {
-                    // OK
-                }
-            }
-        }
-    }
-
     // Test case 4:
     // Same as case 1, except we use putfield instead of getfield.
-    static final primitive class MyValue4 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue4 {
+        int foo;
 
         MyValue4(int n) {
             foo = n;
@@ -228,6 +185,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue4Holder {
+        @NullRestricted
         MyValue4 v;
 
         public MyValue4Holder() {
@@ -257,8 +215,10 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 5:
     // Same as case 2, except we use putfield instead of getfield.
-    static final primitive class MyValue5 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue5 {
+        int foo;
 
         MyValue5(int n) {
             foo = n;
@@ -266,6 +226,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue5Holder {
+        @NullRestricted
         MyValue5 v;
 
         public MyValue5Holder() {
@@ -300,15 +261,17 @@ public class TestUnloadedInlineTypeField {
 
 
     // Test case 6: (same as test1, except we use getstatic instead of getfield)
-    // The inline type field class has been loaded, but the holder class has not been loaded.
+    // The value class field class has been loaded, but the holder class has not been loaded.
     //
-    //     getstatic  MyValue6Holder.v:QMyValue1;
+    //     getstatic  MyValue6Holder.v:LMyValue1;
     //                ^ not loaded       ^ already loaded
     //
-    // MyValue6 has already been loaded, because it's in the InlineType attribute of
+    // MyValue6 has already been loaded, because it's in the preload attribute of
     // TestUnloadedInlineTypeField, due to TestUnloadedInlineTypeField.test1_precondition().
-    static final primitive class MyValue6 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue6 {
+        int foo;
 
         MyValue6() {
             foo = rI;
@@ -316,6 +279,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue6Holder {
+        @NullRestricted
         static MyValue6 v = new MyValue6();
     }
 
@@ -343,15 +307,17 @@ public class TestUnloadedInlineTypeField {
 
 
     // Test case 7:  (same as test2, except we use getstatic instead of getfield)
-    // Both the inline type field class, and the holder class have not been loaded.
+    // Both the value class field class, and the holder class have not been loaded.
     //
-    //     getstatic  MyValue7Holder.v:QMyValue7;
+    //     getstatic  MyValue7Holder.v:LMyValue7;
     //                ^ not loaded       ^ not loaded
     //
     // MyValue7 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedInlineTypeField.
-    static final primitive class MyValue7 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue7 {
+        int foo;
 
         MyValue7(int n) {
             foo = n;
@@ -359,6 +325,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue7Holder {
+        @NullRestricted
         static MyValue7 v = new MyValue7(rI);
     }
 
@@ -382,8 +349,10 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 8:
     // Same as case 1, except holder is allocated in test method (-> no holder null check required)
-    static final primitive class MyValue8 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue8 {
+        int foo;
 
         MyValue8() {
             foo = rI;
@@ -391,6 +360,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue8Holder {
+        @NullRestricted
         MyValue8 v;
 
         public MyValue8Holder() {
@@ -423,8 +393,10 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 9:
     // Same as case 2, except holder is allocated in test method (-> no holder null check required)
-    static final primitive class MyValue9 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue9 {
+        int foo;
 
         public MyValue9(int n) {
             foo = n;
@@ -432,6 +404,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue9Holder {
+        @NullRestricted
         MyValue9 v;
 
         public MyValue9Holder() {
@@ -458,58 +431,12 @@ public class TestUnloadedInlineTypeField {
         }
     }
 
-    // Test case 10:
-    // Same as case 4, but with putfield
-    static final primitive class MyValue10 {
-        final int foo;
-
-        public MyValue10() {
-            foo = rI;
-        }
-    }
-
-    static class MyValue10Holder {
-        MyValue10 v1;
-        MyValue10 v2;
-
-        public MyValue10Holder() {
-            v1 = new MyValue10();
-            v2 = new MyValue10();
-        }
-    }
-
-    static MyValue10 test10_precondition() {
-        return new MyValue10();
-    }
-
-    @Test
-    public void test10(Object holder) {
-        // Don't use MyValue10Holder in the signature, it might trigger class loading
-        GetUnresolvedInlineFieldWrongSignature.test10(holder);
-    }
-
-    @Run(test = "test10")
-    public void test10_verifier(RunInfo info) {
-        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
-            test10(null);
-        } else {
-            // Make sure klass is resolved
-            for (int i = 0; i < 10; ++i) {
-                MyValue10Holder holder = new MyValue10Holder();
-                try {
-                    test10(holder);
-                    Asserts.fail("Should have thrown NoSuchFieldError");
-                } catch (NoSuchFieldError e) {
-                    // OK
-                }
-            }
-        }
-    }
-
     // Test case 11:
     // Same as case 4, except holder is allocated in test method (-> no holder null check required)
-    static final primitive class MyValue11 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue11 {
+        int foo;
 
         MyValue11(int n) {
             foo = n;
@@ -517,6 +444,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue11Holder {
+        @NullRestricted
         MyValue11 v;
 
         public MyValue11Holder() {
@@ -548,8 +476,10 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 12:
     // Same as case 5, except holder is allocated in test method (-> no holder null check required)
-    static final primitive class MyValue12 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue12 {
+        int foo;
 
         MyValue12(int n) {
             foo = n;
@@ -557,6 +487,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue12Holder {
+        @NullRestricted
         MyValue12 v;
 
         public MyValue12Holder() {
@@ -589,8 +520,10 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 13:
     // Same as case 10, except MyValue13 is allocated in test method
-    static final primitive class MyValue13 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue13 {
+        int foo;
 
         public MyValue13() {
             foo = rI;
@@ -598,6 +531,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue13Holder {
+        @NullRestricted
         MyValue13 v;
 
         public MyValue13Holder() {
@@ -633,56 +567,12 @@ public class TestUnloadedInlineTypeField {
         }
     }
 
-    // Test case 14:
-    // Same as case 10, except storing null
-    static final primitive class MyValue14 {
-        final int foo;
-
-        public MyValue14() {
-            foo = rI;
-        }
-    }
-
-    static class MyValue14Holder {
-        MyValue14 v;
-
-        public MyValue14Holder() {
-            v = new MyValue14();
-        }
-    }
-
-    static MyValue14 test14_precondition() {
-        return new MyValue14();
-    }
-
-    @Test
-    public void test14(Object holder) {
-        // Don't use MyValue14Holder in the signature, it might trigger class loading
-        GetUnresolvedInlineFieldWrongSignature.test14(holder);
-    }
-
-    @Run(test = "test14")
-    public void test14_verifier(RunInfo info) {
-        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
-            test14(null);
-        } else {
-            // Make sure klass is resolved
-            for (int i = 0; i < 10; ++i) {
-                MyValue14Holder holder = new MyValue14Holder();
-                try {
-                    test14(holder);
-                    Asserts.fail("Should have thrown NoSuchFieldError");
-                } catch (NoSuchFieldError e) {
-                    // OK
-                }
-            }
-        }
-    }
-
     // Test case 15:
     // Same as case 13, except MyValue15 is unloaded
-    static final primitive class MyValue15 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue15 {
+        int foo;
 
         public MyValue15() {
             foo = rI;
@@ -690,6 +580,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue15Holder {
+        @NullRestricted
         MyValue15 v;
 
         public MyValue15Holder() {
@@ -722,9 +613,9 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 16:
-    // aconst_init with type which is not an inline type
-    static final class MyValue16 {
-        final int foo;
+    // aconst_init with type which is not a value class
+    static class MyValue16 {
+        int foo;
 
         public MyValue16() {
             foo = rI;
@@ -759,8 +650,8 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 17:
     // Same as test16 but with unloaded type at aconst_init
-    static final class MyValue17 {
-        final int foo;
+    static class MyValue17 {
+        int foo;
 
         public MyValue17() {
             foo = rI;
@@ -791,8 +682,10 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 18:
     // Same as test7 but with the holder being loaded
-    static final primitive class MyValue18 {
-        final int foo;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue18 {
+        int foo;
 
         MyValue18(int n) {
             foo = n;
@@ -800,6 +693,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue18Holder {
+        @NullRestricted
         static MyValue18 v = new MyValue18(rI);
     }
 
@@ -824,9 +718,11 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 19:
-    // Same as test18 but uninitialized (null) static inline type field
-    static final primitive class MyValue19 {
-        final int foo;
+    // Same as test18 but uninitialized (null) static value class field
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue19 {
+        int foo;
 
         MyValue19(int n) {
             foo = n;
@@ -834,6 +730,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue19Holder {
+        @NullRestricted
         static MyValue19 v;
     }
 
@@ -858,12 +755,14 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 20:
-    // Inline type with object field of unloaded type.
+    // Value class with object field of unloaded type.
     static class MyObject20 {
         int x = 42;
     }
 
-    static final primitive class MyValue20 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue20 {
         MyObject20 obj;
 
         MyValue20() {
@@ -882,20 +781,28 @@ public class TestUnloadedInlineTypeField {
         Asserts.assertEQ(vt.obj, null);
     }
 
-    static primitive class Test21ClassA {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test21ClassA {
+        @NullRestricted
         static Test21ClassB b;
+        @NullRestricted
         static Test21ClassC c;
     }
 
-    static primitive class Test21ClassB {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test21ClassB {
         static int x = Test21ClassA.c.x;
     }
 
-    static primitive class Test21ClassC {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test21ClassC {
         int x = 42;
     }
 
-    // Test access to static inline type field with unloaded type
+    // Test access to static value class field with unloaded type
     @Test
     public Object test21() {
         return new Test21ClassA();
@@ -910,21 +817,26 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test22FailInit = true;
 
-    static primitive class Test22ClassA {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test22ClassA {
         int x = 0;
+        @NullRestricted
         static Test22ClassB b;
     }
 
-    static primitive class Test22ClassB {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test22ClassB {
         int x = 0;
         static {
             if (test22FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }
 
-    // Test that load from static field of uninitialized inline type throws an exception
+    // Test that load from static field of uninitialized value class throws an exception
     @Test
     public Object test22() {
         return Test22ClassA.b;
@@ -949,15 +861,20 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test23FailInit = true;
 
-    static primitive class Test23ClassA {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test23ClassA {
         int x = 0;
+        @NullRestricted
         static Test23ClassB b;
     }
 
-    static primitive class Test23ClassB {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test23ClassB {
         static {
             if (test23FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }
@@ -987,23 +904,28 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test24FailInit = true;
 
-    static primitive class Test24ClassA {
-        Test24ClassB b = Test24ClassB.default;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test24ClassA {
+        @NullRestricted
+        Test24ClassB b = new Test24ClassB();
     }
 
-    static primitive class Test24ClassB {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test24ClassB {
         int x = 0;
         static {
             if (test24FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }
 
-    // Test that access to non-static field of uninitialized inline type throws an exception
+    // Test that access to non-static field of uninitialized value class throws an exception
     @Test
     public Object test24() {
-        return Test24ClassA.default.b.x;
+        return (new Test24ClassA()).b.x;
     }
 
     @Run(test = "test24")
@@ -1025,15 +947,20 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test25FailInit = true;
 
-    static primitive class Test25ClassA {
-        Test25ClassB b = Test25ClassB.default;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test25ClassA {
+        @NullRestricted
+        Test25ClassB b = new Test25ClassB();
     }
 
-    static primitive class Test25ClassB {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test25ClassB {
         int x = 24;
         static {
             if (test25FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }
@@ -1041,7 +968,7 @@ public class TestUnloadedInlineTypeField {
     // Same as test24 but with field access outside of test method
     @Test
     public Test25ClassB test25() {
-        return Test25ClassA.default.b;
+        return (new Test25ClassA()).b;
     }
 
     @Run(test = "test25")
@@ -1064,14 +991,19 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test26FailInit = true;
 
-    static primitive class Test26ClassA {
-        Test26ClassB b = Test26ClassB.default;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test26ClassA {
+        @NullRestricted
+        Test26ClassB b = new Test26ClassB();
     }
 
-    static primitive class Test26ClassB {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test26ClassB {
         static {
             if (test26FailInit) {
-                throw new RuntimeException();
+                throw new RuntimeException("Init failed");
             }
         }
     }
@@ -1079,7 +1011,7 @@ public class TestUnloadedInlineTypeField {
     // Same as test25 but with empty ClassB
     @Test
     public Object test26() {
-        return Test26ClassA.default.b;
+        return (new Test26ClassA()).b;
     }
 
     @Run(test = "test26")
@@ -1099,18 +1031,21 @@ public class TestUnloadedInlineTypeField {
         }
     }
 
-    static final primitive class MyValue27 {
-        final int foo = rI;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue27 {
+        int foo = rI;
     }
 
     static class MyValue27Holder {
+        @NullRestricted
         MyValue27 v;
     }
 
     // Make sure MyValue27Holder is loaded but MyValue27 is not
     Class test27Class = MyValue27Holder.class;
 
-    // Test unloaded inline type field load from loaded holder
+    // Test unloaded value class field load from loaded holder
     @Test
     public static int test27() {
         MyValue27Holder holder = new MyValue27Holder();
@@ -1120,5 +1055,29 @@ public class TestUnloadedInlineTypeField {
     @Run(test = "test27")
     public void test27_verifier() {
         Asserts.assertEQ(test27(), 0);
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue28 {
+        @NullRestricted
+        static MyValue28 field1;
+    }
+
+    // Test null store to null restricted field with unloaded holder
+    @Test
+    public static void test28() {
+        MyValue28.field1 = null;
+    }
+
+    @Run(test = "test28")
+    @Warmup(0) // Make sure that MyValue28 is not loaded
+    public void test28_verifier() {
+        try {
+            test28();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
     }
 }
