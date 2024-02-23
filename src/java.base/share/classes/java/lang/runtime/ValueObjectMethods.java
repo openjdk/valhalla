@@ -428,8 +428,6 @@ final class ValueObjectMethods {
          * Returns a method handle that implements equals method for this builder's value class.
          */
         MethodHandle equalsTarget() {
-            // build();
-
             if (status != Status.READY)
                 throw new IllegalStateException(type.getName() + " not ready");
 
@@ -444,7 +442,6 @@ final class ValueObjectMethods {
          * Returns a method handle that implements hashCode method for this builder's value class.
          */
         MethodHandle hashCodeTarget() {
-            // build();
             if (status != Status.READY)
                 throw new IllegalStateException(type.getName() + " not ready");
 

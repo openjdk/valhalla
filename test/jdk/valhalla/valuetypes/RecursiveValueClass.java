@@ -206,6 +206,7 @@ public class RecursiveValueClass {
         var n3 = new Node(n2, n1);
         var v1 = new V(null);
         var p1 = new P(n3, v1);
+        var v2 = new V(p1);
 
         var e1 = new E(ValueClass.zeroInstance(F.class));
         var f1 = new F(e1);
@@ -229,9 +230,9 @@ public class RecursiveValueClass {
                 Arguments.of(n2),
                 Arguments.of(n3),
 
-
                 // value class P -> value class V -> P
                 Arguments.of(p1),
+                Arguments.of(v2),
 
                 // E -> F -> E
                 Arguments.of(e1),
