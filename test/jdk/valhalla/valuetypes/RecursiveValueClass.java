@@ -27,6 +27,7 @@
  */
 
 /*
+ * @ignore 8296056
  * @test
  * @run junit/othervm -XX:TieredStopAtLevel=1 -Djdk.value.recursion.threshold=100000 RecursiveValueClass
  */
