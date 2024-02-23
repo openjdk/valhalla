@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,6 @@
  * @run junit/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ObjectMethods
  * @run junit/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
-import java.lang.reflect.Modifier;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -219,12 +217,11 @@ public class ObjectMethods {
         Point p = ValueClass.zeroInstance(Point.class);
         Line l = ValueClass.zeroInstance(Line.class);
         Value v = ValueClass.zeroInstance(Value.class);
-
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return Stream.of(
                 Arguments.of(P1, hash(Point.class, 1, 2)),
                 Arguments.of(L1, hash(Line.class, new Point(1, 2), new Point(3, 4))),
-                Arguments.of(V, hash(hashCodeComponents(V))),
+                Arguments.of(V, hash(Value.class, P1, L1, V.r, V.s)),
                 Arguments.of(new Point(0, 0), hash(Point.class, 0, 0)),
                 Arguments.of(p, hash(Point.class, 0, 0)),
                 Arguments.of(v, hash(Value.class, p, l, null, null)),
@@ -239,21 +236,6 @@ public class ObjectMethods {
         assertEquals(System.identityHashCode(o), hash);
     }
 
-    private static Object[] hashCodeComponents(Object o) {
-        Class<?> type = o.getClass();
-        // filter static fields
-        Stream<Object> fields = Arrays.stream(type.getDeclaredFields())
-            .filter(f -> !Modifier.isStatic(f.getModifiers()))
-            .map(f -> {
-                try {
-                    return f.get(o);
-                } catch (IllegalAccessException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        return Stream.concat(Stream.of(type), fields).toArray(Object[]::new);
-    }
-
     private static int hash(Object... values) {
         int hc = SALT;
         for (Object o : values) {
@@ -261,7 +243,6 @@ public class ObjectMethods {
         }
         return hc;
     }
-
 
     interface Number {
         int value();

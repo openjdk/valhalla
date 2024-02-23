@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,23 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
- * @run junit/othervm -Xint -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.recursion.threshold=100000 RecursiveValueClass
+ * @run junit/othervm -Xint -Djdk.value.recursion.threshold=100000 RecursiveValueClass
+ */
+
+/*
+ * @test
+ * @run junit/othervm -XX:TieredStopAtLevel=1 -Djdk.value.recursion.threshold=100000 RecursiveValueClass
  */
 
 /*
  * @ignore 8296056
  * @test
- * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
- * @run junit/othervm -XX:TieredStopAtLevel=1 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.recursion.threshold=100000 RecursiveValueClass
+ * @run junit/othervm -Xcomp -Djdk.value.recursion.threshold=100000 RecursiveValueClass
  */
 
-/*
- * @ignore 8296056
- * @test
- * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
- * @run junit/othervm -Xcomp -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.recursion.threshold=100000 RecursiveValueClass
- */
-
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -51,6 +50,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RecursiveValueClass {
+    @ImplicitlyConstructible
     static value class Node {
         Node left;
         Node right;
@@ -61,22 +61,25 @@ public class RecursiveValueClass {
         }
     }
 
-    static primitive class P {
+    @ImplicitlyConstructible
+    static value class P {
         Node node;
         V v;
-        P(Node node) {
+        P(Node node, V v) {
             this.node = node;
-            this.v = null;
+            this.v = v;
         }
     }
 
+    @ImplicitlyConstructible
     static value class V {
-        P.ref p;
-        V() {
-            this.p = null;
+        P p;
+        V(P p) {
+            this.p = p;
         }
     }
 
+    @ImplicitlyConstructible
     static value class A {
         B b;
         E e;
@@ -85,6 +88,8 @@ public class RecursiveValueClass {
             this.e = e;
         }
     }
+
+    @ImplicitlyConstructible
     static value class B {
         C c;
         D d;
@@ -93,24 +98,32 @@ public class RecursiveValueClass {
             this.d = d;
         }
     }
+
+    @ImplicitlyConstructible
     static value class C {
         A a;
         C(A a) {
             this.a = a;
         }
     }
+
+    @ImplicitlyConstructible
     static value class D {
         int x;
         D(int x) {
             this.x = x;
         }
     }
+
+    @ImplicitlyConstructible
     static value class E {
         F f;
         E(F f) {
             this.f = f;
         }
     }
+
+    @ImplicitlyConstructible
     static value class F {
         E e;
         F(E e) {
@@ -119,19 +132,23 @@ public class RecursiveValueClass {
     }
 
     static Stream<Arguments> objectsProvider() {
-        var n1 = Node.default;
+        var n1 = ValueClass.zeroInstance(Node.class);
         var n2 = new Node(n1, null);
         var n3 = new Node(n2, n1);
         var n4 = new Node(n2, n1);
-        var p1 = new P(n3);
-        var p2 = new P(n4);
+        var v1 = ValueClass.zeroInstance(V.class);
+        var p1 = new P(n3, v1);
+        var p2 = new P(n4, v1);
+        var v2 = new V(p1);
+        var v3 = new V(p2);
+        var p3 = new P(n3, v2);
 
-        var e1 = new E(F.default);
+        var e1 = new E(ValueClass.zeroInstance(F.class));
         var f1 = new F(e1);
         var e2 = new E(f1);
         var f2 = new F(e2);
 
-        var a = new A(B.default, E.default);
+        var a = new A(ValueClass.zeroInstance(B.class), ValueClass.zeroInstance(E.class));
 
         var d1 = new D(1);
         var d2 = new D(2);
@@ -154,8 +171,11 @@ public class RecursiveValueClass {
                 Arguments.of(null, null, true),
                 Arguments.of(n1, "foo",  false),
 
-                // primitive class P -> value class V -> P.ref
+                // value class P -> value class V -> P
                 Arguments.of(p1, p2,     true),
+                Arguments.of(p1, p3,     false),
+                Arguments.of(p3, p3,     true),
+                Arguments.of(v2, v3,     true),
 
                 // E -> F -> E
                 Arguments.of(e1, e2,     false),
@@ -181,17 +201,18 @@ public class RecursiveValueClass {
     }
 
     static Stream<Arguments> hashCodeProvider() {
-        var n1 = Node.default;
+        var n1 = ValueClass.zeroInstance(Node.class);
         var n2 = new Node(n1, null);
         var n3 = new Node(n2, n1);
-        var p1 = new P(n3);
+        var v1 = new V(null);
+        var p1 = new P(n3, v1);
 
-        var e1 = new E(F.default);
+        var e1 = new E(ValueClass.zeroInstance(F.class));
         var f1 = new F(e1);
         var e2 = new E(f1);
         var f2 = new F(e2);
 
-        var a = new A(B.default, E.default);
+        var a = new A(ValueClass.zeroInstance(B.class), ValueClass.zeroInstance(E.class));
 
         var d1 = new D(1);
         var d2 = new D(2);
@@ -209,7 +230,7 @@ public class RecursiveValueClass {
                 Arguments.of(n3),
 
 
-                // primitive class P -> value class V -> P.ref
+                // value class P -> value class V -> P
                 Arguments.of(p1),
 
                 // E -> F -> E
@@ -235,6 +256,7 @@ public class RecursiveValueClass {
         assertEquals(System.identityHashCode(o), hc, o.toString());
     }
 
+    @ImplicitlyConstructible
     static value class N {
         N l;
         N r;
