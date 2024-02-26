@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -156,18 +156,18 @@ public class Modifier {
     }
 
     /**
-     * Return {@code true} if the integer argument includes the
-     * {@code value} modifier, {@code false} otherwise.
+     * Return {@code true} if the integer argument does not include the
+     * {@code identity} modifier, {@code false} otherwise.
      *
      * @apiNote {@code isValue} should only be called with the modifiers
      * of a {@linkplain Class#getModifiers() class}.
      *
      * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code value} modifier; {@code false} otherwise.
+     * @return {@code true} if {@code mod} does not include the
+     * {@code identity} modifier; {@code false} otherwise.
      */
     public static boolean isValue(int mod) {
-        return (mod & IDENTITY) == 0;
+        return !isIdentity(mod);
     }
 
     /**
@@ -334,13 +334,6 @@ public class Modifier {
      * modifier.
      */
     public static final int IDENTITY         = 0x00000020;
-
-    /**
-     * The {@code int} value representing the {@code value}
-     * modifier.
-     * @see AccessFlag#VALUE
-     */
-   public static final int VALUE            = 0x00000040;
 
     /**
      * The {@code int} value representing the {@code volatile}

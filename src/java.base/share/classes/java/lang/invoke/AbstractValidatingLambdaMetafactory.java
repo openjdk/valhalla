@@ -199,13 +199,6 @@ import static sun.invoke.util.Wrapper.isWrapperType;
                     interfaceClass.getName()));
         }
 
-        if (interfaceClass.isIdentity() || interfaceClass.isValue()) {
-            throw new LambdaConversionException(String.format(
-                    "%s is %s interface",
-                    interfaceClass.getName(),
-                    interfaceClass.isIdentity() ? "an identity" : "a value"));
-        }
-
         for (Class<?> c : altInterfaces) {
             if (!c.isInterface()) {
                 throw new LambdaConversionException(String.format(
