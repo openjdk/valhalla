@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -706,7 +706,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     public boolean isValue() {
-        return (this.getModifiers() & Modifier.VALUE) != 0;
+        return (this.getModifiers() & Modifier.IDENTITY) == 0;
     }
 
     /**
@@ -3976,7 +3976,7 @@ public final class Class<T> implements java.io.Serializable,
                 return constructor;
             }
         }
-        throw new NoSuchMethodException(methodToString(isValue() ? "<vnew>" : "<init>", parameterTypes));
+        throw new NoSuchMethodException(methodToString("<init>", parameterTypes));
     }
 
     //
