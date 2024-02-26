@@ -790,8 +790,7 @@ int java_lang_Class::_class_loader_offset;
 int java_lang_Class::_module_offset;
 int java_lang_Class::_protection_domain_offset;
 int java_lang_Class::_component_mirror_offset;
-int java_lang_Class::_primary_mirror_offset;
-int java_lang_Class::_secondary_mirror_offset;
+
 int java_lang_Class::_signers_offset;
 int java_lang_Class::_name_offset;
 int java_lang_Class::_source_file_offset;
@@ -997,8 +996,7 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
       if (is_scratch) {
         comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
       } else {
-        InlineKlass* vk = InlineKlass::cast(element_klass);
-        comp_mirror = Handle(THREAD, vk->val_mirror());
+        comp_mirror = Handle(THREAD, element_klass->java_mirror());
       }
     } else if (k->is_typeArray_klass()) {
       BasicType type = TypeArrayKlass::cast(k)->element_type();
@@ -1014,7 +1012,7 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
       oop comp_oop = element_klass->java_mirror();
       if (element_klass->is_inline_klass()) {
         InlineKlass* ik = InlineKlass::cast(element_klass);
-        comp_oop = k->name()->is_Q_array_signature() ? ik->val_mirror() : ik->ref_mirror();
+        comp_oop = ik->java_mirror();
       }
       if (is_scratch) {
         comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
@@ -1082,11 +1080,6 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
       release_set_array_klass(comp_mirror(), k);
     }
 
-    if (k->is_inline_klass()) {
-      oop secondary_mirror = create_secondary_mirror(k, mirror, CHECK);
-      set_primary_mirror(mirror(), mirror());
-      set_secondary_mirror(mirror(), secondary_mirror);
-    }
     if (CDSConfig::is_dumping_heap()) {
       create_scratch_mirror(k, CHECK);
     }
@@ -1094,25 +1087,6 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
     assert(fixup_mirror_list() != nullptr, "fixup_mirror_list not initialized");
     fixup_mirror_list()->push(k);
   }
-}
-// Create the secondary mirror for inline class. Sets all the fields of this java.lang.Class
-// instance with the same value as the primary mirror
-oop java_lang_Class::create_secondary_mirror(Klass* k, Handle mirror, TRAPS) {
-  assert(k->is_inline_klass(), "primitive class");
-  // Allocate mirror (java.lang.Class instance)
-  oop mirror_oop = InstanceMirrorKlass::cast(vmClasses::Class_klass())->allocate_instance(k, CHECK_0);
-  Handle secondary_mirror(THREAD, mirror_oop);
-
-  java_lang_Class::set_klass(secondary_mirror(), k);
-  java_lang_Class::set_static_oop_field_count(secondary_mirror(), static_oop_field_count(mirror()));
-
-  set_protection_domain(secondary_mirror(), protection_domain(mirror()));
-  set_class_loader(secondary_mirror(), class_loader(mirror()));
-  // ## handle if java.base is not yet defined
-  set_module(secondary_mirror(), module(mirror()));
-  set_primary_mirror(secondary_mirror(), mirror());
-  set_secondary_mirror(secondary_mirror(), secondary_mirror());
-  return secondary_mirror();
 }
 
 #if INCLUDE_CDS_JAVA_HEAP
@@ -1244,26 +1218,6 @@ oop java_lang_Class::component_mirror(oop java_class) {
   return java_class->obj_field(_component_mirror_offset);
 }
 
-oop java_lang_Class::primary_mirror(oop java_class) {
-  assert(_primary_mirror_offset != 0, "must be set");
-  return java_class->obj_field(_primary_mirror_offset);
-}
-
-void java_lang_Class::set_primary_mirror(oop java_class, oop mirror) {
-  assert(_primary_mirror_offset != 0, "must be set");
-  java_class->obj_field_put(_primary_mirror_offset, mirror);
-}
-
-oop java_lang_Class::secondary_mirror(oop java_class) {
-  assert(_secondary_mirror_offset != 0, "must be set");
-  return java_class->obj_field(_secondary_mirror_offset);
-}
-
-void java_lang_Class::set_secondary_mirror(oop java_class, oop mirror) {
-  assert(_secondary_mirror_offset != 0, "must be set");
-  java_class->obj_field_put(_secondary_mirror_offset, mirror);
-}
-
 objArrayOop java_lang_Class::signers(oop java_class) {
   assert(_signers_offset != 0, "must be set");
   return (objArrayOop)java_class->obj_field(_signers_offset);
@@ -1348,13 +1302,11 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
   assert(is_instance(java_class), "must be a Class object");
   Symbol* name = nullptr;
   bool is_instance = false;
-  bool is_Q_descriptor = false;
   if (is_primitive(java_class)) {
     name = vmSymbols::type_signature(primitive_type(java_class));
   } else {
     Klass* k = as_Klass(java_class);
     is_instance = k->is_instance_klass();
-    is_Q_descriptor = k->is_inline_klass() && is_secondary_mirror(java_class);
     name = k->name();
   }
   if (name == nullptr) {
@@ -1362,7 +1314,7 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
     return;
   }
   if (is_instance)  {
-    st->print(is_Q_descriptor ? "Q" : "L");
+    st->print("L");
   }
   st->write((char*) name->base(), (int) name->utf8_length());
   if (is_instance)  st->print(";");
@@ -1384,13 +1336,8 @@ Symbol* java_lang_Class::as_signature(oop java_class, bool intern_if_not_found) 
       name->increment_refcount();
     } else {
       ResourceMark rm;
-      const char* sigstr;
-      if (k->is_inline_klass() && is_secondary_mirror(java_class)) {
-        sigstr = InlineKlass::cast(k)->val_signature_name();
-      } else {
-        sigstr = k->signature_name();
-      }
-      int siglen = (int) strlen(sigstr);
+      const char* sigstr = k->signature_name();
+      int         siglen = (int) strlen(sigstr);
       if (!intern_if_not_found) {
         name = SymbolTable::probe(sigstr, siglen);
       } else {
@@ -1478,8 +1425,6 @@ oop java_lang_Class::primitive_mirror(BasicType t) {
   macro(_classRedefinedCount_offset, k, "classRedefinedCount", int_signature,         false); \
   macro(_class_loader_offset,        k, "classLoader",         classloader_signature, false); \
   macro(_component_mirror_offset,    k, "componentType",       class_signature,       false); \
-  macro(_primary_mirror_offset,      k, "primaryType",         class_signature,       false); \
-  macro(_secondary_mirror_offset,    k, "secondaryType",       class_signature,       false); \
   macro(_module_offset,              k, "module",              module_signature,      false); \
   macro(_name_offset,                k, "name",                string_signature,      false); \
   macro(_classData_offset,           k, "classData",           object_signature,      false);

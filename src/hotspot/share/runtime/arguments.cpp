@@ -2960,12 +2960,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
     }
   }
 
-  if (!EnableValhalla && EnablePrimitiveClasses) {
-    jio_fprintf(defaultStream::error_stream(),
-                "Cannot specify -XX:+EnablePrimitiveClasses without -XX:+EnableValhalla");
-    return JNI_EINVAL;
-  }
-
   // PrintSharedArchiveAndExit will turn on
   //   -Xshare:on
   //   -Xlog:class+path=info

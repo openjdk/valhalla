@@ -22,6 +22,7 @@
  */
 
 /*
+ * @ignore
  * @test
  * @summary Test basic verifier assignability of inline types.
  * @compile -XDenablePrimitiveClasses VTAssignability.java

@@ -147,19 +147,6 @@ class InlineKlass: public InstanceKlass {
  public:
   // Type testing
   bool is_inline_klass_slow() const        { return true; }
-  bool is_null_free() const { return access_flags().is_primitive_class(); }
-
-  // ref and val mirror
-  oop ref_mirror() const { return java_mirror(); }
-  oop val_mirror() const { return java_lang_Class::secondary_mirror(java_mirror()); }
-
-  // naming
-  const char* ref_signature_name() const {
-    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_CLASS);
-  }
-  const char* val_signature_name() const {
-    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_PRIMITIVE_OBJECT);
-  }
 
   // Casting from Klass*
   static InlineKlass* cast(Klass* k);

@@ -590,6 +590,14 @@ public class InlineOops {
         public final long timestamp;
         public final String notes;
 
+        public FooValue() {
+            id = 0;
+            name = null;
+            description = null;
+            timestamp = 0L;
+            notes = null;
+        }
+
         public FooValue(int id, String name, String description, long timestamp, String notes) {
             this.id = id;
             this.name = name;
@@ -610,7 +618,9 @@ public class InlineOops {
                         LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                         CODE->{
                             CODE
-                            .aconst_init(FooValue.class)
+                            .new_(FooValue.class)
+                            .dup()
+                            .invokespecial(FooValue.class, "<init>", "()V", false)
                             .aload(oopMapsSlot)
                             .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
@@ -620,7 +630,9 @@ public class InlineOops {
                             .iconst_1()  // Test-D1 Slots=R Stack=RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
                             .aastore()
-                            .aconst_init(FooValue.class)
+                            .new_(FooValue.class)
+                            .dup()
+                            .invokespecial(FooValue.class, "<init>", "()V", false)
                             .astore(vtSlot)
                             .aload(oopMapsSlot)
                             .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV

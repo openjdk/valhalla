@@ -3044,7 +3044,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     }
     for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
       BasicType bt = ss.type();
-      if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
+      if (bt == T_OBJECT) {
         InlineKlass* vk = ss.as_inline_klass(holder);
         if (vk != nullptr && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
           // Check for a calling convention mismatch with super method(s)
@@ -3817,7 +3817,7 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
   int arg_num = callee->is_static() ? 0 : 1;
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
-    if ((bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) && callee->is_scalarized_arg(arg_num)) {
+    if (bt == T_OBJECT && callee->is_scalarized_arg(arg_num)) {
       nb_slots++;
     }
     if (bt != T_VOID) {
@@ -3835,7 +3835,7 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
-    if ((bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) && callee->is_scalarized_arg(arg_num)) {
+    if (bt == T_OBJECT && callee->is_scalarized_arg(arg_num)) {
       InlineKlass* vk = ss.as_inline_klass(holder);
       assert(vk != nullptr, "Unexpected klass");
       oop res = vk->allocate_instance(CHECK_NULL);

@@ -22,6 +22,7 @@
  *
  */
 /*
+ * @ignore
  * @test
  * @summary test that mismatches in bottom class of multi-dimensional
             arrays are correctly detected

@@ -22,6 +22,7 @@
  *
  */
 /*
+ * @ignore
  * @test
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.

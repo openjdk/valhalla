@@ -30,7 +30,7 @@
 
 #define JVM_RECOGNIZED_CLASS_MODIFIERS (JVM_ACC_PUBLIC | \
                                         JVM_ACC_FINAL | \
-                                        JVM_ACC_SUPER | \
+                                        JVM_ACC_IDENTITY | \
                                         JVM_ACC_INTERFACE | \
                                         JVM_ACC_ABSTRACT | \
                                         JVM_ACC_ANNOTATION | \

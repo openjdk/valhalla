@@ -367,14 +367,7 @@ Klass* SystemDictionary::resolve_array_class_or_null(Symbol* class_name,
                                                          protection_domain,
                                                          CHECK_NULL);
     if (k != nullptr) {
-      if (class_name->is_Q_array_signature()) {
-        if (!k->is_inline_klass()) {
-          THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), "L/Q mismatch on bottom type");
-        }
-        k = InlineKlass::cast(k)->value_array_klass(ndims, CHECK_NULL);
-      } else {
-        k = k->array_klass(ndims, CHECK_NULL);
-      }
+      k = k->array_klass(ndims, CHECK_NULL);
     }
   } else {
     k = Universe::typeArrayKlassObj(t);
@@ -834,17 +827,13 @@ Klass* SystemDictionary::find_instance_or_array_klass(Thread* current,
     SignatureStream ss(class_name, false);
     int ndims = ss.skip_array_prefix();  // skip all '['s
     BasicType t = ss.type();
-    if (t != T_OBJECT && t != T_PRIMITIVE_OBJECT) {
+    if (t != T_OBJECT) {
       k = Universe::typeArrayKlassObj(t);
     } else {
       k = SystemDictionary::find_instance_klass(current, ss.as_symbol(), class_loader, protection_domain);
     }
     if (k != nullptr) {
-      if (class_name->is_Q_array_signature()) {
-        k = InlineKlass::cast(k)->value_array_klass_or_null(ndims);
-      } else {
-        k = k->array_klass_or_null(ndims);
-      }
+      k = k->array_klass_or_null(ndims);
     }
   } else {
     k = find_instance_klass(current, class_name, class_loader, protection_domain);
@@ -1804,7 +1793,7 @@ Klass* SystemDictionary::find_constrained_instance_or_array_klass(
     SignatureStream ss(class_name, false);
     int ndims = ss.skip_array_prefix();  // skip all '['s
     BasicType t = ss.type();
-    if (t != T_OBJECT && t != T_PRIMITIVE_OBJECT) {
+    if (t != T_OBJECT) {
       klass = Universe::typeArrayKlassObj(t);
     } else {
       MutexLocker mu(current, SystemDictionary_lock);
@@ -1812,11 +1801,7 @@ Klass* SystemDictionary::find_constrained_instance_or_array_klass(
     }
     // If element class already loaded, allocate array klass
     if (klass != nullptr) {
-      if (class_name->is_Q_array_signature()) {
-        klass = InlineKlass::cast(klass)->value_array_klass_or_null(ndims);
-      } else {
-        klass = klass->array_klass_or_null(ndims);
-      }
+      klass = klass->array_klass_or_null(ndims);
     }
   } else {
     MutexLocker mu(current, SystemDictionary_lock);

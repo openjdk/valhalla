@@ -383,7 +383,6 @@ void TemplateTable::ldc(LdcType type) {
 
   // get type
   __ movzbl(rdx, Address(rax, rbx, Address::times_1, tags_offset));
-  __ andl(rdx, ~JVM_CONSTANT_QDescBit);
 
   // unresolved class - get the resolved class
   __ cmpl(rdx, JVM_CONSTANT_UnresolvedClass);
@@ -3338,23 +3337,6 @@ void TemplateTable::getstatic(int byte_no) {
   getfield_or_static(byte_no, true);
 }
 
-void TemplateTable::withfield() {
-  transition(vtos, atos);
-
-  Register cache = LP64_ONLY(c_rarg1) NOT_LP64(rcx);
-  Register index = LP64_ONLY(c_rarg2) NOT_LP64(rdx);
-
-  resolve_cache_and_index_for_field(f2_byte, cache, index);
-
-  __ lea(rax, at_tos());
-  __ call_VM(rbx, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), cache, rax);
-  // new value type is returned in rbx
-  // stack adjustment is returned in rax
-  __ verify_oop(rbx);
-  __ addptr(rsp, rax);
-  __ movptr(rax, rbx);
-}
-
 // The registers cache and index expected to be set before call.
 // The function may destroy various registers, just not the cache and index registers.
 void TemplateTable::jvmti_post_field_mod(Register cache, Register index, bool is_static) {
@@ -4344,7 +4326,6 @@ void TemplateTable::_new() {
   __ get_unsigned_2_byte_index_at_bcp(rdx, 1);
   Label slow_case;
   Label done;
-  Label is_not_value;
 
   __ get_cpool_and_tags(rcx, rax);
 
@@ -4357,13 +4338,6 @@ void TemplateTable::_new() {
 
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
-
-  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), Klass::InlineKlassKind);
-  __ jcc(Assembler::notEqual, is_not_value);
-
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));
-
-  __ bind(is_not_value);
 
   // make sure klass is initialized & doesn't have finalizer
   __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
@@ -4385,57 +4359,6 @@ void TemplateTable::_new() {
 
   // continue
   __ bind(done);
-}
-
-void TemplateTable::aconst_init() {
-  transition(vtos, atos);
-
-  Label slow_case;
-  Label done;
-  Label is_value;
-
-  __ get_unsigned_2_byte_index_at_bcp(rdx, 1);
-  __ get_cpool_and_tags(rcx, rax);
-
-  // Make sure the class we're about to instantiate has been resolved.
-  // This is done before loading InstanceKlass to be consistent with the order
-  // how Constant Pool is updated (see ConstantPool::klass_at_put)
-  const int tags_offset = Array<u1>::base_offset_in_bytes();
-  __ cmpb(Address(rax, rdx, Address::times_1, tags_offset), JVM_CONSTANT_Class);
-  __ jcc(Assembler::notEqual, slow_case);
-
-  // get InstanceKlass
-  __ load_resolved_klass_at_index(rcx, rcx, rdx);
-
-  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), Klass::InlineKlassKind);
-  __ jcc(Assembler::equal, is_value);
-
-  // in the future, aconst_init will just return null instead of throwing an exception
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_IncompatibleClassChangeError));
-
-  __ bind(is_value);
-
-  // make sure klass is fully initialized
-  __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
-  __ jcc(Assembler::notEqual, slow_case);
-
-  // have a resolved InlineKlass in rcx, return the default value oop from it
-  __ get_default_value_oop(rcx, rdx, rax);
-  __ jmp(done);
-
-  __ bind(slow_case);
-
-  Register rarg1 = LP64_ONLY(c_rarg1) NOT_LP64(rcx);
-  Register rarg2 = LP64_ONLY(c_rarg2) NOT_LP64(rdx);
-
-  __ get_unsigned_2_byte_index_at_bcp(rarg2, 1);
-  __ get_constant_pool(rarg1);
-
-  call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::aconst_init),
-      rarg1, rarg2);
-
-  __ bind(done);
-  __ verify_oop(rax);
 }
 
 void TemplateTable::newarray() {
@@ -4476,7 +4399,6 @@ void TemplateTable::checkcast() {
   __ movzbl(rdx, Address(rdx, rbx,
       Address::times_1,
       Array<u1>::base_offset_in_bytes()));
-  __ andl (rdx, ~JVM_CONSTANT_QDescBit);
   __ cmpl(rdx, JVM_CONSTANT_Class);
   __ jcc(Assembler::equal, quicked);
   __ push(atos); // save receiver for result, and for GC
@@ -4524,20 +4446,6 @@ void TemplateTable::checkcast() {
     __ profile_null_seen(rcx);
   }
 
-  if (EnablePrimitiveClasses) {
-    // Get cpool & tags index
-    __ get_cpool_and_tags(rcx, rdx); // rcx=cpool, rdx=tags array
-    __ get_unsigned_2_byte_index_at_bcp(rbx, 1); // rbx=index
-    // See if CP entry is a Q-descriptor
-    __ movzbl(rcx, Address(rdx, rbx,
-        Address::times_1,
-        Array<u1>::base_offset_in_bytes()));
-    __ andl (rcx, JVM_CONSTANT_QDescBit);
-    __ cmpl(rcx, JVM_CONSTANT_QDescBit);
-    __ jcc(Assembler::notEqual, done);
-    __ jump(ExternalAddress(Interpreter::_throw_NullPointerException_entry));
-  }
-
   __ bind(done);
 }
 
@@ -4554,7 +4462,6 @@ void TemplateTable::instanceof() {
   __ movzbl(rdx, Address(rdx, rbx,
         Address::times_1,
         Array<u1>::base_offset_in_bytes()));
-  __ andl (rdx, ~JVM_CONSTANT_QDescBit);
   __ cmpl(rdx, JVM_CONSTANT_Class);
   __ jcc(Assembler::equal, quicked);
 

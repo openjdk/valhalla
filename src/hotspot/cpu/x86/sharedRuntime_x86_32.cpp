@@ -482,7 +482,6 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_INT:
     case T_ARRAY:
     case T_OBJECT:
-    case T_PRIMITIVE_OBJECT:
     case T_ADDRESS:
       if( reg_arg0 == 9999 )  {
         reg_arg0 = i;
@@ -1011,7 +1010,6 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
     case T_SHORT:
     case T_INT:
     case T_OBJECT:
-    case T_PRIMITIVE_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
     case T_METADATA:
@@ -1595,7 +1593,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   for (int i = 0; i < total_in_args ; i++, c_arg++ ) {
     switch (in_sig_bt[i]) {
       case T_ARRAY:
-      case T_PRIMITIVE_OBJECT:
       case T_OBJECT:
         object_move(masm, map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
                     ((i == 0) && (!is_static)),
@@ -1775,7 +1772,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in st0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_PRIMITIVE_OBJECT:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;

@@ -1129,15 +1129,6 @@ bool GraphKit::compute_stack_effects(int& inputs, int& depth) {
     }
     break;
 
-  case Bytecodes::_withfield: {
-    bool ignored_will_link;
-    ciField* field = method()->get_field_at_bci(bci(), ignored_will_link);
-    int      size  = field->type()->size();
-    inputs = size+1;
-    depth = rsize() - inputs;
-    break;
-  }
-
   case Bytecodes::_ireturn:
   case Bytecodes::_lreturn:
   case Bytecodes::_freturn:
@@ -1945,7 +1936,8 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
-    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
+    // ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, false); // JDK-8325660: revisit this code after removal of Q-descriptors
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
@@ -3668,7 +3660,8 @@ Node* GraphKit::inline_type_test(Node* obj, bool is_inline) {
 }
 
 Node* GraphKit::is_val_mirror(Node* mirror) {
-  Node* p = basic_plus_adr(mirror, java_lang_Class::secondary_mirror_offset());
+  // JDK-8325660: notion of secondary mirror / val_mirror is gone one JEP 401
+  Node* p = basic_plus_adr(mirror, (int)0 /* java_lang_Class::secondary_mirror_offset() */);
   Node* secondary_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
   Node* cmp = _gvn.transform(new CmpPNode(mirror, secondary_mirror));
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));

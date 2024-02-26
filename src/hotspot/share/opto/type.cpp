@@ -653,7 +653,7 @@ void Type::Initialize_shared(Compile* current) {
   // Nobody should ask _array_body_type[T_NARROWOOP]. Use null as assert.
   TypeAryPtr::_array_body_type[T_NARROWOOP] = nullptr;
   TypeAryPtr::_array_body_type[T_OBJECT]  = TypeAryPtr::OOPS;
-  TypeAryPtr::_array_body_type[T_PRIMITIVE_OBJECT] = TypeAryPtr::OOPS;
+  TypeAryPtr::_array_body_type[T_PRIMITIVE_OBJECT] = TypeAryPtr::OOPS;  // JDK-8325660: verify this usage of T_PRIMITIVE_OBJECT
   TypeAryPtr::_array_body_type[T_ARRAY]   = TypeAryPtr::OOPS; // arrays are stored in oop arrays
   TypeAryPtr::_array_body_type[T_BYTE]    = TypeAryPtr::BYTES;
   TypeAryPtr::_array_body_type[T_BOOLEAN] = TypeAryPtr::BYTES;  // boolean[] is a byte array
@@ -2198,10 +2198,8 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
   uint arg_cnt = return_type->size();
   if (ret_vt_fields) {
     arg_cnt = return_type->as_inline_klass()->inline_arg_slots() + 1;
-    if (!sig->returns_null_free_inline_type()) {
-      // InlineTypeNode::IsInit field used for null checking
-      arg_cnt++;
-    }
+    // InlineTypeNode::IsInit field used for null checking
+    arg_cnt++;
   }
   const Type **field_array = fields(arg_cnt);
   switch (return_type->basic_type()) {
@@ -2218,13 +2216,11 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
       uint pos = TypeFunc::Parms;
       field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
-      if (!sig->returns_null_free_inline_type()) {
-        // InlineTypeNode::IsInit field used for null checking
-        field_array[pos++] = get_const_basic_type(T_BOOLEAN);
-      }
+      // InlineTypeNode::IsInit field used for null checking
+      field_array[pos++] = get_const_basic_type(T_BOOLEAN);
       break;
     } else {
-      field_array[TypeFunc::Parms] = get_const_type(return_type, interface_handling)->join_speculative(sig->returns_null_free_inline_type() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+      field_array[TypeFunc::Parms] = get_const_type(return_type, interface_handling)->join_speculative(TypePtr::BOTTOM);
     }
     break;
   case T_ARRAY:
@@ -4650,13 +4646,13 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
 }
 
 //------------------------java_mirror_type--------------------------------------
-ciType* TypeInstPtr::java_mirror_type(bool* is_val_mirror) const {
+ciType* TypeInstPtr::java_mirror_type() const {
   // must be a singleton type
   if( const_oop() == nullptr )  return nullptr;
 
   // must be of type java.lang.Class
   if( klass() != ciEnv::current()->Class_klass() )  return nullptr;
-  return const_oop()->as_instance()->java_mirror_type(is_val_mirror);
+  return const_oop()->as_instance()->java_mirror_type();
 }
 
 

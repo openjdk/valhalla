@@ -278,7 +278,6 @@ void ConstantPool::klass_at_put(int class_index, Klass* k) {
 
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* non-null, so we need hardware store ordering here.
-  assert(!k->name()->is_Q_signature(), "Q-type without JVM_CONSTANT_QDescBit");
   release_tag_at_put(class_index, JVM_CONSTANT_Class);
 }
 
@@ -402,10 +401,7 @@ void ConstantPool::remove_unshareable_info() {
   for (int cp_index = 1; cp_index < length(); cp_index++) { // cp_index 0 is unused
     switch (tag_at(cp_index).value()) {
     case JVM_CONSTANT_UnresolvedClassInError:
-      {
-        jbyte qdesc_bit = tag_at(cp_index).is_Qdescriptor_klass() ? (jbyte) JVM_CONSTANT_QDescBit : 0;
-        tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
-      }
+      tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass);
       break;
     case JVM_CONSTANT_MethodHandleInError:
       tag_at_put(cp_index, JVM_CONSTANT_MethodHandle);
@@ -461,8 +457,7 @@ bool ConstantPool::maybe_archive_resolved_klass_at(int cp_index) {
   // This referenced class cannot be archived. Revert the tag to UnresolvedClass,
   // so that the proper class loading and initialization can happen at runtime.
   resolved_klasses()->at_put(resolved_klass_index, nullptr);
-  jbyte qdesc_bit = tag_at(cp_index).is_Qdescriptor_klass() ? (jbyte) JVM_CONSTANT_QDescBit : 0;
-  tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
+  tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass);
   return false;
 }
 #endif // INCLUDE_CDS
@@ -553,10 +548,6 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
   Handle mirror_handle;
   Symbol* name = this_cp->symbol_at(name_index);
   bool inline_type_signature = false;
-  if (name->is_Q_signature()) {
-    name = name->fundamental_name(THREAD);
-    inline_type_signature = true;
-  }
   Handle loader (THREAD, this_cp->pool_holder()->class_loader());
   Handle protection_domain (THREAD, this_cp->pool_holder()->protection_domain());
 
@@ -596,11 +587,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
   // Failed to resolve class. We must record the errors so that subsequent attempts
   // to resolve this constant pool entry fail with the same error (JVMS 5.4.3).
   if (HAS_PENDING_EXCEPTION) {
-    jbyte tag = JVM_CONSTANT_UnresolvedClass;
-    if (this_cp->tag_at(cp_index).is_Qdescriptor_klass()) {
-      tag |= JVM_CONSTANT_QDescBit;
-    }
-    save_and_throw_exception(this_cp, cp_index, constantTag(tag), CHECK_NULL);
+    save_and_throw_exception(this_cp, cp_index, constantTag(JVM_CONSTANT_UnresolvedClass), CHECK_NULL);
     // If CHECK_NULL above doesn't return the exception, that means that
     // some other thread has beaten us and has resolved the class.
     // To preserve old behavior, we return the resolved class.
@@ -619,15 +606,11 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* stored in _resolved_klasses is non-null, so we need
   // hardware store ordering here.
-  jbyte tag = JVM_CONSTANT_Class;
-  if (this_cp->tag_at(cp_index).is_Qdescriptor_klass()) {
-    tag |= JVM_CONSTANT_QDescBit;
-  }
   // We also need to CAS to not overwrite an error from a racing thread.
 
   jbyte old_tag = Atomic::cmpxchg((jbyte*)this_cp->tag_addr_at(cp_index),
                                   (jbyte)JVM_CONSTANT_UnresolvedClass,
-                                  tag);
+                                  (jbyte)JVM_CONSTANT_Class);
 
   // We need to recheck exceptions from racing thread and return the same.
   if (old_tag == JVM_CONSTANT_UnresolvedClassInError) {
@@ -737,7 +720,6 @@ int ConstantPool::to_cp_index(int index, Bytecodes::Code code) {
     case Bytecodes::_getstatic:
     case Bytecodes::_putfield:
     case Bytecodes::_putstatic:
-    case Bytecodes::_withfield:
       return resolved_field_entry_at(index)->constant_pool_index();
     case Bytecodes::_invokeinterface:
     case Bytecodes::_invokehandle:
@@ -1057,9 +1039,7 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
       assert(cache_index == _no_index_sentinel, "should not have been set");
       Klass* resolved = klass_at_impl(this_cp, cp_index, CHECK_NULL);
       // ldc wants the java mirror.
-      result_oop = tag.is_Qdescriptor_klass()
-                      ? InlineKlass::cast(resolved)->val_mirror()
-                      : resolved->java_mirror();
+      result_oop = resolved->java_mirror();
       break;
     }
 
@@ -1979,12 +1959,6 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
         ent_size = 2;
         break;
       }
-      case (JVM_CONSTANT_Class | JVM_CONSTANT_QDescBit): {
-        idx1 = Bytes::get_Java_u2(bytes);
-        printf("qclass        #%03d", idx1);
-        ent_size = 2;
-        break;
-      }
       case JVM_CONSTANT_String: {
         idx1 = Bytes::get_Java_u2(bytes);
         printf("String       #%03d", idx1);
@@ -2025,10 +1999,6 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
       }
       case JVM_CONSTANT_UnresolvedClass: {
         printf("UnresolvedClass: %s", WARN_MSG);
-        break;
-      }
-      case (JVM_CONSTANT_UnresolvedClass | JVM_CONSTANT_QDescBit): {
-        printf("UnresolvedQClass: %s", WARN_MSG);
         break;
       }
       case JVM_CONSTANT_UnresolvedClassInError: {

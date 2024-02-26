@@ -61,8 +61,6 @@ class InterpreterRuntime: AllStatic {
   static void    anewarray     (JavaThread* threcurrentad, ConstantPool* pool, int index, jint size);
   static void    multianewarray(JavaThread* current, jint* first_size_address);
   static void    register_finalizer(JavaThread* current, oopDesc* obj);
-  static void    aconst_init  (JavaThread* current, ConstantPool* pool, int index);
-  static int     withfield     (JavaThread* current, ResolvedFieldEntry* entry, uintptr_t ptr);
   static void    uninitialized_static_inline_type_field(JavaThread* current, oopDesc* mirror, ResolvedFieldEntry* entry);
   static void    write_heap_copy (JavaThread* current, oopDesc* value, int offset, oopDesc* rcv);
   static void    read_flat_field(JavaThread* current, oopDesc* value, int index, Klass* field_holder);

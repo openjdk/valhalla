@@ -321,10 +321,8 @@ class TemplateTable: AllStatic {
   static void putstatic(int byte_no);
   static void pop_and_check_object(Register obj);
   static void condy_helper(Label& Done);  // shared by ldc instances
-  static void withfield();
 
   static void _new();
-  static void aconst_init();
   static void newarray();
   static void anewarray();
   static void arraylength();
