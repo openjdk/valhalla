@@ -4115,7 +4115,7 @@ bool LibraryCallKit::inline_primitive_Class_conversion(vmIntrinsics::ID id) {
     return false;
   }
 
-  // // JDK-8325660: Code has been modified because secondary mirror are gone in JEP 401
+  // JDK-8325660: Code has been modified because secondary mirror are gone in JEP 401
   ciType* tm = mirror_con->java_mirror_type();
   if (tm != nullptr) {
     Node* result = mirror;
@@ -4310,7 +4310,8 @@ bool LibraryCallKit::inline_native_subtype_check() {
     region->set_req(_both_ref_path, gen_subtype_check(subk, superk));
     // If superc is an inline mirror, we also need to check if superc == subc because LMyValue
     // is not a subtype of QMyValue but due to subk == superk the subtype check will pass.
-    generate_fair_guard(is_val_mirror(args[0]), prim_region);
+    // TODO JDK-8325660
+    // generate_fair_guard(is_val_mirror(args[0]), prim_region);
     // now we have a successful reference subtype check
     region->set_req(_ref_subtype_path, control());
   }

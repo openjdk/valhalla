@@ -860,39 +860,6 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
 }
 
 // ------------------------------------------------------------------
-// ciTypeFlow::StateVector::do_aconst_init
-void ciTypeFlow::StateVector::do_aconst_init(ciBytecodeStream* str) {
-  bool will_link;
-  ciKlass* klass = str->get_klass(will_link);
-  if (!will_link || str->is_unresolved_klass() || !klass->is_inlinetype()) {
-    trap(str, klass, str->get_klass_index());
-  } else {
-    push(outer()->mark_as_null_free(klass));
-  }
-}
-
-// ------------------------------------------------------------------
-// ciTypeFlow::StateVector::do_withfield
-void ciTypeFlow::StateVector::do_withfield(ciBytecodeStream* str) {
-  bool will_link;
-  ciField* field = str->get_field(will_link);
-  ciKlass* klass = field->holder();
-  if (!will_link) {
-    trap(str, klass, str->get_field_holder_index());
-  } else {
-    ciType* type = pop_value();
-    ciType* field_type = field->type();
-    if (field_type->is_two_word()) {
-      ciType* type2 = pop_value();
-      assert(type2->is_two_word(), "must be 2nd half");
-      assert(type == half_type(type2), "must be 2nd half");
-    }
-    pop_object();
-    push(outer()->mark_as_null_free(klass));
-  }
-}
-
-// ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_newarray
 void ciTypeFlow::StateVector::do_newarray(ciBytecodeStream* str) {
   pop_int();
