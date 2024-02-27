@@ -24,7 +24,6 @@
  */
 package java.lang.invoke;
 
-import jdk.internal.value.PrimitiveClass;
 import sun.invoke.util.Wrapper;
 
 import java.lang.reflect.Modifier;
@@ -276,7 +275,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             }
 
             // check receiver type
-            if (!PrimitiveClass.asPrimaryType(implClass).isAssignableFrom(PrimitiveClass.asPrimaryType(receiverClass))) {
+            if (!implClass.isAssignableFrom(receiverClass)) {
                 throw new LambdaConversionException(
                         String.format("Invalid receiver type %s; not a subtype of implementation type %s",
                                       receiverClass.descriptorString(), implClass.descriptorString()));
@@ -329,7 +328,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
         for (int i = 0; i < dynamicMethodType.parameterCount(); i++) {
             Class<?> dynamicParamType = dynamicMethodType.parameterType(i);
             Class<?> descriptorParamType = descriptor.parameterType(i);
-            if (!PrimitiveClass.asPrimaryType(descriptorParamType).isAssignableFrom(PrimitiveClass.asPrimaryType(dynamicParamType))) {
+            if (!descriptorParamType.isAssignableFrom(dynamicParamType)) {
                 String msg = String.format("Type mismatch for dynamic parameter %d: %s is not a subtype of %s",
                                            i, dynamicParamType, descriptorParamType);
                 throw new LambdaConversionException(msg);
@@ -410,8 +409,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
         }
 
         if (fromType.isValue() && toType.isValue()) {
-            // val projection can be converted to ref projection; or vice verse
-            return PrimitiveClass.asPrimaryType(fromType) == PrimitiveClass.asPrimaryType(toType);
+            return fromType == toType;
         }
 
         return false;

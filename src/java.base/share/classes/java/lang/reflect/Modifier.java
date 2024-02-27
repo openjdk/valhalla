@@ -167,7 +167,7 @@ public class Modifier {
      * {@code value} modifier; {@code false} otherwise.
      */
     public static boolean isValue(int mod) {
-        return (mod & VALUE) != 0;
+        return (mod & IDENTITY) == 0;
     }
 
     /**
@@ -340,7 +340,7 @@ public class Modifier {
      * modifier.
      * @see AccessFlag#VALUE
      */
-    public static final int VALUE            = 0x00000040;
+   public static final int VALUE            = 0x00000040;
 
     /**
      * The {@code int} value representing the {@code volatile}
@@ -419,8 +419,7 @@ public class Modifier {
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.IDENTITY       | Modifier.VALUE        |
-        Modifier.STRICT;
+        Modifier.IDENTITY       | Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to an interface.

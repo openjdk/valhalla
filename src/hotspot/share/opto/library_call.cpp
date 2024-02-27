@@ -537,11 +537,6 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getSuperclass:
   case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
 
-  case vmIntrinsics::_asPrimaryType:
-  case vmIntrinsics::_asPrimaryTypeArg:
-  case vmIntrinsics::_asValueType:
-  case vmIntrinsics::_asValueTypeArg:           return inline_primitive_Class_conversion(intrinsic_id());
-
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_floatToIntBits:
   case vmIntrinsics::_intBitsToFloat:
@@ -4103,34 +4098,6 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   return true;
 }
 
-//-------------------------inline_primitive_Class_conversion-------------------
-//               Class<T> java.lang.Class                  .asPrimaryType()
-// public static Class<T> jdk.internal.value.PrimitiveClass.asPrimaryType(Class<T>)
-//               Class<T> java.lang.Class                  .asValueType()
-// public static Class<T> jdk.internal.value.PrimitiveClass.asValueType(Class<T>)
-bool LibraryCallKit::inline_primitive_Class_conversion(vmIntrinsics::ID id) {
-  Node* mirror = argument(0); // Receiver/argument Class
-  const TypeInstPtr* mirror_con = _gvn.type(mirror)->isa_instptr();
-  if (mirror_con == nullptr) {
-    return false;
-  }
-
-  // JDK-8325660: Code has been modified because secondary mirror are gone in JEP 401
-  ciType* tm = mirror_con->java_mirror_type();
-  if (tm != nullptr) {
-    Node* result = mirror;
-    if (id == vmIntrinsics::_asValueType || id == vmIntrinsics::_asValueTypeArg) {
-      if (!tm->is_inlinetype()) {
-        return false; // Throw UnsupportedOperationException
-      } else {
-        result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->java_mirror()));
-      }
-    }
-    set_result(result);
-    return true;
-  }
-  return false;
-}
 
 //-------------------------inline_Class_cast-------------------
 bool LibraryCallKit::inline_Class_cast() {

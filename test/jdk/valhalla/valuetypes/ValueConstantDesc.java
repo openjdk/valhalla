@@ -29,16 +29,8 @@
  */
 
 import java.lang.constant.ClassDesc;
-import java.lang.constant.DirectMethodHandleDesc;
-import java.lang.constant.MethodHandleDesc;
-import java.lang.constant.MethodTypeDesc;
-import java.lang.invoke.MethodHandleInfo;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodType;
 import java.util.stream.Stream;
-
-import jdk.internal.value.PrimitiveClass;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

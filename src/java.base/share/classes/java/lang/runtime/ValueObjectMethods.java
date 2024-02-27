@@ -51,7 +51,6 @@ import java.util.stream.Stream;
 
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.value.PrimitiveClass;
 import sun.invoke.util.Wrapper;
 import sun.security.action.GetIntegerAction;
 import sun.security.action.GetPropertyAction;
@@ -138,7 +137,7 @@ final class ValueObjectMethods {
             Arrays.stream(type.getDeclaredFields())
                   .filter(f -> !Modifier.isStatic(f.getModifiers()))
                   .map(f -> f.getType())
-                  .filter(ft -> isValueClass(ft) && !result.contains(ft))
+                  .filter(ft -> ft.isValue() && !result.contains(ft))
                   .forEach(result::add);
             return result;
         }
@@ -172,8 +171,7 @@ final class ValueObjectMethods {
          * fields of the two value objects are substitutable. The method type is (V, V)boolean
          */
         static MethodHandle valueTypeEquals(Class<?> type, List<MethodHandle> getters) {
-            // ensure the reference type of a primitive class not used in the method handle
-            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
+            assert type.isValue();
 
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
@@ -201,8 +199,7 @@ final class ValueObjectMethods {
          * The method type is (V)int.
          */
         static MethodHandle valueTypeHashCode(Class<?> type, List<MethodHandle> getters) {
-            // ensure the reference type of a primitive class not used in the method handle
-            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
+            assert type.isValue();
 
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
             MethodHandle classHasher = dropArguments(hashCodeForType(Class.class).bindTo(type), 0, type);
@@ -236,9 +233,6 @@ final class ValueObjectMethods {
             assert a != null && b != null && isSameValueClass(a, b);
             try {
                 Class<?> type = a.getClass();
-                if (PrimitiveClass.isPrimitiveClass(type)) {
-                    type = PrimitiveClass.asValueType(type);
-                }
                 return (boolean) substitutableInvoker(type).invoke(type.cast(a), type.cast(b));
             } catch (Error|RuntimeException e) {
                 throw e;
@@ -282,11 +276,11 @@ final class ValueObjectMethods {
             if (o1 == null || o2 == null) return false;
             if (o1.getClass() != o2.getClass()) return false;
 
+            if (--counter[0] == 0) {
+                throw new StackOverflowError("fail to evaluate == for value class " + o1.getClass().getName());
+            }
+
             try {
-                counter[0]--;
-                if (counter[0] == 0) {
-                    throw new StackOverflowError("fail to evaluate == for value class " + o1.getClass().getName());
-                }
                 return (boolean) target.invoke(o1, o2, counter);
             } catch (Error|RuntimeException e) {
                 throw e;
@@ -300,11 +294,11 @@ final class ValueObjectMethods {
 
             if (o == null) return 0;
 
+            if (--counter[0] == 0) {
+                throw new StackOverflowError("fail to evaluate hashCode for value class " + o.getClass().getName());
+            }
+
             try {
-                counter[0]--;
-                if (counter[0] == 0) {
-                    throw new StackOverflowError("fail to evaluate hashCode for value class " + o.getClass().getName());
-                }
                 return (int) target.invoke(o, counter);
             } catch (Error|RuntimeException e) {
                 throw e;
@@ -366,7 +360,7 @@ final class ValueObjectMethods {
         }
 
         static MethodHandleBuilder newBuilder(Class<?> type) {
-            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
+            assert type.isValue();
 
             Deque<Class<?>> deque = new ArrayDeque<>();
             deque.add(type);
@@ -1129,9 +1123,6 @@ final class ValueObjectMethods {
 
         try {
             Class<?> type = a.getClass();
-            if (PrimitiveClass.isPrimitiveClass(type)) {
-                type = PrimitiveClass.asValueType(type);
-            }
             return (boolean) substitutableInvoker(type).invoke(a, b);
         } catch (Error|RuntimeException e) {
             if (VERBOSE) e.printStackTrace();
@@ -1172,10 +1163,10 @@ final class ValueObjectMethods {
      * @return a method handle for substitutability test
      */
     private static <T> MethodHandle substitutableInvoker(Class<T> type) {
-        if (type.isPrimitive())
+        if (type.isPrimitive()) {
             return MethodHandleBuilder.builtinPrimitiveEquals(type);
-
-        if (isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type)) {
+        }
+        if (type.isValue()) {
             return SUBST_TEST_METHOD_HANDLES.get(type);
         }
         return MethodHandleBuilder.referenceTypeEquals(type);
@@ -1210,14 +1201,13 @@ final class ValueObjectMethods {
      * @return the hash code of the given value object.
      */
     private static int valueObjectHashCode(Object o) {
-        Class<?> c = o.getClass();
+        Class<?> type = o.getClass();
         try {
             // Note: javac disallows user to call super.hashCode if user implemented
             // risk for recursion for experts crafting byte-code
-            if (!c.isValue())
-                throw new InternalError("must be value or primitive class: " + c.getName());
+            if (!type.isValue())
+                throw new InternalError("must be value class: " + type.getName());
 
-            Class<?> type = PrimitiveClass.isPrimitiveClass(c) ? PrimitiveClass.asValueType(c) : c;
             return (int) HASHCODE_METHOD_HANDLES.get(type).invoke(o);
         } catch (Error|RuntimeException e) {
             throw e;
@@ -1225,13 +1215,6 @@ final class ValueObjectMethods {
             if (VERBOSE) e.printStackTrace();
             throw new InternalError(e);
         }
-    }
-
-    /**
-     * Returns true if the given type is a value class.
-     */
-    private static boolean isValueClass(Class<?> type) {
-        return type.isValue() && !PrimitiveClass.isPrimitiveClass(type);
     }
 
     private static final ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
