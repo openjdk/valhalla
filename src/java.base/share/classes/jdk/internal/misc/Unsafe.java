@@ -265,8 +265,6 @@ public final class Unsafe {
     /**
      * Fetches a reference value of the given type from a given Java variable.
      * This method can return a reference to a value if it is non-null.
-     * If the value is null, this method returns a default value for
-     * primitive value types or null for identity classes and value classes.
      *
      * @param type type
      */
