@@ -46,6 +46,7 @@ public class InlineTypeCreation {
         testLong8();
         testPerson();
         StaticSelf.test();
+        testUnresolvedAndResolvedNew();
     }
 
     void testPoint() {
@@ -91,4 +92,19 @@ public class InlineTypeCreation {
         }
 
     }
+
+    static value class MyPoint {
+         int x,y;
+         MyPoint(int x, int y) {
+             this.x = x;
+             this.y = y;
+         }
+     }
+
+    // Two instantiations of the same class to exercise both the unresolved and resolved paths
+    // in bytecode 'new' implementation
+    void testUnresolvedAndResolvedNew(){
+         MyPoint p1 = new MyPoint(10, 20);
+         MyPoint p2 = new MyPoint(20, 20);
+     }
 }

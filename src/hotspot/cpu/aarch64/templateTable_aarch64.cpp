@@ -3874,7 +3874,6 @@ void TemplateTable::_new() {
   __ get_unsigned_2_byte_index_at_bcp(r3, 1);
   Label slow_case;
   Label done;
-  Label is_not_value;
   Label initialize_header;
 
   __ get_cpool_and_tags(r4, r0);
@@ -3890,14 +3889,6 @@ void TemplateTable::_new() {
 
   // get InstanceKlass
   __ load_resolved_klass_at_offset(r4, r3, r4, rscratch1);
-
-  __ ldrb(rscratch1, Address(r4, InstanceKlass::kind_offset()));
-  __ cmp(rscratch1, (u1)Klass::InlineKlassKind);
-  __ br(Assembler::NE, is_not_value);
-
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));
-
-  __ bind(is_not_value);
 
   // make sure klass is initialized & doesn't have finalizer
   // make sure klass is fully initialized
