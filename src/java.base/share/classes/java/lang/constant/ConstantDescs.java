@@ -309,15 +309,6 @@ public final class ConstantDescs {
     public static final String INIT_NAME = "<init>";
 
     /**
-     * The special name of value object factory methods, {@value}. A value
-     * object factory method has this special name and is {@code void}.
-     *
-     * TODO jvms ref
-     * @since 21
-     */
-    public static final String VNEW_NAME = "<vnew>";
-
-    /**
      * The special name of class initialization methods, {@value}. A class
      * initialization method has this special name, {@link java.lang.reflect.AccessFlag#STATIC
      * ACC_STATIC} flag set, is {@link #MTD_void void} and takes no arguments.

@@ -26,7 +26,6 @@
 package jdk.internal.misc;
 
 import jdk.internal.ref.Cleaner;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
@@ -273,7 +272,8 @@ public final class Unsafe {
      */
     public Object getReference(Object o, long offset, Class<?> type) {
         Object ref = getReference(o, offset);
-        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
+        // TODO: implicit constructible value object
+        if (ref == null && type.isValue()) {
             // If the type of the returned reference is a primitive value type,
             // return the zero instance if null
             ref = ValueClass.zeroInstance(type);
@@ -283,7 +283,8 @@ public final class Unsafe {
 
     public Object getReferenceVolatile(Object o, long offset, Class<?> type) {
         Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
+        // TODO: implicit constructible value object
+        if (ref == null && type.isValue()) {
             // If the type of the returned reference is a primitive value type,
             // return the zero instance if null
             ref = ValueClass.zeroInstance(type);

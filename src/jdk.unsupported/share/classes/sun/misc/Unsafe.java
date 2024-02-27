@@ -25,7 +25,6 @@
 
 package sun.misc;
 
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
@@ -651,9 +650,6 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (PrimitiveClass.isPrimitiveClass(f.getDeclaringClass())) {
-            throw new UnsupportedOperationException("can't get field offset on a primitive class: " + f);
-        }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
         }
@@ -693,9 +689,6 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (PrimitiveClass.isPrimitiveClass(f.getDeclaringClass())) {
-            throw new UnsupportedOperationException("can't get static field offset on a primitive class: " + f);
-        }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
         }
@@ -726,9 +719,6 @@ public final class Unsafe {
         Class<?> declaringClass = f.getDeclaringClass();
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get base address on a hidden class: " + f);
-        }
-        if (PrimitiveClass.isPrimitiveClass(f.getDeclaringClass())) {
-            throw new UnsupportedOperationException("can't get base address on a primitive class: " + f);
         }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get base address on a record class: " + f);

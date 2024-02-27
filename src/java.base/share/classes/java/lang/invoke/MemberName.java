@@ -25,7 +25,6 @@
 
 package java.lang.invoke;
 
-import jdk.internal.value.PrimitiveClass;
 import sun.invoke.util.VerifyAccess;
 
 import java.lang.reflect.Constructor;
@@ -92,8 +91,7 @@ final class MemberName implements Member, Cloneable {
     /** Return the simple name of this member.
      *  For a type, it is the same as {@link Class#getSimpleName}.
      *  For a method or field, it is the simple name of the member.
-     *  For an identity object constructor, it is {@code "<init>"}.
-     *  For a value class static factory method, it is {@code "<vnew>"}.
+     *  For a constructor, it is always {@code "<init>"}.
      */
     public String getName() {
         if (name == null) {
@@ -183,11 +181,10 @@ final class MemberName implements Member, Cloneable {
      */
     public MethodType getInvocationType() {
         MethodType itype = getMethodOrFieldType();
-        Class<?> c = PrimitiveClass.isPrimitiveClass(clazz) ? PrimitiveClass.asValueType(clazz) : clazz;
         if (isObjectConstructor() && getReferenceKind() == REF_newInvokeSpecial)
-            return itype.changeReturnType(c);
+            return itype.changeReturnType(clazz);
         if (!isStatic())
-            return itype.insertParameterTypes(0, c);
+            return itype.insertParameterTypes(0, clazz);
         return itype;
     }
 
@@ -442,7 +439,7 @@ final class MemberName implements Member, Cloneable {
     public boolean isInlineableField()  {
         if (isField()) {
             Class<?> type = getFieldType();
-            return PrimitiveClass.isPrimitiveValueType(type) || (type.isValue() && !PrimitiveClass.isPrimitiveClass(type));
+            return type.isValue();
         }
         return false;
     }
@@ -478,11 +475,6 @@ final class MemberName implements Member, Cloneable {
     public boolean isObjectConstructor() {
         return allFlagsSet(IS_OBJECT_CONSTRUCTOR);
     }
-    /** Query whether this member is an object constructor or static <init> factory */
-    public boolean isStaticValueFactoryMethod() {
-        return VALUE_FACTORY_NAME.equals(name) && isMethod();
-    }
-
     /** Query whether this member is a field. */
     public boolean isField() {
         return allFlagsSet(IS_FIELD);
@@ -642,13 +634,9 @@ final class MemberName implements Member, Cloneable {
         // fill in vmtarget, vmindex while we have ctor in hand:
         MethodHandleNatives.init(this, ctor);
         assert(isResolved() && this.clazz != null);
-        this.name = this.clazz.isValue() ? VALUE_FACTORY_NAME : CONSTRUCTOR_NAME;
+        this.name = CONSTRUCTOR_NAME;
         if (this.type == null) {
-            Class<?> rtype = void.class;
-            if (isStatic()) {  // a value class static factory, not a true constructor
-                rtype = getDeclaringClass();
-            }
-            this.type = new Object[] { rtype, ctor.getParameterTypes() };
+            this.type = new Object[] { void.class, ctor.getParameterTypes() };
         }
     }
     /** Create a name for the given reflected field.  The resulting name will be in a resolved state.
@@ -782,7 +770,6 @@ final class MemberName implements Member, Cloneable {
     /** Create a method or constructor name from the given components:
      *  Declaring class, name, type, reference kind.
      *  It will be an object constructor if and only if the name is {@code "<init>"}.
-     *  It will be a value class instance factory method if and only if the name is {@code "<vnew>"}.
      *  The declaring class may be supplied as null if this is to be a bare name and type.
      *  The last argument is optional, a boolean which requests REF_invokeSpecial.
      *  The resulting name will in an unresolved state.
