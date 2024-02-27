@@ -2675,7 +2675,7 @@ public class Check {
         Type identitySuper = null, valueSuper = null;
         for (Type t : types.closure(c)) {
             if (t != c) {
-                if ((t.tsym.flags() & IDENTITY_TYPE) != 0)
+                if ((t.tsym.flags() & IDENTITY_TYPE) != 0 && (t.tsym.flags() & VALUE_BASED) == 0)
                     identitySuper = t;
                 else if ((t.tsym.flags() & VALUE_CLASS) != 0)
                     valueSuper = t;
