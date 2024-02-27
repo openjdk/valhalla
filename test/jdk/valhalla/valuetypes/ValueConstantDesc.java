@@ -29,6 +29,7 @@
  */
 
 import java.lang.constant.ClassDesc;
+import java.lang.invoke.MethodHandles;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;

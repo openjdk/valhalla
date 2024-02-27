@@ -271,25 +271,11 @@ public final class Unsafe {
      * @param type type
      */
     public Object getReference(Object o, long offset, Class<?> type) {
-        Object ref = getReference(o, offset);
-        // TODO: implicit constructible value object
-        if (ref == null && type.isValue()) {
-            // If the type of the returned reference is a primitive value type,
-            // return the zero instance if null
-            ref = ValueClass.zeroInstance(type);
-        }
-        return ref;
+        return getReference(o, offset);
     }
 
     public Object getReferenceVolatile(Object o, long offset, Class<?> type) {
-        Object ref = getReferenceVolatile(o, offset);
-        // TODO: implicit constructible value object
-        if (ref == null && type.isValue()) {
-            // If the type of the returned reference is a primitive value type,
-            // return the zero instance if null
-            ref = ValueClass.zeroInstance(type);
-        }
-        return ref;
+        return getReferenceVolatile(o, offset);
     }
 
     /**

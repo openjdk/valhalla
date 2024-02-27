@@ -276,11 +276,11 @@ final class ValueObjectMethods {
             if (o1 == null || o2 == null) return false;
             if (o1.getClass() != o2.getClass()) return false;
 
+            if (--counter[0] == 0) {
+                throw new StackOverflowError("fail to evaluate == for value class " + o1.getClass().getName());
+            }
+
             try {
-                counter[0]--;
-                if (counter[0] == 0) {
-                    throw new StackOverflowError("fail to evaluate == for value class " + o1.getClass().getName());
-                }
                 return (boolean) target.invoke(o1, o2, counter);
             } catch (Error|RuntimeException e) {
                 throw e;
@@ -294,11 +294,11 @@ final class ValueObjectMethods {
 
             if (o == null) return 0;
 
+            if (--counter[0] == 0) {
+                throw new StackOverflowError("fail to evaluate hashCode for value class " + o.getClass().getName());
+            }
+
             try {
-                counter[0]--;
-                if (counter[0] == 0) {
-                    throw new StackOverflowError("fail to evaluate hashCode for value class " + o.getClass().getName());
-                }
                 return (int) target.invoke(o, counter);
             } catch (Error|RuntimeException e) {
                 throw e;
