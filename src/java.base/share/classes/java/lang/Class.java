@@ -654,17 +654,18 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * {@return {@code true} if this {@code Class} object represents a value
-     * class or interface; otherwise {@code false}}
+     * class; otherwise {@code false}}
      *
-     * If this {@code Class} object represents an array type, a primitive type, or
-     * {@code void}, then this method returns {@code false}.
+     * If this {@code Class} object represents an array type, an interface,
+     * a primitive type, or {@code void}, then this method returns {@code false}.
      *
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     public boolean isValue() {
-        if (isPrimitive() || isArray() || isInterface()) return false;
-        return (this.getModifiers() & Modifier.IDENTITY) == 0;
+         if (isPrimitive() | isArray() | isInterface())
+             return false;
+        return ((getModifiers() & Modifier.IDENTITY) == 0);
     }
 
     /**
