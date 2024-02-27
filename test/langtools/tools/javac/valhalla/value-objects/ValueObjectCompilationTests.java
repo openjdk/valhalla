@@ -138,6 +138,10 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     static abstract value class V extends ConcreteSuperType {}  // Error: concrete super.
                 }
                 """);
+        assertOK(
+                """
+                value record Point(int x, int y) {}
+                """);
     }
 
     @Test
