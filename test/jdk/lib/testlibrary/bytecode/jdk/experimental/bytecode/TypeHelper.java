@@ -84,24 +84,6 @@ public interface TypeHelper<S, T> {
     T type(S s);
 
     /**
-     * Return true if the parameter is a value type.
-     *
-     * @param t the type descreiptor
-     * @return true if the given type is a value type
-     */
-    boolean isInlineClass(T t);
-
-    /**
-     * For a symbol that corresponds to a value type, return the type descriptor.
-     *
-     * @param s the symbol
-     * @return the type descriptor
-     */
-    default T valueType(S s) {
-        return type(s);
-    }
-
-    /**
      * Return the symbol corresponding to a type descriptor.
      *
      * @param type the type descriptor

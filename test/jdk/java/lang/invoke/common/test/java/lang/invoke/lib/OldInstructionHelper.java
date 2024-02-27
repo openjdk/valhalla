@@ -47,8 +47,6 @@ import java.util.function.Function;
 import static java.lang.invoke.MethodType.fromMethodDescriptorString;
 import static java.lang.invoke.MethodType.methodType;
 
-import jdk.internal.value.PrimitiveClass;
-
 /**
  * 8308778: Temporarily keep the old bytecode API, but needs removing when Valhalla support is added to classfile API
  */
@@ -292,19 +290,12 @@ public class OldInstructionHelper {
             }
 
             @Override
-            public boolean isInlineClass(String desc) {
-                Class<?> aClass = symbol(desc);
-                return aClass != null && PrimitiveClass.isPrimitiveValueType(aClass);
-            }
-
-            @Override
             public Class<?> symbol(String desc) {
                 try {
                     if (desc.startsWith("[")) {
                         return Class.forName(desc.replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
                     } else {
-                        Class<?> c = Class.forName(basicTypeHelper.symbol(desc).replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
-                        return basicTypeHelper.isInlineClass(desc) ? PrimitiveClass.asValueType(c) : PrimitiveClass.asPrimaryType(c);
+                        return Class.forName(basicTypeHelper.symbol(desc).replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
                     }
                 } catch (ReflectiveOperationException ex) {
                     throw new AssertionError(ex);

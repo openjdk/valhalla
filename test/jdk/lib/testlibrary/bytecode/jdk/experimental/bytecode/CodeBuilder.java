@@ -173,24 +173,21 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
 
     public C anewarray(S array) {
         emitOp(Opcode.ANEWARRAY, array);
-        int poolIdx = (typeHelper.isInlineClass(typeHelper.type(array))) ?
-            poolHelper.putInlineClass(array) : poolHelper.putClass(array);
+        int poolIdx = poolHelper.putClass(array);
         code.writeChar(poolIdx);
         return thisBuilder();
     }
 
     public C checkcast(S target) {
         emitOp(Opcode.CHECKCAST);
-        int poolIdx = (typeHelper.isInlineClass(typeHelper.type(target))) ?
-            poolHelper.putInlineClass(target) : poolHelper.putClass(target);
+        int poolIdx = poolHelper.putClass(target);
         code.writeChar(poolIdx);
         return thisBuilder();
     }
 
     public C instanceof_(S target) {
         emitOp(Opcode.INSTANCEOF);
-        int poolIdx = (typeHelper.isInlineClass(typeHelper.type(target))) ?
-            poolHelper.putInlineClass(target) : poolHelper.putClass(target);
+        int poolIdx = poolHelper.putClass(target);
         code.writeChar(poolIdx);
         return thisBuilder();
     }
@@ -1162,8 +1159,7 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
                     } else {
                         //TODO: uninit this, top?
                         stackmaps.writeByte(7);
-                        stackmaps.writeChar(typeHelper.isInlineClass(t) ?
-                            poolHelper.putInlineClass(typeHelper.symbol(t)) : poolHelper.putClass(typeHelper.symbol(t)));
+                        stackmaps.writeChar(poolHelper.putClass(typeHelper.symbol(t)));
                     }
                     break;
                 default:
