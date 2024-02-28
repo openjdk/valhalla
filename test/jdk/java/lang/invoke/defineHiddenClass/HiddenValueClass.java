@@ -42,7 +42,7 @@ public class HiddenValueClass {
     private static final Path CLASSES_DIR = Paths.get(Utils.TEST_CLASSES);
 
     /*
-     * Defines HiddenValueClass$Impl as a hidden class.
+     * Defines ValueImpl as a hidden class.
      */
     @Test
     public void hiddenValueClass() throws Throwable {
