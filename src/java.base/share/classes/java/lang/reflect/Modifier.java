@@ -156,21 +156,6 @@ public class Modifier {
     }
 
     /**
-     * Return {@code true} if the integer argument does not include the
-     * {@code identity} modifier, {@code false} otherwise.
-     *
-     * @apiNote {@code isValue} should only be called with the modifiers
-     * of a {@linkplain Class#getModifiers() class}.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} does not include the
-     * {@code identity} modifier; {@code false} otherwise.
-     */
-    public static boolean isValue(int mod) {
-        return !isIdentity(mod);
-    }
-
-    /**
      * Return {@code true} if the integer argument includes the
      * {@code transient} modifier, {@code false} otherwise.
      *
