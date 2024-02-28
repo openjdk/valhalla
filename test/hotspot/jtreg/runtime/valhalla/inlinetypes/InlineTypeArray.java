@@ -336,8 +336,20 @@ public class InlineTypeArray {
         MyInt[] myInts = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 2);
         myInts[0] = (MyInt) MyInt.MAX;
         myInts[1] = (MyInt) MyInt.MIN;
+
         // Sanity sort another copy
-        MyInt[] copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
+
+        // Arrays.copyOf() API needs discussion, avoid just now...
+        boolean useArraysCopyOf = false;
+        MyInt[] copyMyInts;
+        if (useArraysCopyOf) {
+            copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
+        } else {
+            copyMyInts = (MyInt[]) (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, myInts.length + 1);
+            for (int i = 0; i < myInts.length; i++) {
+                copyMyInts[i] = myInts[i];
+            }
+        }
         MyInt[] expected = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 3);
         expected[0] = myInts[0];
         expected[1] = myInts[1];
