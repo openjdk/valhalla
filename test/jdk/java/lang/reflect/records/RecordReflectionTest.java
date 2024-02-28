@@ -23,10 +23,11 @@
 
 /*
  * @test
- * @bug 8235369 8235550 8247444
+ * @bug 8235369 8235550 8247444 8326879
  * @summary reflection test for records
  * @compile RecordReflectionTest.java
  * @run testng/othervm RecordReflectionTest
+ * @run testng/othervm -XX:+EnableValhalla RecordReflectionTest
  * @run testng/othervm/java.security.policy=allPermissions.policy RecordReflectionTest
  */
 
