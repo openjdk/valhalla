@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,8 +54,11 @@ public final class ClassAccessFlagTest {
         Class<?>[] testClasses = {
             ClassAccessFlagTest.class,
             TestInterface.class,
-            TestIdentityInterface.class,
-            TestValueInterface.class,
+            TestFinalClass.class,
+            TestAbstractClass.class,
+            Foo.class,
+            StaticTestInterface.class,
+            TestMarkerAnnotation.class,
             ExpectedClassFlags.class,
             TestOuterEnum.class
         };
@@ -178,41 +181,18 @@ public final class ClassAccessFlagTest {
 
     @ExpectedClassFlags("[PUBLIC, STATIC, INTERFACE, ABSTRACT]")
     public      interface PublicInterface {}
-    @ExpectedClassFlags("[PUBLIC, STATIC, IDENTITY, INTERFACE, ABSTRACT]")
-    public      identity interface PublicIdentityInterface {}
-    @ExpectedClassFlags("[PUBLIC, STATIC, VALUE, INTERFACE, ABSTRACT]")
-    public      value interface PublicValueInterface {}
-
     @ExpectedClassFlags("[PROTECTED, STATIC, INTERFACE, ABSTRACT]")
     protected   interface ProtectedInterface {}
-    @ExpectedClassFlags("[PROTECTED, STATIC, IDENTITY, INTERFACE, ABSTRACT]")
-    protected   identity interface ProtectedIdentityInterface {}
-    @ExpectedClassFlags("[PROTECTED, STATIC, VALUE, INTERFACE, ABSTRACT]")
-    protected   value interface ProtectedValueInterface {}
-
     @ExpectedClassFlags("[PRIVATE, STATIC, INTERFACE, ABSTRACT]")
     private     interface PrivateInterface {}
-    @ExpectedClassFlags("[PRIVATE, STATIC, IDENTITY, INTERFACE, ABSTRACT]")
-    private     identity interface PrivateIdentityInterface {}
-    @ExpectedClassFlags("[PRIVATE, STATIC, VALUE, INTERFACE, ABSTRACT]")
-    private     value interface PrivateValueInterface {}
-
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
     /*package*/ interface PackageInterface {}
-    @ExpectedClassFlags("[STATIC, IDENTITY, INTERFACE, ABSTRACT]")
-    /*package*/ identity interface PackageIdentityInterface {}
-    @ExpectedClassFlags("[STATIC, VALUE, INTERFACE, ABSTRACT]")
-    /*package*/ value interface PackageValueInterface {}
 
     @ExpectedClassFlags("[FINAL, IDENTITY]")
     /*package*/ final class TestFinalClass {}
-    @ExpectedClassFlags("[FINAL, IDENTITY]")
-    /*package*/ final identity class TestFinalIdentityClass {}
 
     @ExpectedClassFlags("[IDENTITY, ABSTRACT]")
     /*package*/ abstract class TestAbstractClass {}
-    @ExpectedClassFlags("[IDENTITY, ABSTRACT]")
-    /*package*/ abstract identity class TestAbstractIdentityClass {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT, ANNOTATION]")
     /*package*/ @interface TestMarkerAnnotation {}
@@ -235,15 +215,9 @@ public final class ClassAccessFlagTest {
 
     @ExpectedClassFlags("[PRIVATE, IDENTITY, ABSTRACT]")
     private abstract class Foo {}
-    @ExpectedClassFlags("[PRIVATE, IDENTITY, ABSTRACT]")
-    private abstract identity class IdentityFoo {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
     interface StaticTestInterface {}
-    @ExpectedClassFlags("[STATIC, IDENTITY, INTERFACE, ABSTRACT]")
-    identity interface StaticTestIdentityInterface {}
-    @ExpectedClassFlags("[STATIC, VALUE, INTERFACE, ABSTRACT]")
-    value interface StaticTestValueInterface {}
 }
 
 @Retention(RetentionPolicy.RUNTIME)
@@ -254,10 +228,6 @@ public final class ClassAccessFlagTest {
 
 @ExpectedClassFlags("[INTERFACE, ABSTRACT]")
 interface TestInterface {}
-@ExpectedClassFlags("[IDENTITY, INTERFACE, ABSTRACT]")
-identity interface TestIdentityInterface {}
-@ExpectedClassFlags("[VALUE, INTERFACE, ABSTRACT]")
-value interface TestValueInterface {}
 
 
 @ExpectedClassFlags("[FINAL, IDENTITY, ENUM]")

@@ -270,7 +270,8 @@ public class VersionedLocationsTest {
                 (cffv.compareTo(ClassFileFormatVersion.RELEASE_2)  >= 0 &&
                  cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) ?
                 Set.of(Location.METHOD) :
-                Set.of();
+                        (cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0)
+                                ? Set.of(Location.FIELD) : Set.of();
             compareLocations(expected, STRICT, cffv);
         }
     }

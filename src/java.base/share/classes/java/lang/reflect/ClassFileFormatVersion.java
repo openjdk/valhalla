@@ -294,6 +294,18 @@ public enum ClassFileFormatVersion {
      * <cite>The Java Virtual Machine Specification, Java SE 22 Edition</cite></a>
      */
     RELEASE_22(66),
+
+    /**
+     * The version introduced by the Java Platform, Standard Edition
+     * 23.
+     *
+     * @since 23
+     *
+     * @see <a
+     * href="https://docs.oracle.com/javase/specs/jvms/se23/html/index.html">
+     * <cite>The Java Virtual Machine Specification, Java SE 23 Edition</cite></a>
+     */
+    RELEASE_23(67),
     ; // Reduce code churn when appending new constants
 
     // Note to maintainers: when adding constants for newer releases,
