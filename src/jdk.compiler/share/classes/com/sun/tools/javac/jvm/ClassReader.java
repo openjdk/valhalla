@@ -3161,13 +3161,14 @@ public class ClassReader {
     }
 
     long adjustClassFlags(long flags) {
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         if ((flags & ACC_MODULE) != 0) {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_IDENTITY) != 0 || (majorVersion <= V66.major && (flags & INTERFACE) == 0)) {
+        if ((flags & ACC_IDENTITY) != 0 || (majorVersion < V66.major && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
-        } else if ((flags & INTERFACE) == 0 && allowValueClasses && majorVersion > V66.major) {
+        } else if ((flags & INTERFACE) == 0 && allowValueClasses && previewClassFile && majorVersion >= V66.major) {
             flags |= VALUE_CLASS;
         }
         flags &= ~ACC_IDENTITY; // ACC_IDENTITY and SYNCHRONIZED bits overloaded

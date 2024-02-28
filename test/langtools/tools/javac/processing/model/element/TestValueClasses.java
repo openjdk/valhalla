@@ -112,12 +112,14 @@ public class TestValueClasses extends TestRunner {
                 "- compiler.note.proc.messager: visiting: ValueClass Modifiers: [value, final]",
                 "- compiler.note.proc.messager:     constructor modifiers: []",
                 "- compiler.note.proc.messager: visiting: IdentityClass Modifiers: []",
-                "- compiler.note.proc.messager:     constructor modifiers: []"
+                "- compiler.note.proc.messager:     constructor modifiers: []",
+                "- compiler.note.preview.filename: Interface.java, DEFAULT",
+                "- compiler.note.preview.recompile"
         );
 
         for (Mode mode : new Mode[] {Mode.API}) {
             List<String> log = new JavacTask(tb, mode)
-                    .options("-processor", ValueClassesProcessor.class.getName(),
+                    .options("--enable-preview", "-source", String.valueOf(Runtime.version().feature()), "-processor", ValueClassesProcessor.class.getName(),
                             "-XDrawDiagnostics")
                     .files(findJavaFiles(src))
                     .outdir(classes)
