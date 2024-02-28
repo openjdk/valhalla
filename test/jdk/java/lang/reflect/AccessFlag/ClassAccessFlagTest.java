@@ -54,12 +54,12 @@ public final class ClassAccessFlagTest {
         Class<?>[] testClasses = {
             ClassAccessFlagTest.class,
             TestInterface.class,
-                TestFinalClass.class,
-                TestAbstractClass.class,
-                Foo.class,
-                StaticTestInterface.class,
-                TestMarkerAnnotation.class,
-                ExpectedClassFlags.class,
+            TestFinalClass.class,
+            TestAbstractClass.class,
+            Foo.class,
+            StaticTestInterface.class,
+            TestMarkerAnnotation.class,
+            ExpectedClassFlags.class,
             TestOuterEnum.class
         };
         checkClasses(testClasses);
