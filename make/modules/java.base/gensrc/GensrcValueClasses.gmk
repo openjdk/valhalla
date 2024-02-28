@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@ java.base-VALUE_CLASS-REPLACEMENTS := \
     java/time/YearMonth.java \
     java/time/Year.java \
     java/time/Period.java \
+    java/lang/Record.java \
     #
 
 java.base-VALUE-CLASS-FILES := \
@@ -53,7 +54,8 @@ $(eval $(call SetupTextFileProcessing, JAVA_BASE_VALUECLASS_REPLACEMENTS, \
     SOURCE_BASE_DIR := $(TOPDIR)/src/java.base/share/classes, \
     OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/gensrc-valueclasses/java.base/, \
     REPLACEMENTS := \
-        public final class => public final value class, \
+        public final class => public final value class ; \
+        public abstract class => public abstract value class, \
 ))
 
 TARGETS += $(JAVA_BASE_VALUECLASS_REPLACEMENTS)
