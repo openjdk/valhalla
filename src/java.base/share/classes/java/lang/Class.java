@@ -663,7 +663,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     public boolean isValue() {
-         if (isPrimitive() | isArray() | isInterface())
+         if (isPrimitive() || isArray() || isInterface())
              return false;
         return ((getModifiers() & Modifier.IDENTITY) == 0);
     }
