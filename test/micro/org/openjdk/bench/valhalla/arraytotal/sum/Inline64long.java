@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,7 +56,7 @@ public class Inline64long extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public long Val_as_Ref_fields0(Val_as_Ref st) {
         long s = 0;
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].v0;
         }
@@ -78,7 +78,7 @@ public class Inline64long extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public long Ref_as_Ref_fields0(Ref_as_Ref st) {
         long s = 0;
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].v0;
         }
@@ -122,7 +122,7 @@ public class Inline64long extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public long Val_as_Ref_sum0(Val_as_Ref st) {
         long s = 0;
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].longSum();
         }
@@ -166,7 +166,7 @@ public class Inline64long extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public long Ref_as_Ref_sum0(Ref_as_Ref st) {
         long s = 0;
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].longSum();
         }

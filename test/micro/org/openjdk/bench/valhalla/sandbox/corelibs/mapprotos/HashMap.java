@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -224,7 +224,7 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
     /**
      * Basic hash bin node, used for most entries.
      */
-    static primitive class YNode<K,V> implements Map.Entry<K,V> {
+    static value class YNode<K,V> implements Map.Entry<K,V> {
         final int hash;
         final short probes; // maybe only a byte
         final K key;
@@ -278,7 +278,7 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
         }
     }
 
-    primitive class YNodeWrapper implements Map.Entry<K,V> {
+    value class YNodeWrapper implements Map.Entry<K,V> {
         final int index;
         final YNode<K,V> entry;
 
@@ -930,7 +930,7 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
             removeNode(curr);
             return entry;
         }
-        return YNode.default;
+        return new YNode();
     }
 
     @SuppressWarnings("unchecked")
@@ -978,7 +978,7 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
         if ((tab = table) != null && size > 0) {
             size = 0;
             for (int i = 0; i < tab.length; i++)
-                tab[i] = YNode.default;
+                tab[i] = new YNode();
         }
     }
 
@@ -1373,7 +1373,7 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
 
         int hash = hash(key);
         int index = getNode(hash, key);
-        YNode<K,V> oldValue = (index >= 0) ? table[index] : YNode.default;
+        YNode<K,V> oldValue = (index >= 0) ? table[index] : new YNode();
 
         int mc = modCount;
         V v = remappingFunction.apply(key, oldValue.value);
@@ -1887,4 +1887,3 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
     }
 
 }
-

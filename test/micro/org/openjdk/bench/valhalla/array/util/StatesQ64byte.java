@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ public class StatesQ64byte extends SizeBase {
     }
 
     public static abstract class RefState extends SizeState {
-        public Q64byte.ref[] arr;
+        public Q64byte[] arr;
         void fill() {
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = new Q64byte(i);
@@ -87,7 +87,7 @@ public class StatesQ64byte extends SizeBase {
     public static class Ref_as_Obj extends ObjState {
         @Setup
         public void setup() {
-            arr = new Q64byte.ref[size];
+            arr = new Q64byte[size];
             fill();
         }
     }
@@ -111,7 +111,7 @@ public class StatesQ64byte extends SizeBase {
     public static class Ref_as_Int extends IntState {
         @Setup
         public void setup() {
-            arr = new Q64byte.ref[size];
+            arr = new Q64byte[size];
             fill();
         }
     }
@@ -127,7 +127,7 @@ public class StatesQ64byte extends SizeBase {
     public static class Ref_as_Ref extends RefState {
         @Setup
         public void setup() {
-            arr = new Q64byte.ref[size];
+            arr = new Q64byte[size];
             fill();
         }
     }
@@ -168,7 +168,7 @@ public class StatesQ64byte extends SizeBase {
     public static class Ref_as_By extends ByState {
         @Setup
         public void setup() {
-            arr = new Q64byte.ref[size];
+            arr = new Q64byte[size];
             fill();
         }
     }
