@@ -306,14 +306,6 @@ ciType* NewInstance::declared_type() const {
   return exact_type();
 }
 
-ciType* NewInlineTypeInstance::exact_type() const {
-  return klass();
-}
-
-ciType* NewInlineTypeInstance::declared_type() const {
-  return exact_type();
-}
-
 ciType* CheckCast::declared_type() const {
   return klass();
 }
