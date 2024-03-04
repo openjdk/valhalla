@@ -418,7 +418,7 @@ public class PreloadCircularityTest {
         out.shouldHaveExitValue(1);
         out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class54b during linking of class PreloadCircularityTest$Class54a because a null-free static field is declared with this type");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class54b during linking of class PreloadCircularityTest$Class54a (cause null-free static field) succeeded");
-        out.shouldContain("java.lang.IncompatibleClassChangeError: class PreloadCircularityTest$Class54b is not an inline type");
+        out.shouldContain("java.lang.IncompatibleClassChangeError: class PreloadCircularityTest$Class54b is not a value class");
     }
 
     static class Class55a {

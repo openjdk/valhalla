@@ -985,7 +985,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           assert(klass != nullptr, "Sanity check");
           if (!klass->is_inline_klass()) {
             THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                       err_msg("class %s is not an inline type", klass->external_name()), false);
+                       err_msg("class %s is not a value class", klass->external_name()), false);
           }
           InstanceKlass* ik = InstanceKlass::cast(klass);
           if (!ik->is_implicitly_constructible()) {

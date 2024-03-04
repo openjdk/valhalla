@@ -6482,6 +6482,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
             log_warning(class, preload)("Preloading of class %s during loading of class %s (cause: field type in Preload attribute) failed : %s",
                                           name->as_C_string(), _class_name->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
           }
+          // Loads triggered by the preload attribute are speculative, failures must not impact loading of current class
           if (HAS_PENDING_EXCEPTION) {
             CLEAR_PENDING_EXCEPTION;
           }
