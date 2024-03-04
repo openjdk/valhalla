@@ -2062,11 +2062,6 @@ LEAF(If, BlockEnd)
     s->append(tsux);
     s->append(fsux);
     set_sux(s);
-    if (!_substitutability_check) {
-      // FIXME: Removal of NewInlineTypeInstance instruction makes those assert hard to write
-      // assert(x->as_NewInlineTypeInstance() == nullptr || y->type() == objectNull, "Sanity check");
-      // assert(y->as_NewInlineTypeInstance() == nullptr || x->type() == objectNull, "Sanity check");
-    }
   }
 
   // accessors

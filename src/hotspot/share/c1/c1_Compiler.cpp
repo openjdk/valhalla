@@ -255,9 +255,6 @@ void Compiler::compile_method(ciEnv* env, ciMethod* method, int entry_bci, bool 
     // of Compilation to occur before we release the any
     // competing compiler thread
     ResourceMark rm;
-    if (PrintCFGToFile) {  // borrowing flag for JDK build
-      tty->print_cr("Starting C1 compilation of %s.%s", method->holder()->name()->as_utf8(), method->name()->as_utf8());
-    }
     Compilation c(this, env, method, entry_bci, buffer_blob, install_code, directive);
   }
 }

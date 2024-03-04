@@ -370,10 +370,9 @@ static void allocate_instance(JavaThread* current, Klass* klass, TRAPS) {
   // make sure klass is initialized
   h->initialize(CHECK);
   oop obj = nullptr;
-  if(h->is_empty_inline_type()) {
-    assert(h->is_inline_klass(), "Sanity check");
-    assert(InlineKlass::cast(h)->default_value() != nullptr, "");
+  if (h->is_empty_inline_type()) {
     obj = InlineKlass::cast(h)->default_value();
+    assert(obj != nullptr, "default value must exist");
   } else {
     // allocate instance and return via TLS
     obj = h->allocate_instance(CHECK);
