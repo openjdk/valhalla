@@ -548,6 +548,10 @@ static Monitor* create_init_monitor(const char* name) {
   return new Monitor(Mutex::safepoint, name);
 }
 
+InstanceKlass::InstanceKlass() {
+  assert(CDSConfig::is_dumping_static_archive() || UseSharedSpaces, "only for CDS");
+}
+
 InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, ReferenceType reference_type) :
   Klass(kind),
   _nest_members(nullptr),
@@ -886,8 +890,8 @@ bool InstanceKlass::link_class_or_fail(TRAPS) {
 }
 
 bool InstanceKlass::link_class_impl(TRAPS) {
-  if (DumpSharedSpaces && SystemDictionaryShared::has_class_failed_verification(this)) {
-    // This is for CDS dumping phase only -- we use the in_error_state to indicate that
+  if (CDSConfig::is_dumping_static_archive() && SystemDictionaryShared::has_class_failed_verification(this)) {
+    // This is for CDS static dump only -- we use the in_error_state to indicate that
     // the class has failed verification. Throwing the NoClassDefFoundError here is just
     // a convenient way to stop repeat attempts to verify the same (bad) class.
     //
@@ -976,7 +980,8 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                                       s->as_C_string(), name()->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
             return false; // Exception is still pending
           }
-          log_info(class, preload)("Preloading of class %s during linking of class %s (cause null-free static field) succeeded", s->as_C_string(), name()->as_C_string());
+          log_info(class, preload)("Preloading of class %s during linking of class %s (cause null-free static field) succeeded",
+                                   s->as_C_string(), name()->as_C_string());
           assert(klass != nullptr, "Sanity check");
           if (!klass->is_inline_klass()) {
             THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
@@ -989,34 +994,6 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                         klass->external_name()), false);
           }
           // the inline_type_field_klass_array is not updated because of CDS (see verifications in SystemDictionary::load_shared_class())
-        }
-      }
-    }
-
-    if (EnablePrimitiveClasses) {
-      for (int i = 0; i < methods()->length(); i++) {
-        Method* m = methods()->at(i);
-        for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
-          if (ss.is_reference()) {
-            if (ss.is_array()) continue;
-            if (ss.type() == T_PRIMITIVE_OBJECT) {
-              Symbol* symb = ss.as_symbol();
-              if (symb == name()) continue;
-              oop loader = class_loader();
-              oop protection_domain = this->protection_domain();
-              Klass* klass = SystemDictionary::resolve_or_fail(symb,
-                                                              Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
-                                                              CHECK_false);
-              if (klass == nullptr) {
-                THROW_(vmSymbols::java_lang_LinkageError(), false);
-              }
-              if (!klass->is_inline_klass()) {
-                THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                           err_msg( "class %s is not an inline type", klass->external_name()),
-                           false);
-              }
-            }
-          }
         }
       }
     }
@@ -1779,7 +1756,7 @@ ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
       // Check if update has already taken place
       if (array_klasses() == nullptr) {
         ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this,
-                                                                  false, false, CHECK_NULL);
+                                                                  false, CHECK_NULL);
         // use 'release' to pair with lock-free load
         release_set_array_klasses(k);
       }
@@ -2110,7 +2087,7 @@ NOINLINE int linear_search(const Array<Method*>* methods, const Symbol* name) {
 
 inline int InstanceKlass::quick_search(const Array<Method*>* methods, const Symbol* name) {
   if (_disable_method_binary_search) {
-    assert(DynamicDumpSharedSpaces, "must be");
+    assert(CDSConfig::is_dumping_dynamic_archive(), "must be");
     // At the final stage of dynamic dumping, the methods array may not be sorted
     // by ascending addresses of their names, so we can't use binary search anymore.
     // However, methods with the same name are still laid out consecutively inside the
@@ -2357,9 +2334,8 @@ Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
     if (method != nullptr) {
       return method;
     }
-    if (name == vmSymbols::object_initializer_name() ||
-        name == vmSymbols::inline_factory_name()) {
-      break;  // <init> and <vnew> is never inherited
+    if (name == vmSymbols::object_initializer_name()) {
+      break;  // <init> is never inherited
     }
     klass = klass->super();
     overpass_local_mode = OverpassLookupMode::skip;   // Always ignore overpass methods in superclasses
@@ -2935,21 +2911,22 @@ void InstanceKlass::remove_java_mirror() {
 }
 
 void InstanceKlass::init_shared_package_entry() {
+  assert(CDSConfig::is_dumping_archive(), "must be");
 #if !INCLUDE_CDS_JAVA_HEAP
   _package_entry = nullptr;
 #else
-  if (!MetaspaceShared::use_full_module_graph()) {
-    _package_entry = nullptr;
-  } else if (DynamicDumpSharedSpaces) {
-    if (!MetaspaceShared::is_in_shared_metaspace(_package_entry)) {
-      _package_entry = nullptr;
-    }
-  } else {
+  if (CDSConfig::is_dumping_full_module_graph()) {
     if (is_shared_unregistered_class()) {
       _package_entry = nullptr;
     } else {
       _package_entry = PackageEntry::get_archived_entry(_package_entry);
     }
+  } else if (CDSConfig::is_dumping_dynamic_archive() &&
+             CDSConfig::is_loading_full_module_graph() &&
+             MetaspaceShared::is_in_shared_metaspace(_package_entry)) {
+    // _package_entry is an archived package in the base archive. Leave it as is.
+  } else {
+    _package_entry = nullptr;
   }
   ArchivePtrMarker::mark_pointer((address**)&_package_entry);
 #endif
@@ -3278,7 +3255,7 @@ void InstanceKlass::set_package(ClassLoaderData* loader_data, PackageEntry* pkg_
   }
 
   if (is_shared() && _package_entry != nullptr) {
-    if (MetaspaceShared::use_full_module_graph() && _package_entry == pkg_entry) {
+    if (CDSConfig::is_loading_full_module_graph() && _package_entry == pkg_entry) {
       // we can use the saved package
       assert(MetaspaceShared::is_in_shared_metaspace(_package_entry), "must be");
       return;

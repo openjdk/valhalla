@@ -26,8 +26,8 @@
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses PreloadCircularityTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses PreloadCircularityTest
+ * @compile PreloadCircularityTest.java
+ * @run main/othervm -XX:+EnableValhalla PreloadCircularityTest
  */
 
  import java.lang.reflect.Method;
@@ -285,7 +285,7 @@ public class PreloadCircularityTest {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class9a");
         out.shouldHaveExitValue(1);
         out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class9b during loading of class PreloadCircularityTest$Class9a. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("java.lang.IncompatibleClassChangeError: Class PreloadCircularityTest$Class9a expects class PreloadCircularityTest$Class9b to be an inline type, but it is not");
+        out.shouldContain("java.lang.IncompatibleClassChangeError: Class PreloadCircularityTest$Class9a expects class PreloadCircularityTest$Class9b to be a concrete value type, but it is an identity class");
     }
 
     static value class Class10a {
@@ -457,7 +457,7 @@ public class PreloadCircularityTest {
 
     static ProcessBuilder exec(String... args) throws Exception {
         List<String> argsList = new ArrayList<>();
-        Collections.addAll(argsList, "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses");
+        Collections.addAll(argsList, "-XX:+EnableValhalla");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
         Collections.addAll(argsList, "-Xlog:class+preload=info");
         Collections.addAll(argsList, args);

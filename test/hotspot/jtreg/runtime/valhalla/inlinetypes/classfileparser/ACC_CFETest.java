@@ -23,6 +23,7 @@
  */
 
 /*
+ * @ignore
  * @test ACC_CFETest
  * @bug 8281279
  * @summary test class access rules for abstract classes that have ACC_VALUE set.

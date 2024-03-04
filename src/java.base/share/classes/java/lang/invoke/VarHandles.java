@@ -25,7 +25,6 @@
 
 package java.lang.invoke;
 
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.foreign.Utils;
 import sun.invoke.util.Wrapper;
 

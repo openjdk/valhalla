@@ -25,7 +25,6 @@
 
 package java.lang.invoke;
 
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
@@ -80,8 +79,7 @@ sealed class DirectMethodHandle extends MethodHandle {
         if (!member.isStatic()) {
             if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isObjectConstructor())
                 throw new InternalError(member.toString());
-            Class<?> receiverType = PrimitiveClass.isPrimitiveClass(refc) ? PrimitiveClass.asValueType(refc) : refc;
-            mtype = mtype.insertParameterTypes(0, receiverType);
+            mtype = mtype.insertParameterTypes(0, refc);
         }
         if (!member.isField()) {
             // refKind reflects the original type of lookup via findSpecial or
@@ -129,12 +127,12 @@ sealed class DirectMethodHandle extends MethodHandle {
         return make(refKind, refc, member, null /* no callerClass context */);
     }
     static DirectMethodHandle make(MemberName member) {
-        if (member.isObjectConstructor() && member.getMethodType().returnType() == void.class)
+        if (member.isObjectConstructor())
             return makeAllocator(member.getDeclaringClass(), member);
         return make(member.getDeclaringClass(), member);
     }
     static DirectMethodHandle makeAllocator(Class<?> instanceClass, MemberName ctor) {
-        assert(ctor.isObjectConstructor() && !ctor.getDeclaringClass().isValue()) : ctor;
+        assert(ctor.isObjectConstructor()) : ctor;
         ctor = ctor.asObjectConstructor();
         assert(ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
         MethodType mtype = ctor.getMethodType().changeReturnType(instanceClass);

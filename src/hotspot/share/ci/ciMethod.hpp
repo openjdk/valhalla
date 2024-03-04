@@ -362,7 +362,6 @@ class ciMethod : public ciMetadata {
   bool is_boxing_method() const;
   bool is_unboxing_method() const;
   bool is_object_constructor() const;
-  bool is_static_vnew_factory() const;
   bool is_object_constructor_or_class_initializer() const;
   bool is_vector_method() const;
 

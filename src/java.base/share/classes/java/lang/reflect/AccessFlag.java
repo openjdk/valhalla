@@ -206,7 +206,7 @@ public enum AccessFlag {
      * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
      * @jvms 4.1 -B. Class access and property modifiers
      */
-    IDENTITY(Modifier.IDENTITY, true,
+    IDENTITY(Modifier.IDENTITY, false,
             ValhallaFeatures.isEnabled() ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET,
             new Function<ClassFileFormatVersion, Set<Location>>() {
                 @Override
@@ -263,14 +263,6 @@ public enum AccessFlag {
                              Location.SET_MODULE_REQUIRES:
                              Location.EMPTY_SET;}
                  }),
-
-    /**
-     * The access flag {@code ACC_VALUE}, corresponding to the
-     * source modifier {@link Modifier#VALUE value}, with a mask
-     * value of <code>{@value "0x%04x" Modifier#VALUE}</code>.
-     * @jvms 4.1 -B. Class access and property modifiers
-     */
-    VALUE(Modifier.VALUE, true, Set.of(Location.CLASS, Location.INNER_CLASS), null),
 
     /**
      * The access flag {@code ACC_VOLATILE}, corresponding to the
@@ -360,14 +352,19 @@ public enum AccessFlag {
      * major versions 46 through 60, inclusive (JVMS {@jvms 4.6}),
      * corresponding to Java SE 1.2 through 16.
      */
-    STRICT(Modifier.STRICT, true, Location.EMPTY_SET,
+    STRICT(0x0000_0800, true, !ValhallaFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_FIELD,
              new Function<ClassFileFormatVersion, Set<Location>>() {
                @Override
                public Set<Location> apply(ClassFileFormatVersion cffv) {
-                   return (cffv.compareTo(ClassFileFormatVersion.RELEASE_2)  >= 0 &&
-                           cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) ?
-                       Location.SET_METHOD:
-                       Location.EMPTY_SET;}
+                   if (ValhallaFeatures.isEnabled() && cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0) {
+                       return Location.SET_FIELD;
+                   } else if (cffv.compareTo(ClassFileFormatVersion.RELEASE_2) >= 0 &&
+                              cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) {
+                       return Location.SET_METHOD;
+                   } else {
+                       return Location.EMPTY_SET;
+                   }
+               }
            }),
 
     /**
@@ -697,21 +694,21 @@ public enum AccessFlag {
     private static class LocationToFlags {
         private static Map<Location, Set<AccessFlag>> locationToFlags =
             Map.ofEntries(entry(Location.CLASS,
-                                Set.of(PUBLIC, FINAL, IDENTITY, VALUE,
+                                Set.of(PUBLIC, FINAL, IDENTITY,
                                        INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION,
                                        ENUM, AccessFlag.MODULE)),
                           entry(Location.FIELD,
                                 Set.of(PUBLIC, PRIVATE, PROTECTED,
                                        STATIC, FINAL, VOLATILE,
-                                       TRANSIENT, SYNTHETIC, ENUM)),
+                                       TRANSIENT, SYNTHETIC, ENUM, STRICT)),
                           entry(Location.METHOD,
                                 Set.of(PUBLIC, PRIVATE, PROTECTED,
                                        STATIC, FINAL, SYNCHRONIZED,
                                        BRIDGE, VARARGS, NATIVE,
                                        ABSTRACT, STRICT, SYNTHETIC)),
                           entry(Location.INNER_CLASS,
-                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY, VALUE,
+                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY,
                                        STATIC, FINAL, INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION, ENUM)),
                           entry(Location.METHOD_PARAMETER,

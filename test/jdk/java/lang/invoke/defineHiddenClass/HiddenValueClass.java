@@ -24,15 +24,11 @@
 /*
  * @test
  * @library /test/lib
- * @compile ValueImpl.jcod
  * @run testng/othervm HiddenValueClass
- * @summary a hidden value class can only be defined without "<vnew>" static
- *          factory method.  It will have to provide a different instance creation.
+ * @summary Test that a value class can be defined as a hidden class
  */
 
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
 import static java.lang.invoke.MethodType.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,40 +37,24 @@ import java.nio.file.Paths;
 import jdk.test.lib.Utils;
 
 import org.testng.annotations.Test;
-import static org.testng.Assert.*;
 
 public class HiddenValueClass {
-
-    value class Impl implements Runnable {
-        public void run() {}
-    }
-
     private static final Path CLASSES_DIR = Paths.get(Utils.TEST_CLASSES);
 
     /*
-     * ClassFormatError when defining HiddenValueClass$Impl as a hidden class
-     * as it defines "<vnew>()LHiddenValueClass$Impl;" which is illegal.
-     *
-     * A hidden class cannot have "<vnew>" factory method since it cannot
-     * be named.
+     * Defines ValueImpl as a hidden class.
      */
     @Test
-    public void illegalHiddenValueClass() throws Throwable {
-        byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve("HiddenValueClass$Impl.class"));
-        assertThrows(ClassFormatError.class, () -> MethodHandles.lookup().defineHiddenClass(bytes, false));
-    }
-
-    /*
-     * ValueImpl is a value class without "<vnew>" method but instead
-     * a special factory method named "$make" (no bracket) with
-     * "()java/lang/Runnable;" descriptor defined.
-     */
-    @Test
-    public void hiddenValueClassWithMakeFactory() throws Throwable {
+    public void hiddenValueClass() throws Throwable {
         byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve("ValueImpl.class"));
-        Lookup lookup = MethodHandles.lookup().defineHiddenClass(bytes, false);
-        MethodHandle mh = lookup.findStatic(lookup.lookupClass(), "$make", methodType(Runnable.class));
+        var lookup = MethodHandles.lookup().defineHiddenClass(bytes, false);
+        var mh = lookup.findConstructor(lookup.lookupClass(), methodType(void.class))
+                                    .asType(methodType(Runnable.class));
         Runnable r = (Runnable)mh.invokeExact();
         r.run();
     }
+}
+
+value class ValueImpl implements Runnable {
+    public void run() {}
 }

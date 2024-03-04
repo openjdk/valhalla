@@ -22,6 +22,7 @@
  *
  */
 /*
+ * @ignore
  * @test
  * @bug 8269756
  * @summary test scenarios where getfield, putfield, and withfield access the

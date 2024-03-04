@@ -37,10 +37,10 @@ import com.sun.tools.classfile.*;
 public class PermitsValueTest {
 
     static abstract class A0 extends PermitsValueTest {
-       // NOT ACC_IDENTITY  - flags bits are not auto inherited from extended identity class.
+       // ACC_IDENTITY
     }
 
-    static abstract identity class A1 {
+    static abstract class A1 {
        // ACC_IDENTITY
     }
 
@@ -49,53 +49,53 @@ public class PermitsValueTest {
     }
 
     static abstract class A3 extends A2 {
-        // NOT ACC_IDENTITY - flags bits are not auto inherited from extended identity class.
+        // ACC_IDENTITY
     }
 
     static abstract class A4 {
-        // ACC_IDENTITY as it declares a non-empty initializer block.
+        // ACC_IDENTITY
         {
             System.out.println("initializer block");
         }
     }
 
     static abstract class A5 extends A4 {
-        // NOT ACC_IDENTITY as flag bits are not auto inherited from the extended implicit identity class.
+        // ACC_IDENTITY
     }
 
     static abstract class A6 {
-        // ACC_IDENTITY as declares a synchronized method.
+        // ACC_IDENTITY
         synchronized void foo() {
         }
     }
 
     static abstract class A7 extends A6 {
-        // NOT ACC_IDENTITY as flag bits are not auto inherited from the extended implicit identity class.
+        // ACC_IDENTITY
     }
 
     abstract class A8 {
-        // ACC_IDENTITY as it is an inner class
+        // ACC_IDENTITY
     }
 
     static abstract class A9 {
-        // ACC_IDENTITY as it defines a arg'ed constructor.
+        // ACC_IDENTITY
         A9(int x) {}
     }
 
     static abstract class A10 {
-        // !ACC_IDENTITY as its constructor is deemed empty due to mere vacuous chaining.
+        // ACC_IDENTITY
         A10() {
             super();
         }
     }
     static abstract class A10_Alt {
-        // ACC_IDENTITY as it defines a non empty constructor.
+        // ACC_IDENTITY
         A10_Alt() {
             super();
             System.out.println("");
         }
     }
-    static abstract class A11 { // !ACC_IDENTITY.
+    static abstract value class A11 { // ACC_IDENTITY.
         static int f; // static field is OK.
         static {
             System.out.println("Static initializer block is OK");
@@ -116,14 +116,14 @@ public class PermitsValueTest {
     }
 
     static abstract class A13 extends A12 {
-        // !ACC_IDENTITY
+        // ACC_IDENTITY
     }
 
 
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A0.class"));
-        if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
-            throw new Exception("ACC_IDENTITY flag should NOT be set!");
+        if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
+            throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A1.class"));
         if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
@@ -134,24 +134,24 @@ public class PermitsValueTest {
             throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A3.class"));
-        if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
-            throw new Exception("ACC_IDENTITY flag should NOT be set!");
+        if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
+            throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A4.class"));
         if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
             throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A5.class"));
-        if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
-            throw new Exception("ACC_IDENTITY flag should NOT be set!");
+        if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
+            throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A6.class"));
         if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
             throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A7.class"));
-        if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
-            throw new Exception("ACC_IDENTITY flag should NOT be set!");
+        if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
+            throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A8.class"));
         if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
@@ -162,14 +162,14 @@ public class PermitsValueTest {
             throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A10.class"));
-        if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
-            throw new Exception("ACC_IDENTITY flag should not be set!");
+        if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
+            throw new Exception("ACC_IDENTITY flag should be set!");
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A10_Alt.class"));
         if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
             throw new Exception("ACC_IDENTITY flag should be set!");
 
 
-        // The following are all proper non-identity classes
+        // The following two classes are proper non-identity classes
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A11.class"));
         if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
             throw new Exception("ACC_IDENTITY flag should not be set!");
@@ -179,7 +179,7 @@ public class PermitsValueTest {
             throw new Exception("ACC_IDENTITY flag should not be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A13.class"));
-        if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
-            throw new Exception("ACC_IDENTITY flag should not be set!");
+        if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
+            throw new Exception("ACC_IDENTITY flag should be set!");
     }
 }

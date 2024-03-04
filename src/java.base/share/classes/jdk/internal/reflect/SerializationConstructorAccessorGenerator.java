@@ -25,8 +25,6 @@
 
 package jdk.internal.reflect;
 
-import jdk.internal.value.PrimitiveClass;
-
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
@@ -51,7 +49,6 @@ class SerializationConstructorAccessorGenerator extends AccessorGenerator {
     private Class<?>[] parameterTypes;
     private Class<?>   returnType;
     private boolean    isConstructor;
-    private boolean    isStaticFactory;
     private boolean    forSerialization;
 
     private short targetMethodRef;
@@ -71,15 +68,13 @@ class SerializationConstructorAccessorGenerator extends AccessorGenerator {
                                      int modifiers,
                                      Class<?> targetConstructorClass)
     {
-        boolean isStaticFactory = declaringClass.isValue();
         return (SerializationConstructorAccessorImpl)
             generate(declaringClass,
                      "<init>",
                      parameterTypes,
-                     isStaticFactory ? PrimitiveClass.asValueType(declaringClass) : Void.TYPE,
+                     Void.TYPE,
                      modifiers,
                      true,
-                     isStaticFactory,
                      true,
                      targetConstructorClass);
     }
@@ -92,7 +87,6 @@ class SerializationConstructorAccessorGenerator extends AccessorGenerator {
                                        Class<?>   returnType,
                                        int modifiers,
                                        boolean isConstructor,
-                                       boolean isStaticFactory,
                                        boolean forSerialization,
                                        Class<?> serializationTargetClass)
     {
@@ -103,7 +97,6 @@ class SerializationConstructorAccessorGenerator extends AccessorGenerator {
         this.returnType = returnType;
         this.modifiers = modifiers;
         this.isConstructor = isConstructor;
-        this.isStaticFactory = isStaticFactory;
         this.forSerialization = forSerialization;
 
         asm.emitMagicAndVersion();
@@ -396,7 +389,7 @@ class SerializationConstructorAccessorGenerator extends AccessorGenerator {
 
         short illegalArgStartPC = 0;
 
-        if (isConstructor && !isStaticFactory) {
+        if (isConstructor) {
             // Instantiate target class before continuing
             // new <target class type>
             // dup
@@ -586,7 +579,7 @@ class SerializationConstructorAccessorGenerator extends AccessorGenerator {
         short invokeStartPC = cb.getLength();
 
         // OK, ready to perform the invocation.
-        if (isConstructor && !isStaticFactory) {
+        if (isConstructor) {
             cb.opc_invokespecial(targetMethodRef, count, 0);
         } else {
             if (isStatic()) {

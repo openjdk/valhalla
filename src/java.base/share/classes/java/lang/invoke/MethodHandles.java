@@ -26,7 +26,6 @@
 package java.lang.invoke;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.org.objectweb.asm.ClassReader;
@@ -707,8 +706,8 @@ public class MethodHandles {
      * (See the Java Virtual Machine Specification, section {@jvms 4.10.1.9}.)
      * <p>
      * The JVM represents constructors and static initializer blocks as internal methods
-     * with special names ({@value ConstantDescs#INIT_NAME},
-     * {@value ConstantDescs#VNEW_NAME} and {@value ConstantDescs#CLASS_INIT_NAME}).
+     * with special names ({@value ConstantDescs#INIT_NAME}, and {@value
+     * ConstantDescs#CLASS_INIT_NAME}).
      * The internal syntax of invocation instructions allows them to refer to such internal
      * methods as if they were normal methods, but the JVM bytecode verifier rejects them.
      * A lookup of such an internal method will produce a {@code NoSuchMethodException}.
@@ -1628,7 +1627,6 @@ public class MethodHandles {
         }
 
         private Lookup(Class<?> lookupClass, Class<?> prevLookupClass, int allowedModes) {
-            assert PrimitiveClass.isPrimaryType(lookupClass);
             assert prevLookupClass == null || ((allowedModes & MODULE) == 0
                     && prevLookupClass.getModule() != lookupClass.getModule());
             assert !lookupClass.isArray() && !lookupClass.isPrimitive();
@@ -3521,19 +3519,10 @@ return mh1;
          */
         public MethodHandle unreflectConstructor(Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructor() || ctor.isStaticValueFactoryMethod());
+            assert(ctor.isObjectConstructor());
             @SuppressWarnings("deprecation")
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
-            Class<?> defc = c.getDeclaringClass();
-            if (ctor.isObjectConstructor()) {
-                assert(ctor.getMethodType().returnType() == void.class);
-                return lookup.getDirectConstructorNoSecurityManager(defc, ctor);
-            } else {
-                // static init factory is a static method
-                assert(ctor.isMethod() && ctor.getMethodType().returnType() == defc && ctor.getReferenceKind() == REF_invokeStatic) : ctor.toString();
-                assert(!MethodHandleNatives.isCallerSensitive(ctor));  // must not be caller-sensitive
-                return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), defc, ctor, lookup);
-            }
+            return lookup.getDirectConstructorNoSecurityManager(c.getDeclaringClass(), ctor);
         }
 
         /*
@@ -3805,7 +3794,7 @@ return mh1;
             }
             Objects.requireNonNull(type);
             // implicit null-check of name
-            if (isIllegalMethodName(refKind, name)) {
+            if (name.startsWith("<") && refKind != REF_newInvokeSpecial) {
                 return null;
             }
 
@@ -3828,23 +3817,10 @@ return mh1;
             return caller == null || VerifyAccess.isClassAccessible(type, caller, prevLookupClass, allowedModes);
         }
 
-        /*
-         * "<init>" can only be invoked via invokespecial
-         * "<vnew>" factory can only invoked via invokestatic
-         */
-        boolean isIllegalMethodName(byte refKind, String name) {
-            if (name.startsWith("<")) {
-                return MemberName.VALUE_FACTORY_NAME.equals(name) ? refKind != REF_invokeStatic
-                                                                  : refKind != REF_newInvokeSpecial;
-            }
-            return false;
-        }
-
         /** Check name for an illegal leading "&lt;" character. */
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
-            if (isIllegalMethodName(refKind, name)) {
-                throw new NoSuchMethodException("illegal method name: " + name + " " + refKind);
-            }
+            if (name.startsWith("<") && refKind != REF_newInvokeSpecial)
+                throw new NoSuchMethodException("illegal method name: " + name + " ref kind " + refKind);
         }
 
         /**
@@ -3948,7 +3924,7 @@ return mh1;
 
             // Step 3:
             Class<?> defc = m.getDeclaringClass();
-            if (!fullPrivilegeLookup && PrimitiveClass.asPrimaryType(defc) != PrimitiveClass.asPrimaryType(refc)) {
+            if (!fullPrivilegeLookup && defc != refc) {
                 ReflectUtil.checkPackageAccess(defc);
             }
         }
@@ -4035,12 +4011,12 @@ return mh1;
             int mods = m.getModifiers();
             // check the class first:
             boolean classOK = (Modifier.isPublic(defc.getModifiers()) &&
-                               (PrimitiveClass.asPrimaryType(defc) == PrimitiveClass.asPrimaryType(refc) ||
+                               (defc == refc ||
                                 Modifier.isPublic(refc.getModifiers())));
             if (!classOK && (allowedModes & PACKAGE) != 0) {
                 // ignore previous lookup class to check if default package access
                 classOK = (VerifyAccess.isClassAccessible(defc, lookupClass(), null, FULL_POWER_MODES) &&
-                           (PrimitiveClass.asPrimaryType(defc) == PrimitiveClass.asPrimaryType(refc) ||
+                           (defc == refc ||
                             VerifyAccess.isClassAccessible(refc, lookupClass(), null, FULL_POWER_MODES)));
             }
             if (!classOK)
@@ -5171,7 +5147,7 @@ assert((int)twice.invokeExact(21) == 42);
                 return zero(w, type);
             return insertArguments(identity(type), 0, value);
         } else {
-            if (!PrimitiveClass.isPrimitiveValueType(type) && value == null)
+            if (value == null)
                 return zero(Wrapper.OBJECT, type);
             return identity(type).bindTo(value);
         }
@@ -5216,12 +5192,9 @@ assert((int)twice.invokeExact(21) == 42);
      */
     public static MethodHandle zero(Class<?> type) {
         Objects.requireNonNull(type);
+        // TODO: implicitly constructible value class
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (PrimitiveClass.isPrimitiveValueType(type)) {
-            // singleton default value
-            Object value = ValueClass.zeroInstance(type);
-            return identity(type).bindTo(value);
         } else {
             return zero(Wrapper.OBJECT, type);
         }

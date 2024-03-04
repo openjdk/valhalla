@@ -620,7 +620,8 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
-  bool null_free = str->has_Q_signature();
+  // bool null_free = str->has_Q_signature();
+  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
   if (!will_link) {
     if (null_free) {
       trap(str, klass,
@@ -859,39 +860,6 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
 }
 
 // ------------------------------------------------------------------
-// ciTypeFlow::StateVector::do_aconst_init
-void ciTypeFlow::StateVector::do_aconst_init(ciBytecodeStream* str) {
-  bool will_link;
-  ciKlass* klass = str->get_klass(will_link);
-  if (!will_link || str->is_unresolved_klass() || !klass->is_inlinetype()) {
-    trap(str, klass, str->get_klass_index());
-  } else {
-    push(outer()->mark_as_null_free(klass));
-  }
-}
-
-// ------------------------------------------------------------------
-// ciTypeFlow::StateVector::do_withfield
-void ciTypeFlow::StateVector::do_withfield(ciBytecodeStream* str) {
-  bool will_link;
-  ciField* field = str->get_field(will_link);
-  ciKlass* klass = field->holder();
-  if (!will_link) {
-    trap(str, klass, str->get_field_holder_index());
-  } else {
-    ciType* type = pop_value();
-    ciType* field_type = field->type();
-    if (field_type->is_two_word()) {
-      ciType* type2 = pop_value();
-      assert(type2->is_two_word(), "must be 2nd half");
-      assert(type == half_type(type2), "must be 2nd half");
-    }
-    pop_object();
-    push(outer()->mark_as_null_free(klass));
-  }
-}
-
-// ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_newarray
 void ciTypeFlow::StateVector::do_newarray(ciBytecodeStream* str) {
   pop_int();
@@ -1024,7 +992,8 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       if (!will_link) {
         trap(str, element_klass, str->get_klass_index());
       } else {
-        bool null_free = str->has_Q_signature();
+        //bool null_free = str->has_Q_signature();
+        bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
         push_object(ciArrayKlass::make(element_klass, null_free));
       }
       break;
@@ -1556,9 +1525,6 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
   case Bytecodes::_multianewarray: do_multianewarray(str);          break;
 
   case Bytecodes::_new:      do_new(str);                           break;
-
-  case Bytecodes::_aconst_init: do_aconst_init(str);              break;
-  case Bytecodes::_withfield: do_withfield(str);                    break;
 
   case Bytecodes::_newarray: do_newarray(str);                      break;
 

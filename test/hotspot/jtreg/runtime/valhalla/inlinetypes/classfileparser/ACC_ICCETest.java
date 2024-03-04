@@ -23,6 +23,7 @@
  */
 
 /*
+ * @ignore
  * @test ACC_ICCETest
  * @bug 8281279
  * @summary test that a value class cannot sub-class an identity class

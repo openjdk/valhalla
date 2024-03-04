@@ -71,9 +71,9 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, boo
     ciType* type = vt->field_type(i);
     Node*  value = vt->field_value(i);
     // We limit scalarization for inline types with circular fields and can therefore observe nodes
-    // of the same type but with different scalarization depth during IGVN. To avoid inconsistencies
+    // of the same type but with different scalarization depth during GVN. To avoid inconsistencies
     // during merging, make sure that we only create Phis for fields that are guaranteed to be scalarized.
-    bool no_circularity = !gvn->C->has_circular_inline_type() || !gvn->is_IterGVN() || field_is_flat(i);
+    bool no_circularity = !gvn->C->has_circular_inline_type() || field_is_flat(i);
     if (value->is_InlineType() && no_circularity) {
       // Handle inline type fields recursively
       value = value->as_InlineType()->clone_with_phis(gvn, region);
@@ -385,9 +385,9 @@ const TypePtr* InlineTypeNode::field_adr_type(Node* base, int offset, ciInstance
   return adr_type;
 }
 
-// We limit scalarization for inline types with circular fields and can therefore observe
-// nodes of same type but with different scalarization depth during GVN. This method adjusts
-// the scalarization depth to avoid inconsistencies during merging.
+// We limit scalarization for inline types with circular fields and can therefore observe nodes
+// of the same type but with different scalarization depth during GVN. This method adjusts the
+// scalarization depth to avoid inconsistencies during merging.
 InlineTypeNode* InlineTypeNode::adjust_scalarization_depth(GraphKit* kit) {
   if (!kit->C->has_circular_inline_type()) {
     return this;
@@ -1153,6 +1153,9 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       // Non-flat inline type field
       if (type->is_inlinetype()) {
         if (null_check_region != nullptr) {
+          // We limit scalarization for inline types with circular fields and can therefore observe nodes
+          // of the same type but with different scalarization depth during GVN. To avoid inconsistencies
+          // during merging, make sure that we only create Phis for fields that are guaranteed to be scalarized.
           if (parm->is_InlineType() && kit->C->has_circular_inline_type()) {
             parm = parm->as_InlineType()->get_oop();
           }

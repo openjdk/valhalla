@@ -24,18 +24,18 @@ package runtime.valhalla.inlinetypes;
 
 import java.lang.invoke.*;
 
-import test.java.lang.invoke.lib.InstructionHelper;
+import test.java.lang.invoke.lib.OldInstructionHelper;
 
 /*
  * @test ObjectMethods
  * @summary Check object method implemented by the VM behave with inline types
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile ObjectMethods.java
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
+ * @run main/othervm -XX:+EnableValhalla -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -XX:+EnableValhalla -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -XX:+EnableValhalla -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
  */
 
 public class ObjectMethods {
@@ -131,7 +131,7 @@ public class ObjectMethods {
     static void checkMonitorExit(Object val) {
         boolean sawImse = false;
         try {
-            InstructionHelper.loadCode(MethodHandles.lookup(),
+            OldInstructionHelper.loadCode(MethodHandles.lookup(),
                                         "mismatchedMonitorExit",
                                         MethodType.methodType(Void.TYPE, Object.class),
                                         CODE->{

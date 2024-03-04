@@ -369,22 +369,19 @@ static void allocate_instance(JavaThread* current, Klass* klass, TRAPS) {
   h->check_valid_for_instantiation(true, CHECK);
   // make sure klass is initialized
   h->initialize(CHECK);
-  // allocate instance and return via TLS
-  oop obj = h->allocate_instance(CHECK);
+  oop obj = nullptr;
+  if (h->is_empty_inline_type()) {
+    obj = InlineKlass::cast(h)->default_value();
+    assert(obj != nullptr, "default value must exist");
+  } else {
+    // allocate instance and return via TLS
+    obj = h->allocate_instance(CHECK);
+  }
   current->set_vm_result(obj);
 JRT_END
 
 JRT_ENTRY(void, Runtime1::new_instance(JavaThread* current, Klass* klass))
   allocate_instance(current, klass, CHECK);
-JRT_END
-
-// Same as new_instance but throws error for inline klasses
-JRT_ENTRY(void, Runtime1::new_instance_no_inline(JavaThread* current, Klass* klass))
-  if (klass->is_inline_klass()) {
-    SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_InstantiationError());
-  } else {
-    allocate_instance(current, klass, CHECK);
-  }
 JRT_END
 
 JRT_ENTRY(void, Runtime1::new_type_array(JavaThread* current, Klass* klass, jint length))
@@ -1090,6 +1087,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
   BasicType patch_field_type = T_ILLEGAL;
   bool deoptimize_for_volatile = false;
   bool deoptimize_for_atomic = false;
+  bool deoptimize_for_null_free = false;
   bool deoptimize_for_flat = false;
   int patch_field_offset = -1;
   Klass* init_klass = nullptr; // klass needed by load_klass_patching code
@@ -1134,6 +1132,11 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
     patch_field_type = result.field_type();
     deoptimize_for_atomic = (AlwaysAtomicAccesses && (patch_field_type == T_DOUBLE || patch_field_type == T_LONG));
 
+    // The field we are patching is null-free. Deoptimize and regenerate
+    // the compiled code if we patch a putfield/putstatic because it
+    // does not contain the required null check.
+    deoptimize_for_null_free = result.is_null_free_inline_type() && (field_access.is_putfield() || field_access.is_putstatic());
+
     // The field we are patching is flat. Deoptimize and regenerate
     // the compiled code which can't handle the layout of the flat
     // field because it was unknown at compile time.
@@ -1154,18 +1157,9 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
           k = caller_method->constants()->klass_at(bnew.index(), CHECK);
         }
         break;
-      case Bytecodes::_aconst_init:
-        { Bytecode_aconst_init baconst_init(caller_method(), caller_method->bcp_from(bci));
-          k = caller_method->constants()->klass_at(baconst_init.index(), CHECK);
-        }
-        break;
       case Bytecodes::_multianewarray:
         { Bytecode_multianewarray mna(caller_method(), caller_method->bcp_from(bci));
           k = caller_method->constants()->klass_at(mna.index(), CHECK);
-          if (k->name()->is_Q_array_signature()) {
-            // Logically creates elements, ensure klass init
-            k->initialize(CHECK);
-          }
         }
         break;
       case Bytecodes::_instanceof:
@@ -1206,11 +1200,8 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
     LinkResolver::resolve_invoke(info, Handle(), pool, index, bc, CHECK);
     switch (bc) {
       case Bytecodes::_invokehandle: {
-        int cache_index = ConstantPool::decode_cpcache_index(index, true);
-        assert(cache_index >= 0 && cache_index < pool->cache()->length(), "unexpected cache index");
-        ConstantPoolCacheEntry* cpce = pool->cache()->entry_at(cache_index);
-        cpce->set_method_handle(pool, info);
-        appendix = Handle(current, cpce->appendix_if_resolved(pool)); // just in case somebody already resolved the entry
+        ResolvedMethodEntry* entry = pool->cache()->set_method_handle(index, info);
+        appendix = Handle(current, pool->cache()->appendix_if_resolved(entry));
         break;
       }
       case Bytecodes::_invokedynamic: {
@@ -1224,7 +1215,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
     ShouldNotReachHere();
   }
 
-  if (deoptimize_for_volatile || deoptimize_for_atomic || deoptimize_for_flat) {
+  if (deoptimize_for_volatile || deoptimize_for_atomic || deoptimize_for_null_free || deoptimize_for_flat) {
     // At compile time we assumed the field wasn't volatile/atomic but after
     // loading it turns out it was volatile/atomic so we have to throw the
     // compiled code out and let it be regenerated.
@@ -1234,6 +1225,9 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
       }
       if (deoptimize_for_atomic) {
         tty->print_cr("Deoptimizing for patching atomic field reference");
+      }
+      if (deoptimize_for_null_free) {
+        tty->print_cr("Deoptimizing for patching null-free field reference");
       }
       if (deoptimize_for_flat) {
         tty->print_cr("Deoptimizing for patching flat field reference");

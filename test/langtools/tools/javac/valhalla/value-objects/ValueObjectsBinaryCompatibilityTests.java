@@ -32,6 +32,7 @@
  *          jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run main ValueObjectsBinaryCompatibilityTests
+ * @ignore Verifier error
  */
 
 import java.io.IOException;

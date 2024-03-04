@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
+#include "cds/cdsConfig.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/javaClasses.hpp"
 #include "oops/instanceKlass.hpp"
@@ -43,7 +44,7 @@ class InlineKlass: public InstanceKlass {
  public:
   static const KlassKind Kind = InlineKlassKind;
 
-  InlineKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+  InlineKlass() { assert(CDSConfig::is_dumping_archive() || UseSharedSpaces, "only for CDS"); }
 
  private:
 
@@ -146,19 +147,6 @@ class InlineKlass: public InstanceKlass {
  public:
   // Type testing
   bool is_inline_klass_slow() const        { return true; }
-  bool is_null_free() const { return access_flags().is_primitive_class(); }
-
-  // ref and val mirror
-  oop ref_mirror() const { return java_mirror(); }
-  oop val_mirror() const { return java_lang_Class::secondary_mirror(java_mirror()); }
-
-  // naming
-  const char* ref_signature_name() const {
-    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_CLASS);
-  }
-  const char* val_signature_name() const {
-    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_PRIMITIVE_OBJECT);
-  }
 
   // Casting from Klass*
   static InlineKlass* cast(Klass* k);

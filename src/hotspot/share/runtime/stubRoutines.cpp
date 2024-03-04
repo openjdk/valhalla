@@ -179,6 +179,7 @@ address StubRoutines::_hf2f = nullptr;
 address StubRoutines::_vector_f_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP] = {{nullptr}, {nullptr}};
 address StubRoutines::_vector_d_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP] = {{nullptr}, {nullptr}};
 
+address StubRoutines::_method_entry_barrier = nullptr;
 address StubRoutines::_array_sort = nullptr;
 address StubRoutines::_array_partition  = nullptr;
 
@@ -428,7 +429,6 @@ address StubRoutines::select_fill_function(BasicType t, bool aligned, const char
   case T_DOUBLE:
   case T_LONG:
   case T_ARRAY:
-  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:
   case T_NARROWOOP:
   case T_NARROWKLASS:

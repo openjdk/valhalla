@@ -764,13 +764,10 @@ public class TestArrays {
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     @Test
-    // TODO 8325106 Currently disabled in LibraryCallKit::arraycopy_restore_alloc_state
-    /*
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         failOn = {ALLOCA, LOOP, LOAD, TRAP})
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
         failOn = {ALLOCA, LOOP, TRAP})
-    */
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
         System.arraycopy(src, 0, dst, 0, 10);

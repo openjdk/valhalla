@@ -161,11 +161,6 @@ public:
     return bytecode().get_index_u2(cur_bc_raw(), is_wide);
   }
 
-  // Get 2-byte index in native byte order.  (Rewriter::rewrite makes these.)
-  int get_index_u2_cpcache() const {
-    return bytecode().get_index_u2_cpcache(cur_bc_raw());
-  }
-
   // Get 4-byte index, for invokedynamic.
   int get_index_u4() const {
     return bytecode().get_index_u4(cur_bc_raw());
@@ -222,7 +217,6 @@ public:
   ciKlass* get_klass();
   ciKlass* get_klass(bool& will_link);
   int get_klass_index() const;
-  bool has_Q_signature() const;
 
   // If this bytecode is one of the ldc variants, get the referenced
   // constant.  Do not attempt to resolve it, since that would require
@@ -331,7 +325,8 @@ public:
 
   bool is_null_free() {
     if (at_return_type()) {
-      return _sig->returns_null_free_inline_type();
+      // return _sig->returns_null_free_inline_type();
+      return false; // JDK-8325660: code to be revisited after removal of Q-descriptors
     } else {
       return _sig->is_null_free_at(_pos);
     }

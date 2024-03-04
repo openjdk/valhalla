@@ -166,7 +166,7 @@ class InstanceKlass: public Klass {
   InstanceKlass(const ClassFileParser& parser, KlassKind kind = Kind, ReferenceType reference_type = REF_NONE);
 
  public:
-  InstanceKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+  InstanceKlass();
 
   // See "The Java Virtual Machine Specification" section 2.16.2-5 for a detailed description
   // of the class loading & initialization procedure, and the use of the states.
@@ -375,12 +375,6 @@ class InstanceKlass: public Klass {
   // It inherits from supers along with NonTearable.
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
-
-  bool carries_value_modifier() const { return _misc_flags.carries_value_modifier(); }
-  void set_carries_value_modifier()   { _misc_flags.set_carries_value_modifier(true); }
-
-  bool carries_identity_modifier() const  { return _misc_flags.carries_identity_modifier(); }
-  void set_carries_identity_modifier()    { _misc_flags.set_carries_identity_modifier(true); }
 
   bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
   void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }

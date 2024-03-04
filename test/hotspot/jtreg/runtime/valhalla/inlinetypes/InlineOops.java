@@ -36,7 +36,7 @@ import static jdk.test.lib.Asserts.*;
 import jdk.test.lib.Utils;
 import jdk.test.whitebox.WhiteBox;
 import runtime.valhalla.inlinetypes.InlineOops.FooValue;
-import test.java.lang.invoke.lib.InstructionHelper;
+import test.java.lang.invoke.lib.OldInstructionHelper;
 
 /**
  * @test id=Serial
@@ -45,7 +45,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
@@ -62,7 +62,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
@@ -79,7 +79,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
@@ -96,7 +96,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
@@ -114,7 +114,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
@@ -373,7 +373,7 @@ public class InlineOops {
             doGc();
 
             // VT on stack and lvt, null refs, see if GC flies
-            MethodHandle moveValueThroughStackAndLvt = InstructionHelper.loadCode(
+            MethodHandle moveValueThroughStackAndLvt = OldInstructionHelper.loadCode(
                     LOOKUP,
                     "gcOverPerson",
                     MethodType.methodType(vtClass, vtClass),
@@ -590,6 +590,14 @@ public class InlineOops {
         public final long timestamp;
         public final String notes;
 
+        public FooValue() {
+            id = 0;
+            name = null;
+            description = null;
+            timestamp = 0L;
+            notes = null;
+        }
+
         public FooValue(int id, String name, String description, long timestamp, String notes) {
             this.id = id;
             this.name = name;
@@ -606,11 +614,13 @@ public class InlineOops {
             // Slots 1=oopMaps
             // OopMap Q=RRR (.name .description .someNotes)
             try {
-                InstructionHelper.loadCode(
+                OldInstructionHelper.loadCode(
                         LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                         CODE->{
                             CODE
-                            .aconst_init(FooValue.class)
+                            .new_(FooValue.class)
+                            .dup()
+                            .invokespecial(FooValue.class, "<init>", "()V", false)
                             .aload(oopMapsSlot)
                             .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
@@ -620,7 +630,9 @@ public class InlineOops {
                             .iconst_1()  // Test-D1 Slots=R Stack=RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
                             .aastore()
-                            .aconst_init(FooValue.class)
+                            .new_(FooValue.class)
+                            .dup()
+                            .invokespecial(FooValue.class, "<init>", "()V", false)
                             .astore(vtSlot)
                             .aload(oopMapsSlot)
                             .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV
@@ -647,7 +659,7 @@ public class InlineOops {
             int fooArraySlot  = 0;
             int oopMapsSlot   = 1;
             try {
-                InstructionHelper.loadCode(LOOKUP, "exerciseVBytecodeExprStackWithRefs", mt,
+                OldInstructionHelper.loadCode(LOOKUP, "exerciseVBytecodeExprStackWithRefs", mt,
                         CODE->{
                             CODE
                             .aload(fooArraySlot)

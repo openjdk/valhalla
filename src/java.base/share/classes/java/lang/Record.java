@@ -87,6 +87,7 @@ package java.lang;
  * @jls 8.10 Record Types
  * @since 16
  */
+@jdk.internal.ValueBased
 public abstract class Record {
     /**
      * Constructor for record classes to call.

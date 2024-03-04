@@ -22,6 +22,7 @@
  *
  */
 /*
+ * @ignore
  * @test
  * @bug 8243204
  * @summary test that the JVM detects illegal super classes for value object

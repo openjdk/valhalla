@@ -47,7 +47,7 @@ import jdk.test.lib.Platform;
 import jdk.test.lib.Utils;
 
 import javax.tools.*;
-import test.java.lang.invoke.lib.InstructionHelper;
+import test.java.lang.invoke.lib.OldInstructionHelper;
 
 /**
  * @test InlineTypesTest
@@ -55,7 +55,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @modules java.base/jdk.internal.vm.annotation
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile InlineTypesTest.java
  * @run main/othervm -XX:+EnableValhalla
  *                   -Xmx128m -XX:+ExplicitGCInvokesConcurrent
@@ -87,8 +87,9 @@ value class TestValue1 {
     final String name;
 
     public TestValue1() {
-        i = (int)System.nanoTime();
-        name = Integer.valueOf(i).toString();
+        int now =  (int)System.nanoTime();
+        i = now;
+        name = Integer.valueOf(now).toString();
     }
 
     public TestValue1(int i) {
@@ -127,15 +128,18 @@ value class TestValue2 {
     final String s;
 
     public TestValue2() {
-        l = System.nanoTime();
-        s = Long.valueOf(l).toString();
-        d = Double.parseDouble(s);
+        long now = System.nanoTime();
+        l = now;
+        String stringNow = Long.valueOf(now).toString();
+        s = stringNow;
+        d = Double.parseDouble(stringNow);
     }
 
     public TestValue2(long l) {
         this.l = l;
-        s = Long.valueOf(l).toString();
-        d = Double.parseDouble(s);
+        String txt = Long.valueOf(l).toString();
+        s = txt;
+        d = Double.parseDouble(txt);
     }
 
     public static TestValue2 getInstance() {
@@ -299,7 +303,7 @@ public class InlineTypesTest {
     static void testExecutionStackToLocalVariable(Class<?> inlineClass) throws Throwable {
         String sig = "()L" + inlineClass.getName() + ";";
         final String signature = sig.replace('.', '/');
-        MethodHandle fromExecStackToLocalVar = InstructionHelper.loadCode(
+        MethodHandle fromExecStackToLocalVar = OldInstructionHelper.loadCode(
                 LOOKUP,
                 "execStackToLocalVar",
                 MethodType.methodType(boolean.class),
@@ -343,7 +347,7 @@ public class InlineTypesTest {
         final String methodSignature = sig.replace('.', '/');
         final String fieldLSignature = "L" + inlineClass.getName().replace('.', '/') + ";";
         System.out.println(methodSignature);
-        MethodHandle fromExecStackToFields = InstructionHelper.loadCode(
+        MethodHandle fromExecStackToFields = OldInstructionHelper.loadCode(
                 LOOKUP,
                 "execStackToFields",
                 MethodType.methodType(boolean.class),
@@ -414,7 +418,7 @@ public class InlineTypesTest {
         final String signature = sig.replace('.', '/');
         final String arraySignature = "[L" + inlineClass.getName().replace('.', '/') + ";";
         System.out.println(arraySignature);
-        MethodHandle fromExecStackToInlineArray = InstructionHelper.loadCode(
+        MethodHandle fromExecStackToInlineArray = OldInstructionHelper.loadCode(
                 LOOKUP,
                 "execStackToInlineArray",
                 MethodType.methodType(boolean.class),

@@ -25,23 +25,18 @@
  * @test
  * @summary Test a hidden inline class.
  * @library /test/lib
- * @modules jdk.compiler
- * @compile HiddenPoint.jcod
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses HiddenInlineClassTest
+ * @run main/othervm -XX:+EnableValhalla HiddenInlineClassTest
  */
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
-import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class HiddenInlineClassTest {
-
     static final Path CLASSES_DIR = Paths.get(System.getProperty("test.classes", "."));
-    String hello = "hello";
 
     static byte[] readClassFile(String classFileName) throws Exception {
        Path path = CLASSES_DIR.resolve(classFileName.replace('.', File.separatorChar) + ".class");
@@ -62,5 +57,19 @@ public class HiddenInlineClassTest {
         }
     }
 
+}
+
+value class HiddenPoint {
+    int x;
+    int y;
+
+    HiddenPoint() {
+        this.x = 0;
+        this.y = 0;
+    }
+
+    public String getValue() {
+        return "x: " + x + ", y: " + y;
+    }
 }
 
