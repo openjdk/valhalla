@@ -47,7 +47,6 @@ class StubAssembler;
   stub(throw_null_pointer_exception) \
   stub(register_finalizer)           \
   stub(new_instance)                 \
-  stub(new_instance_no_inline)       \
   stub(fast_new_instance)            \
   stub(fast_new_instance_init_check) \
   stub(new_type_array)               \
