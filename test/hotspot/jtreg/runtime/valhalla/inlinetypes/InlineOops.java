@@ -23,6 +23,8 @@
 
 package runtime.valhalla.inlinetypes;
 
+import java.lang.constant.ClassDesc;
+import java.lang.constant.MethodTypeDesc;
 import java.lang.invoke.*;
 import java.lang.ref.*;
 import java.util.concurrent.*;
@@ -36,20 +38,22 @@ import static jdk.test.lib.Asserts.*;
 import jdk.test.lib.Utils;
 import jdk.test.whitebox.WhiteBox;
 import runtime.valhalla.inlinetypes.InlineOops.FooValue;
-import test.java.lang.invoke.lib.OldInstructionHelper;
+import test.java.lang.invoke.lib.InstructionHelper;
+import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
 
 /**
  * @test id=Serial
  * @requires vm.gc.Serial
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.classfile
+ *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla --enable-preview
  *                   -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
@@ -59,14 +63,15 @@ import test.java.lang.invoke.lib.OldInstructionHelper;
  * @test id=G1
  * @requires vm.gc.G1
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.classfile
+ *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla --enable-preview
  *                   -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
@@ -76,14 +81,15 @@ import test.java.lang.invoke.lib.OldInstructionHelper;
  * @test id=Parallel
  * @requires vm.gc.Parallel
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.classfile
+ *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla --enable-preview
  *                   -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
@@ -93,14 +99,15 @@ import test.java.lang.invoke.lib.OldInstructionHelper;
  * @test id=Z
  * @requires vm.gc.Z
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.classfile
+ *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla --enable-preview
  *                   -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -111,14 +118,15 @@ import test.java.lang.invoke.lib.OldInstructionHelper;
  * @test id=ZGen
  * @requires vm.gc.Z & vm.opt.final.ZGenerational
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.classfile
+ *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla --enable-preview
  *                   -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -XX:+ZGenerational -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -281,7 +289,7 @@ public class InlineOops {
     }
 
     static final String GET_OOP_MAP_NAME = "getOopMap";
-    static final String GET_OOP_MAP_DESC = "()[Ljava/lang/Object;";
+    static final MethodTypeDesc GET_OOP_MAP_DESC = MethodTypeDesc.ofDescriptor("()[Ljava/lang/Object;");
 
     public static Object[] getOopMap() {
         Object[] oopMap = WB.getObjectsViaFrameOopIterator(2);
@@ -373,21 +381,21 @@ public class InlineOops {
             doGc();
 
             // VT on stack and lvt, null refs, see if GC flies
-            MethodHandle moveValueThroughStackAndLvt = OldInstructionHelper.loadCode(
+            MethodHandle moveValueThroughStackAndLvt = InstructionHelper.buildMethodHandle(
                     LOOKUP,
                     "gcOverPerson",
                     MethodType.methodType(vtClass, vtClass),
                     CODE->{
                         CODE
                         .aload(0)
-                        .invokestatic(InlineOops.class, "doGc", "()V", false) // Stack
+                        .invokestatic(classDesc(InlineOops.class), "doGc", MethodTypeDesc.ofDescriptor("()V")) // Stack
                         .astore(0)
-                        .invokestatic(InlineOops.class, "doGc", "()V", false) // LVT
+                        .invokestatic(classDesc(InlineOops.class), "doGc", MethodTypeDesc.ofDescriptor("()V")) // LVT
                         .aload(0)
                         .astore(1024) // LVT wide index
                         .aload(1024)
                         .iconst_1()  // push a litte further down
-                        .invokestatic(InlineOops.class, "doGc", "()V", false) // Stack,LVT
+                        .invokestatic(classDesc(InlineOops.class), "doGc", MethodTypeDesc.ofDescriptor("()V")) // Stack,LVT
                         .pop()
                         .areturn();
                     });
@@ -614,36 +622,36 @@ public class InlineOops {
             // Slots 1=oopMaps
             // OopMap Q=RRR (.name .description .someNotes)
             try {
-                OldInstructionHelper.loadCode(
+                InstructionHelper.buildMethodHandle(
                         LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                         CODE->{
                             CODE
-                            .new_(FooValue.class)
+                            .new_(classDesc(FooValue.class))
                             .dup()
-                            .invokespecial(FooValue.class, "<init>", "()V", false)
+                            .invokespecial(classDesc(FooValue.class), "<init>", MethodTypeDesc.ofDescriptor("()V"))
                             .aload(oopMapsSlot)
                             .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
-                            .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .invokestatic(classDesc(InlineOops.class), GET_OOP_MAP_NAME, GET_OOP_MAP_DESC)
                             .aastore()
                             .pop()
                             .aload(oopMapsSlot)
                             .iconst_1()  // Test-D1 Slots=R Stack=RV
-                            .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .invokestatic(classDesc(InlineOops.class), GET_OOP_MAP_NAME, GET_OOP_MAP_DESC)
                             .aastore()
-                            .new_(FooValue.class)
+                            .new_(classDesc(FooValue.class))
                             .dup()
-                            .invokespecial(FooValue.class, "<init>", "()V", false)
+                            .invokespecial(classDesc(FooValue.class), "<init>", MethodTypeDesc.ofDescriptor("()V"))
                             .astore(vtSlot)
                             .aload(oopMapsSlot)
                             .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV
-                            .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .invokestatic(classDesc(InlineOops.class), GET_OOP_MAP_NAME, GET_OOP_MAP_DESC)
                             .aastore()
                             .aload(vtSlot)
                             .aconst_null()
                             .astore(vtSlot) // Storing null over the Q slot won't remove the ref, but should be single null ref
                             .aload(oopMapsSlot)
                             .iconst_3()  // Test-D3 Slots=R Stack=Q(RRR)RV
-                            .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .invokestatic(classDesc(InlineOops.class), GET_OOP_MAP_NAME, GET_OOP_MAP_DESC)
                             .aastore()
                             .pop()
                             .return_();
@@ -659,7 +667,7 @@ public class InlineOops {
             int fooArraySlot  = 0;
             int oopMapsSlot   = 1;
             try {
-                OldInstructionHelper.loadCode(LOOKUP, "exerciseVBytecodeExprStackWithRefs", mt,
+                InstructionHelper.buildMethodHandle(LOOKUP, "exerciseVBytecodeExprStackWithRefs", mt,
                         CODE->{
                             CODE
                             .aload(fooArraySlot)
@@ -667,7 +675,7 @@ public class InlineOops {
                             .aaload()
                             .aload(oopMapsSlot)
                             .iconst_0()  // Test-R0 Slots=RR Stack=Q(RRR)RV
-                            .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .invokestatic(classDesc(InlineOops.class), GET_OOP_MAP_NAME, GET_OOP_MAP_DESC)
                             .aastore()
                             .pop()
                             .return_();
