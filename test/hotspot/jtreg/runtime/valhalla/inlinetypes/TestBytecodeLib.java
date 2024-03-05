@@ -40,7 +40,7 @@ import test.java.lang.invoke.lib.OldInstructionHelper;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
- * @compile -XDenablePrimitiveClasses Point.java TestBytecodeLib.java
+ * @compile Point.java TestBytecodeLib.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.TestBytecodeLib
  */
 

@@ -65,7 +65,7 @@ import toolbox.ToolBox;
 @Test
 public class PrimitiveClassesCompilationTests extends CompilationTestCase {
 
-    private static String[] DEFAULT_OPTIONS = {"-XDenablePrimitiveClasses"};
+    private static String[] DEFAULT_OPTIONS = {};
 
     ToolBox tb = new ToolBox();
 
@@ -451,7 +451,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     public void testUncheckedDefaultWarning() {
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {"-Xlint:all", "-XDenablePrimitiveClasses"};
+            String[] testOptions = {"-Xlint:all"};
             setCompileOptions(testOptions);
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
@@ -660,7 +660,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     public void testGenericArray() {
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {"-Xlint:all", "-XDenablePrimitiveClasses"};
+            String[] testOptions = {"-Xlint:all"};
             setCompileOptions(testOptions);
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
@@ -1181,7 +1181,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     public void testClassLiteralTypingNegativeTest() {
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {"--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED", "-XDenablePrimitiveClasses"};
+            String[] testOptions = {"--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED"};
             setCompileOptions(testOptions);
             assertFail("compiler.err.prob.found.req",
                     """
