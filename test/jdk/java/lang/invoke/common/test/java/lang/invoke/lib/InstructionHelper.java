@@ -23,17 +23,25 @@
 
 package test.java.lang.invoke.lib;
 
-import jdk.internal.classfile.ClassBuilder;
-import jdk.internal.classfile.Classfile;
-import jdk.internal.classfile.TypeKind;
-
-import java.lang.constant.*;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.ConstantDesc;
+import java.lang.constant.ConstantDescs;
+import java.lang.constant.DirectMethodHandleDesc;
+import java.lang.constant.DynamicCallSiteDesc;
+import java.lang.constant.DynamicConstantDesc;
+import java.lang.constant.MethodHandleDesc;
+import java.lang.constant.MethodTypeDesc;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static java.lang.invoke.MethodType.fromMethodDescriptorString;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+
+import jdk.internal.classfile.ClassBuilder;
+import jdk.internal.classfile.Classfile;
+import jdk.internal.classfile.CodeBuilder;
+import jdk.internal.classfile.TypeKind;
 
 public class InstructionHelper {
 
@@ -135,4 +143,27 @@ public class InstructionHelper {
         String classDescStr = sb.insert(sb.length() - 1, suffix).toString();
         return ClassDesc.ofDescriptor(classDescStr);
     }
+
+
+    public static MethodHandle buildMethodHandle(MethodHandles.Lookup l, String methodName, MethodType methodType, Consumer<? super CodeBuilder> builder) {
+        ClassDesc genClassDesc = classDesc(l.lookupClass(), "$Code_" + COUNT.getAndIncrement());
+        return buildMethodHandle(l, genClassDesc, methodName, methodType, builder);
+    }
+
+    public static MethodHandle buildMethodHandle(MethodHandles.Lookup l, ClassDesc classDesc, String methodName, MethodType methodType, Consumer<? super CodeBuilder> builder) {
+        try {
+            byte[] bytes = Classfile.of().build(classDesc, classBuilder -> {
+                classBuilder.withMethod(methodName,
+                                        MethodTypeDesc.ofDescriptor(methodType.toMethodDescriptorString()),
+                                        Classfile.ACC_PUBLIC + Classfile.ACC_STATIC,
+                                        methodBuilder -> methodBuilder.withCode(builder));
+            });
+            Class<?> clazz = l.defineClass(bytes);
+            return l.findStatic(clazz, methodName, methodType);
+        } catch (Throwable t) {
+            t.printStackTrace();
+            throw new RuntimeException("Failed to buildMethodHandle: " + methodName + " type " + methodType);
+        }
+    }
+
 }
