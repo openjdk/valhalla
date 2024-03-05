@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,16 @@ public class ROpt<T> implements Opt<T> {
 
     public T value;
 
+    private <T> ROpt() {
+        this.value = null;
+    }
+
     private ROpt(T value) {
         this.value = value;
+    }
+
+    public static <T> ROpt<T> of() {
+        return new ROpt<>(null);
     }
 
     public static <T> ROpt<T> of(T value) {

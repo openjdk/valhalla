@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,16 @@ package org.openjdk.bench.valhalla.types;
 
 import java.util.NoSuchElementException;
 
-public primitive class QOpt<T> implements Opt<T> {
+public value class QOpt<T> implements Opt<T> {
 
     public final T value;
 
     private QOpt(T value) {
         this.value = value;
+    }
+
+    public static <T> QOpt<T> of() {
+        return new QOpt<>(null);
     }
 
     public static <T> QOpt<T> of(T value) {
