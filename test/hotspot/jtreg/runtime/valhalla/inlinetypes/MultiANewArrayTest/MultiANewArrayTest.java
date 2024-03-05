@@ -27,7 +27,7 @@
  * @summary test that mismatches in bottom class of multi-dimensional
             arrays are correctly detected
  * @library /testlibrary /test/lib
- * @compile -XDenablePrimitiveClasses MultiANewArrayTypeCheck.jcod MultiANewArrayTest.java Element0.java Element1.java
+ * @compile MultiANewArrayTypeCheck.jcod MultiANewArrayTest.java Element0.java Element1.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses MultiANewArrayTest
  */
 
