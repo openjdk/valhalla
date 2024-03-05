@@ -113,7 +113,7 @@ public class ObjectMethods {
 
     static Stream<Arguments> identitiesData() {
         return Stream.of(
-                Arguments.of(new Object(), false, false),
+                Arguments.of(new Object(), true, false),
                 Arguments.of("String", true, false),
                 Arguments.of(String.class, true, false),
                 Arguments.of(Object.class, true, false),

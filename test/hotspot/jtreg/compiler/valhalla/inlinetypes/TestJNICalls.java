@@ -40,8 +40,6 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestJNICalls
  */
 
-/** this test was already failing no relation with the added -XDenablePrimitiveClasses option */
-
 @ForceCompileClassInitializer
 public class TestJNICalls {
 
