@@ -27,7 +27,7 @@
  * @test
  * @bug 8281166
  * @summary javac should generate BSM to invoke the static factory for value class
- * @compile -XDenablePrimitiveClasses ConstructorRefTest.java
+ * @compile ConstructorRefTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ConstructorRefTest
  * @ignore Verifier error
  */

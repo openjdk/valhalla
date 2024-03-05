@@ -26,7 +26,7 @@
  * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @requires vm.jvmti
- * @compile -XDenablePrimitiveClasses HeapDump.java
+ * @compile HeapDump.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses HeapDump
  */
 
