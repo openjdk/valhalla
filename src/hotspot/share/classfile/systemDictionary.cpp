@@ -500,10 +500,10 @@ InstanceKlass* SystemDictionary::resolve_super_or_fail(Symbol* class_name,
   return superk;
 }
 
-Klass* SystemDictionary::resolve_inline_type_field_or_fail(Symbol* signature,
+Klass* SystemDictionary::resolve_without_circularity_or_fail(Symbol* signature,
                                                            Handle class_loader,
                                                            Handle protection_domain,
-                                                           bool throw_error,
+                                                           bool throw_error,              // Unused, should be implemented or removed
                                                            TRAPS) {
   Symbol* class_name = signature->fundamental_name(THREAD);
   class_loader = Handle(THREAD, java_lang_ClassLoader::non_reflection_class_loader(class_loader()));
@@ -515,12 +515,12 @@ Klass* SystemDictionary::resolve_inline_type_field_or_fail(Symbol* signature,
     MutexLocker mu(THREAD, SystemDictionary_lock);
     oldprobe = PlaceholderTable::get_entry(class_name, loader_data);
     if (oldprobe != nullptr &&
-      oldprobe->check_seen_thread(THREAD, PlaceholderTable::PRIMITIVE_OBJECT_FIELD)) {
+      oldprobe->check_seen_thread(THREAD, PlaceholderTable::VALUE_OBJECT_FIELD)) {
       throw_circularity_error = true;
 
     } else {
       PlaceholderTable::find_and_add(class_name, loader_data,
-                                   PlaceholderTable::PRIMITIVE_OBJECT_FIELD, nullptr, THREAD);
+                                   PlaceholderTable::VALUE_OBJECT_FIELD, nullptr, THREAD);
     }
   }
 
@@ -529,6 +529,10 @@ Klass* SystemDictionary::resolve_inline_type_field_or_fail(Symbol* signature,
     klass = SystemDictionary::resolve_or_fail(class_name, class_loader,
                                                protection_domain, true, THREAD);
   } else {
+    {
+      ResourceMark rm(THREAD);
+      tty->print_cr("Refusing loading of %s because circularity has been detected", class_name->as_C_string());
+    }
     ResourceMark rm(THREAD);
     THROW_MSG_NULL(vmSymbols::java_lang_ClassCircularityError(), class_name->as_C_string());
   }
@@ -536,10 +540,65 @@ Klass* SystemDictionary::resolve_inline_type_field_or_fail(Symbol* signature,
   {
     MutexLocker mu(THREAD, SystemDictionary_lock);
     PlaceholderTable::find_and_remove(class_name, loader_data,
-                                      PlaceholderTable::PRIMITIVE_OBJECT_FIELD, THREAD);
+                                      PlaceholderTable::VALUE_OBJECT_FIELD, THREAD);
   }
 
   class_name->decrement_refcount();
+  return klass;
+}
+
+Klass* SystemDictionary::resolve_without_circularity_from_current_klass_or_fail(Symbol* origin,
+                                                           Symbol* signature,
+                                                           Handle class_loader,
+                                                           Handle protection_domain,
+                                                           TRAPS) {
+  TempNewSymbol class_name = signature->fundamental_name(THREAD);
+  class_loader = Handle(THREAD, java_lang_ClassLoader::non_reflection_class_loader(class_loader()));
+  ClassLoaderData* loader_data = class_loader_data(class_loader);
+  bool self_circularity_found = false;
+  bool target_circularity_found = false;
+  PlaceholderEntry* oldprobe;
+
+  {
+    MutexLocker mu(THREAD, SystemDictionary_lock);
+    PlaceholderEntry* targetprobe = PlaceholderTable::get_entry(class_name, loader_data);
+    if (targetprobe != nullptr && targetprobe->check_seen_thread(THREAD, PlaceholderTable::VALUE_OBJECT_FIELD)) {
+      target_circularity_found = true;
+    } else {
+      oldprobe = PlaceholderTable::get_entry(origin, loader_data);
+      if (oldprobe != nullptr &&
+        oldprobe->check_seen_thread(THREAD, PlaceholderTable::VALUE_OBJECT_FIELD)) {
+        self_circularity_found = true;
+      } else {
+        PlaceholderTable::find_and_add(origin, loader_data,
+                                    PlaceholderTable::VALUE_OBJECT_FIELD, nullptr, THREAD);
+      }
+    }
+  }
+
+  if (target_circularity_found) {
+    ResourceMark rm(THREAD);
+    THROW_MSG_NULL(vmSymbols::java_lang_ClassCircularityError(), class_name->as_C_string());
+  }
+
+  if (self_circularity_found) {
+    ResourceMark rm(THREAD);
+    THROW_MSG_NULL(vmSymbols::java_lang_ClassCircularityError(), origin->as_C_string());
+  }
+
+  Klass* klass = SystemDictionary::resolve_or_fail(class_name, class_loader,
+                                               protection_domain,false, THREAD);
+
+  {
+    MutexLocker mu(THREAD, SystemDictionary_lock);
+    PlaceholderTable::find_and_remove(origin, loader_data,
+                                      PlaceholderTable::VALUE_OBJECT_FIELD, THREAD);
+  }
+
+  if (HAS_PENDING_EXCEPTION) {
+    handle_resolution_exception(class_name, true, THREAD);
+  }
+
   return klass;
 }
 
@@ -1204,7 +1263,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
       if (fs.is_null_free_inline_type()) {
         if (!fs.access_flags().is_static()) {
           // Pre-load inline class
-          Klass* real_k = SystemDictionary::resolve_inline_type_field_or_fail(sig,
+          Klass* real_k = SystemDictionary::resolve_without_circularity_or_fail(sig,
             class_loader, protection_domain, true, CHECK_NULL);
           Klass* k = ik->get_inline_type_field_klass_or_null(fs.index());
           if (real_k != k) {
@@ -1726,6 +1785,10 @@ void SystemDictionary::check_constraints(InstanceKlass* k,
 
       if ((defining == true) || (k != check)) {
         throwException = true;
+        {
+          ResourceMark rm(THREAD);
+          tty->print_cr("Rejecting loading of %s because of duplicate definition", name->as_C_string());
+        }
         ss.print("loader %s", loader_data->loader_name_and_id());
         ss.print(" attempted duplicate %s definition for %s. (%s)",
                  k->external_kind(), k->external_name(), k->class_in_module_of_loader(false, true));

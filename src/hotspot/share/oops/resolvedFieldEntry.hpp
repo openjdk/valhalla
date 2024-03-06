@@ -75,7 +75,9 @@ public:
       is_final_shift        = 1, // unused
       is_flat_shift         = 2,
       is_null_free_inline_type_shift = 3,
-      max_flag_shift = is_null_free_inline_type_shift,
+      has_null_marker_shift = 4,
+      has_internal_null_marker_shift = 5,
+      max_flag_shift = has_internal_null_marker_shift
   };
 
   // Getters
@@ -90,6 +92,8 @@ public:
   bool is_volatile ()           const { return (_flags & (1 << is_volatile_shift)) != 0; }
   bool is_flat()                const { return (_flags & (1 << is_flat_shift))     != 0; }
   bool is_null_free_inline_type() const { return (_flags & (1 << is_null_free_inline_type_shift)) != 0; }
+  bool has_null_marker()        const { return (_flags & (1 << has_null_marker_shift)) != 0; }
+  bool has_internal_null_marker() const { return (_flags & (1 << has_internal_null_marker_shift)) != 0; }
   bool is_resolved(Bytecodes::Code code) const {
     switch(code) {
     case Bytecodes::_getstatic:
@@ -108,15 +112,20 @@ public:
   // Printing
   void print_on(outputStream* st) const;
 
-  void set_flags(bool is_final_flag, bool is_volatile_flag, bool is_flat_flag, bool is_null_free_inline_type_flag) {
-    u1 new_flags = (is_final_flag << is_final_shift) | static_cast<int>(is_volatile_flag) |
-      (is_flat_flag << is_flat_shift) |
-      (is_null_free_inline_type_flag << is_null_free_inline_type_shift);
+  void set_flags(bool is_final_flag, bool is_volatile_flag, bool is_flat_flag, bool is_null_free_inline_type_flag,
+                 bool has_null_marker_flag, bool has_internal_null_marker_flag) {
+    u1 new_flags = ((is_final_flag ? 1 : 0) << is_final_shift) | static_cast<int>(is_volatile_flag) |
+      ((is_flat_flag ? 1 : 0) << is_flat_shift) |
+      ((is_null_free_inline_type_flag ? 1 : 0) << is_null_free_inline_type_shift) |
+      ((has_null_marker_flag ? 1 : 0) << has_null_marker_shift) |
+      ((has_internal_null_marker_flag ? 1 : 0) << has_internal_null_marker_shift);
     _flags = checked_cast<u1>(new_flags);
     assert(is_final() == is_final_flag, "Must be");
     assert(is_volatile() == is_volatile_flag, "Must be");
     assert(is_flat() == is_flat_flag, "Must be");
     assert(is_null_free_inline_type() == is_null_free_inline_type_flag, "Must be");
+    assert(has_null_marker() == has_null_marker_flag, "Must be");
+    assert(has_internal_null_marker() == has_internal_null_marker_flag, "Must be");
   }
 
   inline void set_bytecode(u1* code, u1 new_code) {
@@ -128,7 +137,7 @@ public:
     Atomic::release_store(code, new_code);
   }
 
-  // Populate the strucutre with resolution information
+  // Populate the structure with resolution information
   void fill_in(InstanceKlass* klass, int offset, u2 index, u1 tos_state, u1 b1, u1 b2) {
     _field_holder = klass;
     _field_offset = offset;

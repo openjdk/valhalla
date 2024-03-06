@@ -58,7 +58,8 @@ class LayoutRawBlock : public ResourceObj {
     PADDING,          // padding (because of alignment constraints or @Contended)
     REGULAR,          // primitive or oop field (including not flat inline type fields)
     FLAT,             // flat field
-    INHERITED         // field(s) inherited from super classes
+    INHERITED,        // field(s) inherited from super classes
+    NULL_MARKER       // stores the null marker for a flat field
   };
 
  private:
@@ -70,10 +71,13 @@ class LayoutRawBlock : public ResourceObj {
   int _alignment;
   int _size;
   int _field_index;
+  int _null_marker_offset;
   bool _is_reference;
+  bool _needs_null_marker;
 
  public:
   LayoutRawBlock(Kind kind, int size);
+
   LayoutRawBlock(int index, Kind kind, int size, int alignment, bool is_reference = false);
   LayoutRawBlock* next_block() const { return _next_block; }
   void set_next_block(LayoutRawBlock* next) { _next_block = next; }
@@ -92,12 +96,24 @@ class LayoutRawBlock : public ResourceObj {
     assert(_field_index != -1, "Must be initialized");
     return _field_index;
   }
+  void set_field_index(int field_index) {
+    assert(_field_index == -1, "Must not be initialized");
+    _field_index = field_index;
+  }
   bool is_reference() const { return _is_reference; }
   InlineKlass* inline_klass() const {
     assert(_inline_klass != nullptr, "Must be initialized");
     return _inline_klass;
   }
   void set_inline_klass(InlineKlass* inline_klass) { _inline_klass = inline_klass; }
+  void set_needs_null_marker() { _needs_null_marker = true; }
+  bool needs_null_marker() const { return _needs_null_marker; }
+  void set_null_marker_offset(int offset) {
+    assert(_needs_null_marker, "");
+    _null_marker_offset = offset;
+    _needs_null_marker = false;
+  }
+  int null_marker_offset() const { return _null_marker_offset; }
 
   bool fit(int size, int alignment);
 
@@ -150,7 +166,7 @@ class FieldGroup : public ResourceObj {
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
-  void add_flat_field(int idx, InlineKlass* vk);
+  void add_flat_field(int idx, InlineKlass* vk, bool needs_null_marker);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -181,6 +197,7 @@ class FieldLayout : public ResourceObj {
   LayoutRawBlock* _blocks;  // the layout being computed
   LayoutRawBlock* _start;   // points to the first block where a field can be inserted
   LayoutRawBlock* _last;    // points to the last block of the layout (big empty block)
+  bool _has_missing_null_markers;
 
  public:
   FieldLayout(GrowableArray<FieldInfo>* field_info, ConstantPool* cp);
@@ -195,11 +212,12 @@ class FieldLayout : public ResourceObj {
     return block;
   }
 
-  LayoutRawBlock* blocks() { return _blocks; }
+  LayoutRawBlock* blocks() const { return _blocks; }
 
-  LayoutRawBlock* start() { return _start; }
+  LayoutRawBlock* start() const { return _start; }
   void set_start(LayoutRawBlock* start) { _start = start; }
-  LayoutRawBlock* last_block() { return _last; }
+  LayoutRawBlock* last_block() const { return _last; }
+  bool has_missing_null_markers() const { return _has_missing_null_markers; }
 
   LayoutRawBlock* first_field_block();
   void add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = nullptr);
@@ -253,7 +271,8 @@ class FieldLayoutBuilder : public ResourceObj {
   int _nonstatic_oopmap_count;
   int _alignment;
   int _first_field_offset;
-  int _exact_size_in_bytes;
+  int _internal_null_marker_offset; // if any, -1 means no internal null marker
+  int _payload_size_in_bytes;
   int _atomic_field_count;
   int _fields_size_sum;
   bool _has_nonstatic_fields;
@@ -263,6 +282,7 @@ class FieldLayoutBuilder : public ResourceObj {
   bool _has_flattening_information;
   bool _has_nonatomic_values;
   bool _nullable_atomic_flat_candidate;
+  bool _has_null_markers;
 
   FieldGroup* get_or_create_contended_group(int g);
 
@@ -281,9 +301,13 @@ class FieldLayoutBuilder : public ResourceObj {
     return _first_field_offset;
   }
 
-  int get_exact_size_in_byte() {
-    assert(_exact_size_in_bytes != -1, "Uninitialized");
-    return _exact_size_in_bytes;
+  int get_payload_size_in_byte() {
+    assert(_payload_size_in_bytes != -1, "Uninitialized");
+    return _payload_size_in_bytes;
+  }
+
+  int get_internal_null_marker_offset() {
+    return _internal_null_marker_offset;
   }
 
   void build_layout(TRAPS);

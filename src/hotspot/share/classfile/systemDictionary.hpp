@@ -133,11 +133,19 @@ class SystemDictionary : AllStatic {
   static oop get_platform_class_loader_impl(TRAPS);
 
  public:
-  static Klass* resolve_inline_type_field_or_fail(Symbol* signature,
+  static Klass* resolve_without_circularity_or_fail(Symbol* signature,
                                                   Handle class_loader,
                                                   Handle protection_domain,
                                                   bool throw_error,
                                                   TRAPS);
+
+  static Klass* resolve_without_circularity_from_current_klass_or_fail(Symbol* origin,
+                                                  Symbol* signature,
+                                                  Handle class_loader,
+                                                  Handle protection_domain,
+                                                  TRAPS);
+
+
 
   // Resolve either a hidden or normal class from a stream of bytes, based on ClassLoadInfo
   static InstanceKlass* resolve_from_stream(ClassFileStream* st,

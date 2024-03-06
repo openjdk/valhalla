@@ -814,6 +814,9 @@ const int ObjectAlignmentInBytes = 8;
   product(intx, InlineFieldMaxFlatSize, 128,                                \
           "Max size for flattening inline type fields, <0 no limit")        \
                                                                             \
+  product(bool, EnableNullableFieldFlattening, true,                        \
+          "Allow the JVM to flatten some nullable fields")                  \
+                                                                            \
   product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
                                                                             \

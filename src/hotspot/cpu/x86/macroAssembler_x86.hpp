@@ -123,6 +123,11 @@ class MacroAssembler: public Assembler {
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
   void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
+  void test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker);
+  void test_field_is_marked_as_null(Register holder_klass, Register index, Register temp_reg, Register obj, Label& is_null);
+  void set_null_marker_to_null(Register holder_klass, Register index, Register temp_reg, Register obj);
+  void set_null_marker_to_not_null(Register holder_klass, Register index, Register temp_reg, Register obj);
+
 
   // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
@@ -653,6 +658,7 @@ public:
 
   // For field "index" within "klass", return inline_klass ...
   void get_inline_type_field_klass(Register klass, Register index, Register inline_klass);
+  void get_null_marker_offset(Register klass, Register index, Register offset);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,

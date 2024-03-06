@@ -74,9 +74,11 @@ class FieldLayoutInfo : public ResourceObj {
   int _instance_size;
   int _nonstatic_field_size;
   int _static_field_size;
-  bool  _has_nonstatic_fields;
-  bool  _is_naturally_atomic;
+  bool _has_nonstatic_fields;
+  bool _is_naturally_atomic;
   bool _has_inline_fields;
+  bool _internal_null_marker_offset; // if any
+  bool _has_null_marker_offsets;
 };
 
 // Parser for for .class files
@@ -148,6 +150,7 @@ class ClassFileParser {
   FieldAllocationCount* _fac;
   FieldLayoutInfo* _field_info;
   Array<InlineKlass*>* _inline_type_field_klasses;
+  Array<int>* _null_marker_offsets;
   GrowableArray<FieldInfo>* _temp_field_info;
   const intArray* _method_ordering;
   GrowableArray<Method*>* _all_mirandas;
@@ -163,7 +166,8 @@ class ClassFileParser {
 
   int _alignment;
   int _first_field_offset;
-  int _exact_size_in_bytes;
+  int _payload_size_in_bytes;
+  int _internal_null_marker_offset;
 
   Handle _protection_domain;
   AccessFlags _access_flags;
@@ -204,6 +208,7 @@ class ClassFileParser {
   bool _has_contended_fields;
 
   bool _has_inline_type_fields;
+  bool _has_null_marker_offsets;
   bool _has_nonstatic_fields;
   bool _is_empty_inline_type;
   bool _is_naturally_atomic;

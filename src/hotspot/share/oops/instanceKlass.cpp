@@ -444,7 +444,6 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
                                        parser.itable_size(),
                                        nonstatic_oop_map_size(parser.total_oop_map_count()),
                                        parser.is_interface(),
-                                       parser.has_inline_fields() ? parser.java_fields_count() : 0,
                                        parser.is_inline_type());
 
   const Symbol* const class_name = parser.class_name();
@@ -570,9 +569,6 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
   assert(is_instance_klass(), "is layout incorrect?");
   assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
 
-  if (has_inline_type_fields()) {
-    _inline_type_field_klasses = (const Klass**) adr_inline_type_field_klasses();
-  }
 }
 
 void InstanceKlass::deallocate_methods(ClassLoaderData* loader_data,
@@ -707,6 +703,11 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_array<FieldStatus>(loader_data, fields_status());
   }
   set_fields_status(nullptr);
+
+  if (inline_type_field_klasses_array() != nullptr) {
+    MetadataFactory::free_array<InlineKlass*>(loader_data, inline_type_field_klasses_array());
+  }
+  set_inline_type_field_klasses_array(nullptr);
 
   // If a method from a redefined class is using this constant pool, don't
   // delete it, yet.  The new class's previous version will point to this.
@@ -929,83 +930,66 @@ bool InstanceKlass::link_class_impl(TRAPS) {
   // class uses inline types?
   if (EnableValhalla) {
     ResourceMark rm(THREAD);
-    if (EnablePrimitiveClasses) {
-      for (int i = 0; i < methods()->length(); i++) {
-        Method* m = methods()->at(i);
-        for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
-          if (ss.is_reference()) {
-            if (ss.is_array()) {
-              continue;
-            }
-            if (ss.type() == T_PRIMITIVE_OBJECT) {
-              Symbol* symb = ss.as_symbol();
-              if (symb == name()) continue;
-              oop loader = class_loader();
-              oop protection_domain = this->protection_domain();
-              Klass* klass = SystemDictionary::resolve_or_fail(symb,
-                                                              Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
-                                                              CHECK_false);
-              if (klass == nullptr) {
-                THROW_(vmSymbols::java_lang_LinkageError(), false);
-              }
-              if (!klass->is_inline_klass()) {
-                Exceptions::fthrow(
-                  THREAD_AND_LOCATION,
-                  vmSymbols::java_lang_IncompatibleClassChangeError(),
-                  "class %s is not an inline type",
-                  klass->external_name());
-              }
-            }
+    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
+      if (fs.is_null_free_inline_type() && fs.access_flags().is_static()) {
+        Symbol* sig = fs.signature();
+        TempNewSymbol s = Signature::strip_envelope(sig);
+        if (s != name()) {
+          oop loader = class_loader();
+          oop protection_domain = this->protection_domain();
+          log_info(class, preload)("Preloading class %s during linking of class %s because a null-free static field is declared with this type", s->as_C_string(), name()->as_C_string());
+          Klass* klass = SystemDictionary::resolve_or_fail(s,
+                                                          Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
+                                                          CHECK_false);
+          if (HAS_PENDING_EXCEPTION) {
+            log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: null-free static field) failed: %s",
+                                      s->as_C_string(), name()->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
+            return false; // Exception is still pending
           }
+          log_info(class, preload)("Preloading of class %s during linking of class %s (cause null-free static field) succeeded", s->as_C_string(), name()->as_C_string());
+          assert(klass != nullptr, "Sanity check");
+          if (!klass->is_inline_klass()) {
+            Exceptions::fthrow(
+              THREAD_AND_LOCATION,
+              vmSymbols::java_lang_IncompatibleClassChangeError(),
+              "class %s is not an inline type",
+              klass->external_name());
+              return false;
+          }
+          InstanceKlass* ik = InstanceKlass::cast(klass);
+          if (!ik->is_implicitly_constructible()) {
+            Exceptions::fthrow(
+              THREAD_AND_LOCATION,
+              vmSymbols::java_lang_IncompatibleClassChangeError(),
+              "class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
+              klass->external_name());
+              return false;
+          }
+          inline_type_field_klasses_array()->at_put(fs.index(), InlineKlass::cast(klass));
+        } else {
+          inline_type_field_klasses_array()->at_put(fs.index(), InlineKlass::cast(this));
         }
       }
     }
+
     // Aggressively preloading all classes from the Preload attribute
     if (preload_classes() != nullptr) {
       for (int i = 0; i < preload_classes()->length(); i++) {
         if (constants()->tag_at(preload_classes()->at(i)).is_klass()) continue;
         Symbol* class_name = constants()->klass_at_noresolve(preload_classes()->at(i));
         if (class_name == name()) continue;
+        log_info(class, preload)("Preloading class %s during linking of class %s because of its Preload attribute", class_name->as_C_string(), name()->as_C_string());
         oop loader = class_loader();
         oop protection_domain = this->protection_domain();
         Klass* klass = SystemDictionary::resolve_or_null(class_name,
-                                                          Handle(THREAD, loader), Handle(THREAD, protection_domain), THREAD);
+                                                         Handle(THREAD, loader), Handle(THREAD, protection_domain), THREAD);
         if (HAS_PENDING_EXCEPTION) {
           CLEAR_PENDING_EXCEPTION;
         }
         if (klass != nullptr) {
-          log_info(class, preload)("Preloading class %s during linking of class %s because of its Preload attribute", class_name->as_C_string(), name()->as_C_string());
+          log_info(class, preload)("Preloading class %s during linking of class %s (Preload attribute) succeeded", class_name->as_C_string(), name()->as_C_string());
         } else {
           log_warning(class, preload)("Preloading of class %s during linking of class %s (Preload attribute) failed", class_name->as_C_string(), name()->as_C_string());
-        }
-      }
-    }
-
-    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (fs.is_null_free_inline_type() && fs.access_flags().is_static()) {
-        Symbol* sig = fs.signature();
-        oop loader = class_loader();
-        oop protection_domain = this->protection_domain();
-        Klass* klass = SystemDictionary::resolve_or_fail(sig,
-                                                        Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
-                                                        CHECK_false);
-        if (klass == nullptr) {
-          THROW_(vmSymbols::java_lang_LinkageError(), false);
-        }
-        if (!klass->is_inline_klass()) {
-          Exceptions::fthrow(
-            THREAD_AND_LOCATION,
-            vmSymbols::java_lang_IncompatibleClassChangeError(),
-            "class %s is not an inline type",
-            klass->external_name());
-        }
-        InstanceKlass* ik = InstanceKlass::cast(klass);
-        if (!ik->is_implicitly_constructible()) {
-          Exceptions::fthrow(
-            THREAD_AND_LOCATION,
-            vmSymbols::java_lang_IncompatibleClassChangeError(),
-            "class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
-            klass->external_name());
         }
       }
     }
@@ -1334,7 +1318,8 @@ void InstanceKlass::initialize_impl(TRAPS) {
               Handle(THREAD, class_loader()),
               Handle(THREAD, protection_domain()),
               true, THREAD);
-          set_inline_type_field_klass(fs.index(), klass);
+          assert(klass->is_inline_klass(), "Must be");
+          set_inline_type_field_klass(fs.index(), InlineKlass::cast(klass));
         }
 
         if (!HAS_PENDING_EXCEPTION) {
@@ -2783,9 +2768,12 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_record_components);
 
   if (has_inline_type_fields()) {
-    for (int i = 0; i < java_fields_count(); i++) {
-      it->push(&((Klass**)adr_inline_type_field_klasses())[i]);
+    for (int i = 0; i < _inline_type_field_klasses->length(); i++) {
+      it->push(_inline_type_field_klasses->adr_at(i));
     }
+    // for (int i = 0; i < java_fields_count(); i++) {
+    //   it->push(&((Klass**)adr_inline_type_field_klasses())[i]);
+    // }
   }
 }
 
@@ -2831,10 +2819,8 @@ void InstanceKlass::remove_unshareable_info() {
   }
 
   if (has_inline_type_fields()) {
-    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (fs.is_null_free_inline_type()) {
-        reset_inline_type_field_klass(fs.index());
-      }
+    for (int i = 0; i < _inline_type_field_klasses->length(); i++) {
+      reset_inline_type_field_klass(i);
     }
   }
 

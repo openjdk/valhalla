@@ -104,7 +104,7 @@ SeenThread* PlaceholderEntry::actionToQueue(PlaceholderTable::classloadAction ac
     case PlaceholderTable::DEFINE_CLASS:
        queuehead = _defineThreadQ;
        break;
-    case PlaceholderTable::PRIMITIVE_OBJECT_FIELD:
+    case PlaceholderTable::VALUE_OBJECT_FIELD:
        queuehead = _inlineTypeFieldQ;
        break;
     default: Unimplemented();
@@ -123,7 +123,7 @@ void PlaceholderEntry::set_threadQ(SeenThread* seenthread, PlaceholderTable::cla
     case PlaceholderTable::DEFINE_CLASS:
        _defineThreadQ = seenthread;
        break;
-    case PlaceholderTable::PRIMITIVE_OBJECT_FIELD:
+    case PlaceholderTable::VALUE_OBJECT_FIELD:
        _inlineTypeFieldQ = seenthread;
        break;
     default: Unimplemented();
@@ -241,7 +241,7 @@ static const char* action_to_string(PlaceholderTable::classloadAction action) {
   case PlaceholderTable::LOAD_INSTANCE: return "LOAD_INSTANCE";
   case PlaceholderTable::LOAD_SUPER:    return "LOAD_SUPER";
   case PlaceholderTable::DEFINE_CLASS:  return "DEFINE_CLASS";
-  case PlaceholderTable::PRIMITIVE_OBJECT_FIELD: return "PRIMITIVE_OBJECT_FIELD";
+  case PlaceholderTable::VALUE_OBJECT_FIELD: return "VALUE_OBJECT_FIELD";
  }
  return "";
 }

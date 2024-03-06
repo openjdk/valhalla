@@ -85,6 +85,9 @@ inline void Mapper<CON>::map_field_info(const FieldInfo& fi) {
     if (fi.field_flags().is_contended()) {
       _consumer->accept_uint(fi.contention_group());
     }
+    if (fi.field_flags().has_null_marker()) {
+      _consumer->accept_uint(fi.null_marker_offset());
+    }
   } else {
     assert(fi.initializer_index() == 0, "");
     assert(fi.generic_signature_index() == 0, "");
@@ -118,6 +121,11 @@ inline void FieldInfoReader::read_field_info(FieldInfo& fi) {
     fi._contention_group = checked_cast<u2>(next_uint());
   } else {
     fi._contention_group = 0;
+  }
+  if (fi._field_flags.has_null_marker()) {
+    fi._null_marker_offset = next_uint();
+  } else {
+    fi._null_marker_offset = 0;
   }
 }
 

@@ -414,7 +414,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
           Handle(THREAD, klass->protection_domain()),
           true, CHECK);
       assert(field_k != nullptr, "Should have been loaded or an exception thrown above");
-      klass->set_inline_type_field_klass(index, field_k);
+      klass->set_inline_type_field_klass(index, InlineKlass::cast(field_k));
     }
     field_k->initialize(CHECK);
     oop defaultvalue = InlineKlass::cast(field_k)->default_value();
@@ -983,7 +983,9 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
 
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
   entry->set_flags(info.access_flags().is_final(), info.access_flags().is_volatile(),
-                   info.is_flat(), info.is_null_free_inline_type());
+                   info.is_flat(), info.is_null_free_inline_type(),
+                   info.has_null_marker(), info.has_internal_null_marker());
+
   entry->fill_in(info.field_holder(), info.offset(),
                  checked_cast<u2>(info.index()), checked_cast<u1>(state),
                  static_cast<u1>(get_code), static_cast<u1>(put_code));

@@ -2925,6 +2925,39 @@ void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label
   jcc(Assembler::notZero, is_flat);
 }
 
+void MacroAssembler::test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker) {
+  movl(temp_reg, flags);
+  shrl(temp_reg, ResolvedFieldEntry::has_internal_null_marker_shift);
+  andl(temp_reg, 0x1);
+  testl(temp_reg, temp_reg);
+  jcc(Assembler::notZero, has_null_marker);
+}
+
+void MacroAssembler::test_field_is_marked_as_null(Register holder_klass, Register field_index, Register temp_reg, Register obj, Label& is_null) {
+  Register offset = temp_reg;
+  get_null_marker_offset(holder_klass, field_index, offset);
+  Address marker(obj, offset, Address::times_1);
+  access_load_at(T_BYTE, IN_HEAP, obj, marker, noreg, noreg);
+  testb(obj, 0);
+  jcc(Assembler::zero, is_null);
+}
+
+  void MacroAssembler::set_null_marker_to_null(Register holder_klass, Register field_index, Register temp_reg, Register obj) {
+    Register offset = temp_reg;
+    get_null_marker_offset(holder_klass, field_index, offset);
+    Address marker(obj, offset, Address::times_1);
+    movl(temp_reg, 0);
+    access_store_at(T_BYTE, IN_HEAP, marker, temp_reg, noreg, noreg, noreg);
+  }
+
+  void MacroAssembler::set_null_marker_to_not_null(Register holder_klass, Register field_index, Register temp_reg, Register obj) {
+    Register offset = temp_reg;
+    get_null_marker_offset(holder_klass, field_index, offset);
+    Address marker(obj, offset, Address::times_1);
+    movl(temp_reg, 1);
+    access_store_at(T_BYTE, IN_HEAP, marker, temp_reg, noreg, noreg, noreg);
+  }
+
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
   Label test_mark_word;
   // load mark word
@@ -4477,6 +4510,7 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
 
 void MacroAssembler::get_inline_type_field_klass(Register klass, Register index, Register inline_klass) {
   movptr(inline_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
+  addptr(inline_klass, Array<InlineKlass*>::base_offset_in_bytes());
 #ifdef ASSERT
   {
     Label done;
@@ -4487,6 +4521,21 @@ void MacroAssembler::get_inline_type_field_klass(Register klass, Register index,
   }
 #endif
   movptr(inline_klass, Address(inline_klass, index, Address::times_ptr));
+}
+
+void MacroAssembler::get_null_marker_offset(Register klass, Register index, Register offset) {
+  movptr(offset, Address(klass, InstanceKlass::null_marker_array_offset()));
+  addptr(offset, Array<InlineKlass*>::base_offset_in_bytes());
+#ifdef ASSERT
+  {
+    Label done;
+    cmpptr(offset, 0);
+    jcc(Assembler::notEqual, done);
+    stop("get_null_marker_offset got invalid offset");
+    bind(done);
+  }
+#endif
+  movptr(offset, Address(offset, index, Address::times_4)); // Array<int>
 }
 
 void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
