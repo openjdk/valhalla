@@ -31,6 +31,7 @@ import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -57,6 +58,7 @@ value class Double64Vector extends DoubleVector {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF64D.class);
 
+    @NullRestricted
     private final VectorPayloadMF64D payload;
 
     Double64Vector(Object value) {
@@ -549,6 +551,7 @@ value class Double64Vector extends DoubleVector {
             this.payload = (VectorPayloadMF8Z) payload;
         }
 
+        @NullRestricted
         private final VectorPayloadMF8Z payload;
 
         Double64Mask(VectorPayloadMF payload, int offset) {
@@ -719,6 +722,7 @@ value class Double64Vector extends DoubleVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Double> ETYPE = double.class; // used by the JVM
 
+        @NullRestricted
         private final VectorPayloadMF8B payload;
 
         Double64Shuffle(VectorPayloadMF payload) {

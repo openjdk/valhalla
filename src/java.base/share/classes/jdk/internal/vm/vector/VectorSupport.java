@@ -29,6 +29,8 @@ import java.util.Objects;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.MultiField;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.misc.Unsafe;
 
 import java.util.function.*;
@@ -162,7 +164,8 @@ public class VectorSupport {
 
     public static abstract class VectorShuffle<E> extends VectorPayload { }
 
-    public abstract static class VectorPayloadMF {
+    @LooselyConsistentValue
+    public abstract value static class VectorPayloadMF {
         public abstract long multiFieldOffset();
 
         @ForceInline
@@ -382,7 +385,9 @@ public class VectorSupport {
         }
     }
 
-    public primitive static class VectorPayloadMFMaxB extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxB extends VectorPayloadMF {
         @MultiField(value = -1)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxB.class);
@@ -391,7 +396,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxS extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxS extends VectorPayloadMF {
         @MultiField(value = -1)
         short mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxS.class);
@@ -400,7 +407,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxI extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxI extends VectorPayloadMF {
         @MultiField(value = -1)
         int mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxI.class);
@@ -409,7 +418,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxL extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxL extends VectorPayloadMF {
         @MultiField(value = -1)
         long mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxL.class);
@@ -418,7 +429,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxF extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxF extends VectorPayloadMF {
         @MultiField(value = -1)
         float mfield = 0.0f;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxF.class);
@@ -427,7 +440,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxD extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxD extends VectorPayloadMF {
         @MultiField(value = -1)
         double mfield = 0.0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxD.class);
@@ -436,7 +451,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF8Z extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF8Z extends VectorPayloadMF {
         @MultiField(value = 1)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF8Z.class);
@@ -445,7 +462,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF16Z extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF16Z extends VectorPayloadMF {
         @MultiField(value = 2)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF16Z.class);
@@ -454,7 +473,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF32Z extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF32Z extends VectorPayloadMF {
         @MultiField(value = 4)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF32Z.class);
@@ -463,7 +484,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF64Z extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF64Z extends VectorPayloadMF {
         @MultiField(value = 8)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF64Z.class);
@@ -472,7 +495,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF128Z extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF128Z extends VectorPayloadMF {
         @MultiField(value = 16)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF128Z.class);
@@ -481,7 +506,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF256Z extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF256Z extends VectorPayloadMF {
         @MultiField(value = 32)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF256Z.class);
@@ -490,7 +517,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF512Z extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF512Z extends VectorPayloadMF {
         @MultiField(value = 64)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF512Z.class);
@@ -499,7 +528,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxBZ extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxBZ extends VectorPayloadMF {
         @MultiField(value = -1)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxBZ.class);
@@ -508,7 +539,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxSZ extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxSZ extends VectorPayloadMF {
         @MultiField(value = -1)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxSZ.class);
@@ -517,7 +550,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxIZ extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxIZ extends VectorPayloadMF {
         @MultiField(value = -1)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxIZ.class);
@@ -526,7 +561,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxLZ extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxLZ extends VectorPayloadMF {
         @MultiField(value = -1)
         boolean mfield = false;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxLZ.class);
@@ -535,7 +572,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF8B extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF8B extends VectorPayloadMF {
         @MultiField(value = 1)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF8B.class);
@@ -544,7 +583,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF16B extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF16B extends VectorPayloadMF {
         @MultiField(value = 2)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF16B.class);
@@ -553,7 +594,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF32B extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF32B extends VectorPayloadMF {
         @MultiField(value = 4)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF32B.class);
@@ -562,7 +605,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF64B extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF64B extends VectorPayloadMF {
         @MultiField(value = 8)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF64B.class);
@@ -571,7 +616,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF128B extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF128B extends VectorPayloadMF {
         @MultiField(value = 16)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF128B.class);
@@ -580,7 +627,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF256B extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF256B extends VectorPayloadMF {
         @MultiField(value = 32)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF256B.class);
@@ -589,7 +638,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF512B extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF512B extends VectorPayloadMF {
         @MultiField(value = 64)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF512B.class);
@@ -598,7 +649,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxBB extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxBB extends VectorPayloadMF {
         @MultiField(value = -1)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxBB.class);
@@ -607,7 +660,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxSB extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxSB extends VectorPayloadMF {
         @MultiField(value = -1)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxSB.class);
@@ -616,7 +671,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxIB extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxIB extends VectorPayloadMF {
         @MultiField(value = -1)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxIB.class);
@@ -625,7 +682,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMFMaxLB extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMFMaxLB extends VectorPayloadMF {
         @MultiField(value = -1)
         byte mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxLB.class);
@@ -634,7 +693,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF64S extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF64S extends VectorPayloadMF {
         @MultiField(value = 4)
         short mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF64S.class);
@@ -643,7 +704,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF128S extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF128S extends VectorPayloadMF {
         @MultiField(value = 8)
         short mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF128S.class);
@@ -652,7 +715,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF256S extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF256S extends VectorPayloadMF {
         @MultiField(value = 16)
         short mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF256S.class);
@@ -661,7 +726,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF512S extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF512S extends VectorPayloadMF {
         @MultiField(value = 32)
         short mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF512S.class);
@@ -670,7 +737,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF64I extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF64I extends VectorPayloadMF {
         @MultiField(value = 2)
         int mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF64I.class);
@@ -679,7 +748,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF128I extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF128I extends VectorPayloadMF {
         @MultiField(value = 4)
         int mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF128I.class);
@@ -688,7 +759,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF256I extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF256I extends VectorPayloadMF {
         @MultiField(value = 8)
         int mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF256I.class);
@@ -697,7 +770,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF512I extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF512I extends VectorPayloadMF {
         @MultiField(value = 16)
         int mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF512I.class);
@@ -706,7 +781,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF64L extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF64L extends VectorPayloadMF {
         @MultiField(value = 1)
         final long mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF64L.class);
@@ -715,7 +792,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF128L extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF128L extends VectorPayloadMF {
         @MultiField(value = 2)
         final long mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF128L.class);
@@ -724,7 +803,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF256L extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF256L extends VectorPayloadMF {
         @MultiField(value = 4)
         final long mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF256L.class);
@@ -733,7 +814,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF512L extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF512L extends VectorPayloadMF {
         @MultiField(value = 8)
         final long mfield = 0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF512L.class);
@@ -742,7 +825,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF64F extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF64F extends VectorPayloadMF {
         @MultiField(value = 2)
         float mfield = 0.0f;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF64F.class);
@@ -751,7 +836,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF128F extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF128F extends VectorPayloadMF {
         @MultiField(value = 4)
         float mfield = 0.0f;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF128F.class);
@@ -760,7 +847,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF256F extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF256F extends VectorPayloadMF {
         @MultiField(value = 8)
         float mfield = 0.0f;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF256F.class);
@@ -769,7 +858,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF512F extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF512F extends VectorPayloadMF {
         @MultiField(value = 16)
         float mfield = 0.0f;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF512F.class);
@@ -778,7 +869,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF64D extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF64D extends VectorPayloadMF {
         @MultiField(value = 1)
         double mfield = 0.0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF64D.class);
@@ -787,7 +880,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF128D extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF128D extends VectorPayloadMF {
         @MultiField(value = 2)
         double mfield = 0.0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF128D.class);
@@ -796,7 +891,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF256D extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF256D extends VectorPayloadMF {
         @MultiField(value = 4)
         double mfield = 0.0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF256D.class);
@@ -805,7 +902,9 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    public primitive static class VectorPayloadMF512D extends VectorPayloadMF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public value static class VectorPayloadMF512D extends VectorPayloadMF {
         @MultiField(value = 8)
         double mfield = 0.0;
         static final long MFOFFSET = multiFieldOffset(VectorPayloadMF512D.class);

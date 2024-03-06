@@ -31,6 +31,7 @@ import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -57,6 +58,7 @@ value class ByteMaxVector extends ByteVector {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxB.class);
 
+    @NullRestricted
     private final VectorPayloadMFMaxB payload;
 
     ByteMaxVector(Object value) {
@@ -560,6 +562,7 @@ value class ByteMaxVector extends ByteVector {
             this.payload = (VectorPayloadMFMaxBZ) payload;
         }
 
+        @NullRestricted
         private final VectorPayloadMFMaxBZ payload;
 
         ByteMaxMask(VectorPayloadMF payload, int offset) {
@@ -730,6 +733,7 @@ value class ByteMaxVector extends ByteVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
+        @NullRestricted
         private final VectorPayloadMFMaxBB payload;
 
         ByteMaxShuffle(VectorPayloadMF payload) {

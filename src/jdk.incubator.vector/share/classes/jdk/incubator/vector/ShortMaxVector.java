@@ -31,6 +31,7 @@ import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -57,6 +58,7 @@ value class ShortMaxVector extends ShortVector {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxS.class);
 
+    @NullRestricted
     private final VectorPayloadMFMaxS payload;
 
     ShortMaxVector(Object value) {
@@ -560,6 +562,7 @@ value class ShortMaxVector extends ShortVector {
             this.payload = (VectorPayloadMFMaxSZ) payload;
         }
 
+        @NullRestricted
         private final VectorPayloadMFMaxSZ payload;
 
         ShortMaxMask(VectorPayloadMF payload, int offset) {
@@ -730,6 +733,7 @@ value class ShortMaxVector extends ShortVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
+        @NullRestricted
         private final VectorPayloadMFMaxSB payload;
 
         ShortMaxShuffle(VectorPayloadMF payload) {

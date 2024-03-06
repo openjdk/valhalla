@@ -853,6 +853,12 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
   sobj->init_req(0, C->root());
   transform_later(sobj);
 
+  if (iklass && iklass->is_inlinetype()) {
+    // Value object has two additional inputs before the non-static fields
+    sfpt->add_req(_igvn.intcon(1));
+    sfpt->add_req(_igvn.intcon(alloc->_larval ? 1 : 0));
+  }
+
   // Scan object's fields adding an input to the safepoint for each field.
   for (int j = 0; j < nfields; j++) {
     intptr_t offset;

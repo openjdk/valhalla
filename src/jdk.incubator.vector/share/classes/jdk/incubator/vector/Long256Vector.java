@@ -31,6 +31,7 @@ import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -57,6 +58,7 @@ value class Long256Vector extends LongVector {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF256L.class);
 
+    @NullRestricted
     private final VectorPayloadMF256L payload;
 
     Long256Vector(Object value) {
@@ -556,6 +558,7 @@ value class Long256Vector extends LongVector {
             this.payload = (VectorPayloadMF32Z) payload;
         }
 
+        @NullRestricted
         private final VectorPayloadMF32Z payload;
 
         Long256Mask(VectorPayloadMF payload, int offset) {
@@ -726,6 +729,7 @@ value class Long256Vector extends LongVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Long> ETYPE = long.class; // used by the JVM
 
+        @NullRestricted
         private final VectorPayloadMF32B payload;
 
         Long256Shuffle(VectorPayloadMF payload) {

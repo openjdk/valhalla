@@ -31,6 +31,7 @@ import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -57,6 +58,7 @@ value class $vectortype$ extends $abstractvectortype$ {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF$bits$$Boxinitials$.class);
 
+    @NullRestricted
     private final VectorPayloadMF$bits$$Boxinitials$ payload;
 
     $vectortype$(Object value) {
@@ -843,6 +845,7 @@ value class $vectortype$ extends $abstractvectortype$ {
             this.payload = (VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$Z) payload;
         }
 
+        @NullRestricted
         private final VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$Z payload;
 
         $masktype$(VectorPayloadMF payload, int offset) {
@@ -857,6 +860,7 @@ value class $vectortype$ extends $abstractvectortype$ {
             this.payload = (VectorPayloadMF$vectorsizeinbytes$Z) payload;
         }
 
+        @NullRestricted
         private final VectorPayloadMF$vectorsizeinbytes$Z payload;
 
         $masktype$(VectorPayloadMF payload, int offset) {
@@ -1051,6 +1055,7 @@ value class $vectortype$ extends $abstractvectortype$ {
         static final Class<$Boxtype$> ETYPE = $type$.class; // used by the JVM
 
 #if[Max]
+        @NullRestricted
         private final VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$B payload;
 
         $shuffletype$(VectorPayloadMF payload) {
@@ -1067,6 +1072,7 @@ value class $vectortype$ extends $abstractvectortype$ {
             this(prepare(fn, VSPECIES));
         }
 #else[Max]
+        @NullRestricted
         private final VectorPayloadMF$vectorsizeinbytes$B payload;
 
         $shuffletype$(VectorPayloadMF payload) {

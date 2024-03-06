@@ -320,7 +320,7 @@ Node* PhaseVector::expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
   // in case the input "vect" is not the original vector value when creating the
   // VectorBox (e.g. original vector value is a PhiNode).
   ciInlineKlass* payload = vk->declared_nonstatic_field_at(0)->type()->as_inline_klass();
-  Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, true);
+  Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, false);
   payload_value->as_InlineType()->set_field_value(0, vect);
   payload_value = gvn.transform(payload_value);
 
@@ -331,7 +331,7 @@ Node* PhaseVector::expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
   vector = gvn.transform(vector)->as_InlineType();
 
   Node* klass_node = kit.makecon(TypeKlassPtr::make(vk));
-  Node* alloc_oop  = kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
+  Node* alloc_oop  = kit.new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true);
   vector->store(&kit, alloc_oop, alloc_oop, vk);
 
   C->set_max_vector_size(MAX2(C->max_vector_size(), vect_type->length_in_bytes()));
@@ -351,7 +351,7 @@ void PhaseVector::expand_vunbox_node(VectorUnboxNode* vec_unbox) {
       node = node->as_InlineType()->field_value(0);
     }
 
-    assert(node->bottom_type()->isa_vect() != NULL, "not a vector");
+    assert(node->bottom_type()->isa_vect() != nullptr, "not a vector");
     assert(Type::cmp(vec_unbox->bottom_type(), node->bottom_type()) == 0, "type is not matched");
 
     C->set_max_vector_size(MAX2(C->max_vector_size(), vec_unbox->bottom_type()->is_vect()->length_in_bytes()));
