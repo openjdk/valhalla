@@ -291,7 +291,8 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
+        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         warnOnIllegalUtf8 = Feature.WARN_ON_ILLEGAL_UTF8.allowedInSource(source);
@@ -3141,7 +3142,8 @@ public class ClassReader {
  ***********************************************************************/
 
     long adjustFieldFlags(long flags) {
-        if ((flags & ACC_STRICT) != 0) {
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
+        if (allowValueClasses && previewClassFile && (flags & ACC_STRICT) != 0) {
             flags &= ~ACC_STRICT;
             flags |= STRICT;
         }
