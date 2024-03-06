@@ -971,7 +971,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
         Symbol* sig = fs.signature();
         TempNewSymbol s = Signature::strip_envelope(sig);
         if (s != name()) {
-          log_info(class, preload)("Preloading class %s during linking of class %s because a null-free static field is declared with this type", s->as_C_string(), name()->as_C_string());
+          log_info(class, preload)("Preloading class %s during linking of class %s. Cause: a null-free static field is declared with this type", s->as_C_string(), name()->as_C_string());
           Klass* klass = SystemDictionary::resolve_or_fail(s,
                                                           Handle(THREAD, class_loader()), Handle(THREAD, protection_domain()), true,
                                                           CHECK_false);
@@ -980,12 +980,19 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                                       s->as_C_string(), name()->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
             return false; // Exception is still pending
           }
-          log_info(class, preload)("Preloading of class %s during linking of class %s (cause null-free static field) succeeded",
+          log_info(class, preload)("Preloading of class %s during linking of class %s (cause: null-free static field) succeeded",
                                    s->as_C_string(), name()->as_C_string());
           assert(klass != nullptr, "Sanity check");
           if (!klass->is_inline_klass()) {
             THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                       err_msg("class %s is not a value class", klass->external_name()), false);
+                       err_msg("class %s expects class %s to be a value class but it is an identity class",
+                       name()->as_C_string(), klass->external_name()), false);
+          }
+          if (klass->is_abstract()) {
+            THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                      err_msg("Class %s expects class %s to be concrete value class, but it is an abstract class",
+                      name()->as_C_string(),
+                      InstanceKlass::cast(klass)->external_name()), false);
           }
           InstanceKlass* ik = InstanceKlass::cast(klass);
           if (!ik->is_implicitly_constructible()) {
@@ -1003,6 +1010,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
         if (constants()->tag_at(preload_classes()->at(i)).is_klass()) continue;
         Symbol* class_name = constants()->klass_at_noresolve(preload_classes()->at(i));
         if (class_name == name()) continue;
+        log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the Preload attribute", class_name->as_C_string(), name()->as_C_string());
         oop loader = class_loader();
         oop protection_domain = this->protection_domain();
         Klass* klass = SystemDictionary::resolve_or_null(class_name,
@@ -1011,9 +1019,13 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           CLEAR_PENDING_EXCEPTION;
         }
         if (klass != nullptr) {
-          log_info(class, preload)("Preloading class %s during linking of class %s because of its Preload attribute", class_name->as_C_string(), name()->as_C_string());
+          log_info(class, preload)("Preloading of class %s during linking of class %s (cause: Preload attribute) succeeded", class_name->as_C_string(), name()->as_C_string());
+          if (!klass->is_inline_klass()) {
+            // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
+              log_warning(class, preload)("Preloading class %s during linking of class %s (cause: Preload attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
+          }
         } else {
-          log_warning(class, preload)("Preloading of class %s during linking of class %s (Preload attribute) failed", class_name->as_C_string(), name()->as_C_string());
+          log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: Preload attribute) failed", class_name->as_C_string(), name()->as_C_string());
         }
       }
     }

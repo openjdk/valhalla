@@ -6439,10 +6439,9 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         }
         assert(klass != nullptr, "Sanity check");
         if (klass->access_flags().is_identity_class()) {
-          assert(klass->is_instance_klass(), "Sanity check");
           ResourceMark rm(THREAD);
           THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Class %s expects class %s to be a concrete value type, but it is an identity class",
+                    err_msg("Class %s expects class %s to be a value class, but it is an identity class",
                     _class_name->as_C_string(),
                     InstanceKlass::cast(klass)->external_name()));
         }
@@ -6457,23 +6456,23 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         InlineKlass* vk = InlineKlass::cast(klass);
         if (!vk->is_implicitly_constructible()) {
           THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Null restricted fields with a non-implicitly constructible class are not supported: %s",
+                    err_msg("class %s is not implicitly constructible and it is used in a null restricted non-static field (not supported)",
                     klass->name()->as_C_string()));
         }
         _inline_type_field_klasses->at_put(fieldinfo.index(), vk);
-        log_info(class, preload)("Preloading of class %s during loading of class %s (cause null-free non-static field) succeeded", s->as_C_string(), _class_name->as_C_string());
+        log_info(class, preload)("Preloading of class %s during loading of class %s (cause: null-free non-static field) succeeded", s->as_C_string(), _class_name->as_C_string());
       } else if (Signature::has_envelope(sig)) {
         // Preloading classes for nullable fields that are listed in the Preload attribute
         // Those classes would be required later for the flattening of nullable inline type fields
         TempNewSymbol name = Signature::strip_envelope(sig);
         if (name != _class_name && is_class_in_preload_attribute(name)) {
-          log_info(class, preload)("Preloading class %s during loading of class %s. Cause: field type listed in Preload attribute", name->as_C_string(), _class_name->as_C_string());
+          log_info(class, preload)("Preloading class %s during loading of class %s. Cause: field type in Preload attribute", name->as_C_string(), _class_name->as_C_string());
           oop loader = loader_data()->class_loader();
           Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, name, Handle(THREAD, loader), _protection_domain, false, THREAD);
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
               _inline_type_field_klasses->at_put(fieldinfo.index(), InlineKlass::cast(klass));
-              log_info(class, preload)("Preloading of class %s during loading of class %s (cause Preload attribute) succeeded", name->as_C_string(), _class_name->as_C_string());
+              log_info(class, preload)("Preloading of class %s during loading of class %s (cause: field type in Preload attribute) succeeded", name->as_C_string(), _class_name->as_C_string());
             } else {
               // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
               log_warning(class, preload)("Preloading class %s during loading of class %s (cause: field type in Preload attribute) but loaded class is not a value class", name->as_C_string(), _class_name->as_C_string());
