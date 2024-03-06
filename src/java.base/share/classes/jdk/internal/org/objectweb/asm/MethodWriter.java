@@ -312,10 +312,7 @@ final class MethodWriter extends MethodVisitor {
         -1, // ifnull = 198 (0xc6)
         -1, // ifnonnull = 199 (0xc7)
         NA, // goto_w = 200 (0xc8)
-        NA, // jsr_w = 201 (0xc9)
-        NA, // breakpoint = 202 (0xca)
-        NA, // default = 203 (0xcb)
-        NA, // withfield = 204 (0xcc)
+        NA // jsr_w = 201 (0xc9)
     };
 
     /** Where the constants used in this MethodWriter must be stored. */
@@ -1011,7 +1008,7 @@ final class MethodWriter extends MethodVisitor {
         if (currentBasicBlock != null) {
             if (compute == COMPUTE_ALL_FRAMES || compute == COMPUTE_INSERTED_FRAMES) {
                 currentBasicBlock.frame.execute(opcode, lastBytecodeOffset, typeSymbol, symbolTable);
-            } else if (opcode == Opcodes.NEW || opcode == Opcodes.DEFAULT) {
+            } else if (opcode == Opcodes.NEW) {
                 // The stack size delta is 1 for NEW, and 0 for ANEWARRAY, CHECKCAST, or INSTANCEOF.
                 int size = relativeStackSize + 1;
                 if (size > maxRelativeStackSize) {
@@ -1037,9 +1034,6 @@ final class MethodWriter extends MethodVisitor {
                 int size;
                 char firstDescChar = descriptor.charAt(0);
                 switch (opcode) {
-                    case Opcodes.WITHFIELD:
-                        size = relativeStackSize + (firstDescChar == 'D' || firstDescChar == 'J' ? -2 : -1);
-                        break;
                     case Opcodes.GETSTATIC:
                         size = relativeStackSize + (firstDescChar == 'D' || firstDescChar == 'J' ? 2 : 1);
                         break;
