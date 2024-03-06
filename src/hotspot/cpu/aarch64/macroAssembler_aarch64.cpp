@@ -5236,6 +5236,7 @@ void MacroAssembler::get_inline_type_field_klass(Register klass, Register index,
     bind(done);
   }
 #endif
+  lea(inline_klass, Address(inline_klass, Array<InlineKlass*>::base_offset_in_bytes()));
   ldr(inline_klass, Address(inline_klass, index, Address::lsl(3)));
 }
 

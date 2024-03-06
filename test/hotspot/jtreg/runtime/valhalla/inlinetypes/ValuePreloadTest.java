@@ -53,9 +53,9 @@ public class ValuePreloadTest {
 
     public static void main(String[] args) throws Exception {
         ProcessBuilder pb = exec("-Xlog:class+preload","ValuePreloadClient0");
-        checkFor(pb, "[info][class,preload] Preloading class PreloadValue0 during linking of class ValuePreloadClient0 because of its Preload attribute");
+        checkFor(pb, "[info][class,preload] Preloading class PreloadValue0 during loading of class ValuePreloadClient0. Cause: field type in Preload attribute");
 
         pb = exec("-Xlog:class+preload","ValuePreloadClient1");
-        checkFor(pb, "[warning][class,preload] Preloading of class PreloadValue1 during linking of class ValuePreloadClient1 (Preload attribute) failed");
+        checkFor(pb, "[warning][class,preload] Preloading of class PreloadValue1 during linking of class ValuePreloadClient1 (cause: Preload attribute) failed");
     }
 }

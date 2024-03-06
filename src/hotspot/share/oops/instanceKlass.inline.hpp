@@ -63,48 +63,34 @@ inline InstanceKlass* volatile* InstanceKlass::adr_implementor() const {
   }
 }
 
-inline address InstanceKlass::adr_inline_type_field_klasses() const {
-  if (has_inline_type_fields()) {
-    InstanceKlass* volatile* adr_impl = adr_implementor();
-    if (adr_impl != nullptr) {
-      return (address)(adr_impl + 1);
-    }
-
-    return (address)end_of_nonstatic_oop_maps();
-  } else {
-    return nullptr;
-  }
-}
-
-inline Klass* InstanceKlass::get_inline_type_field_klass(int idx) const {
+inline InlineKlass* InstanceKlass::get_inline_type_field_klass(int idx) const {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
-  Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
+  InlineKlass* k = inline_type_field_klasses_array()->at(idx);
   assert(k != nullptr, "Should always be set before being read");
-  assert(k->is_inline_klass(), "Must be an inline type");
   return k;
 }
 
-inline Klass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) const {
+inline InlineKlass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) const {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
-  Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
-  assert(k == nullptr || k->is_inline_klass(), "Must be an inline type");
+  InlineKlass* k = inline_type_field_klasses_array()->at(idx);
   return k;
 }
 
-inline void InstanceKlass::set_inline_type_field_klass(int idx, Klass* k) {
+inline void InstanceKlass::set_inline_type_field_klass(int idx, InlineKlass* k) {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
   assert(k != nullptr, "Should not be set to nullptr");
-  assert(((Klass**)adr_inline_type_field_klasses())[idx] == nullptr, "Should not be set twice");
-  ((Klass**)adr_inline_type_field_klasses())[idx] = k;
+  assert(inline_type_field_klasses_array() != nullptr, "array must have been created");
+  assert(inline_type_field_klasses_array()->at(idx) == nullptr, "Should not be set twice");
+  inline_type_field_klasses_array()->at_put(idx, k);
 }
 
 inline void InstanceKlass::reset_inline_type_field_klass(int idx) {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
-  ((Klass**)adr_inline_type_field_klasses())[idx] = nullptr;
+  inline_type_field_klasses_array()->at_put(idx, nullptr);
 }
 
 
