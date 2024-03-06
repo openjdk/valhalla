@@ -6537,8 +6537,8 @@ bool ClassFileParser::is_jdk_internal_class(const Klass* cls) {
       return true;
     }
     cls = cls->super();
-   }
-   return false;
+  }
+  return false;
 }
 
 void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const stream,

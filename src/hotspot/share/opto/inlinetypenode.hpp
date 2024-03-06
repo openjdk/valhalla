@@ -56,7 +56,7 @@ protected:
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
 
   // Checks if the inline type fields are all set to default values
-  bool is_default(PhaseGVN* gvn) const;
+  virtual bool is_default(PhaseGVN* gvn) const;
 
   // Checks if the inline type oop is an allocated buffer with larval state
   bool is_larval(PhaseGVN* gvn) const;

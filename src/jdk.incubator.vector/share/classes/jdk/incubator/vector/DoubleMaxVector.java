@@ -31,6 +31,7 @@ import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -57,6 +58,7 @@ value class DoubleMaxVector extends DoubleVector {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxD.class);
 
+    @NullRestricted
     private final VectorPayloadMFMaxD payload;
 
     DoubleMaxVector(Object value) {
@@ -548,6 +550,7 @@ value class DoubleMaxVector extends DoubleVector {
             this.payload = (VectorPayloadMFMaxLZ) payload;
         }
 
+        @NullRestricted
         private final VectorPayloadMFMaxLZ payload;
 
         DoubleMaxMask(VectorPayloadMF payload, int offset) {
@@ -718,6 +721,7 @@ value class DoubleMaxVector extends DoubleVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Double> ETYPE = double.class; // used by the JVM
 
+        @NullRestricted
         private final VectorPayloadMFMaxLB payload;
 
         DoubleMaxShuffle(VectorPayloadMF payload) {

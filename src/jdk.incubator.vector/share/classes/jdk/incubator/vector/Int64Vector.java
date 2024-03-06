@@ -31,6 +31,7 @@ import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -57,6 +58,7 @@ value class Int64Vector extends IntVector {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF64I.class);
 
+    @NullRestricted
     private final VectorPayloadMF64I payload;
 
     Int64Vector(Object value) {
@@ -562,6 +564,7 @@ value class Int64Vector extends IntVector {
             this.payload = (VectorPayloadMF16Z) payload;
         }
 
+        @NullRestricted
         private final VectorPayloadMF16Z payload;
 
         Int64Mask(VectorPayloadMF payload, int offset) {
@@ -732,6 +735,7 @@ value class Int64Vector extends IntVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Integer> ETYPE = int.class; // used by the JVM
 
+        @NullRestricted
         private final VectorPayloadMF16B payload;
 
         Int64Shuffle(VectorPayloadMF payload) {

@@ -31,6 +31,7 @@ import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -57,6 +58,7 @@ value class FloatMaxVector extends FloatVector {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxF.class);
 
+    @NullRestricted
     private final VectorPayloadMFMaxF payload;
 
     FloatMaxVector(Object value) {
@@ -548,6 +550,7 @@ value class FloatMaxVector extends FloatVector {
             this.payload = (VectorPayloadMFMaxIZ) payload;
         }
 
+        @NullRestricted
         private final VectorPayloadMFMaxIZ payload;
 
         FloatMaxMask(VectorPayloadMF payload, int offset) {
@@ -718,6 +721,7 @@ value class FloatMaxVector extends FloatVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Float> ETYPE = float.class; // used by the JVM
 
+        @NullRestricted
         private final VectorPayloadMFMaxIB payload;
 
         FloatMaxShuffle(VectorPayloadMF payload) {

@@ -1709,17 +1709,18 @@ class VectorBoxNode : public InlineTypeNode {
     VectorBoxNode* box_node = new VectorBoxNode(C, vk, box, box_type, vt, false);
 
     ciInlineKlass* payload = vk->declared_nonstatic_field_at(0)->type()->as_inline_klass();
-    Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, true);
+    Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, false);
     payload_value->as_InlineType()->set_field_value(0, val);
     payload_value = gvn.transform(payload_value);
 
     box_node->set_field_value(0, payload_value);
     box_node->set_is_buffered(gvn, false);
-    box_node->set_is_init(gvn);
+    box_node->set_is_init(gvn, true);
 
     return box_node;
   }
 
+  virtual bool is_default(PhaseGVN* gvn) const { return false; }
   const  TypeInstPtr* box_type() const { assert(_box_type != nullptr, ""); return _box_type; };
   const  TypeVect*    vec_type() const { assert(_vec_type != nullptr, ""); return _vec_type; };
 

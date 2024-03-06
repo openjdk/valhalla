@@ -2655,9 +2655,11 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
 
   // Allocation node must exist to generate IR for transitioning allocation out
   // of larval state. Disable the intrinsic and take unsafe slow path if allocation
-  // is not reachable,  oop returned by Unsafe_finishPrivateBuffer native method
-  // will automatically rematerialize InlineTypeNode.
+  // is not reachable, this can happen if makePrivateBuffer was not intrinsified and
+  // was falling over to unsafe implementation which return a larval transitioned oop.
   if (AllocateNode::Ideal_allocation(buffer) == nullptr) {
+    // Oop returned by Unsafe_finishPrivateBuffer native method
+    // will automatically re-materialize InlineTypeNode.
     return false;
   }
   receiver = null_check(receiver);

@@ -301,22 +301,9 @@ bool InlineTypeNode::field_is_null_free(uint index) const {
   return field->is_null_free();
 }
 
-static bool is_vector_payload(ciKlass* klass) {
-  return klass->is_subclass_of(ciEnv::current()->vector_VectorPayload_klass());
-}
-
-static bool is_vector_payload_mf(ciKlass* klass) {
-  return klass->is_subclass_of(ciEnv::current()->vector_VectorPayloadMF_klass());
-}
-
 void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
-  if (is_vector_payload_mf(vk)) {
-     assert(field_count() == nfields, "");
-  } else if (is_vector_payload(vk)) {
-     assert(field_value(0)->as_InlineType()->field_count() == nfields, "");
-  }
   JVMState* jvms = sfpt->jvms();
   // Replace safepoint edge by SafePointScalarObjectNode and add field values
   assert(jvms != nullptr, "missing JVMS");
@@ -327,7 +314,7 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   sobj->init_req(0, igvn->C->root());
   // Nullable inline types have an IsInit field that needs
   // to be checked before using the field values.
-  if (!igvn->type(get_is_init())->is_int()->is_con(1)) {
+  if (!vk->is_null_free()) {
     sfpt->add_req(get_is_init());
   } else {
     sfpt->add_req(igvn->C->top());
