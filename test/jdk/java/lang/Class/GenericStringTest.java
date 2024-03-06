@@ -27,7 +27,7 @@
  * @summary Check Class.toGenericString()
  * @author Joseph D. Darcy
  * @compile GenericStringTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses GenericStringTest
+ * @run main/othervm -XX:+EnableValhalla GenericStringTest
  */
 
 import java.lang.reflect.*;
@@ -73,8 +73,7 @@ public class GenericStringTest {
                                      LocalMap.class,
                                      AnEnum.class,
                                      AnotherEnum.class,
-                                     AValueClass.class,
-                                     APrimitiveClass.class)) {
+                                     AValueClass.class)) {
             failures += checkToGenericString(clazz, clazz.getAnnotation(ExpectedGenericString.class).value());
         }
 
@@ -118,6 +117,3 @@ enum AnotherEnum {
 
 @ExpectedGenericString("final value class AValueClass<E>")
 value class AValueClass<E> {}
-
-@ExpectedGenericString("final primitive class APrimitiveClass<E>")
-primitive class APrimitiveClass<E> {}

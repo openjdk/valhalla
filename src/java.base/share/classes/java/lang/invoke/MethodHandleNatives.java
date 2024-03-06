@@ -602,12 +602,12 @@ class MethodHandleNatives {
         sb.append(prefix);
         for (int i = 1; i < guardType.parameterCount() - 1; i++) {
             Class<?> pt = guardType.parameterType(i);
-            sb.append(getCharErasedType(pt));
+            sb.append(getCharType(pt));
         }
-        sb.append('_').append(getCharErasedType(guardType.returnType()));
+        sb.append('_').append(getCharType(guardType.returnType()));
         return sb.toString();
     }
-    static char getCharErasedType(Class<?> pt) {
+    static char getCharType(Class<?> pt) {
         return Wrapper.forBasicType(pt).basicTypeChar();
     }
     static NoSuchMethodError newNoSuchMethodErrorOnVarHandle(String name, MethodType mtype) {
