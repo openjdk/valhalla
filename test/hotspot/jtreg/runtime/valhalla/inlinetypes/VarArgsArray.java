@@ -37,8 +37,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile VarArgsArray.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.VarArgsArray
+ * @run main/othervm runtime.valhalla.inlinetypes.VarArgsArray
  */
 
 @ImplicitlyConstructible

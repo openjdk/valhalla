@@ -32,8 +32,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @summary Test circularity in static fields
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile StaticFieldsTest.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.StaticFieldsTest
+ * @run main/othervm runtime.valhalla.inlinetypes.StaticFieldsTest
  */
 
 public class StaticFieldsTest {
