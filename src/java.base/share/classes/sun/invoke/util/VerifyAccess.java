@@ -208,6 +208,13 @@ public class VerifyAccess {
                 return true;
             }
 
+            // exports are not setup during early VM initialization
+            if (!jdk.internal.misc.VM.isModuleSystemInited()) {
+                //  access java.base classes only
+                assert lookupModule == refModule && refModule == Object.class.getModule();
+                return true;
+            }
+
             // allow access to public types in all unconditionally exported packages
             if ((allowedModes & UNCONDITIONAL_ALLOWED) != 0) {
                 return refModule.isExported(refc.getPackageName());
@@ -228,12 +235,8 @@ public class VerifyAccess {
             Module prevLookupModule = prevLookupClass != null ? prevLookupClass.getModule()
                                                               : null;
             assert refModule != lookupModule || refModule != prevLookupModule;
-            if (isModuleAccessible(refc, lookupModule, prevLookupModule))
-                return true;
 
-            // not exported but allow access during VM initialization
-            // because java.base does not have its exports setup
-            if (!jdk.internal.misc.VM.isModuleSystemInited())
+            if (isModuleAccessible(refc, lookupModule, prevLookupModule))
                 return true;
 
             // public class not accessible to lookupClass
