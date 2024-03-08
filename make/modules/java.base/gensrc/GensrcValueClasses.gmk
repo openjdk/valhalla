@@ -53,7 +53,6 @@ java.base-VALUE_CLASS-REPLACEMENTS := \
     java/time/YearMonth.java \
     java/time/Year.java \
     java/time/Period.java \
-    java/lang/Record.java \
     #
 
 java.base-VALUE-CLASS-FILES := \
