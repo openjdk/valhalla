@@ -37,8 +37,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
+ * @enablePreview
  * @compile AnnotationsTests.java
- * @run main/othervm -XX:+EnableValhalla AnnotationsTests
+ * @run main/othervm AnnotationsTests
  */
 
 

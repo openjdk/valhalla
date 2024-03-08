@@ -32,10 +32,11 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @modules java.base/jdk.internal.classfile
  * @build test.java.lang.invoke.lib.InstructionHelper
+ * @enablePreview
  * @compile ObjectMethods.java
- * @run main/othervm -XX:+EnableValhalla -XX:+UseCompressedClassPointers --enable-preview runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -XX:+EnableValhalla -XX:-UseCompressedClassPointers --enable-preview runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -XX:+EnableValhalla -noverify --enable-preview runtime.valhalla.inlinetypes.ObjectMethods noverify
+ * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
  */
 
 public class ObjectMethods {

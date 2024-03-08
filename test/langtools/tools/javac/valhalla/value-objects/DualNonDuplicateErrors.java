@@ -2,6 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8267843
  * @summary Check that javac diagnoses `this` being passed around and instance method being invoked before value class instance is fully initialized.
+ * @enablePreview
  * @compile/fail/ref=DualNonDuplicateErrors.out -XDrawDiagnostics DualNonDuplicateErrors.java
  */
 

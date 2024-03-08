@@ -25,7 +25,8 @@
  * @test
  * @summary Test a hidden inline class.
  * @library /test/lib
- * @run main/othervm -XX:+EnableValhalla HiddenInlineClassTest
+ * @enablePreview
+ * @run main/othervm HiddenInlineClassTest
  */
 
 import java.io.File;

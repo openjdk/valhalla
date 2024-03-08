@@ -54,7 +54,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestLWorld.java
- * @run main/othervm/timeout=450 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestLWorld
+ * @run main/othervm/timeout=450 -XX:+EnableValhalla --enable-preview compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer
@@ -4177,7 +4177,7 @@ public class TestLWorld {
         public int val();
     }
 
-    static abstract class MyAbstract2 implements MyInterface2 {
+    static abstract value class MyAbstract2 implements MyInterface2 {
 
     }
 

@@ -6037,6 +6037,11 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     flags |= JVM_ACC_ABSTRACT;
   }
 
+  // Fixing ACC_SUPER/ACC_IDENTITY for old class files
+  if ((!(flags & JVM_ACC_INTERFACE)) && _major_version <= JAVA_22_VERSION && _minor_version != JAVA_PREVIEW_MINOR_VERSION) {
+    flags |= JVM_ACC_IDENTITY;
+  }
+
   // This class and superclass
   _this_class_index = stream->get_u2_fast();
   check_property(
