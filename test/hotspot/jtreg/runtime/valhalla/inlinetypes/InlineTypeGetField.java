@@ -30,8 +30,9 @@ import jdk.test.lib.Asserts;
  * @summary Inline Type get field test
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile Point.java InlineTypeGetField.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.InlineTypeGetField
+ * @run main/othervm runtime.valhalla.inlinetypes.InlineTypeGetField
  */
 public class InlineTypeGetField {
 

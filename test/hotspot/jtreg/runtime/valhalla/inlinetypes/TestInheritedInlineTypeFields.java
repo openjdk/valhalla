@@ -31,8 +31,9 @@ import jdk.test.lib.Asserts;
  * @summary Test if inline field klasses are correctly retrieved for inherited fields
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile Point.java TestInheritedInlineTypeFields.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
+ * @run main/othervm runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
  */
 
 class A {

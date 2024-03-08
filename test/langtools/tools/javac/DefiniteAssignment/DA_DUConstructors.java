@@ -2,6 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8324873
  * @summary [lworld] implementation of value classes construction
+ * @enablePreview
  * @compile/fail/ref=DA_DUConstructors.out -XDrawDiagnostics DA_DUConstructors.java
  */
 

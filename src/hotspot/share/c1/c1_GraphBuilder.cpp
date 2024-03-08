@@ -727,17 +727,6 @@ class MemoryBuffer: public CompilationResourceObj {
     }
   }
 
-  // Record this newly allocated object
-  void new_instance(NewInlineTypeInstance* object) {
-    int index = _newobjects.length();
-    _newobjects.append(object);
-    if (_fields.at_grow(index, nullptr) == nullptr) {
-      _fields.at_put(index, new FieldBuffer());
-    } else {
-      _fields.at(index)->kill();
-    }
-  }
-
   void store_value(Value value) {
     int index = _newobjects.find(value);
     if (index != -1) {
@@ -1129,7 +1118,7 @@ void GraphBuilder::load_indexed(BasicType type) {
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
         apush(append(load_indexed));
       } else {
-        NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before);
+        NewInstance* new_instance = new NewInstance(elem_klass, state_before, true, true);
         _memory->new_instance(new_instance);
         apush(append_split(new_instance));
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
@@ -1237,12 +1226,6 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
-        // special handling for the dup_x2/pop sequence (see JDK-8251046)
-        if (w1 != nullptr && w1->as_NewInlineTypeInstance() != nullptr) {
-          ciBytecodeStream s(method());
-          s.force_bci(bci());
-          s.next();
-        }
         state()->raw_push(w1);
         state()->raw_push(w3);
         state()->raw_push(w2);
@@ -2055,7 +2038,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             } else if (has_pending_load_indexed()) {
               assert(!needs_patching, "Can't patch delayed field access");
               pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
-              NewInlineTypeInstance* vt = new NewInlineTypeInstance(inline_klass, pending_load_indexed()->state_before());
+              NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), true, true);
               _memory->new_instance(vt);
               pending_load_indexed()->load_instr()->set_vt(vt);
               apush(append_split(vt));
@@ -2063,7 +2046,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               set_pending_load_indexed(nullptr);
               need_membar = true;
             } else {
-              NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before);
+              NewInstance* new_instance = new NewInstance(inline_klass, state_before, true, true);
               _memory->new_instance(new_instance);
               apush(append_split(new_instance));
               assert(!needs_patching, "Can't patch flat inline type field access");
@@ -2495,7 +2478,7 @@ void GraphBuilder::new_instance(int klass_index) {
   ValueStack* state_before = copy_state_exhandling();
   ciKlass* klass = stream()->get_klass();
   assert(klass->is_instance_klass(), "must be an instance klass");
-  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass());
+  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass(), false);
   _memory->new_instance(new_instance);
   apush(append_split(new_instance));
 }
@@ -2733,7 +2716,7 @@ Instruction* GraphBuilder::append_split(StateSplit* instr) {
 
 
 void GraphBuilder::null_check(Value value) {
-  if (value->as_NewArray() != nullptr || value->as_NewInstance() != nullptr || value->as_NewInlineTypeInstance() != nullptr) {
+  if (value->as_NewArray() != nullptr || value->as_NewInstance() != nullptr) {
     return;
   } else {
     Constant* con = value->as_Constant();

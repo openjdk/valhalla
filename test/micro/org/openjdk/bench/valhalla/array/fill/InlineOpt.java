@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import java.util.Arrays;
 public class InlineOpt extends StatesQOpt {
 
     public static class RefStaticField {
-        static QOpt.ref<Int32> f = QOpt.of(new R32int(42));
+        static QOpt<Int32> f = QOpt.of(new R32int(42));
     }
 
     public static class ValStaticField {
@@ -45,7 +45,7 @@ public class InlineOpt extends StatesQOpt {
 
     @State(Scope.Thread)
     public static class RefInstanceField {
-        QOpt.ref<Int32> f = QOpt.of(new R32int(42));
+        QOpt<Int32> f = QOpt.of(new R32int(42));
     }
 
     @State(Scope.Thread)
@@ -58,7 +58,7 @@ public class InlineOpt extends StatesQOpt {
     public void Def_to_Val_as_Val_fill(Val_as_Val st) {
         QOpt<Int32>[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = QOpt<Int32>.default;
+            arr[i] = QOpt.of();
         }
     }
 
@@ -111,16 +111,16 @@ public class InlineOpt extends StatesQOpt {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Ref_fill(Ref_as_Ref st) {
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = QOpt<Int32>.default;
+            arr[i] = QOpt.of();
         }
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void New_to_Ref_as_Ref_fill(Ref_as_Ref st) {
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         QOpt<Int32> v = QOpt.of(new R32int(42));
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
@@ -130,7 +130,7 @@ public class InlineOpt extends StatesQOpt {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_fillstat(Ref_as_Ref st) {
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = RefStaticField.f;
         }
@@ -139,7 +139,7 @@ public class InlineOpt extends StatesQOpt {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Ref_fillstat(Ref_as_Ref st) {
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = ValStaticField.f;
         }
@@ -148,7 +148,7 @@ public class InlineOpt extends StatesQOpt {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_fillinst(Ref_as_Ref st, RefInstanceField f) {
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = f.f;
         }
@@ -157,7 +157,7 @@ public class InlineOpt extends StatesQOpt {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Ref_fillinst(Ref_as_Ref st, ValInstanceField f) {
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = f.f;
         }
@@ -166,7 +166,7 @@ public class InlineOpt extends StatesQOpt {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Val_as_Val_arrayfill(Val_as_Val st) {
-        Arrays.fill(st.arr, QOpt<Int32>.default);
+        Arrays.fill(st.arr, QOpt.of() );
     }
 
     @Benchmark
@@ -202,7 +202,7 @@ public class InlineOpt extends StatesQOpt {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Ref_arrayfill(Ref_as_Ref st) {
-        Arrays.fill(st.arr, QOpt<Int32>.default);
+        Arrays.fill(st.arr, QOpt.of()  );
     }
 
     @Benchmark

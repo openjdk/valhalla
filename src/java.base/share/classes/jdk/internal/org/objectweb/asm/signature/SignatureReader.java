@@ -115,7 +115,7 @@ public class SignatureReader {
                 // ReferenceTypeSignature, it means the class bound is empty (which is a valid case).
                 offset = classBoundStartOffset + 1;
                 currentChar = signature.charAt(offset);
-                if (currentChar == 'L' || currentChar == 'Q' || currentChar == '[' || currentChar == 'T') {
+                if (currentChar == 'L' || currentChar == '[' || currentChar == 'T') {
                     offset = parseType(signature, offset, signatureVistor.visitClassBound());
                 }
 

@@ -3797,7 +3797,6 @@ return mh1;
             if (name.startsWith("<") && refKind != REF_newInvokeSpecial) {
                 return null;
             }
-
             return IMPL_NAMES.resolveOrNull(refKind, new MemberName(refc, name, type, refKind), lookupClassOrNull(), allowedModes);
         }
 

@@ -24,11 +24,11 @@
 /*
  * @test
  * @bug 8222634
- * @summary Check array creation with V and V.ref
+ * @summary Check array creation with value classes
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @modules jdk.compiler
- * @compile ArrayCreationWithQuestion.java
- * @run main ArrayCreationWithQuestion
+ * @compile --enable-preview -source ${jdk.version} ArrayCreationWithQuestion.java
+ * @run main/othervm --enable-preview ArrayCreationWithQuestion
  */
 
 import java.io.PrintWriter;

@@ -22,6 +22,9 @@
  */
 
 // key: compiler.err.super.class.method.cannot.be.synchronized
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version}
 
 public abstract class SuperClassMethodCannotBeSynchronized {
     synchronized void foo() {}

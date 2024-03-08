@@ -163,7 +163,6 @@ public interface MethodHandleInfo {
      * This is {@value java.lang.constant.ConstantDescs#INIT_NAME}
      * if the underlying member was a constructor,
      * else it is a simple method name or field name.
-     * was a constructor, else it is a simple method name or field name.
      * @return the simple name of the underlying member
      */
     public String getName();

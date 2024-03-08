@@ -25,8 +25,9 @@
  * @test TestFieldNullability
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile TestFieldNullability.java
- * @run main/othervm -XX:+EnableValhalla  -Xmx128m -XX:InlineFieldMaxFlatSize=32
+ * @run main/othervm -Xmx128m -XX:InlineFieldMaxFlatSize=32
  *                   runtime.valhalla.inlinetypes.TestFieldNullability
  */
 

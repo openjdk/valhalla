@@ -25,8 +25,8 @@
  * @test
  * @bug 8207341
  * @summary Test value constructor code with side effects.
- * @compile -XDenablePrimitiveClasses SideEffectTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SideEffectTest
+ * @compile SideEffectTest.java
+ * @run main/othervm -XX:+EnablePrimitiveClasses SideEffectTest
  * @ignore
  */
 

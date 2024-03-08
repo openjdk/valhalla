@@ -369,22 +369,19 @@ static void allocate_instance(JavaThread* current, Klass* klass, TRAPS) {
   h->check_valid_for_instantiation(true, CHECK);
   // make sure klass is initialized
   h->initialize(CHECK);
-  // allocate instance and return via TLS
-  oop obj = h->allocate_instance(CHECK);
+  oop obj = nullptr;
+  if (h->is_empty_inline_type()) {
+    obj = InlineKlass::cast(h)->default_value();
+    assert(obj != nullptr, "default value must exist");
+  } else {
+    // allocate instance and return via TLS
+    obj = h->allocate_instance(CHECK);
+  }
   current->set_vm_result(obj);
 JRT_END
 
 JRT_ENTRY(void, Runtime1::new_instance(JavaThread* current, Klass* klass))
   allocate_instance(current, klass, CHECK);
-JRT_END
-
-// Same as new_instance but throws error for inline klasses
-JRT_ENTRY(void, Runtime1::new_instance_no_inline(JavaThread* current, Klass* klass))
-  if (klass->is_inline_klass()) {
-    SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_InstantiationError());
-  } else {
-    allocate_instance(current, klass, CHECK);
-  }
 JRT_END
 
 JRT_ENTRY(void, Runtime1::new_type_array(JavaThread* current, Klass* klass, jint length))

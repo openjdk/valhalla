@@ -265,14 +265,6 @@ public enum AccessFlag {
                  }),
 
     /**
-     * The access flag {@code ACC_VALUE}, corresponding to the
-     * source modifier {@link Modifier#VALUE value}, with a mask
-     * value of <code>{@value "0x%04x" Modifier#VALUE}</code>.
-     * @jvms 4.1 -B. Class access and property modifiers
-     */
-    VALUE(Modifier.VALUE, true, Set.of(Location.CLASS, Location.INNER_CLASS), null),
-
-    /**
      * The access flag {@code ACC_VOLATILE}, corresponding to the
      * source modifier {@link Modifier#VOLATILE volatile}, with a mask
      * value of <code>{@value "0x%04x" Modifier#VOLATILE}</code>.
@@ -702,7 +694,7 @@ public enum AccessFlag {
     private static class LocationToFlags {
         private static Map<Location, Set<AccessFlag>> locationToFlags =
             Map.ofEntries(entry(Location.CLASS,
-                                Set.of(PUBLIC, FINAL, IDENTITY, VALUE,
+                                Set.of(PUBLIC, FINAL, IDENTITY,
                                        INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION,
                                        ENUM, AccessFlag.MODULE)),
@@ -716,7 +708,7 @@ public enum AccessFlag {
                                        BRIDGE, VARARGS, NATIVE,
                                        ABSTRACT, STRICT, SYNTHETIC)),
                           entry(Location.INNER_CLASS,
-                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY, VALUE,
+                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY,
                                        STATIC, FINAL, INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION, ENUM)),
                           entry(Location.METHOD_PARAMETER,

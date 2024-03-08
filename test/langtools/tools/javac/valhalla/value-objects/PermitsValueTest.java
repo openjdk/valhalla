@@ -28,8 +28,7 @@
  * @bug 8280194
  * @summary Abstract classes that allow value subclasses should NOT be marked ACC_IDENTITY
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @compile -XDenablePrimitiveClasses PermitsValueTest.java
- * @run main PermitsValueTest
+ * @enablePreview
  */
 
 import com.sun.tools.classfile.*;

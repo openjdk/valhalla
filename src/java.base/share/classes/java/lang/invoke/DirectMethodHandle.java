@@ -548,9 +548,9 @@ sealed class DirectMethodHandle extends MethodHandle {
 
     /** This subclass handles static field references. */
     static final class StaticAccessor extends DirectMethodHandle {
-        final Class<?> fieldType;
-        final Object staticBase;
-        final long staticOffset;
+        private final Class<?> fieldType;
+        private final Object   staticBase;
+        private final long     staticOffset;
 
         private StaticAccessor(MethodType mtype, LambdaForm form, MemberName member,
                                boolean crackable, Object staticBase, long staticOffset) {

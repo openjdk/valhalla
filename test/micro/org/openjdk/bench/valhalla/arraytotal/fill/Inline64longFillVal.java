@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,7 +60,7 @@ public class Inline64longFillVal extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Val_as_Ref_fill0(Val_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
@@ -80,7 +80,7 @@ public class Inline64longFillVal extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Ref_fill0(Ref_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;

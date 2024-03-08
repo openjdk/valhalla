@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,13 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public primitive class Q32int implements Int32, ByInt {
+public value class Q32int implements Int32, ByInt {
 
     public final int v0;
+
+    public Q32int() {
+        v0 = 0;
+    }
 
     public Q32int(int val) {
         this.v0 = val;

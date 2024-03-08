@@ -25,7 +25,8 @@ package runtime.valhalla.inlinetypes;
 
 /* @test
  * @summary test JNI functions with inline types
- * @run main/othervm/native -XX:+EnableValhalla runtime.valhalla.inlinetypes.InlineWithJni
+ * @enablePreview
+ * @run main/othervm/native runtime.valhalla.inlinetypes.InlineWithJni
  */
 public value class InlineWithJni {
 
