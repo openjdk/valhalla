@@ -39,6 +39,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rI;
  * @summary Test the handling of fields of unloaded value classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestUnloadedInlineTypeField.java

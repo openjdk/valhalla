@@ -27,6 +27,7 @@
  * @bug 8182997 8214898
  * @library /test/lib
  * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestUnloadedInlineTypeArray.java
  * @run main/othervm -XX:+EnableValhalla

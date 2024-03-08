@@ -26,6 +26,7 @@
  * @bug 8187679
  * @summary The VM should exit gracefully when unable to preload an inline type argument
  * @library /test/lib
+ * @enablePreview
  * @compile SimpleInlineType.java TestUnresolvedInlineClass.java
  * @run main/othervm -XX:+EnableValhalla TestUnresolvedInlineClass
  */
@@ -56,7 +57,7 @@ public class TestUnresolvedInlineClass {
 
             // Verify that a warning is printed
             String output = oa.getOutput();
-            oa.shouldContain("Preloading of class SimpleInlineType during linking of class TestUnresolvedInlineClass (Preload attribute) failed");
+            oa.shouldContain("Preloading of class SimpleInlineType during linking of class TestUnresolvedInlineClass (cause: Preload attribute) failed");
         }
     }
 }

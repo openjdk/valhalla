@@ -31,11 +31,12 @@ import compiler.lib.ir_framework.*;
  * @test
  * @summary Missing InlineTypeNode re-materialization during type sharpening.
  * @library /test/lib /
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestValueRematDuringTypeSharpening.java
  * @run main/othervm/timeout=300 --add-exports java.base/jdk.internal.misc=ALL-UNNAMED compiler.valhalla.inlinetypes.TestValueRematDuringTypeSharpening
  */
 
-abstract class topValue {
+abstract value class topValue {
 }
 
 value class dummyValue1 extends topValue {

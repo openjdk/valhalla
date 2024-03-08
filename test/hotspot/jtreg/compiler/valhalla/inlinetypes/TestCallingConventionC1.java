@@ -41,6 +41,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Test calls from {C1} to {C2, Interpreter}, and vice versa.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestCallingConventionC1.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestCallingConventionC1

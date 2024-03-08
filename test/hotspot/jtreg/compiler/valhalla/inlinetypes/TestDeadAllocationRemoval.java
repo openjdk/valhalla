@@ -25,6 +25,7 @@
  * @test
  * @bug 8230397
  * @summary Test removal of an already dead AllocateNode with not-yet removed proj outputs.
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestDeadAllocationRemoval.java
  * @run main/othervm -XX:+EnableValhalla -Xbatch

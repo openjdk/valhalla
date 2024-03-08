@@ -26,7 +26,7 @@
  * @summary Test scalarization in returns with unloaded return types.
  * @library /test/lib /compiler/whitebox /
  * @build jdk.test.whitebox.WhiteBox
- * @compile TestUnloadedReturnTypes.java
+ * @enablePreview
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI

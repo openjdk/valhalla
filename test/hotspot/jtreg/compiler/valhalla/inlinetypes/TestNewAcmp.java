@@ -25,7 +25,7 @@
  * @test TestNewAcmp
  * @summary Verifies correctness of the acmp bytecode with value object operands.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @compile TestNewAcmp.java
+ * @enablePreview
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -XX:+EnableValhalla
  *                               -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -54,7 +54,7 @@ interface MyInterface {
 
 }
 
-abstract class MyAbstract implements MyInterface {
+abstract value class MyAbstract implements MyInterface {
 
 
 }

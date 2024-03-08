@@ -41,6 +41,7 @@ import jdk.test.lib.Asserts;
  * @summary Verify that chains of getfields on flat fields are correctly optimized.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile GetfieldChains.jcod
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestGetfieldChains.java
