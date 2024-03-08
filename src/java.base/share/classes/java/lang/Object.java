@@ -36,7 +36,8 @@ import java.util.Objects;
  * Every class has {@code Object} as a superclass. All objects,
  * including arrays, implement the methods of this class.
  * <p>
- * Subclasses of {@code java.lang.Object} can be either identity classes or value classes.
+ * Subclasses of {@code java.lang.Object} can be either an {@linkplain Class#isIdentity identity class}
+ * or a {@linkplain Class#isValue value class}.
  * See {@jls The Java Language Specification 8.1.1.5 value Classes}.
  *
  * @see     java.lang.Class
