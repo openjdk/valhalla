@@ -611,7 +611,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      bool is_larval = (i == 0) && _method->is_object_constructor() && method()->intrinsic_id() != vmIntrinsics::_Object_init;
+      bool is_larval = (i == 0) && method()->intrinsic_id() != vmIntrinsics::_Object_init;
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
       set_local(i, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
