@@ -1232,6 +1232,7 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (con2 != (intptr_t) superklass->super_check_offset())
     return nullptr;                // Might be element-klass loading from array klass
 
+  // TODO remove
   // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
   // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
   // the klass for [LMyValue. Do not bypass the klass load from the primary supertype array.

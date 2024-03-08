@@ -324,6 +324,7 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // But when (obj/flat)Array meets (obj/flat)Array, we look carefully at element types.
     if ((k1->is_obj_array_klass() || k1->is_flat_array_klass()) &&
         (k2->is_obj_array_klass() || k2->is_flat_array_klass())) {
+      // TODO remove
       bool null_free = k1->as_array_klass()->is_elem_null_free() &&
                        k2->as_array_klass()->is_elem_null_free();
       ciType* elem1 = k1->as_array_klass()->element_klass();
@@ -606,6 +607,7 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
          (Deoptimization::Reason_unloaded,
           Deoptimization::Action_reinterpret));
   } else {
+    // TODO remove
     if (array_klass->is_elem_null_free()) {
       push(outer()->mark_as_null_free(element_klass));
     } else {
@@ -852,7 +854,7 @@ void ciTypeFlow::StateVector::do_multianewarray(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
-  if (!will_link || str->is_unresolved_klass() || klass->is_inlinetype()) {
+  if (!will_link || str->is_unresolved_klass()) {
     trap(str, klass, str->get_klass_index());
   } else {
     push_object(klass);

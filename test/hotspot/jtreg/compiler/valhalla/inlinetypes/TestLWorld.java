@@ -57,7 +57,6 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @run main/othervm/timeout=450 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestLWorld
  */
 
-@ForceCompileClassInitializer
 public class TestLWorld {
 
     public static void main(String[] args) {
@@ -554,10 +553,6 @@ public class TestLWorld {
         MyInterface vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
         MyInterface vt3 = arg;
         MyInterface vt4 = valueField1;
-        if (deopt) {
-            // uncommon trap
-            TestFramework.deoptimize(m);
-        }
         return ((MyValue1)vt1).hash() + ((MyValue1)vt2).hash() +
                ((MyValue1)vt3).hash() + ((MyValue1)vt4).hash();
     }
@@ -3044,7 +3039,6 @@ public class TestLWorld {
         }
     }
 
-    @ForceCompileClassInitializer
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LongWrapper implements WrapperInterface {
@@ -4177,7 +4171,7 @@ public class TestLWorld {
         public int val();
     }
 
-    static abstract class MyAbstract2 implements MyInterface2 {
+    static abstract value class MyAbstract2 implements MyInterface2 {
 
     }
 

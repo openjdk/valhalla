@@ -284,7 +284,6 @@ void Parse::do_new() {
   bool will_link;
   ciInstanceKlass* klass = iter().get_klass(will_link)->as_instance_klass();
   assert(will_link, "_new: typeflow responsibility");
-  assert(!klass->is_inlinetype(), "unexpected inline type");
 
   // Should throw an InstantiationError?
   if (klass->is_abstract() || klass->is_interface() ||
@@ -299,6 +298,12 @@ void Parse::do_new() {
   if (C->needs_clinit_barrier(klass, method())) {
     clinit_barrier(klass, method());
     if (stopped())  return;
+  }
+
+  if (klass->is_inlinetype()) {
+    // TODO we shoulnd't use the default oop here because it will be overwritten by the constructor
+    push(InlineTypeNode::make_default(_gvn, klass->as_inline_klass(), true));
+    return;
   }
 
   Node* kls = makecon(TypeKlassPtr::make(klass));

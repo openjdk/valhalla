@@ -4396,10 +4396,14 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
         ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
-          Node* obj = new_array(makecon(array_klass_type), length, 0);  // no arguments to push
+          Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false, true);  // no arguments to push
           AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(obj);
           alloc->set_null_free();
           set_result(obj);
+          if (!gvn().type(obj)->is_aryptr()->is_null_free()) {
+            gvn().type(obj)->dump();
+            assert(false, "FAIL");
+          }
           return true;
         }
       }

@@ -694,7 +694,8 @@ bool ciInstanceKlass::can_be_inline_klass(bool is_exact) {
   if (!is_exact) {
     // Not exact, check if this is a valid super for an inline klass
     VM_ENTRY_MARK;
-    return !get_instanceKlass()->access_flags().is_identity_class();
+    // TODO check this!
+    return is_java_lang_Object() || !get_instanceKlass()->access_flags().is_identity_class();
   }
   return false;
 }

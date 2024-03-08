@@ -2256,7 +2256,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, InterfaceHandling inte
   const Type** field_array = fields(arg_cnt);
   if (!method->is_static()) {
     ciInstanceKlass* recv = method->holder();
-    if (vt_fields_as_args && recv->is_inlinetype() && recv->as_inline_klass()->can_be_passed_as_fields()) {
+    if (vt_fields_as_args && recv->is_inlinetype() && recv->as_inline_klass()->can_be_passed_as_fields() && method->is_scalarized_arg(0)) {
       collect_inline_fields(recv->as_inline_klass(), field_array, pos);
     } else {
       field_array[pos++] = get_const_type(recv, interface_handling)->join_speculative(TypePtr::NOTNULL);
@@ -3862,6 +3862,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
   } else if (klass->is_obj_array_klass()) {
     // Element is an object or inline type array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ false, try_for_exact, interface_handling);
+    // TODO remove
     bool null_free = klass->as_array_klass()->is_elem_null_free();
     if (null_free) {
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
@@ -3922,6 +3923,7 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
   } else if (klass->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
+    // TODO remove
     bool null_free = false;
     if (klass->as_array_klass()->is_elem_null_free()) {
       null_free = true;
@@ -6485,6 +6487,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
 }
 
 const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling) {
+  // TODO
   bool null_free = k->as_array_klass()->is_elem_null_free();
   bool not_null_free = (ptr == Constant) ? !null_free : !k->is_flat_array_klass() && (k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false));
 
@@ -6684,6 +6687,9 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
   return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _null_free);
 }
 
+const TypeAryKlassPtr* TypeAryKlassPtr::cast_to_null_free() const {
+  return make(_ptr, elem(), klass(), _offset, is_not_flat(), is_not_null_free(), true);
+}
 
 //-----------------------------as_instance_type--------------------------------
 // Corresponding type for an instance of the given class.

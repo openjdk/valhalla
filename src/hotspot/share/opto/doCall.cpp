@@ -578,6 +578,16 @@ void Parse::do_call() {
   int       vtable_index       = Method::invalid_vtable_index;
   bool      call_does_dispatch = false;
 
+  // Detect the call to the object constructor at the end of a value constructor to know when we are done initializing the larval
+  if (orig_callee->intrinsic_id() == vmIntrinsics::_Object_init && peek()->is_InlineType()) {
+     InlineTypeNode* receiver = peek()->as_InlineType();
+     assert(receiver->is_larval(), "must be larval");
+     InlineTypeNode* clone = receiver->clone()->as_InlineType();
+     clone->set_is_larval(false);
+     replace_in_map(receiver, _gvn.transform(clone));
+     // TODO do we need a barrier here to prevent the initializing stores to flow below?
+   }
+
   // Speculative type of the receiver if any
   ciKlass* speculative_receiver_type = nullptr;
   if (is_virtual_or_interface) {
@@ -672,6 +682,18 @@ void Parse::do_call() {
     // it can propagate it as a speculative type
     receiver = record_profiled_receiver_for_speculation(receiver);
   }
+
+  /*
+  if (cg->is_inline()) {
+    tty->print_cr("INLINING");
+    cg->method()->print(tty);
+    tty->print_cr("");
+  } else if (cg->is_late_inline()) {
+    tty->print_cr("LATE INLINING");
+    cg->method()->print(tty);
+    tty->print_cr("");
+  }
+  */
 
   JVMState* new_jvms = cg->generate(jvms);
   if (new_jvms == nullptr) {

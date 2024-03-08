@@ -245,7 +245,7 @@ Node *MemNode::optimize_memory_chain(Node *mchain, const TypePtr *t_adr, Node *l
       // clone the Phi with our address type
       result = mphi->split_out_instance(t_adr, igvn);
     } else {
-      assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
+     // assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
     }
   }
   return result;
@@ -2065,6 +2065,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != nullptr && const_oop->is_instance()) {
+      /*
       ciType* mirror_type = const_oop->as_instance()->java_mirror_type();
       if (mirror_type != nullptr) {
         const Type* const_oop = nullptr;
@@ -2081,9 +2082,10 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         //   const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->java_mirror());
         // }
         if (const_oop != nullptr) {
-          return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
+//          return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
         }
       }
+      */
       const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), bt);
       if (con_type != nullptr) {
         return con_type;

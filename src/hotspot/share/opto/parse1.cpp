@@ -611,7 +611,8 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
+      bool is_larval = (i == 0) && _method->is_object_constructor() && method()->intrinsic_id() != vmIntrinsics::_Object_init;
+      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
       set_local(i, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
@@ -2369,6 +2370,7 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeInstPtr* tr = return_type->isa_instptr();
+    assert(!value->is_InlineType() || !value->as_InlineType()->is_larval(), "returning a larval");
     if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
         return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized
