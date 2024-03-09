@@ -533,7 +533,6 @@ public class AnalyzerAdapter extends MethodVisitor {
                 push(descriptor);
                 break;
             case 'L':
-            case 'Q':
                 push(descriptor.substring(1, descriptor.length() - 1));
                 break;
             default:

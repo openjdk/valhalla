@@ -366,7 +366,6 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
   case T_DOUBLE : /* nothing to do */        break;
 #endif // _LP64
 
-  case T_PRIMITIVE_OBJECT: // fall through (inline types are handled with oops)
   case T_OBJECT :
     // retrieve result from frame
     __ movptr(rax, Address(rbp, frame::interpreter_frame_oop_temp_offset*wordSize));

@@ -60,9 +60,7 @@
 package jdk.internal.org.objectweb.asm;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 
 /**
  * A Java field or method type. This class can be used to make it easier to manipulate type and
@@ -337,8 +335,7 @@ public final class Type {
             while (methodDescriptor.charAt(currentOffset) == '[') {
                 currentOffset++;
             }
-            char c = methodDescriptor.charAt(currentOffset++);
-            if (c == 'L' || c == 'Q') {
+            if (methodDescriptor.charAt(currentOffset++) == 'L') {
                 // Skip the argument descriptor content.
                 int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
                 currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
@@ -357,8 +354,7 @@ public final class Type {
             while (methodDescriptor.charAt(currentOffset) == '[') {
                 currentOffset++;
             }
-            char c = methodDescriptor.charAt(currentOffset++);
-            if (c == 'L' || c == 'Q') {
+            if (methodDescriptor.charAt(currentOffset++) == 'L') {
                 // Skip the argument descriptor content.
                 int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
                 currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
@@ -429,8 +425,7 @@ public final class Type {
             while (methodDescriptor.charAt(currentOffset) == '[') {
                 currentOffset++;
             }
-            char c = methodDescriptor.charAt(currentOffset++);
-            if (c == 'L' || c == 'Q') {
+            if (methodDescriptor.charAt(currentOffset++) == 'L') {
                 // Skip the argument descriptor content.
                 int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
                 currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
@@ -473,7 +468,6 @@ public final class Type {
             case '[':
                 return new Type(ARRAY, descriptorBuffer, descriptorBegin, descriptorEnd);
             case 'L':
-            case 'Q':
                 return new Type(OBJECT, descriptorBuffer, descriptorBegin + 1, descriptorEnd - 1);
             case '(':
                 return new Type(METHOD, descriptorBuffer, descriptorBegin, descriptorEnd);
@@ -679,12 +673,8 @@ public final class Type {
             }
             stringBuilder.append(descriptor);
         } else {
-            stringBuilder.append(isPrimitiveClass(currentClass) ? 'Q' : 'L').append(getInternalName(currentClass)).append(';');
+            stringBuilder.append('L').append(getInternalName(currentClass)).append(';');
         }
-    }
-
-    static boolean isPrimitiveClass(Class<?> clazz) {
-        return (clazz.getModifiers() & Opcodes.ACC_PRIMITIVE) != 0;
     }
 
     // -----------------------------------------------------------------------------------------------
@@ -780,8 +770,7 @@ public final class Type {
                 while (methodDescriptor.charAt(currentOffset) == '[') {
                     currentOffset++;
                 }
-                char c = methodDescriptor.charAt(currentOffset++);
-                if (c == 'L' || c == 'Q') {
+                if (methodDescriptor.charAt(currentOffset++) == 'L') {
                     // Skip the argument descriptor content.
                     int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
                     currentOffset = Math.max(currentOffset, semiColumnOffset + 1);

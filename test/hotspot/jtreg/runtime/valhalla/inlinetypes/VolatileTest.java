@@ -29,8 +29,9 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
+ * @enablePreview
  * @compile VolatileTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.VolatileTest
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.VolatileTest
  */
 
 import jdk.internal.misc.Unsafe;

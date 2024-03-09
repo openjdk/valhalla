@@ -38,7 +38,8 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
- * @run main/othervm -XX:+EnableValhalla NullRestrictedArrayTest
+ * @enablePreview
+ * @run main/othervm NullRestrictedArrayTest
  */
 
 

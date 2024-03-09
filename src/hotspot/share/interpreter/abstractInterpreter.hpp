@@ -110,7 +110,7 @@ class AbstractInterpreter: AllStatic {
   static vmIntrinsics::ID method_intrinsic(MethodKind kind);
 
   enum SomeConstants {
-    number_of_result_handlers = 11                              // number of result handlers for native calls
+    number_of_result_handlers = 10                              // number of result handlers for native calls
   };
 
  protected:

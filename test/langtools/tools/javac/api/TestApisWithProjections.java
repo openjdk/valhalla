@@ -34,8 +34,6 @@
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.code
  * @build ToolTester
- * @compile -XDenablePrimitiveClasses TestApisWithProjections.java
- * @run main TestApisWithProjections
  */
 
 import java.io.*;

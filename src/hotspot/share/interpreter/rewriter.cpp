@@ -472,7 +472,6 @@ void Rewriter::scan_method(Thread* thread, Method* method, bool reverse, bool* i
       // fall through
       case Bytecodes::_getstatic      : // fall through
       case Bytecodes::_getfield       : // fall through
-      case Bytecodes::_withfield      : // fall through but may require more checks for correctness
         rewrite_field_reference(bcp, prefix_length+1, reverse);
         break;
       case Bytecodes::_invokevirtual  : // fall through

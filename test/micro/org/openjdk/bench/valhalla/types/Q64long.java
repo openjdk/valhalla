@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,13 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public primitive class Q64long implements Int64, ByLong {
+public value class Q64long implements Int64, ByLong {
 
     public final long v0;
+
+    public Q64long() {
+        this(0);
+    }
 
     public Q64long(long v0) {
         this.v0 = v0;

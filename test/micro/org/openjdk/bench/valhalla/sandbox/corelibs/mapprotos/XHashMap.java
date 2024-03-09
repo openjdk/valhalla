@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -299,17 +299,24 @@ public class XHashMap<K,V> extends XAbstractMap<K,V>
     static final int MIN_TREEIFY_CAPACITY = 64;
 
     private XNode<K,V> emptyXNode() {
-        return XNode.default;
+        return new XNode();
     }
     /**
      * Basic hash bin node, used for most entries.  (See below for
      * TreeNode subclass, and in LinkedHashMap for its Entry subclass.)
      */
-    static primitive class XNode<K,V> implements Map.Entry<K,V> {
+    static value class XNode<K,V> implements Map.Entry<K,V> {
         final int hash;
         final K key;
         V value;
         Node<K,V> next;
+
+        XNode() {
+            this.hash = 0;
+            this.key = null;
+            this.value = null;
+            this.next = null;
+        }
 
         XNode(int hash, K key, V value, Node<K,V> next) {
             this.hash = hash;
@@ -390,7 +397,7 @@ public class XHashMap<K,V> extends XAbstractMap<K,V>
         }
     }
 
-    primitive class XNodeWrapper implements Map.Entry<K,V> {
+    value class XNodeWrapper implements Map.Entry<K,V> {
         int index;
 
         XNodeWrapper(int index) {

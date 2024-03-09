@@ -25,10 +25,11 @@
  * @test
  * @bug 8207341
  * @summary Test value constructor code with side effects.
- * @compile -XDenablePrimitiveClasses SideEffectTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SideEffectTest
- * @ignore 8316628
+ * @compile SideEffectTest.java
+ * @run main/othervm -XX:+EnablePrimitiveClasses SideEffectTest
+ * @ignore
  */
+
 
 public class SideEffectTest {
 
@@ -55,7 +56,7 @@ public class SideEffectTest {
     }
 
     public static void main(String[] args) {
-        V v = new V(false);
+        V v = new V();
         if (!v.output.equals("1234"))
             throw new AssertionError("Broken");
         if (v.x != 1234)

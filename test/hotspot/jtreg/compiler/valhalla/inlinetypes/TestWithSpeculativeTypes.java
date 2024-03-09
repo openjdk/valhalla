@@ -26,7 +26,7 @@
  * @bug 8280440
  * @summary Test that speculative types are properly handled by scalarization.
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses TestWithSpeculativeTypes.java
+ * @compile TestWithSpeculativeTypes.java
  * @run main/othervm -XX:+EnableValhalla
  *                   -XX:CompileCommand=dontinline,TestWithSpeculativeTypes::*
  *                   -XX:TypeProfileLevel=222 -XX:-TieredCompilation -Xbatch

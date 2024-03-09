@@ -1,6 +1,0 @@
-CheckValueModifier.java:19:11: compiler.err.illegal.combination.of.modifiers: value, annotation
-CheckValueModifier.java:20:10: compiler.err.mod.not.allowed.here: value
-CheckValueModifier.java:15:14: compiler.err.mod.not.allowed.here: value
-CheckValueModifier.java:16:14: compiler.err.mod.not.allowed.here: value
-CheckValueModifier.java:21:19: compiler.err.abstract.value.class.cannot.be.inner: (compiler.misc.abstract.value.class: CheckValueModifier.Inner)
-5 errors

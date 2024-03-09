@@ -24,18 +24,19 @@ package runtime.valhalla.inlinetypes;
 
 import java.lang.invoke.*;
 
-import test.java.lang.invoke.lib.OldInstructionHelper;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 /*
  * @test ObjectMethods
- * @summary Check object method implemented by the VM behave with inline types
- * @modules java.base/jdk.internal.value
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @summary Check object methods implemented by the VM behave with value types
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @modules java.base/jdk.internal.classfile
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @enablePreview
  * @compile ObjectMethods.java
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
+ * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
  */
 
 public class ObjectMethods {
@@ -131,15 +132,15 @@ public class ObjectMethods {
     static void checkMonitorExit(Object val) {
         boolean sawImse = false;
         try {
-            OldInstructionHelper.loadCode(MethodHandles.lookup(),
-                                        "mismatchedMonitorExit",
-                                        MethodType.methodType(Void.TYPE, Object.class),
-                                        CODE->{
-                                            CODE
-                                                .aload(0)
-                                                .monitorexit()
-                                                .return_();
-                                        }).invokeExact(val);
+            InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
+                                                "mismatchedMonitorExit",
+                                                MethodType.methodType(Void.TYPE, Object.class),
+                                                CODE-> {
+                                                    CODE
+                                                    .aload(0)
+                                                    .monitorexit();
+                                                    CODE.return_();
+                                                }).invokeExact(val);
             throw new IllegalStateException("Unreachable code, reached");
         } catch (Throwable t) {
             if (t instanceof IllegalMonitorStateException) {

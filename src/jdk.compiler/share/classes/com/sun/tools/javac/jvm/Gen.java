@@ -133,7 +133,6 @@ public class Gen extends JCTree.Visitor {
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
         qualifiedSymbolCache = new HashMap<>();
-        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
     }
 
     /** Switches
@@ -143,7 +142,6 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private boolean disableVirtualizedPrivateInvoke;
-    private final boolean emitQDesc;
 
     /** Code buffer, set by genMethod.
      */
@@ -273,16 +271,7 @@ public class Gen extends JCTree.Visitor {
      *  @param type   The type for which a reference is inserted.
      */
     int makeRef(DiagnosticPosition pos, Type type) {
-        return makeRef(pos, type, false);
-    }
-
-    int makeRef(DiagnosticPosition pos, Type type, boolean emitQtype) {
-        checkDimension(pos, type);
-        if (emitQtype) {
-            return poolWriter.putClass(new ConstantPoolQType(type, types));
-        } else {
-            return poolWriter.putClass(type);
-        }
+        return poolWriter.putClass(checkDimension(pos, type));
     }
 
     /** Check if the given type is an array with too many dimensions.
@@ -336,7 +325,7 @@ public class Gen extends JCTree.Visitor {
         Symbol msym = rs.
             resolveInternalMethod(pos, attrEnv, site, name, argtypes, null);
         if (isStatic) items.makeStaticItem(msym).invoke();
-        else items.makeMemberItem(msym, names.isInit(name)).invoke();
+        else items.makeMemberItem(msym, name == names.init).invoke();
     }
 
     /** Is the given method definition an access method
@@ -436,6 +425,8 @@ public class Gen extends JCTree.Visitor {
      */
     List<JCTree> normalizeDefs(List<JCTree> defs, ClassSymbol c) {
         ListBuffer<JCStatement> initCode = new ListBuffer<>();
+        // only used for value classes
+        ListBuffer<JCStatement> initBlocks = new ListBuffer<>();
         ListBuffer<Attribute.TypeCompound> initTAs = new ListBuffer<>();
         ListBuffer<JCStatement> clinitCode = new ListBuffer<>();
         ListBuffer<Attribute.TypeCompound> clinitTAs = new ListBuffer<>();
@@ -451,8 +442,13 @@ public class Gen extends JCTree.Visitor {
                 JCBlock block = (JCBlock)def;
                 if ((block.flags & STATIC) != 0)
                     clinitCode.append(block);
-                else if ((block.flags & SYNTHETIC) == 0)
-                    initCode.append(block);
+                else if ((block.flags & SYNTHETIC) == 0) {
+                    if (c.isValueClass()) {
+                        initBlocks.append(block);
+                    } else {
+                        initCode.append(block);
+                    }
+                }
                 break;
             case METHODDEF:
                 methodDefs.append(def);
@@ -491,12 +487,11 @@ public class Gen extends JCTree.Visitor {
             }
         }
         // Insert any instance initializers into all constructors.
-        if (initCode.length() != 0) {
-            List<JCStatement> inits = initCode.toList();
+        if (initCode.length() != 0 || initBlocks.length() != 0) {
             initTAs.addAll(c.getInitTypeAttributes());
             List<Attribute.TypeCompound> initTAlist = initTAs.toList();
             for (JCTree t : methodDefs) {
-                normalizeMethod((JCMethodDecl)t, inits, initTAlist);
+                normalizeMethod((JCMethodDecl)t, initCode.toList(), initBlocks.toList(), initTAlist);
             }
         }
         // If there are class initializers, create a <clinit> method
@@ -553,44 +548,22 @@ public class Gen extends JCTree.Visitor {
         nerrs++;
     }
 
-    /** Insert instance initializer code into initial constructor.
+    /** Insert instance initializer code into constructors prior to the super() call.
      *  @param md        The tree potentially representing a
      *                   constructor's definition.
      *  @param initCode  The list of instance initializer statements.
      *  @param initTAs  Type annotations from the initializer expression.
      */
-    void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<TypeCompound> initTAs) {
-        if (names.isInit(md.name) && TreeInfo.isInitialConstructor(md)) {
-            // We are seeing a constructor that does not call another
-            // constructor of the same class.
-            List<JCStatement> stats = md.body.stats;
-            ListBuffer<JCStatement> newstats = new ListBuffer<>();
-
-            if (stats.nonEmpty()) {
-                // Copy initializers of synthetic variables generated in
-                // the translation of inner classes.
-                while (TreeInfo.isSyntheticInit(stats.head)) {
-                    newstats.append(stats.head);
-                    stats = stats.tail;
-                }
-                // Copy superclass constructor call
-                newstats.append(stats.head);
-                stats = stats.tail;
-                // Copy remaining synthetic initializers.
-                while (stats.nonEmpty() &&
-                       TreeInfo.isSyntheticInit(stats.head)) {
-                    newstats.append(stats.head);
-                    stats = stats.tail;
-                }
-                // Now insert the initializer code.
-                newstats.appendList(initCode);
-                // And copy all remaining statements.
-                while (stats.nonEmpty()) {
-                    newstats.append(stats.head);
-                    stats = stats.tail;
-                }
+    void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<JCStatement> initBlocks,  List<TypeCompound> initTAs) {
+        if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
+            // We are seeing a constructor that has a super() call.
+            // Find the super() invocation and append the given initializer code.
+            if (md.sym.owner.isValueClass()) {
+                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.append(supercall).appendList(initBlocks)));
+            } else {
+                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.prepend(supercall)));
             }
-            md.body.stats = newstats.toList();
+
             if (md.body.endpos == Position.NOPOS)
                 md.body.endpos = TreeInfo.endPos(md.body.stats.last());
 
@@ -967,7 +940,7 @@ public class Gen extends JCTree.Visitor {
             MethodSymbol meth = tree.sym;
             int extras = 0;
             // Count up extra parameters
-            if (meth.isInit()) {
+            if (meth.isConstructor()) {
                 extras++;
                 if (meth.enclClass().isInner() &&
                     !meth.enclClass().isStatic()) {
@@ -1007,9 +980,6 @@ public class Gen extends JCTree.Visitor {
                     if (env.enclMethod == null ||
                         env.enclMethod.sym.type.getReturnType().hasTag(VOID)) {
                         code.emitop0(return_);
-                    } else if (env.enclMethod.sym.isValueClassConst()) {
-                        items.makeLocalItem(env.enclMethod.factoryProduct).load();
-                        code.emitop0(areturn);
                     } else {
                         // sometime dead code seems alive (4415991);
                         // generate a small loop instead
@@ -1076,13 +1046,11 @@ public class Gen extends JCTree.Visitor {
                 Type selfType = meth.owner.type;
                 selfType = selfType.hasImplicitConstructor() ?
                         selfType.addMetadata(new TypeMetadata.NullMarker(JCNullableTypeExpression.NullMarker.NOT_NULL)) : selfType;
-                if (meth.isInit() && selfType != syms.objectType)
+                if (meth.isConstructor() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
                         code.newLocal(
-                            new VarSymbol(FINAL, names._this,
-                                    selfType,
-                                    meth.owner)));
+                            new VarSymbol(FINAL, names._this, selfType, meth.owner)));
             }
 
             // Mark all parameters as defined from the beginning of
@@ -2098,7 +2066,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype, emitQDesc && elemtype.hasImplicitConstructor() && elemtype.isNonNullable()), type);
+                code.emitAnewarray(makeRef(pos, elemtype), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {
@@ -2335,12 +2303,7 @@ public class Gen extends JCTree.Visitor {
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
            types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
-            checkDimension(tree.pos(), tree.clazz.type);
-            if (emitQDesc && tree.clazz.type.hasImplicitConstructor() && tree.clazz.type.isNonNullable()) {
-                code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
-            } else {
-                code.emitop2(checkcast, tree.clazz.type, PoolWriter::putClass);
-            }
+            code.emitop2(checkcast, checkDimension(tree.pos(), tree.clazz.type), PoolWriter::putClass);
         }
     }
 
@@ -2403,7 +2366,7 @@ public class Gen extends JCTree.Visitor {
 
         if (tree.name == names._class) {
             code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type,
-                    emitQDesc && tree.selected.type.hasImplicitConstructor() && tree.selected.type.isNonNullable()));
+                    tree.selected.type.hasImplicitConstructor() && tree.selected.type.isNonNullable()));
             result = items.makeStackItem(pt);
             return;
         }
@@ -2460,19 +2423,6 @@ public class Gen extends JCTree.Visitor {
                 }
             }
         }
-    }
-
-    public void visitDefaultValue(JCDefaultValue tree) {
-        if (tree.type.isValueClass()) {
-            //code.emitop2(aconst_init, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
-            code.emitop0(aconst_null);
-        } else if (tree.type.isReference()) {
-            code.emitop0(aconst_null);
-        } else {
-            code.emitop0(zero(Code.typecode(tree.type)));
-        }
-        result = items.makeStackItem(tree.type);
-        return;
     }
 
     public boolean isInvokeDynamic(Symbol sym) {

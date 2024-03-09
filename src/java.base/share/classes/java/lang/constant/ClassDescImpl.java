@@ -24,8 +24,6 @@
  */
 package java.lang.constant;
 
-import jdk.internal.value.PrimitiveClass;
-
 import java.lang.invoke.MethodHandles;
 
 import static java.lang.constant.ConstantUtils.*;
@@ -38,7 +36,6 @@ import static java.util.Objects.requireNonNull;
  */
 final class ClassDescImpl implements ClassDesc {
     private final String descriptor;
-    private final boolean isValue;
 
     /**
      * Creates a {@linkplain ClassDesc} from a descriptor string for a class or
@@ -56,7 +53,6 @@ final class ClassDescImpl implements ClassDesc {
             || len != descriptor.length())
             throw new IllegalArgumentException(String.format("not a valid reference type descriptor: %s", descriptor));
         this.descriptor = descriptor;
-        this.isValue = ConstantUtils.basicType(descriptor, 0, descriptor.length(), false) == 'Q';
     }
 
     @Override
@@ -73,23 +69,12 @@ final class ClassDescImpl implements ClassDesc {
             }
             // Class.forName is slow on class or interface arrays
             int depth = ConstantUtils.arrayDepth(descriptor);
-            Class<?> clazz = findClass(lookup, internalToBinary(descriptor.substring(depth + 1, descriptor.length() - 1)));
+            Class<?> clazz = lookup.findClass(internalToBinary(descriptor.substring(depth + 1, descriptor.length() - 1)));
             for (int i = 0; i < depth; i++)
                 clazz = clazz.arrayType();
             return clazz;
         }
-        return findClass(lookup, internalToBinary(dropFirstAndLastChar(descriptor)));
-    }
-
-    private Class<?> findClass(MethodHandles.Lookup lookup, String name) throws ReflectiveOperationException {
-        Class<?> c = lookup.findClass(name);
-        if (isValue) {
-            if (!PrimitiveClass.isPrimitiveClass(c)) {
-                throw new LinkageError(c.getName() + " is not a primitive class");
-            }
-            return PrimitiveClass.asValueType(c);
-        }
-        return c;
+        return lookup.findClass(internalToBinary(dropFirstAndLastChar(descriptor)));
     }
 
     /**

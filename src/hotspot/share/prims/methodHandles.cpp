@@ -820,8 +820,6 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller, int lookup
         assert(!HAS_PENDING_EXCEPTION, "");
         if (name == vmSymbols::object_initializer_name() && type->is_void_method_signature()) {
           LinkResolver::resolve_special_call(result, Handle(), link_info, THREAD);
-        } else if (name == vmSymbols::inline_factory_name()) {
-          LinkResolver::resolve_static_call(result, link_info, false, THREAD);
         } else {
           break;                // will throw after end of switch
         }

@@ -1418,7 +1418,6 @@ public class CheckMethodAdapter extends MethodVisitor {
                     throw new IllegalArgumentException(INVALID_DESCRIPTOR + descriptor);
                 }
             case 'L':
-            case 'Q':
                 int endPos = descriptor.indexOf(';', startPos);
                 if (startPos == -1 || endPos - startPos < 2) {
                     throw new IllegalArgumentException(INVALID_DESCRIPTOR + descriptor);

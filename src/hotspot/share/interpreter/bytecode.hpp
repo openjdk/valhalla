@@ -248,7 +248,6 @@ class Bytecode_field: public Bytecode_member_ref {
   bool is_putfield() const                       { return java_code() == Bytecodes::_putfield; }
   bool is_getstatic() const                      { return java_code() == Bytecodes::_getstatic; }
   bool is_putstatic() const                      { return java_code() == Bytecodes::_putstatic; }
-  bool is_withfield() const                      { return java_code() == Bytecodes::_withfield; }
 
   bool is_getter() const                         { return is_getfield()  || is_getstatic(); }
   bool is_static() const                         { return is_getstatic() || is_putstatic(); }
@@ -256,8 +255,7 @@ class Bytecode_field: public Bytecode_member_ref {
   bool is_valid() const                          { return is_getfield()   ||
                                                           is_putfield()   ||
                                                           is_getstatic()  ||
-                                                          is_putstatic()  ||
-                                                          is_withfield(); }
+                                                          is_putstatic(); }
   void verify() const;
 };
 
@@ -288,15 +286,6 @@ class Bytecode_new: public Bytecode {
 
   // Returns index
   u2 index() const   { return get_index_u2(Bytecodes::_new); };
-};
-
-class Bytecode_aconst_init: public Bytecode {
- public:
-  Bytecode_aconst_init(Method* method, address bcp): Bytecode(method, bcp) { verify(); }
-  void verify() const { assert(java_code() == Bytecodes::_aconst_init, "check aconst_init"); }
-
-  // Returns index
-  long index() const   { return get_index_u2(Bytecodes::_aconst_init); };
 };
 
 class Bytecode_multianewarray: public Bytecode {

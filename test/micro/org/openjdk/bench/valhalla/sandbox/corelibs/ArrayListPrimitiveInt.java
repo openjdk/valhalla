@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -507,7 +507,7 @@ public class ArrayListPrimitiveInt
         final int newSize;
         if ((newSize = size - 1) > i)
             System.arraycopy(es, i + 1, es, i, newSize - i);
-        es[size = newSize] = PrimitiveInt.default;
+        es[size = newSize] = new PrimitiveInt();
     }
 
     /**
@@ -518,7 +518,7 @@ public class ArrayListPrimitiveInt
         modCount++;
         final PrimitiveInt[] es = elementData;
         for (int to = size, i = size = 0; i < to; i++)
-            es[i] = PrimitiveInt.default;
+            es[i] = new PrimitiveInt();
     }
 
     /**
@@ -547,7 +547,7 @@ public class ArrayListPrimitiveInt
     private void shiftTailOverGap(PrimitiveInt[] es, int lo, int hi) {
         System.arraycopy(es, hi, es, lo, size - hi);
         for (int to = size, i = (size -= hi - lo); i < to; i++)
-            es[i] = PrimitiveInt.default;
+            es[i] = new PrimitiveInt();
     }
 
     /**
@@ -628,7 +628,7 @@ public class ArrayListPrimitiveInt
             }
         }
 
-        public void forEachRemaining(Consumer<? super PrimitiveInt.ref> action) {
+        public void forEachRemaining(Consumer<? super PrimitiveInt> action) {
             Objects.requireNonNull(action);
             final int size = ArrayListPrimitiveInt.this.size;
             int i = cursor;

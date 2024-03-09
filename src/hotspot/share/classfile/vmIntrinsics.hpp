@@ -299,12 +299,6 @@ class methodHandle;
    do_name(     setCurrentThread_name,                           "setCurrentThread")                                    \
                                                                                                                         \
   /* reflective intrinsics, for java/lang/Class, etc. */                                                                \
-  do_intrinsic(_asPrimaryType,            java_lang_Class,        asPrimaryType_name, void_class_signature,      F_R)   \
-  do_intrinsic(_asPrimaryTypeArg,         jdk_internal_value_PrimitiveClass, asPrimaryType_name, class_class_signature, F_S) \
-   do_name(     asPrimaryType_name,                              "asPrimaryType")                                       \
-  do_intrinsic(_asValueType,              java_lang_Class,        asValueType_name, void_class_signature,        F_R)   \
-  do_intrinsic(_asValueTypeArg,           jdk_internal_value_PrimitiveClass, asValueType_name,   class_class_signature, F_S) \
-   do_name(     asValueType_name,                                "asValueType")                                         \
   do_intrinsic(_isAssignableFrom,         java_lang_Class,        isAssignableFrom_name, class_boolean_signature, F_RN) \
    do_name(     isAssignableFrom_name,                           "isAssignableFrom")                                    \
   do_intrinsic(_isInstance,               java_lang_Class,        isInstance_name, object_boolean_signature,     F_RN)  \

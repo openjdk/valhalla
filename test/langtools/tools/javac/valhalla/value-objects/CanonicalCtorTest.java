@@ -33,6 +33,8 @@ public value class CanonicalCtorTest {
 
     private final int x, ymx;
 
+    public implicit CanonicalCtorTest();
+
     CanonicalCtorTest(int x, int y) {
 
         ymx = y - x;

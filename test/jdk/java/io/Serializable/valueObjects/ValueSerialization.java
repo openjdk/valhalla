@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary ValueSerialization support of value classes
- * @compile -XDenablePrimitiveClasses ValueSerialization.java
+ * @compile ValueSerialization.java
  * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueSerialization
  */
 

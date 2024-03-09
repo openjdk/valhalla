@@ -134,7 +134,7 @@ class JavaArgumentUnboxer : public SignatureIterator {
   friend class SignatureIterator;  // so do_parameters_on can call do_type
   void do_type(BasicType type) {
     if (is_reference_type(type)) {
-      (type == T_PRIMITIVE_OBJECT) ? _jca->push_oop(next_arg(T_PRIMITIVE_OBJECT)) : _jca->push_oop(next_arg(T_OBJECT));
+      _jca->push_oop(next_arg(T_OBJECT));
       return;
     }
     Handle arg = next_arg(type);
@@ -2871,7 +2871,7 @@ C2V_VMENTRY_NULL(jobject, asReflectionExecutable, (JNIEnv* env, jobject, ARGUMEN
       JVMCI_THROW_MSG_NULL(IllegalArgumentException,
           "Cannot create java.lang.reflect.Method for class initializer");
   }
-  else if (m->is_object_constructor() || m->is_static_vnew_factory()) {
+  else if (m->is_object_constructor()) {
     executable = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     executable = Reflection::new_method(m, false, CHECK_NULL);

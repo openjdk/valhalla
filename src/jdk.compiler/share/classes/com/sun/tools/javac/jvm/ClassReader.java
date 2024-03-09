@@ -137,10 +137,6 @@ public class ClassReader {
      */
     public boolean saveParameterNames;
 
-    /** Switch: emit Q descriptors
-     */
-    private boolean emitQDesc;
-
     /**
      * The currently selected profile.
      */
@@ -295,7 +291,8 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
+        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         warnOnIllegalUtf8 = Feature.WARN_ON_ILLEGAL_UTF8.allowedInSource(source);
@@ -307,8 +304,6 @@ public class ClassReader {
         typevars = WriteableScope.create(syms.noSymbol);
 
         lintClassfile = Lint.instance(context).isEnabled(LintCategory.CLASSFILE);
-
-        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
 
         initAttributeReaders();
     }
@@ -516,14 +511,9 @@ public class ClassReader {
         case 'J':
             sigp++;
             return syms.longType;
-        case 'Q':
         case 'L':
             {
                 // int oldsigp = sigp;
-                if ((char) signature[sigp] == 'Q' && !emitQDesc) {
-                    throw badClassFile("bad.class.signature",
-                                       quoteBadSignature());
-                }
                 Type t = classSigToType();
                 if (sigp < siglimit && signature[sigp] == '.')
                     throw badClassFile("deprecated inner class signature syntax " +
@@ -581,8 +571,7 @@ public class ClassReader {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        byte prefix = signature[sigp];
-        if (prefix != 'L' && (!emitQDesc || prefix != 'Q'))
+        if (signature[sigp] != 'L')
             throw badClassFile("bad.class.signature", quoteBadSignature());
         sigp++;
         Type outer = Type.noType;
@@ -598,7 +587,6 @@ public class ClassReader {
                                                          startSbp,
                                                          sbp - startSbp));
 
-                // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
                 try {
                     if (outer == Type.noType) {
                         ClassType et = (ClassType) t.erasure(types);
@@ -614,7 +602,6 @@ public class ClassReader {
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
                                                          sbp - startSbp));
-                // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
                 outer = new ClassType(outer, sigToTypes('>'), t, List.nil()) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
@@ -678,7 +665,6 @@ public class ClassReader {
                     t = enterClass(readName(signatureBuffer,
                                                  startSbp,
                                                  sbp - startSbp));
-                    // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
                     outer = new ClassType(outer, List.nil(), t, List.nil());
                 }
                 signatureBuffer[sbp++] = (byte)'$';
@@ -871,19 +857,6 @@ public class ClassReader {
 
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
-                    if (sym.isInit() && sym.type.getParameterTypes().size() == 0) {
-                        try {
-                            int code_length = buf.getInt(bp + 4);
-                            if ((code_length == 1 && buf.getByte(bp + 8) == (byte) ByteCodes.return_) ||
-                                (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
-                                    buf.getByte(bp + 9) == (byte) ByteCodes.invokespecial &&
-                                            buf.getByte(bp + 12) == (byte) ByteCodes.return_)) {
-                                sym.flags_field |= EMPTYNOARGCONSTR;
-                            }
-                        } catch (UnderflowException e) {
-                            throw badClassFile("bad.class.truncated.at.offset", Integer.toString(e.getLength()));
-                        }
-                    }
                     if (saveParameterNames)
                         ((MethodSymbol)sym).code = readCode(sym);
                     else
@@ -1063,6 +1036,7 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
+
                     }
                 }
             },
@@ -1448,7 +1422,7 @@ public class ClassReader {
                 return (MethodSymbol)sym;
         }
 
-        if (!names.isInit(nt.name))
+        if (nt.name != names.init)
             // not a constructor
             return null;
         if ((flags & INTERFACE) != 0)
@@ -2698,7 +2672,7 @@ public class ClassReader {
             }
         }
         validateMethodType(name, type);
-        if (names.isInit(name) && currentOwner.hasOuterInstance()) {
+        if (name == names.init && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
@@ -2743,7 +2717,7 @@ public class ClassReader {
 
     void validateMethodType(Name name, Type t) {
         if ((!t.hasTag(TypeTag.METHOD) && !t.hasTag(TypeTag.FORALL)) ||
-            ((name == names.init) && !t.getReturnType().hasTag(TypeTag.VOID))) {
+            (name == names.init && !t.getReturnType().hasTag(TypeTag.VOID))) {
             throw badClassFile("method.descriptor.invalid", name);
         }
     }
@@ -2807,7 +2781,7 @@ public class ClassReader {
         // the first parameter.  Note that this assumes the
         // skipped parameter has a width of 1 -- i.e. it is not
         // a double width type (long or double.)
-        if (names.isInit(sym.name) && currentOwner.hasOuterInstance()) {
+        if (sym.name == names.init && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
@@ -2971,14 +2945,6 @@ public class ClassReader {
         // read flags, or skip if this is an inner class
         long f = nextChar();
         long flags = adjustClassFlags(f);
-        if (c == syms.objectType.tsym) {
-            flags &= ~IDENTITY_TYPE; // jlO lacks identity even while being a concrete class.
-        }
-        if ((flags & PRIMITIVE_CLASS) != 0) {
-            if (!emitQDesc || (flags & (FINAL | PRIMITIVE_CLASS | IDENTITY_TYPE)) != (FINAL | PRIMITIVE_CLASS)) {
-                throw badClassFile("bad.access.flags", Flags.toString(flags));
-            }
-        }
         if ((flags & MODULE) == 0) {
             if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
             // read own class name and check that it matches
@@ -3038,9 +3004,7 @@ public class ClassReader {
             ct.interfaces_field = is.reverse();
 
         Assert.check(fieldCount == nextChar());
-        for (int i = 0; i < fieldCount; i++) {
-            enterMember(c, readField());
-        }
+        for (int i = 0; i < fieldCount; i++) enterMember(c, readField());
         Assert.check(methodCount == nextChar());
         for (int i = 0; i < methodCount; i++) enterMember(c, readMethod());
         if (c.isRecord()) {
@@ -3224,6 +3188,11 @@ public class ClassReader {
  ***********************************************************************/
 
     long adjustFieldFlags(long flags) {
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
+        if (allowValueClasses && previewClassFile && (flags & ACC_STRICT) != 0) {
+            flags &= ~ACC_STRICT;
+            flags |= STRICT;
+        }
         return flags;
     }
 
@@ -3240,23 +3209,17 @@ public class ClassReader {
     }
 
     long adjustClassFlags(long flags) {
-        if ((flags & (ABSTRACT | INTERFACE | ACC_VALUE | ACC_MODULE)) == 0) {
-            flags |= ACC_IDENTITY;
-        }
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         if ((flags & ACC_MODULE) != 0) {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_VALUE) != 0) {
-            flags &= ~ACC_VALUE;
-            if (allowValueClasses) {
-                flags |= VALUE_CLASS;
-            }
-        }
-        if ((flags & ACC_IDENTITY) != 0) {
-            flags &= ~ACC_IDENTITY;
+        if ((flags & ACC_IDENTITY) != 0 || (majorVersion < V66.major && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
+        } else if ((flags & INTERFACE) == 0 && allowValueClasses && previewClassFile && majorVersion >= V66.major) {
+            flags |= VALUE_CLASS;
         }
+        flags &= ~ACC_IDENTITY; // ACC_IDENTITY and SYNCHRONIZED bits overloaded
         return flags;
     }
 

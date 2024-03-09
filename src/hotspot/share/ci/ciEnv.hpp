@@ -135,8 +135,6 @@ private:
   ciMethod*  get_method_by_index(const constantPoolHandle& cpool,
                                  int method_index, Bytecodes::Code bc,
                                  ciInstanceKlass* loading_klass);
-  bool       has_Q_signature(const constantPoolHandle& cpool,
-                             int klass_index);
 
   // Implementation methods for loading and constant pool access.
   ciKlass* get_klass_by_name_impl(ciKlass* accessing_klass,

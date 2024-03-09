@@ -100,8 +100,6 @@ public class Types {
 
     public final Warner noWarnings;
 
-    private boolean emitQDesc;
-
     private boolean allowNullRestrictedTypes;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
@@ -130,7 +128,6 @@ public class Types {
             }
         };
         Options options = Options.instance(context);
-        emitQDesc = options.isSet("emitQDesc") || options.isSet("enablePrimitiveClasses");
         allowNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
     }
     // </editor-fold>
@@ -611,7 +608,6 @@ public class Types {
         if (t.hasTag(ERROR)) {
             return true;
         }
-
         boolean tPrimitive = t.isPrimitive();
         boolean sPrimitive = s.isPrimitive();
         if (tPrimitive == sPrimitive) {
@@ -774,12 +770,10 @@ public class Types {
                 //t must define a suitable non-generic method
                 throw failure("not.a.functional.intf.1", origin,
                             diags.fragment(Fragments.NoAbstracts(Kinds.kindName(origin), origin)));
-            }
-            FunctionDescriptor descRes;
-            if (abstracts.size() == 1) {
-                descRes = new FunctionDescriptor(abstracts.first());
+            } else if (abstracts.size() == 1) {
+                return new FunctionDescriptor(abstracts.first());
             } else { // size > 1
-                descRes = mergeDescriptors(origin, abstracts.toList());
+                FunctionDescriptor descRes = mergeDescriptors(origin, abstracts.toList());
                 if (descRes == null) {
                     //we can get here if the functional interface is ill-formed
                     ListBuffer<JCDiagnostic> descriptors = new ListBuffer<>();
@@ -798,18 +792,8 @@ public class Types {
                             new JCDiagnostic.MultilineDiagnostic(msg, descriptors.toList());
                     throw failure(incompatibleDescriptors);
                 }
+                return descRes;
             }
-            // an interface must be neither an identity interface nor a value interface to be functional.
-            List<Type> allInterfaces = closure(origin.type);
-            for (Type iface : allInterfaces) {
-                if (iface.isValueInterface()) {
-                    throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.ValueInterfaceNonfunctional));
-                }
-                if (iface.isIdentityInterface()) {
-                    throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.IdentityInterfaceNonfunctional));
-                }
-            }
-            return descRes;
         }
 
         /**
@@ -978,7 +962,7 @@ public class Types {
         private Predicate<Symbol> bridgeFilter = new Predicate<Symbol>() {
             public boolean test(Symbol t) {
                 return t.kind == MTH &&
-                        !names.isInit(t.name) &&
+                        t.name != names.init &&
                         t.name != names.clinit &&
                         (t.flags() & SYNTHETIC) == 0;
             }
@@ -1045,38 +1029,28 @@ public class Types {
     }
     //where
         private boolean isSubtypeUncheckedInternal(Type t, Type s, boolean capture, Warner warn) {
-            try {
-                warnStack = warnStack.prepend(warn);
-                if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
-                    if (((ArrayType)t).elemtype.isPrimitive()) {
-                        return isSameType(elemtype(t), elemtype(s));
-                    } else {
-                        // if T.ref <: S, then T[] <: S[]
-                        Type es = elemtype(s);
-                        Type et = elemtype(t);
-                        if (!isSubtypeUncheckedInternal(et, es, false, warn))
-                            return false;
-                        return true;
-                    }
-                } else if (isSubtype(t, s, capture)) {
-                    return true;
-                } else if (t.hasTag(TYPEVAR)) {
-                    return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
-                } else if (!s.isRaw()) {
-                    Type t2 = asSuper(t, s.tsym);
-                    if (t2 != null && t2.isRaw()) {
-                        if (isReifiable(s)) {
-                            warn.silentWarn(LintCategory.UNCHECKED);
-                        } else {
-                            warn.warn(LintCategory.UNCHECKED);
-                        }
-                        return true;
-                    }
+            if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
+                if (((ArrayType)t).elemtype.isPrimitive()) {
+                    return isSameType(elemtype(t), elemtype(s));
+                } else {
+                    return isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
                 }
-                return false;
-            } finally {
-                warnStack = warnStack.tail;
+            } else if (isSubtype(t, s, capture)) {
+                return true;
+            } else if (t.hasTag(TYPEVAR)) {
+                return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
+            } else if (!s.isRaw()) {
+                Type t2 = asSuper(t, s.tsym);
+                if (t2 != null && t2.isRaw()) {
+                    if (isReifiable(s)) {
+                        warn.silentWarn(LintCategory.UNCHECKED);
+                    } else {
+                        warn.warn(LintCategory.UNCHECKED);
+                    }
+                    return true;
+                }
             }
+            return false;
         }
 
         private void checkUnsafeVarargsConversion(Type t, Type s, Warner warn) {
@@ -1246,12 +1220,8 @@ public class Types {
                 if (s.hasTag(ARRAY)) {
                     if (t.elemtype.isPrimitive())
                         return isSameType(t.elemtype, elemtype(s));
-                    else {
-                        // if T.ref <: S, then T[] <: S[]
-                        Type es = elemtype(s);
-                        Type et = elemtype(t);
-                        return isSubtypeNoCapture(et, es);
-                    }
+                    else
+                        return isSubtypeNoCapture(t.elemtype, elemtype(s));
                 }
 
                 if (s.hasTag(CLASS)) {
@@ -1683,15 +1653,6 @@ public class Types {
                     return containedBy(s, t);
                 else {
 //                    debugContainsType(t, s);
-
-                    // -----------------------------------  Unspecified behavior ----------------
-
-                    /* If a primitive class V implements an interface I, then does "? extends I" contain V?
-                       It seems widening must be applied here to answer yes to compile some common code
-                       patterns.
-                    */
-
-                    // ---------------------------------------------------------------------------
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
                         || ((t.isExtendsBound() || isSubtypeNoCapture(wildLowerBound(t), wildLowerBound(s))) &&
@@ -2577,7 +2538,7 @@ public class Types {
             public Type visitClassType(ClassType t, Boolean recurse) {
                 Type erased = t.tsym.erasure(Types.this);
                 if (recurse) {
-                    erased = new ErasedClassType(erased.getEnclosingType(), erased.tsym,
+                    erased = new ErasedClassType(erased.getEnclosingType(),erased.tsym,
                             t.dropMetadata(Annotations.class).getMetadata());
                     return erased;
                 } else {
@@ -3842,7 +3803,7 @@ public class Types {
      *
      * <p>A closure is a list of all the supertypes and interfaces of
      * a class or interface type, ordered by ClassSymbol.precedes
-     * (that is, subclasses come first, arbitrary but fixed
+     * (that is, subclasses come first, arbitrarily but fixed
      * otherwise).
      */
     private Map<Type,List<Type>> closureCache = new HashMap<>();
@@ -4413,24 +4374,19 @@ public class Types {
     public boolean returnTypeSubstitutable(Type r1,
                                            Type r2, Type r2res,
                                            Warner warner) {
-        try {
-            warnStack = warnStack.prepend(warner);
-            if (isSameType(r1.getReturnType(), r2res))
-                return true;
-            if (r1.getReturnType().isPrimitive() || r2res.isPrimitive())
-                return false;
-
-            if (hasSameArgs(r1, r2))
-                return covariantReturnType(r1.getReturnType(), r2res, warner);
-            if (isSubtypeUnchecked(r1.getReturnType(), r2res, warner))
-                return true;
-            if (!isSubtype(r1.getReturnType(), erasure(r2res), false))
-                return false;
-            warner.warn(LintCategory.UNCHECKED);
+        if (isSameType(r1.getReturnType(), r2res))
             return true;
-        } finally {
-            warnStack = warnStack.tail;
-        }
+        if (r1.getReturnType().isPrimitive() || r2res.isPrimitive())
+            return false;
+
+        if (hasSameArgs(r1, r2))
+            return covariantReturnType(r1.getReturnType(), r2res, warner);
+        if (isSubtypeUnchecked(r1.getReturnType(), r2res, warner))
+            return true;
+        if (!isSubtype(r1.getReturnType(), erasure(r2res)))
+            return false;
+        warner.warn(LintCategory.UNCHECKED);
+        return true;
     }
 
     /**
@@ -5272,10 +5228,7 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    if (types.emitQDesc && type.hasImplicitConstructor() && type.isNonNullable())
-                        append('Q');
-                    else
-                        append('L');
+                    append('L');
                     assembleClassSig(type);
                     append(';');
                     break;

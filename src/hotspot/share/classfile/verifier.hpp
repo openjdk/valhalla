@@ -450,12 +450,6 @@ class ClassVerifier : public StackObj {
 
   VerificationType cp_index_to_type(int index, const constantPoolHandle& cp, TRAPS) {
     Symbol* name = cp->klass_name_at(index);
-    if (name->is_Q_signature()) {
-      // Remove the Q and ;
-      // TBD need error msg if fundamental_name() returns nullptr?
-      Symbol* fund_name = name->fundamental_name(CHECK_(VerificationType::bogus_type()));
-      return VerificationType::inline_type(fund_name);
-    }
     return VerificationType::reference_type(name);
   }
 
@@ -495,15 +489,6 @@ inline int ClassVerifier::change_sig_to_verificationType(
         Symbol* name_copy = create_temporary_symbol(name);
         assert(name_copy == name, "symbols don't match");
         *inference_type = VerificationType::reference_type(name_copy);
-        return 1;
-      }
-    case T_PRIMITIVE_OBJECT:
-      {
-        Symbol* vname = sig_type->as_symbol();
-        // Create another symbol to save as signature stream unreferences this symbol.
-        Symbol* vname_copy = create_temporary_symbol(vname);
-        assert(vname_copy == vname, "symbols don't match");
-        *inference_type = VerificationType::inline_type(vname_copy);
         return 1;
       }
     case T_LONG:

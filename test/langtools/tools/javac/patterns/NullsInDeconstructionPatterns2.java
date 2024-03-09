@@ -28,7 +28,7 @@
  * @enablePreview
  * @compile NullsInDeconstructionPatterns2.java
  * @run main NullsInDeconstructionPatterns2
- * @ignore 8316628
+ * @ignore Verifier error
  */
 
 import java.util.Objects;

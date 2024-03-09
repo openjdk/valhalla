@@ -278,15 +278,6 @@ class ConstantPool : public Metadata {
   // Hidden class support:
   void klass_at_put(int class_index, Klass* k);
 
-  void unresolved_qdescriptor_at_put(int cp_index, int name_index, int resolved_klass_index) {
-      release_tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass | (jbyte) JVM_CONSTANT_QDescBit);
-
-      assert((name_index & 0xffff0000) == 0, "must be");
-      assert((resolved_klass_index & 0xffff0000) == 0, "must be");
-      *int_at_addr(cp_index) =
-        build_int_from_shorts((jushort)resolved_klass_index, (jushort)name_index);
-    }
-
   void unresolved_klass_at_put(int cp_index, int name_index, int resolved_klass_index) {
     release_tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass);
 

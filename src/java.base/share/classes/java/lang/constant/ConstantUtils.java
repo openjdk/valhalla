@@ -40,7 +40,7 @@ class ConstantUtils {
     static final Constable[] EMPTY_CONSTABLE = new Constable[0];
     static final int MAX_ARRAY_TYPE_DESC_DIMENSIONS = 255;
 
-    private static final Set<String> pointyNames = Set.of(ConstantDescs.INIT_NAME, ConstantDescs.VNEW_NAME, ConstantDescs.CLASS_INIT_NAME);
+    private static final Set<String> pointyNames = Set.of(ConstantDescs.INIT_NAME, ConstantDescs.CLASS_INIT_NAME);
 
     /**
      * Validates the correctness of a binary class name. In particular checks for the presence of
@@ -226,7 +226,6 @@ class ConstantUtils {
     private static final char JVM_SIGNATURE_BYTE = 'B';
     private static final char JVM_SIGNATURE_CHAR = 'C';
     private static final char JVM_SIGNATURE_CLASS = 'L';
-    private static final char JVM_SIGNATURE_VALUE_TYPE = 'Q';
     private static final char JVM_SIGNATURE_ENDCLASS = ';';
     private static final char JVM_SIGNATURE_ENUM = 'E';
     private static final char JVM_SIGNATURE_FLOAT = 'F';
@@ -266,7 +265,6 @@ class ConstantUtils {
                 case JVM_SIGNATURE_DOUBLE:
                     return index - start + 1;
                 case JVM_SIGNATURE_CLASS:
-                case JVM_SIGNATURE_VALUE_TYPE:
                     // state variable for detection of illegal states, such as:
                     // empty unqualified name, '//', leading '/', or trailing '/'
                     boolean legal = false;
@@ -354,7 +352,6 @@ class ConstantUtils {
                 case JVM_SIGNATURE_DOUBLE:
                     return c;
                 case JVM_SIGNATURE_CLASS:
-                case JVM_SIGNATURE_VALUE_TYPE:
                     index++;
                     int indexOfSemi = descriptor.indexOf(';', index);
                     if (indexOfSemi != -1) {

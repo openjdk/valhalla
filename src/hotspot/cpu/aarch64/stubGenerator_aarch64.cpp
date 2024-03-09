@@ -325,7 +325,7 @@ class StubGenerator: public StubCodeGenerator {
     return_address = __ pc();
 
     // store result depending on type (everything that is not
-    // T_OBJECT, T_PRIMITIVE_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+    // T_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     // n.b. this assumes Java returns an integral result in r0
     // and a floating result in j_farg0
     // All of j_rargN may be used to return inline type fields so be careful
@@ -337,8 +337,6 @@ class StubGenerator: public StubCodeGenerator {
     Label is_long, is_float, is_double, check_prim, exit;
     __ ldr(Rresult_type, result_type);
     __ cmp(Rresult_type, (u1)T_OBJECT);
-    __ br(Assembler::EQ, check_prim);
-    __ cmp(Rresult_type, (u1)T_PRIMITIVE_OBJECT);
     __ br(Assembler::EQ, check_prim);
     __ cmp(Rresult_type, (u1)T_LONG);
     __ br(Assembler::EQ, is_long);

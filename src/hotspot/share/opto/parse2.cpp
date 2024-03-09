@@ -3503,12 +3503,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_new:
     do_new();
     break;
-  case Bytecodes::_aconst_init:
-    do_aconst_init();
-    break;
-  case Bytecodes::_withfield:
-    do_withfield();
-    break;
 
   case Bytecodes::_jsr:
   case Bytecodes::_jsr_w:

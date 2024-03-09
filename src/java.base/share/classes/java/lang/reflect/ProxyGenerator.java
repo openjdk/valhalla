@@ -26,7 +26,6 @@
 package java.lang.reflect;
 
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.org.objectweb.asm.Attribute;
 import jdk.internal.org.objectweb.asm.ByteVector;
 import jdk.internal.org.objectweb.asm.ClassWriter;
@@ -899,11 +898,7 @@ final class ProxyGenerator extends ClassWriter {
 
                 mv.visitInsn(prim.returnOpcode);
             } else {
-                String internalName = dotToSlash(type.getName());
-                if (PrimitiveClass.isPrimitiveValueType(type)) {
-                    internalName = 'Q' + internalName + ";";
-                }
-                mv.visitTypeInsn(CHECKCAST, internalName);
+                mv.visitTypeInsn(CHECKCAST, dotToSlash(type.getName()));
                 mv.visitInsn(ARETURN);
             }
         }
@@ -971,13 +966,6 @@ final class ProxyGenerator extends ClassWriter {
                     "forName",
                     "(Ljava/lang/String;Z" + LJL_CLASSLOADER + ")Ljava/lang/Class;",
                     false);
-            if (PrimitiveClass.isPrimitiveValueType(cl)) {
-                mv.visitMethodInsn(INVOKESTATIC,
-                      "jdk/internal/value/PrimitiveClass",
-                      "asValueType", "(Ljava/lang/Class;)Ljava/lang/Class;",
-                      false);
-            }
-
         }
 
         /**

@@ -36,6 +36,7 @@
  *     jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run testng PrimitiveClassesCompilationTests
+ * @ignore
  */
 
 import java.io.File;
@@ -64,7 +65,7 @@ import toolbox.ToolBox;
 @Test
 public class PrimitiveClassesCompilationTests extends CompilationTestCase {
 
-    private static String[] DEFAULT_OPTIONS = {"-XDenablePrimitiveClasses"};
+    private static String[] DEFAULT_OPTIONS = {};
 
     ToolBox tb = new ToolBox();
 
@@ -278,7 +279,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                value final class A {
+                primitive final class A {
                     final int x = 10;
                     void foo(A a) {
                         (a).x = 100;
@@ -449,7 +450,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     public void testUncheckedDefaultWarning() {
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {"-Xlint:all", "-XDenablePrimitiveClasses"};
+            String[] testOptions = {"-Xlint:all"};
             setCompileOptions(testOptions);
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """
@@ -467,7 +468,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     public void testSuperInvocation() {
         assertFail("compiler.err.call.to.super.not.allowed.in.value.ctor",
                 """
-                value class PC {
+                primitive class PC {
                     PC(String s) {
                         super();  // Error.
                     }
@@ -535,7 +536,7 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
     public void testGenericArray() {
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {"-Xlint:all", "-XDenablePrimitiveClasses"};
+            String[] testOptions = {"-Xlint:all"};
             setCompileOptions(testOptions);
             assertOKWithWarning("compiler.warn.prob.found.req",
                     """

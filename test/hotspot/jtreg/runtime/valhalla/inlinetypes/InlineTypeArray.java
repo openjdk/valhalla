@@ -41,10 +41,11 @@ import static jdk.test.lib.Asserts.*;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
- * @compile --source 22 --enable-preview InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=-1 --enable-preview runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=0 --enable-preview runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions --enable-preview -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
+ * @enablePreview
+ * @compile --source 22 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1 runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:FlatArrayElementMaxSize=0 runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {
     public static void main(String[] args) {
@@ -336,8 +337,20 @@ public class InlineTypeArray {
         MyInt[] myInts = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 2);
         myInts[0] = (MyInt) MyInt.MAX;
         myInts[1] = (MyInt) MyInt.MIN;
+
         // Sanity sort another copy
-        MyInt[] copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
+
+        // Arrays.copyOf() API needs discussion, avoid just now...
+        boolean useArraysCopyOf = false;
+        MyInt[] copyMyInts;
+        if (useArraysCopyOf) {
+            copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
+        } else {
+            copyMyInts = (MyInt[]) (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, myInts.length + 1);
+            for (int i = 0; i < myInts.length; i++) {
+                copyMyInts[i] = myInts[i];
+            }
+        }
         MyInt[] expected = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 3);
         expected[0] = myInts[0];
         expected[1] = myInts[1];

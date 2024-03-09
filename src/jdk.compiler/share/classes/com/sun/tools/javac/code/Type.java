@@ -30,6 +30,7 @@ import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -235,19 +236,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return false;
     }
 
-    public boolean hasImplicitConstructor() {
-        return false;
-    }
-
-    public boolean isValueInterface() {
-        return false;
-    }
-
     public boolean isIdentityClass() {
         return false;
     }
 
-    public boolean isIdentityInterface() {
+    public boolean hasImplicitConstructor() {
         return false;
     }
 
@@ -1048,42 +1041,9 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
     }
 
-    public static class ConstantPoolQType implements PoolConstant {
-
-        public final Type type;
-        final Types types;
-
-        public ConstantPoolQType(Type type, Types types) {
-            this.type = type;
-            this.types = types;
-        }
-
-        @Override
-        public Object poolKey(Types types) {
-            return this;
-        }
-
-        @Override
-        public int poolTag() {
-            return ClassFile.CONSTANT_Class;
-        }
-
-        public int hashCode() {
-            return types.hashCode(type);
-        }
-
-        public boolean equals(Object obj) {
-            return (obj instanceof ConstantPoolQType) &&
-                    types.isSameType(type, ((ConstantPoolQType)obj).type);
-        }
-
-        public String toString() {
-            return type.toString();
-        }
-    }
-
     public static class ClassType extends Type implements DeclaredType, LoadableConstant,
                                                           javax.lang.model.type.ErrorType {
+
         /** The enclosing type of this type. If this is the type of an inner
          *  class, outer_field refers to the type of its enclosing
          *  instance class, in all other cases it refers to noType.
@@ -1112,10 +1072,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public List<Type> all_interfaces_field;
 
-        /*
-         * Use of this constructor is kinda sorta deprecated, use the other constructor
-         * that forces the call site to consider and include the class type flavor.
-         */
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym) {
             this(outer, typarams, tsym, List.nil());
         }
@@ -1276,6 +1232,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         @Override
+        public boolean hasImplicitConstructor() {
+            return tsym != null && tsym.kind == TYP && ((ClassSymbol)tsym).hasImplicitConstructor();
+        }
+
+        @Override
         public boolean isReference() {
             return true;
         }
@@ -1286,23 +1247,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         @Override
-        public boolean hasImplicitConstructor() {
-            return tsym != null && tsym.kind == TYP && ((ClassSymbol)tsym).hasImplicitConstructor();
-        }
-
-        @Override
-        public boolean isValueInterface() {
-            return tsym != null && tsym.isValueInterface();
-        }
-
-        @Override
         public boolean isIdentityClass() {
             return tsym != null && tsym.isIdentityClass();
-        }
-
-        @Override
-        public boolean isIdentityInterface() {
-            return isInterface() && tsym.isIdentityInterface();
         }
 
         @Override

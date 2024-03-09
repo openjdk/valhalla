@@ -2972,8 +2972,8 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
 
 void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, Address(klass, Klass::access_flags_offset()));
-  testl(temp_reg, JVM_ACC_VALUE);
-  jcc(Assembler::notZero, is_inline_type);
+  testl(temp_reg, JVM_ACC_IDENTITY);
+  jcc(Assembler::zero, is_inline_type);
 }
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
@@ -4585,7 +4585,7 @@ void MacroAssembler::get_inline_type_field_klass(Register klass, Register index,
     bind(done);
   }
 #endif
-  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr));
+  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr, Array<InlineKlass*>::base_offset_in_bytes()));
 }
 
 void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {

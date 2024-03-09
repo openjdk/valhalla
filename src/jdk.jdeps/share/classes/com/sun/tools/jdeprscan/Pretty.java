@@ -149,7 +149,6 @@ public class Pretty {
             case 'V':
                 name = "void";
                 break;
-            case 'Q':
             case 'L':
                 int semi = desc.indexOf(';', pos);
                 if (semi == -1) {

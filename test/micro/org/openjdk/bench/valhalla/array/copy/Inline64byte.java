@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@ public class Inline64byte extends StatesQ64byte {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_copy(Ref_as_Ref s, Val_as_Val d) {
-        Q64byte.ref[] src = s.arr;
+        Q64byte[] src = s.arr;
         Q64byte[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -65,7 +65,7 @@ public class Inline64byte extends StatesQ64byte {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_copy(Val_as_Val s, Ref_as_Ref d) {
         Q64byte[] src = s.arr;
-        Q64byte.ref[] dst = d.arr;
+        Q64byte[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }

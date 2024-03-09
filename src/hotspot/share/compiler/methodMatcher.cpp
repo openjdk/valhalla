@@ -303,9 +303,8 @@ void MethodMatcher::parse_method_pattern(char*& line, const char*& error_msg, Me
     if ((strchr(method_name, JVM_SIGNATURE_SPECIAL) != nullptr) ||
         (strchr(method_name, JVM_SIGNATURE_ENDSPECIAL) != nullptr)) {
       if (!vmSymbols::object_initializer_name()->equals(method_name) &&
-          !vmSymbols::class_initializer_name()->equals(method_name) &&
-          !vmSymbols::inline_factory_name()->equals(method_name)) {
-        error_msg = "Chars '<' and '>' only allowed in <init>, <clinit> and <vnew>";
+          !vmSymbols::class_initializer_name()->equals(method_name)) {
+        error_msg = "Chars '<' and '>' only allowed in <init>, <clinit>";
         return;
       }
     }

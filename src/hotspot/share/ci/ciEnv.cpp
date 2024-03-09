@@ -529,8 +529,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   // is exhausted.
   if (Signature::is_array(sym) &&
       (sym->char_at(1) == JVM_SIGNATURE_ARRAY ||
-       sym->char_at(1) == JVM_SIGNATURE_CLASS ||
-       sym->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT )) {
+       sym->char_at(1) == JVM_SIGNATURE_CLASS )) {
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     SignatureStream ss(sym, false);
@@ -543,7 +542,10 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != nullptr && elem_klass->is_loaded()) {
       // Now make an array for it
-      bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
+      // JEP 401 doesn't provide static information about null-freeness,
+      // This code should be revisited or removed: JDK-8325660
+      bool null_free_array = false;
+      // bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
       return ciArrayKlass::make(elem_klass, null_free_array);
     }
   }
@@ -573,17 +575,6 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   int i = 0;
   while (sym->char_at(i) == JVM_SIGNATURE_ARRAY) {
     i++;
-  }
-  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
-    // An unloaded array class of inline types is an ObjArrayKlass, an
-    // unloaded inline type class is an InstanceKlass. For consistency,
-    // make the signature of the unloaded array of inline type use L
-    // rather than Q.
-    char* new_name = name_buffer(sym->utf8_length()+1);
-    strncpy(new_name, (char*)sym->base(), sym->utf8_length());
-    new_name[i] = JVM_SIGNATURE_CLASS;
-    new_name[sym->utf8_length()] = '\0';
-    return get_unloaded_klass(accessing_klass, ciSymbol::make(new_name));
   }
   return get_unloaded_klass(accessing_klass, name);
 }
@@ -669,14 +660,6 @@ ciKlass* ciEnv::get_klass_by_index(const constantPoolHandle& cpool,
                                    bool& is_accessible,
                                    ciInstanceKlass* accessor) {
   GUARDED_VM_ENTRY(return get_klass_by_index_impl(cpool, index, is_accessible, accessor);)
-}
-
-// ------------------------------------------------------------------
-// ciEnv::is_inline_klass
-//
-// Check if the klass is an inline klass.
-bool ciEnv::has_Q_signature(const constantPoolHandle& cpool, int index) {
-  GUARDED_VM_ENTRY(return cpool->klass_name_at(index)->is_Q_signature();)
 }
 
 // ------------------------------------------------------------------
@@ -775,11 +758,7 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
     bool will_link;
     ciKlass* klass = get_klass_by_index_impl(cpool, index, will_link, accessor);
     ciInstance* mirror = (will_link ? klass->java_mirror() : get_unloaded_klass_mirror(klass));
-    if (klass->is_loaded() && tag.is_Qdescriptor_klass()) {
-      return ciConstant(T_OBJECT, klass->as_inline_klass()->val_mirror());
-    } else {
-      return ciConstant(T_OBJECT, mirror);
-    }
+    return ciConstant(T_OBJECT, mirror);
   } else if (tag.is_method_type() || tag.is_method_type_in_error()) {
     // must execute Java code to link this CP entry into cache[i].f1
     assert(obj_index >= 0, "should have an object index");

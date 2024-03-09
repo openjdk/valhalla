@@ -68,6 +68,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 import static com.sun.tools.javac.code.TypeTag.*;
+import java.util.Comparator;
 
 /** Helper class for type parameter inference, used by the attribution phase.
  *
@@ -340,7 +341,7 @@ public class Infer {
         try {
             for (String graph : pendingGraphs.reverse()) {
                 Assert.checkNonNull(dependenciesFolder);
-                Name name = msym.name.table.names.isInit(msym.name) ?
+                Name name = msym.name == msym.name.table.names.init ?
                         msym.owner.name : msym.name;
                 String filename = String.format("%s@%s[mode=%s,step=%s]_%d.dot",
                         name,

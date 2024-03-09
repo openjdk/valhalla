@@ -25,6 +25,7 @@
  * @test
  * @bug 8293134
  * @summary Test that a super abstract value class is allowed.
+ * @enablePreview
  * @run main AbstractValueClassTest
  */
 

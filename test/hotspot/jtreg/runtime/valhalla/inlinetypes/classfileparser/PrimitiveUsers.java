@@ -22,6 +22,7 @@
  *
  */
 /*
+ * @ignore
  * @test PrimitiveUsers
  * @summary test that if a class file uses primitive classes, -XX:+EnablePrimitiveClasses must be set.
  * @compile PrimitiveUsers.jcod

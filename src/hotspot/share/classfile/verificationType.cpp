@@ -65,12 +65,12 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
   }
 
   // Need to do this check when called from CDS.
-  if (this_class->access_flags().is_primitive_class()) {
-    Klass* from_class = SystemDictionary::resolve_or_fail(
-      from_name, Handle(THREAD, klass->class_loader()),
-      Handle(THREAD, klass->protection_domain()), true, CHECK_false);
-    return from_class == this_class;
-  }
+  // if (this_class->access_flags().is_primitive_class()) {
+  //   Klass* from_class = SystemDictionary::resolve_or_fail(
+  //     from_name, Handle(THREAD, klass->class_loader()),
+  //     Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+  //   return from_class == this_class;
+  // }
   if (this_class->is_interface() && (!from_field_is_protected ||
       from_name != vmSymbols::java_lang_Object())) {
     // If we are not trying to access a protected field or method in
@@ -221,16 +221,13 @@ VerificationType VerificationType::get_component(ClassVerifier *context) const {
     case T_FLOAT:   return VerificationType(Float);
     case T_DOUBLE:  return VerificationType(Double);
     case T_ARRAY:
-    case T_OBJECT:
-    case T_PRIMITIVE_OBJECT: {
+    case T_OBJECT: {
       guarantee(ss.is_reference(), "unchecked verifier input?");
       Symbol* component = ss.as_symbol();
       // Create another symbol to save as signature stream unreferences this symbol.
       Symbol* component_copy = context->create_temporary_symbol(component);
       assert(component_copy == component, "symbols don't match");
-      return (ss.type() == T_PRIMITIVE_OBJECT) ?
-        VerificationType::inline_type(component_copy) :
-        VerificationType::reference_type(component_copy);
+      return VerificationType::reference_type(component_copy);
    }
    default:
      // Met an invalid type signature, e.g. [X
@@ -266,8 +263,6 @@ void VerificationType::print_on(outputStream* st) const {
         st->print("uninitializedThis");
       } else if (is_uninitialized()) {
         st->print("uninitialized %d", bci());
-      } else if (is_inline_type()) {
-        name()->print_Qvalue_on(st);
       } else {
         if (name() != nullptr) {
           name()->print_value_on(st);
