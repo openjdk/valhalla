@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8156486
+ * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
  * @run testng/othervm VarHandleTestMethodTypeValue
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=true -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true VarHandleTestMethodTypeValue
