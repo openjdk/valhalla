@@ -22,7 +22,7 @@
  */
 
 /* @test
- * @bug 8196830 8235351 8257874
+ * @bug 8196830 8235351 8257874 8327639
  * @modules java.base/jdk.internal.reflect
  * @run testng/othervm CallerSensitiveAccess
  * @summary Check Lookup findVirtual, findStatic and unreflect behavior with
@@ -50,22 +50,29 @@ import java.util.stream.Stream;
 
 import jdk.internal.reflect.CallerSensitive;
 
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.NoInjection;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class CallerSensitiveAccess {
+    // Cache the list of Caller Sensitive Methods
+    private static List<Method> CALLER_SENSITIVE_METHODS;
+
+    @BeforeClass
+    private void setupCallerSensitiveMethods() {
+        CALLER_SENSITIVE_METHODS = callerSensitiveMethods(Object.class.getModule());
+    }
 
     /**
      * Caller sensitive methods in APIs exported by java.base.
      */
     @DataProvider(name = "callerSensitiveMethods")
     static Object[][] callerSensitiveMethods() {
-        try (Stream<Method> stream = callerSensitiveMethods(Object.class.getModule()).stream()) {
-            return stream.map(m -> new Object[]{m, shortDescription(m)})
-                    .toArray(Object[][]::new);
-        }
+        return CALLER_SENSITIVE_METHODS.stream()
+                .map(m -> new Object[]{m, shortDescription(m)})
+                .toArray(Object[][]::new);
     }
 
     /**
@@ -101,13 +108,11 @@ public class CallerSensitiveAccess {
      */
     @DataProvider(name = "accessibleCallerSensitiveMethods")
     static Object[][] accessibleCallerSensitiveMethods() {
-        try (Stream<Method> stream = callerSensitiveMethods(Object.class.getModule()).stream()) {
-            return stream
+        return CALLER_SENSITIVE_METHODS.stream()
                 .filter(m -> Modifier.isPublic(m.getModifiers()))
                 .map(m -> { m.setAccessible(true); return m; })
                 .map(m -> new Object[] { m, shortDescription(m) })
                 .toArray(Object[][]::new);
-        }
     }
 
     /**
