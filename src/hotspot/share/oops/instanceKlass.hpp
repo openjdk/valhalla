@@ -57,7 +57,6 @@ class RecordComponent;
 //      The embedded nonstatic oop-map blocks are short pairs (offset, length)
 //      indicating where oops are located in instances of this klass.
 //    [EMBEDDED implementor of the interface] only exist for interface
-//    [EMBEDDED inline_type_field_klasses] only if has_inline_fields() == true
 //    [EMBEDDED InlineKlassFixedBlock] only if is an InlineKlass instance
 
 
@@ -298,7 +297,7 @@ class InstanceKlass: public Klass {
   Array<u1>*          _fieldinfo_stream;
   Array<FieldStatus>* _fields_status;
 
-  const Klass**   _inline_type_field_klasses; // For "inline class" fields, null if none present
+  Array<InlineKlass*>* _inline_type_field_klasses; // For "inline class" fields, null if none present
   Array<u2>* _preload_classes;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
@@ -377,12 +376,6 @@ class InstanceKlass: public Klass {
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
-  bool carries_value_modifier() const { return _misc_flags.carries_value_modifier(); }
-  void set_carries_value_modifier()   { _misc_flags.set_carries_value_modifier(true); }
-
-  bool carries_identity_modifier() const  { return _misc_flags.carries_identity_modifier(); }
-  void set_carries_identity_modifier()    { _misc_flags.set_carries_identity_modifier(true); }
-
   bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
   void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
@@ -444,14 +437,15 @@ class InstanceKlass: public Klass {
   FieldInfo field(int index) const;
 
  public:
-  int     field_offset      (int index) const { return field(index).offset(); }
-  int     field_access_flags(int index) const { return field(index).access_flags().as_int(); }
+  int field_offset      (int index) const { return field(index).offset(); }
+  int field_access_flags(int index) const { return field(index).access_flags().as_int(); }
   FieldInfo::FieldFlags field_flags(int index) const { return field(index).field_flags(); }
   FieldStatus field_status(int index)   const { return fields_status()->at(index); }
   inline Symbol* field_name        (int index) const;
   inline Symbol* field_signature   (int index) const;
-  bool    field_is_flat(int index) const { return field_flags(index).is_flat(); }
-  bool    field_is_null_free_inline_type(int index) const;
+  bool field_is_flat(int index) const { return field_flags(index).is_flat(); }
+  bool field_is_null_free_inline_type(int index) const;
+  bool is_class_in_preload_attribute(Symbol* name) const;
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -1001,13 +995,12 @@ public:
   static int size(int vtable_length, int itable_length,
                   int nonstatic_oop_map_size,
                   bool is_interface,
-                  int java_fields, bool is_inline_type) {
+                  bool is_inline_type) {
     return align_metadata_size(header_size() +
            vtable_length +
            itable_length +
            nonstatic_oop_map_size +
            (is_interface ? (int)sizeof(Klass*)/wordSize : 0) +
-           (java_fields * (int)sizeof(Klass*)/wordSize) +
            (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0));
   }
 
@@ -1015,7 +1008,6 @@ public:
                                                itable_length(),
                                                nonstatic_oop_map_size(),
                                                is_interface(),
-                                               has_inline_type_fields() ? java_fields_count() : 0,
                                                is_inline_klass());
   }
 
@@ -1030,10 +1022,12 @@ public:
 
   inline InstanceKlass* volatile* adr_implementor() const;
 
-  inline address adr_inline_type_field_klasses() const;
-  inline Klass* get_inline_type_field_klass(int idx) const;
-  inline Klass* get_inline_type_field_klass_or_null(int idx) const;
-  inline void set_inline_type_field_klass(int idx, Klass* k);
+  Array<InlineKlass*>* inline_type_field_klasses_array() const { return _inline_type_field_klasses; }
+  void set_inline_type_field_klasses_array(Array<InlineKlass*>* array) { _inline_type_field_klasses = array; }
+
+  inline InlineKlass* get_inline_type_field_klass(int idx) const;
+  inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;
+  inline void set_inline_type_field_klass(int idx, InlineKlass* k);
   inline void reset_inline_type_field_klass(int idx);
 
   // Use this to return the size of an instance in heap words:

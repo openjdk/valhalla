@@ -27,8 +27,8 @@
  * @summary Check array creation with V and V.ref
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @modules jdk.compiler
- * @compile -XDenableNullRestrictedTypes ArrayCreationWithQuestion.java
- * @run main ArrayCreationWithQuestion
+ * @compile --enable-preview -source ${jdk.version} ArrayCreationWithQuestion.java
+ * @run main/othervm --enable-preview ArrayCreationWithQuestion
  */
 
 import java.io.PrintWriter;
@@ -51,6 +51,11 @@ public class ArrayCreationWithQuestion {
             a3 = new VT![42];
             a4 = new VT![42];
         }
+
+        VT() {
+            a1 = new VT[42];
+            a2 = new VT[42];
+        }
     }
 
     public static void main(String[] args) {
@@ -62,10 +67,8 @@ public class ArrayCreationWithQuestion {
                 Paths.get(System.getProperty("test.classes"),
                         "ArrayCreationWithQuestion$VT.class").toString() };
         runCheck(params, new String [] {
-                "         7: anewarray     #7                  // class ArrayCreationWithQuestion$VT",
-                "        16: anewarray     #7                  // class ArrayCreationWithQuestion$VT",
-                "        30: invokestatic  #22                 // Method java/lang/reflect/Array.newInstance:(Ljava/lang/Class;I)Ljava/lang/Object;",
-                "        47: invokestatic  #22                 // Method java/lang/reflect/Array.newInstance:(Ljava/lang/Class;I)Ljava/lang/Object;",
+                "         3: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
+                "        12: anewarray     #1                  // class ArrayCreationWithQuestion$VT",
         });
 
     }

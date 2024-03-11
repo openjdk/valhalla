@@ -844,7 +844,7 @@ void GenerateOopMap::merge_state(GenerateOopMap *gom, int bci, int* data) {
 }
 
 void GenerateOopMap::set_var(int localNo, CellTypeState cts) {
-  assert(cts.is_reference() || cts.is_inline_type() || cts.is_address(),
+  assert(cts.is_reference() || cts.is_value() || cts.is_address(),
          "wrong celltypestate");
   if (localNo < 0 || localNo > _max_locals) {
     verify_error("variable write error: r%d", localNo);
@@ -1385,9 +1385,6 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_new:               ppush1(CellTypeState::make_line_ref(itr->bci()));
                                         break;
 
-    case Bytecodes::_aconst_init:      ppush1(CellTypeState::make_line_ref(itr->bci())); break;
-    case Bytecodes::_withfield:        do_withfield(itr->get_index_u2(), itr->bci(), itr->code()); break;
-
     case Bytecodes::_iconst_m1:
     case Bytecodes::_iconst_0:
     case Bytecodes::_iconst_1:
@@ -1737,7 +1734,7 @@ void GenerateOopMap::ppop(CellTypeState *out) {
 }
 
 void GenerateOopMap::ppush1(CellTypeState in) {
-  assert(in.is_reference() || in.is_inline_type(), "sanity check");
+  assert(in.is_reference() || in.is_value(), "sanity check");
   push(in);
 }
 
@@ -1999,33 +1996,6 @@ void GenerateOopMap::do_method(int is_static, int idx, int bci, Bytecodes::Code 
 
   // Push return address
   ppush(out);
-}
-
-void GenerateOopMap::do_withfield(int idx, int bci, Bytecodes::Code bc) {
-  // Dig up signature for field in constant pool
-  ConstantPool* cp = method()->constants();
-  int nameAndTypeIdx = cp->name_and_type_ref_index_at(idx, bc);
-  int signatureIdx = cp->signature_ref_index_at(nameAndTypeIdx);
-  Symbol* signature = cp->symbol_at(signatureIdx);
-
-  // Parse signature (especially simple for fields)
-  assert(signature->utf8_length() > 0,
-      "field signatures cannot have zero length");
-  // The signature is UFT8 encoded, but the first char is always ASCII for signatures.
-  CellTypeState temp[4];
-  CellTypeState *eff = signature_to_effect(signature, bci, temp);
-
-  CellTypeState in[4];
-  int i = copy_cts(in, eff);
-  in[i++] = CellTypeState::ref;
-  in[i] = CellTypeState::bottom;
-  assert(i <= 3, "sanity check");
-
-  CellTypeState out[2];
-  out[0] = CellTypeState::ref;
-  out[1] = CellTypeState::bottom;
-
-  pp(in, out);
 }
 
 // This is used to parse the signature for fields, since they are very simple...

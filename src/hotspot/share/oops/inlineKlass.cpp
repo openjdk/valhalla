@@ -186,7 +186,7 @@ Klass* InlineKlass::value_array_klass(int n, TRAPS) {
         if (flat_array()) {
           k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
         } else {
-          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, true, CHECK_NULL);
+          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
 
         }
         // use 'release' to pair with lock-free load
@@ -249,9 +249,6 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
       count += InlineKlass::cast(vk)->collect_fields(sig, offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
-      if (bt == T_PRIMITIVE_OBJECT) {
-        bt = T_OBJECT;
-      }
       SigEntry::add_entry(sig, bt, fs.signature(), offset);
       count += type2size[bt];
     }

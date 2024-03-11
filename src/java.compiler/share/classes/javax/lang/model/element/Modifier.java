@@ -60,7 +60,6 @@ public enum Modifier {
      * @since 1.8
      */
      DEFAULT,
-
     /** The modifier {@code static} */          STATIC,
 
     /**
@@ -84,12 +83,6 @@ public enum Modifier {
      * @since 18
      */
     VALUE,
-
-    /**
-     * The modifier {@code identity}
-     * @since 18
-     */
-    IDENTITY,
 
     /**
      * The modifier {@code implicit}

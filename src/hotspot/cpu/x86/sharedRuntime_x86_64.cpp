@@ -526,7 +526,6 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
-    case T_PRIMITIVE_OBJECT:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
@@ -605,7 +604,6 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt,
       assert(sig_bt[i + 1] == T_VOID, "expecting half");
       // fall through
     case T_OBJECT:
-    case T_PRIMITIVE_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
     case T_METADATA:
@@ -736,7 +734,6 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
                                    const Address& to,
                                    int extraspace,
                                    bool is_oop) {
-  assert(bt != T_PRIMITIVE_OBJECT || !InlineTypePassFieldsAsArgs, "no inline type here");
   if (bt == T_VOID) {
     assert(prev_bt == T_LONG || prev_bt == T_DOUBLE, "missing half");
     return;
@@ -1382,7 +1379,6 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
         // fall through
       case T_OBJECT:
       case T_ARRAY:
-      case T_PRIMITIVE_OBJECT:
       case T_ADDRESS:
       case T_METADATA:
         if (int_args < Argument::n_int_register_parameters_c) {
@@ -2309,7 +2305,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 #endif /* ASSERT */
     switch (in_sig_bt[i]) {
       case T_ARRAY:
-      case T_PRIMITIVE_OBJECT:
       case T_OBJECT:
         __ object_move(map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
                     ((i == 0) && (!is_static)),
@@ -2504,7 +2499,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in xmm0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_PRIMITIVE_OBJECT:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;

@@ -353,7 +353,7 @@ public class LambdaToMethod extends TreeTranslator {
 
 
             boolean init;
-            if ((init = names.isInit(owner.name)) || owner.name == names.clinit) {
+            if ((init = (owner.name == names.init)) || owner.name == names.clinit) {
                 owner = owner.owner;
                 apportionTypeAnnotations(tree,
                         init ? owner::getInitTypeAttributes : owner::getClassInitTypeAttributes,
@@ -372,7 +372,7 @@ public class LambdaToMethod extends TreeTranslator {
         //create the method declaration hoisting the lambda body
         JCMethodDecl lambdaDecl = make.MethodDef(make.Modifiers(sym.flags_field),
                 sym.name,
-                make.QualIdent(lambdaType.getReturnType().tsym).setType(lambdaType.getReturnType()),
+                make.QualIdent(lambdaType.getReturnType().tsym),
                 List.nil(),
                 localContext.syntheticParams,
                 lambdaType.getThrownTypes() == null ?
@@ -1772,7 +1772,7 @@ public class LambdaToMethod extends TreeTranslator {
         private boolean lambdaIdentSymbolFilter(Symbol sym) {
             return (sym.kind == VAR || sym.kind == MTH)
                     && !sym.isStatic()
-                    && !names.isInit(sym.name);
+                    && sym.name != names.init;
         }
 
         /**
@@ -2348,7 +2348,7 @@ public class LambdaToMethod extends TreeTranslator {
                         !receiverAccessible() ||
                         (tree.getMode() == ReferenceMode.NEW &&
                           tree.kind != ReferenceKind.ARRAY_CTOR &&
-                          (tree.sym.owner.isDirectlyOrIndirectlyLocal() || tree.sym.owner.isInner() || tree.sym.owner.isValueClass()));
+                          (tree.sym.owner.isDirectlyOrIndirectlyLocal() || tree.sym.owner.isInner()));
             }
 
             Type generatedRefSig() {

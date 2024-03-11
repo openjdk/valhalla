@@ -2492,6 +2492,10 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
     // --enable_preview
     } else if (match_option(option, "--enable-preview")) {
       set_enable_preview();
+      // --enable-preview enables Valhalla, EnableValhalla VM option will eventually be removed before integration
+      if (FLAG_SET_CMDLINE(EnableValhalla, true) != JVMFlag::SUCCESS) {
+        return JNI_EINVAL;
+      }
     // -Xnoclassgc
     } else if (match_option(option, "-Xnoclassgc")) {
       if (FLAG_SET_CMDLINE(ClassUnloading, false) != JVMFlag::SUCCESS) {
@@ -2958,12 +2962,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
     } else if (is_bad_option(option, args->ignoreUnrecognized)) {
       return JNI_ERR;
     }
-  }
-
-  if (!EnableValhalla && EnablePrimitiveClasses) {
-    jio_fprintf(defaultStream::error_stream(),
-                "Cannot specify -XX:+EnablePrimitiveClasses without -XX:+EnableValhalla");
-    return JNI_EINVAL;
   }
 
   // PrintSharedArchiveAndExit will turn on

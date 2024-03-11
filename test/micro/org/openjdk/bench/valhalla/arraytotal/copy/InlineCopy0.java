@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,7 +104,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Obj_to_Ref_as_Obj_to_Ref_copy(Obj_as_Obj s, Ref_as_Ref d) {
         Object[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -114,7 +114,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Obj_to_Val_as_Obj_to_Ref_copy(Obj_as_Obj s, Val_as_Ref d) {
         Object[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -204,7 +204,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Int_to_Ref_as_Obj_to_Ref_copy(Int_as_Obj s, Ref_as_Ref d) {
         Object[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -214,7 +214,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Int_to_Val_as_Obj_to_Ref_copy(Int_as_Obj s, Val_as_Ref d) {
         Object[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -304,7 +304,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Obj_to_Ref_copy(Ref_as_Obj s, Ref_as_Ref d) {
         Object[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -314,7 +314,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Obj_to_Ref_copy(Ref_as_Obj s, Val_as_Ref d) {
         Object[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -404,7 +404,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Obj_to_Ref_copy(Val_as_Obj s, Ref_as_Ref d) {
         Object[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -414,7 +414,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Val_as_Obj_to_Ref_copy(Val_as_Obj s, Val_as_Ref d) {
         Object[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -504,7 +504,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Int_to_Ref_as_Int_to_Ref_copy(Int_as_Int s, Ref_as_Ref d) {
         Int64[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -514,7 +514,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Int_to_Val_as_Int_to_Ref_copy(Int_as_Int s, Val_as_Ref d) {
         Int64[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -604,7 +604,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Int_to_Ref_copy(Ref_as_Int s, Ref_as_Ref d) {
         Int64[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -614,7 +614,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Int_to_Ref_copy(Ref_as_Int s, Val_as_Ref d) {
         Int64[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -704,7 +704,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Int_to_Ref_copy(Val_as_Int s, Ref_as_Ref d) {
         Int64[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -714,7 +714,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Val_as_Int_to_Ref_copy(Val_as_Int s, Val_as_Ref d) {
         Int64[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = (Q64long)src[i];
         }
@@ -733,7 +733,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Obj_as_Ref_to_Obj_copy(Ref_as_Ref s, Obj_as_Obj d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Object[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -743,7 +743,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Int_as_Ref_to_Obj_copy(Ref_as_Ref s, Int_as_Obj d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Object[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -753,7 +753,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_to_Obj_copy(Ref_as_Ref s, Ref_as_Obj d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Object[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -763,7 +763,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_to_Obj_copy(Ref_as_Ref s, Val_as_Obj d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Object[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -773,7 +773,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Int_as_Ref_to_Int_copy(Ref_as_Ref s, Int_as_Int d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Int64[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -783,7 +783,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_to_Int_copy(Ref_as_Ref s, Ref_as_Int d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Int64[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -793,7 +793,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_to_Int_copy(Ref_as_Ref s, Val_as_Int d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Int64[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -803,8 +803,8 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_to_Ref_copy(Ref_as_Ref s, Ref_as_Ref d) {
-        Q64long.ref[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] src = s.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }
@@ -813,8 +813,8 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_to_Ref_copy(Ref_as_Ref s, Val_as_Ref d) {
-        Q64long.ref[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] src = s.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }
@@ -823,7 +823,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_to_Val_copy(Ref_as_Ref s, Val_as_Val d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -833,7 +833,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Obj_as_Ref_to_Obj_copy(Val_as_Ref s, Obj_as_Obj d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Object[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -843,7 +843,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Int_as_Ref_to_Obj_copy(Val_as_Ref s, Int_as_Obj d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Object[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -853,7 +853,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Ref_to_Obj_copy(Val_as_Ref s, Ref_as_Obj d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Object[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -863,7 +863,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Val_as_Ref_to_Obj_copy(Val_as_Ref s, Val_as_Obj d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Object[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -873,7 +873,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Int_as_Ref_to_Int_copy(Val_as_Ref s, Int_as_Int d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Int64[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -883,7 +883,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Ref_to_Int_copy(Val_as_Ref s, Ref_as_Int d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Int64[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -893,7 +893,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Val_as_Ref_to_Int_copy(Val_as_Ref s, Val_as_Int d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Int64[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -903,8 +903,8 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Ref_to_Ref_copy(Val_as_Ref s, Ref_as_Ref d) {
-        Q64long.ref[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] src = s.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }
@@ -913,8 +913,8 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Val_as_Ref_to_Ref_copy(Val_as_Ref s, Val_as_Ref d) {
-        Q64long.ref[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] src = s.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }
@@ -923,7 +923,7 @@ public class InlineCopy0 extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Val_as_Ref_to_Val_copy(Val_as_Ref s, Val_as_Val d) {
-        Q64long.ref[] src = s.arr;
+        Q64long[] src = s.arr;
         Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -1004,7 +1004,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Val_to_Ref_copy(Val_as_Val s, Ref_as_Ref d) {
         Q64long[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }
@@ -1014,7 +1014,7 @@ public class InlineCopy0 extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Val_as_Val_to_Ref_copy(Val_as_Val s, Val_as_Ref d) {
         Q64long[] src = s.arr;
-        Q64long.ref[] dst = d.arr;
+        Q64long[] dst = d.arr;
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }

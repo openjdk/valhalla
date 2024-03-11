@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ public abstract class Inline extends Base {
 
     public static final Complex IZERO = new QComplex(0,0);
     public static final QComplex VZERO = new QComplex(0,0);
-    public static final QComplex.ref RZERO = new QComplex(0,0);
+    public static final QComplex RZERO = new QComplex(0,0);
 
     private static void populate(Complex[][] m) {
         int size = m.length;
@@ -50,25 +50,25 @@ public abstract class Inline extends Base {
 //    }
 
     public static class Ref extends Inline {
-        QComplex.ref[][] A;
-        QComplex.ref[][] B;
+        QComplex[][] A;
+        QComplex[][] B;
 
         @Setup
         public void setup() {
-            A = new QComplex.ref[size][size];
+            A = new QComplex[size][size];
             populate(A);
-            B = new QComplex.ref[size][size];
+            B = new QComplex[size][size];
             populate(B);
         }
 
         @Benchmark
         @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-        public QComplex.ref[][] multiply() {
+        public QComplex[][] multiply() {
             int size = A.length;
-            QComplex.ref[][] R = new QComplex.ref[size][size];
+            QComplex[][] R = new QComplex[size][size];
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < size; j++) {
-                    QComplex.ref s = RZERO;
+                    QComplex s = RZERO;
                     for (int k = 0; k < size; k++) {
                         s = s.add(A[i][k].mul(B[k][j]));
                     }
@@ -218,8 +218,8 @@ public abstract class Inline extends Base {
     }
 
     public static class RCov extends Inline {
-        QComplex.ref[][] A;
-        QComplex.ref[][] B;
+        QComplex[][] A;
+        QComplex[][] B;
 
         @Setup
         public void setup() {
@@ -231,12 +231,12 @@ public abstract class Inline extends Base {
 
         @Benchmark
         @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-        public QComplex.ref[][] multiply() {
+        public QComplex[][] multiply() {
             int size = A.length;
-            QComplex.ref[][] R = new QComplex[size][size];
+            QComplex[][] R = new QComplex[size][size];
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < size; j++) {
-                    QComplex.ref s = RZERO;
+                    QComplex s = RZERO;
                     for (int k = 0; k < size; k++) {
                         s = s.add(A[i][k].mul(B[k][j]));
                     }

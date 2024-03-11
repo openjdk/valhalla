@@ -69,7 +69,8 @@ void GraphKit::make_dtrace_method_entry_exit(ciMethod* method, bool is_entry) {
 void Parse::do_checkcast() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
-  bool null_free = iter().has_Q_signature();
+  // bool null_free = iter().has_Q_signature();
+  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
   Node *obj = peek();
 
   // Throw uncommon trap if class is not loaded or the value we are casting
@@ -318,71 +319,6 @@ void Parse::do_new() {
   if (C->eliminate_boxing() && klass->is_box_klass()) {
     C->set_has_boxed_value(true);
   }
-}
-
-//------------------------------do_aconst_init---------------------------------
-void Parse::do_aconst_init() {
-  bool will_link;
-  ciInlineKlass* vk = iter().get_klass(will_link)->as_inline_klass();
-  assert(will_link && !iter().is_unresolved_klass(), "aconst_init: typeflow responsibility");
-
-  if (C->needs_clinit_barrier(vk, method())) {
-    clinit_barrier(vk, method());
-    if (stopped())  return;
-  }
-
-  push(InlineTypeNode::make_default(_gvn, vk));
-}
-
-//------------------------------do_withfield------------------------------------
-void Parse::do_withfield() {
-  bool will_link;
-  ciField* field = iter().get_field(will_link);
-  assert(will_link, "withfield: typeflow responsibility");
-  int holder_depth = field->type()->size();
-  null_check(peek(holder_depth));
-  if (stopped()) {
-    return;
-  }
-  Node* val = pop_node(field->layout_type());
-  Node* holder = pop();
-
-  if (field->is_null_free()) {
-    PreserveReexecuteState preexecs(this);
-    jvms()->set_should_reexecute(true);
-    int nargs = 1 + field->type()->size();
-    inc_sp(nargs);
-    val = null_check(val);
-    if (stopped()) {
-      return;
-    }
-  }
-  if (!val->is_InlineType() && field->type()->is_inlinetype()) {
-    // Scalarize inline type field value
-    val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
-  } else if (val->is_InlineType() && !field->is_flat()) {
-    // Field value needs to be allocated because it can be merged with an oop.
-    // Re-execute withfield if buffering triggers deoptimization.
-    PreserveReexecuteState preexecs(this);
-    jvms()->set_should_reexecute(true);
-    int nargs = 1 + field->type()->size();
-    inc_sp(nargs);
-    val = val->as_InlineType()->buffer(this);
-  }
-
-  // Clone the inline type node and set the new field value
-  InlineTypeNode* new_vt = holder->clone()->as_InlineType();
-  new_vt->set_oop(gvn().zerocon(T_OBJECT));
-  new_vt->set_is_buffered(gvn(), false);
-  new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
-  {
-    PreserveReexecuteState preexecs(this);
-    jvms()->set_should_reexecute(true);
-    int nargs = 1 + field->type()->size();
-    inc_sp(nargs);
-    new_vt = new_vt->adjust_scalarization_depth(this);
-  }
-  push(_gvn.transform(new_vt));
 }
 
 #ifndef PRODUCT

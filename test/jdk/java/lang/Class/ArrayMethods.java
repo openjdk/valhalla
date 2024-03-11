@@ -102,7 +102,7 @@ public class ArrayMethods {
         if (thisFailed) {
             failed++;
             System.out.println(Arrays.asList(is));
-            System.out.println("Should contain exactly Cloneable and Serializable in that order.");
+            System.out.println("Should contain exactly Cloneable, Serializable in that order.");
         }
     }
 }

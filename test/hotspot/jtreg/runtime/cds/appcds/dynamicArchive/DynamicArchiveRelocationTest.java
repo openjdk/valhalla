@@ -30,7 +30,7 @@
  * @comment JDK-8231610 Relocate the CDS archive if it cannot be mapped to the requested address
  * @bug 8231610
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds /test/hotspot/jtreg/runtime/cds/appcds/test-classes
- * @compile -XDenablePrimitiveClasses ../test-classes/HelloInlineClassApp.java ../test-classes/HelloRelocation.java
+ * @compile ../test-classes/HelloInlineClassApp.java ../test-classes/HelloRelocation.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox

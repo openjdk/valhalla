@@ -361,7 +361,6 @@ class Frame {
             case 'D':
                 return DOUBLE;
             case 'L':
-            case 'Q':
                 internalName = buffer.substring(offset + 1, buffer.length() - 1);
                 return REFERENCE_KIND | symbolTable.addType(internalName);
             case '[':
@@ -396,7 +395,6 @@ class Frame {
                         typeValue = DOUBLE;
                         break;
                     case 'L':
-                    case 'Q':
                         internalName = buffer.substring(elementDescriptorOffset + 1, buffer.length() - 1);
                         typeValue = REFERENCE_KIND | symbolTable.addType(internalName);
                         break;

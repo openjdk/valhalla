@@ -27,14 +27,13 @@
  * @summary Hello World test for using inline classes with CDS
  * @requires vm.cds
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
- * @compile -XDenablePrimitiveClasses test-classes/HelloInlineClassApp.java
+ * @compile test-classes/HelloInlineClassApp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses HelloInlineClassTest
  */
 
 import jdk.test.lib.helpers.ClassFileInstaller;
 import jdk.test.lib.process.OutputAnalyzer;
-//@compile -XDenablePrimitiveClasses HelloInlineClassApp HelloInlineClassTest.java
 public class HelloInlineClassTest {
     public static void main(String[] args) throws Exception {
         String appJar = ClassFileInstaller.getJarPath("hello_inline.jar");

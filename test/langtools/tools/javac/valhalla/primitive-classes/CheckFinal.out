@@ -1,7 +1,0 @@
-CheckFinal.java:8:7: compiler.err.value.class.with.implicit.instance.field.initializer: CheckFinal
-CheckFinal.java:15:13: compiler.err.cant.assign.val.to.var: final, fi
-CheckFinal.java:16:13: compiler.err.cant.assign.val.to.var: final, fe
-CheckFinal.java:18:13: compiler.err.cant.assign.val.to.var: static final, xsf
-CheckFinal.java:20:30: compiler.err.cant.inherit.from.final: CheckFinal
-CheckFinal.java:20:44: compiler.err.identity.type.has.value.super.type: compiler.misc.anonymous.class: CheckFinal, CheckFinal
-6 errors

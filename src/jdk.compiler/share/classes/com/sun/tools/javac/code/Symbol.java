@@ -363,7 +363,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                 ((MethodType)t).restype = ((MethodType)t).restype.addMetadata(new TypeMetadata.NullMarker(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL));
             }
         }*/
-        if (isInit() && owner.hasOuterInstance()) {
+        if (name == name.table.names.init && owner.hasOuterInstance()) {
             Type outerThisType = types.erasure(owner.type.getEnclosingType());
             return new MethodType(t.getParameterTypes().prepend(outerThisType),
                                   t.getReturnType(),
@@ -423,23 +423,11 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     public boolean isValueClass() {
-        return !isInterface() && (flags_field & VALUE_CLASS) != 0;
-    }
-
-    public boolean isConcreteValueClass() {
-        return isValueClass() && !isAbstract();
+        return (flags_field & VALUE_CLASS) != 0;
     }
 
     public boolean isIdentityClass() {
         return !isInterface() && (flags_field & IDENTITY_TYPE) != 0;
-    }
-
-    public boolean isValueInterface() {
-        return isInterface() && (flags_field & VALUE_CLASS) != 0;
-    }
-
-    public boolean isIdentityInterface() {
-        return isInterface() && (flags_field & IDENTITY_TYPE) != 0;
     }
 
     public boolean isPublic() {
@@ -483,25 +471,13 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     /** Is this symbol a constructor?
      */
     public boolean isConstructor() {
-        return name == name.table.names.init && (flags() & STATIC) == 0;
-    }
-
-    /** Is this symbol a value object factory?
-     */
-    public boolean isValueClassConst() {
-        return name == name.table.names.init && this.owner.isValueClass();
+        return name == name.table.names.init;
     }
 
     /** Is this symbol an implicit constructor?
      */
     public boolean isImplicitConstructor() {
-        return isInit() && ((flags() & IMPLICIT) != 0);
-    }
-
-    /** Is this symbol a constructor or value factory?
-     */
-    public boolean isInit() {
-        return name.table.names.isInit(name);
+        return isConstructor() && ((flags() & IMPLICIT) != 0);
     }
 
     public boolean isDynamic() {
@@ -1714,7 +1690,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             for (Symbol s : members().getSymbols(NON_RECURSIVE)) {
                 switch (s.kind) {
                     case MTH:
-                        if (s.isInit()) {
+                        if (s.isConstructor()) {
                             if (s.isImplicitConstructor()) {
                                 return (MethodSymbol) s;
                             }
@@ -2048,7 +2024,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             if ((flags() & BLOCK) != 0) {
                 return owner.name.toString();
             } else {
-                String s = isInit()
+                String s = (name == name.table.names.init)
                     ? owner.name.toString()
                     : name.toString();
                 if (type != null) {
@@ -2110,7 +2086,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          *  override the erasure of the other when seen from class `origin'?
          */
         public boolean binaryOverrides(Symbol _other, TypeSymbol origin, Types types) {
-            if (isInit() || _other.kind != MTH) return false;
+            if (isConstructor() || _other.kind != MTH) return false;
 
             if (this == _other) return true;
             MethodSymbol other = (MethodSymbol)_other;
@@ -2179,7 +2155,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          */
         public boolean overrides(Symbol _other, TypeSymbol origin, Types types, boolean checkResult,
                                             boolean requireConcreteIfInherited) {
-            if (isInit() || _other.kind != MTH) return false;
+            if (isConstructor() || _other.kind != MTH) return false;
 
             if (this == _other) return true;
             MethodSymbol other = (MethodSymbol)_other;
@@ -2303,7 +2279,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public ElementKind getKind() {
-            if (isInit())
+            if (name == name.table.names.init)
                 return ElementKind.CONSTRUCTOR;
             else if (name == name.table.names.clinit)
                 return ElementKind.STATIC_INIT;
@@ -2491,7 +2467,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                         refSym.isStatic() ? ClassFile.REF_getStatic : ClassFile.REF_getField :
                         refSym.isStatic() ? ClassFile.REF_putStatic : ClassFile.REF_putField;
             } else {
-                if (refSym.isInit()) {
+                if (refSym.isConstructor()) {
                     return ClassFile.REF_newInvokeSpecial;
                 } else {
                     if (refSym.isStatic()) {

@@ -26,7 +26,7 @@
  * @enablePreview
  * @summary Test behavior of Pretty
  * @modules jdk.compiler
- * @ignore 8316628
+ * @ignore Verifier error
  */
 
 import java.io.IOException;

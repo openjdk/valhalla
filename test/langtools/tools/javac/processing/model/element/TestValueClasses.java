@@ -99,35 +99,28 @@ public class TestValueClasses extends TestRunner {
 
         tb.writeJavaFiles(r,
                 """
-                value interface ValueInterface {}
-
-                identity interface IdentityInterface {}
+                interface Interface {}
 
                 value class ValueClass {}
 
-                identity class IdentityClass {}
-
-                value class ValueClassWithImplicitConst {
-                    public implicit ValueClassWithImplicitConst();
-                }
+                class IdentityClass {}
                 """
         );
 
         List<String> expected = List.of(
-                "- compiler.note.proc.messager: visiting: ValueInterface Modifiers: [abstract, value]",
-                "- compiler.note.proc.messager: visiting: IdentityInterface Modifiers: [abstract, identity]",
+                "- compiler.note.proc.messager: visiting: Interface Modifiers: [abstract]",
                 "- compiler.note.proc.messager: visiting: ValueClass Modifiers: [value, final]",
                 "- compiler.note.proc.messager:     constructor modifiers: []",
-                "- compiler.note.proc.messager: visiting: IdentityClass Modifiers: [identity]",
+                "- compiler.note.proc.messager: visiting: IdentityClass Modifiers: []",
                 "- compiler.note.proc.messager:     constructor modifiers: []",
-                "- compiler.note.proc.messager: visiting: ValueClassWithImplicitConst Modifiers: [value, final]",
-                "- compiler.note.proc.messager:     constructor modifiers: [public, implicit]"
+                "- compiler.note.preview.filename: Interface.java, DEFAULT",
+                "- compiler.note.preview.recompile"
         );
 
         for (Mode mode : new Mode[] {Mode.API}) {
             List<String> log = new JavacTask(tb, mode)
-                    .options("-processor", ValueClassesProcessor.class.getName(),
-                            "-XDenableNullRestrictedTypes", "-XDrawDiagnostics")
+                    .options("--enable-preview", "-source", String.valueOf(Runtime.version().feature()), "-processor", ValueClassesProcessor.class.getName(),
+                            "-XDrawDiagnostics")
                     .files(findJavaFiles(src))
                     .outdir(classes)
                     .run()
@@ -182,7 +175,7 @@ public class TestValueClasses extends TestRunner {
                 for (Element elem : enclosedElements) {
                     System.out.println("visiting " + elem.getSimpleName());
                     switch (elem.getSimpleName().toString()) {
-                        case "<vnew>": case "<init>":
+                        case "<init>":
                             messager.printNote("    constructor modifiers: " + elem.getModifiers());
                             break;
                         default:

@@ -339,7 +339,6 @@ void TemplateTable::ldc(LdcType type)
   __ add(r3, r1, tags_offset);
   __ lea(r3, Address(r0, r3));
   __ ldarb(r3, r3);
-  __ andr(r3, r3, ~JVM_CONSTANT_QDescBit);
 
   // unresolved class - get the resolved class
   __ cmp(r3, (u1)JVM_CONSTANT_UnresolvedClass);
@@ -3875,7 +3874,6 @@ void TemplateTable::_new() {
   __ get_unsigned_2_byte_index_at_bcp(r3, 1);
   Label slow_case;
   Label done;
-  Label is_not_value;
   Label initialize_header;
 
   __ get_cpool_and_tags(r4, r0);
@@ -3891,14 +3889,6 @@ void TemplateTable::_new() {
 
   // get InstanceKlass
   __ load_resolved_klass_at_offset(r4, r3, r4, rscratch1);
-
-  __ ldrb(rscratch1, Address(r4, InstanceKlass::kind_offset()));
-  __ cmp(rscratch1, (u1)Klass::InlineKlassKind);
-  __ br(Assembler::NE, is_not_value);
-
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));
-
-  __ bind(is_not_value);
 
   // make sure klass is initialized & doesn't have finalizer
   // make sure klass is fully initialized
@@ -3920,30 +3910,6 @@ void TemplateTable::_new() {
   __ bind(done);
   // Must prevent reordering of stores for object initialization with stores that publish the new object.
   __ membar(Assembler::StoreStore);
-}
-
-void TemplateTable::aconst_init() {
-  transition(vtos, atos);
-  __ get_unsigned_2_byte_index_at_bcp(c_rarg2, 1);
-  __ get_constant_pool(c_rarg1);
-  call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::aconst_init),
-          c_rarg1, c_rarg2);
-  __ verify_oop(r0);
-  // Must prevent reordering of stores for object initialization with stores that publish the new object.
-  __ membar(Assembler::StoreStore);
-}
-
-void TemplateTable::withfield() {
-  transition(vtos, atos);
-
-  resolve_cache_and_index_for_field(f2_byte, c_rarg1 /*cache*/, c_rarg2 /*index*/);
-  __ lea(c_rarg2, at_tos());
-  call_VM(r1, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), c_rarg1, c_rarg2);
-  // new value type is returned in r1
-  // stack adjustment is returned in r0
-  __ verify_oop(r1);
-  __ add(esp, esp, r0);
-  __ mov(r0, r1);
 }
 
 void TemplateTable::newarray() {
@@ -3985,7 +3951,6 @@ void TemplateTable::checkcast()
   __ add(rscratch1, r3, Array<u1>::base_offset_in_bytes());
   __ lea(r1, Address(rscratch1, r19));
   __ ldarb(r1, r1);
-  __ andr(r1, r1, ~JVM_CONSTANT_QDescBit);
   __ cmp(r1, (u1)JVM_CONSTANT_Class);
   __ br(Assembler::EQ, quicked);
 
@@ -4025,21 +3990,6 @@ void TemplateTable::checkcast()
     __ profile_null_seen(r2);
   }
 
-  if (EnablePrimitiveClasses) {
-    // Get cpool & tags index
-    __ get_cpool_and_tags(r2, r3); // r2=cpool, r3=tags array
-    __ get_unsigned_2_byte_index_at_bcp(r19, 1); // r19=index
-     // See if bytecode has already been quicked
-    __ add(rscratch1, r3, Array<u1>::base_offset_in_bytes());
-    __ lea(r1, Address(rscratch1, r19));
-    __ ldarb(r1, r1);
-    // See if CP entry is a Q-descriptor
-    __ andr (r1, r1, JVM_CONSTANT_QDescBit);
-    __ cmp(r1, (u1) JVM_CONSTANT_QDescBit);
-    __ br(Assembler::NE, done);
-    __ b(ExternalAddress(Interpreter::_throw_NullPointerException_entry));
-  }
-
   __ bind(done);
 }
 
@@ -4055,7 +4005,6 @@ void TemplateTable::instanceof() {
   __ add(rscratch1, r3, Array<u1>::base_offset_in_bytes());
   __ lea(r1, Address(rscratch1, r19));
   __ ldarb(r1, r1);
-  __ andr(r1, r1, ~JVM_CONSTANT_QDescBit);
   __ cmp(r1, (u1)JVM_CONSTANT_Class);
   __ br(Assembler::EQ, quicked);
 

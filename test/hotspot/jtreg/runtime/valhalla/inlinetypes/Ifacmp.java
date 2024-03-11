@@ -33,10 +33,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @summary if_acmpeq/ne bytecode test
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile --source 22 --enable-preview Ifacmp.java
- * @run main/othervm --enable-preview
- *                   -XX:+EnableValhalla -Xms16m -Xmx16m -XX:+UseSerialGC
- *                   runtime.valhalla.inlinetypes.Ifacmp
+ * @enablePreview
+ * @compile --source 22 Ifacmp.java
+ * @run main/othervm -Xms16m -Xmx16m -XX:+UseSerialGC runtime.valhalla.inlinetypes.Ifacmp
  */
 public class Ifacmp {
 

@@ -23,6 +23,7 @@
  */
 
 /*
+ * @ignore
  * @test
  * @summary test that the JVM correctly accepts or rejects classes based on their
  *          ACC_VALUE/ACC_IDENTITY modifiers

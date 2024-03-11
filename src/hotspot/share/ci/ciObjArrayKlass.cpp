@@ -54,7 +54,10 @@ ciObjArrayKlass::ciObjArrayKlass(Klass* k) : ciArrayKlass(k) {
   if (!ciObjectFactory::is_initialized()) {
     assert(_element_klass->is_java_lang_Object(), "only arrays of object are shared");
   }
-  _null_free = k->name()->is_Q_array_signature() && k->name()->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
+  // JEP 401 doesn't provide static information about null-freeness,
+  // This code should be revisited or removed: JDK-8325660
+  // _null_free = k->name()->is_Q_array_signature() && k->name()->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
+  _null_free = false;
 }
 
 // ------------------------------------------------------------------
@@ -75,7 +78,10 @@ ciObjArrayKlass::ciObjArrayKlass(ciSymbol* array_name,
   } else {
     _element_klass = nullptr;
   }
-  _null_free = array_name->is_Q_array_signature() && array_name->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
+  // JEP 401 doesn't provide static information about null-freeness,
+  // This code should be revisited or removed: JDK-8325660
+  // _null_free = array_name->is_Q_array_signature() && array_name->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
+  _null_free = false;
 }
 
 // ------------------------------------------------------------------
@@ -120,7 +126,6 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
     name[pos] = JVM_SIGNATURE_ARRAY;
   }
   Symbol* base_name_sym = element_name->get_symbol();
-  assert(base_name_sym->char_at(0) != JVM_SIGNATURE_PRIMITIVE_OBJECT, "unloaded array klass element should not have Q-type");
   if (Signature::is_array(base_name_sym) ||
       Signature::has_envelope(base_name_sym)) {
     strncpy(&name[pos], (char*)element_name->base(), element_len);

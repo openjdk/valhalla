@@ -43,8 +43,7 @@ void AccessFlags::print_on(outputStream* st) const {
   if (is_abstract    ()) st->print("abstract "    );
   if (is_synthetic   ()) st->print("synthetic "   );
   if (is_identity_class()) st->print("identity "  );
-  if (is_value_class()) st->print("value "        );
-  if (is_primitive_class()) st->print("primitive ");
+  if (!is_identity_class()) st->print("value "    );
 }
 
 #endif // !PRODUCT || INCLUDE_JVMTI

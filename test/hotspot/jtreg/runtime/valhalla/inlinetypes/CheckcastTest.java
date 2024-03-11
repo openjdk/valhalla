@@ -26,10 +26,11 @@ package runtime.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 
 /*
+ * @ignore
  * @test CheckcastTest
  * @summary checkcast bytecode test
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses VDefaultTest.java CheckcastTest.java
+ * @compile VDefaultTest.java CheckcastTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.CheckcastTest
  */
 

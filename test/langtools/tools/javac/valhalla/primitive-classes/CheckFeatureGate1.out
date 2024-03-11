@@ -1,2 +1,0 @@
-CheckFeatureGate1.java:10:12: compiler.err.feature.not.supported.in.source.plural: (compiler.misc.feature.value.classes), 13, 21
-1 error

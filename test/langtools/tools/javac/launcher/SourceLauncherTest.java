@@ -38,7 +38,7 @@
  *          java.base/jdk.internal.module
  * @build toolbox.JavaTask toolbox.JavacTask toolbox.TestRunner toolbox.ToolBox
  * @run main SourceLauncherTest
- * @ignore 8316628
+ * @ignore Verifier error
  */
 
 import jdk.internal.classfile.*;

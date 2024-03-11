@@ -172,14 +172,6 @@ public interface TreeVisitor<R,P> {
     R visitContinue(ContinueTree node, P p);
 
     /**
-     * Visits a {@code DefaultValue} node.
-     * @param node the node being visited
-     * @param p a parameter value
-     * @return a result value
-     */
-    R visitDefaultValue(DefaultValueTree node, P p);
-
-    /**
      * Visits a {@code DoWhileTree} node.
      * @param node the node being visited
      * @param p a parameter value
@@ -558,7 +550,6 @@ public interface TreeVisitor<R,P> {
     R visitWhileLoop(WhileLoopTree node, P p);
 
     /**
-     * Visits a WildcardTypeTree node.
      * Visits a {@code WildcardTypeTree} node.
      * @param node the node being visited
      * @param p a parameter value

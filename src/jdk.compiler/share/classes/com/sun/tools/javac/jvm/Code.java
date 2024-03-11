@@ -32,12 +32,24 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
 import java.util.function.ToIntBiFunction;
+import java.util.function.ToIntFunction;
 
 import static com.sun.tools.javac.code.TypeTag.BOT;
 import static com.sun.tools.javac.code.TypeTag.DOUBLE;
 import static com.sun.tools.javac.code.TypeTag.INT;
 import static com.sun.tools.javac.code.TypeTag.LONG;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Class;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Double;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Fieldref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Float;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Integer;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_InterfaceMethodref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Long;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodHandle;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodType;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Methodref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_String;
 import static com.sun.tools.javac.jvm.UninitializedType.*;
 import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableFrame;
 import java.util.Arrays;
@@ -389,17 +401,6 @@ public class Code {
 
     /** Emit a ldc (or ldc_w) instruction, taking into account operand size
     */
-    public void emitLdc(LoadableConstant constant, int od) {
-        if (od <= 255) {
-            emitop1(ldc1, od, constant);
-        }
-        else {
-            emitop2(ldc2, od, constant);
-        }
-    }
-
-    /** Emit a ldc (or ldc_w) instruction, taking into account operand size
-     */
     public void emitLdc(LoadableConstant constant) {
         int od = poolWriter.putConstant(constant);
         Type constantType = types.constantType(constant);
@@ -464,7 +465,7 @@ public class Code {
         if (!alive) return;
         emit2(poolWriter.putMember(member));
         state.pop(argsize);
-        if (member.isInit())
+        if (member.isConstructor())
             state.markInitialized((UninitializedType)state.peek());
         state.pop(1);
         state.push(mtype.getReturnType());
@@ -1023,7 +1024,7 @@ public class Code {
             break;
         case new_: {
             Type t = (Type)data;
-            state.push(uninitializedObject(t.tsym.erasure(types), cp - 3));
+            state.push(uninitializedObject(t.tsym.erasure(types), cp-3));
             break;
         }
         case sipush:
@@ -1062,7 +1063,7 @@ public class Code {
             break;
         case checkcast: {
             state.pop(1); // object ref
-            Type t = types.erasure(data instanceof  ConstantPoolQType ? ((ConstantPoolQType)data).type: (Type)data);
+            Type t = types.erasure((Type)data);
             state.push(t);
             break; }
         case ldc2:
@@ -1376,7 +1377,7 @@ public class Code {
         if (!meth.isStatic()) {
             Type thisType = meth.owner.type;
             frame.locals = new Type[len+1];
-            if (meth.isInit() && thisType != syms.objectType) {
+            if (meth.isConstructor() && thisType != syms.objectType) {
                 frame.locals[count++] = UninitializedType.uninitializedThis(thisType);
             } else {
                 frame.locals[count++] = types.erasure(thisType);

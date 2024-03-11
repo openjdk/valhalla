@@ -1,4 +1,0 @@
-- compiler.warn.source.no.system.modules.path: 16
-ConsumeValueClassAtLowerLevel.java:16:36: compiler.err.cant.resolve.location.args: kindname.constructor, GenericPoint, , int,int, (compiler.misc.location: kindname.class, GenericPoint<T>, null)
-1 error
-1 warning

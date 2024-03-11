@@ -53,6 +53,7 @@ public class TestValueClasses extends JavadocTester {
                 "package p; public value class ValueClass {}");
 
         javadoc("-d", base.resolve("out").toString(),
+                "--enable-preview", "-source", String.valueOf(Runtime.version().feature()),
                 "-sourcepath", src.toString(),
                 "p");
         checkExit(Exit.OK);
@@ -60,57 +61,6 @@ public class TestValueClasses extends JavadocTester {
         checkOutput("p/ValueClass.html", true,
                 """
                 <div class="type-signature"><span class="modifiers">public value final class </span><span class="element-name type-name-label">ValueClass</span>
-                """);
-    }
-
-    @Test
-    public void testIdentityClassModifiers(Path base) throws IOException {
-        Path src = base.resolve("src");
-        tb.writeJavaFiles(src,
-                "package p; public identity class IdentityClass {}");
-
-        javadoc("-d", base.resolve("out").toString(),
-                "-sourcepath", src.toString(),
-                "p");
-        checkExit(Exit.OK);
-
-        checkOutput("p/IdentityClass.html", true,
-                """
-                <div class="type-signature"><span class="modifiers">public identity class </span><span class="element-name type-name-label">IdentityClass</span>
-                """);
-    }
-
-    @Test
-    public void testValueInterfaceModifiers(Path base) throws IOException {
-        Path src = base.resolve("src");
-        tb.writeJavaFiles(src,
-                "package p; public value interface ValueInterface {}");
-
-        javadoc("-d", base.resolve("out").toString(),
-                "-sourcepath", src.toString(),
-                "p");
-        checkExit(Exit.OK);
-
-        checkOutput("p/ValueInterface.html", true,
-                """
-                <div class="type-signature"><span class="modifiers">public value interface </span><span class="element-name type-name-label">ValueInterface</span></div>
-                """);
-    }
-
-    @Test
-    public void testIdentityInterfaceModifiers(Path base) throws IOException {
-        Path src = base.resolve("src");
-        tb.writeJavaFiles(src,
-                "package p; public identity interface IdentityInterface {}");
-
-        javadoc("-d", base.resolve("out").toString(),
-                "-sourcepath", src.toString(),
-                "p");
-        checkExit(Exit.OK);
-
-        checkOutput("p/IdentityInterface.html", true,
-                """
-                <div class="type-signature"><span class="modifiers">public identity interface </span><span class="element-name type-name-label">IdentityInterface</span></div>
                 """);
     }
 

@@ -493,7 +493,6 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_getstatic:
     case Bytecodes::_putfield:
     case Bytecodes::_getfield:
-    case Bytecodes::_withfield:
       {
         int cp_index;
         if (is_linked()) {
@@ -569,7 +568,6 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_new:
     case Bytecodes::_checkcast:
     case Bytecodes::_instanceof:
-    case Bytecodes::_aconst_init:
       { int i = get_Java_index_u2();
         ConstantPool* constants = method()->constants();
         Symbol* name = constants->klass_name_at(i);

@@ -106,7 +106,8 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
   _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
 
   // this is needed if the field class is not yet loaded.
-  _is_null_free = _signature->is_Q_signature();
+  // _is_null_free = _signature->is_Q_signature();
+  _is_null_free = false; // JDK-8325660: null free-ness should be checked in FieldFlags instead of signature
 
   // Get the field's declared holder.
   //
@@ -407,8 +408,8 @@ bool ciField::will_link(ciMethod* accessing_method,
                         Bytecodes::Code bc) {
   VM_ENTRY_MARK;
   assert(bc == Bytecodes::_getstatic || bc == Bytecodes::_putstatic ||
-         bc == Bytecodes::_getfield  || bc == Bytecodes::_putfield  ||
-         bc == Bytecodes::_withfield, "unexpected bytecode");
+         bc == Bytecodes::_getfield  || bc == Bytecodes::_putfield,
+         "unexpected bytecode");
 
   if (_offset == -1) {
     // at creation we couldn't link to our holder so we need to

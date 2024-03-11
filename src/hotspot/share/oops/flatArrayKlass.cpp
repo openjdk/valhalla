@@ -135,7 +135,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
     }
   }
 
-  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, true, CHECK_NULL);
+  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(FlatArrayKlass::header_size());
   FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name);
@@ -359,7 +359,7 @@ ArrayKlass* FlatArrayKlass::array_klass(int n, TRAPS) {
       if (higher_dimension() == nullptr) {
 
         // Create multi-dim klass object and link them together
-        ObjArrayKlass* ak = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, true, CHECK_NULL);
+        ObjArrayKlass* ak = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, CHECK_NULL);
         ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load
         release_set_higher_dimension(ak);

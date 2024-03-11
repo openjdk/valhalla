@@ -27,12 +27,13 @@ import jdk.test.lib.Asserts;
 
 /**
  * @test
+ * @ignore
  * @bug 8210351
  * @summary test nestmate access to an inline type's public, protected and private final fields.
  * @library /test/lib
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict WithFieldAccessorTestClasses.jasm
- * @compile -XDenablePrimitiveClasses WithFieldAccessorTest.java
+ * @compile WithFieldAccessorTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.WithFieldAccessorTest
  */
 

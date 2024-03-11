@@ -112,7 +112,6 @@ jdk_lang = \
     jdk/internal/ref \
     jdk/internal/jimage \
     jdk/internal/math \
-    jdk/modules \
     jdk/internal/vm \
     jdk/modules \
     jni/nullCaller \

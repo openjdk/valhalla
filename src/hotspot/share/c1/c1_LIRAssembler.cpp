@@ -57,7 +57,6 @@ void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_cod
       case Bytecodes::_getstatic:
       case Bytecodes::_putfield:
       case Bytecodes::_getfield:
-      case Bytecodes::_withfield:
         break;
       default:
         ShouldNotReachHere();
@@ -65,7 +64,6 @@ void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_cod
   } else if (patch->id() == PatchingStub::load_klass_id) {
     switch (code) {
       case Bytecodes::_new:
-      case Bytecodes::_aconst_init:
       case Bytecodes::_anewarray:
       case Bytecodes::_multianewarray:
       case Bytecodes::_instanceof:

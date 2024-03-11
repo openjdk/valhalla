@@ -23,6 +23,9 @@
 
 // key: compiler.misc.type.req.identity
 // key: compiler.err.type.found.req
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version}
 
 value class TypeReqIdentity {
     { synchronized (this) {} }

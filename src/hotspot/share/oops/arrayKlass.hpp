@@ -57,7 +57,7 @@ class ArrayKlass: public Klass {
   ArrayKlass();
 
   // Create array_name for element klass
-  static Symbol* create_element_klass_array_name(Klass* element_klass, bool qdesc, TRAPS);
+  static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
 
  public:
   // Instance variables
