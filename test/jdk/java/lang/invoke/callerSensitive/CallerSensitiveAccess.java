@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,7 @@ public class CallerSensitiveAccess {
      */
     @DataProvider(name = "callerSensitiveMethods")
     static Object[][] callerSensitiveMethods() {
-        try (Stream<Method> stream = callerSensitiveMethods(Object.class.getModule())) {
+        try (Stream<Method> stream = callerSensitiveMethods(Object.class.getModule()).stream()) {
             return stream.map(m -> new Object[]{m, shortDescription(m)})
                     .toArray(Object[][]::new);
         }
@@ -101,7 +101,7 @@ public class CallerSensitiveAccess {
      */
     @DataProvider(name = "accessibleCallerSensitiveMethods")
     static Object[][] accessibleCallerSensitiveMethods() {
-        try (Stream<Method> stream = callerSensitiveMethods(Object.class.getModule())) {
+        try (Stream<Method> stream = callerSensitiveMethods(Object.class.getModule()).stream()) {
             return stream
                 .filter(m -> Modifier.isPublic(m.getModifiers()))
                 .map(m -> { m.setAccessible(true); return m; })
@@ -396,10 +396,11 @@ public class CallerSensitiveAccess {
     // -- supporting methods --
 
     /**
-     * Returns a stream of all caller sensitive methods on public classes in packages
+     * Returns a List of all caller sensitive methods on public classes in packages
      * exported by a named module.
+     * Returns a List instead of a stream so the ModuleReader can be closed before returning.
      */
-    static Stream<Method> callerSensitiveMethods(Module module) {
+    static List<Method> callerSensitiveMethods(Module module) {
         assert module.isNamed();
         ModuleReference mref = module.getLayer().configuration()
                 .findModule(module.getName())
@@ -419,7 +420,7 @@ public class CallerSensitiveAccess {
                     .filter(refc -> refc != null
                                     && Modifier.isPublic(refc.getModifiers()))
                     .map(refc -> callerSensitiveMethods(refc))
-                    .flatMap(List::stream);
+                    .flatMap(List::stream).toList();
         } catch (IOException ioe) {
             throw new UncheckedIOException(ioe);
         }
