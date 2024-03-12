@@ -3180,9 +3180,8 @@ public class TestLWorld {
     }
 
     @Test
-// TODO 8293541
-//    @IR(failOn = {ALLOC_G, MEMBAR},
-//        counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
     public long test109_sharp() {
         long res = 0;
@@ -3219,9 +3218,8 @@ public class TestLWorld {
     }
 
     @Test
-// TODO 8293541
-//    @IR(failOn = {ALLOC_G, MEMBAR},
-//        counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
     public long test110_sharp() {
         long res = 0;
