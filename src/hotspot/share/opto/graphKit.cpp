@@ -4160,8 +4160,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
                           Node* length,         // number of array elements
                           int   nargs,          // number of arguments to push back for uncommon trap
                           Node* *return_size_val,
-                          bool deoptimize_on_exception,
-                          bool null_free) {
+                          bool deoptimize_on_exception) {
   jint  layout_con = Klass::_lh_neutral_value;
   Node* layout_val = get_layout_helper(klass_node, layout_con);
   bool  layout_is_con = (layout_val == nullptr);
@@ -4311,15 +4310,8 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   }
 
   const TypeKlassPtr* ary_klass = _gvn.type(klass_node)->isa_klassptr();
-  if (null_free) {
-    ary_klass = ary_klass->is_aryklassptr()->cast_to_null_free();
-  }
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
-
-  if (null_free && null_free != ary_ptr->is_null_free()) {
-    assert(false, "FAIL");
-  }
 
   // Inline type array variants:
   // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue")
@@ -4335,6 +4327,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
       ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
       default_value = InlineTypeNode::default_oop(gvn(), vk);
     }
+  // TODO remove this
   } else if (ary_type->can_be_inline_array() && false) {
     // Array type is not known, add runtime checks
     assert(!ary_klass->klass_is_exact(), "unexpected exact type");

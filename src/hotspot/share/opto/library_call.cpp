@@ -4395,8 +4395,9 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
       if (t != nullptr && t->is_inlinetype()) {
         ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
-          const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
-          Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false, true);  // no arguments to push
+          const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
+          array_klass_type = array_klass_type->cast_to_null_free();
+          Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false);  // no arguments to push
           AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(obj);
           alloc->set_null_free();
           set_result(obj);
@@ -5568,6 +5569,7 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
     sfpt->init_req(i, alloc->in(i));
   }
   int adjustment = 1;
+  // TODO why can't we check via the type of the const klass node?
   if (alloc->is_null_free()) {
     // A null-free, tightly coupled array allocation can only come from LibraryCallKit::inline_newNullRestrictedArray
     // which requires both the component type and the array length on stack for re-execution. Re-create and push

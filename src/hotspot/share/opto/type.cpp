@@ -6688,7 +6688,7 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
 }
 
 const TypeAryKlassPtr* TypeAryKlassPtr::cast_to_null_free() const {
-  return make(_ptr, elem(), klass(), _offset, is_not_flat(), is_not_null_free(), true);
+  return make(_ptr, elem(), klass(), _offset, is_not_flat(), false, true);
 }
 
 //-----------------------------as_instance_type--------------------------------
