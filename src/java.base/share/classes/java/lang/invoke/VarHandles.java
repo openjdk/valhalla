@@ -644,7 +644,7 @@ final class VarHandles {
                         .getExceptionTypes();
             } else if (MethodHandleNatives.refKindIsField(refKind)) {
                 return new Class<?>[0];
-            } else if (MethodHandleNatives.refKindIsObjectConstructor(refKind)) {
+            } else if (MethodHandleNatives.refKindIsConstructor(refKind)) {
                 return info.reflectAs(Constructor.class, MethodHandles.Lookup.IMPL_LOOKUP)
                         .getExceptionTypes();
             } else {

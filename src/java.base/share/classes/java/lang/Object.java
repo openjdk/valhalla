@@ -27,9 +27,6 @@ package java.lang;
 
 import jdk.internal.misc.Blocker;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
-import jdk.internal.access.SharedSecrets;
-
-import java.util.Objects;
 
 /**
  * Class {@code Object} is the root of the class hierarchy.
