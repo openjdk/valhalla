@@ -2122,6 +2122,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     } else {
       // Check for a load of the default value offset from the InlineKlassFixedBlock:
       // LoadI(LoadP(inline_klass, adr_inlineklass_fixed_block_offset), default_value_offset_offset)
+      // TODO remove?
       intptr_t offset = 0;
       Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
       if (base != nullptr && base->is_Load() && offset == in_bytes(InlineKlass::default_value_offset_offset())) {

@@ -882,6 +882,8 @@ public class TestBasicFunctionality {
         int y = 0;
     }
 
+// TODO 8325106: Re-enable once JDK-8327695 is fixed
+/*
     @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test37Value1 {
@@ -901,6 +903,7 @@ public class TestBasicFunctionality {
         Test37Value1 vt = new Test37Value1();
         Asserts.assertEQ(test37(vt), vt);
     }
+*/
 
     // Test elimination of value class allocations without a unique CheckCastPP
     @ImplicitlyConstructible

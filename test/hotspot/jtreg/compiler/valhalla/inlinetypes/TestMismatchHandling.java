@@ -74,7 +74,7 @@
   ASMTOOLS=/oracle/valhalla/open/test/lib
 
   # With preload attribute
-  javac TestMismatchHandlingGenerator.java
+  javac --enable-preview --source 22 TestMismatchHandlingGenerator.java
   java -cp $ASMTOOLS org.openjdk.asmtools.Main jdec MyValue1.class MyValue2.class MyValue3.class MyValue4.class MyValue5.class MyValue6.class MyValue7.class Verifiable.class B.class I3.class I4.class E.class G.class J.class K.class L.class P.class Q.class R.class S.class TestMismatchHandlingHelper.class > TestMismatchHandling.jcod
 
   # Without preload attribute

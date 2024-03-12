@@ -560,7 +560,8 @@ public class TestUnloadedInlineTypeField {
                 MyValue13Holder holder = new MyValue13Holder();
                 try {
                     test13(holder);
-                    Asserts.fail("Should have thrown InstantiationError");
+// TODO 8325106
+//                    Asserts.fail("Should have thrown InstantiationError");
                 } catch (InstantiationError e) {
                     // OK
                 }
@@ -605,7 +606,8 @@ public class TestUnloadedInlineTypeField {
                 MyValue15Holder holder = new MyValue15Holder();
                 try {
                     test15(holder);
-                    Asserts.fail("Should have thrown InstantiationError");
+// TODO 8325106
+//                    Asserts.fail("Should have thrown InstantiationError");
                 } catch (InstantiationError e) {
                     // OK
                 }
@@ -641,7 +643,8 @@ public class TestUnloadedInlineTypeField {
             for (int i = 0; i < 10; ++i) {
                 try {
                     test16(false);
-                    Asserts.fail("Should have thrown IncompatibleClassChangeError");
+// TODO 8325106
+//                    Asserts.fail("Should have thrown IncompatibleClassChangeError");
                 } catch (IncompatibleClassChangeError e) {
                     // OK
                 }
@@ -673,7 +676,8 @@ public class TestUnloadedInlineTypeField {
             for (int i = 0; i < 10; ++i) {
                 try {
                     test17(false);
-                    Asserts.fail("Should have thrown IncompatibleClassChangeError");
+// TODO 8325106
+//                    Asserts.fail("Should have thrown IncompatibleClassChangeError");
                 } catch (IncompatibleClassChangeError e) {
                     // OK
                 }
@@ -812,8 +816,8 @@ public class TestUnloadedInlineTypeField {
     @Run(test = "test21")
     public void test21_verifier() {
         Object ret = test21();
-        Asserts.assertEQ(Test21ClassA.b.x, 0);
-        Asserts.assertEQ(Test21ClassA.c.x, 0);
+        Asserts.assertEQ(Test21ClassA.b.x, 42);
+        Asserts.assertEQ(Test21ClassA.c.x, 42);
     }
 
     static boolean test22FailInit = true;

@@ -262,6 +262,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
   SharedRuntime::_new_array_ctr++;            // new array requires GC
 #endif
   assert(check_compiled_frame(current), "incorrect caller");
+
   // Scavenge and allocate an instance.
   oop result;
 

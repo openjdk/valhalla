@@ -3668,6 +3668,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
           ciField* field = nullptr;
           if (const_oop() != nullptr) {
             ciInstanceKlass* k = const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
+            // TODO remove?
             if (k->is_inlinetype() && this->offset() == k->as_inline_klass()->default_value_offset()) {
               // Special hidden field that contains the oop of the default inline type
               // basic_elem_type = T_PRIMITIVE_OBJECT;

@@ -713,10 +713,10 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
   if (!is_larval(phase) && !is_larval() &&
-      is_default(phase) &&
+      (is_default(phase) || inline_klass()->is_empty()) &&
       inline_klass()->is_initialized() &&
       (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
-    // Use the pre-allocated oop for default inline types
+    // Use the pre-allocated oop for default or empty inline types
     set_oop(default_oop(*phase, inline_klass()));
     assert(is_allocated(phase), "should now be allocated");
     return this;
@@ -1024,7 +1024,7 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   if (field_count() == 0 && vk->is_initialized()) {
     const Type* tinit = phase->type(in(IsInit));
     // TODO
-    if (false && tinit->isa_int() && tinit->is_int()->is_con(1)) {
+    if (false && !is_larval() && tinit->isa_int() && tinit->is_int()->is_con(1)) {
       assert(is_allocated(phase), "must be allocated");
       return get_oop();
     } else {

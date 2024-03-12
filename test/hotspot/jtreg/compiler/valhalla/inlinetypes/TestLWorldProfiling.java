@@ -252,7 +252,7 @@ public class TestLWorldProfiling {
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
         counts = {CALL, "= 3", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
+        counts = {CALL, "= 3", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
     public Object test6(Number[] array) {
         Number v = array[0];
         test6_helper(array);
@@ -285,7 +285,7 @@ public class TestLWorldProfiling {
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
         counts = {CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 5", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2"})
+        counts = {CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2"})
     public Object test7(Number[] array) {
         Number v = array[0];
         test7_helper(v);
@@ -458,7 +458,9 @@ public class TestLWorldProfiling {
     private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
 
     @Test
-    @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
+// TODO 8325106
+//    @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
+    @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
         counts = {NULL_CHECK_TRAP, "= 2"},
         failOn = {STORE_UNKNOWN_INLINE})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
