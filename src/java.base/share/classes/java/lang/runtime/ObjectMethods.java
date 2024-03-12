@@ -260,13 +260,12 @@ public class ObjectMethods {
      */
     private static MethodHandle makeToString(MethodHandles.Lookup lookup,
                                             Class<?> receiverClass,
-                                            String simpleName,
                                             MethodHandle[] getters,
                                             List<String> names) {
         assert getters.length == names.size();
         if (getters.length == 0) {
             // special case
-            MethodHandle emptyRecordCase = MethodHandles.constant(String.class, simpleName + "[]");
+            MethodHandle emptyRecordCase = MethodHandles.constant(String.class, receiverClass.getSimpleName() + "[]");
             emptyRecordCase = MethodHandles.dropArguments(emptyRecordCase, 0, receiverClass); // (R)S
             return emptyRecordCase;
         }
@@ -287,7 +286,7 @@ public class ObjectMethods {
             for (int splitIndex = 0; splitIndex < splits.size(); splitIndex++) {
                 String recipe = "";
                 if (firstTime && splitIndex == 0) {
-                    recipe = simpleName + "[";
+                    recipe = receiverClass.getSimpleName() + "[";
                 }
                 for (int i = 0; i < splits.get(splitIndex).size(); i++) {
                     recipe += firstTime ? names.get(namesIndex) + "=" + "\1" : "\1";
@@ -416,10 +415,9 @@ public class ObjectMethods {
         requireNonNull(getters);
         Arrays.stream(getters).forEach(Objects::requireNonNull);
         MethodType methodType;
-        Class<?> receiverType = recordClass;
         if (type instanceof MethodType mt) {
             methodType = mt;
-            if (mt.parameterType(0) != receiverType) {
+            if (mt.parameterType(0) != recordClass) {
                 throw new IllegalArgumentException("Bad method type: " + mt);
             }
         } else {
@@ -429,28 +427,28 @@ public class ObjectMethods {
         }
         List<MethodHandle> getterList = List.of(getters);
         for (MethodHandle getter : getterList) {
-            if (getter.type().parameterType(0) != receiverType) {
+            if (getter.type().parameterType(0) != recordClass) {
                 throw new IllegalArgumentException("Bad receiver type: " + getter);
             }
         }
         MethodHandle handle = switch (methodName) {
             case "equals"   -> {
-                if (methodType != null && !methodType.equals(MethodType.methodType(boolean.class, receiverType, Object.class)))
+                if (methodType != null && !methodType.equals(MethodType.methodType(boolean.class, recordClass, Object.class)))
                     throw new IllegalArgumentException("Bad method type: " + methodType);
-                yield makeEquals(receiverType, getterList);
+                yield makeEquals(recordClass, getterList);
             }
             case "hashCode" -> {
-                if (methodType != null && !methodType.equals(MethodType.methodType(int.class, receiverType)))
+                if (methodType != null && !methodType.equals(MethodType.methodType(int.class, recordClass)))
                     throw new IllegalArgumentException("Bad method type: " + methodType);
-                yield makeHashCode(receiverType, getterList);
+                yield makeHashCode(recordClass, getterList);
             }
             case "toString" -> {
-                if (methodType != null && !methodType.equals(MethodType.methodType(String.class, receiverType)))
+                if (methodType != null && !methodType.equals(MethodType.methodType(String.class, recordClass)))
                     throw new IllegalArgumentException("Bad method type: " + methodType);
                 List<String> nameList = "".equals(names) ? List.of() : List.of(names.split(";"));
                 if (nameList.size() != getterList.size())
                     throw new IllegalArgumentException("Name list and accessor list do not match");
-                yield makeToString(lookup, receiverType, recordClass.getSimpleName(), getters, nameList);
+                yield makeToString(lookup, recordClass, getters, nameList);
             }
             default -> throw new IllegalArgumentException(methodName);
         };

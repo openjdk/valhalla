@@ -111,7 +111,7 @@ class MethodHandleNatives {
 
         static final int
             MN_IS_METHOD             = 0x00010000, // method (not object constructor)
-            MN_IS_OBJECT_CONSTRUCTOR = 0x00020000, // object constructor
+            MN_IS_CONSTRUCTOR        = 0x00020000, // object constructor
             MN_IS_FIELD              = 0x00040000, // field
             MN_IS_TYPE               = 0x00080000, // nested type
             MN_CALLER_SENSITIVE      = 0x00100000, // @CallerSensitive annotation detected
@@ -174,7 +174,7 @@ class MethodHandleNatives {
     static boolean refKindIsMethod(byte refKind) {
         return !refKindIsField(refKind) && (refKind != REF_newInvokeSpecial);
     }
-    static boolean refKindIsObjectConstructor(byte refKind) {
+    static boolean refKindIsConstructor(byte refKind) {
         return (refKind == REF_newInvokeSpecial);
     }
     static boolean refKindHasReceiver(byte refKind) {
