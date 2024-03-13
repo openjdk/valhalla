@@ -558,6 +558,7 @@ public class Gen extends JCTree.Visitor {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
             if (md.sym.owner.isValueClass()) {
+                rewriteInitializersIfNeeded(md, initCode);
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.append(supercall).appendList(initBlocks)));
             } else {
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.prepend(supercall)));
@@ -567,6 +568,40 @@ public class Gen extends JCTree.Visitor {
                 md.body.endpos = TreeInfo.endPos(md.body.stats.last());
 
             md.sym.appendUniqueTypeAttributes(initTAs);
+        }
+    }
+
+    void rewriteInitializersIfNeeded(JCMethodDecl md, List<JCStatement> initCode) {
+        if (lower.initializerOuterThis.containsKey(md.sym.owner)) {
+            InitializerVisitor initializerVisitor = new InitializerVisitor(md, lower.initializerOuterThis.get(md.sym.owner));
+            for (JCStatement init : initCode) {
+                initializerVisitor.scan(init);
+            }
+        }
+    }
+
+    class InitializerVisitor extends TreeScanner {
+        JCMethodDecl md;
+        Set<JCExpression> exprSet;
+
+        InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
+            this.md = md;
+            this.exprSet = exprSet;
+        }
+
+        @Override
+        public void visitTree(JCTree tree) {}
+
+        @Override
+        public void visitIdent(JCIdent tree) {
+            if (exprSet.contains(tree)) {
+                for (JCVariableDecl param: md.params) {
+                    if (param.name == tree.name &&
+                            ((param.sym.flags_field & (MANDATED | NOOUTERTHIS)) == (MANDATED | NOOUTERTHIS))) {
+                        tree.sym = param.sym;
+                    }
+                }
+            }
         }
     }
 
