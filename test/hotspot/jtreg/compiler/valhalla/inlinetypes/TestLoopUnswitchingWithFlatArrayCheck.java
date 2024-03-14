@@ -25,7 +25,8 @@
  * @test
  * @bug 8275276
  * @summary Test loop unswitching with flat array checks.
- * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:CompileCommand=compileonly,TestLoopUnswitchingWithFlatArrayCheck::test TestLoopUnswitchingWithFlatArrayCheck
+ * @enablePreview
+ * @run main/othervm -Xcomp -XX:CompileCommand=compileonly,TestLoopUnswitchingWithFlatArrayCheck::test TestLoopUnswitchingWithFlatArrayCheck
  */
 
 public class TestLoopUnswitchingWithFlatArrayCheck {

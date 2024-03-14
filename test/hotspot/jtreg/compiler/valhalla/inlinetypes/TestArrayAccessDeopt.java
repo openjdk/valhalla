@@ -28,10 +28,11 @@
  * @test
  * @summary Verify that certain array accesses do not trigger deoptimization.
  * @library /test/lib
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestArrayAccessDeopt.java
- * @run main/othervm -XX:+EnableValhalla -Xmx200m
+ * @run main/othervm -Xmx200m
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   TestArrayAccessDeopt
@@ -102,7 +103,7 @@ public class TestArrayAccessDeopt {
     static public void main(String[] args) throws Exception {
         if (args.length == 0) {
             // Run test in new VM instance
-            String[] arg = {"-XX:+EnableValhalla", "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED", "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+            String[] arg = {"--enable-preview", "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED", "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                             "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "TestArrayAccessDeopt", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);

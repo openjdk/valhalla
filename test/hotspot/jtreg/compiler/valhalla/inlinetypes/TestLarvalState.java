@@ -27,10 +27,10 @@
  * @bug 8303416
  * @summary Fix JVM crash at Unsafe_FinishPrivateBuffer
  * @library /test/lib
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
  *          TestLarvalState.java
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+ * @run main/othervm --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
  *                   compiler.valhalla.inlinetypes.TestLarvalState
  */
 

@@ -45,9 +45,10 @@ import java.util.Arrays;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestNullableArrays.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestNullableArrays
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestNullableArrays
  */
 
 @ForceCompileClassInitializer

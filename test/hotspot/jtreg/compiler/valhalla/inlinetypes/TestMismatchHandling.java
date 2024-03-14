@@ -27,37 +27,38 @@
  * @key randomness
  * @summary Verify that mismatches of the preload attribute are properly handled in the calling convention.
  * @library /test/lib /compiler/whitebox /
+ * @enablePreview
  * @compile TestMismatchHandling.jcod TestMismatchHandling.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+EnableValhalla -Xbatch
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,TestMismatchHandling::test*
  *                   TestMismatchHandling
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+EnableValhalla -Xbatch
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,*::method
  *                   TestMismatchHandling
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+EnableValhalla -Xbatch
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
  *                   TestMismatchHandling
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+EnableValhalla -Xbatch
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
  *                   -XX:-InlineTypePassFieldsAsArgs
  *                   TestMismatchHandling
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+EnableValhalla -Xbatch
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
  *                   -XX:-InlineTypeReturnedAsFields
  *                   TestMismatchHandling
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+EnableValhalla -Xbatch
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeNMethodBarriersALot
  *                   TestMismatchHandling
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+EnableValhalla -Xbatch
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   TestMismatchHandling
  */

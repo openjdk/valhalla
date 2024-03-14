@@ -39,11 +39,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rI;
  * @summary Test the handling of fields of unloaded value classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestUnloadedInlineTypeField.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla
- *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @run main/othervm/timeout=300 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                               compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
  */
@@ -64,7 +64,7 @@ public class TestUnloadedInlineTypeField {
         };
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+EnableValhalla",
+                   .addFlags("--enable-preview",
                              // Prevent IR Test Framework from loading classes
                              "-DIgnoreCompilerControls=true",
                              // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.

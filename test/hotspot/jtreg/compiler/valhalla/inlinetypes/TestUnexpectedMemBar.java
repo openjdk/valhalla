@@ -26,21 +26,19 @@
  * @bug 8270995
  * @summary Membars of non-escaping value class buffer allocations should be removed.
  * @library /test/lib
+ * @enablePreview
  * @compile TestUnexpectedMemBar.java
- * @run main/othervm -XX:+EnableValhalla
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-TieredCompilation -XX:-ReduceInitialCardMarks
  *                   -XX:+AlwaysIncrementalInline -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM -XX:StressSeed=851121348
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar
- * @run main/othervm -XX:+EnableValhalla
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-TieredCompilation -XX:-ReduceInitialCardMarks -XX:+AlwaysIncrementalInline
  *                   -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar
- * @run main/othervm -XX:+EnableValhalla
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar

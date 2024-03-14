@@ -43,11 +43,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test value class specific type profiling.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestLWorldProfiling.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla
- *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @run main/othervm/timeout=300 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                               compiler.valhalla.inlinetypes.TestLWorldProfiling
  */
@@ -101,7 +101,7 @@ public class TestLWorldProfiling {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions", "-XX:+EnableValhalla",
+                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions", "--enable-preview",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,

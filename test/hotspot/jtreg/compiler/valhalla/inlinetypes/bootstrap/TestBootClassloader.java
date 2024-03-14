@@ -37,13 +37,13 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          holder and field were loaded by different class loaders (bootstrap + app).
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED ValueOnBootclasspath.java InstallBootstrapClasses.java TestBootClassloader.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+EnableValhalla InstallBootstrapClasses
- * @run main/othervm -XX:+EnableValhalla
- *                   -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm InstallBootstrapClasses
+ * @run main/othervm -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
  *                   -XX:CompileCommand=inline,*::get* TestBootClassloader
  */

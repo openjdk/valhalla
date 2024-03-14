@@ -29,10 +29,11 @@
  * @requires vm.compiler2.enabled
  * @modules java.base/jdk.internal.value
  * @library /test/lib /compiler/whitebox /
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestTrivialMethods.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+EnableValhalla
+ * @run main/othervm -Xbootclasspath/a:.
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
