@@ -27,6 +27,7 @@
  * @summary Verify that the native clone intrinsic handles value objects.
  * @library /test/lib
  * @modules java.base/java.lang:+open
+ * @enablePreview
  * @compile TestNativeClone.java
  * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.MyValue::*

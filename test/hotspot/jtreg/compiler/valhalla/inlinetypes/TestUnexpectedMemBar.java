@@ -26,6 +26,7 @@
  * @bug 8270995
  * @summary Membars of non-escaping value class buffer allocations should be removed.
  * @library /test/lib
+ * @enablePreview
  * @compile TestUnexpectedMemBar.java
  * @run main/othervm -XX:+EnableValhalla
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions

@@ -26,6 +26,7 @@
  * @key randomness
  * @summary Test value class calling convention with compiled to compiled calls.
  * @library /test/lib /compiler/whitebox /
+ * @enablePreview
  * @compile TestC2CCalls.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+EnableValhalla

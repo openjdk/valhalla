@@ -25,6 +25,7 @@
  * @test TestNewAcmp
  * @summary Verifies correctness of the acmp bytecode with value object operands.
  * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
  * @compile TestNewAcmp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -XX:+EnableValhalla
@@ -54,7 +55,7 @@ interface MyInterface {
 
 }
 
-abstract class MyAbstract implements MyInterface {
+value abstract class MyAbstract implements MyInterface {
 
 
 }
@@ -1868,7 +1869,7 @@ public class TestNewAcmp {
 
     private static void enumerateVMOptions() throws Exception {
         String[] baseOptions = {
-            "-XX:+EnableValhalla",
+            "--enable-preview",
             "-Xbootclasspath/a:.",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+WhiteBoxAPI",

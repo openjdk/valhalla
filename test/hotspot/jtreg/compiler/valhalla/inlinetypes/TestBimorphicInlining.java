@@ -32,6 +32,7 @@ import jdk.test.lib.Asserts;
  * @bug 8209009
  * @summary Test bimorphic inlining with value object receivers.
  * @library /testlibrary /test/lib
+ * @enablePreview
  * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*
  *                   -XX:CompileCommand=quiet -XX:CompileCommand=print,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*
