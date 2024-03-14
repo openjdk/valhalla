@@ -28,6 +28,7 @@ package compiler.valhalla.inlinetypes;
  * @test TestBufferTearingC1
  * @key randomness
  * @summary Tests for C1 missing barriers when buffering value classes.
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestBufferTearingC1.java
  * @run main/othervm -XX:+EnableValhalla

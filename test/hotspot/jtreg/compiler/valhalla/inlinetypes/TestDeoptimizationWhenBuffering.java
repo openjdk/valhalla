@@ -40,6 +40,7 @@ import jdk.test.whitebox.WhiteBox;
  * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
  * @modules java.base/jdk.internal.value
  * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @build jdk.test.whitebox.WhiteBox
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED

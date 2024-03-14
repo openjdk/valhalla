@@ -26,6 +26,7 @@
  * @bug 8252506
  * @summary Verify that arraycopy intrinsics properly handle flat value class arrays with oop fields.
  * @library /test/lib
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestArrayCopyWithOops.java
  * @run main/othervm -XX:+EnableValhalla
