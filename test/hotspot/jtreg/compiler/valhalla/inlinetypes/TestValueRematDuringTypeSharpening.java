@@ -81,7 +81,7 @@ public class TestValueRematDuringTypeSharpening {
    }
 
    public static void main(String [] args) {
-       TestFramework.runWithFlags("-XX:-TieredCompilation", "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED");
+       TestFramework.runWithFlags("-XX:-TieredCompilation", "--enable-preview", "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED");
        System.out.println("PASS");
    }
 }
