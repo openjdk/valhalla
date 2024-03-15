@@ -4933,6 +4933,7 @@ Compile::SubTypeCheckResult Compile::static_subtype_check(const TypeKlassPtr* su
     int ignored;
     superelem = superk->is_aryklassptr()->base_element_type(ignored);
 
+    // TODO 8325106 Fix comment
     // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
     // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
     // the klass for [LMyValue. Perform a full test.

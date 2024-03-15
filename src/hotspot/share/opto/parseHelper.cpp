@@ -298,8 +298,7 @@ void Parse::do_new() {
   }
 
   if (klass->is_inlinetype()) {
-    // TODO we shoulnd't use the default oop here because it will be overwritten by the constructor
-    push(InlineTypeNode::make_default(_gvn, klass->as_inline_klass(), true));
+    push(InlineTypeNode::make_default(_gvn, klass->as_inline_klass(), /* is_larval */ true));
     return;
   }
 

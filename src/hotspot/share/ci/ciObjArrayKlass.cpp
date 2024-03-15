@@ -175,7 +175,7 @@ ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {
-  // TODO adjust comment
+  // TODO 8325106 Fix comment
   // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
   if (!is_loaded() || element_klass()->is_inlinetype()) {
     return nullptr;

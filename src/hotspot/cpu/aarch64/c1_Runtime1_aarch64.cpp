@@ -736,6 +736,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
             __ stop("assert(is an object or inline type array klass)");
             break;
           case new_flat_array_id:
+            // TODO 8325106 Fix comment
             // new "[QVT;"
             __ cmpw(t0, Klass::_lh_array_tag_vt_value);  // the array can be a flat array.
             __ br(Assembler::EQ, ok);

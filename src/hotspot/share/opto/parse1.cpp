@@ -613,7 +613,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       // Create InlineTypeNode from the oop and replace the parameter
       bool is_larval = (i == 0) && method()->is_object_constructor() && method()->intrinsic_id() != vmIntrinsics::_Object_init;
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
-      // TODO shouldn't we use replace in map here to make sure the oop is replaced by a value type node in the caller?? Also below
+      // TODO 8325106 Shouldn't we use replace in map here to make sure the oop is replaced by a value type node in the caller?? Also below
      // set_local(i, vt);
       replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&

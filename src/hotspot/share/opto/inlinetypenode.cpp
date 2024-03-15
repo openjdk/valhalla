@@ -583,24 +583,18 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
     kit->kill_dead_locals();
     ciInlineKlass* vk = inline_klass();
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-
-    // TODO hack to enable GVNing and then removal of redudant allocations
- //   InlineTypeNode* vt = clone()->as_InlineType();
- //   vt->set_is_larval(false);
- //   vt = kit->gvn().transform(vt)->as_InlineType();
-
     Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true, this);
     // No need to initialize a larval buffer, we make sure that the oop can not escape
     if (!is_larval()) {
       // Larval will be initialized later
-      // TODO should this use C2_TIGHTLY_COUPLED_ALLOC?
+      // TODO 8325106 should this use C2_TIGHTLY_COUPLED_ALLOC?
       store(kit, alloc_oop, alloc_oop, vk);
 
       // Do not let stores that initialize this buffer be reordered with a subsequent
       // store that would make this buffer accessible by other threads.
       AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
       assert(alloc != nullptr, "must have an allocation node");
-      // TODO is a membarRelease sufficient here?
+      // TODO 8325106 isn't a MembarRelease sufficient here?
       kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
     }
 
@@ -810,7 +804,7 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
   // Create a new InlineTypeNode with default values
   Node* oop = vk->is_initialized() && !is_larval ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
-  // TODO we should be able to set buffered here for non-larvals, right?
+  // TODO 8325106 we should be able to set buffered here for non-larvals, right?
   //vt->set_is_buffered(gvn, vk->is_initialized());
   vt->set_is_buffered(gvn, false);
   vt->set_is_init(gvn);
@@ -1046,7 +1040,7 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   }
   if (field_count() == 0 && vk->is_initialized()) {
     const Type* tinit = phase->type(in(IsInit));
-    // TODO
+    // TODO 8325106
     if (false && !is_larval() && tinit->isa_int() && tinit->is_int()->is_con(1)) {
       assert(is_allocated(phase), "must be allocated");
       return get_oop();
@@ -1233,7 +1227,6 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
 // Equivalent InlineTypeNodes are merged by GVN, so we just need to search for AllocateNode users to find redundant allocations.
 void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
   if (is_larval()) {
-    // TODO larval buffers can only be removed if they have the same initializing stores. Can we update the inlinetypenode that feeds into the alloc when initializing the fields?
     return;
   }
   PhaseIterGVN* igvn = &phase->igvn();

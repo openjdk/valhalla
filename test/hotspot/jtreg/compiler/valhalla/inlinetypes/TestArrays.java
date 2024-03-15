@@ -2984,7 +2984,7 @@ public class TestArrays {
         verify(val_src, res);
         try {
             test125(obj_null_src, val_src.getClass());
-// TODO
+// TODO 8325106 Remove
 //            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // expected

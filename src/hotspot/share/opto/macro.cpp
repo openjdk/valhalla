@@ -689,6 +689,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
         } else if (!reduce_merge_precheck) {
           if (res->is_Phi() && res->as_Phi()->can_be_inline_type()) {
             // Can only eliminate allocation if the phi had been replaced by an InlineTypeNode before which did not happen.
+            // TODO Why wasn't it replaced by an InlineTypeNode?
             can_eliminate = false;
           }
           safepoints->append_if_missing(sfpt);
@@ -1216,7 +1217,8 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
   bool boxing_alloc = (res == nullptr) && C->eliminate_boxing() &&
                       tklass->isa_instklassptr() &&
                       tklass->is_instklassptr()->instance_klass()->is_box_klass();
-  if (!alloc->_is_scalar_replaceable && !boxing_alloc && !inline_alloc) {
+  // TODO reverted 8293541 because it causes test failures with -DScenarios=5 -DTest=test26 and TestCallingConvention.java
+  if (!alloc->_is_scalar_replaceable && (!boxing_alloc || (res != nullptr))) {
     return false;
   }
 

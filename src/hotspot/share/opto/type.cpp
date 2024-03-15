@@ -2580,6 +2580,7 @@ bool TypeAry::ary_must_be_exact() const {
     tinst = _elem->isa_instptr();
   if (tinst) {
     if (tinst->instance_klass()->is_final()) {
+      // TODO 8325106 Fix comment
       // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
       if (tinst->is_inlinetypeptr() && (tinst->ptr() == TypePtr::BotPTR || tinst->ptr() == TypePtr::TopPTR)) {
         return false;
@@ -3666,7 +3667,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
           ciField* field = nullptr;
           if (const_oop() != nullptr) {
             ciInstanceKlass* k = const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
-            // TODO remove?
+            // TODO 8325106 remove?
             if (k->is_inlinetype() && this->offset() == k->as_inline_klass()->default_value_offset()) {
               // Special hidden field that contains the oop of the default inline type
               // basic_elem_type = T_PRIMITIVE_OBJECT;
@@ -3870,7 +3871,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     bool not_null_free = !exact_etype->can_be_inline_type();
     bool not_flat = !UseFlatArray || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
 
-    // TODO adjust comment
+    // TODO 8325106 Fix comment
     // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
     bool xk = etype->klass_is_exact() && !etype->is_inlinetypeptr();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, not_flat, not_null_free);
@@ -5383,6 +5384,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       } else {
         // Only precise for identical arrays
         res_xk = this_xk && (this_ary->is_same_java_type_as(other_ary) || (this_top_or_bottom && other_top_or_bottom));
+        // TODO 8325106 Fix comment
         // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
         if (res_xk && !res_not_null_free) {
           res_xk = false;
@@ -5401,6 +5403,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       } else {
         res_xk = (other_xk && this_xk) &&
                  (this_ary->is_same_java_type_as(other_ary) || (this_top_or_bottom && other_top_or_bottom)); // Only precise for identical arrays
+        // TODO 8325106 Fix comment
         // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
         if (res_xk && !res_not_null_free) {
           res_xk = false;
@@ -5939,6 +5942,7 @@ const TypeKlassPtr* TypeAryPtr::as_klass_type(bool try_for_exact) const {
   if (elem->make_oopptr() != nullptr) {
     elem = elem->make_oopptr()->as_klass_type(try_for_exact);
     if (elem->is_klassptr()->klass_is_exact() &&
+        // TODO 8325106 Fix comment
         // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
         (is_null_free() || is_flat() || !_ary->_elem->make_oopptr()->is_inlinetypeptr())) {
       xk = true;
@@ -6456,6 +6460,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
     // Element is an object array. Recursively call ourself.
     ciKlass* eklass = k->as_obj_array_klass()->element_klass();
     const TypeKlassPtr* etype = TypeKlassPtr::make(eklass, interface_handling)->cast_to_exactness(false);
+    // TODO 8325106 Fix comment
     // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
     if (etype->klass_is_exact() && etype->isa_instklassptr() && etype->is_instklassptr()->klass()->is_inlinetype() && !null_free) {
       etype = TypeInstKlassPtr::make(NotNull, etype->is_instklassptr()->klass(), Offset(etype->is_instklassptr()->offset()));
@@ -6476,7 +6481,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
 }
 
 const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling) {
-  // TODO
+  // TODO 8325106 remove?
   bool null_free = k->as_array_klass()->is_elem_null_free();
   bool not_null_free = (ptr == Constant) ? !null_free : !k->is_flat_array_klass() && (k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false));
 
@@ -6639,6 +6644,7 @@ bool TypeAryKlassPtr::must_be_exact() const {
   if (_elem == Type::TOP   ) return false;
   const TypeKlassPtr*  tk = _elem->isa_klassptr();
   if (!tk)             return true;   // a primitive type, like int
+  // TODO 8325106 Fix comment
   // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
   if (tk->isa_instklassptr() && tk->klass()->is_inlinetype() && !is_null_free()) {
     return false;
@@ -6877,6 +6883,7 @@ template <class T1, class T2> bool TypePtr::is_java_subtype_of_helper_for_array(
   const TypePtr* this_elem = this_one->elem()->make_ptr();
   if (this_elem != nullptr && other_elem != nullptr) {
     if (other->is_null_free() && !this_one->is_null_free()) {
+      // TODO 8325106 Fix comment
       return false; // [LMyValue is not a subtype of [QMyValue
     }
     return this_one->is_reference_type(this_elem)->is_java_subtype_of_helper(this_one->is_reference_type(other_elem), this_exact, other_exact);

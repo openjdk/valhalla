@@ -988,6 +988,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
       for (j = 0; j < l; j++) {
         call->set_req(p++, in_map->in(k+j));
         Node* local = in_map->in(k+j);
+        // TODO 8325106
         if (false && local->is_InlineType() && local->isa_InlineType()->is_larval()) {
           tty->print_cr("LARVAL FOUND in LOCAL");
           in_map->dump(0);
@@ -1006,7 +1007,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
       for (j = 0; j < l; j++) {
         call->set_req(p++, in_map->in(k+j));
         Node* local = in_map->in(k+j);
-        // TODO check if there's a larval on stack in the caller state that has been written in the callee state and update it accordingly
+        // TODO 8325106 check if there's a larval on stack in the caller state that has been written in the callee state and update it accordingly
         if (false && local->is_InlineType() && local->isa_InlineType()->is_larval()) {
           tty->print_cr("LARVAL FOUND on STACK");
           in_map->dump(0);
@@ -3920,6 +3921,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     bool can_be_flat = false;
     const TypeAryPtr* ary_type = klass_t->as_instance_type()->isa_aryptr();
     if (UseFlatArray && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
+      // TODO 8325106 Fix comment
       // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue. Don't constant fold.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
       can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flat_in_array());
@@ -4322,7 +4324,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
-  // TODO adjust comment
+  // TODO 8325106 Fix comment
   // Inline type array variants:
   // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue")
   // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue")

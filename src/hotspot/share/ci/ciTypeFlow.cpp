@@ -340,8 +340,8 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
         assert(k2 == ciArrayKlass::make(elem, null_free), "shortcut is OK");
         return k2;
       } else {
-        // TODO dead?
-        assert(!null_free, "FAIL");
+        // TODO 8325106 Remove
+        assert(!null_free, "should be dead");
         return ciArrayKlass::make(elem);
       }
     } else {
@@ -605,7 +605,7 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
           Deoptimization::Action_reinterpret));
   } else {
     if (array_klass->is_elem_null_free()) {
-      // TODO dead?
+      // TODO 8325106 Is this dead?
       push(outer()->mark_as_null_free(element_klass));
     } else {
       push_object(element_klass);
@@ -635,7 +635,7 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
       klass = type->as_klass();
     }
     if (klass->is_inlinetype() && type->is_null_free()) {
-      // TODO dead?
+      // TODO 8325106 Is this dead?
       push(outer()->mark_as_null_free(klass));
     } else {
       push_object(klass);

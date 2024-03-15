@@ -54,7 +54,7 @@ protected:
   bool _is_larval;
 
   virtual uint hash() const { return TypeNode::hash() + _is_larval; }
-  // TODO why can't we gvn larvals?
+  // TODO 8325106 why can't we gvn larvals?
   virtual bool cmp(const Node &n) const { return TypeNode::cmp(n) && !((InlineTypeNode&)n)._is_larval && !_is_larval; }
   virtual uint size_of() const { return sizeof(*this); }
 

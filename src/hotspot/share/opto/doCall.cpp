@@ -581,12 +581,12 @@ void Parse::do_call() {
   // Detect the call to the object or abstract class constructor at the end of a value constructor to know when we are done initializing the larval
   if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && peek()->is_InlineType()) {
      InlineTypeNode* receiver = peek()->as_InlineType();
-     // TODO re-enable the assert
+     // TODO 8325106 re-enable the assert
      //assert(receiver->is_larval(), "must be larval");
      InlineTypeNode* clone = receiver->clone()->as_InlineType();
      clone->set_is_larval(false);
      replace_in_map(receiver, _gvn.transform(clone));
-     // TODO do we need a barrier here to prevent the initializing stores to flow below?
+     // TODO 8325106 do we need a barrier here to prevent the initializing stores to flow below?
    }
 
   // Speculative type of the receiver if any

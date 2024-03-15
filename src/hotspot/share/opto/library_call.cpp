@@ -5540,7 +5540,7 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
     sfpt->init_req(i, alloc->in(i));
   }
   int adjustment = 1;
-  // TODO why can't we check via the type of the const klass node?
+  // TODO 8325106 why can't we check via the type of the const klass node?
   if (alloc->is_null_free()) {
     // A null-free, tightly coupled array allocation can only come from LibraryCallKit::inline_newNullRestrictedArray
     // which requires both the component type and the array length on stack for re-execution. Re-create and push
