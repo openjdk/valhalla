@@ -65,7 +65,7 @@ public class TestUnloadedInlineTypeField {
         };
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+EnableValhalla",
+                   .addFlags("--enable-preview",
                              // Prevent IR Test Framework from loading classes
                              "-DIgnoreCompilerControls=true",
                              // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.

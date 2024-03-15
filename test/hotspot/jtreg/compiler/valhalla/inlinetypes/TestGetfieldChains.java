@@ -45,8 +45,7 @@ import jdk.test.lib.Asserts;
  * @compile GetfieldChains.jcod
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestGetfieldChains.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla
- *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ * @run main/othervm/timeout=300 --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                               compiler.valhalla.inlinetypes.TestGetfieldChains
  */
@@ -116,7 +115,7 @@ public class TestGetfieldChains {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+EnableValhalla",
+                   .addFlags("--enable-preview",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .start();

@@ -66,7 +66,7 @@ public class TestC1 {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+EnableValhalla",
+                   .addFlags("--enable-preview",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,

@@ -56,7 +56,6 @@ interface MyInterface {
 
 abstract value class MyAbstract implements MyInterface {
 
-
 }
 
 value class MyValue1 extends MyAbstract {
@@ -1868,7 +1867,7 @@ public class TestNewAcmp {
 
     private static void enumerateVMOptions() throws Exception {
         String[] baseOptions = {
-            "-XX:+EnableValhalla",
+            "--enable-preview",
             "-Xbootclasspath/a:.",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+WhiteBoxAPI",

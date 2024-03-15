@@ -1118,7 +1118,7 @@ void GraphBuilder::load_indexed(BasicType type) {
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
         apush(append(load_indexed));
       } else {
-        NewInstance* new_instance = new NewInstance(elem_klass, state_before, true, true);
+        NewInstance* new_instance = new NewInstance(elem_klass, state_before, false, true);
         _memory->new_instance(new_instance);
         apush(append_split(new_instance));
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
@@ -2000,7 +2000,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           } else {
             push(type, append(load));
           }
-        } else {
+        } else {  // field is flat
           // Look at the next bytecode to check if we can delay the field access
           bool can_delay_access = false;
           ciBytecodeStream s(method());
@@ -2038,7 +2038,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             } else if (has_pending_load_indexed()) {
               assert(!needs_patching, "Can't patch delayed field access");
               pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
-              NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), true, true);
+              NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), false, true);
               _memory->new_instance(vt);
               pending_load_indexed()->load_instr()->set_vt(vt);
               apush(append_split(vt));
@@ -2046,7 +2046,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               set_pending_load_indexed(nullptr);
               need_membar = true;
             } else {
-              NewInstance* new_instance = new NewInstance(inline_klass, state_before, true, true);
+              NewInstance* new_instance = new NewInstance(inline_klass, state_before, false, true);
               _memory->new_instance(new_instance);
               apush(append_split(new_instance));
               assert(!needs_patching, "Can't patch flat inline type field access");
@@ -2478,9 +2478,15 @@ void GraphBuilder::new_instance(int klass_index) {
   ValueStack* state_before = copy_state_exhandling();
   ciKlass* klass = stream()->get_klass();
   assert(klass->is_instance_klass(), "must be an instance klass");
-  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass(), false);
-  _memory->new_instance(new_instance);
-  apush(append_split(new_instance));
+  if (!stream()->is_unresolved_klass() && klass->is_inlinetype() &&
+      klass->as_inline_klass()->is_initialized() && klass->as_inline_klass()->is_empty()) {
+    ciInlineKlass* vk = klass->as_inline_klass();
+    apush(append(new Constant(new InstanceConstant(vk->default_instance()))));
+  } else {
+    NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass(), false);
+    _memory->new_instance(new_instance);
+    apush(append_split(new_instance));
+  }
 }
 
 void GraphBuilder::new_type_array() {

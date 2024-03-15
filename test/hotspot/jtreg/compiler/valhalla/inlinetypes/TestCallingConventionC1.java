@@ -54,13 +54,13 @@ public class TestCallingConventionC1 {
         final Scenario[] scenarios = {
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
                 new Scenario(0,
-                             "-XX:+EnableValhalla",
+                             "--enable-preview",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation"),
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
                 new Scenario(1,
-                             "-XX:+EnableValhalla",
+                             "--enable-preview",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
@@ -69,21 +69,21 @@ public class TestCallingConventionC1 {
                 // Same as above, but flip all the compLevel=CompLevel.C1_SIMPLE and compLevel=CompLevel.C2, so we test
                 // the compliment of the above scenario.
                 new Scenario(2,
-                             "-XX:+EnableValhalla",
+                             "--enable-preview",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
                              "-DFlipC1C2=true"),
                 // Only C1. Tiered compilation disabled.
                 new Scenario(3,
-                             "-XX:+EnableValhalla",
+                             "--enable-preview",
                              "-XX:TieredStopAtLevel=1",
                              "-XX:+TieredCompilation",
                              "-XX:+IgnoreUnrecognizedVMOptions",
                              "-XX:-PatchALot"),
                 // Only C2.
                 new Scenario(4,
-                             "-XX:+EnableValhalla",
+                             "--enable-preview",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:-TieredCompilation")
         };

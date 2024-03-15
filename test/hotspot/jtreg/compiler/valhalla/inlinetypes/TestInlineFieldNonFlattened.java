@@ -97,7 +97,7 @@ public class TestInlineFieldNonFlattened {
     public static void main(String[] args) {
         TestFramework testFramework = new TestFramework();
         testFramework.setDefaultWarmup(10000)
-                     .addFlags("-XX:+EnableValhalla",
+                     .addFlags("--enable-preview",
                                "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                                "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                                "-XX:-TieredCompilation",
