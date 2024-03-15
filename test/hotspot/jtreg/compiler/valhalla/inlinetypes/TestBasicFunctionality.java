@@ -508,8 +508,9 @@ public class TestBasicFunctionality {
 
     // Test value class fields in objects
     @Test
-    @IR(counts = {ALLOC, "= 2"},
-        failOn = TRAP)
+    // TODO 8325106 We already buffer the larval and we had to disable InlineTypeNode::remove_redundant_allocations for larvals
+//    @IR(counts = {ALLOC, "= 2"},
+//        failOn = TRAP)
     public long test21(int x, long y) {
         // Compute hash of value class fields
         long result = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
@@ -639,7 +640,9 @@ public class TestBasicFunctionality {
 
     // Check elimination of redundant value class allocations
     @Test
-    @IR(counts = {ALLOC, "= 1"})
+    // TODO 8325106 With incremental inlining, we already buffer the larval and we had to disable InlineTypeNode::remove_redundant_allocations for larvals
+    @IR(applyIf = {"AlwaysIncrementalInline", "false"},
+        counts = {ALLOC, "= 1"})
     public MyValue3 test28(MyValue3[] va) {
         // Create value object and force allocation
         MyValue3 vt = MyValue3.create();

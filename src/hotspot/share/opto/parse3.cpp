@@ -293,7 +293,9 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       }
       // We need to store to the buffer
       // TODO avoid redundant stores
-      new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, IN_HEAP | MO_UNORDERED, field->offset_in_bytes());
+      // TODO looks like G1BarrierSetC2::g1_can_remove_pre_barrier is not strong enough to remove the pre barrier
+      // TODO is it really guaranteed that the preval is null?
+      new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, C2_TIGHTLY_COUPLED_ALLOC | IN_HEAP | MO_UNORDERED, field->offset_in_bytes());
     }
 
     replace_in_map(obj, _gvn.transform(new_vt));
