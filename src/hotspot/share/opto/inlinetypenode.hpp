@@ -146,7 +146,7 @@ public:
   InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
 
-  void replace_call_results(GraphKit* kit, CallNode* call, Compile* C, bool null_free = true);
+  void replace_call_results(GraphKit* kit, CallNode* call, Compile* C);
 
   // Allocate all non-flat inline type fields
   Node* allocate_fields(GraphKit* kit);

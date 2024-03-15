@@ -760,6 +760,7 @@ inline bool is_double_word_type(BasicType t) {
 }
 
 inline bool is_reference_type(BasicType t, bool include_narrow_oop = false) {
+  // TODO remove the last occurences of T_PRIMITIVE_OBJECT
   return (t == T_OBJECT || t == T_ARRAY || t == T_PRIMITIVE_OBJECT || (include_narrow_oop && t == T_NARROWOOP));
 }
 

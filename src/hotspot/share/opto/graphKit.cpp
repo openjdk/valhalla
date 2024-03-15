@@ -1954,8 +1954,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
-    // ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
-    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, false); // JDK-8325660: revisit this code after removal of Q-descriptors
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, false);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
@@ -3687,14 +3686,6 @@ Node* GraphKit::inline_type_test(Node* obj, bool is_inline) {
   return _gvn.transform(new BoolNode(cmp, is_inline ? BoolTest::eq : BoolTest::ne));
 }
 
-Node* GraphKit::is_val_mirror(Node* mirror) {
-  // JDK-8325660: notion of secondary mirror / val_mirror is gone one JEP 401
-  Node* p = basic_plus_adr(mirror, (int)0 /* java_lang_Class::secondary_mirror_offset() */);
-  Node* secondary_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
-  Node* cmp = _gvn.transform(new CmpPNode(mirror, secondary_mirror));
-  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
-}
-
 Node* GraphKit::array_lh_test(Node* klass, jint mask, jint val, bool eq) {
   Node* lh_adr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
   // Make sure to use immutable memory here to enable hoisting the check out of loops
@@ -4331,6 +4322,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
+  // TODO adjust comment
   // Inline type array variants:
   // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue")
   // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue")
@@ -4344,47 +4336,15 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     if (ary_ptr->is_null_free() && !ary_ptr->is_flat()) {
       ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
       default_value = InlineTypeNode::default_oop(gvn(), vk);
-    }
-  // TODO remove this
-  } else if (ary_type->can_be_inline_array() && false) {
-    // Array type is not known, add runtime checks
-    assert(!ary_klass->klass_is_exact(), "unexpected exact type");
-    Node* r = new RegionNode(3);
-    default_value = new PhiNode(r, TypeInstPtr::BOTTOM);
-
-    Node* bol = array_lh_test(klass_node, Klass::_lh_array_tag_flat_value_bit_inplace | Klass::_lh_null_free_array_bit_inplace, Klass::_lh_null_free_array_bit_inplace);
-    IfNode* iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
-
-    // Null-free, non-flat inline type array, initialize with the default value
-    set_control(_gvn.transform(new IfTrueNode(iff)));
-    Node* p = basic_plus_adr(klass_node, in_bytes(ArrayKlass::element_klass_offset()));
-    Node* eklass = _gvn.transform(LoadKlassNode::make(_gvn, control(), immutable_memory(), p, TypeInstPtr::KLASS));
-    Node* adr_fixed_block_addr = basic_plus_adr(eklass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()));
-    Node* adr_fixed_block = make_load(control(), adr_fixed_block_addr, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
-    Node* default_value_offset_addr = basic_plus_adr(adr_fixed_block, in_bytes(InlineKlass::default_value_offset_offset()));
-    Node* default_value_offset = make_load(control(), default_value_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
-    Node* elem_mirror = load_mirror_from_klass(eklass);
-    Node* default_value_addr = basic_plus_adr(elem_mirror, ConvI2X(default_value_offset));
-    Node* val = access_load_at(elem_mirror, default_value_addr, TypeInstPtr::MIRROR, TypeInstPtr::NOTNULL, T_OBJECT, IN_HEAP);
-    r->init_req(1, control());
-    default_value->init_req(1, val);
-
-    // Otherwise initialize with all zero
-    r->init_req(2, _gvn.transform(new IfFalseNode(iff)));
-    default_value->init_req(2, null());
-
-    set_control(_gvn.transform(r));
-    default_value = _gvn.transform(default_value);
-  }
-  if (default_value != nullptr) {
-    if (UseCompressedOops) {
-      // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
-      default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
-      Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
-      Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
-      raw_default_value = _gvn.transform(new OrLNode(lower, upper));
-    } else {
-      raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
+      if (UseCompressedOops) {
+        // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
+        default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
+        Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
+        Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
+        raw_default_value = _gvn.transform(new OrLNode(lower, upper));
+      } else {
+        raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
+      }
     }
   }
 

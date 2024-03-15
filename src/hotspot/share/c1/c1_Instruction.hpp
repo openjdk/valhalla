@@ -1301,7 +1301,7 @@ LEAF(Invoke, StateSplit)
  public:
   // creation
   Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-         ciMethod* target, ValueStack* state_before, bool null_free);
+         ciMethod* target, ValueStack* state_before);
 
   // accessors
   Bytecodes::Code code() const                   { return _code; }
@@ -1411,10 +1411,8 @@ LEAF(NewObjectArray, NewArray)
 
  public:
   // creation
-  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before, bool null_free)
-  : NewArray(length, state_before), _klass(klass) {
-    set_null_free(null_free);
-  }
+  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before)
+  : NewArray(length, state_before), _klass(klass) { }
 
   // accessors
   ciKlass* klass() const                         { return _klass; }
@@ -1508,10 +1506,8 @@ BASE(TypeCheck, StateSplit)
 LEAF(CheckCast, TypeCheck)
  public:
   // creation
-  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before, bool null_free = false)
-  : TypeCheck(klass, obj, objectType, state_before) {
-    set_null_free(null_free);
-  }
+  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before)
+  : TypeCheck(klass, obj, objectType, state_before) { }
 
   void set_incompatible_class_change_check() {
     set_flag(ThrowIncompatibleClassChangeErrorFlag, true);

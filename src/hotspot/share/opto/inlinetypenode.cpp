@@ -647,7 +647,7 @@ bool InlineTypeNode::is_allocated(PhaseGVN* phase) const {
 // projections, one per field. Replacing the result of the call by an
 // inline type node (after late inlining) requires that for each result
 // projection, we find the corresponding inline type field.
-void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C, bool null_free) {
+void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) {
   ciInlineKlass* vk = inline_klass();
   for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
     ProjNode* pn = call->fast_out(i)->as_Proj();
@@ -655,7 +655,7 @@ void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile
     Node* field = nullptr;
     if (con == TypeFunc::Parms) {
       field = get_oop();
-    } else if (!null_free && con == (call->tf()->range_cc()->cnt() - 1)) {
+    } else if (con == (call->tf()->range_cc()->cnt() - 1)) {
       field = get_is_init();
     } else if (con > TypeFunc::Parms) {
       uint field_nb = con - (TypeFunc::Parms+1);
@@ -747,9 +747,8 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     }
     return this;
   }
+  // TODO 8325106 Re-evaluate this: We prefer a "loaded" oop because it's free. The existing oop might come from a buffering.
   if (!is_allocated(phase) || true) {
-    // TODO prefer a "loaded" oop because it's free. The existing oop might come from a buffering.
-
     // Save base oop if fields are loaded from memory and the inline
     // type is not buffered (in this case we should not use the oop).
     Node* base = is_loaded(phase);
@@ -811,6 +810,7 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
   // Create a new InlineTypeNode with default values
   Node* oop = vk->is_initialized() && !is_larval ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
+  // TODO we should be able to set buffered here for non-larvals, right?
   //vt->set_is_buffered(gvn, vk->is_initialized());
   vt->set_is_buffered(gvn, false);
   vt->set_is_init(gvn);
@@ -939,9 +939,6 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
 // TODO 8284443
 //    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineType ||
 //           AllocateNode::Ideal_allocation(oop, &gvn) != nullptr || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
-  }
-  if (!(vt->is_allocated(&gvn) || (null_free && !vk->is_initialized()))) {
-    vt->dump(3);
   }
   assert(vt->is_allocated(&gvn) || (null_free && !vk->is_initialized()), "inline type should be allocated");
   kit->record_for_igvn(vt);

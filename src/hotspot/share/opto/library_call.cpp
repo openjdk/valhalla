@@ -4164,27 +4164,6 @@ bool LibraryCallKit::inline_Class_cast() {
   Node* io = i_o();
   Node* mem = merged_memory();
   if (!stopped()) {
-    // JDK-8325660: JEP 401 removed notions of Q-descriptors and secondary mirrors
-    // if (EnableValhalla && !requires_null_check) {
-    //   // Check if we are casting to QMyValue
-    //   Node* ctrl_val_mirror = generate_fair_guard(is_val_mirror(mirror), nullptr);
-    //   if (ctrl_val_mirror != nullptr) {
-    //     RegionNode* r = new RegionNode(3);
-    //     record_for_igvn(r);
-    //     r->init_req(1, control());
-
-    //     // Casting to QMyValue, check for null
-    //     set_control(ctrl_val_mirror);
-    //     { // PreserveJVMState because null check replaces obj in map
-    //       PreserveJVMState pjvms(this);
-    //       Node* null_ctr = top();
-    //       null_check_oop(obj, &null_ctr);
-    //       region->init_req(_npe_path, null_ctr);
-    //       r->init_req(2, control());
-    //     }
-    //     set_control(_gvn.transform(r));
-    //   }
-    // }
 
     Node* bad_type_ctrl = top();
     // Do checkcast optimizations.
@@ -4275,11 +4254,6 @@ bool LibraryCallKit::inline_native_subtype_check() {
     Node* subk   = klasses[1];  // the argument to isAssignableFrom
     Node* superk = klasses[0];  // the receiver
     region->set_req(_both_ref_path, gen_subtype_check(subk, superk));
-    // If superc is an inline mirror, we also need to check if superc == subc because LMyValue
-    // is not a subtype of QMyValue but due to subk == superk the subtype check will pass.
-    // TODO JDK-8325660
-    // generate_fair_guard(is_val_mirror(args[0]), prim_region);
-    // now we have a successful reference subtype check
     region->set_req(_ref_subtype_path, control());
   }
 
@@ -4401,10 +4375,7 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
           AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(obj);
           alloc->set_null_free();
           set_result(obj);
-          if (!gvn().type(obj)->is_aryptr()->is_null_free()) {
-            gvn().type(obj)->dump();
-            assert(false, "FAIL");
-          }
+          assert(gvn().type(obj)->is_aryptr()->is_null_free(), "must be null-free");
           return true;
         }
       }

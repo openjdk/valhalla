@@ -2065,27 +2065,6 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != nullptr && const_oop->is_instance()) {
-      /*
-      ciType* mirror_type = const_oop->as_instance()->java_mirror_type();
-      if (mirror_type != nullptr) {
-        const Type* const_oop = nullptr;
-        ciInlineKlass* vk = mirror_type->is_inlinetype() ? mirror_type->as_inline_klass() : nullptr;
-        // Fold default value loads
-        if (vk != nullptr && off == vk->default_value_offset()) {
-          const_oop = TypeInstPtr::make(vk->default_instance());
-        }
-        // Fold class mirror loads
-        // JDK-8325660: notion of secondary mirror is gone in JEP 401
-        // if (off == java_lang_Class::primary_mirror_offset()) {
-        //   const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->java_mirror());
-        // } else if (off == java_lang_Class::secondary_mirror_offset()) {
-        //   const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->java_mirror());
-        // }
-        if (const_oop != nullptr) {
-//          return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
-        }
-      }
-      */
       const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), bt);
       if (con_type != nullptr) {
         return con_type;
@@ -2448,7 +2427,6 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             offset == java_lang_Class::array_klass_offset())) {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
-      bool null_free = false;
       ciType* t = tinst->java_mirror_type();
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != nullptr) {
@@ -2459,8 +2437,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          // JDK-8325660: after removal of secondary mirror and Q-types, null_free is now always false => cleanup?
-          return TypeKlassPtr::make(ciArrayKlass::make(t, null_free), Type::trust_interfaces);
+          return TypeKlassPtr::make(ciArrayKlass::make(t), Type::trust_interfaces);
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has null for a klass field

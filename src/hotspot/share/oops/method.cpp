@@ -913,10 +913,6 @@ bool Method::is_constant_getter() const {
           !has_scalarized_args());
 }
 
-bool Method::is_object_constructor_or_class_initializer() const {
-  return (is_object_constructor() || is_class_initializer());
-}
-
 bool Method::is_class_initializer() const {
   // For classfiles version 51 or greater, ensure that the clinit method is
   // static.  Non-static methods with the name "<clinit>" are not static

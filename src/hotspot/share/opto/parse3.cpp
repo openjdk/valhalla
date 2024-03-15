@@ -380,15 +380,13 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
 void Parse::do_newarray() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
-  // bool null_free = iter().has_Q_signature();
-  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
 
   // Uncommon Trap when class that array contains is not loaded
   // we need the loaded class for the rest of graph; do not
   // initialize the container class (see Java spec)!!!
   assert(will_link, "newarray: typeflow responsibility");
 
-  ciArrayKlass* array_klass = ciArrayKlass::make(klass, null_free);
+  ciArrayKlass* array_klass = ciArrayKlass::make(klass);
 
   // Check that array_klass object is loaded
   if (!array_klass->is_loaded()) {

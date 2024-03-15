@@ -653,7 +653,7 @@ void Type::Initialize_shared(Compile* current) {
   // Nobody should ask _array_body_type[T_NARROWOOP]. Use null as assert.
   TypeAryPtr::_array_body_type[T_NARROWOOP] = nullptr;
   TypeAryPtr::_array_body_type[T_OBJECT]  = TypeAryPtr::OOPS;
-  TypeAryPtr::_array_body_type[T_PRIMITIVE_OBJECT] = TypeAryPtr::OOPS;  // JDK-8325660: verify this usage of T_PRIMITIVE_OBJECT
+  TypeAryPtr::_array_body_type[T_PRIMITIVE_OBJECT] = TypeAryPtr::OOPS;
   TypeAryPtr::_array_body_type[T_ARRAY]   = TypeAryPtr::OOPS; // arrays are stored in oop arrays
   TypeAryPtr::_array_body_type[T_BYTE]    = TypeAryPtr::BYTES;
   TypeAryPtr::_array_body_type[T_BOOLEAN] = TypeAryPtr::BYTES;  // boolean[] is a byte array
@@ -2279,13 +2279,11 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, InterfaceHandling inte
       break;
     case T_OBJECT:
       if (type->is_inlinetype() && vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
-        if (!sig->is_null_free_at(i)) {
-          // InlineTypeNode::IsInit field used for null checking
-          field_array[pos++] = get_const_basic_type(T_BOOLEAN);
-        }
+        // InlineTypeNode::IsInit field used for null checking
+        field_array[pos++] = get_const_basic_type(T_BOOLEAN);
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
       } else {
-        field_array[pos++] = get_const_type(type, interface_handling)->join_speculative(sig->is_null_free_at(i) ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+        field_array[pos++] = get_const_type(type, interface_handling);
       }
       break;
     case T_ARRAY:
@@ -3863,11 +3861,6 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
   } else if (klass->is_obj_array_klass()) {
     // Element is an object or inline type array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ false, try_for_exact, interface_handling);
-    // TODO remove
-    bool null_free = klass->as_array_klass()->is_elem_null_free();
-    if (null_free) {
-      etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
-    }
     // Determine null-free/flat properties
     const TypeOopPtr* exact_etype = etype;
     if (etype->can_be_inline_type()) {
@@ -3877,8 +3870,9 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     bool not_null_free = !exact_etype->can_be_inline_type();
     bool not_flat = !UseFlatArray || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
 
+    // TODO adjust comment
     // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
-    bool xk = etype->klass_is_exact() && (!etype->is_inlinetypeptr() || null_free);
+    bool xk = etype->klass_is_exact() && !etype->is_inlinetypeptr();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, not_flat, not_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
@@ -3924,14 +3918,8 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
   } else if (klass->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
-    // TODO remove
-    bool null_free = false;
-    if (klass->as_array_klass()->is_elem_null_free()) {
-      null_free = true;
-      etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
-    }
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()),
-                                        /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ !null_free);
+                                        /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
     // slam nulls down in the subarrays.
