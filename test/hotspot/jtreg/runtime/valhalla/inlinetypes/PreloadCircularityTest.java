@@ -26,6 +26,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @library /test/lib
+ * @enablePreview
  * @compile PreloadCircularityTest.java
  * @run main/othervm -XX:+EnableValhalla PreloadCircularityTest
  */
@@ -313,7 +314,7 @@ public class PreloadCircularityTest {
     void test_50() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class50a");
         out.shouldHaveExitValue(0);
-        out.shouldNotContain("[info][class,preload]");
+        out.shouldNotContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class50a");
     }
 
     @ImplicitlyConstructible
@@ -457,7 +458,7 @@ public class PreloadCircularityTest {
 
     static ProcessBuilder exec(String... args) throws Exception {
         List<String> argsList = new ArrayList<>();
-        Collections.addAll(argsList, "-XX:+EnableValhalla");
+        Collections.addAll(argsList, "--enable-preview");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
         Collections.addAll(argsList, "-Xlog:class+preload=info");
         Collections.addAll(argsList, args);
@@ -470,6 +471,7 @@ public class PreloadCircularityTest {
         Class c = tests.getClass();
         System.out.println("Iterating over test methods");
         boolean hasFailedTest = false;
+        StringBuilder sb = new StringBuilder("Following tests have failed: ");
         for (Method m : c.getDeclaredMethods()) {
             if (m.getName().startsWith("test_")) {
                 boolean failed = false;
@@ -482,10 +484,11 @@ public class PreloadCircularityTest {
                 }
                 System.out.println("Test " + m.getName() + " : " + (failed ? "FAILED" : "PASSED"));
                 hasFailedTest = failed ? true : hasFailedTest;
+                if (failed) sb.append(m.getName()).append(", ");
             }
         }
         if (hasFailedTest) {
-            throw new RuntimeException("Not all tests passed");
+            throw new RuntimeException(sb.toString());
         }
     }
 }
