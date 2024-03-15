@@ -139,7 +139,7 @@ bool Instruction::maybe_flat_array() {
     ciType* type = declared_type();
     if (type != nullptr) {
       if (type->is_obj_array_klass()) {
-        // TODO adjust
+        // TODO 8325106 Fix comment
         // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
         if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flat_in_array())) {
