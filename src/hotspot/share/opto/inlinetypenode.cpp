@@ -748,7 +748,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     return this;
   }
   // TODO 8325106 Re-evaluate this: We prefer a "loaded" oop because it's free. The existing oop might come from a buffering.
-  if (!is_allocated(phase) || true) {
+  if (!is_larval(phase) && !is_larval()) {
     // Save base oop if fields are loaded from memory and the inline
     // type is not buffered (in this case we should not use the oop).
     Node* base = is_loaded(phase);
