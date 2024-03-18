@@ -28,6 +28,7 @@
  * @bug 8287713
  * @summary [lw4] Javac incorrectly flags subclasses as being ACC_IDENTITY classes.
  * @modules jdk.jdeps/com.sun.tools.classfile
+ * @enablePreview
  * @run main NoAutoInheritanceOfIdentityFlagBit
  */
 

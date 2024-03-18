@@ -51,10 +51,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
+ * @enablePreview
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestLWorld.java
- * @run main/othervm/timeout=450 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestLWorld
+ * @run main/othervm/timeout=450  --enable-preview compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer
@@ -3180,9 +3181,8 @@ public class TestLWorld {
     }
 
     @Test
-// TODO 8293541
-//    @IR(failOn = {ALLOC_G, MEMBAR},
-//        counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
     public long test109_sharp() {
         long res = 0;
@@ -3219,9 +3219,8 @@ public class TestLWorld {
     }
 
     @Test
-// TODO 8293541
-//    @IR(failOn = {ALLOC_G, MEMBAR},
-//        counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
     public long test110_sharp() {
         long res = 0;
@@ -4177,7 +4176,7 @@ public class TestLWorld {
         public int val();
     }
 
-    static abstract class MyAbstract2 implements MyInterface2 {
+    static abstract value class MyAbstract2 implements MyInterface2 {
 
     }
 

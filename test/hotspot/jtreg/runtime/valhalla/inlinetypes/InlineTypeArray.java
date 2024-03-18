@@ -41,10 +41,11 @@ import static jdk.test.lib.Asserts.*;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
- * @compile --source 22 --enable-preview InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=-1 --enable-preview runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=0 --enable-preview runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions --enable-preview -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
+ * @enablePreview
+ * @compile --source 22 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1 runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:FlatArrayElementMaxSize=0 runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {
     public static void main(String[] args) {

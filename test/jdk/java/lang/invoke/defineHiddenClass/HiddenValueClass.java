@@ -24,6 +24,7 @@
 /*
  * @test
  * @library /test/lib
+ * @enablePreview
  * @run testng/othervm HiddenValueClass
  * @summary Test that a value class can be defined as a hidden class
  */

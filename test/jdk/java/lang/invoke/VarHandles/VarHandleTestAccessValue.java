@@ -25,6 +25,7 @@
 
 /*
  * @test
+ * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
  * @run testng/othervm -Diters=10   -Xint                                                   VarHandleTestAccessValue
  *

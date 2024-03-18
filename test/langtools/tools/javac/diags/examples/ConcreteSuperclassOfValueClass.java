@@ -22,6 +22,9 @@
  */
 
 // key: compiler.err.concrete.supertype.for.value.class
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version}
 
 public class ConcreteSuperclassOfValueClass {
     static abstract value class V extends ConcreteSuperclassOfValueClass {}

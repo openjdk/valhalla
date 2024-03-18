@@ -43,6 +43,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test value class specific type profiling.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *          TestLWorldProfiling.java
@@ -101,7 +102,7 @@ public class TestLWorldProfiling {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions", "-XX:+EnableValhalla",
+                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions", "--enable-preview",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
@@ -1090,7 +1091,7 @@ public class TestLWorldProfiling {
     }
 
     // Test array access with polluted array type profile
-    static abstract class Test40Abstract { }
+    static value abstract class Test40Abstract { }
     static class Test40Class extends Test40Abstract { }
 
     @ImplicitlyConstructible

@@ -26,6 +26,7 @@
  * @bug 8233415
  * @summary Verify that TLAB allocated buffer initialization when returning a value object works properly with oops.
  * @library /test/lib
+ * @enablePreview
  * @run main/othervm -XX:+EnableValhalla
  *                   -XX:CompileCommand=exclude,compiler.valhalla.inlinetypes.TestStressReturnBuffering::caller -Xmx4m
  *                   compiler.valhalla.inlinetypes.TestStressReturnBuffering

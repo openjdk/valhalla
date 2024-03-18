@@ -30,6 +30,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @library /test/lib
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @enablePreview
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFieldTypeMismatchClasses.jasm
  * @compile TestFieldTypeMismatch.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.TestFieldTypeMismatch

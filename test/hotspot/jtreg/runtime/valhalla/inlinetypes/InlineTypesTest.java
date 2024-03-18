@@ -59,13 +59,12 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.classfile
  * @build test.java.lang.invoke.lib.InstructionHelper
+ * @enablePreview
  * @compile InlineTypesTest.java
- * @run main/othervm -XX:+EnableValhalla --enable-preview
- *                   -Xmx128m -XX:+ExplicitGCInvokesConcurrent
+ * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
- * @run main/othervm -XX:+EnableValhalla --enable-preview
- *                   -Xmx128m -XX:+ExplicitGCInvokesConcurrent
+ * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:ForceNonTearable=*
  *                   runtime.valhalla.inlinetypes.InlineTypesTest

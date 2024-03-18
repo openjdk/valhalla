@@ -1137,7 +1137,7 @@ final class ValueObjectMethods {
      */
     private static <T> boolean isSubstitutable(T a, Object b) {
         if (VERBOSE) {
-            System.out.println("substitutable " + a + " vs " + b);
+            System.out.println("substitutable " + a.getClass() + ": " + a + " vs " + b);
         }
 
         // Called directly from the VM.

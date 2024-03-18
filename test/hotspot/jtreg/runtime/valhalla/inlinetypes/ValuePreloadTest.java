@@ -24,6 +24,7 @@
 /*
  * @test ValuePreloadTest
  * @library /test/lib
+ * @enablePreview
  * @compile ValuePreloadClient0.java PreloadValue0.java ValuePreloadClient1.jcod
  * @run driver ValuePreloadTest
  */
@@ -39,7 +40,7 @@ public class ValuePreloadTest {
 
     static ProcessBuilder exec(String... args) throws Exception {
         List<String> argsList = new ArrayList<>();
-        Collections.addAll(argsList, "-XX:+EnableValhalla");
+        Collections.addAll(argsList, "--enable-preview");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
         Collections.addAll(argsList, args);
         return ProcessTools.createTestJavaProcessBuilder(argsList);

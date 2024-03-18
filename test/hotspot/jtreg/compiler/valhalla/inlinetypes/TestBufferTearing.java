@@ -41,6 +41,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @summary Detect tearing on value class buffer writes due to missing barriers.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestBufferTearing.java
  * @run main/othervm -XX:+EnableValhalla
