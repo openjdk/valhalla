@@ -610,9 +610,15 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     Node* parm = local(i);
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
-      // Create InlineTypeNode from the oop and replace the parameter
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
-      set_local(i, vt);
+      AllocateNode* alloc = AllocateNode::Ideal_allocation(parm);
+      if (alloc && alloc->_larval) {
+        // Pass the larval state value parameter as it is to downstream graph.
+        set_local(i, parm);
+      } else {
+        // Create InlineTypeNode from the oop and replace the parameter
+        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
+        set_local(i, vt);
+      }
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flat)
@@ -1772,9 +1778,12 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Allocate inline type in src block to be able to merge it with oop in target block
           map()->set_req(j, n->as_InlineType()->buffer(this));
         } else if (!n->is_InlineType() && t->is_inlinetypeptr()) {
-          // Scalarize null in src block to be able to merge it with inline type in target block
-          assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
-          map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
+          AllocateNode* alloc = AllocateNode::Ideal_allocation(n);
+          if (alloc == nullptr || !alloc->_larval) {
+            // Scalarize null in src block to be able to merge it with inline type in target block
+            assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
+            map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
+          }
         }
       }
     }
@@ -1879,7 +1888,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       PhiNode* phi;
       if (m->is_Phi() && m->as_Phi()->region() == r) {
         phi = m->as_Phi();
-      } else if (m->is_InlineType() && m->as_InlineType()->has_phi_inputs(r)) {
+      } else if (m->is_InlineType() && n->is_InlineType() && m->as_InlineType()->has_phi_inputs(r)) {
         phi = m->as_InlineType()->get_oop()->as_Phi();
       } else {
         phi = nullptr;
@@ -1918,7 +1927,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       // Merging two inline types?
-      if (phi != nullptr && phi->bottom_type()->is_inlinetypeptr()) {
+      if (phi != nullptr && phi->bottom_type()->is_inlinetypeptr() && m->is_InlineType() && n->is_InlineType()) {
         // Reload current state because it may have been updated by ensure_phi
         m = map()->in(j);
         InlineTypeNode* vtm = m->as_InlineType(); // Current inline type
