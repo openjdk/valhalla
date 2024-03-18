@@ -39,6 +39,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
 /*
  * @test
  * @key randomness
+ * @bug 8327695
  * @summary Test the basic value class implementation in C2.
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
