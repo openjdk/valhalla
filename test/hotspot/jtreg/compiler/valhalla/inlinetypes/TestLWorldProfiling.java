@@ -1090,7 +1090,7 @@ public class TestLWorldProfiling {
     }
 
     // Test array access with polluted array type profile
-    static abstract class Test40Abstract { }
+    static value abstract class Test40Abstract { }
     static class Test40Class extends Test40Abstract { }
 
     @ImplicitlyConstructible

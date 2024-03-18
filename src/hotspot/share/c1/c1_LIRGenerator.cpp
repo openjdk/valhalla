@@ -659,7 +659,6 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, stub_id);
 
     assert(klass->is_loaded(), "must be loaded");
-    assert(!klass->is_inlinetype() || !klass->as_inline_klass()->is_empty(), "Sanity check");
     // allocate space for instance
     assert(klass->size_helper() > 0, "illegal instance size");
     const int instance_size = align_object_size(klass->size_helper());
