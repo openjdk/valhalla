@@ -2968,10 +2968,9 @@ public class Lower extends TreeTranslator {
                     // instance initializer in a value class
                     Set<JCExpression> outerThisSet = initializerOuterThis.get(currentClass);
                     if (outerThisSet == null) {
-                        outerThisSet = Set.of(thisArg);
-                    } else {
-                        outerThisSet.add(thisArg);
+                        outerThisSet = new HashSet<>();
                     }
+                    outerThisSet.add(thisArg);
                     initializerOuterThis.put(currentClass, outerThisSet);
                 }
             }
