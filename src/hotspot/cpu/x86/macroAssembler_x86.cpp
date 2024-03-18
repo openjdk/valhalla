@@ -3002,26 +3002,20 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
-  andl(temp_reg, 0x1);
-  testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_null_free_inline_type);
+  btl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
+  jcc(Assembler::carrySet, is_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
-  andl(temp_reg, 0x1);
-  testl(temp_reg, temp_reg);
-  jcc(Assembler::zero, not_null_free_inline_type);
+  btl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
+  jcc(Assembler::carryClear, not_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ResolvedFieldEntry::is_flat_shift);
-  andl(temp_reg, 0x1);
-  testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_flat);
+  btl(temp_reg, ResolvedFieldEntry::is_flat_shift);
+  jcc(Assembler::carrySet, is_flat);
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {

@@ -6249,6 +6249,13 @@ void Assembler::subss(XMMRegister dst, Address src) {
   emit_operand(dst, src, 0);
 }
 
+void Assembler::btl(Register dst, int imm8) {
+  int encode = prefix_and_encode(dst->encoding());
+  emit_int16(0x0F, (unsigned char)0xBA);
+  emit_int8(modrm_encoding(0x3, rsp->encoding() /* /4 */ , encode));
+  emit_int8(imm8);
+}
+
 void Assembler::testb(Register dst, int imm8, bool use_ral) {
   NOT_LP64(assert(dst->has_byte_register(), "must have byte register"));
   if (dst == rax) {

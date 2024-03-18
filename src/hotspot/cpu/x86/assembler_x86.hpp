@@ -1730,6 +1730,7 @@ private:
   void btsq(Address dst, int imm8);
   void btrq(Address dst, int imm8);
 #endif
+  void btl(Register dst, int imm8);
 
   void orw(Register dst, Register src);
 
