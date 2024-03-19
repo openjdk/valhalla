@@ -87,23 +87,11 @@ final class ValueObjectMethods {
         private static final HashMap<Class<?>, MethodHandle> primitiveSubstitutable = new HashMap<>();
 
         static {
-            try {
-                MethodHandles.Lookup lookup = MethodHandles.lookup();
-
-                @SuppressWarnings("removal")
-                ClassLoader loader = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
-                    @Override public ClassLoader run() { return ClassLoader.getPlatformClassLoader(); }
-                });
-
-                primitiveSubstitutable.putAll(primitiveEquals); // adopt all the primitive eq methods
-                primitiveSubstitutable.put(float.class, lookup.findStatic(MethodHandleBuilder.class, "eqValue",
-                        MethodType.fromMethodDescriptorString("(FF)Z", loader)));
-                primitiveSubstitutable.put(double.class, lookup.findStatic(MethodHandleBuilder.class, "eqValue",
-                        MethodType.fromMethodDescriptorString("(DD)Z", loader)));
-
-            } catch (ReflectiveOperationException e) {
-                throw new RuntimeException(e);
-            }
+            primitiveSubstitutable.putAll(primitiveEquals); // adopt all the primitive eq methods
+            primitiveSubstitutable.put(float.class,
+                    findStatic("eqValue", methodType(boolean.class, float.class, float.class)));
+            primitiveSubstitutable.put(double.class,
+                    findStatic("eqValue", methodType(boolean.class, double.class, double.class)));
         }
 
         static Stream<MethodHandle> getterStream(Class<?> type, Comparator<MethodHandle> comparator) {
