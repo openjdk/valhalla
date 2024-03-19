@@ -26,6 +26,7 @@
  * @summary Verifies correctness of the acmp bytecode with value object operands.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -XX:+EnableValhalla
  *                               -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI

@@ -1157,7 +1157,7 @@ public class TestIntrinsics {
 
     @Run(test = "test59")
     public void test59_verifier() throws Exception {
-        test59(Integer.class);
+        test59(Object.class);
         try {
             test59(MyValue1.class);
             throw new RuntimeException("test59 failed: synchronization on value object should not succeed");

@@ -177,7 +177,8 @@ public class TestBasicFunctionality {
     // Create a value object in compiled code and pass it to
     // the interpreter by returning.
     @Test
-    @IR(counts = {ALLOC, "= 2"},
+    // TODO 8325106 We are hitting 8314999 here and sometimes fail to detect two allocations although there are two.
+    @IR(counts = {ALLOC, "<= 2"},
         failOn = {LOAD, TRAP})
     public MyValue1 test7(int x, long y) {
         return MyValue1.createWithFieldsInline(x, y);

@@ -27,6 +27,7 @@
  * @summary Test value class calling convention with compiled to compiled calls.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI

@@ -6038,14 +6038,6 @@ bool LibraryCallKit::inline_arraycopy() {
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();
 
-    // TODO 8325106 Fix this and other users of flat_array_test, with JEP 401, flatness is not a property of the Class anymore. We need more test coverage.
-    if (!stopped()) {
-      generate_fair_guard(null_free_array_test(load_object_klass(src)), slow_region);
-    }
-    if (!stopped()) {
-      generate_fair_guard(null_free_array_test(dest_klass), slow_region);
-    }
-
     // Handle flat inline type arrays (null-free arrays are handled by the subtype check above)
     if (!stopped() && UseFlatArray) {
       // If dest is flat, src must be flat as well (guaranteed by src <: dest check). Handle flat src here.

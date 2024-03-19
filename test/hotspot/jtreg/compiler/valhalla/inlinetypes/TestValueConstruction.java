@@ -48,18 +48,18 @@ import jdk.test.lib.Asserts;
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  *
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+StressIncrementalInlining
+ * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+StressIncrementalInlining
+ * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+StressIncrementalInlining
+ * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=dontinline,*TestValueConstruction::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+StressIncrementalInlining
+ * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+StressIncrementalInlining
+ * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */

@@ -87,6 +87,14 @@ public class TestLWorld {
         RuntimeException tmp = new RuntimeException("42");
     }
 
+    static class NonValueClass {
+        int x;
+
+        public NonValueClass(int x) {
+            this.x = x;
+        }
+    }
+
     // Helper methods
 
     @NullRestricted
@@ -2520,16 +2528,17 @@ public class TestLWorld {
             }
         }
 
-        return (Integer)array[0];
+        return (NonValueClass)array[0];
     }
 
     @Run(test = "test92")
     @Warmup(10000)
     public void test92_verifier() {
         Object[] array = new Object[1];
-        array[0] = 0x42;
+        Object obj = new NonValueClass(rI);
+        array[0] = obj;
         Object result = test92(array);
-        Asserts.assertEquals(result, 0x42);
+        Asserts.assertEquals(result, obj);
     }
 
     // If the class check succeeds, the flattened array check that
@@ -2583,7 +2592,7 @@ public class TestLWorld {
         int res = 0;
         for (int i = 1; i < 4; i *= 2) {
             Object v = array[i];
-            res += (Integer)v;
+            res += ((NonValueClass)v).x;
         }
         return res;
     }
@@ -2592,12 +2601,13 @@ public class TestLWorld {
     @Warmup(10000)
     public void test94_verifier() {
         Object[] array = new Object[4];
-        array[0] = 0x42;
-        array[1] = 0x42;
-        array[2] = 0x42;
-        array[3] = 0x42;
+        Object obj = new NonValueClass(rI);
+        array[0] = obj;
+        array[1] = obj;
+        array[2] = obj;
+        array[3] = obj;
         int result = test94(array);
-        Asserts.assertEquals(result, 0x42 * 2);
+        Asserts.assertEquals(result, rI * 2);
     }
 
     @Test
@@ -3597,17 +3607,18 @@ public class TestLWorld {
     // not to be a value type
     @Test
     @IR(failOn = SUBSTITUTABILITY_TEST)
-    public boolean test124(Integer o1, Object o2) {
+    public boolean test124(NonValueClass o1, Object o2) {
         return o1 == o2;
     }
 
     @Run(test = "test124")
     public void test124_verifier() {
-        test124(42, 42);
-        test124(42, testValue1);
+        NonValueClass obj = new NonValueClass(rI);
+        test124(obj, obj);
+        test124(obj, testValue1);
     }
 
-    // acmp doesn't need substitutability test when one input null
+    // acmp doesn't need substitutability test when one input is null
     @Test
     @IR(failOn = {SUBSTITUTABILITY_TEST})
     public boolean test125(Object o1) {
@@ -3833,7 +3844,7 @@ public class TestLWorld {
     // Test conditional locking on inline type and non-escaping object
     @Test
     public void test133(boolean b) {
-        Object obj = b ? Integer.valueOf(42) : MyValue2.createWithFieldsInline(rI, rD);
+        Object obj = b ? new NonValueClass(rI) : MyValue2.createWithFieldsInline(rI, rD);
         synchronized (obj) {
             if (!b) {
                 throw new RuntimeException("test133 failed: synchronization on inline type should not succeed");
