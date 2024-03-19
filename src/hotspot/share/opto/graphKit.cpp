@@ -3696,6 +3696,7 @@ Node* GraphKit::array_lh_test(Node* klass, jint mask, jint val, bool eq) {
   return _gvn.transform(new BoolNode(cmp, eq ? BoolTest::eq : BoolTest::ne));
 }
 
+// TODO 8325106 With JEP 401, flatness is not a property of the Class anymore.
 Node* GraphKit::flat_array_test(Node* array_or_klass, bool flat) {
   // We can't use immutable memory here because the mark word is mutable.
   // PhaseIdealLoop::move_flat_array_check_out_of_loop will make sure the

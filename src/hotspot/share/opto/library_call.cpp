@@ -5220,6 +5220,7 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 
 #undef XTOP
 
+// TODO 8325106 Remove this and corresponding tests. Flatness is not a property of the Class anymore with JEP 401.
 //----------------------inline_unsafe_isFlattenedArray-------------------
 // public native boolean Unsafe.isFlattenedArray(Class<?> arrayClass);
 // This intrinsic exploits assumptions made by the native implementation
@@ -6036,6 +6037,9 @@ bool LibraryCallKit::inline_arraycopy() {
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();
+
+    // TODO 8325106 Fix this and other users of flat_array_test, with JEP 401, flatness is not a property of the Class anymore. We need more test coverage.
+    generate_fair_guard(flat_array_test(src, /* flat = */ false), slow_region);
 
     // Handle flat inline type arrays (null-free arrays are handled by the subtype check above)
     if (!stopped() && UseFlatArray) {

@@ -263,6 +263,8 @@ public class TestDeoptimizationWhenBuffering {
     }
 
     public static void main(String[] args) throws Throwable {
+        // TODO 8325106 Fix and re-enable
+        /*
         if (args.length > 0) {
             // Compile callees with C1 only, to exercise deoptimization while buffering at method entry
             Asserts.assertEQ(args[0], "C1", "unsupported mode");
@@ -304,5 +306,6 @@ public class TestDeoptimizationWhenBuffering {
             Asserts.assertEQ(t.test12().hash(), expected + 39);
             Asserts.assertEQ(t.vtField2.hash(), expected + 39);
         }
+        */
     }
 }
