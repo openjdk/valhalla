@@ -174,7 +174,6 @@ class InstructionVisitor: public StackObj {
   virtual void do_NewTypeArray   (NewTypeArray*    x) = 0;
   virtual void do_NewObjectArray (NewObjectArray*  x) = 0;
   virtual void do_NewMultiArray  (NewMultiArray*   x) = 0;
-  virtual void do_Deoptimize     (Deoptimize*      x) = 0;
   virtual void do_CheckCast      (CheckCast*       x) = 0;
   virtual void do_InstanceOf     (InstanceOf*      x) = 0;
   virtual void do_MonitorEnter   (MonitorEnter*    x) = 0;
@@ -571,7 +570,6 @@ class Instruction: public CompilationResourceObj {
   virtual NewTypeArray*     as_NewTypeArray()    { return nullptr; }
   virtual NewObjectArray*   as_NewObjectArray()  { return nullptr; }
   virtual NewMultiArray*    as_NewMultiArray()   { return nullptr; }
-  virtual Deoptimize*       as_Deoptimize()      { return nullptr; }
   virtual TypeCheck*        as_TypeCheck()       { return nullptr; }
   virtual CheckCast*        as_CheckCast()       { return nullptr; }
   virtual InstanceOf*       as_InstanceOf()      { return nullptr; }
@@ -1451,17 +1449,6 @@ LEAF(NewMultiArray, NewArray)
   ciType* exact_type() const;
 };
 
-LEAF(Deoptimize, StateSplit)
-private:
-  ciKlass*    _klass;
-
- public:
-  Deoptimize(ciKlass* klass, ValueStack* state_before)
-  : StateSplit(objectType, state_before), _klass(klass) {}
-
-  // accessors
-  ciKlass* klass() const                         { return _klass; }
-};
 
 BASE(TypeCheck, StateSplit)
  private:

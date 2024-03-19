@@ -582,7 +582,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   virtual void do_NewTypeArray   (NewTypeArray*    x);
   virtual void do_NewObjectArray (NewObjectArray*  x);
   virtual void do_NewMultiArray  (NewMultiArray*   x);
-  virtual void do_Deoptimize     (Deoptimize*      x);
   virtual void do_CheckCast      (CheckCast*       x);
   virtual void do_InstanceOf     (InstanceOf*      x);
   virtual void do_MonitorEnter   (MonitorEnter*    x);

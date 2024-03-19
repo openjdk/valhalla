@@ -64,7 +64,7 @@ import jdk.test.lib.Asserts;
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
 
-// TODO 8325106 Add -XX:+DeoptimizeALot
+// TODO 8325106 Add -XX:+DeoptimizeALot and tests with constructor invocations from constructor
 
 public class TestValueConstruction {
 

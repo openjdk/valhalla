@@ -232,6 +232,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
 
   if (obj->is_InlineType()) {
+    // TODO 8325106 Factor into own method
     // TODO 8325106 Assert that we only do this in the constructor and align with checks in ::do_call
     //if (_method->is_object_constructor() && _method->holder()->is_inlinetype()) {
     assert(obj->as_InlineType()->is_larval(), "must be larval");
@@ -260,7 +261,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
     } else if (val->is_InlineType() && !field->is_flat()) {
       // Field value needs to be allocated because it can be merged with an oop.
-      // Re-execute withfield if buffering triggers deoptimization.
+      // Re-execute if buffering triggers deoptimization.
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
       int nargs = 1 + field->type()->size();
