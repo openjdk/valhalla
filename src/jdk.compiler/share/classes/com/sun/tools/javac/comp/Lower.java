@@ -190,6 +190,10 @@ public class Lower extends TreeTranslator {
      */
     Map<Symbol, Symbol> lambdaTranslationMap = null;
 
+    /** A hash table mapping local classes to a set of outer this fields
+     */
+    public Map<ClassSymbol, Set<JCExpression>> initializerOuterThis = new WeakHashMap<>();
+
     /** A navigator class for assembling a mapping from local class symbols
      *  to class definition trees.
      *  There is only one case; all other cases simply traverse down the tree.
@@ -2958,6 +2962,17 @@ public class Lower extends TreeTranslator {
             } else {
                 // nested class
                 thisArg = makeOwnerThis(tree.pos(), c, false);
+                if (currentMethodSym != null &&
+                        ((currentMethodSym.flags_field & (STATIC | BLOCK)) == BLOCK) &&
+                        currentMethodSym.owner.isValueClass()) {
+                    // instance initializer in a value class
+                    Set<JCExpression> outerThisSet = initializerOuterThis.get(currentClass);
+                    if (outerThisSet == null) {
+                        outerThisSet = new HashSet<>();
+                    }
+                    outerThisSet.add(thisArg);
+                    initializerOuterThis.put(currentClass, outerThisSet);
+                }
             }
             tree.args = tree.args.prepend(thisArg);
         }
