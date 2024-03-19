@@ -44,8 +44,8 @@ public class ValhallaFeaturesTest {
     @Test
     public void checkEnable() {
         boolean enabled = ValhallaFeatures.isEnabled();
-        System.out.println("EnableValhalla: " + enabled);
-        assertEquals("EnableValhalla Flag", expected, enabled);
+        System.out.println("ValhallaFeatures.isEnabled(): " + enabled);
+        assertEquals("ValhallaFeatures.isEnabled() Flag", expected, enabled);
     }
 
     @Test
@@ -54,7 +54,7 @@ public class ValhallaFeaturesTest {
             // Throwing an exception is an error
             ValhallaFeatures.ensureValhallaEnabled();
         } else {
-            assertThrows("EnableValhalla Flag", UnsupportedOperationException.class,
+            assertThrows("ValhallaFeatures.ensureValhallaEnabled() Flag", UnsupportedOperationException.class,
                     () -> ValhallaFeatures.ensureValhallaEnabled());
         }
     }

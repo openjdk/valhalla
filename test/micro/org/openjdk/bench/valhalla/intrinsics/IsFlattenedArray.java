@@ -34,7 +34,7 @@ import jdk.internal.misc.Unsafe;
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Fork(value = 1,
       jvmArgsAppend = {"--add-opens", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                       "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses"})
+                       "--enable-preview"})
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 public class IsFlattenedArray {
