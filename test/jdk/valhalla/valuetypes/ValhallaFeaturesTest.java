@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,7 @@ import static org.junit.Assert.*;
  * @summary Test feature flags reflect command line flags
  * @modules java.base/jdk.internal.misc
  * @run junit/othervm -Dexpected=true ValhallaFeaturesTest
- * @run junit/othervm -XX:+EnableValhalla -Dexpected=true ValhallaFeaturesTest
- * @run junit/othervm -XX:-EnableValhalla -Dexpected=false ValhallaFeaturesTest
+ * @run junit/othervm --enable-preview -Dexpected=true ValhallaFeaturesTest
  */
 
 public class ValhallaFeaturesTest {

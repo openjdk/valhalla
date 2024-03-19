@@ -86,7 +86,7 @@ public class UseValueClassTest {
     }
 
     /**
-     * Verify that the class is a value class if --enable-preview and -XX:+EnableValhallait true
+     * Verify that the class is a value class if --enable-preview true
      * @param clazz a class
      */
     @ParameterizedTest

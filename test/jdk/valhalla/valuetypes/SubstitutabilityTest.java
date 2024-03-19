@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,8 @@
  * @modules java.base/java.lang.runtime:open
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run junit/othervm -XX:+EnableValhalla SubstitutabilityTest
+ * @enablePreview
+ * @run junit/othervm SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;
