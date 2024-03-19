@@ -27,7 +27,7 @@
  * @summary reflection test for records
  * @compile RecordReflectionTest.java
  * @run testng/othervm RecordReflectionTest
- * @run testng/othervm -XX:+EnableValhalla RecordReflectionTest
+ * @run testng/othervm --enable-preview RecordReflectionTest
  * @run testng/othervm/java.security.policy=allPermissions.policy RecordReflectionTest
  */
 

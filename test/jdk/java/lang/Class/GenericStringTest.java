@@ -26,8 +26,9 @@
  * @bug 6298888 6992705 8161500 6304578
  * @summary Check Class.toGenericString()
  * @author Joseph D. Darcy
+ * @enablePreview
  * @compile GenericStringTest.java
- * @run main/othervm -XX:+EnableValhalla GenericStringTest
+ * @run main/othervm GenericStringTest
  */
 
 import java.lang.reflect.*;

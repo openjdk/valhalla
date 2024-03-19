@@ -24,8 +24,9 @@
 /*
  * @test
  * @summary ValueSerialization support of value classes
+ * @enablePreview
  * @compile ValueSerialization.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueSerialization
+ * @run testng/othervm ValueSerialization
  */
 
 import java.io.ByteArrayInputStream;
@@ -97,15 +98,6 @@ public class ValueSerialization {
             return "[SerializablePoint x=" + x + " y=" + y + "]"; }
     }
 
-    /** A Serializable primitive class Point */
-    static primitive class SerializablePrimitivePoint implements Serializable {
-        public int x;
-        public int y;
-        SerializablePrimitivePoint(int x, int y) { this.x = x; this.y = y; }
-        @Override public String toString() {
-            return "[SerializablePrimitivePoint x=" + x + " y=" + y + "]"; }
-    }
-
     /** An Externalizable Point is not Serializable, readExternal cannot modify fields */
     static value class ExternalizablePoint implements Externalizable {
         public int x;
@@ -126,14 +118,7 @@ public class ValueSerialization {
                     new SerializablePoint(2, 6) } },
             new Object[] { new Object[] {
                     new SerializablePoint(3, 7),
-                    new SerializablePoint(4, 8) } },
-            new Object[] { new SerializablePrimitivePoint(711, 7101) },
-            new Object[] { new SerializablePrimitivePoint[] {
-                    new SerializablePrimitivePoint(71, 75),
-                    new SerializablePrimitivePoint(72, 76) } },
-            new Object[] { new Object[] {
-                    new SerializablePrimitivePoint(73, 77),
-                    new SerializablePrimitivePoint(74, 78) } },
+                    new SerializablePoint(4, 8) } }
         };
     }
 
@@ -247,8 +232,7 @@ public class ValueSerialization {
     public Object[][] classes() {
         return new Object[][] {
             new Object[] { NonSerializablePoint.class },
-            new Object[] { SerializablePoint.class },
-            new Object[] { SerializablePrimitivePoint.class }
+            new Object[] { SerializablePoint.class }
         };
     }
 
