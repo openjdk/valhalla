@@ -58,6 +58,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @run main/othervm/timeout=450  --enable-preview compiler.valhalla.inlinetypes.TestLWorld
  */
 
+@ForceCompileClassInitializer
 public class TestLWorld {
 
     public static void main(String[] args) {
@@ -3040,6 +3041,7 @@ public class TestLWorld {
         }
     }
 
+    @ForceCompileClassInitializer
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LongWrapper implements WrapperInterface {

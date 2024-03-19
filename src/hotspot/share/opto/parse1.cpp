@@ -613,8 +613,6 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       // Create InlineTypeNode from the oop and replace the parameter
       bool is_larval = (i == 0) && method()->is_object_constructor() && method()->intrinsic_id() != vmIntrinsics::_Object_init;
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
-      // TODO 8325106 Shouldn't we use replace in map here to make sure the oop is replaced by a value type node in the caller?? Also below
-     // set_local(i, vt);
       replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
@@ -624,6 +622,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
+      // TODO 8325106 Shouldn't we use replace_in_map here?
       set_local(i, cast);
     }
   }

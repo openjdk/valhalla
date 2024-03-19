@@ -684,22 +684,6 @@ void Parse::do_call() {
     receiver = record_profiled_receiver_for_speculation(receiver);
   }
 
-/*
-  if (cg->is_inline()) {
-    tty->print_cr("INLINING");
-    cg->method()->print(tty);
-    tty->print_cr("");
-  } else if (cg->is_late_inline()) {
-    tty->print_cr("LATE INLINING");
-    cg->method()->print(tty);
-    tty->print_cr("");
-  } else {
-    tty->print_cr("NOT INLINING");
-    cg->method()->print(tty);
-    tty->print_cr("");
-  }
-*/
-
   JVMState* new_jvms = cg->generate(jvms);
   if (new_jvms == nullptr) {
     // When inlining attempt fails (e.g., too many arguments),

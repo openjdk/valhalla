@@ -34,6 +34,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 
 @ImplicitlyConstructible
 @LooselyConsistentValue
+@ForceCompileClassInitializer
 public value class MyValue1 extends MyAbstract {
     static int s;
     static final long sf = InlineTypes.rL;
