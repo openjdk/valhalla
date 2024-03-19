@@ -28,7 +28,7 @@
  * @library /test/lib
  * @enablePreview
  * @compile PreloadCircularityTest.java
- * @run main/othervm -XX:+EnableValhalla PreloadCircularityTest
+ * @run main/othervm PreloadCircularityTest
  */
 
  import java.lang.reflect.Method;

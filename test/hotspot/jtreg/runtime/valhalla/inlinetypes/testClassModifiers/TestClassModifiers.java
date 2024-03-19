@@ -23,15 +23,16 @@
  */
 
 /*
- * @ignore
+ * @ignore Fix JDK-8328417
  * @test
  * @summary test that the JVM correctly accepts or rejects classes based on their
  *          ACC_VALUE/ACC_IDENTITY modifiers
  * @library /test/lib
+ * @enablePreview
  * @compile NeutralInterface.java ValueInterface.java IdentityInterface.java
  * @compile NeutralAbstract.java ValueAbstract.java IdentityAbstract.java AbstractWithField.java AbstractWithSynchMethod.java
  * @compile ClassesWithInvalidModifiers.jcod
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -verify TestClassModifiers
+ * @run main/othervm -verify TestClassModifiers
  */
 
 import jdk.test.lib.Asserts;

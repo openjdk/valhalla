@@ -22,13 +22,14 @@
  *
  */
 /*
- * @ignore
+ * @ignore Fix JDK-8328423
  * @test
  * @bug 8223028
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
+ * @enablePreview
  * @compile verifierTests.jcod
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -verify VerifierInlineTypes
+ * @run main/othervm -verify VerifierInlineTypes
  */
 
 public class VerifierInlineTypes {

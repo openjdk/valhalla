@@ -22,11 +22,12 @@
  */
 
 /*
- * @ignore
+ * @ignore Fix JDK-8328438
  * @test
  * @summary Test basic verifier assignability of inline types.
+ * @enablePreview
  * @compile VTAssignability.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:remote VTAssignability
+ * @run main/othervm -Xverify:remote VTAssignability
  */
 
 // Test that an inline type is assignable to itself, to java.lang.Object,

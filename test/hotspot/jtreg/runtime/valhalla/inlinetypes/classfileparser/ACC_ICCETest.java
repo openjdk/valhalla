@@ -23,12 +23,13 @@
  */
 
 /*
- * @ignore
+ * @ignore Fix JDK-8328412
  * @test ACC_ICCETest
  * @bug 8281279
  * @summary test that a value class cannot sub-class an identity class
+ * @enablePreview
  * @compile ACCICCETests.jcod
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses ACC_ICCETest
+ * @run main/othervm ACC_ICCETest
  */
 
 public class ACC_ICCETest {

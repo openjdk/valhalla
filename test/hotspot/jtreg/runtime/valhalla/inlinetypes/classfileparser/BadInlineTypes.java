@@ -22,12 +22,13 @@
  *
  */
 /*
- * @ignore
+ * @ignore Fix JDK-8328416
  * @test
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
+ * @enablePreview
  * @compile cfpTests.jcod
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:remote BadInlineTypes
+ * @run main/othervm -Xverify:remote BadInlineTypes
  */
 
 public class BadInlineTypes {
