@@ -989,11 +989,13 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
         call->set_req(p++, in_map->in(k+j));
         Node* local = in_map->in(k+j);
         // TODO 8325106
+        /*
         if (false && local->is_InlineType() && local->isa_InlineType()->is_larval()) {
           tty->print_cr("LARVAL FOUND in LOCAL");
           in_map->dump(0);
           local->dump(0);
         }
+        */
       }
     } else {
       p += l;  // already set to top above by add_req_batch
@@ -1008,6 +1010,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
         call->set_req(p++, in_map->in(k+j));
         Node* local = in_map->in(k+j);
         // TODO 8325106 check if there's a larval on stack in the caller state that has been written in the callee state and update it accordingly
+        /*
         if (false && local->is_InlineType() && local->isa_InlineType()->is_larval()) {
           tty->print_cr("LARVAL FOUND on STACK");
           in_map->dump(0);
@@ -1016,6 +1019,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
           map()->replaced_nodes().apply(call, 0);
           tty->print_cr("");
         }
+        */
       }
     } else if (can_prune_locals && stack_slots_not_pruned != 0) {
       // Divide stack into {S0,...,S1}, where S0 is set to top.
