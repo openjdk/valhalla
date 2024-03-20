@@ -46,26 +46,16 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
     }
 
     @Override
-    public boolean isInlineClass(String t) {
-        return t.charAt(0) == 'Q' && t.endsWith(";");
-    }
-
-    @Override
     public String type(String s) {
         return "L" + s + ";";
     }
 
-    @Override
-    public String valueType(String s) {
-        return "Q" + s + ";";
-    }
 
     @Override
     public TypeTag tag(String s) {
         switch (s.charAt(0)) {
             case '[':
             case 'L':
-            case 'Q':
                 return TypeTag.A;
             case 'B':
             case 'C':
@@ -154,7 +144,6 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
                         ch++;
                         return "[" + next();
                     case 'L':
-                    case 'Q':
                         StringBuilder builder = new StringBuilder();
                         while (curr != ';') {
                             builder.append(curr);

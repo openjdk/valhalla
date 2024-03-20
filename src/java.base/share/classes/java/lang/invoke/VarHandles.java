@@ -25,7 +25,6 @@
 
 package java.lang.invoke;
 
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.foreign.Utils;
 import sun.invoke.util.Wrapper;
 
@@ -42,6 +41,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
 import static java.lang.invoke.MethodHandleStatics.UNSAFE;
+import static java.lang.invoke.MethodHandleStatics.VAR_HANDLE_SEGMENT_FORCE_EXACT;
 import static java.lang.invoke.MethodHandleStatics.VAR_HANDLE_IDENTITY_ADAPT;
 import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
 
@@ -332,7 +332,7 @@ final class VarHandles {
         }
         long size = Utils.byteWidthOfPrimitive(carrier);
         boolean be = byteOrder == ByteOrder.BIG_ENDIAN;
-        boolean exact = false;
+        boolean exact = VAR_HANDLE_SEGMENT_FORCE_EXACT;
 
         if (carrier == byte.class) {
             return maybeAdapt(new VarHandleSegmentAsBytes(be, size, alignmentMask, exact));

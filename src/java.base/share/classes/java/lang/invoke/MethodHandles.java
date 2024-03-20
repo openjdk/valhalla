@@ -26,9 +26,6 @@
 package java.lang.invoke;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.value.PrimitiveClass;
-import jdk.internal.foreign.Utils;
-import jdk.internal.javac.PreviewFeature;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.org.objectweb.asm.ClassReader;
@@ -47,10 +44,6 @@ import sun.reflect.misc.ReflectUtil;
 import sun.security.util.SecurityConstants;
 
 import java.lang.constant.ConstantDescs;
-import java.lang.foreign.GroupLayout;
-import java.lang.foreign.MemoryLayout;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import java.lang.invoke.LambdaForm.BasicType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -713,8 +706,8 @@ public class MethodHandles {
      * (See the Java Virtual Machine Specification, section {@jvms 4.10.1.9}.)
      * <p>
      * The JVM represents constructors and static initializer blocks as internal methods
-     * with special names ({@value ConstantDescs#INIT_NAME},
-     * {@value ConstantDescs#VNEW_NAME} and {@value ConstantDescs#CLASS_INIT_NAME}).
+     * with special names ({@value ConstantDescs#INIT_NAME}, and {@value
+     * ConstantDescs#CLASS_INIT_NAME}).
      * The internal syntax of invocation instructions allows them to refer to such internal
      * methods as if they were normal methods, but the JVM bytecode verifier rejects them.
      * A lookup of such an internal method will produce a {@code NoSuchMethodException}.
@@ -1634,7 +1627,6 @@ public class MethodHandles {
         }
 
         private Lookup(Class<?> lookupClass, Class<?> prevLookupClass, int allowedModes) {
-            assert PrimitiveClass.isPrimaryType(lookupClass);
             assert prevLookupClass == null || ((allowedModes & MODULE) == 0
                     && prevLookupClass.getModule() != lookupClass.getModule());
             assert !lookupClass.isArray() && !lookupClass.isPrimitive();
@@ -3527,19 +3519,37 @@ return mh1;
          */
         public MethodHandle unreflectConstructor(Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructor() || ctor.isStaticValueFactoryMethod());
+            assert(ctor.isObjectConstructor());
             @SuppressWarnings("deprecation")
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
-            Class<?> defc = c.getDeclaringClass();
-            if (ctor.isObjectConstructor()) {
-                assert(ctor.getMethodType().returnType() == void.class);
-                return lookup.getDirectConstructorNoSecurityManager(defc, ctor);
-            } else {
-                // static init factory is a static method
-                assert(ctor.isMethod() && ctor.getMethodType().returnType() == defc && ctor.getReferenceKind() == REF_invokeStatic) : ctor.toString();
-                assert(!MethodHandleNatives.isCallerSensitive(ctor));  // must not be caller-sensitive
-                return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), defc, ctor, lookup);
+            return lookup.getDirectConstructorNoSecurityManager(c.getDeclaringClass(), ctor);
+        }
+
+        /*
+         * Produces a method handle that is capable of creating instances of the given class
+         * and instantiated by the given constructor.  No security manager check.
+         *
+         * This method should only be used by ReflectionFactory::newConstructorForSerialization.
+         */
+        /* package-private */ MethodHandle serializableConstructor(Class<?> decl, Constructor<?> c) throws IllegalAccessException {
+            MemberName ctor = new MemberName(c);
+            assert(ctor.isObjectConstructor() && constructorInSuperclass(decl, c));
+            checkAccess(REF_newInvokeSpecial, decl, ctor);
+            assert(!MethodHandleNatives.isCallerSensitive(ctor));  // maybeBindCaller not relevant here
+            return DirectMethodHandle.makeAllocator(decl, ctor).setVarargs(ctor);
+        }
+
+        private static boolean constructorInSuperclass(Class<?> decl, Constructor<?> ctor) {
+            if (decl == ctor.getDeclaringClass())
+                return true;
+
+            Class<?> cl = decl;
+            while ((cl = cl.getSuperclass()) != null) {
+                if (cl == ctor.getDeclaringClass()) {
+                    return true;
+                }
             }
+            return false;
         }
 
         /**
@@ -3784,7 +3794,7 @@ return mh1;
             }
             Objects.requireNonNull(type);
             // implicit null-check of name
-            if (isIllegalMethodName(refKind, name)) {
+            if (name.startsWith("<") && refKind != REF_newInvokeSpecial) {
                 return null;
             }
 
@@ -3807,23 +3817,10 @@ return mh1;
             return caller == null || VerifyAccess.isClassAccessible(type, caller, prevLookupClass, allowedModes);
         }
 
-        /*
-         * "<init>" can only be invoked via invokespecial
-         * "<vnew>" factory can only invoked via invokestatic
-         */
-        boolean isIllegalMethodName(byte refKind, String name) {
-            if (name.startsWith("<")) {
-                return MemberName.VALUE_FACTORY_NAME.equals(name) ? refKind != REF_invokeStatic
-                                                                  : refKind != REF_newInvokeSpecial;
-            }
-            return false;
-        }
-
         /** Check name for an illegal leading "&lt;" character. */
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
-            if (isIllegalMethodName(refKind, name)) {
-                throw new NoSuchMethodException("illegal method name: " + name + " " + refKind);
-            }
+            if (name.startsWith("<") && refKind != REF_newInvokeSpecial)
+                throw new NoSuchMethodException("illegal method name: " + name + " ref kind " + refKind);
         }
 
         /**
@@ -3927,7 +3924,7 @@ return mh1;
 
             // Step 3:
             Class<?> defc = m.getDeclaringClass();
-            if (!fullPrivilegeLookup && PrimitiveClass.asPrimaryType(defc) != PrimitiveClass.asPrimaryType(refc)) {
+            if (!fullPrivilegeLookup && defc != refc) {
                 ReflectUtil.checkPackageAccess(defc);
             }
         }
@@ -4014,12 +4011,12 @@ return mh1;
             int mods = m.getModifiers();
             // check the class first:
             boolean classOK = (Modifier.isPublic(defc.getModifiers()) &&
-                               (PrimitiveClass.asPrimaryType(defc) == PrimitiveClass.asPrimaryType(refc) ||
+                               (defc == refc ||
                                 Modifier.isPublic(refc.getModifiers())));
             if (!classOK && (allowedModes & PACKAGE) != 0) {
                 // ignore previous lookup class to check if default package access
                 classOK = (VerifyAccess.isClassAccessible(defc, lookupClass(), null, FULL_POWER_MODES) &&
-                           (PrimitiveClass.asPrimaryType(defc) == PrimitiveClass.asPrimaryType(refc) ||
+                           (defc == refc ||
                             VerifyAccess.isClassAccessible(refc, lookupClass(), null, FULL_POWER_MODES)));
             }
             if (!classOK)
@@ -5150,7 +5147,7 @@ assert((int)twice.invokeExact(21) == 42);
                 return zero(w, type);
             return insertArguments(identity(type), 0, value);
         } else {
-            if (!PrimitiveClass.isPrimitiveValueType(type) && value == null)
+            if (value == null)
                 return zero(Wrapper.OBJECT, type);
             return identity(type).bindTo(value);
         }
@@ -5195,12 +5192,9 @@ assert((int)twice.invokeExact(21) == 42);
      */
     public static MethodHandle zero(Class<?> type) {
         Objects.requireNonNull(type);
+        // TODO: implicitly constructible value class
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (PrimitiveClass.isPrimitiveValueType(type)) {
-            // singleton default value
-            Object value = ValueClass.zeroInstance(type);
-            return identity(type).bindTo(value);
         } else {
             return zero(Wrapper.OBJECT, type);
         }
@@ -7990,85 +7984,6 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
     }
 
     /**
-     * Creates a var handle object, which can be used to dereference a {@linkplain java.lang.foreign.MemorySegment memory segment}
-     * at a given byte offset, using the provided value layout.
-     *
-     * <p>The provided layout specifies the {@linkplain ValueLayout#carrier() carrier type},
-     * the {@linkplain ValueLayout#byteSize() byte size},
-     * the {@linkplain ValueLayout#byteAlignment() byte alignment} and the {@linkplain ValueLayout#order() byte order}
-     * associated with the returned var handle.
-     *
-     * <p>The list of coordinate types associated with the returned var handle is {@code (MemorySegment, long)},
-     * where the {@code long} coordinate type corresponds to byte offset into the given memory segment coordinate.
-     * Thus, the returned var handle accesses bytes at an offset in a given memory segment, composing bytes to or from
-     * a value of the var handle type. Moreover, the access operation will honor the endianness and the
-     * alignment constraints expressed in the provided layout.
-     *
-     * <p>As an example, consider the memory layout expressed by a {@link GroupLayout} instance constructed as follows:
-     * {@snippet lang="java" :
-     *     GroupLayout seq = java.lang.foreign.MemoryLayout.structLayout(
-     *             MemoryLayout.paddingLayout(4),
-     *             ValueLayout.JAVA_INT.withOrder(ByteOrder.BIG_ENDIAN).withName("value")
-     *     );
-     * }
-     * To access the member layout named {@code value}, we can construct a memory segment view var handle as follows:
-     * {@snippet lang="java" :
-     *     VarHandle handle = MethodHandles.memorySegmentViewVarHandle(ValueLayout.JAVA_INT.withOrder(ByteOrder.BIG_ENDIAN)); //(MemorySegment, long) -> int
-     *     handle = MethodHandles.insertCoordinates(handle, 1, 4); //(MemorySegment) -> int
-     * }
-     *
-     * @apiNote The resulting var handle features certain <i>access mode restrictions</i>,
-     * which are common to all memory segment view var handles. A memory segment view var handle is associated
-     * with an access size {@code S} and an alignment constraint {@code B}
-     * (both expressed in bytes). We say that a memory access operation is <em>fully aligned</em> if it occurs
-     * at a memory address {@code A} which is compatible with both alignment constraints {@code S} and {@code B}.
-     * If access is fully aligned then following access modes are supported and are
-     * guaranteed to support atomic access:
-     * <ul>
-     * <li>read write access modes for all {@code T}, with the exception of
-     *     access modes {@code get} and {@code set} for {@code long} and
-     *     {@code double} on 32-bit platforms.
-     * <li>atomic update access modes for {@code int}, {@code long},
-     *     {@code float}, {@code double} or {@link MemorySegment}.
-     *     (Future major platform releases of the JDK may support additional
-     *     types for certain currently unsupported access modes.)
-     * <li>numeric atomic update access modes for {@code int}, {@code long} and {@link MemorySegment}.
-     *     (Future major platform releases of the JDK may support additional
-     *     numeric types for certain currently unsupported access modes.)
-     * <li>bitwise atomic update access modes for {@code int}, {@code long} and {@link MemorySegment}.
-     *     (Future major platform releases of the JDK may support additional
-     *     numeric types for certain currently unsupported access modes.)
-     * </ul>
-     *
-     * If {@code T} is {@code float}, {@code double} or {@link MemorySegment} then atomic
-     * update access modes compare values using their bitwise representation
-     * (see {@link Float#floatToRawIntBits},
-     * {@link Double#doubleToRawLongBits} and {@link MemorySegment#address()}, respectively).
-     * <p>
-     * Alternatively, a memory access operation is <em>partially aligned</em> if it occurs at a memory address {@code A}
-     * which is only compatible with the alignment constraint {@code B}; in such cases, access for anything other than the
-     * {@code get} and {@code set} access modes will result in an {@code IllegalStateException}. If access is partially aligned,
-     * atomic access is only guaranteed with respect to the largest power of two that divides the GCD of {@code A} and {@code S}.
-     * <p>
-     * In all other cases, we say that a memory access operation is <em>misaligned</em>; in such cases an
-     * {@code IllegalStateException} is thrown, irrespective of the access mode being used.
-     * <p>
-     * Finally, if {@code T} is {@code MemorySegment} all write access modes throw {@link IllegalArgumentException}
-     * unless the value to be written is a {@linkplain MemorySegment#isNative() native} memory segment.
-     *
-     * @param layout the value layout for which a memory access handle is to be obtained.
-     * @return the new memory segment view var handle.
-     * @throws NullPointerException if {@code layout} is {@code null}.
-     * @see MemoryLayout#varHandle(MemoryLayout.PathElement...)
-     * @since 19
-     */
-    @PreviewFeature(feature=PreviewFeature.Feature.FOREIGN)
-    public static VarHandle memorySegmentViewVarHandle(ValueLayout layout) {
-        Objects.requireNonNull(layout);
-        return Utils.makeSegmentViewVarHandle(layout);
-    }
-
-    /**
      * Adapts a target var handle by pre-processing incoming and outgoing values using a pair of filter functions.
      * <p>
      * When calling e.g. {@link VarHandle#set(Object...)} on the resulting var handle, the incoming value (of type {@code T}, where
@@ -8098,9 +8013,8 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * other than {@code (A... , S) -> T} and {@code (A... , T) -> S}, respectively, where {@code T} is the type of the target var handle,
      * or if it's determined that either {@code filterFromTarget} or {@code filterToTarget} throws any checked exceptions.
      * @throws NullPointerException if any of the arguments is {@code null}.
-     * @since 19
+     * @since 22
      */
-    @PreviewFeature(feature=PreviewFeature.Feature.FOREIGN)
     public static VarHandle filterValue(VarHandle target, MethodHandle filterToTarget, MethodHandle filterFromTarget) {
         return VarHandles.filterValue(target, filterToTarget, filterFromTarget);
     }
@@ -8134,9 +8048,8 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * or if more filters are provided than the actual number of coordinate types available starting at {@code pos},
      * or if it's determined that any of the filters throws any checked exceptions.
      * @throws NullPointerException if any of the arguments is {@code null} or {@code filters} contains {@code null}.
-     * @since 19
+     * @since 22
      */
-    @PreviewFeature(feature=PreviewFeature.Feature.FOREIGN)
     public static VarHandle filterCoordinates(VarHandle target, int pos, MethodHandle... filters) {
         return VarHandles.filterCoordinates(target, pos, filters);
     }
@@ -8166,9 +8079,8 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * other than {@code T1, T2 ... Tn }, where {@code T1, T2 ... Tn} are the coordinate types starting at position {@code pos}
      * of the target var handle.
      * @throws NullPointerException if any of the arguments is {@code null} or {@code values} contains {@code null}.
-     * @since 19
+     * @since 22
      */
-    @PreviewFeature(feature=PreviewFeature.Feature.FOREIGN)
     public static VarHandle insertCoordinates(VarHandle target, int pos, Object... values) {
         return VarHandles.insertCoordinates(target, pos, values);
     }
@@ -8209,9 +8121,8 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * a coordinate of {@code newCoordinates}, or if two corresponding coordinate types in
      * the target var handle and in {@code newCoordinates} are not identical.
      * @throws NullPointerException if any of the arguments is {@code null} or {@code newCoordinates} contains {@code null}.
-     * @since 19
+     * @since 22
      */
-    @PreviewFeature(feature=PreviewFeature.Feature.FOREIGN)
     public static VarHandle permuteCoordinates(VarHandle target, List<Class<?>> newCoordinates, int... reorder) {
         return VarHandles.permuteCoordinates(target, newCoordinates, reorder);
     }
@@ -8253,9 +8164,8 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * if the resulting var handle's type would have <a href="MethodHandle.html#maxarity">too many coordinates</a>,
      * or if it's determined that {@code filter} throws any checked exceptions.
      * @throws NullPointerException if any of the arguments is {@code null}.
-     * @since 19
+     * @since 22
      */
-    @PreviewFeature(feature=PreviewFeature.Feature.FOREIGN)
     public static VarHandle collectCoordinates(VarHandle target, int pos, MethodHandle filter) {
         return VarHandles.collectCoordinates(target, pos, filter);
     }
@@ -8279,9 +8189,8 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      *         before calling the target var handle
      * @throws IllegalArgumentException if {@code pos} is not between 0 and the target var handle coordinate arity, inclusive.
      * @throws NullPointerException if any of the arguments is {@code null} or {@code valueTypes} contains {@code null}.
-     * @since 19
+     * @since 22
      */
-    @PreviewFeature(feature=PreviewFeature.Feature.FOREIGN)
     public static VarHandle dropCoordinates(VarHandle target, int pos, Class<?>... valueTypes) {
         return VarHandles.dropCoordinates(target, pos, valueTypes);
     }

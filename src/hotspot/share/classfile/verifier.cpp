@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/cdsConfig.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/javaClasses.hpp"
@@ -199,12 +200,12 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
     split_verifier.verify_class(THREAD);
     exception_name = split_verifier.result();
 
-    // If DumpSharedSpaces is set then don't fall back to the old verifier on
+    // If dumping static archive then don't fall back to the old verifier on
     // verification failure. If a class fails verification with the split verifier,
     // it might fail the CDS runtime verifier constraint check. In that case, we
     // don't want to share the class. We only archive classes that pass the split
     // verifier.
-    bool can_failover = !DumpSharedSpaces &&
+    bool can_failover = !CDSConfig::is_dumping_static_archive() &&
       klass->major_version() < NOFAILOVER_MAJOR_VERSION;
 
     if (can_failover && !HAS_PENDING_EXCEPTION &&  // Split verifier doesn't set PENDING_EXCEPTION for failure
@@ -598,11 +599,12 @@ void ErrorContext::stackmap_details(outputStream* ss, const Method* method) cons
 // Methods in ClassVerifier
 
 VerificationType reference_or_inline_type(InstanceKlass* klass) {
-  if (klass->is_inline_klass()) {
-    return VerificationType::inline_type(klass->name());
-  } else {
-    return VerificationType::reference_type(klass->name());
-  }
+  // if (klass->is_inline_klass()) {
+  //   return VerificationType::inline_type(klass->name());
+  // } else {
+  //   return VerificationType::reference_type(klass->name());
+  // }  // LW401 CR required: verifier update/cleanup
+  return VerificationType::reference_type(klass->name());
 }
 
 ClassVerifier::ClassVerifier(JavaThread* current, InstanceKlass* klass)
@@ -1718,17 +1720,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           verify_field_instructions(
             &bcs, &current_frame, cp, false, CHECK_VERIFY(this));
           no_control_flow = false; break;
-        case Bytecodes::_withfield :
-          if (_klass->major_version() < INLINE_TYPE_MAJOR_VERSION) {
-            class_format_error(
-              "withfield not supported by this class file version (%d.%d), class %s",
-              _klass->major_version(), _klass->minor_version(), _klass->external_name());
-            return;
-          }
-          // pass FALSE, operand can't be an array type for withfield.
-          verify_field_instructions(
-            &bcs, &current_frame, cp, false, CHECK_VERIFY(this));
-          no_control_flow = false; break;
         case Bytecodes::_invokevirtual :
         case Bytecodes::_invokespecial :
         case Bytecodes::_invokestatic :
@@ -1752,28 +1743,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           }
           type = VerificationType::uninitialized_type(checked_cast<u2>(bci));
           current_frame.push_stack(type, CHECK_VERIFY(this));
-          no_control_flow = false; break;
-        }
-        case Bytecodes::_aconst_init :
-        {
-          if (_klass->major_version() < INLINE_TYPE_MAJOR_VERSION) {
-            class_format_error(
-              "aconst_init not supported by this class file version (%d.%d), class %s",
-              _klass->major_version(), _klass->minor_version(), _klass->external_name());
-            return;
-          }
-          u2 index = bcs.get_index_u2();
-          verify_cp_class_type(bci, index, cp, CHECK_VERIFY(this));
-          VerificationType ref_type = cp_index_to_type(index, cp, CHECK_VERIFY(this));
-          if (!ref_type.is_object()) {
-            verify_error(ErrorContext::bad_type(bci,
-                TypeOrigin::cp(index, ref_type)),
-                "Illegal aconst_init instruction");
-            return;
-          }
-          VerificationType inline_type =
-            VerificationType::change_ref_to_inline_type(ref_type);
-          current_frame.push_stack(inline_type, CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
         case Bytecodes::_newarray :
@@ -2412,17 +2381,6 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       }
       break;
     }
-    case Bytecodes::_withfield: {
-      for (int i = n - 1; i >= 0; i--) {
-        current_frame->pop_stack(field_type[i], CHECK_VERIFY(this));
-      }
-      // Check that the receiver is a subtype of the referenced class.
-      current_frame->pop_stack(target_class_type, CHECK_VERIFY(this));
-      VerificationType target_inline_type =
-        VerificationType::change_ref_to_inline_type(target_class_type);
-      current_frame->push_stack(target_inline_type, CHECK_VERIFY(this));
-      break;
-    }
     case Bytecodes::_getfield: {
       is_getfield = true;
       stack_object_type = current_frame->pop_stack(
@@ -2946,11 +2904,8 @@ void ClassVerifier::verify_invoke_instructions(
   if (method_name->char_at(0) == JVM_SIGNATURE_SPECIAL) {
     // Make sure:
     //   <init> can only be invoked by invokespecial.
-    //   <vnew> can only be invoked by invokestatic.
-    if (!((opcode == Bytecodes::_invokestatic &&
-           method_name == vmSymbols::inline_factory_name()) ||
-         (opcode == Bytecodes::_invokespecial &&
-          method_name == vmSymbols::object_initializer_name()))) {
+    if (opcode != Bytecodes::_invokespecial ||
+          method_name != vmSymbols::object_initializer_name()) {
       verify_error(ErrorContext::bad_code(bci),
           "Illegal call to internal method");
       return;
@@ -3056,13 +3011,6 @@ void ClassVerifier::verify_invoke_instructions(
              sig_verif_types->at(i).is_double2(), "Unexpected return verificationType");
       current_frame->push_stack(sig_verif_types->at(i), CHECK_VERIFY(this));
     }
-  } else { // no return type
-    // <vnew> method may not have a void return type
-    if (method_name == vmSymbols::inline_factory_name()) {
-      verify_error(ErrorContext::bad_code(bci),
-          "Return type must be non-void in <vnew> static factory method");
-      return;
-    }
   }
 }
 
@@ -3110,12 +3058,11 @@ void ClassVerifier::verify_anewarray(
     assert(n == length, "Unexpected number of characters in string");
   } else {         // it's an object or interface
     const char* component_name = component_type.name()->as_utf8();
-    char Q_or_L = component_type.is_inline_type() ? JVM_SIGNATURE_PRIMITIVE_OBJECT : JVM_SIGNATURE_CLASS;
-    // add one dimension to component with 'L' or 'Q' prepended and ';' appended.
+    // add one dimension to component with 'L' prepended and ';' postpended.
     length = (int)strlen(component_name) + 3;
     arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);
     int n = os::snprintf(arr_sig_str, length + 1, "%c%c%s;",
-                         JVM_SIGNATURE_ARRAY, Q_or_L, component_name);
+                         JVM_SIGNATURE_ARRAY, JVM_SIGNATURE_CLASS, component_name);
     assert(n == length, "Unexpected number of characters in string");
   }
   Symbol* arr_sig = create_temporary_symbol(arr_sig_str, length);

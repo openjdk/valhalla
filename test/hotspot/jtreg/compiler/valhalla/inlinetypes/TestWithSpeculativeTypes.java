@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,8 @@
  * @bug 8280440
  * @summary Test that speculative types are properly handled by scalarization.
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses TestWithSpeculativeTypes.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @compile TestWithSpeculativeTypes.java
+ * @run main/othervm -XX:+EnableValhalla
  *                   -XX:CompileCommand=dontinline,TestWithSpeculativeTypes::*
  *                   -XX:TypeProfileLevel=222 -XX:-TieredCompilation -Xbatch
  *                   TestWithSpeculativeTypes
@@ -37,11 +37,11 @@ import jdk.test.lib.Asserts;
 
 public class TestWithSpeculativeTypes {
 
-    static primitive class MyValue {
+    static value class MyValue {
         int x = 0;
     }
 
-    static MyValue.ref getNull() {
+    static MyValue getNull() {
         return null;
     }
 
@@ -51,7 +51,7 @@ public class TestWithSpeculativeTypes {
     }
 
     // Argument has speculative type NULL
-    static boolean test2(MyValue.ref vt) {
+    static boolean test2(MyValue vt) {
         return vt == null;
     }
 

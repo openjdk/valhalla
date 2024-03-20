@@ -385,7 +385,7 @@ OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
 
     // load issuing PC (the return address for this stub) into r3
     __ ldr(exception_pc, Address(rfp, 1*BytesPerWord));
-    __ authenticate_return_address(exception_pc, rscratch1);
+    __ authenticate_return_address(exception_pc);
 
     // make sure that the vm_results are cleared (may be unnecessary)
     __ str(zr, Address(rthread, JavaThread::vm_result_offset()));
@@ -434,7 +434,7 @@ OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
   __ str(exception_pc, Address(rthread, JavaThread::exception_pc_offset()));
 
   // patch throwing pc into return address (has bci & oop map)
-  __ protect_return_address(exception_pc, rscratch1);
+  __ protect_return_address(exception_pc);
   __ str(exception_pc, Address(rfp, 1*BytesPerWord));
 
   // compute the exception handler.
@@ -450,7 +450,7 @@ OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
   __ invalidate_registers(false, true, true, true, true, true);
 
   // patch the return address, this stub will directly return to the exception handler
-  __ protect_return_address(r0, rscratch1);
+  __ protect_return_address(r0);
   __ str(r0, Address(rfp, 1*BytesPerWord));
 
   switch (id) {
@@ -650,7 +650,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
     case new_instance_id:
-    case new_instance_no_inline_id:
     case fast_new_instance_id:
     case fast_new_instance_init_check_id:
       {
@@ -659,8 +658,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         if (id == new_instance_id) {
           __ set_info("new_instance", dont_gc_arguments);
-        } else if (id == new_instance_no_inline_id) {
-          __ set_info("new_instance_no_inline", dont_gc_arguments);
         } else if (id == fast_new_instance_id) {
           __ set_info("fast new_instance", dont_gc_arguments);
         } else {
@@ -671,11 +668,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         __ enter();
         OopMap* map = save_live_registers(sasm);
         int call_offset;
-        if (id == new_instance_no_inline_id) {
-          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance_no_inline), klass);
-        } else {
-          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
-        }
+        call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
         restore_live_registers_except_r0(sasm);
@@ -836,6 +829,10 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         f.load_argument(1, r0); // r0,: array
         f.load_argument(0, r1); // r1,: index
         int call_offset = __ call_RT(r0, noreg, CAST_FROM_FN_PTR(address, load_flat_array), r0, r1);
+
+        // Ensure the stores that initialize the buffer are visible
+        // before any subsequent store that publishes this reference.
+        __ membar(Assembler::StoreStore);
 
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);

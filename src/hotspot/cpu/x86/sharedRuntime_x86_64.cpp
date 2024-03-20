@@ -526,7 +526,6 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
-    case T_PRIMITIVE_OBJECT:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
@@ -605,7 +604,6 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt,
       assert(sig_bt[i + 1] == T_VOID, "expecting half");
       // fall through
     case T_OBJECT:
-    case T_PRIMITIVE_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
     case T_METADATA:
@@ -736,7 +734,6 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
                                    const Address& to,
                                    int extraspace,
                                    bool is_oop) {
-  assert(bt != T_PRIMITIVE_OBJECT || !InlineTypePassFieldsAsArgs, "no inline type here");
   if (bt == T_VOID) {
     assert(prev_bt == T_LONG || prev_bt == T_DOUBLE, "missing half");
     return;
@@ -1330,9 +1327,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
                                          VMRegPair *regs,
-                                         VMRegPair *regs2,
                                          int total_args_passed) {
-  assert(regs2 == nullptr, "not needed on x86");
+
 // We return the amount of VMRegImpl stack slots we need to reserve for all
 // the arguments NOT counting out_preserve_stack_slots.
 
@@ -1383,7 +1379,6 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
         // fall through
       case T_OBJECT:
       case T_ARRAY:
-      case T_PRIMITIVE_OBJECT:
       case T_ADDRESS:
       case T_METADATA:
         if (int_args < Argument::n_int_register_parameters_c) {
@@ -2081,7 +2076,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // Now figure out where the args must be stored and how much stack space
   // they require.
   int out_arg_slots;
-  out_arg_slots = c_calling_convention(out_sig_bt, out_regs, nullptr, total_c_args);
+  out_arg_slots = c_calling_convention(out_sig_bt, out_regs, total_c_args);
 
   // Compute framesize for the wrapper.  We need to handlize all oops in
   // incoming registers
@@ -2310,7 +2305,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 #endif /* ASSERT */
     switch (in_sig_bt[i]) {
       case T_ARRAY:
-      case T_PRIMITIVE_OBJECT:
       case T_OBJECT:
         __ object_move(map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
                     ((i == 0) && (!is_static)),
@@ -2471,7 +2465,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
       assert(LockingMode == LM_LIGHTWEIGHT, "must be");
       // Load object header
       __ movptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-      __ fast_lock_impl(obj_reg, swap_reg, r15_thread, rscratch1, slow_path_lock);
+      __ lightweight_lock(obj_reg, swap_reg, r15_thread, rscratch1, slow_path_lock);
     }
     __ bind(count_mon);
     __ inc_held_monitor_count();
@@ -2505,7 +2499,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in xmm0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_PRIMITIVE_OBJECT:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -2616,7 +2609,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
       assert(LockingMode == LM_LIGHTWEIGHT, "must be");
       __ movptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
       __ andptr(swap_reg, ~(int32_t)markWord::lock_mask_in_place);
-      __ fast_unlock_impl(obj_reg, swap_reg, lock_reg, slow_path_unlock);
+      __ lightweight_unlock(obj_reg, swap_reg, lock_reg, slow_path_unlock);
       __ dec_held_monitor_count();
     }
 

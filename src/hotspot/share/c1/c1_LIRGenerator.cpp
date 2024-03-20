@@ -659,13 +659,14 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, stub_id);
 
     assert(klass->is_loaded(), "must be loaded");
+    assert(!klass->is_inlinetype() || !klass->as_inline_klass()->is_empty(), "Sanity check");
     // allocate space for instance
     assert(klass->size_helper() > 0, "illegal instance size");
     const int instance_size = align_object_size(klass->size_helper());
     __ allocate_object(dst, scratch1, scratch2, scratch3, scratch4,
                        oopDesc::header_size(), instance_size, klass_reg, !klass->is_initialized(), slow_path);
   } else {
-    CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, allow_inline ? Runtime1::new_instance_id : Runtime1::new_instance_no_inline_id);
+    CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, Runtime1::new_instance_id);
     __ jump(slow_path);
     __ branch_destination(slow_path->continuation());
   }
@@ -1685,11 +1686,6 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   }
 #endif
 
-  if (!inline_type_field_access_prolog(x)) {
-    // Field store will always deopt due to unloaded field or holder klass
-    return;
-  }
-
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
@@ -2076,31 +2072,6 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
   }
 }
 
-bool LIRGenerator::inline_type_field_access_prolog(AccessField* x) {
-  ciField* field = x->field();
-  assert(!field->is_flat(), "Flattened field access should have been expanded");
-  if (!field->is_null_free()) {
-    return true; // Not an inline type field
-  }
-  // Deoptimize if the access is non-static and requires patching (holder not loaded
-  // or not accessible) because then we only have partial field information and the
-  // field could be flat (see ciField constructor).
-  bool could_be_flat = !x->is_static() && x->needs_patching();
-  // Deoptimize if we load from a static field with an uninitialized type because we
-  // need to throw an exception if initialization of the type failed.
-  bool not_initialized = x->is_static() && x->as_LoadField() != nullptr &&
-      !field->type()->as_instance_klass()->is_initialized();
-  if (could_be_flat || not_initialized) {
-    CodeEmitInfo* info = state_for(x, x->state_before());
-    CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
-                                        Deoptimization::Reason_unloaded,
-                                        Deoptimization::Action_make_not_entrant);
-    __ jump(stub);
-    return false;
-  }
-  return true;
-}
-
 void LIRGenerator::do_LoadField(LoadField* x) {
   bool needs_patching = x->needs_patching();
   bool is_volatile = x->field()->is_volatile();
@@ -2129,13 +2100,6 @@ void LIRGenerator::do_LoadField(LoadField* x) {
                   x->is_static() ?  "static" : "field", x->printable_bci());
   }
 #endif
-
-  if (!inline_type_field_access_prolog(x)) {
-    // Field load will always deopt due to unloaded field or holder klass
-    LIR_Opr result = rlock_result(x, field_type);
-    __ move(LIR_OprFact::oopConst(nullptr), result);
-    return;
-  }
 
   bool stress_deopt = StressLoopInvariantCodeMotion && info && info->deoptimize_on_exception();
   if (x->needs_null_check() &&

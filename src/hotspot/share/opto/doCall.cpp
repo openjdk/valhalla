@@ -186,7 +186,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
     // Try inlining a bytecoded method:
     if (!call_does_dispatch) {
       InlineTree* ilt = InlineTree::find_subtree_from_root(this->ilt(), jvms->caller(), jvms->method());
-      bool should_delay = AlwaysIncrementalInline;
+      bool should_delay = C->should_delay_inlining();
       if (ilt->ok_to_inline(callee, jvms, profile, should_delay)) {
         CallGenerator* cg = CallGenerator::for_inline(callee, expected_uses);
         // For optimized virtual calls assert at runtime that receiver object
@@ -205,14 +205,14 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
           // Delay the inlining of this method to give us the
           // opportunity to perform some high level optimizations
           // first.
-          if (should_delay_string_inlining(callee, jvms)) {
+          if (should_delay) {
+            return CallGenerator::for_late_inline(callee, cg);
+          } else if (should_delay_string_inlining(callee, jvms)) {
             return CallGenerator::for_string_late_inline(callee, cg);
           } else if (should_delay_boxing_inlining(callee, jvms)) {
             return CallGenerator::for_boxing_late_inline(callee, cg);
           } else if (should_delay_vector_reboxing_inlining(callee, jvms)) {
             return CallGenerator::for_vector_reboxing_late_inline(callee, cg);
-          } else if (should_delay) {
-            return CallGenerator::for_late_inline(callee, cg);
           } else {
             return cg;
           }
@@ -740,7 +740,8 @@ void Parse::do_call() {
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
-            if (declared_signature->returns_null_free_inline_type()) {
+            // if (declared_signature->returns_null_free_inline_type()) {
+            if (false) { // JDK-8325660: revisit this code after removal of Q-descriptors
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
             if (arg_type != nullptr && !arg_type->higher_equal(sig_type)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -153,21 +153,6 @@ public class Modifier {
      */
     public static boolean isVolatile(int mod) {
         return (mod & VOLATILE) != 0;
-    }
-
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code value} modifier, {@code false} otherwise.
-     *
-     * @apiNote {@code isValue} should only be called with the modifiers
-     * of a {@linkplain Class#getModifiers() class}.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code value} modifier; {@code false} otherwise.
-     */
-    public static boolean isValue(int mod) {
-        return (mod & VALUE) != 0;
     }
 
     /**
@@ -336,13 +321,6 @@ public class Modifier {
     public static final int IDENTITY         = 0x00000020;
 
     /**
-     * The {@code int} value representing the {@code value}
-     * modifier.
-     * @see AccessFlag#VALUE
-     */
-    public static final int VALUE            = 0x00000040;
-
-    /**
      * The {@code int} value representing the {@code volatile}
      * modifier.
      * @see AccessFlag#VOLATILE
@@ -419,8 +397,7 @@ public class Modifier {
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.IDENTITY       | Modifier.VALUE        |
-        Modifier.STRICT;
+        Modifier.IDENTITY       | Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to an interface.

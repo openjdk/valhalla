@@ -22,7 +22,6 @@
  *
  */
 
-
 #include "precompiled.hpp"
 #include "cds/metaspaceShared.hpp"
 #include "classfile/altHashing.hpp"
@@ -88,43 +87,8 @@ void Symbol::set_permanent() {
 }
 #endif
 
-bool Symbol::is_Q_signature() const {
-  int len = utf8_length();
-  return len > 2 && char_at(0) == JVM_SIGNATURE_PRIMITIVE_OBJECT && char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
-}
-
-bool Symbol::is_Q_array_signature() const {
-  int l = utf8_length();
-  if (l < 2 || char_at(0) != JVM_SIGNATURE_ARRAY || char_at(l - 1) != JVM_SIGNATURE_ENDCLASS) {
-    return false;
-  }
-  for (int i = 1; i < (l - 2); i++) {
-    char c = char_at(i);
-    if (c == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
-      return true;
-    }
-    if (c != JVM_SIGNATURE_ARRAY) {
-      return false;
-    }
-  }
-  return false;
-}
-
-bool Symbol::is_Q_method_signature() const {
-  assert(SignatureVerifier::is_valid_method_signature(this), "must be");
-  int len = utf8_length();
-  if (len > 4 && char_at(0) == JVM_SIGNATURE_FUNC) {
-    for (int i=1; i<len-3; i++) { // Must end with ")Qx;", where x is at least one character or more.
-      if (char_at(i) == JVM_SIGNATURE_ENDFUNC && char_at(i+1) == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 Symbol* Symbol::fundamental_name(TRAPS) {
-  if ((char_at(0) == JVM_SIGNATURE_PRIMITIVE_OBJECT || char_at(0) == JVM_SIGNATURE_CLASS) && ends_with(JVM_SIGNATURE_ENDCLASS)) {
+  if (char_at(0) == JVM_SIGNATURE_CLASS && ends_with(JVM_SIGNATURE_ENDCLASS)) {
     return SymbolTable::new_symbol(this, 1, utf8_length() - 1);
   } else {
     // reference count is incremented to be consistent with the behavior with
@@ -139,7 +103,7 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
   if (utf8_length() < 3) return false;
   int offset1, offset2, len;
   if (ends_with(JVM_SIGNATURE_ENDCLASS)) {
-    if (char_at(0) != JVM_SIGNATURE_PRIMITIVE_OBJECT && char_at(0) != JVM_SIGNATURE_CLASS) return false;
+    if (char_at(0) != JVM_SIGNATURE_CLASS) return false;
     offset1 = 1;
     len = utf8_length() - 2;
   } else {
@@ -147,7 +111,7 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
     len = utf8_length();
   }
   if (ends_with(JVM_SIGNATURE_ENDCLASS)) {
-    if (s->char_at(0) != JVM_SIGNATURE_PRIMITIVE_OBJECT && s->char_at(0) != JVM_SIGNATURE_CLASS) return false;
+    if (s->char_at(0) != JVM_SIGNATURE_CLASS) return false;
     offset2 = 1;
   } else {
     offset2 = 0;
@@ -465,11 +429,9 @@ void Symbol::print() const { print_on(tty); }
 // The print_value functions are present in all builds, to support the
 // disassembler and error reporting.
 void Symbol::print_value_on(outputStream* st) const {
-  st->print("'");
-  for (int i = 0; i < utf8_length(); i++) {
-    st->print("%c", char_at(i));
-  }
-  st->print("'");
+  st->print_raw("'", 1);
+  st->print_raw((const char*)base(), utf8_length());
+  st->print_raw("'", 1);
 }
 
 void Symbol::print_value() const { print_value_on(tty); }
@@ -488,14 +450,6 @@ bool Symbol::is_valid(Symbol* s) {
 
   jbyte* bytes = (jbyte*) s->bytes();
   return os::is_readable_range(bytes, bytes + len);
-}
-
-void Symbol::print_Qvalue_on(outputStream* st) const {
-  st->print("'Q");
-  for (int i = 0; i < utf8_length(); i++) {
-    st->print("%c", char_at(i));
-  }
-  st->print(";'");
 }
 
 // SymbolTable prints this in its statistics

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,7 @@ public class Identity32int extends StatesR32int {
     public void Def_to_Ref_as_Ref_fill(Ref_as_Ref st) {
         R32int[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = R32int.default;
+            arr[i] = new R32int();
         }
     }
 
@@ -82,7 +82,7 @@ public class Identity32int extends StatesR32int {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Ref_arrayfill(Ref_as_Ref st) {
-        Arrays.fill(st.arr, R32int.default);
+        Arrays.fill(st.arr, new R32int()  );
     }
 
     @Benchmark

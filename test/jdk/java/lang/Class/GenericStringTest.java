@@ -26,7 +26,7 @@
  * @bug 6298888 6992705 8161500 6304578
  * @summary Check Class.toGenericString()
  * @author Joseph D. Darcy
- * @compile -XDenablePrimitiveClasses GenericStringTest.java
+ * @compile GenericStringTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses GenericStringTest
  */
 

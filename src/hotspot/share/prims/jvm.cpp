@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/cdsConfig.hpp"
 #include "cds/classListParser.hpp"
 #include "cds/classListWriter.hpp"
 #include "cds/dynamicArchive.hpp"
@@ -103,6 +104,7 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
+#include "utilities/zipLibrary.hpp"
 #if INCLUDE_CDS
 #include "classfile/systemDictionaryShared.hpp"
 #endif
@@ -430,7 +432,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   oop mirror = JNIHandles::resolve_non_null(elmClass);
   Klass* klass = java_lang_Class::as_Klass(mirror);
   klass->initialize(CHECK_NULL);
-  if (!klass->is_value_class()) {
+  if (klass->is_identity_class()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
   }
   InstanceKlass* ik = InstanceKlass::cast(klass);
@@ -583,7 +585,7 @@ JVM_END
 
 JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jint mode,
                                      jint skip_frames, jobject contScope, jobject cont,
-                                     jint frame_count, jint start_index, jobjectArray frames))
+                                     jint buffer_size, jint start_index, jobjectArray frames))
   if (!thread->has_last_Java_frame()) {
     THROW_MSG_(vmSymbols::java_lang_InternalError(), "doStackWalk: no stack trace", nullptr);
   }
@@ -597,19 +599,18 @@ JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jint mode
   objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
   objArrayHandle frames_array_h(THREAD, fa);
 
-  int limit = start_index + frame_count;
-  if (frames_array_h->length() < limit) {
+  if (frames_array_h->length() < buffer_size) {
     THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers", nullptr);
   }
 
   oop result = StackWalk::walk(stackStream_h, mode, skip_frames, contScope_h, cont_h,
-                               frame_count, start_index, frames_array_h, CHECK_NULL);
+                               buffer_size, start_index, frames_array_h, CHECK_NULL);
   return JNIHandles::make_local(THREAD, result);
 JVM_END
 
 
 JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, jlong anchor,
-                                  jint frame_count, jint start_index,
+                                  jint last_batch_count, jint buffer_size, jint start_index,
                                   jobjectArray frames))
   // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
@@ -617,13 +618,12 @@ JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, j
   objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
   objArrayHandle frames_array_h(THREAD, fa);
 
-  int limit = start_index+frame_count;
-  if (frames_array_h->length() < limit) {
+  if (frames_array_h->length() < buffer_size) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers");
   }
 
   Handle stackStream_h(THREAD, JNIHandles::resolve_non_null(stackStream));
-  return StackWalk::fetchNextBatch(stackStream_h, mode, anchor, frame_count,
+  return StackWalk::fetchNextBatch(stackStream_h, mode, anchor, last_batch_count, buffer_size,
                                   start_index, frames_array_h, THREAD);
 JVM_END
 
@@ -1914,8 +1914,7 @@ JVM_ENTRY(jobjectArray, JVM_GetRecordComponents(JNIEnv* env, jclass ofClass))
 JVM_END
 
 static bool select_method(const methodHandle& method, bool want_constructor) {
-  bool is_ctor = (method->is_object_constructor() ||
-                  method->is_static_vnew_factory());
+  bool is_ctor = (method->is_object_constructor());
   if (want_constructor) {
     return is_ctor;
   } else {
@@ -1984,8 +1983,7 @@ static jobjectArray get_class_declared_methods_helper(
     } else {
       oop m;
       if (want_constructor) {
-        assert(method->is_object_constructor() ||
-               method->is_static_vnew_factory(), "must be");
+        assert(method->is_object_constructor(), "must be");
         m = Reflection::new_constructor(method, CHECK_NULL);
       } else {
         m = Reflection::new_method(method, false, CHECK_NULL);
@@ -2268,7 +2266,7 @@ static jobject get_method_at_helper(const constantPoolHandle& cp, jint index, bo
     THROW_MSG_0(vmSymbols::java_lang_RuntimeException(), "Unable to look up method in target class");
   }
   oop method;
-  if (m->is_object_constructor() || m->is_static_vnew_factory()) {
+  if (m->is_object_constructor()) {
     method = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     method = Reflection::new_method(m, true, CHECK_NULL);
@@ -3048,7 +3046,7 @@ static void thread_entry(JavaThread* thread, TRAPS) {
 
 JVM_ENTRY(void, JVM_StartThread(JNIEnv* env, jobject jthread))
 #if INCLUDE_CDS
-  if (DumpSharedSpaces) {
+  if (CDSConfig::is_dumping_static_archive()) {
     // During java -Xshare:dump, if we allow multiple Java threads to
     // execute in parallel, symbols and classes may be loaded in
     // random orders which will make the resulting CDS archive
@@ -3517,8 +3515,7 @@ JVM_END
 // Library support ///////////////////////////////////////////////////////////////////////////
 
 JVM_LEAF(void*, JVM_LoadZipLibrary())
-  ClassLoader::load_zip_library_if_needed();
-  return ClassLoader::zip_library_handle();
+  return ZipLibrary::handle();
 JVM_END
 
 JVM_ENTRY_NO_ENV(void*, JVM_LoadLibrary(const char* name, jboolean throwException))
@@ -3715,7 +3712,7 @@ JVM_ENTRY(void, JVM_RegisterLambdaProxyClassForArchiving(JNIEnv* env,
                                               jobject dynamicMethodType,
                                               jclass lambdaProxyClass))
 #if INCLUDE_CDS
-  if (!Arguments::is_dumping_archive()) {
+  if (!CDSConfig::is_dumping_archive()) {
     return;
   }
 
@@ -3803,7 +3800,7 @@ JVM_ENTRY(jclass, JVM_LookupLambdaProxyClassFromArchive(JNIEnv* env,
 JVM_END
 
 JVM_LEAF(jboolean, JVM_IsCDSDumpingEnabled(JNIEnv* env))
-  return Arguments::is_dumping_archive();
+  return CDSConfig::is_dumping_archive();
 JVM_END
 
 JVM_LEAF(jboolean, JVM_IsSharingEnabled(JNIEnv* env))
@@ -3811,7 +3808,8 @@ JVM_LEAF(jboolean, JVM_IsSharingEnabled(JNIEnv* env))
 JVM_END
 
 JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
-  if (DumpSharedSpaces) {
+  if (CDSConfig::is_dumping_static_archive()) {
+    // We do this so that the default CDS archive can be deterministic.
     const char* release = VM_Version::vm_release();
     const char* dbg_level = VM_Version::jdk_debug_level();
     const char* version = VM_Version::internal_vm_info_string();
@@ -3834,7 +3832,7 @@ JVM_END
 
 JVM_LEAF(jboolean, JVM_IsDumpingClassList(JNIEnv *env))
 #if INCLUDE_CDS
-  return ClassListWriter::is_enabled() || DynamicDumpSharedSpaces;
+  return ClassListWriter::is_enabled() || CDSConfig::is_dumping_dynamic_archive();
 #else
   return false;
 #endif // INCLUDE_CDS
@@ -3842,12 +3840,12 @@ JVM_END
 
 JVM_ENTRY(void, JVM_LogLambdaFormInvoker(JNIEnv *env, jstring line))
 #if INCLUDE_CDS
-  assert(ClassListWriter::is_enabled() || DynamicDumpSharedSpaces,  "Should be set and open or do dynamic dump");
+  assert(ClassListWriter::is_enabled() || CDSConfig::is_dumping_dynamic_archive(),  "Should be set and open or do dynamic dump");
   if (line != nullptr) {
     ResourceMark rm(THREAD);
     Handle h_line (THREAD, JNIHandles::resolve_non_null(line));
     char* c_line = java_lang_String::as_utf8_string(h_line());
-    if (DynamicDumpSharedSpaces) {
+    if (CDSConfig::is_dumping_dynamic_archive()) {
       // Note: LambdaFormInvokers::append take same format which is not
       // same as below the print format. The line does not include LAMBDA_FORM_TAG.
       LambdaFormInvokers::append(os::strdup((const char*)c_line, mtInternal));

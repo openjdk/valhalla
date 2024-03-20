@@ -1129,15 +1129,6 @@ bool GraphKit::compute_stack_effects(int& inputs, int& depth) {
     }
     break;
 
-  case Bytecodes::_withfield: {
-    bool ignored_will_link;
-    ciField* field = method()->get_field_at_bci(bci(), ignored_will_link);
-    int      size  = field->type()->size();
-    inputs = size+1;
-    depth = rsize() - inputs;
-    break;
-  }
-
   case Bytecodes::_ireturn:
   case Bytecodes::_lreturn:
   case Bytecodes::_freturn:
@@ -1945,7 +1936,8 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
-    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
+    // ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, false); // JDK-8325660: revisit this code after removal of Q-descriptors
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
@@ -3668,7 +3660,8 @@ Node* GraphKit::inline_type_test(Node* obj, bool is_inline) {
 }
 
 Node* GraphKit::is_val_mirror(Node* mirror) {
-  Node* p = basic_plus_adr(mirror, java_lang_Class::secondary_mirror_offset());
+  // JDK-8325660: notion of secondary mirror / val_mirror is gone one JEP 401
+  Node* p = basic_plus_adr(mirror, (int)0 /* java_lang_Class::secondary_mirror_offset() */);
   Node* secondary_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
   Node* cmp = _gvn.transform(new CmpPNode(mirror, secondary_mirror));
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
@@ -4149,7 +4142,10 @@ Node* GraphKit::new_instance(Node* klass_node,
 //-------------------------------new_array-------------------------------------
 // helper for newarray and anewarray
 // The 'length' parameter is (obviously) the length of the array.
-// See comments on new_instance for the meaning of the other arguments.
+// The optional arguments are for specialized use by intrinsics:
+//  - If 'return_size_val', report the non-padded array size (sum of header size
+//    and array body) to the caller.
+//  - deoptimize_on_exception controls how Java exceptions are handled (rethrow vs deoptimize)
 Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
                           Node* length,         // number of array elements
                           int   nargs,          // number of arguments to push back for uncommon trap
@@ -4200,7 +4196,6 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   // The rounding mask is strength-reduced, if possible.
   int round_mask = MinObjAlignmentInBytes - 1;
   Node* header_size = nullptr;
-  int   header_size_min  = arrayOopDesc::base_offset_in_bytes(T_BYTE);
   // (T_BYTE has the weakest alignment and size restrictions...)
   if (layout_is_con) {
     int       hsize  = Klass::layout_helper_header_size(layout_con);
@@ -4209,16 +4204,14 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     if ((round_mask & ~right_n_bits(eshift)) == 0)
       round_mask = 0;  // strength-reduce it if it goes away completely
     assert(is_flat_array || (hsize & right_n_bits(eshift)) == 0, "hsize is pre-rounded");
+    int header_size_min = arrayOopDesc::base_offset_in_bytes(T_BYTE);
     assert(header_size_min <= hsize, "generic minimum is smallest");
-    header_size_min = hsize;
-    header_size = intcon(hsize + round_mask);
+    header_size = intcon(hsize);
   } else {
     Node* hss   = intcon(Klass::_lh_header_size_shift);
     Node* hsm   = intcon(Klass::_lh_header_size_mask);
-    Node* hsize = _gvn.transform( new URShiftINode(layout_val, hss) );
-    hsize       = _gvn.transform( new AndINode(hsize, hsm) );
-    Node* mask  = intcon(round_mask);
-    header_size = _gvn.transform( new AddINode(hsize, mask) );
+    header_size = _gvn.transform(new URShiftINode(layout_val, hss));
+    header_size = _gvn.transform(new AndINode(header_size, hsm));
   }
 
   Node* elem_shift = nullptr;
@@ -4270,24 +4263,29 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   }
 #endif
 
-  // Combine header size (plus rounding) and body size.  Then round down.
-  // This computation cannot overflow, because it is used only in two
-  // places, one where the length is sharply limited, and the other
-  // after a successful allocation.
+  // Combine header size and body size for the array copy part, then align (if
+  // necessary) for the allocation part. This computation cannot overflow,
+  // because it is used only in two places, one where the length is sharply
+  // limited, and the other after a successful allocation.
   Node* abody = lengthx;
-  if (elem_shift != nullptr)
-    abody     = _gvn.transform( new LShiftXNode(lengthx, elem_shift) );
-  Node* size  = _gvn.transform( new AddXNode(headerx, abody) );
-  if (round_mask != 0) {
-    Node* mask = MakeConX(~round_mask);
-    size       = _gvn.transform( new AndXNode(size, mask) );
+  if (elem_shift != nullptr) {
+    abody = _gvn.transform(new LShiftXNode(lengthx, elem_shift));
   }
-  // else if round_mask == 0, the size computation is self-rounding
+  Node* non_rounded_size = _gvn.transform(new AddXNode(headerx, abody));
 
   if (return_size_val != nullptr) {
     // This is the size
-    (*return_size_val) = size;
+    (*return_size_val) = non_rounded_size;
   }
+
+  Node* size = non_rounded_size;
+  if (round_mask != 0) {
+    Node* mask1 = MakeConX(round_mask);
+    size = _gvn.transform(new AddXNode(size, mask1));
+    Node* mask2 = MakeConX(~round_mask);
+    size = _gvn.transform(new AndXNode(size, mask2));
+  }
+  // else if round_mask == 0, the size computation is self-rounding
 
   // Now generate allocation code
 

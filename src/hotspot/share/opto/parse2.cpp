@@ -1792,7 +1792,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
 }
 
 //------------------------------------do_if------------------------------------
-void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_taken) {
+void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken) {
   int target_bci = iter().get_dest();
 
   Block* branch_block = successor_for_bci(target_bci);
@@ -1881,7 +1881,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
         branch_block->next_path_num();
       }
     } else {
-      adjust_map_after_if(taken_btest, c, prob, branch_block);
+      adjust_map_after_if(taken_btest, c, prob, branch_block, can_trap);
       if (!stopped()) {
         if (new_path) {
           // Merge by using a new path
@@ -1906,7 +1906,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
       next_block->next_path_num();
     }
   } else {
-    adjust_map_after_if(untaken_btest, c, untaken_prob, next_block);
+    adjust_map_after_if(untaken_btest, c, untaken_prob, next_block, can_trap);
   }
 }
 
@@ -2109,10 +2109,20 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     do_if(btest, cmp);
     return;
   }
+
+  // Don't add traps to unstable if branches because additional checks are required to
+  // decide if the operands are equal/substitutable and we therefore shouldn't prune
+  // branches for one if based on the profiling of the acmp branches.
+  // Also, OptimizeUnstableIf would set an incorrect re-rexecution state because it
+  // assumes that there is a 1-1 mapping between the if and the acmp branches and that
+  // hitting a trap means that we will take the corresponding acmp branch on re-execution.
+  const bool can_trap = true;
+
   Node* eq_region = nullptr;
   if (btest == BoolTest::eq) {
-    do_if(btest, cmp, true);
+    do_if(btest, cmp, !can_trap, true);
     if (stopped()) {
+      // Pointers are equal, operands must be equal
       return;
     }
   } else {
@@ -2121,7 +2131,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     eq_region = new RegionNode(3);
     {
       PreserveJVMState pjvms(this);
-      do_if(btest, cmp, false, &is_not_equal);
+      // Pointers are not equal, but more checks are needed to determine if the operands are (not) substitutable
+      do_if(btest, cmp, !can_trap, false, &is_not_equal);
       if (!stopped()) {
         eq_region->init_req(1, control());
       }
@@ -2261,18 +2272,19 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   dec_sp(2);
 
   // Test the return value of ValueObjectMethods::isSubstitutable()
+  // This is the last check, do_if can emit traps now.
   Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
   Node* ctl = C->top();
   if (btest == BoolTest::eq) {
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp);
+    do_if(btest, subst_cmp, can_trap);
     if (!stopped()) {
       ctl = control();
     }
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, false, &ctl);
+    do_if(btest, subst_cmp, can_trap, false, &ctl);
     if (!stopped()) {
       eq_region->init_req(2, control());
       eq_io_phi->init_req(2, i_o());
@@ -2328,7 +2340,7 @@ void Parse::maybe_add_predicate_after_if(Block* path) {
 // branch, seeing how it constrains a tested value, and then
 // deciding if it's worth our while to encode this constraint
 // as graph nodes in the current abstract interpretation map.
-void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path) {
+void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path, bool can_trap) {
   if (!c->is_Cmp()) {
     maybe_add_predicate_after_if(path);
     return;
@@ -2340,7 +2352,7 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block
 
   bool is_fallthrough = (path == successor_for_bci(iter().next_bci()));
 
-  if (path_is_suitable_for_uncommon_trap(prob)) {
+  if (can_trap && path_is_suitable_for_uncommon_trap(prob)) {
     repush_if_args();
     Node* call = uncommon_trap(Deoptimization::Reason_unstable_if,
                   Deoptimization::Action_reinterpret,
@@ -3491,12 +3503,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_new:
     do_new();
     break;
-  case Bytecodes::_aconst_init:
-    do_aconst_init();
-    break;
-  case Bytecodes::_withfield:
-    do_withfield();
-    break;
 
   case Bytecodes::_jsr:
   case Bytecodes::_jsr_w:
@@ -3531,13 +3537,14 @@ void Parse::do_one_bytecode() {
   }
 
 #ifndef PRODUCT
-  if (C->should_print_igv(1)) {
+  constexpr int perBytecode = 5;
+  if (C->should_print_igv(perBytecode)) {
     IdealGraphPrinter* printer = C->igv_printer();
     char buffer[256];
     jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
-    printer->print_method(buffer, 5);
+    printer->print_method(buffer, perBytecode);
     printer->set_traverse_outs(old);
   }
 #endif

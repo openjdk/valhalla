@@ -598,8 +598,13 @@ Node* LoadNode::find_previous_arraycopy(PhaseValues* phase, Node* ld_alloc, Node
         Node* dest = ac->in(ArrayCopyNode::Dest);
 
         if (dest == ld_base) {
-          const TypeX *ld_offs_t = phase->type(ld_offs)->isa_intptr_t();
-          if (ac->modifies(ld_offs_t->_lo, ld_offs_t->_hi, phase, can_see_stored_value)) {
+          const TypeX* ld_offs_t = phase->type(ld_offs)->isa_intptr_t();
+          assert(!ld_offs_t->empty(), "dead reference should be checked already");
+          // Take into account vector or unsafe access size
+          jlong ld_size_in_bytes = (jlong)memory_size();
+          jlong offset_hi = ld_offs_t->_hi + ld_size_in_bytes - 1;
+          offset_hi = MIN2(offset_hi, (jlong)(TypeX::MAX->_hi)); // Take care for overflow in 32-bit VM
+          if (ac->modifies(ld_offs_t->_lo, (intptr_t)offset_hi, phase, can_see_stored_value)) {
             return ac;
           }
           if (!can_see_stored_value) {
@@ -2069,11 +2074,12 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
           const_oop = TypeInstPtr::make(vk->default_instance());
         }
         // Fold class mirror loads
-        if (off == java_lang_Class::primary_mirror_offset()) {
-          const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->ref_instance());
-        } else if (off == java_lang_Class::secondary_mirror_offset()) {
-          const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->val_instance());
-        }
+        // JDK-8325660: notion of secondary mirror is gone in JEP 401
+        // if (off == java_lang_Class::primary_mirror_offset()) {
+        //   const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->java_mirror());
+        // } else if (off == java_lang_Class::secondary_mirror_offset()) {
+        //   const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->java_mirror());
+        // }
         if (const_oop != nullptr) {
           return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
         }
@@ -2440,7 +2446,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
       bool null_free = false;
-      ciType* t = tinst->java_mirror_type(&null_free);
+      ciType* t = tinst->java_mirror_type();
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != nullptr) {
         // constant oop => constant klass
@@ -2450,6 +2456,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
+          // JDK-8325660: after removal of secondary mirror and Q-types, null_free is now always false => cleanup?
           return TypeKlassPtr::make(ciArrayKlass::make(t, null_free), Type::trust_interfaces);
         }
         if (!t->is_klass()) {

@@ -68,7 +68,7 @@ class ObjArrayKlass : public ArrayKlass {
   // Allocation
   static ObjArrayKlass* allocate_objArray_klass(ClassLoaderData* loader_data,
                                                 int n, Klass* element_klass,
-                                                bool null_free, bool qdesc, TRAPS);
+                                                bool null_free, TRAPS);
 
   objArrayOop allocate(int length, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
@@ -88,14 +88,6 @@ class ObjArrayKlass : public ArrayKlass {
                arrayOop d, size_t dst_offset,
                int length, TRAPS);
  public:
-  // Returns the ObjArrayKlass for n'th dimension.
-  virtual ArrayKlass* array_klass(int n, TRAPS);
-  virtual ArrayKlass* array_klass_or_null(int n);
-
-  // Returns the array class with this class as element type.
-  virtual ArrayKlass* array_klass(TRAPS);
-  virtual ArrayKlass* array_klass_or_null();
-
   static ObjArrayKlass* cast(Klass* k) {
     return const_cast<ObjArrayKlass*>(cast(const_cast<const Klass*>(k)));
   }
@@ -141,9 +133,6 @@ class ObjArrayKlass : public ArrayKlass {
   // Iterate over all oop elements with indices within mr.
   template <typename T, class OopClosureType>
   inline void oop_oop_iterate_elements_bounded(objArrayOop a, OopClosureType* closure, void* low, void* high);
-
-  template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_bounded(objArrayOop a, OopClosureType* closure, MemRegion mr);
 
  public:
   jint compute_modifier_flags() const;

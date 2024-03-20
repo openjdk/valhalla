@@ -306,14 +306,6 @@ ciType* NewInstance::declared_type() const {
   return exact_type();
 }
 
-ciType* NewInlineTypeInstance::exact_type() const {
-  return klass();
-}
-
-ciType* NewInlineTypeInstance::declared_type() const {
-  return exact_type();
-}
-
 ciType* CheckCast::declared_type() const {
   return klass();
 }
@@ -421,9 +413,6 @@ StoreField::StoreField(Value obj, int offset, ciField* field, Value value, bool 
   values_do(&assert_value);
 #endif
   pin();
-  if (value->as_NewInlineTypeInstance() != nullptr) {
-    value->as_NewInlineTypeInstance()->set_not_larva_anymore();
-  }
 }
 
 StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value,
@@ -438,9 +427,6 @@ StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt
   values_do(&assert_value);
 #endif
   pin();
-  if (value->as_NewInlineTypeInstance() != nullptr) {
-    value->as_NewInlineTypeInstance()->set_not_larva_anymore();
-  }
 }
 
 
@@ -469,18 +455,12 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
   _signature = new BasicTypeList(number_of_arguments() + (has_receiver() ? 1 : 0));
   if (has_receiver()) {
     _signature->append(as_BasicType(receiver()->type()));
-    if (receiver()->as_NewInlineTypeInstance() != nullptr) {
-      receiver()->as_NewInlineTypeInstance()->set_not_larva_anymore();
-    }
   }
   for (int i = 0; i < number_of_arguments(); i++) {
     Value v = argument_at(i);
     ValueType* t = v->type();
     BasicType bt = as_BasicType(t);
     _signature->append(bt);
-    if (v->as_NewInlineTypeInstance() != nullptr) {
-      v->as_NewInlineTypeInstance()->set_not_larva_anymore();
-    }
   }
 }
 
@@ -962,8 +942,6 @@ bool BlockBegin::try_merge(ValueStack* new_state, bool has_irreducible_loops) {
         if (new_value != existing_value && (existing_phi == nullptr || existing_phi->block() != this)) {
           existing_state->setup_phi_for_stack(this, index);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for stack %d", existing_state->stack_at(index)->type()->tchar(), existing_state->stack_at(index)->id(), index));
-          if (new_value->as_NewInlineTypeInstance() != nullptr) {new_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
-          if (existing_value->as_NewInlineTypeInstance() != nullptr) {existing_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
         }
       }
 
@@ -978,8 +956,6 @@ bool BlockBegin::try_merge(ValueStack* new_state, bool has_irreducible_loops) {
         } else if (new_value != existing_value && (existing_phi == nullptr || existing_phi->block() != this)) {
           existing_state->setup_phi_for_local(this, index);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for local %d", existing_state->local_at(index)->type()->tchar(), existing_state->local_at(index)->id(), index));
-          if (new_value->as_NewInlineTypeInstance() != nullptr) {new_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
-          if (existing_value->as_NewInlineTypeInstance() != nullptr) {existing_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
         }
       }
     }

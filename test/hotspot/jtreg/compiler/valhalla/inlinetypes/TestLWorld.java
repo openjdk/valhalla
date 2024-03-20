@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,8 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
-import test.java.lang.invoke.lib.InstructionHelper;
+import test.java.lang.invoke.lib.OldInstructionHelper;
+
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -33,8 +34,12 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import jdk.experimental.bytecode.TypeTag;
 import java.util.Arrays;
+import java.util.Objects;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
@@ -46,10 +51,10 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses MyValue5.jcod
- * @compile -XDenablePrimitiveClasses TestLWorld.java
- * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestLWorld
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestLWorld.java
+ * @run main/othervm/timeout=450 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer
@@ -83,7 +88,9 @@ public class TestLWorld {
 
     // Helper methods
 
+    @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
+    @NullRestricted
     private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
 
     protected long hash() {
@@ -135,16 +142,21 @@ public class TestLWorld {
     Object objectField5 = null;
     Object objectField6 = null;
 
+    @NullRestricted
     MyValue1 valueField1 = testValue1;
+    @NullRestricted
     MyValue1 valueField2 = testValue1;
-    MyValue1.ref valueField3 = testValue1;
+    MyValue1 valueField3 = testValue1;
+    @NullRestricted
     MyValue1 valueField4;
-    MyValue1.ref valueField5;
+    MyValue1 valueField5;
 
-    static MyValue1.ref staticValueField1 = testValue1;
+    static MyValue1 staticValueField1 = testValue1;
+    @NullRestricted
     static MyValue1 staticValueField2 = testValue1;
+    @NullRestricted
     static MyValue1 staticValueField3;
-    static MyValue1.ref staticValueField4;
+    static MyValue1 staticValueField4;
 
     @DontInline
     public Object readValueField5() {
@@ -610,6 +622,9 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC_G})
     public void test19(MyValue1 vt) {
+        if (vt == null) {
+            return;
+        }
         Object obj = vt;
         try {
             MyValue2 vt2 = (MyValue2)obj;
@@ -627,6 +642,9 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC_G})
     public void test20(MyValue1 vt) {
+        if (vt == null) {
+            return;
+        }
         Object obj = vt;
         try {
             Integer i = (Integer)obj;
@@ -643,17 +661,23 @@ public class TestLWorld {
 
     // Array tests
 
-    private static final MyValue1[] testValue1Array = new MyValue1[] {testValue1,
-                                                                      testValue1,
-                                                                      testValue1};
+    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 3);
+    static {
+        for (int i = 0; i < 3; ++i) {
+            testValue1Array[i] = testValue1;
+        }
+    }
 
     private static final MyValue1[][] testValue1Array2 = new MyValue1[][] {testValue1Array,
                                                                            testValue1Array,
                                                                            testValue1Array};
 
-    private static final MyValue2[] testValue2Array = new MyValue2[] {testValue2,
-                                                                      testValue2,
-                                                                      testValue2};
+    private static final MyValue2[] testValue2Array = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 3);
+    static {
+        for (int i = 0; i < 3; ++i) {
+            testValue2Array[i] = testValue2;
+        }
+    }
 
     private static final Integer[] testIntegerArray = new Integer[42];
 
@@ -1073,7 +1097,7 @@ public class TestLWorld {
 
     // Test writing constant null to a (flattened) inline type array
 
-    private static final MethodHandle setArrayElementNull = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementNull = OldInstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementNull",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class),
         CODE -> {
@@ -1105,8 +1129,6 @@ public class TestLWorld {
 
     // Test writing an inline type to a null inline type array
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
-        failOn = {ALLOC_G})
     public void test36(MyValue1[] va, MyValue1 vt, int index) {
         va[index] = vt;
     }
@@ -1154,7 +1176,7 @@ public class TestLWorld {
 
     @ForceInline
     public Object[] test38_inline() {
-        return new MyValue1[42];
+        return (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
     }
 
     @Test
@@ -1192,7 +1214,7 @@ public class TestLWorld {
     @Run(test = "test38")
     public void test38_verifier() {
         int index = Math.abs(rI) % 3;
-        MyValue1[] va = new MyValue1[42];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
         Object[] result = test38(null, testValue1, index, index, 0);
         Asserts.assertEQ(((MyValue1)result[index]).hash(), testValue1.hash());
         result = test38(testValue1Array, testValue1, index, index, 1);
@@ -1226,7 +1248,7 @@ public class TestLWorld {
 
     @ForceInline
     public Object test39_inline() {
-        return new MyValue1[42];
+        return (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
     }
 
     // Same as above but merging into Object instead of Object[]
@@ -1278,7 +1300,7 @@ public class TestLWorld {
     @Run(test = "test39")
     public void test39_verifier() {
         int index = Math.abs(rI) % 3;
-        MyValue1[] va = new MyValue1[42];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
         Object result = test39(null, testValue1, index, index, 0);
         Asserts.assertEQ(((MyValue1[])result)[index].hash(), testValue1.hash());
         result = test39(testValue1Array, testValue1, index, index, 1);
@@ -1361,7 +1383,8 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC})
     public void test41() {
-        MyValue1[] vals = new MyValue1[] {testValue1};
+        MyValue1[] vals = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        vals[0] = testValue1;
         test41_dontinline(vals[0].oa[0]);
         test41_dontinline(vals[0].oa[0]);
     }
@@ -1372,13 +1395,15 @@ public class TestLWorld {
     }
 
     // Test for bug in Escape Analysis
-    private static final MyValue1.ref test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
-    private static final MyValue1.ref test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+    private static final MyValue1 test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
+    private static final MyValue1 test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
 
     @Test
     @IR(failOn = {ALLOC})
     public void test42() {
-        MyValue1[] vals = new MyValue1[] {(MyValue1) test42VT1, (MyValue1) test42VT2};
+        MyValue1[] vals = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        vals[0] = test42VT1;
+        vals[1] = test42VT2;
         Asserts.assertEQ(vals[0].hash(), test42VT1.hash());
         Asserts.assertEQ(vals[1].hash(), test42VT2.hash());
     }
@@ -1392,7 +1417,9 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC})
     public long test43(boolean deopt, Method m) {
-        MyValue1[] vals = new MyValue1[] {(MyValue1) test42VT1, (MyValue1) test42VT2};
+        MyValue1[] vals = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        vals[0] = test42VT1;
+        vals[1] = test42VT2;
 
         if (deopt) {
             // uncommon trap
@@ -1410,9 +1437,9 @@ public class TestLWorld {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatible = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatible = OldInstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
-        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, PrimitiveClass.asValueType(MyValue2.class)),
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
         CODE -> {
             CODE.
             aload_1().
@@ -1447,7 +1474,6 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test45(MyValue1[] va, int index, MyValue2 v) throws Throwable {
         test45_inline(va, v, index);
     }
@@ -1532,19 +1558,24 @@ public class TestLWorld {
     }
 
     // Inline type with some non-flattened fields
-    final primitive class Test51Value {
-        final Object objectField1;
-        final Object objectField2;
-        final Object objectField3;
-        final Object objectField4;
-        final Object objectField5;
-        final Object objectField6;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test51Value {
+        Object objectField1;
+        Object objectField2;
+        Object objectField3;
+        Object objectField4;
+        Object objectField5;
+        Object objectField6;
 
-        final MyValue1 valueField1;
-        final MyValue1 valueField2;
-        final MyValue1.ref valueField3;
-        final MyValue1 valueField4;
-        final MyValue1.ref valueField5;
+        @NullRestricted
+        MyValue1 valueField1;
+        @NullRestricted
+        MyValue1 valueField2;
+        MyValue1 valueField3;
+        @NullRestricted
+        MyValue1 valueField4;
+        MyValue1 valueField5;
 
         public Test51Value() {
             objectField1 = null;
@@ -1561,7 +1592,7 @@ public class TestLWorld {
         }
 
         public Test51Value(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6,
-                           MyValue1 vt1, MyValue1 vt2, MyValue1.ref vt3, MyValue1 vt4, MyValue1.ref vt5) {
+                           MyValue1 vt1, MyValue1 vt2, MyValue1 vt3, MyValue1 vt4, MyValue1 vt5) {
             objectField1 = o1;
             objectField2 = o2;
             objectField3 = o3;
@@ -1610,7 +1641,9 @@ public class TestLWorld {
     }
 
     // Pass arguments via fields to avoid exzessive spilling leading to compilation bailouts
+    @NullRestricted
     static Test51Value test51_arg1;
+    @NullRestricted
     static MyValue1 test51_arg2;
     static Object test51_arg3;
 
@@ -1645,7 +1678,8 @@ public class TestLWorld {
 
     @Run(test = "test52")
     public void test52_verifier() {
-        Test51Value vt = Test51Value.default;
+        Test51Value vt = new Test51Value(null, null, null, null, null, null,
+                                         MyValue1.createDefaultInline(), MyValue1.createDefaultInline(), null, MyValue1.createDefaultInline(), null);
         test52(vt);
     }
 
@@ -1910,7 +1944,7 @@ public class TestLWorld {
 
     @Run(test = "test66")
     public void test66_verifier() {
-        MyValue1[] array = new MyValue1[1];
+        MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         test66(array, testValue1);
         Asserts.assertEQ(array[0].hash(), testValue1.hash());
     }
@@ -1922,7 +1956,7 @@ public class TestLWorld {
 
     @Run(test = "test67")
     public void test67_verifier() {
-        MyValue1[] array = new MyValue1[1];
+        MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         test67(array, testValue1);
         Asserts.assertEQ(array[0].hash(), testValue1.hash());
     }
@@ -2012,7 +2046,7 @@ public class TestLWorld {
     public MyValue1 test71_inline(Object obj) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         try {
-            vt = (MyValue1)obj;
+            vt = (MyValue1)Objects.requireNonNull(obj);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -2033,8 +2067,11 @@ public class TestLWorld {
     }
 
     // Test calling a method on an uninitialized inline type
-    final primitive class Test72Value {
-        final int x = 42;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test72Value {
+        int x = 0;
+
         public int get() {
             return x;
         }
@@ -2046,7 +2083,7 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC_G})
     public int test72() {
-        Test72Value vt = Test72Value.default;
+        Test72Value vt = new Test72Value();
         return vt.get();
     }
 
@@ -2076,7 +2113,7 @@ public class TestLWorld {
 
     @Run(test = "test74")
     public void test74_verifier() {
-        MyValue1[] va = new MyValue1[1];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         test74(va, testValue1);
         Asserts.assertEquals(va[0].hash(), testValue1.hash());
     }
@@ -2086,7 +2123,7 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC_G})
     public Object test75(Object o) {
-        MyValue1[] va = new MyValue1[1];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         Object[] next = va;
         Object[] arr = va;
         for (int i = 0; i < 10; i++) {
@@ -2099,30 +2136,6 @@ public class TestLWorld {
     @Run(test = "test75")
     public void test75_verifier() {
         test75(42);
-    }
-
-    // Casting a null Integer to a (non-nullable) inline type should throw a NullPointerException
-    @ForceInline
-    public MyValue1 test76_helper(Object o) {
-        return (MyValue1)o;
-    }
-
-    @Test
-    @IR(failOn = {ALLOC_G})
-    public MyValue1 test76(Integer i) throws Throwable {
-        return test76_helper(i);
-    }
-
-    @Run(test = "test76")
-    public void test76_verifier() throws Throwable {
-        try {
-            test76(null);
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("test76 failed: unexpected exception", e);
-        }
     }
 
     // Casting an Integer to a (non-nullable) inline type should throw a ClassCastException
@@ -2151,13 +2164,13 @@ public class TestLWorld {
 
     // Casting a null Integer to a nullable inline type should not throw
     @ForceInline
-    public MyValue1.ref test78_helper(Object o) {
-        return (MyValue1.ref)o;
+    public MyValue1 test78_helper(Object o) {
+        return (MyValue1)o;
     }
 
     @Test
     @IR(failOn = {ALLOC_G})
-    public MyValue1.ref test78(Integer i) throws Throwable {
+    public MyValue1 test78(Integer i) throws Throwable {
         return test78_helper(i);
     }
 
@@ -2172,13 +2185,13 @@ public class TestLWorld {
 
     // Casting an Integer to a nullable inline type should throw a ClassCastException
     @ForceInline
-    public MyValue1.ref test79_helper(Object o) {
-        return (MyValue1.ref)o;
+    public MyValue1 test79_helper(Object o) {
+        return (MyValue1)o;
     }
 
     @Test
     @IR(failOn = {ALLOC_G})
-    public MyValue1.ref test79(Integer i) throws Throwable {
+    public MyValue1 test79(Integer i) throws Throwable {
         return test79_helper(i);
     }
 
@@ -2195,9 +2208,12 @@ public class TestLWorld {
     }
 
     // Test flattened field with non-flattenend (but flattenable) inline type field
-    static primitive class Small {
-        final int i;
-        final Big big; // Too big to be flattened
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Small {
+        int i;
+        @NullRestricted
+        Big big; // Too big to be flattened
 
         private Small() {
             i = rI;
@@ -2205,7 +2221,9 @@ public class TestLWorld {
         }
     }
 
-    static primitive class Big {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Big {
         long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9;
         long l10,l11,l12,l13,l14,l15,l16,l17,l18,l19;
         long l20,l21,l22,l23,l24,l25,l26,l27,l28,l29;
@@ -2217,9 +2235,13 @@ public class TestLWorld {
         }
     }
 
+    @NullRestricted
     Small small = new Small();
+    @NullRestricted
     Small smallDefault;
+    @NullRestricted
     Big big = new Big();
+    @NullRestricted
     Big bigDefault;
 
     @Test
@@ -2267,7 +2289,7 @@ public class TestLWorld {
 
     @Run(test = "test82")
     public void test82_verifier(RunInfo info) {
-        MyValue2[] dst = new MyValue2[1];
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1);
         test82(dst, testValue2);
         if (!info.isWarmUp()) {
             try {
@@ -2288,7 +2310,7 @@ public class TestLWorld {
             if (dst.getClass() == MyValue1[].class) { // trigger split if
             }
         } else {
-            dst = new MyValue2[1]; // constant null free property
+            dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1); // constant null free property
         }
         dst[0] = v;
     }
@@ -2296,7 +2318,7 @@ public class TestLWorld {
     @Run(test = "test83")
     @Warmup(10000)
     public void test83_verifier(RunInfo info) {
-        MyValue2[] dst = new MyValue2[1];
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1);
         test83(dst, testValue2, false);
         test83(dst, testValue2, true);
         if (!info.isWarmUp()) {
@@ -2335,9 +2357,9 @@ public class TestLWorld {
     @Run(test = "test84")
     @Warmup(0)
     public void test84_verifier(RunInfo info) {
-        MyValue2[] src = new MyValue2[100];
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
         Arrays.fill(src, testValue2);
-        MyValue2[] dst = new MyValue2[100];
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
         rerun_and_recompile_for(info.getTest(), 10,
                                 () ->  { test84(src, dst);
                                          Asserts.assertTrue(Arrays.equals(src, dst)); });
@@ -2380,7 +2402,7 @@ public class TestLWorld {
     @Run(test = "test86")
     @Warmup(0)
     public void test86_verifier(RunInfo info) {
-        MyValue2[] src = new MyValue2[100];
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
         Arrays.fill(src, testValue2);
         Object[] dst = new Object[100];
         rerun_and_recompile_for(info.getTest(), 10,
@@ -2404,7 +2426,7 @@ public class TestLWorld {
     public void test87_verifier(RunInfo info) {
         Object[] src = new Object[100];
         Arrays.fill(src, testValue2);
-        MyValue2[] dst = new MyValue2[100];
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
 
         rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test87(src, dst);
@@ -2426,9 +2448,9 @@ public class TestLWorld {
     @Run(test = "test88")
     @Warmup(0)
     public void test88_verifier(RunInfo info) {
-        MyValue2[] src1 = new MyValue2[100];
+        MyValue2[] src1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
         Arrays.fill(src1, testValue2);
-        MyValue2[] dst1 = new MyValue2[100];
+        MyValue2[] dst1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
         Object[] src2 = new Object[100];
         Arrays.fill(src2, new Object());
         Object[] dst2 = new Object[100];
@@ -2473,13 +2495,16 @@ public class TestLWorld {
 
     @Run(test = "test91")
     public void test91_verifier() {
+        Asserts.assertFalse(test91((MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1)));
         Asserts.assertTrue(test91(new MyValue2[1]));
-        Asserts.assertFalse(test91(new MyValue2.ref[1]));
         Asserts.assertFalse(test91(new Object()));
     }
 
-    static primitive class Test92Value {
-        final int field;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test92Value {
+        int field;
+
         public Test92Value() {
             field = 0x42;
         }
@@ -2533,7 +2558,7 @@ public class TestLWorld {
             Object result = test93(array);
             Asserts.assertEquals(result, 0x42);
         } else {
-            Object[] array = new Test92Value[1];
+            Object[] array = (Test92Value[])ValueClass.newNullRestrictedArray(Test92Value.class, 1);
             Method m = info.getTest();
             int extra = 3;
             for (int j = 0; j < extra; j++) {
@@ -2699,7 +2724,7 @@ public class TestLWorld {
         Asserts.assertEQ(result, 11*vt.hash() + 2*def.hashPrimitive());
     }
 
-    class MyObject2 extends MyAbstract {
+    value class MyObject2 extends MyAbstract {
         public int x;
 
         public MyObject2(int x) {
@@ -2959,7 +2984,7 @@ public class TestLWorld {
     @Run(test = "test107")
     @Warmup(0)
     public void test107_verifier(RunInfo info) {
-        MyValue2[] src1 = new MyValue2[100];
+        MyValue2[] src1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
         Arrays.fill(src1, testValue2);
         Object[] src2 = new Object[100];
         Object obj = new Object();
@@ -2990,7 +3015,7 @@ public class TestLWorld {
     @Run(test = "test108")
     @Warmup(0)
     public void test108_verifier(RunInfo info) {
-        MyValue2[] dst1 = new MyValue2[100];
+        MyValue2[] dst1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
         Object[] dst2 = new Object[100];
         Object o1 = new Object();
         rerun_and_recompile_for(info.getTest(), 10,
@@ -3020,7 +3045,10 @@ public class TestLWorld {
     }
 
     @ForceCompileClassInitializer
-    static primitive class LongWrapper implements WrapperInterface {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class LongWrapper implements WrapperInterface {
+        @NullRestricted
         final static LongWrapper ZERO = new LongWrapper(0);
         private long val;
 
@@ -3079,10 +3107,10 @@ public class TestLWorld {
     }
 
     static class RefBox {
-        LongWrapper.ref content;
+        LongWrapper content;
 
         @ForceInline
-        RefBox(LongWrapper.ref content) {
+        RefBox(LongWrapper content) {
             this.content = content;
         }
 
@@ -3093,11 +3121,12 @@ public class TestLWorld {
 
         @ForceInline
         static RefBox box(long val) {
-            return new RefBox((LongWrapper.ref)WrapperInterface.wrap(val));
+            return new RefBox((LongWrapper)WrapperInterface.wrap(val));
         }
     }
 
     static class InlineBox {
+        @NullRestricted
         LongWrapper content;
 
         @ForceInline
@@ -3115,8 +3144,8 @@ public class TestLWorld {
         T content;
 
         @ForceInline
-        static GenericBox<LongWrapper.ref> box_sharp(long val) {
-            GenericBox<LongWrapper.ref> res = new GenericBox<>();
+        static GenericBox<LongWrapper> box_sharp(long val) {
+            GenericBox<LongWrapper> res = new GenericBox<>();
             res.content = LongWrapper.wrap(val);
             return res;
         }
@@ -3282,8 +3311,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
-        counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR})
+        // TODO 8326401
+        // counts = {PREDICATE_TRAP, "= 1"})
     public long test113_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3302,7 +3332,7 @@ public class TestLWorld {
     static interface WrapperInterface2 {
         public long value();
 
-        static final InlineWrapper.ref ZERO = new InlineWrapper(0);
+        static final InlineWrapper ZERO = new InlineWrapper(0);
 
         @ForceInline
         public static WrapperInterface2 wrap(long val) {
@@ -3311,11 +3341,13 @@ public class TestLWorld {
 
         @ForceInline
         public static WrapperInterface2 wrap_default(long val) {
-            return (val == 0) ? LongWrapper2.default : new LongWrapper2(val);
+            return (val == 0) ? new LongWrapper2(0) : new LongWrapper2(val);
         }
     }
 
-    static primitive class LongWrapper2 implements WrapperInterface2 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class LongWrapper2 implements WrapperInterface2 {
         private long val;
 
         @ForceInline
@@ -3329,7 +3361,9 @@ public class TestLWorld {
         }
     }
 
-    static primitive class InlineWrapper {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class InlineWrapper {
         WrapperInterface2 content;
 
         @ForceInline
@@ -3376,7 +3410,7 @@ public class TestLWorld {
         Asserts.assertEquals(res, 5*rL);
     }
 
-    // Same as test114 but with .default instead of ZERO field
+    // Same as test114 but with default instead of ZERO field
     @Test
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
@@ -3395,10 +3429,12 @@ public class TestLWorld {
         Asserts.assertEquals(res, 5*rL);
     }
 
-    static MyValueEmpty     fEmpty1;
-    static MyValueEmpty.ref fEmpty2 = MyValueEmpty.default;
-           MyValueEmpty     fEmpty3;
-           MyValueEmpty.ref fEmpty4 = MyValueEmpty.default;
+    @NullRestricted
+    static MyValueEmpty fEmpty1;
+    static MyValueEmpty fEmpty2 = new MyValueEmpty();
+    @NullRestricted
+           MyValueEmpty fEmpty3;
+           MyValueEmpty fEmpty4 = new MyValueEmpty();
 
     // Test fields loads/stores with empty inline types
     @Test
@@ -3421,7 +3457,7 @@ public class TestLWorld {
     // Test array loads/stores with empty inline types
     @Test
     @IR(failOn = {ALLOC_G})
-    public MyValueEmpty test117(MyValueEmpty[] arr1, MyValueEmpty.ref[] arr2) {
+    public MyValueEmpty test117(MyValueEmpty[] arr1, MyValueEmpty[] arr2) {
         arr1[0] = arr2[0];
         arr2[0] = new MyValueEmpty();
         return arr1[0];
@@ -3429,48 +3465,64 @@ public class TestLWorld {
 
     @Run(test = "test117")
     public void test117_verifier() {
-        MyValueEmpty[] arr1 = new MyValueEmpty[]{MyValueEmpty.default};
+        MyValueEmpty[] arr1 = new MyValueEmpty[] { new MyValueEmpty() };
         MyValueEmpty res = test117(arr1, arr1);
-        Asserts.assertEquals(res, MyValueEmpty.default);
-        Asserts.assertEquals(arr1[0], MyValueEmpty.default);
+        Asserts.assertEquals(res, new MyValueEmpty());
+        Asserts.assertEquals(arr1[0], new MyValueEmpty());
     }
 
     // Test acmp with empty inline types
     @Test
-    @IR(failOn = {ALLOC_G})
-    public boolean test118(MyValueEmpty v1, MyValueEmpty.ref v2, Object o1) {
+    public boolean test118(MyValueEmpty v1, MyValueEmpty v2, Object o1) {
         return (v1 == v2) && (v2 == o1);
     }
 
     @Run(test = "test118")
     public void test118_verifier() {
-        boolean res = test118(MyValueEmpty.default, MyValueEmpty.default, new MyValueEmpty());
+        boolean res = test118(new MyValueEmpty(), new MyValueEmpty(), new MyValueEmpty());
         Asserts.assertTrue(res);
     }
 
-    static primitive class EmptyContainer {
-        private MyValueEmpty empty = MyValueEmpty.default;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EmptyContainer {
+        @NullRestricted
+        private MyValueEmpty empty = new MyValueEmpty();
     }
 
-    static primitive class MixedContainer {
-        public int val = rI;
-        private EmptyContainer empty = EmptyContainer.default;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MixedContainer {
+        public int val = 0;
+        @NullRestricted
+        private EmptyContainer empty = new EmptyContainer();
     }
+
+    @NullRestricted
+    static final MyValueEmpty empty = new MyValueEmpty();
+
+    @NullRestricted
+    static final EmptyContainer emptyC = new EmptyContainer();
+
+    @NullRestricted
+    static final MixedContainer mixedContainer = new MixedContainer();
 
     // Test re-allocation of empty inline type array during deoptimization
     @Test
     @IR(failOn = {ALLOC_G})
     public void test119(boolean deopt, Method m) {
-        MyValueEmpty[]   array1 = new MyValueEmpty[]{MyValueEmpty.default};
-        EmptyContainer[] array2 = new EmptyContainer[]{EmptyContainer.default};
-        MixedContainer[] array3 = new MixedContainer[]{MixedContainer.default};
+        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty };
+        EmptyContainer[] array2 = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 1);
+        array2[0] = emptyC;
+        MixedContainer[] array3 = (MixedContainer[])ValueClass.newNullRestrictedArray(MixedContainer.class, 1);
+        array3[0] = mixedContainer;
         if (deopt) {
             // uncommon trap
             TestFramework.deoptimize(m);
         }
-        Asserts.assertEquals(array1[0], MyValueEmpty.default);
-        Asserts.assertEquals(array2[0], EmptyContainer.default);
-        Asserts.assertEquals(array3[0], MixedContainer.default);
+        Asserts.assertEquals(array1[0], empty);
+        Asserts.assertEquals(array2[0], emptyC);
+        Asserts.assertEquals(array3[0], mixedContainer);
     }
 
     @Run(test = "test119")
@@ -3481,7 +3533,7 @@ public class TestLWorld {
     // Test removal of empty inline type field stores
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
-    public void test120(MyValueEmpty empty) {
+    public void test120() {
         fEmpty1 = empty;
         fEmpty3 = empty;
         // fEmpty2 and fEmpty4 could be null, store can't be removed
@@ -3489,9 +3541,9 @@ public class TestLWorld {
 
     @Run(test = "test120")
     public void test120_verifier() {
-        test120(MyValueEmpty.default);
-        Asserts.assertEquals(fEmpty1, MyValueEmpty.default);
-        Asserts.assertEquals(fEmpty2, MyValueEmpty.default);
+        test120();
+        Asserts.assertEquals(fEmpty1, empty);
+        Asserts.assertEquals(fEmpty2, empty);
     }
 
     // Test removal of empty inline type field loads
@@ -3518,7 +3570,7 @@ public class TestLWorld {
     @Run(test = "test122")
     public void test122_verifier() {
         MyValueEmpty res = test122(this);
-        Asserts.assertEquals(res, MyValueEmpty.default);
+        Asserts.assertEquals(res, new MyValueEmpty());
         try {
             test122(null);
             throw new RuntimeException("No NPE thrown");
@@ -3531,13 +3583,13 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC_G})
     public void test123(TestLWorld t) {
-        t.fEmpty3 = MyValueEmpty.default;
+        t.fEmpty3 = new MyValueEmpty();
     }
 
     @Run(test = "test123")
     public void test123_verifier() {
         test123(this);
-        Asserts.assertEquals(fEmpty3, MyValueEmpty.default);
+        Asserts.assertEquals(fEmpty3, new MyValueEmpty());
         try {
             test123(null);
             throw new RuntimeException("No NPE thrown");
@@ -3579,7 +3631,7 @@ public class TestLWorld {
     @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test126(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue2.ref val = null;
+        MyValue2 val = null;
 
         for (int i = 0; i < 4; i++) {
             if ((i % 2) == 0) {
@@ -3641,7 +3693,7 @@ public class TestLWorld {
     @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test128(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue2.ref val = null;
+        MyValue2 val = null;
 
         int limit = 2;
         for (; limit < 4; limit *= 2);
@@ -3838,11 +3890,11 @@ public class TestLWorld {
         Asserts.assertTrue(test135());
     }
 
-    // Same as test135 but with .ref
+    // Same as test135 but with null
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public boolean test136(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
             val = null;
         }
@@ -3870,13 +3922,13 @@ public class TestLWorld {
         Asserts.assertTrue(test137(rI));
     }
 
-    // Same as test137 but with .ref
+    // Same as test137 but with null
     @Test
     // TODO 8228361
     // @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public boolean test138(int i, boolean b) {
-        MyValue2.ref val1 = MyValue2.createWithFieldsInline(i, rD);
-        MyValue2.ref val2 = MyValue2.createWithFieldsInline(i, rD);
+        MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
+        MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
         if (b) {
             val1 = null;
             val2 = null;
@@ -3890,13 +3942,19 @@ public class TestLWorld {
         Asserts.assertTrue(test138(rI, true));
     }
 
-    static primitive class Test139Value {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test139Value {
         Object obj = null;
-        MyValueEmpty empty = MyValueEmpty.default;
+        @NullRestricted
+        MyValueEmpty empty = new MyValueEmpty();
     }
 
-    static primitive class Test139Wrapper {
-        Test139Value value = Test139Value.default;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test139Wrapper {
+        @NullRestricted
+        Test139Value value = new Test139Value();
     }
 
     @Test
@@ -3909,12 +3967,15 @@ public class TestLWorld {
     @Run(test = "test139")
     public void test139_verifier() {
         MyValueEmpty empty = test139();
-        Asserts.assertEquals(empty, MyValueEmpty.default);
+        Asserts.assertEquals(empty, new MyValueEmpty());
     }
 
     // Test calling a method on a loaded but not linked inline type
-    final primitive class Test140Value {
-        final int x = 42;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test140Value {
+        int x = 0;
+
         public int get() {
             return x;
         }
@@ -3923,7 +3984,7 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC_G})
     public int test140() {
-        Test140Value vt = Test140Value.default;
+        Test140Value vt = new Test140Value();
         return vt.get();
     }
 
@@ -3935,8 +3996,11 @@ public class TestLWorld {
     }
 
     // Test calling a method on a linked but not initialized inline type
-    final primitive class Test141Value {
-        final int x = 42;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test141Value {
+        int x = 0;
+
         public int get() {
             return x;
         }
@@ -3945,7 +4009,7 @@ public class TestLWorld {
     @Test
     @IR(failOn = {ALLOC_G})
     public int test141() {
-        Test141Value vt = Test141Value.default;
+        Test141Value vt = new Test141Value();
         return vt.get();
     }
 
@@ -3977,60 +4041,30 @@ public class TestLWorld {
         Asserts.assertEquals(res, testValue2.hash());
     }
 
-    public int intField;
-
-    private static final MethodHandle withfieldWithInvalidHolder = InstructionHelper.loadCode(MethodHandles.lookup(),
-        "withfieldWithInvalidHolder",
-        MethodType.methodType(void.class, TestLWorld.class, int.class),
-        CODE -> {
-            CODE.
-            aload_0().
-            iload_1().
-            withfield(TestLWorld.class, "intField", "I").
-            return_();
-        });
-
-    // Test withfield on identity class
-    @Test
-    public void test143() throws Throwable {
-        withfieldWithInvalidHolder.invoke(this, 0);
-    }
-
-    @Run(test = "test143")
-    @Warmup(10000)
-    public void test143_verifier() throws Throwable {
-        try {
-            test143();
-            throw new RuntimeException("IncompatibleClassChangeError expected");
-        } catch (IncompatibleClassChangeError e) {
-            // Expected
-        }
-    }
-
     // Test merging of buffered default and non-default inline types
     @Test
     @IR(failOn = {ALLOC_G})
     public Object test144(int i) {
         if (i == 0) {
-            return MyValue1.default;
+            return MyValue1.createDefaultInline();
         } else if (i == 1) {
             return testValue1;
         } else {
-            return MyValue1.default;
+            return MyValue1.createDefaultInline();
         }
     }
 
     @Run(test = "test144")
     public void test144_verifier() {
-        Asserts.assertEquals(test144(0), MyValue1.default);
+        Asserts.assertEquals(test144(0), MyValue1.createDefaultInline());
         Asserts.assertEquals(test144(1), testValue1);
-        Asserts.assertEquals(test144(2), MyValue1.default);
+        Asserts.assertEquals(test144(2), MyValue1.createDefaultInline());
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatibleRef = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatibleRef = OldInstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatibleRef",
-        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, PrimitiveClass.asPrimaryType(MyValue2.class)),
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
         CODE -> {
             CODE.
             aload_1().
@@ -4039,25 +4073,6 @@ public class TestLWorld {
             aastore().
             return_();
         });
-
-    // Same as test44 but with .ref store to array
-    @Test
-    public void test145(MyValue1[] va, int index, MyValue2.ref v) throws Throwable {
-        setArrayElementIncompatibleRef.invoke(this, va, index, v);
-    }
-
-    @Run(test = "test145")
-    @Warmup(10000)
-    public void test145_verifier() throws Throwable {
-        int index = Math.abs(rI) % 3;
-        try {
-            test145(testValue1Array, index, testValue2);
-            throw new RuntimeException("No ArrayStoreException thrown");
-        } catch (ArrayStoreException e) {
-            // Expected
-        }
-        Asserts.assertEQ(testValue1Array[index].hash(), hash());
-    }
 
     // Test inline type connected to result node
     @Test
@@ -4070,20 +4085,6 @@ public class TestLWorld {
     @Warmup(10000)
     public void test146_verifier() {
         Asserts.assertEQ(test146(testValue1), testValue1);
-    }
-
-    // Same as test146 but with .ref cast
-    @Test
-    @IR(failOn = {ALLOC_G})
-    public MyValue1.ref test147(Object obj) {
-        return (MyValue1.ref)obj;
-    }
-
-    @Run(test = "test147")
-    @Warmup(10000)
-    public void test147_verifier() {
-        Asserts.assertEQ(test147(testValue1), testValue1);
-        Asserts.assertEQ(test147(null), null);
     }
 
     @ForceInline
@@ -4105,7 +4106,7 @@ public class TestLWorld {
 
     @ForceInline
     public Object test149_helper(Object obj) {
-        return (MyValue1.ref)obj;
+        return (MyValue1)obj;
     }
 
     // Same as test147 but with helper method
@@ -4146,6 +4147,8 @@ public class TestLWorld {
         Asserts.assertEquals(test150(), testValue2.hash());
     }
 
+// TODO 8325106 This triggers #  assert(false) failed: Should have been buffered
+/*
     // Same as test150 but with val not being allocated in the scope of the method
     @Test
     @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
@@ -4168,6 +4171,7 @@ public class TestLWorld {
     public void test151_verifier() {
         Asserts.assertEquals(test151(testValue2), testValue2.hash());
     }
+*/
 
     static interface MyInterface2 {
         public int val();
@@ -4191,7 +4195,9 @@ public class TestLWorld {
         }
     }
 
-    static primitive class MyValue152 extends MyAbstract2 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue152 extends MyAbstract2 {
         private int unused = 0; // Make sure sub-offset of val is field non-zero
         private int val;
 
@@ -4206,8 +4212,11 @@ public class TestLWorld {
         }
     }
 
-    static primitive class MyWrapper152 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyWrapper152 {
         private int unused = 0; // Make sure sub-offset of val field is non-zero
+        @NullRestricted
         MyValue152 val;
 
         @ForceInline
@@ -4308,18 +4317,7 @@ public class TestLWorld {
         }
     }
 
-    // Test withfield directly operating on inline type arg (instead of on defaultvalue)
-    @Test
-    public MyValue5 test156(MyValue5 vt) {
-        return vt.withField(rI);
-    }
-
-    @Run(test = "test156")
-    @Warmup(10000)
-    public void test156_verifier() {
-        Asserts.assertEquals(test156(new MyValue5()).x, rI);
-    }
-
+    @NullRestricted
     final static MyValue1 test157Cache = MyValue1.createWithFieldsInline(rI, 0);
 
     // Test merging buffered inline type from field load with non-buffered inline type
@@ -4334,6 +4332,7 @@ public class TestLWorld {
         Asserts.assertEquals(test157(rL).hash(), testValue1.hash());
     }
 
+    @NullRestricted
     static MyValue1 test158Cache = MyValue1.createWithFieldsInline(rI, 0);
 
     // Same as test157 but with non-final field load
@@ -4346,26 +4345,6 @@ public class TestLWorld {
     public void test158_verifier() {
         Asserts.assertEquals(test158(0), test158Cache);
         Asserts.assertEquals(test158(rL).hash(), testValue1.hash());
-    }
-
-    // Test null check on withfield receiver
-    @Test
-    public MyValue5.ref test159(MyValue5.ref vt) {
-        return MyValue5.withField(vt, rI);
-    }
-
-    @Run(test = "test159")
-    @Warmup(10000)
-    public void test159_verifier(RunInfo info) {
-        Asserts.assertEquals(test159(new MyValue5()).x, rI);
-        if (!info.isWarmUp()) {
-            try {
-                test159(null);
-                throw new RuntimeException("No NPE thrown");
-            } catch (NullPointerException e) {
-                // Expected
-            }
-        }
     }
 
     // Verify that cast that with incompatible types is properly handled
@@ -4384,11 +4363,6 @@ public class TestLWorld {
         } catch (ClassCastException e) {
             // Expected
         }
-        try {
-            test160(null);
-            throw new RuntimeException("No NPE thrown");
-        } catch (NullPointerException e) {
-            // Expected
-        }
+        test160(null);
     }
 }

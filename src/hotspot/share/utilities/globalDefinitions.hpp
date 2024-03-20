@@ -553,8 +553,6 @@ const int max_method_code_size = 64*K - 1;  // JVM spec, 2nd ed. section 4.8.1 (
 
 //----------------------------------------------------------------------------------------------------
 // old CDS options
-extern bool DumpSharedSpaces;
-extern bool DynamicDumpSharedSpaces;
 extern bool RequireSharedSpaces;
 extern "C" {
 // Make sure UseSharedSpaces is accessible to the serviceability agent.
@@ -711,7 +709,7 @@ enum BasicType : u1 {
   // types in their own right.
   T_OBJECT      = 12,
   T_ARRAY       = 13,
-  T_PRIMITIVE_OBJECT = 14,
+  T_PRIMITIVE_OBJECT = 14, // Not a true BasicType, only use in headers of flat arrays
   T_VOID        = 15,
   T_ADDRESS     = 16,
   T_NARROWOOP   = 17,
@@ -965,7 +963,6 @@ inline TosState as_TosState(BasicType type) {
     case T_FLOAT  : return ftos;
     case T_DOUBLE : return dtos;
     case T_VOID   : return vtos;
-    case T_PRIMITIVE_OBJECT: // fall through
     case T_ARRAY  :   // fall through
     case T_OBJECT : return atos;
     default       : return ilgl;
@@ -1051,7 +1048,8 @@ const juint    badHeapWordVal   = 0xBAADBABE;               // value used to zap
 const juint    badMetaWordVal   = 0xBAADFADE;               // value used to zap metadata heap after GC
 const int      badCodeHeapNewVal= 0xCC;                     // value used to zap Code heap at allocation
 const int      badCodeHeapFreeVal = 0xDD;                   // value used to zap Code heap at deallocation
-
+const intptr_t badDispHeaderDeopt = 0xDE0BD000;             // value to fill unused displaced header during deoptimization
+const intptr_t badDispHeaderOSR   = 0xDEAD05A0;             // value to fill unused displaced header during OSR
 
 // (These must be implemented as #defines because C++ compilers are
 // not obligated to inline non-integral constants!)
@@ -1153,8 +1151,8 @@ static inline julong uabs(jlong n) { return uabs((julong)n); }
 static inline unsigned int uabs(int n) { return uabs((unsigned int)n); }
 
 // "to" should be greater than "from."
-inline intx byte_size(void* from, void* to) {
-  return (address)to - (address)from;
+inline size_t byte_size(void* from, void* to) {
+  return pointer_delta(to, from, sizeof(char));
 }
 
 // Pack and extract shorts to/from ints:
@@ -1338,7 +1336,7 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 
 // TEMP!!!!
 // This should be removed after LW2 arrays are implemented (JDK-8220790).
-// It's an alias to (EnablePrimitiveClasses && (FlatArrayElementMaxSize != 0)),
+// It's an alias to (EnableValhalla && (FlatArrayElementMaxSize != 0)),
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
 #define UseFlatArray (EnableValhalla && (FlatArrayElementMaxSize != 0))
@@ -1354,5 +1352,9 @@ template<typename K> int primitive_compare(const K& k0, const K& k1) {
 // Converts any type T to a reference type.
 template<typename T>
 std::add_rvalue_reference_t<T> declval() noexcept;
+
+// Quickly test to make sure IEEE-754 subnormal numbers are correctly
+// handled.
+bool IEEE_subnormal_handling_OK();
 
 #endif // SHARE_UTILITIES_GLOBALDEFINITIONS_HPP

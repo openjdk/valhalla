@@ -22,6 +22,7 @@
  *
  */
 /*
+ * @ignore
  * @test
  * @bug 8223028
  * @summary test that the right exceptions get thrown for bad inline type

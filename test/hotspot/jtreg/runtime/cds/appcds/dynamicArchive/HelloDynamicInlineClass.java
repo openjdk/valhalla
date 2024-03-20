@@ -27,7 +27,7 @@
  * @summary Hello World test for dynamic archive
  * @requires vm.cds
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds /test/hotspot/jtreg/runtime/cds/appcds/test-classes
- * @compile -XDenablePrimitiveClasses ../test-classes/HelloInlineClassApp.java
+ * @compile ../test-classes/HelloInlineClassApp.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox jdk.test.whitebox.WhiteBox$WhiteBoxPermission

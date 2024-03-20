@@ -29,7 +29,6 @@ import java.lang.reflect.Modifier;
 import static java.lang.reflect.Modifier.*;
 
 import jdk.internal.reflect.Reflection;
-import jdk.internal.value.PrimitiveClass;
 
 /**
  * This class centralizes information about the JVM's linkage access control.
@@ -107,7 +106,7 @@ public class VerifyAccess {
             return false;
         }
         // Usually refc and defc are the same, but verify defc also in case they differ.
-        if (PrimitiveClass.asPrimaryType(defc) == lookupClass  &&
+        if (defc == lookupClass  &&
             (allowedModes & PRIVATE) != 0)
             return true;        // easy check; all self-access is OK with a private lookup
 
@@ -142,7 +141,7 @@ public class VerifyAccess {
                                  Reflection.areNestMates(defc, lookupClass));
             // for private methods the selected method equals the
             // resolved method - so refc == defc
-            assert (canAccess && PrimitiveClass.asPrimaryType(refc) == PrimitiveClass.asPrimaryType(defc)) || !canAccess;
+            assert (canAccess && refc == defc) || !canAccess;
             return canAccess;
         default:
             throw new IllegalArgumentException("bad modifiers: "+Modifier.toString(mods));
@@ -150,7 +149,7 @@ public class VerifyAccess {
     }
 
     static boolean isRelatedClass(Class<?> refc, Class<?> lookupClass) {
-        return (PrimitiveClass.asPrimaryType(refc) == PrimitiveClass.asPrimaryType(lookupClass) ||
+        return (refc == lookupClass ||
                 isSubClass(refc, lookupClass) ||
                 isSubClass(lookupClass, refc));
     }
@@ -275,7 +274,7 @@ public class VerifyAccess {
      * @param refc the class attempting to make the reference
      */
     public static boolean isTypeVisible(Class<?> type, Class<?> refc) {
-        if (PrimitiveClass.asPrimaryType(type) == PrimitiveClass.asPrimaryType(refc)) {
+        if (type == refc) {
             return true;  // easy check
         }
         while (type.isArray())  type = type.getComponentType();
@@ -323,7 +322,6 @@ public class VerifyAccess {
         // that differs from "type"; this happens once due to JVM system dictionary
         // memoization.  And the caller never gets to look at the alternate type binding
         // ("res"), whether it exists or not.
-
         final String name = type.getName();
         @SuppressWarnings("removal")
         Class<?> res = java.security.AccessController.doPrivileged(
@@ -336,7 +334,7 @@ public class VerifyAccess {
                         }
                     }
             });
-        return (PrimitiveClass.asPrimaryType(type) == res);
+        return (type == res);
     }
 
     /**

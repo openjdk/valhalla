@@ -33,6 +33,7 @@
 #include "utilities/macros.hpp"
 
 inline InlineKlassFixedBlock* InlineKlass::inlineklass_static_block() const {
+
   InstanceKlass* volatile* adr_impl = adr_implementor();
   if (adr_impl != nullptr) {
     return (InlineKlassFixedBlock*)(adr_impl + 1);

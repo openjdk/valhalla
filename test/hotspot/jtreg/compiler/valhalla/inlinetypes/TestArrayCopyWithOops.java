@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,18 +24,27 @@
 /**
  * @test
  * @bug 8252506
- * @summary Verify that arraycopy intrinsics properly handle flat inline type arrays with oop fields.
+ * @summary Verify that arraycopy intrinsics properly handle flat value class arrays with oop fields.
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses TestArrayCopyWithOops.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestArrayCopyWithOops.java
+ * @run main/othervm -XX:+EnableValhalla
+ *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
+ *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch -XX:FlatArrayElementMaxSize=0
+ *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
+ * @run main/othervm -XX:+EnableValhalla
+ *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */
 
@@ -45,6 +54,11 @@ import java.util.Arrays;
 
 import jdk.test.lib.Asserts;
 
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 public class TestArrayCopyWithOops {
     static final int LEN = 200;
 
@@ -52,7 +66,9 @@ public class TestArrayCopyWithOops {
         long val = Integer.MAX_VALUE;
     }
 
-    static primitive class ManyOops {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ManyOops {
         MyObject o1 = new MyObject();
         MyObject o2 = new MyObject();
         MyObject o3 = new MyObject();
@@ -63,82 +79,86 @@ public class TestArrayCopyWithOops {
         }
     }
 
-    static ManyOops[] createArrayInline() {
-        ManyOops[] array = new ManyOops[LEN];
+    static ManyOops[] createValueClassArray() {
+        ManyOops[] array = (ManyOops[])ValueClass.newNullRestrictedArray(ManyOops.class, LEN);
         for (int i = 0; i < LEN; ++i) {
             array[i] = new ManyOops();
         }
         return array;
     }
 
-    static Object[] createArrayObject() {
-        return createArrayInline();
+    static Object[] createObjectArray() {
+        return createValueClassArray();
     }
 
     static Object createObject() {
-        return createArrayInline();
+        return createValueClassArray();
     }
 
     // System.arraycopy tests
 
     static void test1(ManyOops[] dst) {
-        System.arraycopy(createArrayInline(), 0, dst, 0, LEN);
+        System.arraycopy(createValueClassArray(), 0, dst, 0, LEN);
     }
 
     static void test2(Object[] dst) {
-        System.arraycopy(createArrayObject(), 0, dst, 0, LEN);
+        System.arraycopy(createObjectArray(), 0, dst, 0, LEN);
     }
 
     static void test3(ManyOops[] dst) {
-        System.arraycopy(createArrayObject(), 0, dst, 0, LEN);
+        System.arraycopy(createObjectArray(), 0, dst, 0, LEN);
     }
 
     static void test4(Object[] dst) {
-        System.arraycopy(createArrayInline(), 0, dst, 0, LEN);
+        System.arraycopy(createValueClassArray(), 0, dst, 0, LEN);
     }
 
     // System.arraycopy tests (tightly coupled with allocation of dst array)
 
     static Object[] test5() {
-        ManyOops[] dst = new ManyOops[LEN];
-        System.arraycopy(createArrayInline(), 0, dst, 0, LEN);
+        ManyOops[] dst = (ManyOops[])ValueClass.newNullRestrictedArray(ManyOops.class, LEN);
+        System.arraycopy(createValueClassArray(), 0, dst, 0, LEN);
         return dst;
     }
 
     static Object[] test6() {
         Object[] dst = new Object[LEN];
-        System.arraycopy(createArrayObject(), 0, dst, 0, LEN);
+        System.arraycopy(createObjectArray(), 0, dst, 0, LEN);
         return dst;
     }
 
     static Object[] test7() {
-        ManyOops[] dst = new ManyOops[LEN];
-        System.arraycopy(createArrayObject(), 0, dst, 0, LEN);
+        ManyOops[] dst = (ManyOops[])ValueClass.newNullRestrictedArray(ManyOops.class, LEN);
+        System.arraycopy(createObjectArray(), 0, dst, 0, LEN);
         return dst;
     }
 
     static Object[] test8() {
         Object[] dst = new Object[LEN];
-        System.arraycopy(createArrayInline(), 0, dst, 0, LEN);
+        System.arraycopy(createValueClassArray(), 0, dst, 0, LEN);
         return dst;
     }
 
     // Arrays.copyOf tests
 
+    // TODO 8325106 test9/test11 and test10/test12 are equivalent
+    // Using ManyOops[].class in both test9/11 and running with -XX:+IgnoreUnrecognizedVMOptions -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline triggers an exception
     static Object[] test9() {
-        return Arrays.copyOf(createArrayInline(), LEN, ManyOops[].class);
+        ManyOops[] src = createValueClassArray();
+        return Arrays.copyOf(src, LEN, src.getClass());
     }
 
     static Object[] test10() {
-        return Arrays.copyOf(createArrayObject(), LEN, Object[].class);
+        return Arrays.copyOf(createObjectArray(), LEN, Object[].class);
     }
 
     static Object[] test11() {
-        return Arrays.copyOf(createArrayInline(), LEN, ManyOops[].class);
+        ManyOops[] src = createValueClassArray();
+        return Arrays.copyOf(src, LEN, src.getClass());
     }
 
     static Object[] test12() {
-        return Arrays.copyOf(createArrayObject(), LEN, Object[].class);
+        return Arrays.copyOf(createObjectArray(), LEN, Object[].class);
     }
 
     // System.arraycopy test using generic_copy stub
@@ -158,11 +178,11 @@ public class TestArrayCopyWithOops {
     }
 
     public static void main(String[] args) {
-        ManyOops[] dst1 = createArrayInline();
-        ManyOops[] dst2 = createArrayInline();
-        ManyOops[] dst3 = createArrayInline();
-        ManyOops[] dst4 = createArrayInline();
-        ManyOops[] dst13 = createArrayInline();
+        ManyOops[] dst1 = createValueClassArray();
+        ManyOops[] dst2 = createValueClassArray();
+        ManyOops[] dst3 = createValueClassArray();
+        ManyOops[] dst4 = createValueClassArray();
+        ManyOops[] dst13 = createValueClassArray();
 
         // Warmup runs to trigger compilation
         for (int i = 0; i < 50_000; ++i) {

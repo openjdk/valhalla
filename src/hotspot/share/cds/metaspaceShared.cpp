@@ -27,9 +27,11 @@
 #include "cds/archiveHeapLoader.hpp"
 #include "cds/archiveHeapWriter.hpp"
 #include "cds/cds_globals.hpp"
+#include "cds/cdsConfig.hpp"
 #include "cds/cdsProtectionDomain.hpp"
-#include "cds/classListWriter.hpp"
+#include "cds/cds_globals.hpp"
 #include "cds/classListParser.hpp"
+#include "cds/classListWriter.hpp"
 #include "cds/classPrelinker.hpp"
 #include "cds/cppVtables.hpp"
 #include "cds/dumpAllocStats.hpp"
@@ -43,9 +45,10 @@
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/loaderConstraints.hpp"
+#include "classfile/modules.hpp"
 #include "classfile/placeholders.hpp"
-#include "classfile/symbolTable.hpp"
 #include "classfile/stringTable.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "classfile/vmClasses.hpp"
@@ -62,6 +65,7 @@
 #include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "nmt/memTracker.hpp"
 #include "oops/compressedKlass.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.hpp"
@@ -78,14 +82,13 @@
 #include "runtime/os.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
-#include "runtime/vmThread.hpp"
 #include "runtime/vmOperations.hpp"
+#include "runtime/vmThread.hpp"
 #include "sanitizers/leak.hpp"
-#include "services/memTracker.hpp"
 #include "utilities/align.hpp"
 #include "utilities/bitMap.inline.hpp"
-#include "utilities/ostream.hpp"
 #include "utilities/defaultStream.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/resourceHash.hpp"
 
 ReservedSpace MetaspaceShared::_symbol_rs;
@@ -96,7 +99,6 @@ void* MetaspaceShared::_shared_metaspace_static_top = nullptr;
 intx MetaspaceShared::_relocation_delta;
 char* MetaspaceShared::_requested_base_address;
 bool MetaspaceShared::_use_optimized_module_handling = true;
-bool MetaspaceShared::_use_full_module_graph = true;
 
 // The CDS archive is divided into the following regions:
 //     rw  - read-write metadata
@@ -244,7 +246,7 @@ static char* compute_shared_base(size_t cds_max) {
 }
 
 void MetaspaceShared::initialize_for_static_dump() {
-  assert(DumpSharedSpaces, "should be called for dump time only");
+  assert(CDSConfig::is_dumping_static_archive(), "sanity");
   log_info(cds)("Core region alignment: " SIZE_FORMAT, core_region_alignment());
   // The max allowed size for CDS archive. We use this to limit SharedBaseAddress
   // to avoid address space wrap around.
@@ -278,7 +280,7 @@ void MetaspaceShared::post_initialize(TRAPS) {
     int size = FileMapInfo::get_number_of_shared_paths();
     if (size > 0) {
       CDSProtectionDomain::allocate_shared_data_arrays(size, CHECK);
-      if (!DynamicDumpSharedSpaces) {
+      if (!CDSConfig::is_dumping_dynamic_archive()) {
         FileMapInfo* info;
         if (FileMapInfo::dynamic_info() == nullptr) {
           info = FileMapInfo::current_info();
@@ -387,6 +389,7 @@ void MetaspaceShared::serialize(SerializeClosure* soc) {
   SystemDictionaryShared::serialize_vm_classes(soc);
   soc->do_tag(--tag);
 
+  CDS_JAVA_HEAP_ONLY(Modules::serialize(soc);)
   CDS_JAVA_HEAP_ONLY(ClassLoaderDataShared::serialize(soc);)
 
   LambdaFormInvokers::serialize(soc);
@@ -479,6 +482,8 @@ char* VM_PopulateDumpSharedSpace::dump_read_only_tables() {
 
   // Write lambform lines into archive
   LambdaFormInvokers::dump_static_archive_invokers();
+  // Write module name into archive
+  CDS_JAVA_HEAP_ONLY(Modules::dump_main_module_name();)
   // Write the other data to the output array.
   DumpRegion* ro_region = ArchiveBuilder::current()->ro_region();
   char* start = ro_region->top();
@@ -580,7 +585,7 @@ bool MetaspaceShared::may_be_eagerly_linked(InstanceKlass* ik) {
     // linked/verified at runtime.
     return false;
   }
-  if (DynamicDumpSharedSpaces && ik->is_shared_unregistered_class()) {
+  if (CDSConfig::is_dumping_dynamic_archive() && ik->is_shared_unregistered_class()) {
     // Linking of unregistered classes at this stage may cause more
     // classes to be resolved, resulting in calls to ClassLoader.loadClass()
     // that may not be expected by custom class loaders.
@@ -642,7 +647,7 @@ void MetaspaceShared::link_shared_classes(bool jcmd_request, TRAPS) {
 }
 
 void MetaspaceShared::prepare_for_dumping() {
-  Arguments::assert_is_dumping_archive();
+  assert(CDSConfig::is_dumping_archive(), "sanity");
   Arguments::check_unsupported_dumping_properties();
 
   ClassLoader::initialize_shared_path(JavaThread::current());
@@ -665,18 +670,11 @@ void MetaspaceShared::preload_and_dump() {
       MetaspaceShared::unrecoverable_writing_error("VM exits due to exception, use -Xlog:cds,exceptions=trace for detail");
     }
   }
-
-#if INCLUDE_CDS_JAVA_HEAP
-  // Restore the java loaders that were cleared at dump time
-  if (use_full_module_graph()) {
-    HeapShared::restore_loader_data();
-  }
-#endif
 }
 
 #if INCLUDE_CDS_JAVA_HEAP && defined(_LP64)
 void MetaspaceShared::adjust_heap_sizes_for_dumping() {
-  if (!DumpSharedSpaces || UseCompressedOops) {
+  if (!CDSConfig::is_dumping_heap() || UseCompressedOops) {
     return;
   }
   // CDS heap dumping requires all string oops to have an offset
@@ -770,8 +768,6 @@ void MetaspaceShared::preload_and_dump_impl(TRAPS) {
     log_info(cds)("Reading extra data: done.");
   }
 
-  HeapShared::init_for_dumping(CHECK);
-
   // Rewrite and link classes
   log_info(cds)("Rewriting and linking classes ...");
 
@@ -783,10 +779,17 @@ void MetaspaceShared::preload_and_dump_impl(TRAPS) {
   log_info(cds)("Rewriting and linking classes: done");
 
 #if INCLUDE_CDS_JAVA_HEAP
-  StringTable::allocate_shared_strings_array(CHECK);
-  ArchiveHeapWriter::init();
-  if (use_full_module_graph()) {
-    HeapShared::reset_archived_object_states(CHECK);
+  if (CDSConfig::is_dumping_heap()) {
+    StringTable::allocate_shared_strings_array(CHECK);
+    if (!HeapShared::is_archived_boot_layer_available(THREAD)) {
+      log_info(cds)("archivedBootLayer not available, disabling full module graph");
+      CDSConfig::disable_dumping_full_module_graph();
+    }
+    HeapShared::init_for_dumping(CHECK);
+    ArchiveHeapWriter::init();
+    if (CDSConfig::is_dumping_full_module_graph()) {
+      HeapShared::reset_archived_object_states(CHECK);
+    }
   }
 #endif
 
@@ -798,7 +801,7 @@ void MetaspaceShared::preload_and_dump_impl(TRAPS) {
 bool MetaspaceShared::try_link_class(JavaThread* current, InstanceKlass* ik) {
   ExceptionMark em(current);
   JavaThread* THREAD = current; // For exception macros.
-  Arguments::assert_is_dumping_archive();
+  assert(CDSConfig::is_dumping_archive(), "sanity");
   if (!ik->is_shared() && ik->is_loaded() && !ik->is_linked() && ik->can_be_verified_at_dumptime() &&
       !SystemDictionaryShared::has_class_failed_verification(ik)) {
     bool saved = BytecodeVerificationLocal;
@@ -947,13 +950,13 @@ void MetaspaceShared::initialize_runtime_shared_and_meta_spaces() {
     }
   } else {
     set_shared_metaspace_range(nullptr, nullptr, nullptr);
-    if (DynamicDumpSharedSpaces) {
+    if (CDSConfig::is_dumping_dynamic_archive()) {
       log_warning(cds)("-XX:ArchiveClassesAtExit is unsupported when base CDS archive is not loaded. Run with -Xlog:cds for more info.");
     }
     UseSharedSpaces = false;
     // The base archive cannot be mapped. We cannot dump the dynamic shared archive.
     AutoCreateSharedArchive = false;
-    DynamicDumpSharedSpaces = false;
+    CDSConfig::disable_dumping_dynamic_archive();
     log_info(cds)("Unable to map shared spaces");
     if (PrintSharedArchiveAndExit) {
       MetaspaceShared::unrecoverable_loading_error("Unable to use shared archive.");
@@ -989,7 +992,7 @@ FileMapInfo* MetaspaceShared::open_static_archive() {
 }
 
 FileMapInfo* MetaspaceShared::open_dynamic_archive() {
-  if (DynamicDumpSharedSpaces) {
+  if (CDSConfig::is_dumping_dynamic_archive()) {
     return nullptr;
   }
   const char* dynamic_archive = Arguments::GetSharedDynamicArchivePath();
@@ -1168,8 +1171,8 @@ MapArchiveResult MetaspaceShared::map_archives(FileMapInfo* static_mapinfo, File
           static_mapinfo->map_or_load_heap_region();
         }
 #endif // _LP64
-    log_info(cds)("optimized module handling: %s", MetaspaceShared::use_optimized_module_handling() ? "enabled" : "disabled");
-    log_info(cds)("full module graph: %s", MetaspaceShared::use_full_module_graph() ? "enabled" : "disabled");
+    log_info(cds)("initial optimized module handling: %s", MetaspaceShared::use_optimized_module_handling() ? "enabled" : "disabled");
+    log_info(cds)("initial full module graph: %s", CDSConfig::is_loading_full_module_graph() ? "enabled" : "disabled");
   } else {
     unmap_archive(static_mapinfo);
     unmap_archive(dynamic_mapinfo);
@@ -1484,7 +1487,7 @@ void MetaspaceShared::initialize_shared_spaces() {
   }
 
   // Set up LambdaFormInvokers::_lambdaform_lines for dynamic dump
-  if (DynamicDumpSharedSpaces) {
+  if (CDSConfig::is_dumping_dynamic_archive()) {
     // Read stored LF format lines stored in static archive
     LambdaFormInvokers::read_static_archive_invokers();
   }
@@ -1541,29 +1544,6 @@ bool MetaspaceShared::remap_shared_readonly_as_readwrite() {
     _remapped_readwrite = true;
   }
   return true;
-}
-
-bool MetaspaceShared::use_full_module_graph() {
-#if INCLUDE_CDS_JAVA_HEAP
-  if (ClassLoaderDataShared::is_full_module_graph_loaded()) {
-    return true;
-  }
-#endif
-  bool result = _use_optimized_module_handling && _use_full_module_graph;
-  if (DumpSharedSpaces) {
-    result &= HeapShared::can_write();
-  } else if (UseSharedSpaces) {
-    result &= ArchiveHeapLoader::can_use();
-  } else {
-    result = false;
-  }
-
-  if (result && UseSharedSpaces) {
-    // Classes used by the archived full module graph are loaded in JVMTI early phase.
-    assert(!(JvmtiExport::should_post_class_file_load_hook() && JvmtiExport::has_early_class_hook_env()),
-           "CDS should be disabled if early class hooks are enabled");
-  }
-  return result;
 }
 
 void MetaspaceShared::print_on(outputStream* st) {

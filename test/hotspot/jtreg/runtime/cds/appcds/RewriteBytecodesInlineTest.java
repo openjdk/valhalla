@@ -28,7 +28,7 @@
  *          the archived class with the same name is not loaded.
  * @requires vm.cds
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses test-classes/RewriteBytecodesInline.java test-classes/Util.java test-classes/Point.java test-classes/WithInlinedField.java RewriteBytecodesInlineTest.java
+ * @compile test-classes/RewriteBytecodesInline.java test-classes/Util.java test-classes/Point.java test-classes/WithInlinedField.java RewriteBytecodesInlineTest.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run driver RewriteBytecodesInlineTest

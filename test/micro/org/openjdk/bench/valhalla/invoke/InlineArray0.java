@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ public class InlineArray0 {
         public int my_method();
     }
 
-    public static primitive class Val1 implements MyInterface {
+    public static value class Val1 implements MyInterface {
         public final int f0;
         public Val1(int f0) {
             this.f0 = f0;
@@ -62,7 +62,7 @@ public class InlineArray0 {
         }
     }
 
-    public static primitive class Val2 implements MyInterface {
+    public static value class Val2 implements MyInterface {
         public final int f0;
         public Val2(int f0) {
             this.f0 = f0;
@@ -73,7 +73,7 @@ public class InlineArray0 {
         }
     }
 
-    public static primitive class Val3 implements MyInterface {
+    public static value class Val3 implements MyInterface {
         public final int f0;
         public Val3(int f0) {
             this.f0 = f0;
@@ -91,7 +91,7 @@ public class InlineArray0 {
 
     @State(Scope.Thread)
     public static abstract class Ref1State {
-        public Val1.ref[] arr;
+        public Val1[] arr;
     }
 
     @State(Scope.Thread)
@@ -132,7 +132,7 @@ public class InlineArray0 {
     public static class Ref1_as_Ref extends Ref1State {
         @Setup
         public void setup() {
-            arr = new Val1.ref[SIZE];
+            arr = new Val1[SIZE];
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = new Val1(i);
             }
@@ -142,7 +142,7 @@ public class InlineArray0 {
     public static class Ref1_as_Int extends IntState {
         @Setup
         public void setup() {
-            arr = new Val1.ref[SIZE];
+            arr = new Val1[SIZE];
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = new Val1(i);
             }
@@ -172,7 +172,7 @@ public class InlineArray0 {
     public static class Ref2_as_Int extends IntState {
         @Setup
         public void setup() {
-            arr = new Val2.ref[SIZE];
+            arr = new Val2[SIZE];
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = new Val2(i);
             }
@@ -202,7 +202,7 @@ public class InlineArray0 {
     public static class Ref3_as_Int extends IntState {
         @Setup
         public void setup() {
-            arr = new Val3.ref[SIZE];
+            arr = new Val3[SIZE];
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = new Val3(i);
             }
@@ -230,7 +230,7 @@ public class InlineArray0 {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int reduceRef(Val1.ref[] arr) {
+    public int reduceRef(Val1[] arr) {
         int r = 0;
         for (int i = 0; i < arr.length; i++) {
             r += arr[i].my_method();

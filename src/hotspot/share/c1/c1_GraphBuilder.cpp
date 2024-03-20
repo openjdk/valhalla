@@ -727,17 +727,6 @@ class MemoryBuffer: public CompilationResourceObj {
     }
   }
 
-  // Record this newly allocated object
-  void new_instance(NewInlineTypeInstance* object) {
-    int index = _newobjects.length();
-    _newobjects.append(object);
-    if (_fields.at_grow(index, nullptr) == nullptr) {
-      _fields.at_put(index, new FieldBuffer());
-    } else {
-      _fields.at(index)->kill();
-    }
-  }
-
   void store_value(Value value) {
     int index = _newobjects.find(value);
     if (index != -1) {
@@ -1037,22 +1026,12 @@ void GraphBuilder::load_local(ValueType* type, int index) {
   Value x = state()->local_at(index);
   assert(x != nullptr && !x->type()->is_illegal(), "access of illegal local variable");
   push(type, x);
-  if (x->as_NewInlineTypeInstance() != nullptr && x->as_NewInlineTypeInstance()->in_larval_state()) {
-    if (x->as_NewInlineTypeInstance()->on_stack_count() == 1) {
-      x->as_NewInlineTypeInstance()->set_not_larva_anymore();
-    } else {
-      x->as_NewInlineTypeInstance()->increment_on_stack_count();
-    }
-  }
 }
 
 
 void GraphBuilder::store_local(ValueType* type, int index) {
   Value x = pop(type);
   store_local(state(), x, index);
-  if (x->as_NewInlineTypeInstance() != nullptr) {
-    x->as_NewInlineTypeInstance()->set_local_index(index);
-  }
 }
 
 
@@ -1081,9 +1060,6 @@ void GraphBuilder::store_local(ValueStack* state, Value x, int index) {
   }
 
   state->store_local(index, round_fp(x));
-  if (x->as_NewInlineTypeInstance() != nullptr) {
-    x->as_NewInlineTypeInstance()->set_local_index(index);
-  }
 }
 
 
@@ -1142,7 +1118,7 @@ void GraphBuilder::load_indexed(BasicType type) {
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
         apush(append(load_indexed));
       } else {
-        NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before);
+        NewInstance* new_instance = new NewInstance(elem_klass, state_before, true, true);
         _memory->new_instance(new_instance);
         apush(append_split(new_instance));
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
@@ -1225,19 +1201,15 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
   switch (code) {
     case Bytecodes::_pop:
       { Value w = state()->raw_pop();
-        update_larva_stack_count(w);
       }
       break;
     case Bytecodes::_pop2:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
-        update_larva_stack_count(w1);
-        update_larva_stack_count(w2);
       }
       break;
     case Bytecodes::_dup:
       { Value w = state()->raw_pop();
-        update_larval_state(w);
         state()->raw_push(w);
         state()->raw_push(w);
       }
@@ -1245,7 +1217,6 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
     case Bytecodes::_dup_x1:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
-        update_larval_state(w1);
         state()->raw_push(w1);
         state()->raw_push(w2);
         state()->raw_push(w1);
@@ -1255,17 +1226,6 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
-        // special handling for the dup_x2/pop sequence (see JDK-8251046)
-        if (w1 != nullptr && w1->as_NewInlineTypeInstance() != nullptr) {
-          ciBytecodeStream s(method());
-          s.force_bci(bci());
-          s.next();
-          if (s.cur_bc() != Bytecodes::_pop) {
-            w1->as_NewInlineTypeInstance()->set_not_larva_anymore();
-          } else {
-            w1->as_NewInlineTypeInstance()->increment_on_stack_count();
-          }
-        }
         state()->raw_push(w1);
         state()->raw_push(w3);
         state()->raw_push(w2);
@@ -1275,8 +1235,6 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
     case Bytecodes::_dup2:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
-        update_larval_state(w1);
-        update_larval_state(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w2);
@@ -1287,8 +1245,6 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
-        update_larval_state(w1);
-        update_larval_state(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w3);
@@ -1301,8 +1257,6 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
         Value w4 = state()->raw_pop();
-        update_larval_state(w1);
-        update_larval_state(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w4);
@@ -1710,7 +1664,7 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
 
   // The conditions for a memory barrier are described in Parse::do_exits().
   bool need_mem_bar = false;
-  if ((method()->is_object_constructor() || method()->is_static_vnew_factory()) &&
+  if (method()->is_object_constructor() &&
        (scope()->wrote_final() ||
          (AlwaysSafeConstructors && scope()->wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile()))) {
@@ -1950,6 +1904,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
+      if (field->is_null_free()) {
+        null_check(val);
+      }
       if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
         // Storing to a field of an empty inline type. Ignore.
         break;
@@ -2081,7 +2038,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             } else if (has_pending_load_indexed()) {
               assert(!needs_patching, "Can't patch delayed field access");
               pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
-              NewInlineTypeInstance* vt = new NewInlineTypeInstance(inline_klass, pending_load_indexed()->state_before());
+              NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), true, true);
               _memory->new_instance(vt);
               pending_load_indexed()->load_instr()->set_vt(vt);
               apush(append_split(vt));
@@ -2089,7 +2046,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               set_pending_load_indexed(nullptr);
               need_membar = true;
             } else {
-              NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before);
+              NewInstance* new_instance = new NewInstance(inline_klass, state_before, true, true);
               _memory->new_instance(new_instance);
               apush(append_split(new_instance));
               assert(!needs_patching, "Can't patch flat inline type field access");
@@ -2127,7 +2084,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
         // Storing to a field of an empty inline type. Ignore.
         null_check(obj);
+        null_check(val);
       } else if (!field->is_flat()) {
+        if (field->is_null_free()) {
+          null_check(val);
+        }
         StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
         if (!needs_patching) store = _memory->store(store);
         if (store != nullptr) {
@@ -2143,81 +2104,6 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     default:
       ShouldNotReachHere();
       break;
-  }
-}
-
-// Baseline version of withfield, allocate every time
-void GraphBuilder::withfield(int field_index) {
-  // Save the entire state and re-execute on deopt
-  ValueStack* state_before = copy_state_before();
-  state_before->set_should_reexecute(true);
-
-  bool will_link;
-  ciField* field_modify = stream()->get_field(will_link);
-  ciInstanceKlass* holder = field_modify->holder();
-  BasicType field_type = field_modify->type()->basic_type();
-  ValueType* type = as_ValueType(field_type);
-  Value val = pop(type);
-  Value obj = apop();
-  null_check(obj);
-
-  if (!holder->is_loaded() || !holder->is_inlinetype() || !will_link) {
-    apush(append_split(new Deoptimize(holder, state_before)));
-    return;
-  }
-
-  // call will_link again to determine if the field is valid.
-  const bool needs_patching = !field_modify->will_link(method(), Bytecodes::_withfield) ||
-                              (!field_modify->is_flat() && PatchALot);
-  const int offset_modify = !needs_patching ? field_modify->offset_in_bytes() : -1;
-
-  scope()->set_wrote_final();
-  scope()->set_wrote_fields();
-
-  NewInlineTypeInstance* new_instance;
-  if (obj->as_NewInlineTypeInstance() != nullptr && obj->as_NewInlineTypeInstance()->in_larval_state()) {
-    new_instance = obj->as_NewInlineTypeInstance();
-    apush(append_split(new_instance));
-  } else {
-    new_instance = new NewInlineTypeInstance(holder->as_inline_klass(), state_before);
-    _memory->new_instance(new_instance);
-    apush(append_split(new_instance));
-
-    // Initialize fields which are not modified
-    for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
-      ciField* field = holder->nonstatic_field_at(i);
-      int offset = field->offset_in_bytes();
-      // Don't use offset_modify here, it might be set to -1 if needs_patching
-      if (offset != field_modify->offset_in_bytes()) {
-        if (field->is_flat()) {
-          ciInlineKlass* vk = field->type()->as_inline_klass();
-          if (!vk->is_empty()) {
-            copy_inline_content(vk, obj, offset, new_instance, vk->first_field_offset(), state_before, field);
-          }
-        } else {
-          LoadField* load = new LoadField(obj, offset, field, false, state_before, false);
-          Value replacement = append(load);
-          StoreField* store = new StoreField(new_instance, offset, field, replacement, false, state_before, false);
-          append(store);
-        }
-      }
-    }
-  }
-
-  // Field to modify
-  if (field_type == T_BOOLEAN) {
-    Value mask = append(new Constant(new IntConstant(1)));
-    val = append(new LogicOp(Bytecodes::_iand, val, mask));
-  }
-  if (field_modify->is_flat()) {
-    assert(!needs_patching, "Can't patch flat inline type field access");
-    ciInlineKlass* vk = field_modify->type()->as_inline_klass();
-    if (!vk->is_empty()) {
-      copy_inline_content(vk, val, vk->first_field_offset(), new_instance, offset_modify, state_before, field_modify);
-    }
-  } else {
-    StoreField* store = new StoreField(new_instance, offset_modify, field_modify, val, false, state_before, needs_patching);
-    append(store);
   }
 }
 
@@ -2574,7 +2460,8 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   }
 
   Invoke* result = new Invoke(code, result_type, recv, args, target, state_before,
-                              declared_signature->returns_null_free_inline_type());
+                              // declared_signature->returns_null_free_inline_type());
+                              false);  // JDK-8325660: revisit this code after removal of Q-descriptors
   // push result
   append_split(result);
 
@@ -2591,21 +2478,9 @@ void GraphBuilder::new_instance(int klass_index) {
   ValueStack* state_before = copy_state_exhandling();
   ciKlass* klass = stream()->get_klass();
   assert(klass->is_instance_klass(), "must be an instance klass");
-  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass());
+  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass(), false);
   _memory->new_instance(new_instance);
   apush(append_split(new_instance));
-}
-
-void GraphBuilder::default_value(int klass_index) {
-  bool will_link;
-  ciKlass* klass = stream()->get_klass(will_link);
-  if (!stream()->is_unresolved_klass() && klass->is_inlinetype() &&
-      klass->as_inline_klass()->is_initialized()) {
-    ciInlineKlass* vk = klass->as_inline_klass();
-    apush(append(new Constant(new InstanceConstant(vk->default_instance()))));
-  } else {
-    apush(append_split(new Deoptimize(klass, copy_state_before())));
-  }
 }
 
 void GraphBuilder::new_type_array() {
@@ -2616,7 +2491,8 @@ void GraphBuilder::new_type_array() {
 
 void GraphBuilder::new_object_array() {
   ciKlass* klass = stream()->get_klass();
-  bool null_free = stream()->has_Q_signature();
+  // bool null_free = stream()->has_Q_signature();
+  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_exhandling();
   NewArray* n = new NewObjectArray(klass, ipop(), state_before, null_free);
   apush(append_split(n));
@@ -2642,7 +2518,8 @@ bool GraphBuilder::direct_compare(ciKlass* k) {
 
 void GraphBuilder::check_cast(int klass_index) {
   ciKlass* klass = stream()->get_klass();
-  bool null_free = stream()->has_Q_signature();
+  // bool null_free = stream()->has_Q_signature();
+  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_for_exception();
   CheckCast* c = new CheckCast(klass, apop(), state_before, null_free);
   apush(append_split(c));
@@ -2839,7 +2716,7 @@ Instruction* GraphBuilder::append_split(StateSplit* instr) {
 
 
 void GraphBuilder::null_check(Value value) {
-  if (value->as_NewArray() != nullptr || value->as_NewInstance() != nullptr || value->as_NewInlineTypeInstance() != nullptr) {
+  if (value->as_NewArray() != nullptr || value->as_NewInstance() != nullptr) {
     return;
   } else {
     Constant* con = value->as_Constant();
@@ -3368,8 +3245,6 @@ BlockEnd* GraphBuilder::iterate_bytecodes_for_block(int bci) {
       case Bytecodes::_ifnonnull      : if_null(objectType, If::neq); break;
       case Bytecodes::_goto_w         : _goto(s.cur_bci(), s.get_far_dest()); break;
       case Bytecodes::_jsr_w          : jsr(s.get_far_dest()); break;
-      case Bytecodes::_aconst_init   : default_value(s.get_index_u2()); break;
-      case Bytecodes::_withfield      : withfield(s.get_index_u2()); break;
       case Bytecodes::_breakpoint     : BAILOUT_("concurrent setting of breakpoint", nullptr);
       default                         : ShouldNotReachHere(); break;
     }

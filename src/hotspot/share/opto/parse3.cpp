@@ -232,6 +232,12 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   BasicType bt = field->layout_type();
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
 
+  if (field->is_null_free()) {
+    PreserveReexecuteState preexecs(this);
+    inc_sp(1);
+    jvms()->set_should_reexecute(true);
+    val = null_check(val);
+  }
   if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
     return;
@@ -298,7 +304,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
 void Parse::do_newarray() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
-  bool null_free = iter().has_Q_signature();
+  // bool null_free = iter().has_Q_signature();
+  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
 
   // Uncommon Trap when class that array contains is not loaded
   // we need the loaded class for the rest of graph; do not

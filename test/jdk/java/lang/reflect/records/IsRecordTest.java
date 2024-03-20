@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,12 @@
 
 /*
  * @test
- * @bug 8255560
+ * @bug 8255560 8326879
  * @summary Class::isRecord should check that the current class is final and not abstract
  * @modules java.base/jdk.internal.org.objectweb.asm
  * @library /test/lib
  * @run testng/othervm IsRecordTest
+ * @run testng/othervm -XX:+EnableValhalla IsRecordTest
  * @run testng/othervm/java.security.policy=allPermissions.policy IsRecordTest
  */
 

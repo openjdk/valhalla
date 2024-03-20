@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,9 @@
  * @summary Test scalarization in returns with unloaded return types.
  * @library /test/lib /compiler/whitebox /
  * @build jdk.test.whitebox.WhiteBox
- * @compile -XDenablePrimitiveClasses TestUnloadedReturnTypes.java
+ * @compile TestUnloadedReturnTypes.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ * @run main/othervm -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*::test*
  *                   TestUnloadedReturnTypes
@@ -38,98 +38,48 @@ import java.lang.reflect.Method;
 
 import jdk.test.whitebox.WhiteBox;
 
-primitive class MyPrimitive {
+value class MyValue1 {
     int x;
 
-    public MyPrimitive(int x) {
-        this.x = x;
-    }
-}
-
-value class MyValue {
-    int x;
-
-    public MyValue(int x) {
+    public MyValue1(int x) {
         this.x = x;
     }
 }
 
 class MyClass {
 
-    static MyPrimitive test1() {
-        return new MyPrimitive(42);
-    }
-
-    static MyPrimitive.ref test2(boolean b) {
-        return b ? new MyPrimitive(42) : null;
-    }
-
-    static MyValue test3(boolean b) {
-        return b ? new MyValue(42) : null;
+    static MyValue1 test(boolean b) {
+        return b ? new MyValue1(42) : null;
     }
 }
 
 public class TestUnloadedReturnTypes {
     public static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
-    static Object res1 = null;
+    static Object res = null;
 
-    public static void test1() {
-        res1 = MyClass.test1();
-    }
-
-    static Object res2 = null;
-
-    public static void test2(boolean b) {
-        res2 = MyClass.test2(b);
-    }
-
-    static Object res3 = null;
-
-    public static void test3(boolean b) {
-        res3 = MyClass.test3(b);
+    public static void test(boolean b) {
+        res = MyClass.test(b);
     }
 
     public static void main(String[] args) throws Exception {
-        // C1 compile all caller methods
-        Method m = TestUnloadedReturnTypes.class.getMethod("test1");
+        // C1 compile caller method
+        Method m = TestUnloadedReturnTypes.class.getMethod("test", boolean.class);
         WHITE_BOX.enqueueMethodForCompilation(m, 3);
 
-        m = TestUnloadedReturnTypes.class.getMethod("test2", boolean.class);
-        WHITE_BOX.enqueueMethodForCompilation(m, 3);
-
-        m = TestUnloadedReturnTypes.class.getMethod("test3", boolean.class);
-        WHITE_BOX.enqueueMethodForCompilation(m, 3);
-
-        // Make sure the callee methods are C2 compiled
+        // Make sure the callee method is C2 compiled
         for (int i = 0; i < 100_000; ++i) {
-            MyClass.test1();
-            MyClass.test2((i % 2) == 0);
-            MyClass.test3((i % 2) == 0);
+            MyClass.test((i % 2) == 0);
         }
 
-        test1();
-        if (((MyPrimitive)res1).x != 42) {
-            throw new RuntimeException("Test1 failed");
+        test(true);
+        if (((MyValue1)res).x != 42) {
+            throw new RuntimeException("Test failed");
         }
 
-        test2(true);
-        if (((MyPrimitive)res2).x != 42) {
-            throw new RuntimeException("Test2 failed");
-        }
-
-        test2(false);
-        if (res2 != null) {
-            throw new RuntimeException("Test2 failed");
-        }
-        test3(true);
-        if (((MyValue)res3).x != 42) {
-            throw new RuntimeException("Test3 failed");
-        }
-
-        test3(false);
-        if (res3 != null) {
-            throw new RuntimeException("Test3 failed");
+        test(false);
+        if (res != null) {
+            throw new RuntimeException("Test failed");
         }
     }
 }

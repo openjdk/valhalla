@@ -28,9 +28,6 @@ package java.lang.invoke;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.Constable;
 import java.lang.constant.MethodTypeDesc;
-import java.lang.ref.Reference;
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.function.Supplier;
@@ -41,10 +38,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.util.ReferencedKeySet;
 import jdk.internal.util.ReferenceKey;
 import jdk.internal.vm.annotation.Stable;
@@ -940,20 +935,13 @@ class MethodType
     @Override
     public String toString() {
         StringJoiner sj = new StringJoiner(",", "(",
-                ")" + toSimpleName(rtype));
+                ")" + rtype.getSimpleName());
         for (int i = 0; i < ptypes.length; i++) {
-            sj.add(toSimpleName(ptypes[i]));
+            sj.add(ptypes[i].getSimpleName());
         }
         return sj.toString();
     }
 
-    static String toSimpleName(Class<?> c) {
-        if (PrimitiveClass.isPrimitiveClass(c) && PrimitiveClass.isPrimaryType(c)) {
-            return c.getSimpleName() + ".ref";
-        } else {
-            return c.getSimpleName();
-        }
-    }
     /** True if my parameter list is effectively identical to the given full list,
      *  after skipping the given number of my own initial parameters.
      *  In other words, after disregarding {@code skipPos} parameters,

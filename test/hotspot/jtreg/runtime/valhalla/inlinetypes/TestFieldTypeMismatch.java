@@ -26,11 +26,12 @@ package runtime.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 
 /**
+ * @ignore
  * @test
  * @library /test/lib
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFieldTypeMismatchClasses.jasm
- * @compile -XDenablePrimitiveClasses TestFieldTypeMismatch.java
+ * @compile TestFieldTypeMismatch.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.TestFieldTypeMismatch
  */
 

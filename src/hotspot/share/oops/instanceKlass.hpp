@@ -167,7 +167,7 @@ class InstanceKlass: public Klass {
   InstanceKlass(const ClassFileParser& parser, KlassKind kind = Kind, ReferenceType reference_type = REF_NONE);
 
  public:
-  InstanceKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+  InstanceKlass();
 
   // See "The Java Virtual Machine Specification" section 2.16.2-5 for a detailed description
   // of the class loading & initialization procedure, and the use of the states.
@@ -378,12 +378,6 @@ class InstanceKlass: public Klass {
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
-  bool carries_value_modifier() const { return _misc_flags.carries_value_modifier(); }
-  void set_carries_value_modifier()   { _misc_flags.set_carries_value_modifier(true); }
-
-  bool carries_identity_modifier() const  { return _misc_flags.carries_identity_modifier(); }
-  void set_carries_identity_modifier()    { _misc_flags.set_carries_identity_modifier(true); }
-
   bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
   void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
@@ -445,14 +439,15 @@ class InstanceKlass: public Klass {
   FieldInfo field(int index) const;
 
  public:
-  int     field_offset      (int index) const { return field(index).offset(); }
-  int     field_access_flags(int index) const { return field(index).access_flags().as_int(); }
+  int field_offset      (int index) const { return field(index).offset(); }
+  int field_access_flags(int index) const { return field(index).access_flags().as_int(); }
   FieldInfo::FieldFlags field_flags(int index) const { return field(index).field_flags(); }
   FieldStatus field_status(int index)   const { return fields_status()->at(index); }
   inline Symbol* field_name        (int index) const;
   inline Symbol* field_signature   (int index) const;
-  bool    field_is_flat(int index) const { return field_flags(index).is_flat(); }
-  bool    field_is_null_free_inline_type(int index) const;
+  bool field_is_flat(int index) const { return field_flags(index).is_flat(); }
+  bool field_is_null_free_inline_type(int index) const;
+  bool is_class_in_preload_attribute(Symbol* name) const;
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -558,6 +553,14 @@ public:
   static void check_prohibited_package(Symbol* class_name,
                                        ClassLoaderData* loader_data,
                                        TRAPS);
+
+  JavaThread* init_thread()  { return Atomic::load(&_init_thread); }
+  // We can safely access the name as long as we hold the _init_monitor.
+  const char* init_thread_name() {
+    assert(_init_monitor->owned_by_self(), "Must hold _init_monitor here");
+    return init_thread()->name_raw();
+  }
+
  public:
   // initialization state
   bool is_loaded() const                   { return init_state() >= loaded; }
@@ -567,7 +570,7 @@ public:
   bool is_not_initialized() const          { return init_state() <  being_initialized; }
   bool is_being_initialized() const        { return init_state() == being_initialized; }
   bool is_in_error_state() const           { return init_state() == initialization_error; }
-  bool is_init_thread(JavaThread *thread)  { return thread == Atomic::load(&_init_thread); }
+  bool is_init_thread(JavaThread *thread)  { return thread == init_thread(); }
   ClassState  init_state() const           { return Atomic::load(&_init_state); }
   const char* init_state_name() const;
   bool is_rewritten() const                { return _misc_flags.rewritten(); }

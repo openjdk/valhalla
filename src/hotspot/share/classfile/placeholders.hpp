@@ -41,18 +41,17 @@ class PlaceholderTable : public AllStatic {
   // caller claims ownership of that action
   // For parallel classloading:
   // multiple LOAD_INSTANCE threads can proceed in parallel
-  // multiple LOAD_SUPER threads can proceed in parallel
-  // LOAD_SUPER needed to check for class circularity
+  // multiple DETECT_CIRCULARITY threads can proceed in parallel
+  // DETECT_CIRCULARITY needed to check for class circularity
   // DEFINE_CLASS: ultimately define class must be single threaded
   // on a class/classloader basis
   // so the head of that queue owns the token
   // and the rest of the threads return the result the first thread gets
   // VALUE_OBJECT_FIELD: needed to check for inline type fields circularity
   enum classloadAction {
-    LOAD_INSTANCE      = 1,        // calling load_instance_class
-    LOAD_SUPER         = 2,        // loading superclass for this class
-    DEFINE_CLASS       = 3,        // find_or_define class
-    VALUE_OBJECT_FIELD = 4         // value object fields
+    LOAD_INSTANCE = 1,             // calling load_instance_class
+    DETECT_CIRCULARITY = 2,        // loading while detecting class circularity
+    DEFINE_CLASS = 3               // find_or_define class
   };
   static void initialize();
   static PlaceholderEntry* get_entry(Symbol* name, ClassLoaderData* loader_data);
@@ -83,10 +82,10 @@ class SeenThread;
 class PlaceholderEntry {
   friend class PlaceholderTable;
  private:
-  SymbolHandle      _supername;
+  SymbolHandle      _next_klass_name;
   JavaThread*       _definer;       // owner of define token
   InstanceKlass*    _instanceKlass; // InstanceKlass from successful define
-  SeenThread*       _superThreadQ;  // doubly-linked queue of Threads loading a superclass for this class
+  SeenThread*       _circularityThreadQ;  // doubly-linked queue of Threads loading with circularity detection
   SeenThread*       _loadInstanceThreadQ;  // loadInstance thread
                                     // This can't be multiple threads since class loading waits for
                                     // this token to be removed.
@@ -95,15 +94,14 @@ class PlaceholderEntry {
                                     // including _definer
                                     // _definer owns token
                                     // queue waits for and returns results from _definer
-  SeenThread*       _inlineTypeFieldQ;  // queue of inline types for circularity checking
 
   SeenThread* actionToQueue(PlaceholderTable::classloadAction action);
   void set_threadQ(SeenThread* seenthread, PlaceholderTable::classloadAction action);
   void add_seen_thread(JavaThread* thread, PlaceholderTable::classloadAction action);
   bool remove_seen_thread(JavaThread* thread, PlaceholderTable::classloadAction action);
 
-  SeenThread*        superThreadQ()        const { return _superThreadQ; }
-  void               set_superThreadQ(SeenThread* SeenThread) { _superThreadQ = SeenThread; }
+  SeenThread*        superThreadQ()        const { return _circularityThreadQ; }
+  void               set_superThreadQ(SeenThread* SeenThread) { _circularityThreadQ = SeenThread; }
 
   SeenThread*        loadInstanceThreadQ() const { return _loadInstanceThreadQ; }
   void               set_loadInstanceThreadQ(SeenThread* SeenThread) { _loadInstanceThreadQ = SeenThread; }
@@ -113,11 +111,10 @@ class PlaceholderEntry {
  public:
   PlaceholderEntry() :
      _definer(nullptr), _instanceKlass(nullptr),
-     _superThreadQ(nullptr), _loadInstanceThreadQ(nullptr), _defineThreadQ(nullptr),
-     _inlineTypeFieldQ(nullptr) { }
+     _circularityThreadQ(nullptr), _loadInstanceThreadQ(nullptr), _defineThreadQ(nullptr) { }
 
-  Symbol*            supername()           const { return _supername; }
-  void               set_supername(Symbol* supername);
+  Symbol*            next_klass_name()           const { return _next_klass_name; }
+  void               set_next_klass_name(Symbol* next_klass_name);
 
   JavaThread*        definer()             const {return _definer; }
   void               set_definer(JavaThread* definer) { _definer = definer; }
@@ -125,11 +122,8 @@ class PlaceholderEntry {
   InstanceKlass*     instance_klass()      const {return _instanceKlass; }
   void               set_instance_klass(InstanceKlass* ik) { _instanceKlass = ik; }
 
-  SeenThread*        inlineTypeFieldQ()    const { return _inlineTypeFieldQ; }
-  void               set_inlineTypeFieldQ(SeenThread* SeenThread) { _inlineTypeFieldQ = SeenThread; }
-
-  bool super_load_in_progress() {
-     return (_superThreadQ != nullptr);
+  bool circularity_detection_in_progress() {
+     return (_circularityThreadQ != nullptr);
   }
 
   bool instance_load_in_progress() {
@@ -138,10 +132,6 @@ class PlaceholderEntry {
 
   bool define_class_in_progress() {
     return (_defineThreadQ != nullptr);
-  }
-
-  bool inline_type_field_in_progress() {
-    return (_inlineTypeFieldQ != nullptr);
   }
 
   // Used for ClassCircularityError checking

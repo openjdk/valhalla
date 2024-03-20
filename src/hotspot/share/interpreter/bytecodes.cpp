@@ -282,8 +282,6 @@
   def(_goto_w          , "goto_w"          , "boooo", nullptr    , T_VOID   ,  0, false, _goto_w         ) \
   def(_jsr_w           , "jsr_w"           , "boooo", nullptr    , T_INT    ,  0, false, _jsr_w          ) \
   def(_breakpoint      , "breakpoint"      , ""     , nullptr    , T_VOID   ,  0, true , _breakpoint     ) \
-  def(_aconst_init     , "aconst_init"     , "bkk"  , nullptr    , T_OBJECT ,  1, true , _aconst_init    ) \
-  def(_withfield       , "withfield"       , "bJJ"  , nullptr    , T_OBJECT , -1, true , _withfield      ) \
   JVM_BYTECODES_DO(def)
 
 bool Bytecodes::_is_initialized = false;

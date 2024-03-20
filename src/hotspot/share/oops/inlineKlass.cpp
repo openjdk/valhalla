@@ -186,7 +186,7 @@ Klass* InlineKlass::value_array_klass(int n, TRAPS) {
         if (flat_array()) {
           k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
         } else {
-          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, true, CHECK_NULL);
+          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
 
         }
         // use 'release' to pair with lock-free load
@@ -242,15 +242,13 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
+    // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
       Klass* vk = get_inline_type_field_klass(fs.index());
       count += InlineKlass::cast(vk)->collect_fields(sig, offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
-      if (bt == T_PRIMITIVE_OBJECT) {
-        bt = T_OBJECT;
-      }
       SigEntry::add_entry(sig, bt, fs.signature(), offset);
       count += type2size[bt];
     }

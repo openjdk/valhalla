@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@ import java.util.stream.Collectors;
 
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.annotation.Stable;
-import jdk.internal.value.PrimitiveClass;
 import sun.reflect.annotation.AnnotationParser;
 import sun.reflect.annotation.AnnotationSupport;
 import sun.reflect.annotation.TypeAnnotationParser;
@@ -47,6 +46,7 @@ import sun.reflect.generics.repository.ConstructorRepository;
  * A shared superclass for the common functionality of {@link Method}
  * and {@link Constructor}.
  *
+ * @sealedGraph
  * @since 1.8
  */
 public abstract sealed class Executable extends AccessibleObject
@@ -791,13 +791,5 @@ public abstract sealed class Executable extends AccessibleObject
                 getDeclaringClass(),
                 getGenericExceptionTypes(),
                 TypeAnnotation.TypeAnnotationTarget.THROWS);
-    }
-
-    String getDeclaringClassTypeName() {
-        Class<?> c = getDeclaringClass();
-        if (PrimitiveClass.isPrimitiveClass(c)) {
-            c = PrimitiveClass.asValueType(c);
-        }
-        return c.getTypeName();
     }
 }

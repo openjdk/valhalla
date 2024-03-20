@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,14 +32,13 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 /*
  * @test
  * @key randomness
- * @summary Test calling native methods with inline type arguments from compiled code.
+ * @summary Test calling native methods with value class arguments from compiled code.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses TestJNICalls.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestJNICalls
+ * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
+ *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestJNICalls.java
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestJNICalls
  */
-
-/** this test was already failing no relation with the added -XDenablePrimitiveClasses option */
 
 @ForceCompileClassInitializer
 public class TestJNICalls {
@@ -60,7 +59,7 @@ public class TestJNICalls {
     public native Object testMethod1(MyValue1 o);
     public native long testMethod2(MyValue1 o);
 
-    // Pass an inline type to a native method that calls back into Java code and returns an inline type
+    // Pass a value object to a native method that calls back into Java code and returns a value object
     @Test
     public MyValue1 test1(MyValue1 vt, boolean callback) {
         if (!callback) {
@@ -80,7 +79,7 @@ public class TestJNICalls {
         Asserts.assertEQ(result.hash(), vt.hash());
     }
 
-    // Pass an inline type to a native method that calls the hash method and returns the result
+    // Pass a value object to a native method that calls the hash method and returns the result
     @Test
     public long test2(MyValue1 vt) {
         return testMethod2(vt);
@@ -94,8 +93,8 @@ public class TestJNICalls {
         Asserts.assertEQ(result, vt.hash());
     }
 
-    static primitive class MyValueWithNative {
-        public final int x;
+    static value class MyValueWithNative {
+        public int x;
 
         private MyValueWithNative(int x) {
             this.x = x;
@@ -104,7 +103,7 @@ public class TestJNICalls {
         public native int testMethod3();
     }
 
-    // Call a native method with an inline type receiver
+    // Call a native method with a value class receiver
     @Test
     public int test3(MyValueWithNative vt) {
         return vt.testMethod3();

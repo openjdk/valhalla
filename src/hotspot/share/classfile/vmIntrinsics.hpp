@@ -299,12 +299,6 @@ class methodHandle;
    do_name(     setCurrentThread_name,                           "setCurrentThread")                                    \
                                                                                                                         \
   /* reflective intrinsics, for java/lang/Class, etc. */                                                                \
-  do_intrinsic(_asPrimaryType,            java_lang_Class,        asPrimaryType_name, void_class_signature,      F_R)   \
-  do_intrinsic(_asPrimaryTypeArg,         jdk_internal_value_PrimitiveClass, asPrimaryType_name, class_class_signature, F_S) \
-   do_name(     asPrimaryType_name,                              "asPrimaryType")                                       \
-  do_intrinsic(_asValueType,              java_lang_Class,        asValueType_name, void_class_signature,        F_R)   \
-  do_intrinsic(_asValueTypeArg,           jdk_internal_value_PrimitiveClass, asValueType_name,   class_class_signature, F_S) \
-   do_name(     asValueType_name,                                "asValueType")                                         \
   do_intrinsic(_isAssignableFrom,         java_lang_Class,        isAssignableFrom_name, class_boolean_signature, F_RN) \
    do_name(     isAssignableFrom_name,                           "isAssignableFrom")                                    \
   do_intrinsic(_isInstance,               java_lang_Class,        isInstance_name, object_boolean_signature,     F_RN)  \
@@ -335,6 +329,9 @@ class methodHandle;
   do_intrinsic(_newArray,                 java_lang_reflect_Array, newArray_name, newArray_signature,            F_SN)  \
    do_name(     newArray_name,                                    "newArray")                                           \
    do_signature(newArray_signature,                               "(Ljava/lang/Class;I)Ljava/lang/Object;")             \
+  do_intrinsic(_newNullRestrictedArray,   jdk_internal_value_ValueClass, newNullRestrictedArray_name, newNullRestrictedArray_signature, F_SN) \
+   do_signature(newNullRestrictedArray_signature,                 "(Ljava/lang/Class;I)[Ljava/lang/Object;")            \
+   do_name(     newNullRestrictedArray_name,                      "newNullRestrictedArray")                             \
                                                                                                                         \
   do_intrinsic(_onSpinWait,               java_lang_Thread,       onSpinWait_name, onSpinWait_signature,         F_S)   \
    do_name(     onSpinWait_name,                                  "onSpinWait")                                         \
@@ -346,6 +343,14 @@ class methodHandle;
   do_intrinsic(_copyOf,                   java_util_Arrays,       copyOf_name, copyOf_signature,                 F_S)   \
    do_name(     copyOf_name,                                     "copyOf")                                              \
    do_signature(copyOf_signature,             "([Ljava/lang/Object;ILjava/lang/Class;)[Ljava/lang/Object;")             \
+                                                                                                                        \
+  do_intrinsic(_arraySort,                java_util_DualPivotQuicksort, arraySort_name, arraySort_signature,     F_S)   \
+   do_name(     arraySort_name,                                  "sort")                                                \
+   do_signature(arraySort_signature, "(Ljava/lang/Class;Ljava/lang/Object;JIILjava/util/DualPivotQuicksort$SortOperation;)V") \
+                                                                                                                        \
+  do_intrinsic(_arrayPartition,           java_util_DualPivotQuicksort, arrayPartition_name, arrayPartition_signature, F_S) \
+   do_name(     arrayPartition_name,                             "partition")                                           \
+   do_signature(arrayPartition_signature, "(Ljava/lang/Class;Ljava/lang/Object;JIIIILjava/util/DualPivotQuicksort$PartitionOperation;)[I") \
                                                                                                                         \
   do_intrinsic(_copyOfRange,              java_util_Arrays,       copyOfRange_name, copyOfRange_signature,       F_S)   \
    do_name(     copyOfRange_name,                                "copyOfRange")                                         \

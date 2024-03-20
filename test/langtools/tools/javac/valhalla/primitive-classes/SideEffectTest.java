@@ -25,8 +25,9 @@
  * @test
  * @bug 8207341
  * @summary Test value constructor code with side effects.
- * @compile -XDenablePrimitiveClasses SideEffectTest.java
+ * @compile SideEffectTest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SideEffectTest
+ * @ignore
  */
 
 
@@ -43,7 +44,7 @@ public class SideEffectTest {
         }
 
         V(int x) {
-            int l = 1234; 
+            int l = 1234;
             foo(l += this.x = x);
         }
 

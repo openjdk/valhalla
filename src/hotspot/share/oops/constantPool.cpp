@@ -26,6 +26,7 @@
 #include "cds/archiveHeapWriter.hpp"
 #include "cds/archiveHeapLoader.hpp"
 #include "cds/archiveBuilder.hpp"
+#include "cds/cdsConfig.hpp"
 #include "cds/classPrelinker.hpp"
 #include "cds/heapShared.hpp"
 #include "classfile/classLoaderData.hpp"
@@ -103,6 +104,10 @@ static bool tag_array_is_zero_initialized(Array<u1>* tags) {
 }
 
 #endif
+
+ConstantPool::ConstantPool() {
+  assert(CDSConfig::is_dumping_static_archive() || UseSharedSpaces, "only for CDS");
+}
 
 ConstantPool::ConstantPool(Array<u1>* tags) :
   _tags(tags),
@@ -220,7 +225,7 @@ void ConstantPool::initialize_resolved_references(ClassLoaderData* loader_data,
     set_resolved_references(loader_data->add_handle(refs_handle));
 
     // Create a "scratch" copy of the resolved references array to archive
-    if (DumpSharedSpaces) {
+    if (CDSConfig::is_dumping_heap()) {
       objArrayOop scratch_references = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
       HeapShared::add_scratch_resolved_references(this, scratch_references);
     }
@@ -273,7 +278,6 @@ void ConstantPool::klass_at_put(int class_index, Klass* k) {
 
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* non-null, so we need hardware store ordering here.
-  assert(!k->name()->is_Q_signature(), "Q-type without JVM_CONSTANT_QDescBit");
   release_tag_at_put(class_index, JVM_CONSTANT_Class);
 }
 
@@ -397,10 +401,7 @@ void ConstantPool::remove_unshareable_info() {
   for (int cp_index = 1; cp_index < length(); cp_index++) { // cp_index 0 is unused
     switch (tag_at(cp_index).value()) {
     case JVM_CONSTANT_UnresolvedClassInError:
-      {
-        jbyte qdesc_bit = tag_at(cp_index).is_Qdescriptor_klass() ? (jbyte) JVM_CONSTANT_QDescBit : 0;
-        tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
-      }
+      tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass);
       break;
     case JVM_CONSTANT_MethodHandleInError:
       tag_at_put(cp_index, JVM_CONSTANT_MethodHandle);
@@ -456,8 +457,7 @@ bool ConstantPool::maybe_archive_resolved_klass_at(int cp_index) {
   // This referenced class cannot be archived. Revert the tag to UnresolvedClass,
   // so that the proper class loading and initialization can happen at runtime.
   resolved_klasses()->at_put(resolved_klass_index, nullptr);
-  jbyte qdesc_bit = tag_at(cp_index).is_Qdescriptor_klass() ? (jbyte) JVM_CONSTANT_QDescBit : 0;
-  tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
+  tag_at_put(cp_index, JVM_CONSTANT_UnresolvedClass);
   return false;
 }
 #endif // INCLUDE_CDS
@@ -548,10 +548,6 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
   Handle mirror_handle;
   Symbol* name = this_cp->symbol_at(name_index);
   bool inline_type_signature = false;
-  if (name->is_Q_signature()) {
-    name = name->fundamental_name(THREAD);
-    inline_type_signature = true;
-  }
   Handle loader (THREAD, this_cp->pool_holder()->class_loader());
   Handle protection_domain (THREAD, this_cp->pool_holder()->protection_domain());
 
@@ -591,11 +587,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
   // Failed to resolve class. We must record the errors so that subsequent attempts
   // to resolve this constant pool entry fail with the same error (JVMS 5.4.3).
   if (HAS_PENDING_EXCEPTION) {
-    jbyte tag = JVM_CONSTANT_UnresolvedClass;
-    if (this_cp->tag_at(cp_index).is_Qdescriptor_klass()) {
-      tag |= JVM_CONSTANT_QDescBit;
-    }
-    save_and_throw_exception(this_cp, cp_index, constantTag(tag), CHECK_NULL);
+    save_and_throw_exception(this_cp, cp_index, constantTag(JVM_CONSTANT_UnresolvedClass), CHECK_NULL);
     // If CHECK_NULL above doesn't return the exception, that means that
     // some other thread has beaten us and has resolved the class.
     // To preserve old behavior, we return the resolved class.
@@ -614,15 +606,11 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* stored in _resolved_klasses is non-null, so we need
   // hardware store ordering here.
-  jbyte tag = JVM_CONSTANT_Class;
-  if (this_cp->tag_at(cp_index).is_Qdescriptor_klass()) {
-    tag |= JVM_CONSTANT_QDescBit;
-  }
   // We also need to CAS to not overwrite an error from a racing thread.
 
   jbyte old_tag = Atomic::cmpxchg((jbyte*)this_cp->tag_addr_at(cp_index),
                                   (jbyte)JVM_CONSTANT_UnresolvedClass,
-                                  tag);
+                                  (jbyte)JVM_CONSTANT_Class);
 
   // We need to recheck exceptions from racing thread and return the same.
   if (old_tag == JVM_CONSTANT_UnresolvedClassInError) {
@@ -682,14 +670,12 @@ Klass* ConstantPool::klass_at_if_loaded(const constantPoolHandle& this_cp, int w
 Method* ConstantPool::method_at_if_loaded(const constantPoolHandle& cpool,
                                                    int which) {
   if (cpool->cache() == nullptr)  return nullptr;  // nothing to load yet
-  int cache_index = decode_cpcache_index(which, true);
-  if (!(cache_index >= 0 && cache_index < cpool->cache()->length())) {
+  if (!(which >= 0 && which < cpool->resolved_method_entries_length())) {
     // FIXME: should be an assert
     log_debug(class, resolve)("bad operand %d in:", which); cpool->print();
     return nullptr;
   }
-  ConstantPoolCacheEntry* e = cpool->cache()->entry_at(cache_index);
-  return e->method_if_resolved(cpool);
+  return cpool->cache()->method_if_resolved(which);
 }
 
 
@@ -699,9 +685,7 @@ bool ConstantPool::has_appendix_at_if_loaded(const constantPoolHandle& cpool, in
     int indy_index = decode_invokedynamic_index(which);
     return cpool->resolved_indy_entry_at(indy_index)->has_appendix();
   } else {
-    int cache_index = decode_cpcache_index(which, true);
-    ConstantPoolCacheEntry* e = cpool->cache()->entry_at(cache_index);
-    return e->has_appendix();
+    return cpool->resolved_method_entry_at(which)->has_appendix();
   }
 }
 
@@ -711,21 +695,18 @@ oop ConstantPool::appendix_at_if_loaded(const constantPoolHandle& cpool, int whi
     int indy_index = decode_invokedynamic_index(which);
     return cpool->resolved_reference_from_indy(indy_index);
   } else {
-    int cache_index = decode_cpcache_index(which, true);
-    ConstantPoolCacheEntry* e = cpool->cache()->entry_at(cache_index);
-    return e->appendix_if_resolved(cpool);
+    return cpool->cache()->appendix_if_resolved(which);
   }
 }
 
 
 bool ConstantPool::has_local_signature_at_if_loaded(const constantPoolHandle& cpool, int which) {
   if (cpool->cache() == nullptr)  return false;  // nothing to load yet
-  int cache_index = decode_cpcache_index(which, true);
   if (is_invokedynamic_index(which)) {
-    return cpool->resolved_indy_entry_at(cache_index)->has_local_signature();
+    int indy_index = decode_invokedynamic_index(which);
+    return cpool->resolved_indy_entry_at(indy_index)->has_local_signature();
   } else {
-    ConstantPoolCacheEntry* e = cpool->cache()->entry_at(cache_index);
-    return e->has_local_signature();
+    return cpool->resolved_method_entry_at(which)->has_local_signature();
   }
 }
 
@@ -739,17 +720,18 @@ int ConstantPool::to_cp_index(int index, Bytecodes::Code code) {
     case Bytecodes::_getstatic:
     case Bytecodes::_putfield:
     case Bytecodes::_putstatic:
-    case Bytecodes::_withfield:
       return resolved_field_entry_at(index)->constant_pool_index();
     case Bytecodes::_invokeinterface:
     case Bytecodes::_invokehandle:
     case Bytecodes::_invokespecial:
     case Bytecodes::_invokestatic:
     case Bytecodes::_invokevirtual:
-      // TODO: handle resolved method entries with new structure
+    case Bytecodes::_fast_invokevfinal: // Bytecode interpreter uses this
+      return resolved_method_entry_at(index)->constant_pool_index();
     default:
-      // change byte-ordering and go via cache
-      return remap_instruction_operand_from_cache(index);
+      tty->print_cr("Unexpected bytecode: %d", code);
+      ShouldNotReachHere(); // All cases should have been handled
+      return -1;
   }
 }
 
@@ -790,15 +772,6 @@ u2 ConstantPool::klass_ref_index_at(int index, Bytecodes::Code code) {
             "an invokedynamic instruction does not have a klass");
   return uncached_klass_ref_index_at(to_cp_index(index, code));
 }
-
-int ConstantPool::remap_instruction_operand_from_cache(int operand) {
-  int cpc_index = operand;
-  DEBUG_ONLY(cpc_index -= CPCACHE_INDEX_TAG);
-  assert((int)(u2)cpc_index == cpc_index, "clean u2");
-  int member_index = cache()->entry_at(cpc_index)->constant_pool_index();
-  return member_index;
-}
-
 
 void ConstantPool::verify_constant_pool_resolve(const constantPoolHandle& this_cp, Klass* k, TRAPS) {
   if (!(k->is_instance_klass() || k->is_objArray_klass())) {
@@ -1066,9 +1039,7 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
       assert(cache_index == _no_index_sentinel, "should not have been set");
       Klass* resolved = klass_at_impl(this_cp, cp_index, CHECK_NULL);
       // ldc wants the java mirror.
-      result_oop = tag.is_Qdescriptor_klass()
-                      ? InlineKlass::cast(resolved)->val_mirror()
-                      : resolved->java_mirror();
+      result_oop = resolved->java_mirror();
       break;
     }
 
@@ -1341,6 +1312,16 @@ bool ConstantPool::compare_entry_to(int index1, const constantPoolHandle& cp2,
   jbyte t1 = tag_at(index1).non_error_value();
   jbyte t2 = cp2->tag_at(index2).non_error_value();
 
+  // Some classes are pre-resolved (like Throwable) which may lead to
+  // consider it as a different entry. We then revert them back temporarily
+  // to ensure proper comparison.
+  if (t1 == JVM_CONSTANT_Class) {
+    t1 = JVM_CONSTANT_UnresolvedClass;
+  }
+  if (t2 == JVM_CONSTANT_Class) {
+    t2 = JVM_CONSTANT_UnresolvedClass;
+  }
+
   if (t1 != t2) {
     // Not the same entry type so there is nothing else to check. Note
     // that this style of checking will consider resolved/unresolved
@@ -1352,15 +1333,6 @@ bool ConstantPool::compare_entry_to(int index1, const constantPoolHandle& cp2,
   }
 
   switch (t1) {
-  case JVM_CONSTANT_Class:
-  {
-    Klass* k1 = resolved_klass_at(index1);
-    Klass* k2 = cp2->resolved_klass_at(index2);
-    if (k1 == k2) {
-      return true;
-    }
-  } break;
-
   case JVM_CONSTANT_ClassIndex:
   {
     int recur1 = klass_index_at(index1);
@@ -1987,12 +1959,6 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
         ent_size = 2;
         break;
       }
-      case (JVM_CONSTANT_Class | JVM_CONSTANT_QDescBit): {
-        idx1 = Bytes::get_Java_u2(bytes);
-        printf("qclass        #%03d", idx1);
-        ent_size = 2;
-        break;
-      }
       case JVM_CONSTANT_String: {
         idx1 = Bytes::get_Java_u2(bytes);
         printf("String       #%03d", idx1);
@@ -2033,10 +1999,6 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
       }
       case JVM_CONSTANT_UnresolvedClass: {
         printf("UnresolvedClass: %s", WARN_MSG);
-        break;
-      }
-      case (JVM_CONSTANT_UnresolvedClass | JVM_CONSTANT_QDescBit): {
-        printf("UnresolvedQClass: %s", WARN_MSG);
         break;
       }
       case JVM_CONSTANT_UnresolvedClassInError: {

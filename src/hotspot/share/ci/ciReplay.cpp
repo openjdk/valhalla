@@ -408,15 +408,10 @@ class CompileReplay : public StackObj {
       bytecode.verify();
       int index = bytecode.index();
 
-      ConstantPoolCacheEntry* cp_cache_entry = nullptr;
       CallInfo callInfo;
       Bytecodes::Code bc = bytecode.invoke_code();
       LinkResolver::resolve_invoke(callInfo, Handle(), cp, index, bc, CHECK_NULL);
 
-      // ResolvedIndyEntry and ConstantPoolCacheEntry must currently coexist.
-      // To address this, the variables below contain the values that *might*
-      // be used to avoid multiple blocks of similar code. When CPCE is obsoleted
-      // these can be removed
       oop appendix = nullptr;
       Method* adapter_method = nullptr;
       int pool_index = 0;
@@ -434,12 +429,10 @@ class CompileReplay : public StackObj {
         Symbol* name = cp->name_ref_at(index, bytecode.code());
         assert(MethodHandles::is_signature_polymorphic_name(holder, name), "");
 #endif
-        cp_cache_entry = cp->cache()->entry_at(cp->decode_cpcache_index(index));
-        cp_cache_entry->set_method_handle(cp, callInfo);
-
-        appendix = cp_cache_entry->appendix_if_resolved(cp);
-        adapter_method = cp_cache_entry->f1_as_method();
-        pool_index = cp_cache_entry->constant_pool_index();
+        ResolvedMethodEntry* method_entry = cp->cache()->set_method_handle(index, callInfo);
+        appendix = cp->cache()->appendix_if_resolved(method_entry);
+        adapter_method = method_entry->method();
+        pool_index = method_entry->constant_pool_index();
       } else {
         report_error("no dynamic invoke found");
         return nullptr;
@@ -844,9 +837,7 @@ class CompileReplay : public StackObj {
     // method to be rewritten (number of arguments at a call for instance)
     method->method_holder()->link_class(CHECK);
     assert(method->method_data() == nullptr, "Should only be initialized once");
-    ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
-    MethodData* method_data = MethodData::allocate(loader_data, methodHandle(THREAD, method), CHECK);
-    method->set_method_data(method_data);
+    method->build_profiling_method_data(methodHandle(THREAD, method), CHECK);
 
     // collect and record all the needed information for later
     ciMethodDataRecord* rec = new_ciMethodData(method);
@@ -1091,7 +1082,6 @@ class CompileReplay : public StackObj {
       }
       case T_ARRAY:
       case T_OBJECT:
-      case T_PRIMITIVE_OBJECT:
         if (!fd->is_null_free_inline_type()) {
           JavaThread* THREAD = JavaThread::current();
           bool res = _replay->process_staticfield_reference(string_value, _vt, fd, THREAD);
@@ -1158,8 +1148,7 @@ class CompileReplay : public StackObj {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           parse_klass(CHECK_(true)); // eat up the array class name
           value = oopFactory::new_objArray(kelem, length, CHECK_(true));
-        } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
-                   field_signature[1] == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
+        } else if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           parse_klass(CHECK_(true)); // eat up the array class name
           value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
@@ -1248,7 +1237,7 @@ class CompileReplay : public StackObj {
       const char* string_value = parse_escaped_string();
       double value = atof(string_value);
       java_mirror->double_field_put(fd.offset(), value);
-    } else if (field_signature[0] == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
+    } else if (fd.is_null_free_inline_type()) {
       Klass* kelem = resolve_klass(field_signature, CHECK);
       InlineKlass* vk = InlineKlass::cast(kelem);
       oop value = vk->allocate_instance(CHECK);

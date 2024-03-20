@@ -54,10 +54,10 @@ class ArrayKlass: public Klass {
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
   ArrayKlass(Symbol* name, KlassKind kind);
-  ArrayKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
+  ArrayKlass();
 
   // Create array_name for element klass
-  static Symbol* create_element_klass_array_name(Klass* element_klass, bool qdesc, TRAPS);
+  static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
 
  public:
   // Instance variables
@@ -73,6 +73,14 @@ class ArrayKlass: public Klass {
 
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
+
+  // Returns the ObjArrayKlass for n'th dimension.
+  ArrayKlass* array_klass(int n, TRAPS);
+  ArrayKlass* array_klass_or_null(int n);
+
+  // Returns the array class with this class as element type.
+  ArrayKlass* array_klass(TRAPS);
+  ArrayKlass* array_klass_or_null();
 
   // Instance variables
   int dimension() const                 { return _dimension;      }

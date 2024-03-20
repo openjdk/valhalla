@@ -35,29 +35,29 @@ import com.sun.tools.classfile.*;
 
 public class NontrivialCtorInducedIdentity {
 
-    public static abstract class A0 { // Trivial constructor - no induced identity.
+    public static abstract class A0 { // ACC_IDENTITY
         public A0() {
             super();
         }
     }
 
-    public static abstract class A1 {
-        private A1() {} // restricted constructor
+    public static abstract class A1 { // ACC_IDENTITY
+        private A1() {}
     }
 
-    public static abstract class A2 {
-        public <T> A2() {} // generic constructor
+    public static abstract class A2 { // ACC_IDENTITY
+        public <T> A2() {}
     }
 
-    public static abstract class A3 {
-        public A3() throws RuntimeException {} // throws
+    public static abstract class A3 { // ACC_IDENTITY
+        public A3() throws RuntimeException {}
     }
 
-    public static abstract class A4 {
-        public A4(int x) {} // not no-arg
+    public static abstract class A4 { // ACC_IDENTITY
+        public A4(int x) {}
     }
 
-    public static abstract class A5 {
+    public static abstract class A5 { // ACC_IDENTITY
         public A5() {
             System.out.println("Bodied constructor");
         }
@@ -65,8 +65,8 @@ public class NontrivialCtorInducedIdentity {
 
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(NontrivialCtorInducedIdentity.class.getResourceAsStream("NontrivialCtorInducedIdentity$A0.class"));
-        if (cls.access_flags.is(AccessFlags.ACC_IDENTITY))
-            throw new Exception("ACC_IDENTITY flag should NOT be set!");
+        if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))
+            throw new Exception("ACC_IDENTITY flag should be set!");
 
         cls = ClassFile.read(NontrivialCtorInducedIdentity.class.getResourceAsStream("NontrivialCtorInducedIdentity$A1.class"));
         if (!cls.access_flags.is(AccessFlags.ACC_IDENTITY))

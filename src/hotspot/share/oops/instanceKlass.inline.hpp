@@ -64,28 +64,33 @@ inline InstanceKlass* volatile* InstanceKlass::adr_implementor() const {
 }
 
 inline InlineKlass* InstanceKlass::get_inline_type_field_klass(int idx) const {
-  assert(_inline_type_field_klasses != nullptr, "array must have been created");
-  assert(_inline_type_field_klasses->at(idx) != nullptr, "must not be null");
-  InlineKlass* k = _inline_type_field_klasses->at(idx);
+  assert(has_inline_type_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
+  InlineKlass* k = inline_type_field_klasses_array()->at(idx);
   assert(k != nullptr, "Should always be set before being read");
   return k;
 }
 
 inline InlineKlass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) const {
-  assert(_inline_type_field_klasses != nullptr, "array must have been created");
-  return _inline_type_field_klasses->at(idx);
+  assert(has_inline_type_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
+  InlineKlass* k = inline_type_field_klasses_array()->at(idx);
+  return k;
 }
 
 inline void InstanceKlass::set_inline_type_field_klass(int idx, InlineKlass* k) {
+  assert(has_inline_type_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
   assert(k != nullptr, "Should not be set to nullptr");
-  assert(_inline_type_field_klasses != nullptr, "array must have been created");
-  assert(_inline_type_field_klasses->at(idx) == nullptr, "Should not be set twice");
-  _inline_type_field_klasses->at_put(idx, k);
+  assert(inline_type_field_klasses_array() != nullptr, "array must have been created");
+  assert(inline_type_field_klasses_array()->at(idx) == nullptr, "Should not be set twice");
+  inline_type_field_klasses_array()->at_put(idx, k);
 }
 
 inline void InstanceKlass::reset_inline_type_field_klass(int idx) {
-  assert(_inline_type_field_klasses != nullptr, "array must have been created");
-  _inline_type_field_klasses->at_put(idx, nullptr);
+  assert(has_inline_type_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
+  inline_type_field_klasses_array()->at_put(idx, nullptr);
 }
 
 

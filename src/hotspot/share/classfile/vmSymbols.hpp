@@ -145,6 +145,7 @@ class SerializeClosure;
   template(java_util_Vector,                          "java/util/Vector")                         \
   template(java_util_AbstractList,                    "java/util/AbstractList")                   \
   template(java_util_Hashtable,                       "java/util/Hashtable")                      \
+  template(java_util_DualPivotQuicksort,              "java/util/DualPivotQuicksort")             \
   template(java_lang_Compiler,                        "java/lang/Compiler")                       \
   template(jdk_internal_misc_Signal,                  "jdk/internal/misc/Signal")                 \
   template(jdk_internal_util_Preconditions,           "jdk/internal/util/Preconditions")          \
@@ -394,7 +395,6 @@ class SerializeClosure;
   /* common method and field names */                                                             \
   template(object_initializer_name,                   "<init>")                                   \
   template(class_initializer_name,                    "<clinit>")                                 \
-  template(inline_factory_name,                       "<vnew>")                                   \
   template(println_name,                              "println")                                  \
   template(printStackTrace_name,                      "printStackTrace")                          \
   template(getStackTrace_name,                        "getStackTrace")                            \
@@ -804,6 +804,7 @@ class SerializeClosure;
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
   template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
   template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
+  template(jdk_internal_value_ValueClass,                   "jdk/internal/value/ValueClass")                      \
                                                                                                                   \
   /* Thread.dump_to_file jcmd */                                                                                  \
   template(jdk_internal_vm_ThreadDumper,           "jdk/internal/vm/ThreadDumper")                                \
