@@ -76,6 +76,14 @@ public class TestArrays {
 
     // Helper methods and classes
 
+    static class NonValueClass {
+        int x;
+
+        public NonValueClass(int x) {
+            this.x = x;
+        }
+    }
+
     protected long hash() {
         return hash(rI, rL);
     }
@@ -1886,18 +1894,18 @@ public class TestArrays {
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
         failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
     public Object test79(Object[] array, int i) {
-        Integer i1 = (Integer)array[0];
+        NonValueClass i1 = (NonValueClass)array[0];
         Object o = array[1];
         return array[i];
     }
 
     @Run(test = "test79")
     public void test79_verifier() {
-        Integer i = Integer.valueOf(rI);
-        Integer[] array = new Integer[2];
-        array[1] = i;
+        NonValueClass obj = new NonValueClass(rI);
+        NonValueClass[] array = new NonValueClass[2];
+        array[1] = obj;
         Object result = test79(array, 1);
-        Asserts.assertEquals(result, i);
+        Asserts.assertEquals(result, obj);
     }
 
     // Same as test79 but with not-flattenable value class
@@ -1924,7 +1932,7 @@ public class TestArrays {
     // Verify that writing an object of a non-inline, non-null type to an array marks the array as not-null-free and not-flat
     @Test
     @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
-    public Object test81(Object[] array, Integer v, Object o, int i) {
+    public Object test81(Object[] array, NonValueClass v, Object o, int i) {
         if (v == null) {
           return null;
         }
@@ -1936,19 +1944,19 @@ public class TestArrays {
 
     @Run(test = "test81")
     public void test81_verifier() {
-        Integer i = Integer.valueOf(rI);
-        Integer[] array1 = new Integer[3];
+        NonValueClass obj = new NonValueClass(rI);
+        NonValueClass[] array1 = new NonValueClass[3];
         Object[] array2 = new Object[3];
-        Object result = test81(array1, i, i, 0);
-        Asserts.assertEquals(array1[0], i);
-        Asserts.assertEquals(array1[1], i);
-        Asserts.assertEquals(array1[2], i);
-        Asserts.assertEquals(result, i);
-        result = test81(array2, i, i, 1);
-        Asserts.assertEquals(array2[0], i);
-        Asserts.assertEquals(array2[1], i);
-        Asserts.assertEquals(array2[2], i);
-        Asserts.assertEquals(result, i);
+        Object result = test81(array1, obj, obj, 0);
+        Asserts.assertEquals(array1[0], obj);
+        Asserts.assertEquals(array1[1], obj);
+        Asserts.assertEquals(array1[2], obj);
+        Asserts.assertEquals(result, obj);
+        result = test81(array2, obj, obj, 1);
+        Asserts.assertEquals(array2[0], obj);
+        Asserts.assertEquals(array2[1], obj);
+        Asserts.assertEquals(array2[2], obj);
+        Asserts.assertEquals(result, obj);
     }
 
     // Verify that writing an object of a non-flattenable value class to an array marks the array as not-flat
@@ -1989,17 +1997,17 @@ public class TestArrays {
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
             failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public void test83(Object[] array, Object o) {
-        Integer i = (Integer)array[0];
+        NonValueClass i = (NonValueClass)array[0];
         array[1] = o;
     }
 
     @Run(test = "test83")
     public void test83_verifier() {
-        Integer i = Integer.valueOf(rI);
-        Integer[] array1 = new Integer[2];
+        NonValueClass obj = new NonValueClass(rI);
+        NonValueClass[] array1 = new NonValueClass[2];
         Object[] array2 = new Object[2];
-        test83(array1, i);
-        Asserts.assertEquals(array1[1], i);
+        test83(array1, obj);
+        Asserts.assertEquals(array1[1], obj);
         test83(array2, null);
         Asserts.assertEquals(array2[1], null);
     }
@@ -2870,14 +2878,14 @@ public class TestArrays {
     @IR(counts = {CLASS_CHECK_TRAP, "= 1"},
         failOn = INTRINSIC_SLOW_PATH)
     public Object[] test120(Object[] src) {
-        return Arrays.copyOf(src, 8, Integer[].class);
+        return Arrays.copyOf(src, 8, NonValueClass[].class);
     }
 
     @Run(test = "test120")
     public void test120_verifier() {
-        Integer[] arr = new Integer[8];
+        NonValueClass[] arr = new NonValueClass[8];
         for (int i = 0; i < 8; ++i) {
-            arr[i] = rI + i;
+            arr[i] = new NonValueClass(rI + i);
         }
         Object[] res = test120(arr);
         verify(arr, res);
