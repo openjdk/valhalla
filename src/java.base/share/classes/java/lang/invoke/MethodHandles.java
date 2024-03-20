@@ -35,7 +35,6 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.util.ClassFileDumper;
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import sun.invoke.util.ValueConversions;
 import sun.invoke.util.VerifyAccess;
@@ -706,7 +705,7 @@ public class MethodHandles {
      * (See the Java Virtual Machine Specification, section {@jvms 4.10.1.9}.)
      * <p>
      * The JVM represents constructors and static initializer blocks as internal methods
-     * with special names ({@value ConstantDescs#INIT_NAME}, and {@value
+     * with special names ({@value ConstantDescs#INIT_NAME} and {@value
      * ConstantDescs#CLASS_INIT_NAME}).
      * The internal syntax of invocation instructions allows them to refer to such internal
      * methods as if they were normal methods, but the JVM bytecode verifier rejects them.
@@ -3519,10 +3518,10 @@ return mh1;
          */
         public MethodHandle unreflectConstructor(Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructor());
+            assert(ctor.isConstructor());
             @SuppressWarnings("deprecation")
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
-            return lookup.getDirectConstructorNoSecurityManager(c.getDeclaringClass(), ctor);
+            return lookup.getDirectConstructorNoSecurityManager(ctor.getDeclaringClass(), ctor);
         }
 
         /*
@@ -3533,7 +3532,7 @@ return mh1;
          */
         /* package-private */ MethodHandle serializableConstructor(Class<?> decl, Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructor() && constructorInSuperclass(decl, c));
+            assert(ctor.isConstructor() && constructorInSuperclass(decl, c));
             checkAccess(REF_newInvokeSpecial, decl, ctor);
             assert(!MethodHandleNatives.isCallerSensitive(ctor));  // maybeBindCaller not relevant here
             return DirectMethodHandle.makeAllocator(decl, ctor).setVarargs(ctor);
@@ -3797,7 +3796,6 @@ return mh1;
             if (name.startsWith("<") && refKind != REF_newInvokeSpecial) {
                 return null;
             }
-
             return IMPL_NAMES.resolveOrNull(refKind, new MemberName(refc, name, type, refKind), lookupClassOrNull(), allowedModes);
         }
 
@@ -3820,7 +3818,7 @@ return mh1;
         /** Check name for an illegal leading "&lt;" character. */
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
             if (name.startsWith("<") && refKind != REF_newInvokeSpecial)
-                throw new NoSuchMethodException("illegal method name: " + name + " ref kind " + refKind);
+                throw new NoSuchMethodException("illegal method name: "+name);
         }
 
         /**
@@ -3932,7 +3930,7 @@ return mh1;
         void checkMethod(byte refKind, Class<?> refc, MemberName m) throws IllegalAccessException {
             boolean wantStatic = (refKind == REF_invokeStatic);
             String message;
-            if (m.isObjectConstructor())
+            if (m.isConstructor())
                 message = "expected a method, not a constructor";
             else if (!m.isMethod())
                 message = "expected a method";
@@ -4241,7 +4239,7 @@ return mh1;
         /** Common code for all constructors; do not call directly except from immediately above. */
         private MethodHandle getDirectConstructorCommon(Class<?> refc, MemberName ctor,
                                                   boolean checkSecurity) throws IllegalAccessException {
-            assert(ctor.isObjectConstructor());
+            assert(ctor.isConstructor());
             checkAccess(REF_newInvokeSpecial, refc, ctor);
             // Optionally check with the security manager; this isn't needed for unreflect* calls.
             if (checkSecurity)
@@ -5227,7 +5225,7 @@ assert((int)twice.invokeExact(21) == 42);
 
     private static final MethodHandle[] IDENTITY_MHS = new MethodHandle[Wrapper.COUNT];
     private static MethodHandle makeIdentity(Class<?> ptype) {
-        MethodType mtype = MethodType.methodType(ptype, ptype);
+        MethodType mtype = methodType(ptype, ptype);
         LambdaForm lform = LambdaForm.identityForm(BasicType.basicType(ptype));
         return MethodHandleImpl.makeIntrinsic(mtype, lform, Intrinsic.IDENTITY);
     }

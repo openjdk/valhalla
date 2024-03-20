@@ -22,6 +22,9 @@
  */
 
 // key: compiler.err.cant.ref.before.ctor.called
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version}
 
 value class ThisExposedPrematurely {
     int x;

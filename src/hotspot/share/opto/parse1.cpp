@@ -611,8 +611,9 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
-      set_local(i, vt);
+      bool is_larval = (i == 0) && method()->is_object_constructor() && method()->intrinsic_id() != vmIntrinsics::_Object_init;
+      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
+      replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flat)
@@ -621,6 +622,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
+      // TODO 8325106 Shouldn't we use replace_in_map here?
       set_local(i, cast);
     }
   }
@@ -933,19 +935,15 @@ void Compile::return_values(JVMState* jvms) {
       } else {
         // Return the tagged klass pointer to signal scalarization to the caller
         Node* tagged_klass = vt->tagged_klass(kit.gvn());
-        // if (!method()->signature()->returns_null_free_inline_type()) {
-        if (!false) { // JDK-8325660: revisit this code after removal of Q-descriptors
-          // Return null if the inline type is null (IsInit field is not set)
-          Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
-          Node* shl    = kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
-          Node* shr    = kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));
-          tagged_klass = kit.gvn().transform(new AndLNode(tagged_klass, shr));
-        }
+        // Return null if the inline type is null (IsInit field is not set)
+        Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
+        Node* shl    = kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
+        Node* shr    = kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));
+        tagged_klass = kit.gvn().transform(new AndLNode(tagged_klass, shr));
         ret->init_req(TypeFunc::Parms, tagged_klass);
       }
       uint idx = TypeFunc::Parms + 1;
-      // vt->pass_fields(&kit, ret, idx, false, method()->signature()->returns_null_free_inline_type());
-      vt->pass_fields(&kit, ret, idx, false, false); // JDK-8325660: revisit this code after removal of Q-descriptors
+      vt->pass_fields(&kit, ret, idx, false, false);
     } else {
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.
@@ -1073,7 +1071,7 @@ void Parse::do_exits() {
   // such unusual early publications.  But no barrier is needed on
   // exceptional returns, since they cannot publish normally.
   //
-  if (method()->is_object_constructor_or_class_initializer() &&
+  if ((method()->is_object_constructor() || method()->is_class_initializer()) &&
        (wrote_final() ||
          (AlwaysSafeConstructors && wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
@@ -2369,12 +2367,12 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeInstPtr* tr = return_type->isa_instptr();
+    assert(!value->is_InlineType() || !value->as_InlineType()->is_larval(), "returning a larval");
     if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
         return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
-        // value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), false); // JDK-8325660: revisit this code after removal of Q-descriptors
+        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), false);
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flat

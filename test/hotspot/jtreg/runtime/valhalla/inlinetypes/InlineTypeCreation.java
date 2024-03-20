@@ -32,8 +32,9 @@ import jdk.test.lib.Asserts;
  * @summary Inline Type creation test
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile InlineTypeCreation.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.InlineTypeCreation
+ * @run main/othervm runtime.valhalla.inlinetypes.InlineTypeCreation
  */
 public class InlineTypeCreation {
     public static void main(String[] args) {

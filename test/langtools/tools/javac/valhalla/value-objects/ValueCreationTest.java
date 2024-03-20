@@ -25,6 +25,7 @@
  * @test
  * @summary Check code generation for value creation ops
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
+ * @enablePreview
  * @run main ValueCreationTest
  */
 

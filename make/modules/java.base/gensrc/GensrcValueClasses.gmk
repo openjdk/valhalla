@@ -27,6 +27,16 @@
 # Generate the value class replacements for selected java.base source files
 
 java.base-VALUE_CLASS-REPLACEMENTS := \
+    java/lang/Byte.java \
+    java/lang/Short.java \
+    java/lang/Integer.java \
+    java/lang/Long.java \
+    java/lang/Float.java \
+    java/lang/Double.java \
+    java/lang/Boolean.java \
+    java/lang/Character.java \
+    java/lang/Number.java \
+    java/lang/Record.java \
     java/util/Optional.java \
     java/util/OptionalInt.java \
     java/util/OptionalLong.java \
@@ -43,7 +53,6 @@ java.base-VALUE_CLASS-REPLACEMENTS := \
     java/time/YearMonth.java \
     java/time/Year.java \
     java/time/Period.java \
-    java/lang/Record.java \
     #
 
 java.base-VALUE-CLASS-FILES := \

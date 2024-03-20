@@ -3029,7 +3029,8 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     InstanceKlass* holder = _method->method_holder();
     int arg_num = 0;
     if (!_method->is_static()) {
-      if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() &&
+      // We shouldn't scalarize 'this' in a value class constructor
+      if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() && !_method->is_object_constructor() &&
           (init || _method->is_scalarized_arg(arg_num))) {
         _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
         has_scalarized = true;

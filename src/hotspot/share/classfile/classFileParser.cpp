@@ -4351,7 +4351,7 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 bool ClassFileParser::supports_inline_types() const {
   // Inline types are only supported by class file version 61.65535 and later
   return _major_version > JAVA_22_VERSION ||
-         (_major_version == JAVA_22_VERSION /*&& _minor_version == JAVA_PREVIEW_MINOR_VERSION*/); // JAVA_PREVIEW_MINOR_VERSION not yet implemented by javac, check JVMS draft
+         (_major_version == JAVA_22_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
@@ -4660,7 +4660,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
     return;
   }
 
-  // if (!_need_verify) { return; }
+  if (!_need_verify) { return; }
 
   const bool is_interface  = (flags & JVM_ACC_INTERFACE)  != 0;
   const bool is_abstract   = (flags & JVM_ACC_ABSTRACT)   != 0;
@@ -4673,8 +4673,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
       (is_interface && major_gte_1_5 && (is_identity || is_enum)) ||   //  ACC_SUPER (now ACC_IDENTITY) was illegal for interfaces
-      (!is_interface && major_gte_1_5 && is_annotation) ||
-      (!is_identity_class && is_enum)) {
+      (!is_interface && major_gte_1_5 && is_annotation)) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
     if (!is_identity_class)  class_note = " (a value class)";
@@ -6045,6 +6044,17 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     flags |= JVM_ACC_ABSTRACT;
   }
 
+  // Fixing ACC_SUPER/ACC_IDENTITY for old class files
+  if (EnableValhalla) {
+    if (!supports_inline_types()) {
+      const bool is_module = (flags & JVM_ACC_MODULE) != 0;
+      const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
+      if (!is_module && !is_interface) {
+        flags |= JVM_ACC_IDENTITY;
+      }
+    }
+  }
+
   // This class and superclass
   _this_class_index = stream->get_u2_fast();
   check_property(
@@ -6059,16 +6069,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   bool is_java_lang_Object = class_name_in_cp == vmSymbols::java_lang_Object();
 
   verify_legal_class_modifiers(flags, nullptr, is_java_lang_Object, CHECK);
-
-  if (EnableValhalla) {
-    if(!supports_inline_types()) {
-      const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-      const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
-      if (!is_module && !is_interface && !is_java_lang_Object) {
-        flags |= JVM_ACC_IDENTITY;
-      }
-    }
-  }
 
   _access_flags.set_flags(flags);
 

@@ -53,6 +53,7 @@ public class TestValueClasses extends JavadocTester {
                 "package p; public value class ValueClass {}");
 
         javadoc("-d", base.resolve("out").toString(),
+                "--enable-preview", "-source", String.valueOf(Runtime.version().feature()),
                 "-sourcepath", src.toString(),
                 "p");
         checkExit(Exit.OK);

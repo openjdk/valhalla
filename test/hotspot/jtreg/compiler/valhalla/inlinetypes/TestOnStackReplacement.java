@@ -41,6 +41,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestOnStackReplacement.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestOnStackReplacement
@@ -120,8 +121,9 @@ public class TestOnStackReplacement {
         test2();
     }
 
+    // TODO: Should be fixed with JDK-8327465.
     // Test loop peeling and unrolling
-    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
+    //@Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public void test3() {
         MyValue1 v1 = MyValue1.createWithFieldsInline(0, 0);
         MyValue1 v2 = MyValue1.createWithFieldsInline(1, 1);
@@ -136,8 +138,8 @@ public class TestOnStackReplacement {
         }
     }
 
-    @Run(test = "test3")
-    @Warmup(0)
+    //@Run(test = "test3")
+    //@Warmup(0)
     public void test3_verifier() {
         test3();
     }

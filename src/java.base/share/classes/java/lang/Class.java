@@ -546,8 +546,8 @@ public final class Class<T> implements java.io.Serializable,
 
     /** Called after security check for system loader access checks have been made. */
     private static native Class<?> forName0(String name, boolean initialize,
-                                    ClassLoader loader,
-                                    Class<?> caller)
+                                            ClassLoader loader,
+                                            Class<?> caller)
         throws ClassNotFoundException;
 
 
@@ -1425,8 +1425,6 @@ public final class Class<T> implements java.io.Serializable,
      * {@code private}, {@code final}, {@code static},
      * {@code abstract} and {@code interface}; they should be decoded
      * using the methods of class {@code Modifier}.
-     * The modifiers also include the Java Virtual Machine's constants for
-     * {@code identity class} and {@code value class}.
      *
      * <p> If the underlying class is an array class:
      * <ul>
@@ -1659,10 +1657,9 @@ public final class Class<T> implements java.io.Serializable,
             return enclosingClass == null || name == null || descriptor == null;
         }
 
-        boolean isObjectConstructor() { return !isPartial() && ConstantDescs.INIT_NAME.equals(name); }
+        boolean isConstructor() { return !isPartial() && ConstantDescs.INIT_NAME.equals(name); }
 
-        boolean isMethod() { return !isPartial() && !isObjectConstructor()
-                                        && !ConstantDescs.CLASS_INIT_NAME.equals(name); }
+        boolean isMethod() { return !isPartial() && !isConstructor() && !ConstantDescs.CLASS_INIT_NAME.equals(name); }
 
         Class<?> getEnclosingClass() { return enclosingClass; }
 
@@ -1719,7 +1716,7 @@ public final class Class<T> implements java.io.Serializable,
         if (enclosingInfo == null)
             return null;
         else {
-            if (!enclosingInfo.isObjectConstructor())
+            if (!enclosingInfo.isConstructor())
                 return null;
 
             ConstructorRepository typeInfo = ConstructorRepository.make(enclosingInfo.getDescriptor(),
@@ -4655,8 +4652,7 @@ public final class Class<T> implements java.io.Serializable,
 
         if (isArray()) {
             return "[" + componentType.descriptorString();
-        }
-        if (isHidden()) {
+        } else if (isHidden()) {
             String name = getName();
             int index = name.indexOf('/');
             return new StringBuilder(name.length() + 2)

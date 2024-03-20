@@ -21,28 +21,31 @@
  * questions.
  */
 
+// TODO 8325106 Fix and enable _arraycopy intrinsic for this test (fails with -XX:-TieredCompilation). We need more test coverage because other tests don't seem to trigger the failure.
+
 /**
  * @test
  * @bug 8252506
  * @summary Verify that arraycopy intrinsics properly handle flat value class arrays with oop fields.
  * @library /test/lib
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestArrayCopyWithOops.java
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions -XX:DisableIntrinsic=_arraycopy
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions -XX:DisableIntrinsic=_arraycopy
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch -XX:FlatArrayElementMaxSize=0
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions -XX:DisableIntrinsic=_arraycopy
  *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops

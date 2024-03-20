@@ -33,8 +33,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
+ * @enablePreview
  * @compile Test8186715.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.Test8186715
+ * @run main/othervm runtime.valhalla.inlinetypes.Test8186715
  */
 
 public class Test8186715 {

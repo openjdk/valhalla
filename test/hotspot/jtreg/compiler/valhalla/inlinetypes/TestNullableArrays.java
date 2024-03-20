@@ -45,6 +45,7 @@ import java.util.Arrays;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestNullableArrays.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestNullableArrays
@@ -1650,18 +1651,18 @@ public class TestNullableArrays {
     @Run(test = "test61")
     public void test61_verifier() {
         int len = Math.abs(rI) % 10;
-        Object[] va = new Integer[len];
+        Object[] va = new NonValueClass[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = Integer.valueOf(rI);
+            va[i] = new NonValueClass(rI);
         }
-        Object[] result = test61(va, Integer[].class);
+        Object[] result = test61(va, NonValueClass[].class);
         for (int i = 0; i < va.length; ++i) {
             Asserts.assertEQ(va[i], result[i]);
         }
     }
 
     @ForceInline
-    public Object[] test62_helper(int i, MyValue1[] va, Integer[] oa) {
+    public Object[] test62_helper(int i, MyValue1[] va, NonValueClass[] oa) {
         Object[] arr = null;
         if (i == 10) {
             arr = oa;
@@ -1672,7 +1673,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    public Object[] test62(MyValue1[] va, Integer[] oa) {
+    public Object[] test62(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
 
@@ -1685,9 +1686,9 @@ public class TestNullableArrays {
     public void test62_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
-        Integer[] oa = new Integer[len];
+        NonValueClass[] oa = new NonValueClass[len];
         for (int i = 1; i < len; ++i) {
-            oa[i] = Integer.valueOf(rI);
+            oa[i] = new NonValueClass(rI);
         }
         test62_helper(42, va, oa);
         Object[] result = test62(va, oa);
@@ -1697,7 +1698,7 @@ public class TestNullableArrays {
     }
 
     @ForceInline
-    public Object[] test63_helper(int i, MyValue1[] va, Integer[] oa) {
+    public Object[] test63_helper(int i, MyValue1[] va, NonValueClass[] oa) {
         Object[] arr = null;
         if (i == 10) {
             arr = va;
@@ -1708,7 +1709,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    public Object[] test63(MyValue1[] va, Integer[] oa) {
+    public Object[] test63(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
 
@@ -1726,7 +1727,7 @@ public class TestNullableArrays {
             va[i] = testValue1;
             verif[i] = va[i];
         }
-        Integer[] oa = new Integer[len];
+        NonValueClass[] oa = new NonValueClass[len];
         test63_helper(42, va, oa);
         Object[] result = test63(va, oa);
         verify(verif, result);
@@ -1923,7 +1924,7 @@ public class TestNullableArrays {
 
     // Some more array clone tests
     @ForceInline
-    public Object[] test74_helper(int i, MyValue1[] va, Integer[] oa) {
+    public Object[] test74_helper(int i, MyValue1[] va, NonValueClass[] oa) {
         Object[] arr = null;
         if (i == 10) {
             arr = oa;
@@ -1934,7 +1935,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    public Object[] test74(MyValue1[] va, Integer[] oa) {
+    public Object[] test74(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
 
@@ -1946,9 +1947,9 @@ public class TestNullableArrays {
     public void test74_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
-        Integer[] oa = new Integer[len];
+        NonValueClass[] oa = new NonValueClass[len];
         for (int i = 1; i < len; ++i) {
-            oa[i] = Integer.valueOf(rI);
+            oa[i] = new NonValueClass(rI);
         }
         test74_helper(42, va, oa);
         Object[] result = test74(va, oa);
@@ -1961,7 +1962,7 @@ public class TestNullableArrays {
     }
 
     @ForceInline
-    public Object[] test75_helper(int i, MyValue1[] va, Integer[] oa) {
+    public Object[] test75_helper(int i, MyValue1[] va, NonValueClass[] oa) {
         Object[] arr = null;
         if (i == 10) {
             arr = va;
@@ -1972,7 +1973,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    public Object[] test75(MyValue1[] va, Integer[] oa) {
+    public Object[] test75(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
 
@@ -1989,7 +1990,7 @@ public class TestNullableArrays {
             va[i] = testValue1;
             verif[i] = va[i];
         }
-        Integer[] oa = new Integer[len];
+        NonValueClass[] oa = new NonValueClass[len];
         test75_helper(42, va, oa);
         Object[] result = test75(va, oa);
         verify(verif, result);
@@ -2093,7 +2094,7 @@ public class TestNullableArrays {
         } else if (n == 3) {
             result = new MyValue1[42];
         } else if (n == 4) {
-            result = new Integer[42];
+            result = new NonValueClass[42];
         }
         result[0] = val;
         out[0] = result[1];
@@ -2103,7 +2104,7 @@ public class TestNullableArrays {
     @Run(test = "test78")
     public void test78_verifier() {
         MyValue1 vt = testValue1;
-        Integer i = Integer.valueOf(42);
+        NonValueClass obj = new NonValueClass(42);
         Object[] out = new Object[1];
         MyValue1[] vva = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
         MyValue1[] vva_r = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
@@ -2123,8 +2124,8 @@ public class TestNullableArrays {
         result = test78(vva, vba, vt, out, 3);
         verify(result, vba_r);
         Asserts.assertEQ(out[0], vba_r[1]);
-        result = test78(vva, vba, i, out, 4);
-        Asserts.assertEQ(result[0], i);
+        result = test78(vva, vba, obj, out, 4);
+        Asserts.assertEQ(result[0], obj);
         Asserts.assertEQ(out[0], null);
     }
 
@@ -2414,7 +2415,7 @@ public class TestNullableArrays {
         MyValue1[] vab = new MyValue1[1];
         try {
           // Trigger some ClassCastExceptions so C2 does not add an uncommon trap
-          test90(new Integer[0]);
+          test90(new NonValueClass[0]);
         } catch (ClassCastException cce) {
           // Expected
         }
@@ -2434,7 +2435,7 @@ public class TestNullableArrays {
         MyValue1[] vab = new MyValue1[1];
         try {
           // Trigger some ClassCastExceptions so C2 does not add an uncommon trap
-          test91(new Integer[0]);
+          test91(new NonValueClass[0]);
         } catch (ClassCastException cce) {
           // Expected
         }
@@ -2588,10 +2589,11 @@ public class TestNullableArrays {
         Object obj = new Object();
         Object result = test97(obj);
         Asserts.assertEquals(result, obj);
-        Integer[] myInt = new Integer[1];
-        myInt[0] = rI;
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        myInt[0] = otherObj;
         result = test97((Object[])myInt);
-        Asserts.assertEquals(result, rI);
+        Asserts.assertEquals(result, otherObj);
     }
 
     @Test
@@ -2604,10 +2606,11 @@ public class TestNullableArrays {
         Object obj = new Object();
         Object result = test98(obj);
         Asserts.assertEquals(result, obj);
-        Integer[] myInt = new Integer[1];
-        myInt[0] = rI;
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        myInt[0] = otherObj;
         result = test98((Object[])myInt);
-        Asserts.assertEquals(result, rI);
+        Asserts.assertEquals(result, otherObj);
         if (!info.isWarmUp()) {
             MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
             MyValue1[] vab = new MyValue1[1];
@@ -2628,10 +2631,11 @@ public class TestNullableArrays {
         Object obj = new Object();
         Object result = test99(obj);
         Asserts.assertEquals(result, obj);
-        Integer[] myInt = new Integer[1];
-        myInt[0] = rI;
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        myInt[0] = otherObj;
         result = test99((Object[])myInt);
-        Asserts.assertEquals(result, rI);
+        Asserts.assertEquals(result, otherObj);
         if (!info.isWarmUp()) {
             try {
                 test99((Object[])null);
@@ -2652,10 +2656,11 @@ public class TestNullableArrays {
         Object obj = new Object();
         Object result = test100(obj);
         Asserts.assertEquals(result, obj);
-        Integer[] myInt = new Integer[1];
-        myInt[0] = rI;
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        myInt[0] = otherObj;
         result = test100((Object[])myInt);
-        Asserts.assertEquals(result, rI);
+        Asserts.assertEquals(result, otherObj);
         if (!info.isWarmUp()) {
             try {
                 test100();
@@ -2677,9 +2682,10 @@ public class TestNullableArrays {
     public static void test101_verifier() {
         Object obj = new Object();
         test101(obj, obj);
-        Integer[] myInt = new Integer[1];
-        test101(rI, (Object[])myInt);
-        Asserts.assertEquals(myInt[0], rI);
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        test101(otherObj, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], otherObj);
         test101(null, (Object[])myInt);
         Asserts.assertEquals(myInt[0], null);
     }
@@ -2693,9 +2699,10 @@ public class TestNullableArrays {
     public static void test102_verifier(RunInfo info) {
         Object obj = new Object();
         test102(obj, obj);
-        Integer[] myInt = new Integer[1];
-        test102(rI, (Object[])myInt);
-        Asserts.assertEquals(myInt[0], rI);
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        test102(otherObj, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], otherObj);
         test102(null, (Object[])myInt);
         Asserts.assertEquals(myInt[0], null);
         if (!info.isWarmUp()) {
@@ -2719,9 +2726,10 @@ public class TestNullableArrays {
     public static void test103_verifier(RunInfo info) {
         Object obj = new Object();
         test103(obj, obj);
-        Integer[] myInt = new Integer[1];
-        test103(rI, (Object[])myInt);
-        Asserts.assertEquals(myInt[0], rI);
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        test103(otherObj, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], otherObj);
         test103(null, (Object[])myInt);
         Asserts.assertEquals(myInt[0], null);
         if (!info.isWarmUp()) {
@@ -2744,9 +2752,10 @@ public class TestNullableArrays {
     public static void test104_verifier(RunInfo info) {
         Object obj = new Object();
         test104(obj, obj);
-        Integer[] myInt = new Integer[1];
-        test104(rI, (Object[])myInt);
-        Asserts.assertEquals(myInt[0], rI);
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        test104(otherObj, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], otherObj);
         test104(null, (Object[])myInt);
         Asserts.assertEquals(myInt[0], null);
         if (!info.isWarmUp()) {
@@ -2768,9 +2777,10 @@ public class TestNullableArrays {
     public static void test105_verifier(RunInfo info) {
         Object obj = new Object();
         test105(obj, obj);
-        Integer[] myInt = new Integer[1];
-        test105(rI, (Object[])myInt);
-        Asserts.assertEquals(myInt[0], rI);
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        test105(otherObj, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], otherObj);
         test105(null, (Object[])myInt);
         Asserts.assertEquals(myInt[0], null);
         if (!info.isWarmUp()) {
@@ -2804,10 +2814,11 @@ public class TestNullableArrays {
         Object obj = new Object();
         Object[] result = test106(dst, obj);
         Asserts.assertEquals(result[0], obj);
-        Integer[] myInt = new Integer[1];
-        myInt[0] = rI;
+        NonValueClass[] myInt = new NonValueClass[1];
+        NonValueClass otherObj = new NonValueClass(rI);
+        myInt[0] = otherObj;
         result = test106(myInt, (Object[])myInt);
-        Asserts.assertEquals(result[0], rI);
+        Asserts.assertEquals(result[0], otherObj);
         if (!info.isWarmUp()) {
             MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
             MyValue1[] vab = new MyValue1[1];

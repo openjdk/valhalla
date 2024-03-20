@@ -36,7 +36,6 @@ import static java.util.Objects.requireNonNull;
  */
 final class ClassDescImpl implements ClassDesc {
     private final String descriptor;
-    private final boolean isValue;
 
     /**
      * Creates a {@linkplain ClassDesc} from a descriptor string for a class or
@@ -54,7 +53,6 @@ final class ClassDescImpl implements ClassDesc {
             || len != descriptor.length())
             throw new IllegalArgumentException(String.format("not a valid reference type descriptor: %s", descriptor));
         this.descriptor = descriptor;
-        this.isValue = ConstantUtils.basicType(descriptor, 0, descriptor.length(), false) == 'Q';
     }
 
     @Override

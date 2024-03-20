@@ -77,7 +77,7 @@ sealed class DirectMethodHandle extends MethodHandle {
     static DirectMethodHandle make(byte refKind, Class<?> refc, MemberName member, Class<?> callerClass) {
         MethodType mtype = member.getMethodOrFieldType();
         if (!member.isStatic()) {
-            if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isObjectConstructor())
+            if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isConstructor())
                 throw new InternalError(member.toString());
             mtype = mtype.insertParameterTypes(0, refc);
         }
@@ -127,13 +127,13 @@ sealed class DirectMethodHandle extends MethodHandle {
         return make(refKind, refc, member, null /* no callerClass context */);
     }
     static DirectMethodHandle make(MemberName member) {
-        if (member.isObjectConstructor())
+        if (member.isConstructor())
             return makeAllocator(member.getDeclaringClass(), member);
         return make(member.getDeclaringClass(), member);
     }
     static DirectMethodHandle makeAllocator(Class<?> instanceClass, MemberName ctor) {
-        assert(ctor.isObjectConstructor()) : ctor;
-        ctor = ctor.asObjectConstructor();
+        assert(ctor.isConstructor()) : ctor;
+        ctor = ctor.asConstructor();
         assert(ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
         MethodType mtype = ctor.getMethodType().changeReturnType(instanceClass);
         LambdaForm lform = preparedLambdaForm(ctor);
@@ -548,9 +548,9 @@ sealed class DirectMethodHandle extends MethodHandle {
 
     /** This subclass handles static field references. */
     static final class StaticAccessor extends DirectMethodHandle {
-        final Class<?> fieldType;
-        final Object staticBase;
-        final long staticOffset;
+        private final Class<?> fieldType;
+        private final Object   staticBase;
+        private final long     staticOffset;
 
         private StaticAccessor(MethodType mtype, LambdaForm form, MemberName member,
                                boolean crackable, Object staticBase, long staticOffset) {
@@ -634,17 +634,17 @@ sealed class DirectMethodHandle extends MethodHandle {
             FT_CHECKED_REF      = FT_LAST_WRAPPER+1,
             FT_CHECKED_VALUE    = FT_LAST_WRAPPER+2,  // flattened and non-flattened and null-restricted
             FT_LIMIT            = FT_LAST_WRAPPER+6;
-    private static int afIndex(byte formOp, boolean isVolatile, boolean isFlatValue, boolean isNullRestricted, int ftypeKind) {
+    private static int afIndex(byte formOp, boolean isVolatile, boolean isFlat, boolean isNullRestricted, int ftypeKind) {
         return ((formOp * FT_LIMIT * 2)
                 + (isVolatile ? FT_LIMIT : 0)
-                + (isFlatValue ? 1 : 0)
+                + (isFlat ? 1 : 0)
                 + (isNullRestricted ? 1 : 0)
                 + ftypeKind);
     }
     @Stable
     private static final LambdaForm[] ACCESSOR_FORMS
             = new LambdaForm[afIndex(AF_LIMIT, false, false, false, 0)];
-    static int ftypeKind(Class<?> ftype, boolean isValue) {
+    static int ftypeKind(Class<?> ftype) {
         if (ftype.isPrimitive()) {
             return Wrapper.forPrimitiveType(ftype).ordinal();
         } else if (ftype.isInterface() || ftype.isAssignableFrom(Object.class)) {
@@ -652,7 +652,7 @@ sealed class DirectMethodHandle extends MethodHandle {
             return FT_UNCHECKED_REF;
         } else {
             // null check for value type in addition to check cast
-            return isValue ? FT_CHECKED_VALUE : FT_CHECKED_REF;
+            return ftype.isValue() ? FT_CHECKED_VALUE : FT_CHECKED_REF;
         }
     }
 
@@ -672,12 +672,12 @@ sealed class DirectMethodHandle extends MethodHandle {
         };
         if (shouldBeInitialized(m)) {
             // precompute the barrier-free version:
-            preparedFieldLambdaForm(formOp, m.isVolatile(), m.isInlineableField(), m.isFlat(), m.isNullRestricted(), ftype);
+            preparedFieldLambdaForm(formOp, m.isVolatile(), m.isFlat(), m.isNullRestricted(), ftype);
             assert((AF_GETSTATIC_INIT - AF_GETSTATIC) ==
                    (AF_PUTSTATIC_INIT - AF_PUTSTATIC));
             formOp += (AF_GETSTATIC_INIT - AF_GETSTATIC);
         }
-        LambdaForm lform = preparedFieldLambdaForm(formOp, m.isVolatile(), m.isInlineableField(), m.isFlat(), m.isNullRestricted(), ftype);
+        LambdaForm lform = preparedFieldLambdaForm(formOp, m.isVolatile(), m.isFlat(), m.isNullRestricted(), ftype);
         maybeCompile(lform, m);
         assert(lform.methodType().dropParameterTypes(0, 1)
                 .equals(m.getInvocationType().basicType()))
@@ -686,12 +686,12 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
 
     private static LambdaForm preparedFieldLambdaForm(byte formOp, boolean isVolatile,
-                                                      boolean isValue, boolean isFlat, boolean isNullRestricted, Class<?> ftype) {
-        int ftypeKind = ftypeKind(ftype, isValue);
+                                                      boolean isFlat, boolean isNullRestricted, Class<?> ftype) {
+        int ftypeKind = ftypeKind(ftype);
         int afIndex = afIndex(formOp, isVolatile, isFlat, isNullRestricted, ftypeKind);
         LambdaForm lform = ACCESSOR_FORMS[afIndex];
         if (lform != null)  return lform;
-        lform = makePreparedFieldLambdaForm(formOp, isVolatile, isValue, isFlat, isNullRestricted, ftypeKind);
+        lform = makePreparedFieldLambdaForm(formOp, isVolatile,isFlat, isNullRestricted, ftypeKind);
         ACCESSOR_FORMS[afIndex] = lform;  // don't bother with a CAS
         return lform;
     }
@@ -699,7 +699,7 @@ sealed class DirectMethodHandle extends MethodHandle {
     private static final Wrapper[] ALL_WRAPPERS = Wrapper.values();
 
     private static Kind getFieldKind(boolean isGetter, boolean isVolatile,
-                                     boolean isFlatValue, boolean isNullRestricted,
+                                     boolean isFlat,
                                      Wrapper wrapper) {
         if (isGetter) {
             if (isVolatile) {
@@ -712,7 +712,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                     case LONG:    return GET_LONG_VOLATILE;
                     case FLOAT:   return GET_FLOAT_VOLATILE;
                     case DOUBLE:  return GET_DOUBLE_VOLATILE;
-                    case OBJECT:  return isFlatValue ? GET_VALUE_VOLATILE : GET_REFERENCE_VOLATILE;
+                    case OBJECT:  return isFlat ? GET_VALUE_VOLATILE : GET_REFERENCE_VOLATILE;
                 }
             } else {
                 switch (wrapper) {
@@ -724,7 +724,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                     case LONG:    return GET_LONG;
                     case FLOAT:   return GET_FLOAT;
                     case DOUBLE:  return GET_DOUBLE;
-                    case OBJECT:  return isFlatValue ? GET_VALUE : GET_REFERENCE;
+                    case OBJECT:  return isFlat ? GET_VALUE : GET_REFERENCE;
                 }
             }
         } else {
@@ -738,7 +738,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                     case LONG:    return PUT_LONG_VOLATILE;
                     case FLOAT:   return PUT_FLOAT_VOLATILE;
                     case DOUBLE:  return PUT_DOUBLE_VOLATILE;
-                    case OBJECT:  return isFlatValue ? PUT_VALUE_VOLATILE : PUT_REFERENCE_VOLATILE;
+                    case OBJECT:  return isFlat ? PUT_VALUE_VOLATILE : PUT_REFERENCE_VOLATILE;
                 }
             } else {
                 switch (wrapper) {
@@ -750,7 +750,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                     case LONG:    return PUT_LONG;
                     case FLOAT:   return PUT_FLOAT;
                     case DOUBLE:  return PUT_DOUBLE;
-                    case OBJECT:  return isFlatValue ? PUT_VALUE : PUT_REFERENCE;
+                    case OBJECT:  return isFlat ? PUT_VALUE : PUT_REFERENCE;
                 }
             }
         }
@@ -759,29 +759,29 @@ sealed class DirectMethodHandle extends MethodHandle {
 
     /** invoked by GenerateJLIClassesHelper */
     static LambdaForm makePreparedFieldLambdaForm(byte formOp, boolean isVolatile, int ftype) {
-        return makePreparedFieldLambdaForm(formOp, isVolatile, false, false, false, ftype);
+        return makePreparedFieldLambdaForm(formOp, isVolatile, false, false, ftype);
     }
 
     private static LambdaForm makePreparedFieldLambdaForm(byte formOp, boolean isVolatile,
-                                                          boolean isValue, boolean isFlat,
+                                                          boolean isFlat,
                                                           boolean isNullRestricted, int ftypeKind) {
         boolean isGetter  = (formOp & 1) == (AF_GETFIELD & 1);
         boolean isStatic  = (formOp >= AF_GETSTATIC);
         boolean needsInit = (formOp >= AF_GETSTATIC_INIT);
         boolean needsCast = (ftypeKind == FT_CHECKED_REF || ftypeKind == FT_CHECKED_VALUE);
-        boolean needsZeroInstance = isNullRestricted && isValue && !isFlat;
+        boolean needsZeroInstance = isNullRestricted && !isFlat;
         Wrapper fw = (needsCast ? Wrapper.OBJECT : ALL_WRAPPERS[ftypeKind]);
         Class<?> ft = fw.primitiveType();
-        assert(needsCast ? true : ftypeKind(ft, isValue) == ftypeKind);
+        assert(needsCast ? true : ftypeKind(ft) == ftypeKind);
 
         // getObject, putIntVolatile, etc.
-        Kind kind = getFieldKind(isGetter, isVolatile, isFlat, isNullRestricted, fw);
+        Kind kind = getFieldKind(isGetter, isVolatile, isFlat, fw);
 
         MethodType linkerType;
-        boolean hasValueTypeArg = isGetter ? isValue : isFlat;
+        boolean hasValueTypeArg = isGetter ? ftypeKind == FT_CHECKED_VALUE : isFlat;
         if (isGetter) {
-            linkerType = isValue ? MethodType.methodType(ft, Object.class, long.class, Class.class)
-                                 : MethodType.methodType(ft, Object.class, long.class);
+            linkerType = hasValueTypeArg ? MethodType.methodType(ft, Object.class, long.class, Class.class)
+                                         : MethodType.methodType(ft, Object.class, long.class);
         } else {
             linkerType = isFlat ? MethodType.methodType(void.class, Object.class, long.class, Class.class, ft)
                                 : MethodType.methodType(void.class, Object.class, long.class, ft);

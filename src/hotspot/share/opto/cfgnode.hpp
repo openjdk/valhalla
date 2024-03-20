@@ -181,6 +181,9 @@ class PhiNode : public TypeNode {
 
   bool must_wait_for_region_in_irreducible_loop(PhaseGVN* phase) const;
 
+  bool can_push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass*& inline_klass);
+  InlineTypeNode* push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass);
+
 public:
   // Node layout (parallels RegionNode):
   enum { Region,                // Control input is the Phi's region.
@@ -254,7 +257,11 @@ public:
            type()->higher_equal(tp);
   }
 
-  InlineTypeNode* push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk);
+  bool can_be_inline_type() const {
+    return EnableValhalla && _type->isa_instptr() && _type->is_instptr()->can_be_inline_type();
+  }
+
+  Node* try_push_inline_types_down(PhaseGVN* phase, bool can_reshape);
 
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);

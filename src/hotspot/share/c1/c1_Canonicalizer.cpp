@@ -662,7 +662,6 @@ void Canonicalizer::do_NewInstance    (NewInstance*     x) {}
 void Canonicalizer::do_NewTypeArray   (NewTypeArray*    x) {}
 void Canonicalizer::do_NewObjectArray (NewObjectArray*  x) {}
 void Canonicalizer::do_NewMultiArray  (NewMultiArray*   x) {}
-void Canonicalizer::do_Deoptimize     (Deoptimize*      x) {}
 void Canonicalizer::do_CheckCast      (CheckCast*       x) {
   if (x->klass()->is_loaded()) {
     Value obj = x->obj();

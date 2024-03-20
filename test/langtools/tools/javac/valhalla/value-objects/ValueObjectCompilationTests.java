@@ -60,15 +60,17 @@ import com.sun.tools.classfile.Method;
 import com.sun.tools.javac.code.Flags;
 
 import org.junit.jupiter.api.Test;
-
 import tools.javac.combo.CompilationTestCase;
-
 import toolbox.ToolBox;
 
 class ValueObjectCompilationTests extends CompilationTestCase {
 
+    private static String[] PREVIEW_OPTIONS = {"--enable-preview", "-source",
+            Integer.toString(Runtime.version().feature())};
+
     public ValueObjectCompilationTests() {
         setDefaultFilename("ValueObjectsTest.java");
+        setCompileOptions(PREVIEW_OPTIONS);
     }
 
     @Test
@@ -109,18 +111,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """
                 value enum Enum {}
                 """);
-    }
-
-    @Test
-    void testCheckFeatureSourceLevel() {
-        setCompileOptions(new String[]{"--release", "13"});
-        assertFail("compiler.err.feature.not.supported.in.source.plural",
-                """
-                value class V {
-                    public int v = 42;
-                }
-                """);
-        setCompileOptions(new String[]{});
     }
 
     @Test

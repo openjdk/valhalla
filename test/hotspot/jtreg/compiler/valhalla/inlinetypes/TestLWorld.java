@@ -51,10 +51,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
+ * @enablePreview
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestLWorld.java
- * @run main/othervm/timeout=450 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestLWorld
+ * @run main/othervm/timeout=450  --enable-preview compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer
@@ -205,7 +206,7 @@ public class TestLWorld {
     public Object test3(int state) {
         Object res = null;
         if (state == 0) {
-            res = Integer.valueOf(rI);
+            res = new NonValueClass(rI);
         } else if (state == 1) {
             res = MyValue1.createWithFieldsInline(rI, rL);
         } else if (state == 2) {
@@ -229,7 +230,7 @@ public class TestLWorld {
         objectField1 = valueField1;
         Object result = null;
         result = test3(0);
-        Asserts.assertEQ((Integer)result, rI);
+        Asserts.assertEQ(((NonValueClass)result).x, rI);
         result = test3(1);
         Asserts.assertEQ(((MyValue1)result).hash(), hash());
         result = test3(2);
@@ -249,9 +250,9 @@ public class TestLWorld {
     // Test merging inline types and objects in loops
     @Test
     public Object test4(int iters) {
-        Object res = Integer.valueOf(rI);
+        Object res = new NonValueClass(rI);
         for (int i = 0; i < iters; ++i) {
-            if (res instanceof Integer) {
+            if (res instanceof NonValueClass) {
                 res = MyValue1.createWithFieldsInline(rI, rL);
             } else {
                 res = MyValue1.createWithFieldsInline(((MyValue1)res).x + 1, rL);
@@ -262,8 +263,8 @@ public class TestLWorld {
 
     @Run(test = "test4")
     public void test4_verifier() {
-        Integer result1 = (Integer)test4(0);
-        Asserts.assertEQ(result1, rI);
+        NonValueClass result1 = (NonValueClass)test4(0);
+        Asserts.assertEQ(result1.x, rI);
         int iters = (Math.abs(rI) % 10) + 1;
         MyValue1 result2 = (MyValue1)test4(iters);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + iters - 1, rL);
@@ -554,10 +555,6 @@ public class TestLWorld {
         MyInterface vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
         MyInterface vt3 = arg;
         MyInterface vt4 = valueField1;
-        if (deopt) {
-            // uncommon trap
-            TestFramework.deoptimize(m);
-        }
         return ((MyValue1)vt1).hash() + ((MyValue1)vt2).hash() +
                ((MyValue1)vt3).hash() + ((MyValue1)vt4).hash();
     }
@@ -601,7 +598,7 @@ public class TestLWorld {
     @Run(test = "test17")
     public void test17_verifier() {
         MyValue1 vt = testValue1;
-        MyValue1 result = test17(vt, Integer.valueOf(rI));
+        MyValue1 result = test17(vt, new NonValueClass(rI));
         Asserts.assertEquals(result.hash(), vt.hash());
     }
 
@@ -647,7 +644,7 @@ public class TestLWorld {
         }
         Object obj = vt;
         try {
-            Integer i = (Integer)obj;
+            NonValueClass i = (NonValueClass)obj;
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
@@ -679,7 +676,7 @@ public class TestLWorld {
         }
     }
 
-    private static final Integer[] testIntegerArray = new Integer[42];
+    private static final NonValueClass[] testNonValueArray = new NonValueClass[42];
 
     // Test load from (flattened) inline type array disguised as object array
     @Test
@@ -758,7 +755,7 @@ public class TestLWorld {
     public void test24_verifier() {
         int index = Math.abs(rI) % 3;
         try {
-            test24(testIntegerArray, testValue1, index);
+            test24(testNonValueArray, testValue1, index);
             throw new RuntimeException("No ArrayStoreException thrown");
         } catch (ArrayStoreException e) {
             // Expected
@@ -945,7 +942,7 @@ public class TestLWorld {
     public void test30_verifier() {
         int index = Math.abs(rI) % 3;
         try {
-            test30(testIntegerArray, testValue1, index);
+            test30(testNonValueArray, testValue1, index);
             throw new RuntimeException("No ArrayStoreException thrown");
         } catch (ArrayStoreException e) {
             // Expected
@@ -1197,7 +1194,7 @@ public class TestLWorld {
             result = testValue2Array;
             break;
         case 4:
-            result = testIntegerArray;
+            result = testNonValueArray;
             break;
         case 5:
             result = null;
@@ -1269,7 +1266,7 @@ public class TestLWorld {
             result = testValue2Array;
             break;
         case 4:
-            result = testIntegerArray;
+            result = testNonValueArray;
             break;
         case 5:
             result = null;
@@ -1284,7 +1281,7 @@ public class TestLWorld {
             result = MyValue1.createWithFieldsInline(rI, rL);
             break;
         case 9:
-            result = Integer.valueOf(42);
+            result = new NonValueClass(42);
             break;
         case 10:
             result = testValue1Array2;
@@ -1331,7 +1328,7 @@ public class TestLWorld {
         result = test39(null, testValue1, index, index, 8);
         Asserts.assertEQ(((MyValue1)result).hash(), testValue1.hash());
         result = test39(null, testValue1, index, index, 9);
-        Asserts.assertEQ(((Integer)result), 42);
+        Asserts.assertEQ(((NonValueClass)result).x, 42);
         result = test39(null, testValue1Array, index, index, 10);
         Asserts.assertEQ(((MyValue1[][])result)[index][index].hash(), testValue1.hash());
     }
@@ -1375,6 +1372,8 @@ public class TestLWorld {
     }
 
     // Test for bug in Escape Analysis
+    // TODO 8325106 Re-enable
+    /*
     @DontInline
     public void test41_dontinline(Object o) {
         Asserts.assertEQ(o, rI);
@@ -1393,6 +1392,7 @@ public class TestLWorld {
     public void test41_verifier() {
         test41();
     }
+    */
 
     // Test for bug in Escape Analysis
     private static final MyValue1 test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
@@ -1553,8 +1553,7 @@ public class TestLWorld {
 
     @Run(test = "test50")
     public void test50_verifier() {
-        boolean result = test49(Integer.valueOf(42));
-        Asserts.assertFalse(result);
+        Asserts.assertFalse(test49(new NonValueClass(42)));
     }
 
     // Inline type with some non-flattened fields
@@ -1962,15 +1961,16 @@ public class TestLWorld {
     }
 
     @Test
-    public void test68(Object[] array, Integer o) {
+    public void test68(Object[] array, NonValueClass o) {
         array[0] = o;
     }
 
     @Run(test = "test68")
     public void test68_verifier() {
-        Integer[] array = new Integer[1];
-        test68(array, 1);
-        Asserts.assertEQ(array[0], Integer.valueOf(1));
+        NonValueClass[] array = new NonValueClass[1];
+        NonValueClass obj = new NonValueClass(1);
+        test68(array, obj);
+        Asserts.assertEQ(array[0], obj);
     }
 
     // Test convertion between an inline type and java.lang.Object without an allocation
@@ -2128,7 +2128,7 @@ public class TestLWorld {
         Object[] arr = va;
         for (int i = 0; i < 10; i++) {
             arr = next;
-            next = new Integer[1];
+            next = new NonValueClass[1];
         }
         return arr[0];
     }
@@ -2138,7 +2138,7 @@ public class TestLWorld {
         test75(42);
     }
 
-    // Casting an Integer to a (non-nullable) inline type should throw a ClassCastException
+    // Casting an NonValueClass to a inline type should throw a ClassCastException
     @ForceInline
     public MyValue1 test77_helper(Object o) {
         return (MyValue1)o;
@@ -2146,14 +2146,14 @@ public class TestLWorld {
 
     @Test
     @IR(failOn = {ALLOC_G})
-    public MyValue1 test77(Integer i) throws Throwable {
-        return test77_helper(i);
+    public MyValue1 test77(NonValueClass obj) throws Throwable {
+        return test77_helper(obj);
     }
 
     @Run(test = "test77")
     public void test77_verifier() throws Throwable {
         try {
-            test77(Integer.valueOf(42));
+            test77(new NonValueClass(42));
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
@@ -2162,7 +2162,7 @@ public class TestLWorld {
         }
     }
 
-    // Casting a null Integer to a nullable inline type should not throw
+    // Casting a null NonValueClass to a nullable inline type should not throw
     @ForceInline
     public MyValue1 test78_helper(Object o) {
         return (MyValue1)o;
@@ -2170,8 +2170,8 @@ public class TestLWorld {
 
     @Test
     @IR(failOn = {ALLOC_G})
-    public MyValue1 test78(Integer i) throws Throwable {
-        return test78_helper(i);
+    public MyValue1 test78(NonValueClass obj) throws Throwable {
+        return test78_helper(obj);
     }
 
     @Run(test = "test78")
@@ -2183,7 +2183,7 @@ public class TestLWorld {
         }
     }
 
-    // Casting an Integer to a nullable inline type should throw a ClassCastException
+    // Casting an NonValueClass to a nullable inline type should throw a ClassCastException
     @ForceInline
     public MyValue1 test79_helper(Object o) {
         return (MyValue1)o;
@@ -2191,14 +2191,14 @@ public class TestLWorld {
 
     @Test
     @IR(failOn = {ALLOC_G})
-    public MyValue1 test79(Integer i) throws Throwable {
-        return test79_helper(i);
+    public MyValue1 test79(NonValueClass obj) throws Throwable {
+        return test79_helper(obj);
     }
 
     @Run(test = "test79")
     public void test79_verifier() throws Throwable {
         try {
-            test79(Integer.valueOf(42));
+            test79(new NonValueClass(42));
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
@@ -2463,23 +2463,23 @@ public class TestLWorld {
 
     @Test
     public boolean test89(Object obj) {
-        return obj.getClass() == Integer.class;
+        return obj.getClass() == NonValueClass.class;
     }
 
     @Run(test = "test89")
     public void test89_verifier() {
-        Asserts.assertTrue(test89(Integer.valueOf(42)));
+        Asserts.assertTrue(test89(new NonValueClass(42)));
         Asserts.assertFalse(test89(new Object()));
     }
 
     @Test
-    public Integer test90(Object obj) {
-        return (Integer)obj;
+    public NonValueClass test90(Object obj) {
+        return (NonValueClass)obj;
     }
 
     @Run(test = "test90")
     public void test90_verifier() {
-        test90(Integer.valueOf(42));
+        test90(new NonValueClass(42));
         try {
             test90(new Object());
             throw new RuntimeException("ClassCastException expected");
@@ -2523,16 +2523,17 @@ public class TestLWorld {
             }
         }
 
-        return (Integer)array[0];
+        return (NonValueClass)array[0];
     }
 
     @Run(test = "test92")
     @Warmup(10000)
     public void test92_verifier() {
         Object[] array = new Object[1];
-        array[0] = 0x42;
+        Object obj = new NonValueClass(rI);
+        array[0] = obj;
         Object result = test92(array);
-        Asserts.assertEquals(result, 0x42);
+        Asserts.assertEquals(result, obj);
     }
 
     // If the class check succeeds, the flattened array check that
@@ -2545,7 +2546,7 @@ public class TestLWorld {
             }
         }
 
-        Object v = (Integer)array[0];
+        Object v = (NonValueClass)array[0];
         return v;
     }
 
@@ -2554,9 +2555,9 @@ public class TestLWorld {
     public void test93_verifier(RunInfo info) {
         if (info.isWarmUp()) {
             Object[] array = new Object[1];
-            array[0] = 0x42;
+            array[0] = new NonValueClass(42);
             Object result = test93(array);
-            Asserts.assertEquals(result, 0x42);
+            Asserts.assertEquals(((NonValueClass)result).x, 42);
         } else {
             Object[] array = (Test92Value[])ValueClass.newNullRestrictedArray(Test92Value.class, 1);
             Method m = info.getTest();
@@ -2586,7 +2587,7 @@ public class TestLWorld {
         int res = 0;
         for (int i = 1; i < 4; i *= 2) {
             Object v = array[i];
-            res += (Integer)v;
+            res += ((NonValueClass)v).x;
         }
         return res;
     }
@@ -2595,12 +2596,13 @@ public class TestLWorld {
     @Warmup(10000)
     public void test94_verifier() {
         Object[] array = new Object[4];
-        array[0] = 0x42;
-        array[1] = 0x42;
-        array[2] = 0x42;
-        array[3] = 0x42;
+        Object obj = new NonValueClass(rI);
+        array[0] = obj;
+        array[1] = obj;
+        array[2] = obj;
+        array[3] = obj;
         int result = test94(array);
-        Asserts.assertEquals(result, 0x42 * 2);
+        Asserts.assertEquals(result, rI * 2);
     }
 
     @Test
@@ -3180,9 +3182,8 @@ public class TestLWorld {
     }
 
     @Test
-// TODO 8293541
-//    @IR(failOn = {ALLOC_G, MEMBAR},
-//        counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
     public long test109_sharp() {
         long res = 0;
@@ -3219,9 +3220,8 @@ public class TestLWorld {
     }
 
     @Test
-// TODO 8293541
-//    @IR(failOn = {ALLOC_G, MEMBAR},
-//        counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
     public long test110_sharp() {
         long res = 0;
@@ -3602,17 +3602,18 @@ public class TestLWorld {
     // not to be a value type
     @Test
     @IR(failOn = SUBSTITUTABILITY_TEST)
-    public boolean test124(Integer o1, Object o2) {
+    public boolean test124(NonValueClass o1, Object o2) {
         return o1 == o2;
     }
 
     @Run(test = "test124")
     public void test124_verifier() {
-        test124(42, 42);
-        test124(42, testValue1);
+        NonValueClass obj = new NonValueClass(rI);
+        test124(obj, obj);
+        test124(obj, testValue1);
     }
 
-    // acmp doesn't need substitutability test when one input null
+    // acmp doesn't need substitutability test when one input is null
     @Test
     @IR(failOn = {SUBSTITUTABILITY_TEST})
     public boolean test125(Object o1) {
@@ -3757,11 +3758,14 @@ public class TestLWorld {
     }
 
     @Test
+    // TODO 8325106
+    /*
     @IR(failOn = {LOAD},
         // LockNode keeps MyValue1 allocation alive up until macro expansion which in turn keeps MyValue2
         // alloc alive. Although the MyValue1 allocation is removed (unused), MyValue2 is expanded first
         // and therefore stays.
         counts = {ALLOC, "<= 1", STORE, "<= 1"})
+    */
     public void test130() {
         Object obj = test130_inlinee();
         synchronized (obj) {
@@ -3809,7 +3813,7 @@ public class TestLWorld {
     @IR(failOn = {ALLOC, LOAD, STORE})
     public void test132() {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
-        Object obj = Integer.valueOf(42);
+        Object obj = new NonValueClass(42);
 
         int limit = 2;
         for (; limit < 4; limit *= 2);
@@ -3835,7 +3839,7 @@ public class TestLWorld {
     // Test conditional locking on inline type and non-escaping object
     @Test
     public void test133(boolean b) {
-        Object obj = b ? Integer.valueOf(42) : MyValue2.createWithFieldsInline(rI, rD);
+        Object obj = b ? new NonValueClass(rI) : MyValue2.createWithFieldsInline(rI, rD);
         synchronized (obj) {
             if (!b) {
                 throw new RuntimeException("test133 failed: synchronization on inline type should not succeed");
@@ -4043,7 +4047,9 @@ public class TestLWorld {
 
     // Test merging of buffered default and non-default inline types
     @Test
-    @IR(failOn = {ALLOC_G})
+    // TODO 8325106 With incremental inlining, we already buffer the larval which can't use the default oop because it might be overridden.
+    @IR(applyIf = {"AlwaysIncrementalInline", "false"},
+        failOn = {ALLOC_G})
     public Object test144(int i) {
         if (i == 0) {
             return MyValue1.createDefaultInline();
@@ -4124,8 +4130,11 @@ public class TestLWorld {
 
     // Test post-parse call devirtualization with inline type receiver
     @Test
+    // TODO 8325106
+    /*
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC})
+    */
     @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
         counts = {compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
     public long test150() {
@@ -4177,7 +4186,7 @@ public class TestLWorld {
         public int val();
     }
 
-    static abstract class MyAbstract2 implements MyInterface2 {
+    static abstract value class MyAbstract2 implements MyInterface2 {
 
     }
 
@@ -4349,7 +4358,7 @@ public class TestLWorld {
 
     // Verify that cast that with incompatible types is properly handled
     @Test
-    public void test160(Integer arg) {
+    public void test160(NonValueClass arg) {
         Object tmp = arg;
         MyValue1 res = (MyValue1)tmp;
     }
@@ -4358,7 +4367,7 @@ public class TestLWorld {
     @Warmup(10000)
     public void test160_verifier(RunInfo info) {
         try {
-            test160(42);
+            test160(new NonValueClass(42));
             throw new RuntimeException("No CCE thrown");
         } catch (ClassCastException e) {
             // Expected

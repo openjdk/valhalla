@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,15 @@
  * questions.
  */
 
-// key: compiler.err.value.type.has.identity.super.type
-// key: compiler.note.preview.filename
-// key: compiler.note.preview.recompile
-// options: --enable-preview -source ${jdk.version}
+package compiler.valhalla.inlinetypes;
 
-abstract class AC {}
-value class V extends AC {}
+import compiler.lib.ir_framework.ForceInline;
+
+public class NonValueClass {
+    public final int x;
+
+    @ForceInline
+    public NonValueClass(int x) {
+        this.x = x;
+    }
+}

@@ -47,6 +47,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @library /test/lib /
  * @modules java.base/jdk.internal.misc java.base/jdk.internal.value
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestIntrinsics.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestIntrinsics
@@ -839,7 +840,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(result, null);
         result = test43(MyValue1.class, vt);
         Asserts.assertEQ(result, vt);
-        result = test43(Integer.class, null);
+        result = test43(NonValueClass.class, null);
         Asserts.assertEQ(result, null);
     }
 
@@ -1156,7 +1157,7 @@ public class TestIntrinsics {
 
     @Run(test = "test59")
     public void test59_verifier() throws Exception {
-        test59(Integer.class);
+        test59(Object.class);
         try {
             test59(MyValue1.class);
             throw new RuntimeException("test59 failed: synchronization on value object should not succeed");
@@ -1548,7 +1549,7 @@ public class TestIntrinsics {
 
     @Test
     public Object test78(MyValue1 vt) {
-        return Integer.class.cast(vt);
+        return NonValueClass.class.cast(vt);
     }
 
     @Run(test = "test78")
@@ -1567,7 +1568,7 @@ public class TestIntrinsics {
     @Test
     public Object test79(MyValue1 vt) {
         Object tmp = vt;
-        return (Integer)tmp;
+        return (NonValueClass)tmp;
     }
 
     @Run(test = "test79")
@@ -1593,7 +1594,7 @@ public class TestIntrinsics {
     @LooselyConsistentValue
     public static value class Test80Value2 {
         long l = rL;
-        Integer i = rI;
+        NonValueClass obj = new NonValueClass(rI);
     }
 
     // Test that unsafe access is not incorrectly classified as mismatched
@@ -1664,7 +1665,7 @@ public class TestIntrinsics {
         } else {
             // Trigger deoptimization to verify that re-execution works
             try {
-                test83(new Integer[10]);
+                test83(new NonValueClass[10]);
                 throw new RuntimeException("No NullPointerException thrown");
             } catch (NullPointerException npe) {
                 // Expected

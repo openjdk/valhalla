@@ -69,8 +69,6 @@ void GraphKit::make_dtrace_method_entry_exit(ciMethod* method, bool is_entry) {
 void Parse::do_checkcast() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
-  // bool null_free = iter().has_Q_signature();
-  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
   Node *obj = peek();
 
   // Throw uncommon trap if class is not loaded or the value we are casting
@@ -78,7 +76,6 @@ void Parse::do_checkcast() {
   // then the checkcast does nothing.
   const TypeOopPtr *tp = _gvn.type(obj)->isa_oopptr();
   if (!will_link || (tp && !tp->is_loaded())) {
-    assert(!null_free, "Inline type should be loaded");
     if (C->log() != nullptr) {
       if (!will_link) {
         C->log()->elem("assert_null reason='checkcast' klass='%d'",
@@ -96,7 +93,7 @@ void Parse::do_checkcast() {
     return;
   }
 
-  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass, Type::trust_interfaces)), nullptr, null_free);
+  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass, Type::trust_interfaces)));
   if (stopped()) {
     return;
   }
@@ -284,7 +281,6 @@ void Parse::do_new() {
   bool will_link;
   ciInstanceKlass* klass = iter().get_klass(will_link)->as_instance_klass();
   assert(will_link, "_new: typeflow responsibility");
-  assert(!klass->is_inlinetype(), "unexpected inline type");
 
   // Should throw an InstantiationError?
   if (klass->is_abstract() || klass->is_interface() ||
@@ -299,6 +295,11 @@ void Parse::do_new() {
   if (C->needs_clinit_barrier(klass, method())) {
     clinit_barrier(klass, method());
     if (stopped())  return;
+  }
+
+  if (klass->is_inlinetype()) {
+    push(InlineTypeNode::make_default(_gvn, klass->as_inline_klass(), /* is_larval */ true));
+    return;
   }
 
   Node* kls = makecon(TypeKlassPtr::make(klass));

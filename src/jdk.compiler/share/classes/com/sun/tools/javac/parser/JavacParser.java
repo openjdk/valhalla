@@ -195,7 +195,8 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
-        this.allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Construct a parser from an existing parser, with minimal overhead.
@@ -2572,9 +2573,6 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            long badModifiers = mods.flags & ~(Flags.VALUE_CLASS | Flags.FINAL);
-            if (badModifiers != 0)
-                log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             // handle type annotations for instantiations and anonymous classes
             if (newAnnotations.nonEmpty()) {
                 t = insertAnnotationsToMostInner(t, newAnnotations, false);
@@ -2929,6 +2927,7 @@ public class JavacParser implements Parser {
             }
         }
         if ((isValueModifier()) && allowValueClasses) {
+            checkSourceLevel(Feature.VALUE_CLASSES);
             dc = token.docComment();
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         }
@@ -3526,6 +3525,7 @@ public class JavacParser implements Parser {
                     break;
                 }
                 if (isValueModifier()) {
+                    checkSourceLevel(Feature.VALUE_CLASSES);
                     flag = Flags.VALUE_CLASS;
                     break;
                 }
@@ -3797,9 +3797,9 @@ public class JavacParser implements Parser {
         }
         if (name == names.value) {
             if (allowValueClasses) {
-                return Source.JDK18;
+                return Source.JDK22;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK22));
             }
         }
         if (name == names.sealed) {
@@ -4924,7 +4924,7 @@ public class JavacParser implements Parser {
                 case PUBLIC, PROTECTED, PRIVATE, ABSTRACT, STATIC, FINAL, STRICTFP, CLASS, INTERFACE, ENUM -> true;
                 case IDENTIFIER -> isNonSealedIdentifier(next, currentIsNonSealed ? 3 : 1) ||
                         next.name() == names.sealed ||
-                        next.name() == names.value;
+                        allowValueClasses && next.name() == names.value;
                 default -> false;
             };
     }

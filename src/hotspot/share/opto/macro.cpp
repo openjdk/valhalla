@@ -687,6 +687,11 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
           NOT_PRODUCT(fail_eliminate = "null or TOP memory";)
           can_eliminate = false;
         } else if (!reduce_merge_precheck) {
+          if (res->is_Phi() && res->as_Phi()->can_be_inline_type()) {
+            // Can only eliminate allocation if the phi had been replaced by an InlineTypeNode before which did not happen.
+            // TODO 8325106 Why wasn't it replaced by an InlineTypeNode?
+            can_eliminate = false;
+          }
           safepoints->append_if_missing(sfpt);
         }
       } else if (use->is_InlineType() && use->as_InlineType()->get_oop() == res) {
@@ -704,7 +709,8 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
             }
           } else {
             // Add other uses to the worklist to process individually
-            worklist.push(u);
+            // TODO will be fixed by 8328470
+            worklist.push(use);
           }
         }
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
@@ -896,9 +902,9 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     Node* field_val = nullptr;
     const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
     if (res_type->is_flat()) {
-      ciInlineKlass* vk = res_type->is_aryptr()->elem()->inline_klass();
-      assert(vk->flat_in_array(), "must be flat in array");
-      field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), vk, field_addr_type->isa_aryptr(), 0, alloc);
+      ciInlineKlass* inline_klass = res_type->is_aryptr()->elem()->inline_klass();
+      assert(inline_klass->flat_in_array(), "must be flat in array");
+      field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), inline_klass, field_addr_type->isa_aryptr(), 0, alloc);
     } else {
       field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
     }
@@ -942,9 +948,18 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
         field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
       }
     }
+
+    // Keep track of inline types to scalarize them later
     if (field_val->is_InlineType()) {
-      // Keep track of inline types to scalarize them later
       value_worklist->push(field_val);
+    } else if (field_val->is_Phi()) {
+      PhiNode* phi = field_val->as_Phi();
+      // Eagerly replace inline type phis now since we could be removing an inline type allocation where we must
+      // scalarize all its fields in safepoints.
+      field_val = phi->try_push_inline_types_down(&_igvn, true);
+      if (field_val->is_InlineType()) {
+        value_worklist->push(field_val);
+      }
     }
     sfpt->add_req(field_val);
   }
@@ -1203,7 +1218,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
   bool boxing_alloc = (res == nullptr) && C->eliminate_boxing() &&
                       tklass->isa_instklassptr() &&
                       tklass->is_instklassptr()->instance_klass()->is_box_klass();
-  if (!alloc->_is_scalar_replaceable && (!boxing_alloc || (res != nullptr))) {
+  if (!alloc->_is_scalar_replaceable && !boxing_alloc && !inline_alloc) {
     return false;
   }
 

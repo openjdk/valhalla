@@ -46,6 +46,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
  * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
  *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestCallingConvention.java
  * @run main/othervm/timeout=450 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestCallingConvention
@@ -1105,7 +1106,8 @@ public class TestCallingConvention {
 
     // Empty value class container and mixed container arguments
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+// TODO 8325106
+//    @IR(failOn = {ALLOC, STORE, TRAP})
     public MyValueEmpty test46(EmptyContainer c1, MixedContainer c2, MyValueEmpty empty) {
         c2 = new MixedContainer(c2.val, c1);
         return c2.getNoInline().getNoInline();

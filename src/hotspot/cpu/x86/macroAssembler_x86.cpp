@@ -3002,26 +3002,20 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
-  andl(temp_reg, 0x1);
-  testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_null_free_inline_type);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
+  jcc(Assembler::notEqual, is_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
-  andl(temp_reg, 0x1);
-  testl(temp_reg, temp_reg);
-  jcc(Assembler::zero, not_null_free_inline_type);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
+  jcc(Assembler::equal, not_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ResolvedFieldEntry::is_flat_shift);
-  andl(temp_reg, 0x1);
-  testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_flat);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_flat_shift);
+  jcc(Assembler::notEqual, is_flat);
 }
 
 void MacroAssembler::test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker) {

@@ -659,7 +659,6 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, stub_id);
 
     assert(klass->is_loaded(), "must be loaded");
-    assert(!klass->is_inlinetype() || !klass->as_inline_klass()->is_empty(), "Sanity check");
     // allocate space for instance
     assert(klass->size_helper() > 0, "illegal instance size");
     const int instance_size = align_object_size(klass->size_helper());
@@ -2387,18 +2386,6 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 }
 
-void LIRGenerator::do_Deoptimize(Deoptimize* x) {
-  // This happens only when a class X uses the withfield/aconst_init bytecode
-  // to refer to an inline class V, where V has not yet been loaded/resolved.
-  // This is not a common case. Let's just deoptimize.
-  CodeEmitInfo* info = state_for(x, x->state_before());
-  CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
-                                      Deoptimization::Reason_unloaded,
-                                      Deoptimization::Action_make_not_entrant);
-  __ jump(stub);
-  LIR_Opr reg = rlock_result(x, T_OBJECT);
-  __ move(LIR_OprFact::oopConst(nullptr), reg);
-}
 
 void LIRGenerator::do_NullCheck(NullCheck* x) {
   if (x->can_trap()) {

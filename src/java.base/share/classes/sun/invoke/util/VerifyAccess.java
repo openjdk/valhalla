@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package sun.invoke.util;
 
 import java.lang.reflect.Modifier;
 import static java.lang.reflect.Modifier.*;
-
 import jdk.internal.reflect.Reflection;
 
 /**
@@ -202,9 +201,10 @@ public class VerifyAccess {
             Module lookupModule = lookupClass.getModule();
             Module refModule = refc.getModule();
 
-            // early VM startup case, java.base not defined
-            if (lookupModule == null) {
-                assert refModule == null;
+            // early VM startup case, java.base not defined or
+            // module system is not fully initialized and exports are not set up
+            if (lookupModule == null || !jdk.internal.misc.VM.isModuleSystemInited()) {
+                assert lookupModule == refModule;
                 return true;
             }
 
@@ -228,12 +228,8 @@ public class VerifyAccess {
             Module prevLookupModule = prevLookupClass != null ? prevLookupClass.getModule()
                                                               : null;
             assert refModule != lookupModule || refModule != prevLookupModule;
-            if (isModuleAccessible(refc, lookupModule, prevLookupModule))
-                return true;
 
-            // not exported but allow access during VM initialization
-            // because java.base does not have its exports setup
-            if (!jdk.internal.misc.VM.isModuleSystemInited())
+            if (isModuleAccessible(refc, lookupModule, prevLookupModule))
                 return true;
 
             // public class not accessible to lookupClass

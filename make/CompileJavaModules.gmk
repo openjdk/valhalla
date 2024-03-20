@@ -146,7 +146,8 @@ ifneq ($(COMPILER), bootjdk)
             $(JAVAC_FLAGS) \
             --module-source-path $(MODULE_VALUECLASS_SOURCEPATH) \
             --module-path $(JDK_OUTPUTDIR)/modules \
-            --system none, \
+            --system none \
+            --enable-preview -source $(JDK_SOURCE_TARGET_VERSION), \
     ))
 
     TARGETS += $($(MODULE)-$(VALUECLASSES_STR))
