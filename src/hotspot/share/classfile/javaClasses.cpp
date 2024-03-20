@@ -1374,6 +1374,10 @@ Klass* java_lang_Class::array_klass_acquire(oop java_class) {
 
 void java_lang_Class::release_set_array_klass(oop java_class, Klass* klass) {
   assert(klass->is_klass() && klass->is_array_klass(), "should be array klass");
+  if (klass->is_flatArray_klass() || (klass->is_objArray_klass() && ObjArrayKlass::cast(klass)->is_null_free_array_klass())) {
+    // TODO 8325106 Ignore flat / null-free arrays
+    return;
+  }
   java_class->release_metadata_field_put(_array_klass_offset, klass);
 }
 

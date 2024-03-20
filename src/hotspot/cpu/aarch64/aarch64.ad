@@ -3753,26 +3753,23 @@ encode %{
       __ call_Unimplemented();
     }
     if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic()) {
-      // if (!_method->signature()->returns_null_free_inline_type()) {
-      if (!false) {  // JDK-8325660: code to be revisited after removal of Q-descriptors
-        // The last return value is not set by the callee but used to pass IsInit information to compiled code.
-        // Search for the corresponding projection, get the register and emit code that initialized it.
-        uint con = (tf()->range_cc()->cnt() - 1);
-        for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-          ProjNode* proj = fast_out(i)->as_Proj();
-          if (proj->_con == con) {
-            // Set IsInit if r0 is non-null (a non-null value is returned buffered or scalarized)
-            OptoReg::Name optoReg = ra_->get_reg_first(proj);
-            VMReg reg = OptoReg::as_VMReg(optoReg, ra_->_framesize, OptoReg::reg2stack(ra_->_matcher._new_SP));
-            Register toReg = reg->is_reg() ? reg->as_Register() : rscratch1;
-            __ cmp(r0, zr);
-            __ cset(toReg, Assembler::NE);
-            if (reg->is_stack()) {
-              int st_off = reg->reg2stack() * VMRegImpl::stack_slot_size;
-              __ str(toReg, Address(sp, st_off));
-            }
-            break;
+      // The last return value is not set by the callee but used to pass IsInit information to compiled code.
+      // Search for the corresponding projection, get the register and emit code that initialized it.
+      uint con = (tf()->range_cc()->cnt() - 1);
+      for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+        ProjNode* proj = fast_out(i)->as_Proj();
+        if (proj->_con == con) {
+          // Set IsInit if r0 is non-null (a non-null value is returned buffered or scalarized)
+          OptoReg::Name optoReg = ra_->get_reg_first(proj);
+          VMReg reg = OptoReg::as_VMReg(optoReg, ra_->_framesize, OptoReg::reg2stack(ra_->_matcher._new_SP));
+          Register toReg = reg->is_reg() ? reg->as_Register() : rscratch1;
+          __ cmp(r0, zr);
+          __ cset(toReg, Assembler::NE);
+          if (reg->is_stack()) {
+            int st_off = reg->reg2stack() * VMRegImpl::stack_slot_size;
+            __ str(toReg, Address(sp, st_off));
           }
+          break;
         }
       }
       if (return_value_is_used()) {

@@ -100,7 +100,8 @@ void ReplacedNodes::apply(Node* n, uint idx) {
     ReplacedNode replaced = _replaced_nodes->at(i);
     // Only apply if improved node was created in a callee to avoid
     // issues with irreducible loops in the caller
-    if (replaced.improved()->_idx >= idx) {
+    // TODO 8325106 needed?
+    if (replaced.improved()->_idx >= idx || replaced.improved()->is_InlineType()) {
       n->replace_edge(replaced.initial(), replaced.improved());
     }
   }

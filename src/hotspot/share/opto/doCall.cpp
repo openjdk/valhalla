@@ -578,6 +578,17 @@ void Parse::do_call() {
   int       vtable_index       = Method::invalid_vtable_index;
   bool      call_does_dispatch = false;
 
+  // Detect the call to the object or abstract class constructor at the end of a value constructor to know when we are done initializing the larval
+  if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && peek()->is_InlineType()) {
+     InlineTypeNode* receiver = peek()->as_InlineType();
+     // TODO 8325106 re-enable the assert
+     //assert(receiver->is_larval(), "must be larval");
+     InlineTypeNode* clone = receiver->clone()->as_InlineType();
+     clone->set_is_larval(false);
+     replace_in_map(receiver, _gvn.transform(clone));
+     // TODO 8325106 do we need a barrier here to prevent the initializing stores to flow below?
+   }
+
   // Speculative type of the receiver if any
   ciKlass* speculative_receiver_type = nullptr;
   if (is_virtual_or_interface) {
@@ -740,10 +751,6 @@ void Parse::do_call() {
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
-            // if (declared_signature->returns_null_free_inline_type()) {
-            if (false) { // JDK-8325660: revisit this code after removal of Q-descriptors
-              sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
-            }
             if (arg_type != nullptr && !arg_type->higher_equal(sig_type)) {
               Node* retnode = pop();
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));

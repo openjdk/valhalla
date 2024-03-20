@@ -798,8 +798,7 @@ void CallGenerator::do_late_inline_helper() {
     InlineTypeNode* vt = result->isa_InlineType();
     if (vt != nullptr) {
       if (call->tf()->returns_inline_type_as_fields()) {
-        // vt->replace_call_results(&kit, call, C, inline_method->signature()->returns_null_free_inline_type());
-        vt->replace_call_results(&kit, call, C, false); // JDK-8325660: revisit this code after removal of Q-descriptors
+        vt->replace_call_results(&kit, call, C);
       } else if (vt->is_InlineType()) {
         // Result might still be allocated (for example, if it has been stored to a non-flat field)
         if (!vt->is_allocated(&kit.gvn())) {
@@ -808,10 +807,7 @@ void CallGenerator::do_late_inline_helper() {
 
           // Check if result is null
           Node* null_ctl = kit.top();
-          // if (!inline_method->signature()->returns_null_free_inline_type()) {
-          if (!false) { // JDK-8325660: revisit this code after removal of Q-descriptors
-            kit.null_check_common(vt->get_is_init(), T_INT, false, &null_ctl);
-          }
+          kit.null_check_common(vt->get_is_init(), T_INT, false, &null_ctl);
           region->init_req(1, null_ctl);
           PhiNode* oop = PhiNode::make(region, kit.gvn().zerocon(T_OBJECT), TypeInstPtr::make(TypePtr::BotPTR, vt->type()->inline_klass()));
           Node* init_mem = kit.reset_memory();
@@ -1162,14 +1158,11 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   }
 }
 
-static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit, bool null_free) {
+static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
   PhaseGVN& gvn = kit.gvn();
   Node* arg = kit.argument(arg_nb);
   const Type* arg_type = arg->bottom_type();
   const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
-  if (t->as_klass()->is_inlinetype() && null_free) {
-    sig_type = sig_type->filter_speculative(TypePtr::NOTNULL);
-  }
   if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
     const Type* narrowed_arg_type = arg_type->filter_speculative(sig_type); // keep speculative part
     arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, narrowed_arg_type));
@@ -1254,14 +1247,13 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         const int receiver_skip = target->is_static() ? 0 : 1;
         // Cast receiver to its type.
         if (!target->is_static()) {
-          cast_argument(nargs, 0, signature->accessing_klass(), kit, false);
+          cast_argument(nargs, 0, signature->accessing_klass(), kit);
         }
         // Cast reference arguments to its type.
         for (int i = 0, j = 0; i < signature->count(); i++) {
           ciType* t = signature->type_at(i);
           if (t->is_klass()) {
-            bool null_free = signature->is_null_free_at(i);
-            cast_argument(nargs, receiver_skip + j, t, kit, null_free);
+            cast_argument(nargs, receiver_skip + j, t, kit);
           }
           j += t->size();  // long and double take two slots
         }

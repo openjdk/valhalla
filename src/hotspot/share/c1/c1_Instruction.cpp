@@ -138,7 +138,8 @@ bool Instruction::maybe_flat_array() {
   if (UseFlatArray) {
     ciType* type = declared_type();
     if (type != nullptr) {
-      if (type->is_obj_array_klass() && !type->as_obj_array_klass()->is_elem_null_free()) {
+      if (type->is_obj_array_klass()) {
+        // TODO 8325106 Fix comment
         // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
         if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flat_in_array())) {
@@ -287,7 +288,7 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  return ciArrayKlass::make(klass(), is_null_free());
+  return ciArrayKlass::make(klass());
 }
 
 ciType* NewMultiArray::exact_type() const {
@@ -434,7 +435,7 @@ StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt
 
 
 Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-               ciMethod* target, ValueStack* state_before, bool null_free)
+               ciMethod* target, ValueStack* state_before)
   : StateSplit(result_type, state_before)
   , _code(code)
   , _recv(recv)
@@ -443,7 +444,6 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
 {
   set_flag(TargetIsLoadedFlag,   target->is_loaded());
   set_flag(TargetIsFinalFlag,    target_is_loaded() && target->is_final_method());
-  set_null_free(null_free);
 
   assert(args != nullptr, "args must exist");
 #ifdef ASSERT

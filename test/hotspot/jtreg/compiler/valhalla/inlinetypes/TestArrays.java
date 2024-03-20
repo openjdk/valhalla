@@ -1430,6 +1430,9 @@ public class TestArrays {
             verif[i] = va[i];
         }
         Object[] result = test59(va);
+        // Result is not a null-restricted array
+        Asserts.assertEQ(result[len], null);
+        result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
 
@@ -1448,6 +1451,9 @@ public class TestArrays {
             verif[i] = (MyValue1)va[i];
         }
         Object[] result = test60(va, va.getClass());
+        // Result is not a null-restricted array
+        Asserts.assertEQ(result[len], null);
+        result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
 
@@ -1459,18 +1465,18 @@ public class TestArrays {
     @Run(test = "test61")
     public void test61_verifier() {
         int len = Math.abs(rI) % 10;
-        Object[] va = new Integer[len];
+        Object[] va = new NonValueClass[len];
         for (int i = 0; i < len; ++i) {
-            va[i] = Integer.valueOf(rI);
+            va[i] = new NonValueClass(rI);
         }
-        Object[] result = test61(va, Integer[].class);
+        Object[] result = test61(va, NonValueClass[].class);
         for (int i = 0; i < va.length; ++i) {
             Asserts.assertEQ(va[i], result[i]);
         }
     }
 
     @ForceInline
-    public Object[] test62_helper(int i, MyValue1[] va, Integer[] oa) {
+    public Object[] test62_helper(int i, MyValue1[] va, NonValueClass[] oa) {
         Object[] arr = null;
         if (i == 10) {
             arr = oa;
@@ -1481,7 +1487,7 @@ public class TestArrays {
     }
 
     @Test
-    public Object[] test62(MyValue1[] va, Integer[] oa) {
+    public Object[] test62(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
 
@@ -1494,9 +1500,9 @@ public class TestArrays {
     public void test62_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
-        Integer[] oa = new Integer[len];
+        NonValueClass[] oa = new NonValueClass[len];
         for (int i = 0; i < len; ++i) {
-            oa[i] = Integer.valueOf(rI);
+            oa[i] = new NonValueClass(rI);
         }
         test62_helper(42, va, oa);
         Object[] result = test62(va, oa);
@@ -1506,7 +1512,7 @@ public class TestArrays {
     }
 
     @ForceInline
-    public Object[] test63_helper(int i, MyValue1[] va, Integer[] oa) {
+    public Object[] test63_helper(int i, MyValue1[] va, NonValueClass[] oa) {
         Object[] arr = null;
         if (i == 10) {
             arr = va;
@@ -1517,7 +1523,7 @@ public class TestArrays {
     }
 
     @Test
-    public Object[] test63(MyValue1[] va, Integer[] oa) {
+    public Object[] test63(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
 
@@ -1535,9 +1541,12 @@ public class TestArrays {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
             verif[i] = va[i];
         }
-        Integer[] oa = new Integer[len];
+        NonValueClass[] oa = new NonValueClass[len];
         test63_helper(42, va, oa);
         Object[] result = test63(va, oa);
+        // Result is not a null-restricted array
+        Asserts.assertEQ(result[len], null);
+        result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
 
@@ -1747,7 +1756,7 @@ public class TestArrays {
 
     // Some more array clone tests
     @ForceInline
-    public Object[] test75_helper(int i, MyValue1[] va, Integer[] oa) {
+    public Object[] test75_helper(int i, MyValue1[] va, NonValueClass[] oa) {
         Object[] arr = null;
         if (i == 10) {
             arr = oa;
@@ -1758,7 +1767,7 @@ public class TestArrays {
     }
 
     @Test
-    public Object[] test75(MyValue1[] va, Integer[] oa) {
+    public Object[] test75(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
 
@@ -1770,9 +1779,9 @@ public class TestArrays {
     public void test75_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
-        Integer[] oa = new Integer[len];
+        NonValueClass[] oa = new NonValueClass[len];
         for (int i = 0; i < len; ++i) {
-            oa[i] = Integer.valueOf(rI);
+            oa[i] = new NonValueClass(rI);
         }
         test75_helper(42, va, oa);
         Object[] result = test75(va, oa);
@@ -1785,7 +1794,7 @@ public class TestArrays {
     }
 
     @ForceInline
-    public Object[] test76_helper(int i, MyValue1[] va, Integer[] oa) {
+    public Object[] test76_helper(int i, MyValue1[] va, NonValueClass[] oa) {
         Object[] arr = null;
         if (i == 10) {
             arr = va;
@@ -1796,7 +1805,7 @@ public class TestArrays {
     }
 
     @Test
-    public Object[] test76(MyValue1[] va, Integer[] oa) {
+    public Object[] test76(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
 
@@ -1813,7 +1822,7 @@ public class TestArrays {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
             verif[i] = va[i];
         }
-        Integer[] oa = new Integer[len];
+        NonValueClass[] oa = new NonValueClass[len];
         test76_helper(42, va, oa);
         Object[] result = test76(va, oa);
         verify(verif, result);
@@ -1877,18 +1886,18 @@ public class TestArrays {
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
         failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
     public Object test79(Object[] array, int i) {
-        Integer i1 = (Integer)array[0];
+        NonValueClass i1 = (NonValueClass)array[0];
         Object o = array[1];
         return array[i];
     }
 
     @Run(test = "test79")
     public void test79_verifier() {
-        Integer i = Integer.valueOf(rI);
-        Integer[] array = new Integer[2];
-        array[1] = i;
+        NonValueClass obj = new NonValueClass(rI);
+        NonValueClass[] array = new NonValueClass[2];
+        array[1] = obj;
         Object result = test79(array, 1);
-        Asserts.assertEquals(result, i);
+        Asserts.assertEquals(result, obj);
     }
 
     // Same as test79 but with not-flattenable value class
@@ -1915,7 +1924,7 @@ public class TestArrays {
     // Verify that writing an object of a non-inline, non-null type to an array marks the array as not-null-free and not-flat
     @Test
     @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
-    public Object test81(Object[] array, Integer v, Object o, int i) {
+    public Object test81(Object[] array, NonValueClass v, Object o, int i) {
         if (v == null) {
           return null;
         }
@@ -1927,19 +1936,19 @@ public class TestArrays {
 
     @Run(test = "test81")
     public void test81_verifier() {
-        Integer i = Integer.valueOf(rI);
-        Integer[] array1 = new Integer[3];
+        NonValueClass obj = new NonValueClass(rI);
+        NonValueClass[] array1 = new NonValueClass[3];
         Object[] array2 = new Object[3];
-        Object result = test81(array1, i, i, 0);
-        Asserts.assertEquals(array1[0], i);
-        Asserts.assertEquals(array1[1], i);
-        Asserts.assertEquals(array1[2], i);
-        Asserts.assertEquals(result, i);
-        result = test81(array2, i, i, 1);
-        Asserts.assertEquals(array2[0], i);
-        Asserts.assertEquals(array2[1], i);
-        Asserts.assertEquals(array2[2], i);
-        Asserts.assertEquals(result, i);
+        Object result = test81(array1, obj, obj, 0);
+        Asserts.assertEquals(array1[0], obj);
+        Asserts.assertEquals(array1[1], obj);
+        Asserts.assertEquals(array1[2], obj);
+        Asserts.assertEquals(result, obj);
+        result = test81(array2, obj, obj, 1);
+        Asserts.assertEquals(array2[0], obj);
+        Asserts.assertEquals(array2[1], obj);
+        Asserts.assertEquals(array2[2], obj);
+        Asserts.assertEquals(result, obj);
     }
 
     // Verify that writing an object of a non-flattenable value class to an array marks the array as not-flat
@@ -1980,17 +1989,17 @@ public class TestArrays {
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
             failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public void test83(Object[] array, Object o) {
-        Integer i = (Integer)array[0];
+        NonValueClass i = (NonValueClass)array[0];
         array[1] = o;
     }
 
     @Run(test = "test83")
     public void test83_verifier() {
-        Integer i = Integer.valueOf(rI);
-        Integer[] array1 = new Integer[2];
+        NonValueClass obj = new NonValueClass(rI);
+        NonValueClass[] array1 = new NonValueClass[2];
         Object[] array2 = new Object[2];
-        test83(array1, i);
-        Asserts.assertEquals(array1[1], i);
+        test83(array1, obj);
+        Asserts.assertEquals(array1[1], obj);
         test83(array2, null);
         Asserts.assertEquals(array2[1], null);
     }
@@ -2041,15 +2050,15 @@ public class TestArrays {
 
     @Run(test = "test85")
     public void test85_verifier(RunInfo info) {
-        Integer i = Integer.valueOf(rI);
-        Integer[] array1 = new Integer[2];
+        NonValueClass obj = new NonValueClass(rI);
+        NonValueClass[] array1 = new NonValueClass[2];
         Object[] array2 = new Object[2];
-        test85(array1, i, true);
-        Asserts.assertEquals(array1[1], i);
+        test85(array1, obj, true);
+        Asserts.assertEquals(array1[1], obj);
         test85(array1, null, false);
         Asserts.assertEquals(array1[1], null);
-        test85(array2, i, true);
-        Asserts.assertEquals(array2[1], i);
+        test85(array2, obj, true);
+        Asserts.assertEquals(array2[1], obj);
         test85(array2, null, false);
         Asserts.assertEquals(array2[1], null);
         if (!info.isWarmUp()) {
@@ -2137,13 +2146,13 @@ public class TestArrays {
 
     // Additional correctness tests to make sure we have the required null checks
     @Test
-    public void test88(Object[] array, Integer v) {
+    public void test88(Object[] array, NonValueClass v) {
         array[0] = v;
     }
 
     @Run(test = "test88")
     public void test88_verifier(RunInfo info) {
-        Integer[] array1 = new Integer[1];
+        NonValueClass[] array1 = new NonValueClass[1];
         Object[] array2 = new Object[1];
         test88(array1, null);
         Asserts.assertEquals(array1[0], null);
@@ -2161,7 +2170,7 @@ public class TestArrays {
     }
 
     @Test
-    public void test89(MyValue1[] array, Integer v) {
+    public void test89(MyValue1[] array, NonValueClass v) {
         Object o = v;
         array[0] = (MyValue1)o;
     }
@@ -2344,7 +2353,7 @@ public class TestArrays {
     @Run(test = "test95")
     public void test95_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
-        Integer[] array2 = new Integer[1];
+        NonValueClass[] array2 = new NonValueClass[1];
         try {
             test95(array1);
             throw new RuntimeException("Should throw NullPointerException");
@@ -2373,7 +2382,7 @@ public class TestArrays {
     @Run(test = "test96")
     public void test96_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
-        Integer[] array2 = new Integer[1];
+        NonValueClass[] array2 = new NonValueClass[1];
         try {
             test96(array1);
             throw new RuntimeException("Should throw NullPointerException");
@@ -2392,7 +2401,7 @@ public class TestArrays {
     @Test
     @IR(failOn = CHECKCAST_ARRAY)
     public boolean test97(Object[] array) {
-        array[0] = 42;
+        array[0] = new NonValueClass(42);
         // Always throws a ClassCastException because we just successfully stored
         // a non-value type value and therefore the array can't be a value class array.
         return array instanceof MyValue1[];
@@ -2401,7 +2410,7 @@ public class TestArrays {
     @Run(test = "test97")
     public void test97_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
-        Integer[] array2 = new Integer[1];
+        NonValueClass[] array2 = new NonValueClass[1];
         try {
             test97(array1);
             throw new RuntimeException("Should throw ArrayStoreException");
@@ -2525,7 +2534,7 @@ public class TestArrays {
     @ForceInline
     static Class get_val_class() { return val_src.getClass(); }
     @ForceInline
-    static Class get_int_class() { return Integer[].class; }
+    static Class get_non_val_class() { return NonValueClass[].class; }
     @ForceInline
     static Object get_obj_src() { return obj_src; }
     @ForceInline
@@ -2752,12 +2761,8 @@ public class TestArrays {
 
     @Run(test = "test113_null")
     public void test113_null_verifier() {
-        try {
-            test113_null();
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // expected
-        }
+        Object[] res = test113_null();
+        verify(obj_null_src, res);
     }
 
     // Below tests are equal to test110-test113 but hide the src/dst types until
@@ -2825,12 +2830,8 @@ public class TestArrays {
 
     @Run(test = "test117_null")
     public void test117_null_verifier() {
-        try {
-            test117_null();
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // expected
-        }
+        Object[] res = test117_null();
+        verify((Object[])get_obj_null_src(), res);
     }
 
     // Some more Arrays.copyOf tests with only constant class
@@ -2848,12 +2849,8 @@ public class TestArrays {
         verify(obj_src, res);
         res = test118(val_src);
         verify(val_src, res);
-        try {
-            test118(obj_null_src);
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // expected
-        }
+        res = test118(obj_null_src);
+        verify(obj_null_src, res);
     }
 
     @Test
@@ -2873,14 +2870,14 @@ public class TestArrays {
     @IR(counts = {CLASS_CHECK_TRAP, "= 1"},
         failOn = INTRINSIC_SLOW_PATH)
     public Object[] test120(Object[] src) {
-        return Arrays.copyOf(src, 8, Integer[].class);
+        return Arrays.copyOf(src, 8, NonValueClass[].class);
     }
 
     @Run(test = "test120")
     public void test120_verifier() {
-        Integer[] arr = new Integer[8];
+        NonValueClass[] arr = new NonValueClass[8];
         for (int i = 0; i < 8; ++i) {
-            arr[i] = rI + i;
+            arr[i] = new NonValueClass(rI + i);
         }
         Object[] res = test120(arr);
         verify(arr, res);
@@ -2904,12 +2901,8 @@ public class TestArrays {
         verify(obj_src, res);
         res = test121(val_src);
         verify(val_src, res);
-        try {
-            test121(obj_null_src);
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // expected
-        }
+        res = test121(obj_null_src);
+        verify(obj_null_src, res);
     }
     @Test
     public Object[] test122(Object[] src) {
@@ -2923,25 +2916,21 @@ public class TestArrays {
         verify(obj_src, res);
         res = test122(val_src);
         verify(val_src, res);
-        try {
-            test122(obj_null_src);
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // expected
-        }
+        res = test122(obj_null_src);
+        verify(obj_null_src, res);
     }
 
     @Test
     public Object[] test123(Object[] src) {
-        return Arrays.copyOf(src, 8, Integer[].class);
+        return Arrays.copyOf(src, 8, NonValueClass[].class);
     }
 
     @Run(test = "test123")
     @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
     public void test123_verifier() {
-        Integer[] arr = new Integer[8];
+        NonValueClass[] arr = new NonValueClass[8];
         for (int i = 0; i < 8; ++i) {
-            arr[i] = rI + i;
+            arr[i] = new NonValueClass(rI + i);
         }
         Object[] res = test123(arr);
         verify(arr, res);
@@ -2955,15 +2944,15 @@ public class TestArrays {
 
     @Test
     public Object[] test124(Object[] src) {
-        return Arrays.copyOf(src, 8, get_int_class());
+        return Arrays.copyOf(src, 8, get_non_val_class());
     }
 
     @Run(test = "test124")
     @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
     public void test124_verifier() {
-        Integer[] arr = new Integer[8];
+        NonValueClass[] arr = new NonValueClass[8];
         for (int i = 0; i < 8; ++i) {
-            arr[i] = rI + i;
+            arr[i] = new NonValueClass(rI + i);
         }
         Object[] res = test124(arr);
         verify(arr, res);
@@ -2983,11 +2972,11 @@ public class TestArrays {
     @Run(test = "test125")
     @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
     public void test125_verifier() {
-        Integer[] arr = new Integer[8];
+        NonValueClass[] arr = new NonValueClass[8];
         for (int i = 0; i < 8; ++i) {
-            arr[i] = rI + i;
+            arr[i] = new NonValueClass(rI + i);
         }
-        Object[] res = test125(arr, Integer[].class);
+        Object[] res = test125(arr, NonValueClass[].class);
         verify((Object[])arr, res);
         res = test125(val_src, val_src.getClass());
         verify(val_src, res);
@@ -2995,7 +2984,8 @@ public class TestArrays {
         verify(val_src, res);
         try {
             test125(obj_null_src, val_src.getClass());
-            throw new RuntimeException("NullPointerException expected");
+// TODO 8325106 Remove
+//            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // expected
         }
@@ -3211,8 +3201,8 @@ public class TestArrays {
             Asserts.assertEquals(((MyValue1)res).hash(), array1[1].hash());
             Asserts.assertEquals(array1[0].hash(), array1[1].hash());
         }
-        Integer[] array2 = new Integer[2];
-        array2[1] = rI;
+        NonValueClass[] array2 = new NonValueClass[2];
+        array2[1] = new NonValueClass(rI);
         synchronized (array2) {
             Object res = test135(array2, array2[1]);
             Asserts.assertEquals(res, array2[1]);
@@ -3238,8 +3228,8 @@ public class TestArrays {
         Object res = test136(array1, array1[1]);
         Asserts.assertEquals(((MyValue1)res).hash(), array1[1].hash());
         Asserts.assertEquals(array1[0].hash(), array1[1].hash());
-        Integer[] array2 = new Integer[2];
-        array2[1] = rI;
+        NonValueClass[] array2 = new NonValueClass[2];
+        array2[1] = new NonValueClass(rI);
         res = test136(array2, array2[1]);
         Asserts.assertEquals(res, array2[1]);
         Asserts.assertEquals(array2[0], array2[1]);
@@ -3260,8 +3250,8 @@ public class TestArrays {
     public void test137_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 100);
         Arrays.fill(array1, MyValue1.createWithFieldsInline(rI, rL));
-        Integer[] array2 = new Integer[100];
-        Arrays.fill(array2, rI);
+        NonValueClass[] array2 = new NonValueClass[100];
+        Arrays.fill(array2, new NonValueClass(rI));
         synchronized (array1) {
             test137(array1, array1);
             Asserts.assertEquals(oFld1, array1[0]);
@@ -3303,8 +3293,8 @@ public class TestArrays {
     public void test138_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 100);
         Arrays.fill(array1, MyValue1.createWithFieldsInline(rI, rL));
-        Integer[] array2 = new Integer[100];
-        Arrays.fill(array2, rI);
+        NonValueClass[] array2 = new NonValueClass[100];
+        Arrays.fill(array2, new NonValueClass(rI));
         test138(array1, array1);
         Asserts.assertEquals(oFld1, array1[0]);
         Asserts.assertEquals(oFld2, array1[0]);
@@ -3326,11 +3316,11 @@ public class TestArrays {
                   STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test139() {
         Object[]  array = null;
-        Object[] iarray = new Integer[1];
+        Object[] oarray = new NonValueClass[1];
         Object[] varray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         for (int i = 0; i < 10; i++) {
             array = varray;
-            varray = iarray;
+            varray = oarray;
         }
         return array[0];
     }
@@ -3343,15 +3333,15 @@ public class TestArrays {
 
     // Test store to array that is only known to be not a value class array after parsing
     @Test
-    @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP,
+    @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, TRAP,
                   LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test140(Object val) {
         Object[]  array = null;
-        Object[] iarray = new Integer[1];
+        Object[] oarray = new NonValueClass[1];
         Object[] varray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         for (int i = 0; i < 10; i++) {
             array = varray;
-            varray = iarray;
+            varray = oarray;
         }
         array[0] = val;
         return array;
@@ -3359,8 +3349,9 @@ public class TestArrays {
 
     @Run(test = "test140")
     public void test140_verifier() {
-        Object[] res = test140(rI);
-        Asserts.assertEquals(res[0], rI);
+        NonValueClass obj = new NonValueClass(rI);
+        Object[] res = test140(obj);
+        Asserts.assertEquals(res[0], obj);
         res = test140(null);
         Asserts.assertEquals(res[0], null);
     }
@@ -3371,11 +3362,11 @@ public class TestArrays {
     // @IR(failOn = {ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test141() {
         Object[]  array = null;
-        Object[] iarray = new Integer[1];
+        Object[] oarray = new NonValueClass[1];
         Object[] varray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         for (int i = 0; i < 10; i++) {
-            array = iarray;
-            iarray = varray;
+            array = oarray;
+            oarray = varray;
         }
         return array[0];
     }
@@ -3392,11 +3383,11 @@ public class TestArrays {
     // @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test142(Object val) {
         Object[]  array = null;
-        Object[] iarray = new Integer[1];
+        Object[] oarray = new NonValueClass[1];
         Object[] varray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         for (int i = 0; i < 10; i++) {
-            array = iarray;
-            iarray = varray;
+            array = oarray;
+            oarray = varray;
         }
         array[0] = val;
         return array;

@@ -1859,6 +1859,8 @@ public:
 
   virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const;
 
+  const TypeAryKlassPtr* cast_to_null_free() const;
+
   // corresponding pointer to instance, for a given class
   virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const;
 

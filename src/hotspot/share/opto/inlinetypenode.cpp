@@ -497,9 +497,10 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
   store(kit, base, ptr, holder, holder_offset, decorators);
 }
 
-void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
+void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators, int offsetOnly) const {
   // Write field values to memory
   for (uint i = 0; i < field_count(); ++i) {
+    if (offsetOnly != -1 && offsetOnly != field_offset(i)) continue;
     int offset = holder_offset + field_offset(i);
     Node* value = field_value(i);
     ciType* ft = field_type(i);
@@ -576,13 +577,19 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
     ciInlineKlass* vk = inline_klass();
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
     Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true, this);
-    store(kit, alloc_oop, alloc_oop, vk);
+    // No need to initialize a larval buffer, we make sure that the oop can not escape
+    if (!is_larval()) {
+      // Larval will be initialized later
+      // TODO 8325106 should this use C2_TIGHTLY_COUPLED_ALLOC?
+      store(kit, alloc_oop, alloc_oop, vk);
 
-    // Do not let stores that initialize this buffer be reordered with a subsequent
-    // store that would make this buffer accessible by other threads.
-    AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
-    assert(alloc != nullptr, "must have an allocation node");
-    kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+      // Do not let stores that initialize this buffer be reordered with a subsequent
+      // store that would make this buffer accessible by other threads.
+      AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
+      assert(alloc != nullptr, "must have an allocation node");
+      // TODO 8325106 isn't a MembarRelease sufficient here?
+      kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+    }
 
     region->init_req(3, kit->control());
     oop   ->init_req(3, alloc_oop);
@@ -627,7 +634,7 @@ bool InlineTypeNode::is_allocated(PhaseGVN* phase) const {
 // projections, one per field. Replacing the result of the call by an
 // inline type node (after late inlining) requires that for each result
 // projection, we find the corresponding inline type field.
-void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C, bool null_free) {
+void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) {
   ciInlineKlass* vk = inline_klass();
   for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
     ProjNode* pn = call->fast_out(i)->as_Proj();
@@ -635,7 +642,7 @@ void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile
     Node* field = nullptr;
     if (con == TypeFunc::Parms) {
       field = get_oop();
-    } else if (!null_free && con == (call->tf()->range_cc()->cnt() - 1)) {
+    } else if (con == (call->tf()->range_cc()->cnt() - 1)) {
       field = get_is_init();
     } else if (con > TypeFunc::Parms) {
       uint field_nb = con - (TypeFunc::Parms+1);
@@ -706,11 +713,13 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-  if (!is_larval(phase) &&
-      is_default(phase) &&
+  const Type* tinit = phase->type(get_is_init());
+  if (!is_larval(phase) && !is_larval() &&
+      (tinit->isa_int() && tinit->is_int()->is_con(1)) &&
+      (is_default(phase) || inline_klass()->is_empty()) &&
       inline_klass()->is_initialized() &&
       (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
-    // Use the pre-allocated oop for default inline types
+    // Use the pre-allocated oop for null-free default or empty inline types
     set_oop(default_oop(*phase, inline_klass()));
     assert(is_allocated(phase), "should now be allocated");
     return this;
@@ -725,11 +734,12 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     }
     return this;
   }
-  if (!is_allocated(phase)) {
+  // TODO 8325106 Re-evaluate this: We prefer a "loaded" oop because it's free. The existing oop might come from a buffering.
+  if (!is_larval(phase) && !is_larval()) {
     // Save base oop if fields are loaded from memory and the inline
     // type is not buffered (in this case we should not use the oop).
     Node* base = is_loaded(phase);
-    if (base != nullptr && !phase->type(base)->maybe_null()) {
+    if (base != nullptr && get_oop() != base && !phase->type(base)->maybe_null()) {
       set_oop(base);
       assert(is_allocated(phase), "should now be allocated");
       return this;
@@ -777,18 +787,21 @@ Node* InlineTypeNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
   return gvn.makecon(TypeInstPtr::make(vk->default_instance()));
 }
 
-InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
+InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk, bool is_larval) {
   GrowableArray<ciType*> visited;
   visited.push(vk);
-  return make_default_impl(gvn, vk, visited);
+  return make_default_impl(gvn, vk, visited, is_larval);
 }
 
-InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited) {
+InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool is_larval) {
   // Create a new InlineTypeNode with default values
-  Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
+  Node* oop = vk->is_initialized() && !is_larval ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
-  vt->set_is_buffered(gvn, vk->is_initialized());
+  // TODO 8325106 we should be able to set buffered here for non-larvals, right?
+  //vt->set_is_buffered(gvn, vk->is_initialized());
+  vt->set_is_buffered(gvn, false);
   vt->set_is_init(gvn);
+  vt->set_is_larval(is_larval);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* ft = vt->field_type(i);
     Node* value = gvn.zerocon(ft->basic_type());
@@ -813,7 +826,7 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
 }
 
 bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
-  const Type* tinit = gvn->type(in(IsInit));
+  const Type* tinit = gvn->type(get_is_init());
   if (!tinit->isa_int() || !tinit->is_int()->is_con(1)) {
     return false; // May be null
   }
@@ -826,7 +839,15 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
       }
       continue;
     } else if (value->is_InlineType()) {
-      value = value->as_InlineType()->get_oop();
+      if (value->as_InlineType()->is_default(gvn)) {
+        continue;
+      } else {
+        const Type* tinit = gvn->type(value->as_InlineType()->get_is_init());
+        if (tinit->isa_int() && tinit->is_int()->is_con(0)) {
+          continue;
+        }
+        return false;
+      }
     }
     if (!gvn->type(value)->is_zero_type()) {
       return false;
@@ -835,16 +856,16 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
   return true;
 }
 
-InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free) {
+InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, bool is_larval) {
   GrowableArray<ciType*> visited;
   visited.push(vk);
-  return make_from_oop_impl(kit, oop, vk, null_free, visited);
+  return make_from_oop_impl(kit, oop, vk, null_free, visited, is_larval);
 }
 
-InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited) {
+InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited, bool is_larval) {
   PhaseGVN& gvn = kit->gvn();
 
-  if (vk->is_empty() && null_free) {
+  if (!is_larval && vk->is_empty() && null_free) {
     InlineTypeNode* def = make_default_impl(gvn, vk, visited);
     kit->record_for_igvn(def);
     return def;
@@ -873,6 +894,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
     vt = new InlineTypeNode(vk, not_null_oop, null_free);
     vt->set_is_buffered(gvn);
     vt->set_is_init(gvn);
+    vt->set_is_larval(is_larval);
     vt->load(kit, not_null_oop, not_null_oop, vk, visited);
 
     if (null_ctl != kit->top()) {
@@ -899,6 +921,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
     Node* init_ctl = kit->control();
     vt->set_is_buffered(gvn);
     vt->set_is_init(gvn);
+    vt->set_is_larval(is_larval);
     vt->load(kit, oop, oop, vk, visited);
 // TODO 8284443
 //    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineType ||
@@ -1010,7 +1033,8 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   }
   if (field_count() == 0 && vk->is_initialized()) {
     const Type* tinit = phase->type(in(IsInit));
-    if (tinit->isa_int() && tinit->is_int()->is_con(1)) {
+    // TODO 8325106
+    if (false && !is_larval() && tinit->isa_int() && tinit->is_int()->is_con(1)) {
       assert(is_allocated(phase), "must be allocated");
       return get_oop();
     } else {
@@ -1195,6 +1219,9 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
 // Search for multiple allocations of this inline type and try to replace them by dominating allocations.
 // Equivalent InlineTypeNodes are merged by GVN, so we just need to search for AllocateNode users to find redundant allocations.
 void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
+  if (is_larval()) {
+    return;
+  }
   PhaseIterGVN* igvn = &phase->igvn();
   // Search for allocations of this inline type. Ignore scalar replaceable ones, they
   // will be removed anyway and changing the memory chain will confuse other optimizations.
@@ -1205,7 +1232,8 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
       if (res == nullptr || !res->is_CheckCastPP()) {
         break; // No unique CheckCastPP
       }
-      assert((!is_default(igvn) || !inline_klass()->is_initialized()) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
+      // TODO 8325106
+      // assert((!is_default(igvn) || !inline_klass()->is_initialized()) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
       // Search for a dominating allocation of the same inline type
       Node* res_dom = res;
       for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {
