@@ -2075,7 +2075,7 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
       Node* cast = casts.pop()->clone();
       cast->set_req_X(1, n->as_InlineType()->get_oop(), phase);
       n = n->clone();
-      n->as_InlineType()->set_oop(phase->transform(cast));
+      n->as_InlineType()->set_oop(*phase, phase->transform(cast));
       n = phase->transform(n);
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge

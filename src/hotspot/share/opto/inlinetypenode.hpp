@@ -109,11 +109,11 @@ public:
 
   // Get oop for heap allocated inline type (may be TypePtr::NULL_PTR)
   Node* get_oop() const    { return in(Oop); }
-  void  set_oop(Node* oop) { set_req(Oop, oop); }
+  void  set_oop(PhaseGVN& gvn, Node* oop) { set_req_X(Oop, oop, &gvn); }
   Node* get_is_init() const { return in(IsInit); }
-  void  set_is_init(PhaseGVN& gvn, bool init = true) { set_req(IsInit, gvn.intcon(init ? 1 : 0)); }
+  void  set_is_init(PhaseGVN& gvn, bool init = true) { set_req_X(IsInit, gvn.intcon(init ? 1 : 0), &gvn); }
   Node* get_is_buffered() const { return in(IsBuffered); }
-  void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req(IsBuffered, gvn.intcon(buffered ? 1 : 0)); }
+  void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req_X(IsBuffered, gvn.intcon(buffered ? 1 : 0), &gvn); }
 
   void set_is_larval(bool is_larval) { _is_larval = is_larval; }
   bool is_larval() { return _is_larval; }

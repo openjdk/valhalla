@@ -827,7 +827,7 @@ void CallGenerator::do_late_inline_helper() {
 
           // Update oop input to buffer
           kit.gvn().hash_delete(vt);
-          vt->set_oop(kit.gvn().transform(oop));
+          vt->set_oop(kit.gvn(), kit.gvn().transform(oop));
           vt->set_is_buffered(kit.gvn());
           vt = kit.gvn().transform(vt)->as_InlineType();
 
