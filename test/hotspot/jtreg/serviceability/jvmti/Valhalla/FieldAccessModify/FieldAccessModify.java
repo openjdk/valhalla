@@ -25,7 +25,7 @@
  * @ignore Fix JDK-8328461
  * @test
  * @summary Tests that all FieldAccess and FieldModification notifications
-            are generated for primitive classes.
+            are generated for value classes.
  * @requires vm.jvmti
  * @enablePreview
  * @compile FieldAccessModify.java
@@ -40,7 +40,7 @@ public class FieldAccessModify {
 
     private static final String agentLib = "FieldAccessModify";
 
-    private static primitive class MyPrimitive {
+    private static value class MyPrimitive {
         public int MyPrimitive_fld1;
         public int MyPrimitive_fld2;
 
@@ -68,7 +68,7 @@ public class FieldAccessModify {
         }
     }
 
-    private static primitive class PrimitiveHolder {
+    private static value class PrimitiveHolder {
         public MyPrimitive PrimitiveHolder_fld1;
 
         public PrimitiveHolder(int v) {

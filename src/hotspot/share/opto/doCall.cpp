@@ -580,14 +580,17 @@ void Parse::do_call() {
 
   // Detect the call to the object or abstract class constructor at the end of a value constructor to know when we are done initializing the larval
   if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && peek()->is_InlineType()) {
-     InlineTypeNode* receiver = peek()->as_InlineType();
-     // TODO 8325106 re-enable the assert
-     //assert(receiver->is_larval(), "must be larval");
-     InlineTypeNode* clone = receiver->clone()->as_InlineType();
-     clone->set_is_larval(false);
-     replace_in_map(receiver, _gvn.transform(clone));
-     // TODO 8325106 do we need a barrier here to prevent the initializing stores to flow below?
-   }
+    InlineTypeNode* receiver = peek()->as_InlineType();
+    // TODO 8325106 re-enable the assert
+    //assert(receiver->is_larval(), "must be larval");
+    InlineTypeNode* clone = receiver->clone()->as_InlineType();
+    clone->set_is_larval(false);
+    replace_in_map(receiver, _gvn.transform(clone));
+    // Do not let stores that initialize this buffer be reordered with a subsequent
+    // store that would make this buffer accessible by other threads.
+    // TODO 8325106 MemBarRelease vs. MemBarStoreStore
+    insert_mem_bar(Op_MemBarRelease);
+  }
 
   // Speculative type of the receiver if any
   ciKlass* speculative_receiver_type = nullptr;
