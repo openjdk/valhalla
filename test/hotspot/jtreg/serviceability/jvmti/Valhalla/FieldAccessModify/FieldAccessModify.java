@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,11 @@
 /**
  * @test
  * @summary Tests that all FieldAccess and FieldModification notifications
-            are generated for primitive classes.
+            are generated for value classes.
  * @requires vm.jvmti
+ * @enablePreview
  * @compile FieldAccessModify.java
- * @run main/othervm/native -agentlib:FieldAccessModify -XX:+EnableValhalla -XX:+EnablePrimitiveClasses FieldAccessModify
+ * @run main/othervm/native -agentlib:FieldAccessModify -XX:+EnableValhalla FieldAccessModify
  */
 
 import java.lang.reflect.Field;
@@ -38,7 +39,7 @@ public class FieldAccessModify {
 
     private static final String agentLib = "FieldAccessModify";
 
-    private static primitive class MyPrimitive {
+    private static value class MyPrimitive {
         public int MyPrimitive_fld1;
         public int MyPrimitive_fld2;
 
@@ -66,7 +67,7 @@ public class FieldAccessModify {
         }
     }
 
-    private static primitive class PrimitiveHolder {
+    private static value class PrimitiveHolder {
         public MyPrimitive PrimitiveHolder_fld1;
 
         public PrimitiveHolder(int v) {

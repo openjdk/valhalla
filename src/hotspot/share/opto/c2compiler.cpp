@@ -116,7 +116,7 @@ void C2Compiler::compile_method(ciEnv* env, ciMethod* target, int entry_bci, boo
   bool do_escape_analysis = DoEscapeAnalysis;
   bool do_iterative_escape_analysis = DoEscapeAnalysis;
   bool do_reduce_allocation_merges = ReduceAllocationMerges && EliminateAllocations;
-  // TODO 8325106 Re-enable
+  // TODO 8328675 Re-enable
   bool eliminate_boxing = false; // EliminateAutoBox;
   bool do_locks_coarsening = EliminateLocks;
   bool do_superword = UseSuperWord;
