@@ -45,7 +45,7 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, boo
   PhiNode* oop = PhiNode::make(region, vt->get_oop(), t);
   gvn->set_type(oop, t);
   gvn->record_for_igvn(oop);
-  vt->set_oop(oop);
+  vt->set_oop(*gvn, oop);
 
   // Create a PhiNode for merging the is_buffered values
   t = Type::get_const_basic_type(T_BOOLEAN);
@@ -116,7 +116,7 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
   PhiNode* phi = get_oop()->as_Phi();
   phi->set_req(pnum, other->get_oop());
   if (transform) {
-    set_oop(gvn->transform(phi));
+    set_oop(*gvn, gvn->transform(phi));
   }
 
   // Merge is_buffered inputs
@@ -587,7 +587,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
       // store that would make this buffer accessible by other threads.
       AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
       assert(alloc != nullptr, "must have an allocation node");
-      // TODO 8325106 isn't a MembarRelease sufficient here?
+      // TODO 8325106 MemBarRelease vs. MemBarStoreStore
       kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
     }
 
@@ -609,7 +609,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   // Use cloned InlineTypeNode to propagate oop from now on
   Node* res_oop = kit->gvn().transform(oop);
   InlineTypeNode* vt = clone()->as_InlineType();
-  vt->set_oop(res_oop);
+  vt->set_oop(kit->gvn(), res_oop);
   vt->set_is_buffered(kit->gvn());
   vt = kit->gvn().transform(vt)->as_InlineType();
   if (safe_for_replace) {
@@ -720,13 +720,13 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       inline_klass()->is_initialized() &&
       (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
     // Use the pre-allocated oop for null-free default or empty inline types
-    set_oop(default_oop(*phase, inline_klass()));
+    set_oop(*phase, default_oop(*phase, inline_klass()));
     assert(is_allocated(phase), "should now be allocated");
     return this;
   }
   if (oop->isa_InlineType() && !phase->type(oop)->maybe_null()) {
     InlineTypeNode* vtptr = oop->as_InlineType();
-    set_oop(vtptr->get_oop());
+    set_oop(*phase, vtptr->get_oop());
     set_is_buffered(*phase);
     set_is_init(*phase);
     for (uint i = Values; i < vtptr->req(); ++i) {
@@ -740,7 +740,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     // type is not buffered (in this case we should not use the oop).
     Node* base = is_loaded(phase);
     if (base != nullptr && get_oop() != base && !phase->type(base)->maybe_null()) {
-      set_oop(base);
+      set_oop(*phase, base);
       assert(is_allocated(phase), "should now be allocated");
       return this;
     }
@@ -911,7 +911,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
       vt = vt->clone_with_phis(&gvn, region);
       vt->merge_with(&gvn, null_vt, 2, true);
       if (!null_free) {
-        vt->set_oop(oop);
+        vt->set_oop(gvn, oop);
       }
       kit->set_control(gvn.transform(region));
     }
@@ -959,7 +959,7 @@ InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi,
   if (!in) {
     // Keep track of the oop. The returned inline type might already be buffered.
     Node* oop = kit->gvn().transform(new ProjNode(multi, base_input++));
-    vt->set_oop(oop);
+    vt->set_oop(kit->gvn(), oop);
   }
   GrowableArray<ciType*> visited;
   visited.push(vk);
@@ -984,7 +984,7 @@ InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const 
     alloc->_larval = true;
 
     store(kit, alloc_oop, alloc_oop, vk);
-    res->set_oop(alloc_oop);
+    res->set_oop(kit->gvn(), alloc_oop);
   }
   // TODO 8239003
   //res->set_type(TypeInlineType::make(vk, true));

@@ -122,6 +122,10 @@ runtime/CompressedOops/CompressedClassPointers.java 8317610 linux-x64,windows-x6
 runtime/AccModule/ConstModule.java 8294051 generic-all
 runtime/valhalla/inlinetypes/InlineOops.java#ZGen 8313607 linux-aarch64,macosx-aarch64
 runtime/cds/CDSMapTest.java 8314993 generic-all
+runtime/cds/appcds/HelloInlineClassTest.java 8328683 generic-all
+runtime/cds/appcds/RewriteBytecodesInlineTest.java 8328683 generic-all
+runtime/cds/appcds/dynamicArchive/DynamicArchiveRelocationTest.java 8328683 generic-all
+runtime/cds/appcds/dynamicArchive/HelloDynamicInlineClass.java 8328683 generic-all
 
 #############################################################################
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  */
 
 public class HelloInlineClassApp {
-    static primitive class Point {
+    static value class Point {
         int x, y;
 
         public String toString() {
@@ -48,7 +48,7 @@ public class HelloInlineClassApp {
         }
     }
 
-    static primitive class Rectangle {
+    static value class Rectangle {
         Point p0 = new Point(0,0);
         Point p1 = new Point(1,1);
     }
