@@ -117,7 +117,7 @@ public class VersionedLocationsTest {
 
             new StepFunctionTC(SUPER,
                                Set.of(AccessFlag.Location.CLASS),
-                               ClassFileFormatVersion.RELEASE_21),
+                               ClassFileFormatVersion.RELEASE_22),
 
             new StepFunctionTC(OPEN,
                                Set.of(),
@@ -270,8 +270,7 @@ public class VersionedLocationsTest {
                 (cffv.compareTo(ClassFileFormatVersion.RELEASE_2)  >= 0 &&
                  cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) ?
                 Set.of(Location.METHOD) :
-                        (cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0)
-                                ? Set.of(Location.FIELD) : Set.of();
+                Set.of();
             compareLocations(expected, STRICT, cffv);
         }
     }

@@ -40,7 +40,7 @@ import static java.lang.constant.ConstantDescs.*;
 import static java.lang.invoke.MethodHandleProxies.*;
 import static java.lang.invoke.MethodType.methodType;
 import static jdk.internal.classfile.Classfile.*;
-import jdk.internal.misc.ValhallaFeatures;
+import jdk.internal.misc.PreviewFeatures;
 import static org.junit.jupiter.api.Assertions.*;
 
 /*
@@ -90,7 +90,7 @@ public class WrapperHiddenClassTest {
         var cf = Classfile.of();
         var bytes = cf.build(CD_HostileWrapper, clb -> {
             clb.withSuperclass(CD_Object);
-            clb.withFlags((ValhallaFeatures.isEnabled() ? ACC_IDENTITY : 0) | ACC_FINAL | ACC_SYNTHETIC);
+            clb.withFlags((PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0) | ACC_FINAL | ACC_SYNTHETIC);
             clb.withInterfaceSymbols(CD_Comparator);
 
             // static and instance fields

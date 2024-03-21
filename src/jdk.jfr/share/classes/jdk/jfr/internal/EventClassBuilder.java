@@ -39,7 +39,6 @@ import jdk.internal.classfile.ClassBuilder;
 import jdk.internal.classfile.Classfile;
 import jdk.internal.classfile.Label;
 import jdk.internal.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
-import jdk.internal.misc.ValhallaFeatures;
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.Event;
 import jdk.jfr.ValueDescriptor;
@@ -111,7 +110,7 @@ public final class EventClassBuilder {
 
     private void buildClassInfo(ClassBuilder builder) {
         builder.withSuperclass(Bytecode.classDesc(Event.class));
-        builder.withFlags(AccessFlag.FINAL, AccessFlag.PUBLIC, ValhallaFeatures.isEnabled() ? AccessFlag.IDENTITY : AccessFlag.SUPER);
+        builder.withFlags(AccessFlag.FINAL, AccessFlag.PUBLIC, AccessFlag.IDENTITY);
         List<jdk.internal.classfile.Annotation> annotations = new ArrayList<>();
         for (jdk.jfr.AnnotationElement a : annotationElements) {
             List<jdk.internal.classfile.AnnotationElement> list = new ArrayList<>();

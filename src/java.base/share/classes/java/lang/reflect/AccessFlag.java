@@ -25,8 +25,6 @@
 
 package java.lang.reflect;
 
-import jdk.internal.misc.ValhallaFeatures;
-
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Map;
@@ -187,17 +185,16 @@ public enum AccessFlag {
      * @apiNote
      * In Java SE 8 and above, the JVM treats the {@code ACC_SUPER}
      * flag as set in every class file (JVMS {@jvms 4.1}).
-     * For class file versions up to Valhalla or if Valhalla is not enabled,
+     * For class file versions up to but not including Valhalla,
      * {@code 0x0020} access flag bit is {@linkplain #SUPER SUPER access flag}; otherwise,
      * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      */
-    SUPER(0x0000_0020, false,
-            ValhallaFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_CLASS,
+    SUPER(0x0000_0020, false, Location.EMPTY_SET,
             new Function<ClassFileFormatVersion, Set<Location>>() {
             @Override
             public Set<Location> apply(ClassFileFormatVersion cffv) {
-                return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
-                        ValhallaFeatures.isEnabled()) ? Location.EMPTY_SET : Location.SET_CLASS;}
+                return (cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0)
+                        ? Location.EMPTY_SET : Location.SET_CLASS;}
         }),
 
     /**
@@ -207,12 +204,12 @@ public enum AccessFlag {
      * @jvms 4.1 -B. Class access and property modifiers
      */
     IDENTITY(Modifier.IDENTITY, false,
-            ValhallaFeatures.isEnabled() ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET,
+            Location.SET_CLASS_INNER_CLASS,
             new Function<ClassFileFormatVersion, Set<Location>>() {
                 @Override
                 public Set<Location> apply(ClassFileFormatVersion cffv) {
-                    return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
-                            ValhallaFeatures.isEnabled()) ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET;}
+                    return (cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0)
+                            ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET;}
             }),
 
     /**
@@ -352,19 +349,14 @@ public enum AccessFlag {
      * major versions 46 through 60, inclusive (JVMS {@jvms 4.6}),
      * corresponding to Java SE 1.2 through 16.
      */
-    STRICT(0x0000_0800, true, !ValhallaFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_FIELD,
+    STRICT(Modifier.STRICT, true, Location.EMPTY_SET,
              new Function<ClassFileFormatVersion, Set<Location>>() {
                @Override
                public Set<Location> apply(ClassFileFormatVersion cffv) {
-                   if (ValhallaFeatures.isEnabled() && cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0) {
-                       return Location.SET_FIELD;
-                   } else if (cffv.compareTo(ClassFileFormatVersion.RELEASE_2) >= 0 &&
-                              cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) {
-                       return Location.SET_METHOD;
-                   } else {
-                       return Location.EMPTY_SET;
-                   }
-               }
+                   return (cffv.compareTo(ClassFileFormatVersion.RELEASE_2)  >= 0 &&
+                           cffv.compareTo(ClassFileFormatVersion.RELEASE_16) <= 0) ?
+                       Location.SET_METHOD:
+                       Location.EMPTY_SET;}
            }),
 
     /**
