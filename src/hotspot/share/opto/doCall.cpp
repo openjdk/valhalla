@@ -589,7 +589,7 @@ void Parse::do_call() {
     // Do not let stores that initialize this buffer be reordered with a subsequent
     // store that would make this buffer accessible by other threads.
     // TODO 8325106 MemBarRelease vs. MemBarStoreStore
-    insert_mem_bar(Op_MemBarRelease);
+    // insert_mem_bar(Op_MemBarRelease);
   }
 
   // Speculative type of the receiver if any
