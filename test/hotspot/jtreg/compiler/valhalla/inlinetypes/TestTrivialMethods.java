@@ -27,15 +27,13 @@
  * @summary Verify that trivial accessor methods operating on an inline type
  *          field are C2 compiled to enable scalarization of the arg/return value.
  * @requires vm.compiler2.enabled
- * @modules java.base/jdk.internal.value
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestTrivialMethods.java
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:.
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-StressCallingConvention

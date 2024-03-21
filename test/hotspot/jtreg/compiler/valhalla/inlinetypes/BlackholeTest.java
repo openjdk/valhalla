@@ -31,11 +31,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @test BlackholeTest
  * @summary Check that blackholes work with inline types
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED BlackholeTest.java
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm
- *      --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *      --add-exports java.base/jdk.internal.value=ALL-UNNAMED
  *      -Xbatch -XX:+UnlockExperimentalVMOptions
  *      -XX:CompileCommand=blackhole,compiler/valhalla/inlinetypes/BlackholeTest.blackhole
  *      compiler.valhalla.inlinetypes.BlackholeTest

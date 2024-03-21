@@ -27,12 +27,9 @@
  * @bug 8260363
  * @summary C2 compilation fails with assert(n->Opcode() != Op_Phi) failed: cannot match
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestFlatArrayAliasesCardMark.java
- * @run main/othervm -XX:-BackgroundCompilation
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   TestFlatArrayAliasesCardMark
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:-BackgroundCompilation TestFlatArrayAliasesCardMark
  */
 
 import jdk.internal.value.ValueClass;

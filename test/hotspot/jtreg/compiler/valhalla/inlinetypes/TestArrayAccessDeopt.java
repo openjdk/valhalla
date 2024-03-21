@@ -29,13 +29,9 @@
  * @summary Verify that certain array accesses do not trigger deoptimization.
  * @library /test/lib
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *          TestArrayAccessDeopt.java
- * @run main/othervm -Xmx200m
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   TestArrayAccessDeopt
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xmx200m TestArrayAccessDeopt
  */
 
 import java.io.File;

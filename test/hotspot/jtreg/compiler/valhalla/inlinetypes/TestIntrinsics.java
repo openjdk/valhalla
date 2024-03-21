@@ -45,11 +45,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test intrinsic support for value classes.
  * @library /test/lib /
- * @modules java.base/jdk.internal.misc java.base/jdk.internal.value
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestIntrinsics.java
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestIntrinsics
  */
 
