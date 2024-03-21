@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
  * @bug 6298888 6992705 8161500 6304578
  * @summary Check Class.toGenericString()
  * @author Joseph D. Darcy
+ * @enablePreview
  * @compile GenericStringTest.java
  * @run main/othervm -XX:+EnableValhalla GenericStringTest
  */
