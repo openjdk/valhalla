@@ -3199,13 +3199,11 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       flags |= JVM_ACC_ABSTRACT;
     }
 
-    if (EnableValhalla) {
-      if (!supports_inline_types()) {
-        const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-        const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
-        if (!is_module && !is_interface) {
-          flags |= JVM_ACC_IDENTITY;
-        }
+    if (!supports_inline_types()) {
+      const bool is_module = (flags & JVM_ACC_MODULE) != 0;
+      const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
+      if (!is_module && !is_interface) {
+        flags |= JVM_ACC_IDENTITY;
       }
     }
 
@@ -4646,7 +4644,6 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-  const bool is_identity_class = (flags & JVM_ACC_IDENTITY) != 0;
   const bool is_inner_class = name != nullptr;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
   if (is_module) {
@@ -4675,7 +4672,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
       (!is_interface && major_gte_1_5 && is_annotation)) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
-    if (!is_identity_class)  class_note = " (a value class)";
+    if (!is_identity)  class_note = " (a value class)";
     if (name == nullptr) { // Not an inner class
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
@@ -6037,15 +6034,14 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   }
 
   // Fixing ACC_SUPER/ACC_IDENTITY for old class files
-  if (EnableValhalla) {
-    if (!supports_inline_types()) {
-      const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-      const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
-      if (!is_module && !is_interface) {
-        flags |= JVM_ACC_IDENTITY;
-      }
+  if (!supports_inline_types()) {
+    const bool is_module = (flags & JVM_ACC_MODULE) != 0;
+    const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
+    if (!is_module && !is_interface) {
+      flags |= JVM_ACC_IDENTITY;
     }
   }
+
 
   // This class and superclass
   _this_class_index = stream->get_u2_fast();
