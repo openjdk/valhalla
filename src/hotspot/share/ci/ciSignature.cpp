@@ -69,14 +69,6 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
 }
 
 // ------------------------------------------------------------------
-// ciSignature::is_null_free_at
-//
-// True if we know that the argument at 'index' is null-free.
-bool ciSignature::is_null_free_at(int index) const {
-  return _types.at(index)->is_null_free();
-}
-
-// ------------------------------------------------------------------
 // ciSignature::equals
 //
 // Compare this signature to another one.  Signatures with different

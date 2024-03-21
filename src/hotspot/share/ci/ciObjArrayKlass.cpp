@@ -54,10 +54,6 @@ ciObjArrayKlass::ciObjArrayKlass(Klass* k) : ciArrayKlass(k) {
   if (!ciObjectFactory::is_initialized()) {
     assert(_element_klass->is_java_lang_Object(), "only arrays of object are shared");
   }
-  // JEP 401 doesn't provide static information about null-freeness,
-  // This code should be revisited or removed: JDK-8325660
-  // _null_free = k->name()->is_Q_array_signature() && k->name()->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
-  _null_free = false;
 }
 
 // ------------------------------------------------------------------
@@ -78,10 +74,6 @@ ciObjArrayKlass::ciObjArrayKlass(ciSymbol* array_name,
   } else {
     _element_klass = nullptr;
   }
-  // JEP 401 doesn't provide static information about null-freeness,
-  // This code should be revisited or removed: JDK-8325660
-  // _null_free = array_name->is_Q_array_signature() && array_name->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
-  _null_free = false;
 }
 
 // ------------------------------------------------------------------
@@ -183,8 +175,9 @@ ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {
+  // TODO 8325106 Fix comment
   // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
-  if (!is_elem_null_free() && (!is_loaded() || element_klass()->is_inlinetype())) {
+  if (!is_loaded() || element_klass()->is_inlinetype()) {
     return nullptr;
   }
   ciType* base = base_element_type();

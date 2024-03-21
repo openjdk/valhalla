@@ -27,7 +27,6 @@
  * @summary Fix mismatch inline type issue during method calls
  * @library /test/lib
  * @enablePreview
- * @compile TestCastMismatch.java
  * @run main/othervm -XX:-TieredCompilation -Xcomp
  *                   compiler.valhalla.inlinetypes.TestCastMismatch
  */
@@ -56,7 +55,7 @@ public class TestCastMismatch {
         System.out.println("PASS");
     }
 
-    static value abstract class MultiValues {
+    static abstract value class MultiValues {
         public abstract int value1();
         public abstract int value2();
         public abstract MultiValues factory(int value1, int value2);

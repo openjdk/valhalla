@@ -105,9 +105,7 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
 
   _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
 
-  // this is needed if the field class is not yet loaded.
-  // _is_null_free = _signature->is_Q_signature();
-  _is_null_free = false; // JDK-8325660: null free-ness should be checked in FieldFlags instead of signature
+  _is_null_free = false;
 
   // Get the field's declared holder.
   //

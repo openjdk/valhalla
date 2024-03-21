@@ -27,7 +27,6 @@
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox
- * @compile TestUnloadedReturnTypes.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*::test*

@@ -2459,9 +2459,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
     }
   }
 
-  Invoke* result = new Invoke(code, result_type, recv, args, target, state_before,
-                              // declared_signature->returns_null_free_inline_type());
-                              false);  // JDK-8325660: revisit this code after removal of Q-descriptors
+  Invoke* result = new Invoke(code, result_type, recv, args, target, state_before);
   // push result
   append_split(result);
 
@@ -2497,10 +2495,8 @@ void GraphBuilder::new_type_array() {
 
 void GraphBuilder::new_object_array() {
   ciKlass* klass = stream()->get_klass();
-  // bool null_free = stream()->has_Q_signature();
-  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_exhandling();
-  NewArray* n = new NewObjectArray(klass, ipop(), state_before, null_free);
+  NewArray* n = new NewObjectArray(klass, ipop(), state_before);
   apush(append_split(n));
 }
 
@@ -2524,10 +2520,8 @@ bool GraphBuilder::direct_compare(ciKlass* k) {
 
 void GraphBuilder::check_cast(int klass_index) {
   ciKlass* klass = stream()->get_klass();
-  // bool null_free = stream()->has_Q_signature();
-  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_for_exception();
-  CheckCast* c = new CheckCast(klass, apop(), state_before, null_free);
+  CheckCast* c = new CheckCast(klass, apop(), state_before);
   apush(append_split(c));
   c->set_direct_compare(direct_compare(klass));
 
@@ -3552,7 +3546,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     // don't allow T_ARRAY to propagate into locals types
     if (is_reference_type(basic_type)) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
-    state->store_local(idx, new Local(type, vt, idx, false, sig->is_null_free_at(i)));
+    state->store_local(idx, new Local(type, vt, idx, false, false));
     idx += type->size();
   }
 

@@ -542,11 +542,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != nullptr && elem_klass->is_loaded()) {
       // Now make an array for it
-      // JEP 401 doesn't provide static information about null-freeness,
-      // This code should be revisited or removed: JDK-8325660
-      bool null_free_array = false;
-      // bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
-      return ciArrayKlass::make(elem_klass, null_free_array);
+      return ciArrayKlass::make(elem_klass);
     }
   }
 

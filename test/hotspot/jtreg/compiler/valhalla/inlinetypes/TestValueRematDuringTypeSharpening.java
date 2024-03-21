@@ -36,7 +36,7 @@ import compiler.lib.ir_framework.*;
  * @run main/othervm/timeout=300 --add-exports java.base/jdk.internal.misc=ALL-UNNAMED compiler.valhalla.inlinetypes.TestValueRematDuringTypeSharpening
  */
 
-abstract class topValue {
+abstract value class topValue {
 }
 
 value class dummyValue1 extends topValue {
@@ -81,7 +81,7 @@ public class TestValueRematDuringTypeSharpening {
    }
 
    public static void main(String [] args) {
-       TestFramework.runWithFlags("-XX:-TieredCompilation", "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED");
+       TestFramework.runWithFlags("-XX:-TieredCompilation", "--enable-preview", "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED");
        System.out.println("PASS");
    }
 }

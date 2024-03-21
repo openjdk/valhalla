@@ -689,6 +689,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
         } else if (!reduce_merge_precheck) {
           if (res->is_Phi() && res->as_Phi()->can_be_inline_type()) {
             // Can only eliminate allocation if the phi had been replaced by an InlineTypeNode before which did not happen.
+            // TODO 8325106 Why wasn't it replaced by an InlineTypeNode?
             can_eliminate = false;
           }
           safepoints->append_if_missing(sfpt);
@@ -708,7 +709,8 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
             }
           } else {
             // Add other uses to the worklist to process individually
-            worklist.push(u);
+            // TODO will be fixed by 8328470
+            worklist.push(use);
           }
         }
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
