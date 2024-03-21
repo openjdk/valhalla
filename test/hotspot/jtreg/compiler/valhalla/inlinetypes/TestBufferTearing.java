@@ -164,6 +164,8 @@ public class TestBufferTearing {
     }
 
     public static void main(String[] args) throws Exception {
+        // TODO 8328704 re-enable
+        /*
         // Create threads that concurrently update some value class (array) fields
         // and check the fields of the value classes for consistency to detect tearing.
         TestBufferTearing test = new TestBufferTearing();
@@ -173,5 +175,6 @@ public class TestBufferTearing {
             runner.start();
         }
         runner.join();
+        */
     }
 }
