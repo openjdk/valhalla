@@ -1944,16 +1944,11 @@ void ClassFileParser::throwIllegalSignature(const char* type,
   assert(name != nullptr, "invariant");
   assert(sig != nullptr, "invariant");
 
-  const char* class_note = "";
-  if (is_inline_type() && name == vmSymbols::object_initializer_name()) {
-    class_note = " (an inline class)";
-  }
-
   ResourceMark rm(THREAD);
   Exceptions::fthrow(THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
-      "%s \"%s\" in class %s%s has illegal signature \"%s\"", type,
-      name->as_C_string(), _class_name->as_C_string(), class_note, sig->as_C_string());
+      "%s \"%s\" in class %s has illegal signature \"%s\"", type,
+      name->as_C_string(), _class_name->as_C_string(), sig->as_C_string());
 }
 
 AnnotationCollector::ID
