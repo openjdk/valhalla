@@ -126,6 +126,7 @@ runtime/cds/appcds/HelloInlineClassTest.java 8328683 generic-all
 runtime/cds/appcds/RewriteBytecodesInlineTest.java 8328683 generic-all
 runtime/cds/appcds/dynamicArchive/DynamicArchiveRelocationTest.java 8328683 generic-all
 runtime/cds/appcds/dynamicArchive/HelloDynamicInlineClass.java 8328683 generic-all
+runtime/cds/DeterministicDump.java 8328683 generic-all
 
 #############################################################################
 
@@ -178,6 +179,7 @@ serviceability/sa/TestJmapCore.java 8190936 generic-all
 serviceability/sa/TestJmapCoreMetaspace.java 8190936 generic-all
 serviceability/sa/TestPrintMdo.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
+serviceability/sa/ClhsdbDumpclass.java 8190936 generic-all
 
 #############################################################################
 

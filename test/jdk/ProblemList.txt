@@ -816,4 +816,8 @@ java/awt/FullScreen/TranslucentWindow/TranslucentWindow.java 8258103 linux-all
 java/awt/Focus/FrameMinimizeTest/FrameMinimizeTest.java 8016266 linux-x64
 
 # valhalla
-
+api/java_beans/beancontext/BeanContextSupport/Fields.html 8328777 generic-all
+api/java_beans/beancontext/BeanContextSupport/Other.html 8328777 generic-all
+api/java_beans/beancontext/BeanContextSupport/Simple.html 8328777 generic-all
+api/java_beans/beancontext/BeanContextSupport/addRemove.html 8328777 generic-all
+jdk/jfr/event/runtime/TestSyncOnValueBasedClassEvent.java 8328777 generic-all
