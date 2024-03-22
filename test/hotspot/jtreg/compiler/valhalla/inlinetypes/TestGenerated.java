@@ -26,16 +26,11 @@
  * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986
  * @summary A selection of generated tests that triggered bugs not covered by other tests.
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *          TestGenerated.java
- * @run main/othervm -XX:+EnableValhalla -Xbatch
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
- * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:FlatArrayElementMaxSize=0
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ * @run main/othervm -Xbatch -XX:FlatArrayElementMaxSize=0
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 

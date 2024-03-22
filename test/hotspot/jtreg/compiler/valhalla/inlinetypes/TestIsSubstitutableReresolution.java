@@ -31,8 +31,7 @@ import jdk.test.lib.Asserts;
  * @library /testlibrary /test/lib
  * @summary Verify that call reresolution works for C2 compiled calls to java.lang.runtime.ValueObjectMethods::isSubstitutable0.
  * @enablePreview
- * @run main/othervm -XX:+EnableValhalla
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution::test
+ * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution::test
  *                   compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution
  */
 

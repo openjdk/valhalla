@@ -26,7 +26,7 @@
  * @summary ValueSerialization support of value classes
  * @enablePreview
  * @compile ValueSerialization.java
- * @run testng/othervm -XX:+EnableValhalla ValueSerialization
+ * @run testng/othervm ValueSerialization
  */
 
 import java.io.ByteArrayInputStream;

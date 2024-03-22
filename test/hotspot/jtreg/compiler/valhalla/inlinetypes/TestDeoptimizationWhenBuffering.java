@@ -38,70 +38,46 @@ import jdk.test.whitebox.WhiteBox;
 /**
  * @test TestDeoptimizationWhenBuffering
  * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
- * @modules java.base/jdk.internal.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @build jdk.test.whitebox.WhiteBox
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestDeoptimizationWhenBuffering.java
+ * @enablePreview
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering C1
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
  *                   -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
  *                   -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=-1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=-1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=0
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=0
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*

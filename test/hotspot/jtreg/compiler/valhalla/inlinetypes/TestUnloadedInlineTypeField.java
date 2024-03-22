@@ -40,13 +40,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rI;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestUnloadedInlineTypeField.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla
- *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                               compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
+ * @compile TestUnloadedInlineTypeField.java
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
  */
 
 public class TestUnloadedInlineTypeField {

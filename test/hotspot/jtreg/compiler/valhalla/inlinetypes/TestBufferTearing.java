@@ -40,34 +40,22 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Detect tearing on value class buffer writes due to missing barriers.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @modules java.base/jdk.internal.misc
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestBufferTearing.java
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline

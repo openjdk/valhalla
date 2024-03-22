@@ -28,11 +28,9 @@
  * @requires vm.gc.ZSinglegen
  * @library /test/lib
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestWrongFlatArrayCopyStubWithZGC.java
- * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:+UseZGC -XX:-ZGenerational
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xbatch -XX:+UseZGC -XX:-ZGenerational
  *                   -XX:CompileCommand=exclude,compiler.valhalla.inlinetypes.TestWrongFlatArrayCopyStubWithZGC::check
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestWrongFlatArrayCopyStubWithZGC::test*
  *                   compiler.valhalla.inlinetypes.TestWrongFlatArrayCopyStubWithZGC

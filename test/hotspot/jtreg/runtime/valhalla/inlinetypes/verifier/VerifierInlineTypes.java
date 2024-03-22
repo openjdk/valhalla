@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,14 @@
  *
  */
 /*
- * @ignore
+ * @ignore Fix JDK-8328423
  * @test
  * @bug 8223028
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
+ * @enablePreview
  * @compile verifierTests.jcod
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -verify VerifierInlineTypes
+ * @run main/othervm -verify VerifierInlineTypes
  */
 
 public class VerifierInlineTypes {

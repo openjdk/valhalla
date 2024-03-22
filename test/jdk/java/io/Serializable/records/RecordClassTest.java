@@ -26,7 +26,7 @@
  * @bug 8246774 8326879
  * @summary Basic tests for serializing and deserializing record classes
  * @run testng RecordClassTest
- * @run testng/othervm -XX:+EnableValhalla RecordClassTest
+ * @run testng/othervm --enable-preview RecordClassTest
  * @run testng/othervm/java.security.policy=empty_security.policy RecordClassTest
  */
 

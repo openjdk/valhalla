@@ -27,8 +27,8 @@
  * @summary Test that deoptimization at unstable ifs in acmp works as expected.
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+EnableValhalla TestAcmpWithUnstableIf
- * @run main/othervm -XX:+EnableValhalla -XX:CompileCommand=compileonly,TestAcmpWithUnstableIf::test* -Xbatch TestAcmpWithUnstableIf
+ * @run main/othervm TestAcmpWithUnstableIf
+ * @run main/othervm -XX:CompileCommand=compileonly,TestAcmpWithUnstableIf::test* -Xbatch TestAcmpWithUnstableIf
  */
 
 import jdk.test.lib.Asserts;

@@ -44,9 +44,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestC1.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestC1
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestC1
  */
 
 public class TestC1 {

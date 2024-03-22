@@ -32,7 +32,7 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. HelloDynamicInlineClass
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. HelloDynamicInlineClass
  */
 
 import jdk.test.lib.helpers.ClassFileInstaller;
@@ -62,7 +62,6 @@ public class HelloDynamicInlineClass extends DynamicArchiveTestBase {
         String mainClass = "HelloInlineClassApp";
         dump2(baseArchiveName, topArchiveName,
              "--enable-preview",
-             "-XX:+EnableValhalla",
              "-Xlog:cds",
              "-Xlog:cds+dynamic=debug",
              "-cp", appJar, mainClass)
@@ -71,7 +70,6 @@ public class HelloDynamicInlineClass extends DynamicArchiveTestBase {
                 });
         run2(baseArchiveName, topArchiveName,
             "--enable-preview",
-            "-XX:+EnableValhalla",
             "-Xlog:class+load",
             "-Xlog:cds+dynamic=debug,cds=debug",
             "-cp", appJar, mainClass)

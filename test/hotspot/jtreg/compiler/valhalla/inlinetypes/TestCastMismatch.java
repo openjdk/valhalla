@@ -27,7 +27,7 @@
  * @summary Fix mismatch inline type issue during method calls
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -Xcomp
+ * @run main/othervm -XX:-TieredCompilation -Xcomp
  *                   compiler.valhalla.inlinetypes.TestCastMismatch
  */
 

@@ -35,7 +35,7 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. DynamicArchiveRelocationTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. DynamicArchiveRelocationTest
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
@@ -93,13 +93,13 @@ public class DynamicArchiveRelocationTest extends DynamicArchiveTestBase {
 
         // (1) Dump base archive (static)
 
-        TestCommon.dumpBaseArchive(baseArchiveName, "--enable-preview", "-XX:+EnableValhalla", unlockArg, logArg)
+        TestCommon.dumpBaseArchive(baseArchiveName, "--enable-preview", unlockArg, logArg)
           .shouldContain("Relocating archive from");
 
         // (2) Dump top archive (dynamic)
 
         dump2(baseArchiveName, topArchiveName,
-              "--enable-preview", "-XX:+EnableValhalla",
+              "--enable-preview",
               unlockArg,
               dumpTopRelocArg,
               logArg,
@@ -111,7 +111,7 @@ public class DynamicArchiveRelocationTest extends DynamicArchiveTestBase {
                 });
 
         run2(baseArchiveName, topArchiveName,
-             "--enable-preview", "-XX:+EnableValhalla",
+             "--enable-preview",
              unlockArg,
              runRelocArg,
              logArg,

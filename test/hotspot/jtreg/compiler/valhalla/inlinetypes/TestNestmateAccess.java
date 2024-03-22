@@ -37,16 +37,15 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @summary Test nestmate access to flattened field if nest-host is not loaded.
  * @library /test/lib
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestNestmateAccess.java
- * @run main/othervm -XX:+EnableValhalla -Xcomp
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.Test*::<init>
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess
- * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:TieredStopAtLevel=1
+ * @run main/othervm -Xcomp -XX:TieredStopAtLevel=1
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.Test*::<init>
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess
- * @run main/othervm -XX:+EnableValhalla
- *                   compiler.valhalla.inlinetypes.TestNestmateAccess
+ * @run main/othervm compiler.valhalla.inlinetypes.TestNestmateAccess
  */
 
 interface MyInterface {
