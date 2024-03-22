@@ -92,6 +92,7 @@ inline void Mapper<CON>::map_field_info(const FieldInfo& fi) {
     assert(fi.initializer_index() == 0, "");
     assert(fi.generic_signature_index() == 0, "");
     assert(fi.contention_group() == 0, "");
+    assert(fi.null_marker_offset() == 0, "");
   }
 }
 
@@ -137,7 +138,8 @@ inline FieldInfoReader&  FieldInfoReader::skip_field_info() {
   if (ff.has_any_optionals()) {
     const int init_gen_cont = (ff.is_initialized() +
                                 ff.is_generic() +
-                                ff.is_contended());
+                                ff.is_contended() +
+                                ff.has_null_marker());
     skip(init_gen_cont);  // up to three items
   }
   return *this;

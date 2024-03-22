@@ -6486,7 +6486,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   FieldLayoutBuilder lb(class_name(), super_klass(), _cp, /*_fields*/ _temp_field_info,
       _parsed_annotations->is_contended(), is_inline_type(),
       _field_info, _inline_type_field_klasses);
-  lb.build_layout(CHECK);
+  lb.build_layout();
   if (is_inline_type()) {
     _alignment = lb.get_alignment();
     _first_field_offset = lb.get_first_field_offset();

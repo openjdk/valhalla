@@ -310,16 +310,17 @@ class FieldLayoutBuilder : public ResourceObj {
     return _internal_null_marker_offset;
   }
 
-  void build_layout(TRAPS);
-  void compute_regular_layout(TRAPS);
-  void compute_inline_class_layout(TRAPS);
+  void build_layout();
+  void compute_regular_layout();
+  void compute_inline_class_layout();
   void insert_contended_padding(LayoutRawBlock* slot);
+  void insert_null_markers();
 
  protected:
   void prologue();
   void epilogue();
-  void regular_field_sorting(TRAPS);
-  void inline_class_field_sorting(TRAPS);
+  void regular_field_sorting();
+  void inline_class_field_sorting();
   void add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, InlineKlass* vk, int offset);
   void register_embedded_oops_from_list(OopMapBlocksBuilder* nonstatic_oop_maps, GrowableArray<LayoutRawBlock*>* list);
   void register_embedded_oops(OopMapBlocksBuilder* nonstatic_oop_maps, FieldGroup* group);

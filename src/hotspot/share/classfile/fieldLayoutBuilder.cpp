@@ -148,7 +148,8 @@ FieldLayout::FieldLayout(GrowableArray<FieldInfo>* field_info, ConstantPool* cp)
   _cp(cp),
   _blocks(nullptr),
   _start(_blocks),
-  _last(_blocks) {}
+  _last(_blocks),
+  _has_missing_null_markers(false) {}
 
 void FieldLayout::initialize_static_layout() {
   _blocks = new LayoutRawBlock(LayoutRawBlock::EMPTY, INT_MAX);
@@ -482,25 +483,31 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
     switch(b->kind()) {
       case LayoutRawBlock::REGULAR: {
         FieldInfo* fi = _field_info->adr_at(b->field_index());
-        output->print_cr(" @%d \"%s\" %s %d/%d %s %s",
-                         b->offset(),
-                         fi->name(_cp)->as_C_string(),
-                         fi->signature(_cp)->as_C_string(),
-                         b->size(),
-                         b->alignment(),
-                         "REGULAR",
-                         fi->field_flags().is_null_marker_internal() ? "(with internal null marker)" : "");
-        break;
-      }
-      case LayoutRawBlock::FLAT: {
-        FieldInfo* fi = _field_info->adr_at(b->field_index());
         output->print_cr(" @%d \"%s\" %s %d/%d %s",
                          b->offset(),
                          fi->name(_cp)->as_C_string(),
                          fi->signature(_cp)->as_C_string(),
                          b->size(),
                          b->alignment(),
+                         "REGULAR");
+        break;
+      }
+      case LayoutRawBlock::FLAT: {
+        FieldInfo* fi = _field_info->adr_at(b->field_index());
+        output->print(" @%d \"%s\" %s %d/%d %s ",
+                         b->offset(),
+                         fi->name(_cp)->as_C_string(),
+                         fi->signature(_cp)->as_C_string(),
+                         b->size(),
+                         b->alignment(),
                          "FLAT");
+        if (fi->field_flags().has_null_marker()) {
+          output->print_cr("null marker offset %d %s", fi->null_marker_offset(),
+                           fi->field_flags().is_null_marker_internal() ? "(internal)" : "");
+        } else {
+          output->print_cr("");
+        }
+
         break;
       }
       case LayoutRawBlock::RESERVED: {
@@ -623,7 +630,7 @@ void FieldLayoutBuilder::prologue() {
 //     (support of the @Contended annotation)
 //   - @Contended annotation is ignored for static fields
 //   - field flattening decisions are taken in this method
-void FieldLayoutBuilder::regular_field_sorting(TRAPS) {
+void FieldLayoutBuilder::regular_field_sorting() {
   int idx = 0;
   for (GrowableArrayIterator<FieldInfo> it = _field_info->begin(); it != _field_info->end(); ++it, ++idx) {
     FieldGroup* group = nullptr;
@@ -661,12 +668,14 @@ void FieldLayoutBuilder::regular_field_sorting(TRAPS) {
     case T_OBJECT:
     case T_ARRAY:
     {
-      bool field_is_known_value_class =  !fieldinfo.field_flags().is_injected() && _inline_type_field_klasses != nullptr && _inline_type_field_klasses->at(idx) != nullptr;
+      bool field_is_known_value_class =  !fieldinfo.field_flags().is_injected() && _inline_type_field_klasses != nullptr && _inline_type_field_klasses->at(fieldinfo.index()) != nullptr;
+      bool is_candidate_for_flattening = fieldinfo.field_flags().is_null_free_inline_type() || (EnableNullableFieldFlattening && field_is_known_value_class);
       if (field_is_known_value_class && !fieldinfo.field_flags().is_null_free_inline_type()) {
         ResourceMark rm;
         tty->print_cr("Found a nullable flattenable field!");
       }
-      if (!fieldinfo.field_flags().is_null_free_inline_type()) {
+      // if (!fieldinfo.field_flags().is_null_free_inline_type()) {
+      if (!is_candidate_for_flattening) {
         if (group != _static_fields) _nonstatic_oopmap_count++;
         group->add_oop_field(idx);
       } else {
@@ -682,7 +691,7 @@ void FieldLayoutBuilder::regular_field_sorting(TRAPS) {
           Klass* klass =  _inline_type_field_klasses->at(idx);
           assert(klass != nullptr, "Sanity check");
           InlineKlass* vk = InlineKlass::cast(klass);
-          assert(vk->is_implicitly_constructible(), "must be, should have been checked in post_process_parsed_stream()");
+          assert(!fieldinfo.field_flags().is_null_free_inline_type() || vk->is_implicitly_constructible(), "must be, should have been checked in post_process_parsed_stream()");
           _has_flattening_information = true;
           // Flattening decision to be taken here
           // This code assumes all verification already have been performed
@@ -737,7 +746,7 @@ void FieldLayoutBuilder::regular_field_sorting(TRAPS) {
  *     currently only based in the size of the fields to be flattened, the size
  *     of the resulting instance is not considered)
  */
-void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
+void FieldLayoutBuilder::inline_class_field_sorting() {
   assert(_is_inline_type, "Should only be used for inline classes");
   int alignment = 1;
   for (GrowableArrayIterator<FieldInfo> it = _field_info->begin(); it != _field_info->end(); ++it) {
@@ -834,13 +843,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
     if (!fieldinfo.access_flags().is_static() && field_alignment > alignment) alignment = field_alignment;
   }
   _alignment = alignment;
-  if (!_has_nonstatic_fields) {
-    // There are a number of fixes required throughout the type system and JIT
-    Exceptions::fthrow(THREAD_AND_LOCATION,
-                       vmSymbols::java_lang_ClassFormatError(),
-                       "Value Types do not support zero instance size yet");
-    return;
-  }
+  assert(_has_nonstatic_fields, "Empty value instances should have an injected field to have a non-zero size");
 }
 
 void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
@@ -857,10 +860,10 @@ void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
  *   - then oop fields are allocated (to increase chances to have contiguous oops and
  *     a simpler oopmap).
  */
-void FieldLayoutBuilder::compute_regular_layout(TRAPS) {
+void FieldLayoutBuilder::compute_regular_layout() {
   bool need_tail_padding = false;
   prologue();
-  regular_field_sorting(CHECK);
+  regular_field_sorting();
   if (_is_contended) {
     _layout->set_start(_layout->last_block());
     // insertion is currently easy because the current strategy doesn't try to fill holes
@@ -887,12 +890,35 @@ void FieldLayoutBuilder::compute_regular_layout(TRAPS) {
   if (need_tail_padding) {
     insert_contended_padding(_layout->last_block());
   }
+
+  insert_null_markers();
+
   // Warning: IntanceMirrorKlass expects static oops to be allocated first
   _static_layout->add_contiguously(_static_fields->oop_fields());
   _static_layout->add(_static_fields->big_primitive_fields());
   _static_layout->add(_static_fields->small_primitive_fields());
 
   epilogue();
+}
+
+void FieldLayoutBuilder::insert_null_markers() {
+  if (!EnableNullableFieldFlattening || !_layout->has_missing_null_markers()) return;
+  GrowableArray<LayoutRawBlock*>* list = new GrowableArray<LayoutRawBlock*>(10);
+  for (LayoutRawBlock* block = _layout->first_field_block(); block != _layout->last_block(); block = block->next_block()) {
+    if (block->needs_null_marker()) {
+      LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
+      marker->set_field_index(block->field_index());
+      list->append(marker);
+    }
+  }
+  _layout->add(list);
+  for (GrowableArrayIterator<LayoutRawBlock*> it = list->begin(); it != list->end(); ++it) {
+    LayoutRawBlock* block = *it;
+    assert(block->offset() != -1, "Must be set");
+    assert(!block->needs_null_marker(), "Must have been set");
+    _field_info->adr_at(block->field_index())->set_null_marker_offset(block->offset());
+    _field_info->adr_at(block->field_index())->field_flags_addr()->update_null_marker(true);
+  }
 }
 
 /* Computation of inline classes has a slightly different strategy than for
@@ -907,9 +933,9 @@ void FieldLayoutBuilder::compute_regular_layout(TRAPS) {
  *   - then oop fields
  *   - then small primitive fields (from the biggest to the smallest)
  */
-void FieldLayoutBuilder::compute_inline_class_layout(TRAPS) {
+void FieldLayoutBuilder::compute_inline_class_layout() {
   prologue();
-  inline_class_field_sorting(CHECK);
+  inline_class_field_sorting();
   // Inline types are not polymorphic, so they cannot inherit fields.
   // By consequence, at this stage, the layout must be composed of a RESERVED
   // block, followed by an EMPTY block.
@@ -926,23 +952,7 @@ void FieldLayoutBuilder::compute_inline_class_layout(TRAPS) {
   _layout->add(_root_group->oop_fields());
   _layout->add(_root_group->small_primitive_fields());
 
-  if (_layout->has_missing_null_markers()) {
-    GrowableArray<LayoutRawBlock*>* list = new GrowableArray<LayoutRawBlock*>(10);
-    for (LayoutRawBlock* block = _layout->first_field_block(); block != _layout->last_block(); block = block->next_block()) {
-      if (block->needs_null_marker()) {
-        LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
-        marker->set_field_index(block->field_index());
-        list->append(marker);
-      }
-    }
-    _layout->add(list);
-    for (GrowableArrayIterator<LayoutRawBlock*> it = list->begin(); it != list->end(); ++it) {
-      LayoutRawBlock* block = *it;
-      assert(block->offset() != -1, "Must be set");
-      assert(!block->needs_null_marker(), "Must have been set");
-      _field_info->adr_at(block->field_index())->set_null_marker_offset(block->offset());
-    }
-  }
+  insert_null_markers();
 
   LayoutRawBlock* first_field = _layout->first_field_block();
    if (first_field != nullptr) {
@@ -1085,10 +1095,10 @@ void FieldLayoutBuilder::epilogue() {
   }
 }
 
-void FieldLayoutBuilder::build_layout(TRAPS) {
+void FieldLayoutBuilder::build_layout() {
   if (_is_inline_type) {
-    compute_inline_class_layout(CHECK);
+    compute_inline_class_layout();
   } else {
-    compute_regular_layout(CHECK);
+    compute_regular_layout();
   }
 }

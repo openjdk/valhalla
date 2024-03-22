@@ -88,7 +88,8 @@ class FieldInfo {
     static const u4 _optional_item_bit_mask =
       flag_mask((int)_ff_initialized) |
       flag_mask((int)_ff_generic)     |
-      flag_mask((int)_ff_contended);
+      flag_mask((int)_ff_contended)   |
+      flag_mask((int)_ff_null_marker);
 
     // boilerplate:
     u4 _flags;
