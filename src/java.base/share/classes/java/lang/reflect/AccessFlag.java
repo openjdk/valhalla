@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import jdk.internal.javac.PreviewFeature;
+
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Map;
@@ -185,7 +187,7 @@ public enum AccessFlag {
      * @apiNote
      * In Java SE 8 and above, the JVM treats the {@code ACC_SUPER}
      * flag as set in every class file (JVMS {@jvms 4.1}).
-     * For class file versions up to but not including Valhalla,
+     * For class file versions up to but not including PreviewFeature VALUE_OBJECTS,
      * {@code 0x0020} access flag bit is {@linkplain #SUPER SUPER access flag}; otherwise,
      * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      */
@@ -203,6 +205,7 @@ public enum AccessFlag {
      * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
      * @jvms 4.1 -B. Class access and property modifiers
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     IDENTITY(Modifier.IDENTITY, false,
             Location.SET_CLASS_INNER_CLASS,
             new Function<ClassFileFormatVersion, Set<Location>>() {
