@@ -310,6 +310,17 @@ public class Attr extends JCTree.Visitor {
                 log.error(pos, Errors.CantAssignValToVar(Flags.toSource(v.flags() & (STATIC | FINAL)), v));
             }
         }
+
+        if (!env.info.ctorPrologue &&
+                v.owner.isValueClass() &&
+                !env.info.instanceInitializerBlock && // it is OK instance initializer blocks will go after super() anyways
+                v.owner.kind == TYP &&
+                v.owner == env.enclClass.sym &&
+                (v.flags() & STATIC) == 0 &&
+                (base == null ||
+                        TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base))) {
+            log.error(pos, Errors.CantRefAfterCtorCalled(v));
+        }
     }
 
     /** Does tree represent a static reference to an identifier?
@@ -1425,7 +1436,11 @@ public class Attr extends JCTree.Visitor {
             final Env<AttrContext> localEnv =
                 env.dup(tree, env.info.dup(env.info.scope.dupUnshared(fakeOwner)));
 
-            if ((tree.flags & STATIC) != 0) localEnv.info.staticLevel++;
+            if ((tree.flags & STATIC) != 0) {
+                localEnv.info.staticLevel++;
+            } else {
+                localEnv.info.instanceInitializerBlock = true;
+            }
             // Attribute all type annotations in the block
             annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, localEnv.info.scope.owner, null);
             annotate.flush();
