@@ -485,41 +485,51 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testConstruction() throws Exception {
-        for (String source : List.of(
-                """
-                value class Test {
-                    int i = 100;
-                }
-                """,
-                """
-                value class Test {
-                    int i;
-                    Test() {
-                        i = 100;
+        record Data(String src, boolean isRecord) {}
+        for (Data data : List.of(
+                new Data(
+                    """
+                    value class Test {
+                        int i = 100;
                     }
-                }
-                """,
-                """
-                value class Test {
-                    int i;
-                    Test() {
-                        i = 100;
-                        super();
+                    """, false),
+                new Data(
+                    """
+                    value class Test {
+                        int i;
+                        Test() {
+                            i = 100;
+                        }
                     }
-                }
-                """,
-                """
-                value class Test {
-                    int i;
-                    Test() {
-                        this.i = 100;
-                        super();
+                    """, false),
+                new Data(
+                    """
+                    value class Test {
+                        int i;
+                        Test() {
+                            i = 100;
+                            super();
+                        }
                     }
-                }
-                """
+                    """, false),
+                new Data(
+                    """
+                    value class Test {
+                        int i;
+                        Test() {
+                            this.i = 100;
+                            super();
+                        }
+                    }
+                    """, false),
+                new Data(
+                    """
+                    value record Test(int i) {}
+                    """, true)
         )) {
             String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,return,";
-            File dir = assertOK(true, source);
+            String expectedCodeSequenceRecord = "aload_0,iload_1,putfield,aload_0,invokespecial,return,";
+            File dir = assertOK(true, data.src);
             for (final File fileEntry : dir.listFiles()) {
                 ClassFile classFile = ClassFile.read(fileEntry);
                 for (Method method : classFile.methods) {
@@ -529,7 +539,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         for (Instruction inst: code.getInstructions()) {
                             foundCodeSequence += inst.getMnemonic() + ",";
                         }
-                        Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                        if (!data.isRecord) {
+                            Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                        } else {
+                            Assert.check(expectedCodeSequenceRecord.equals(foundCodeSequence));
+                        }
                     }
                 }
             }
@@ -568,6 +582,17 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         m();
                     }
                     void m() {}
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.after.ctor.called",
+                """
+                value class Test {
+                    int i;
+                    Test() {
+                        super();
+                        this.i = i;
+                    }
                 }
                 """
         );
