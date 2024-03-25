@@ -52,7 +52,6 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   if (is_get && is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
     InlineTypeNode* vt = peek()->as_InlineType();
-    // TODO shouldn't we cast the oop input to non-null here and reload the inline type to get rid of the phi diamond? Should we emit the loads lazily?
     null_check(vt);
     Node* value = vt->field_value_by_offset(field->offset_in_bytes());
     if (value->is_InlineType()) {

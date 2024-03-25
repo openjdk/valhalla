@@ -718,8 +718,8 @@ public class TestBasicFunctionality {
     // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
     // TODO fix
-    //@IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-    //    failOn = {ALLOC, ALLOCA, STORE})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC, ALLOCA, STORE})
     public MyValue3 test31() {
         // C2 can re-use the oop returned by createDontInline()
         // because the corresponding value object is equal to 'copy'.

@@ -1085,8 +1085,6 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
     } else {
       return nullptr;
     }
-
-    // TODO value might be phi because we loaded from a nullable oop...
   }
   return base;
 }
