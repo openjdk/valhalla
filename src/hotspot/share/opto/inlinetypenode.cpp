@@ -587,7 +587,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
       // store that would make this buffer accessible by other threads.
       AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
       assert(alloc != nullptr, "must have an allocation node");
-      // TODO 8325106 MemBarRelease vs. MemBarStoreStore
+      // TODO 8325106 MemBarRelease vs. MemBarStoreStore, see set_alloc_with_final
       kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
     }
 

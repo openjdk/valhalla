@@ -286,15 +286,17 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       // TODO 8325106 looks like G1BarrierSetC2::g1_can_remove_pre_barrier is not strong enough to remove the pre barrier
       // TODO is it really guaranteed that the preval is null?
       new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, C2_TIGHTLY_COUPLED_ALLOC | IN_HEAP | MO_UNORDERED, field->offset_in_bytes());
+
+      // Preserve allocation ptr to create precedent edge to it in membar
+      // generated on exit from constructor.
+      AllocateNode* alloc = AllocateNode::Ideal_allocation(new_vt->get_oop());
+      if (alloc != nullptr) {
+        set_alloc_with_final(new_vt->get_oop());
+      }
+      set_wrote_final(true);
     }
 
     replace_in_map(obj, _gvn.transform(new_vt));
-
-    // TODO 8325106 needed?
-    //set_wrote_final(true);
-    //set_wrote_fields(true);
-    //set_alloc_with_final(obj);
-
     return;
   }
 

@@ -931,7 +931,7 @@ void Compile::return_values(JVMState* jvms) {
       InlineTypeNode* vt = res->as_InlineType();
       ret->add_req_batch(nullptr, tf()->range_cc()->cnt() - TypeFunc::Parms);
       if (vt->is_allocated(&kit.gvn()) && !StressCallingConvention) {
-        ret->init_req(TypeFunc::Parms, vt->get_oop());
+        ret->init_req(TypeFunc::Parms, vt);
       } else {
         // Return the tagged klass pointer to signal scalarization to the caller
         Node* tagged_klass = vt->tagged_klass(kit.gvn());

@@ -586,11 +586,6 @@ void Parse::do_call() {
     InlineTypeNode* clone = receiver->clone()->as_InlineType();
     clone->set_is_larval(false);
     replace_in_map(receiver, _gvn.transform(clone));
-    // Do not let stores that initialize this buffer be reordered with a subsequent
-    // store that would make this buffer accessible by other threads.
-    // TODO 8325106 MemBarRelease vs. MemBarStoreStore
-    // TODO 8328704
-    // insert_mem_bar(Op_MemBarRelease);
   }
 
   // Speculative type of the receiver if any

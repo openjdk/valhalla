@@ -1015,4 +1015,32 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, info.isWarmUp() ? 0 : hash());
     }
 
+    static value class MyValue41 {
+        int x;
+
+        public MyValue41(int x) {
+            this.x = x;
+        }
+
+        static MyValue41 make() {
+            return new MyValue41(0);
+        }
+    }
+
+    static MyValue41 field41;
+
+    // Test removal of the MemBarRelease following the value buffer initialization
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC, ALLOCA, STORE})
+    public void test41(MyValue41 val) {
+        field41 = new MyValue41(val.x);
+    }
+
+    @Run(test = "test41")
+    public void test41_verifier() {
+        MyValue41 val = new MyValue41(rI);
+        test41(val);
+        Asserts.assertEQ(field41, val);
+    }
 }
