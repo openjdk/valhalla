@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -833,6 +833,10 @@ bool MetaspaceShared::try_link_class(JavaThread* current, InstanceKlass* ik) {
 
 #if INCLUDE_CDS_JAVA_HEAP
 void VM_PopulateDumpSharedSpace::dump_java_heap_objects(GrowableArray<Klass*>* klasses) {
+  if (CDSConfig::is_valhalla_preview()) {
+    log_info(cds)("Archived java heap is not yet supported with Valhalla preview");
+    return;
+  }
   if(!HeapShared::can_write()) {
     log_info(cds)(
       "Archived java heap is not supported as UseG1GC "
