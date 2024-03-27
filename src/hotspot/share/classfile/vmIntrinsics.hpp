@@ -623,8 +623,8 @@ class methodHandle;
   do_intrinsic(_copyMemory,               jdk_internal_misc_Unsafe,     copyMemory_name, copyMemory_signature,         F_RN)     \
    do_name(     copyMemory_name,                                        "copyMemory0")                                           \
    do_signature(copyMemory_signature,                                   "(Ljava/lang/Object;JLjava/lang/Object;JJ)V")            \
-  do_intrinsic(_isFlattenedArray,         jdk_internal_misc_Unsafe,     isFlattenedArray_name, class_boolean_signature, F_RN)    \
-   do_name(     isFlattenedArray_name,                                  "isFlattenedArray")                                      \
+  do_intrinsic(_isFlatArray,              jdk_internal_misc_Unsafe,     isFlatArray_name, class_boolean_signature, F_RN)         \
+   do_name(     isFlatArray_name,                                       "isFlatArray")                                           \
   do_intrinsic(_loadFence,                jdk_internal_misc_Unsafe,     loadFence_name, loadFence_signature,           F_R)      \
    do_name(     loadFence_name,                                         "loadFence")                                             \
    do_alias(    loadFence_signature,                                    void_method_signature)                                   \

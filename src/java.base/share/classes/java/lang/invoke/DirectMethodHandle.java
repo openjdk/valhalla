@@ -651,7 +651,6 @@ sealed class DirectMethodHandle extends MethodHandle {
             // retyping can be done without a cast
             return FT_UNCHECKED_REF;
         } else {
-            // null check for value type in addition to check cast
             return ftype.isValue() ? FT_CHECKED_VALUE : FT_CHECKED_REF;
         }
     }
@@ -778,13 +777,15 @@ sealed class DirectMethodHandle extends MethodHandle {
         Kind kind = getFieldKind(isGetter, isVolatile, isFlat, fw);
 
         MethodType linkerType;
-        boolean hasValueTypeArg = isGetter ? ftypeKind == FT_CHECKED_VALUE : isFlat;
+        boolean hasValueTypeArg = isFlat;
         if (isGetter) {
-            linkerType = hasValueTypeArg ? MethodType.methodType(ft, Object.class, long.class, Class.class)
-                                         : MethodType.methodType(ft, Object.class, long.class);
+            linkerType = hasValueTypeArg
+                            ? MethodType.methodType(ft, Object.class, long.class, Class.class)
+                            : MethodType.methodType(ft, Object.class, long.class);
         } else {
-            linkerType = isFlat ? MethodType.methodType(void.class, Object.class, long.class, Class.class, ft)
-                                : MethodType.methodType(void.class, Object.class, long.class, ft);
+            linkerType = hasValueTypeArg
+                            ? MethodType.methodType(void.class, Object.class, long.class, Class.class, ft)
+                            : MethodType.methodType(void.class, Object.class, long.class, ft);
         }
         MemberName linker = new MemberName(Unsafe.class, kind.methodName, linkerType, REF_invokeVirtual);
         try {

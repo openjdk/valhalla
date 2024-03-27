@@ -332,14 +332,14 @@ UNSAFE_ENTRY(jlong, Unsafe_ValueHeaderSize(JNIEnv *env, jobject unsafe, jclass c
   return vk->first_field_offset();
 } UNSAFE_END
 
-UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedField(JNIEnv *env, jobject unsafe, jobject o)) {
+UNSAFE_ENTRY(jboolean, Unsafe_IsFlatField(JNIEnv *env, jobject unsafe, jobject o)) {
   oop f = JNIHandles::resolve_non_null(o);
   Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
   int slot = java_lang_reflect_Field::slot(f);
   return InstanceKlass::cast(k)->field_is_flat(slot);
 } UNSAFE_END
 
-UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedArray(JNIEnv *env, jobject unsafe, jclass c)) {
+UNSAFE_ENTRY(jboolean, Unsafe_IsFlatArray(JNIEnv *env, jobject unsafe, jclass c)) {
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
   return k->is_flatArray_klass();
 } UNSAFE_END
@@ -1000,14 +1000,14 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "getReferenceVolatile", CC "(" OBJ "J)" OBJ,      FN_PTR(Unsafe_GetReferenceVolatile)},
     {CC "putReferenceVolatile", CC "(" OBJ "J" OBJ ")V",  FN_PTR(Unsafe_PutReferenceVolatile)},
 
-    {CC "isFlattenedArray", CC "(" CLS ")Z",                     FN_PTR(Unsafe_IsFlattenedArray)},
-    {CC "isFlattenedField0", CC "(" OBJ ")Z",                    FN_PTR(Unsafe_IsFlattenedField)},
-    {CC "getValue",         CC "(" OBJ "J" CLS ")" OBJ,          FN_PTR(Unsafe_GetValue)},
-    {CC "putValue",         CC "(" OBJ "J" CLS OBJ ")V",         FN_PTR(Unsafe_PutValue)},
-    {CC "uninitializedDefaultValue", CC "(" CLS ")" OBJ,         FN_PTR(Unsafe_UninitializedDefaultValue)},
-    {CC "makePrivateBuffer",     CC "(" OBJ ")" OBJ,             FN_PTR(Unsafe_MakePrivateBuffer)},
-    {CC "finishPrivateBuffer",   CC "(" OBJ ")" OBJ,             FN_PTR(Unsafe_FinishPrivateBuffer)},
-    {CC "valueHeaderSize",       CC "(" CLS ")J",                FN_PTR(Unsafe_ValueHeaderSize)},
+    {CC "isFlatArray", CC "(" CLS ")Z",                   FN_PTR(Unsafe_IsFlatArray)},
+    {CC "isFlatField0", CC "(" OBJ ")Z",                  FN_PTR(Unsafe_IsFlatField)},
+    {CC "getValue",         CC "(" OBJ "J" CLS ")" OBJ,   FN_PTR(Unsafe_GetValue)},
+    {CC "putValue",         CC "(" OBJ "J" CLS OBJ ")V",  FN_PTR(Unsafe_PutValue)},
+    {CC "uninitializedDefaultValue", CC "(" CLS ")" OBJ,  FN_PTR(Unsafe_UninitializedDefaultValue)},
+    {CC "makePrivateBuffer",     CC "(" OBJ ")" OBJ,      FN_PTR(Unsafe_MakePrivateBuffer)},
+    {CC "finishPrivateBuffer",   CC "(" OBJ ")" OBJ,      FN_PTR(Unsafe_FinishPrivateBuffer)},
+    {CC "valueHeaderSize",       CC "(" CLS ")J",         FN_PTR(Unsafe_ValueHeaderSize)},
 
     {CC "getUncompressedObject", CC "(" ADR ")" OBJ,  FN_PTR(Unsafe_GetUncompressedObject)},
 

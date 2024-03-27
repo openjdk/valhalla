@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,10 @@
  * questions.
  */
 
-#include "jni.h"
-#include "jvm.h"
+package jdk.internal.value;
 
-#include "jdk_internal_value_ValueClass.h"
-
-JNIEXPORT jboolean JNICALL
-Java_jdk_internal_value_ValueClass_isImplicitlyConstructible(JNIEnv *env, jclass dummy, jclass cls) {
-    return JVM_IsImplicitlyConstructibleClass(env, cls);
+public sealed interface CheckedType permits NormalCheckedType, NullRestrictedCheckedType {
+    Object cast(Object obj);
+    boolean canCast(Object obj);
+    Class<?> boundingClass();
 }
-
-JNIEXPORT jarray JNICALL
-Java_jdk_internal_value_ValueClass_newNullRestrictedArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
-{
-    return JVM_NewNullRestrictedArray(env, elmClass, len);
-}
-
-JNIEXPORT jboolean JNICALL
-Java_jdk_internal_value_ValueClass_isNullRestrictedArray(JNIEnv *env, jclass cls, jobject obj)
-{
-    return JVM_IsNullRestrictedArray(env, obj);
-}
-
