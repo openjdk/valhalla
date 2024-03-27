@@ -280,8 +280,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       new_vt = new_vt->adjust_scalarization_depth(this);
     }
 
-    //if ((!_caller->has_method() || C->inlining_incrementally()) && new_vt->is_allocated(&gvn())) {
-    // TODO Check if caller is a constructor instead? Is that sufficient?
+    // TODO 8325106 Double check and explain these checks
     if ((!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor()) && new_vt->is_allocated(&gvn())) {
       assert(new_vt->as_InlineType()->is_allocated(&gvn()), "must be buffered");
       // We need to store to the buffer

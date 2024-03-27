@@ -1217,8 +1217,11 @@ SafePointNode* Parse::create_entry_map() {
     Node* receiver = kit.argument(0);
     Node* null_free = kit.null_check_receiver_before_call(method());
     _caller = kit.transfer_exceptions_into_jvms();
-    // TODO we modify the caller map here but not the exits map. Update it here so we find it again
-    _exits.map()->replace_edge(receiver, null_free);
+    if (receiver->is_InlineType() && receiver->as_InlineType()->is_larval()) {
+      // Replace the larval inline type receiver in the exit map as well to make sure that
+      // we can find and update it in Parse::do_call when we are done with the initialization.
+      _exits.map()->replace_edge(receiver, null_free);
+    }
     if (kit.stopped()) {
       _exits.add_exception_states_from(_caller);
       _exits.set_jvms(_caller);
@@ -2178,7 +2181,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     // Inline types are merged by merging their field values.
     // Create a cloned InlineTypeNode with phi inputs that
     // represents the merged inline type and update the map.
-    // TODO Why can't we pass map here?
+    // TODO 8325106 Why can't we pass map here?
     vt = vt->clone_with_phis(&_gvn, region);
     map->set_req(idx, vt);
     return vt->get_oop()->as_Phi();

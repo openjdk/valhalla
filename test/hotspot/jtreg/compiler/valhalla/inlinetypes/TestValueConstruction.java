@@ -272,7 +272,7 @@ public class TestValueConstruction {
             Asserts.assertEQ(test12(x), new MyValue3(x));
             Asserts.assertEQ(test13(x), new MyValue4(x));
             Asserts.assertEQ(test14(x, (x % 2) == 0), new MyValue5(x, (x % 2) == 0));
-          //  Asserts.assertEQ(test15(x), new MyValue6(x));
+            Asserts.assertEQ(test15(x), new MyValue6(x));
             Asserts.assertEQ(test16(x), new MyValue7(x));
         }
     }

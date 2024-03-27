@@ -26,7 +26,6 @@ package compiler.valhalla.inlinetypes;
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 import jdk.experimental.bytecode.TypeTag;
-import test.java.lang.invoke.lib.OldInstructionHelper;
 
 import java.lang.reflect.Method;
 
@@ -47,7 +46,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
  * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestValueClasses
  */
 
