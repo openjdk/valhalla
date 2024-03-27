@@ -632,7 +632,7 @@ sealed class DirectMethodHandle extends MethodHandle {
             FT_LAST_WRAPPER     = Wrapper.COUNT-1,
             FT_UNCHECKED_REF    = Wrapper.OBJECT.ordinal(),
             FT_CHECKED_REF      = FT_LAST_WRAPPER+1,
-            FT_CHECKED_VALUE    = FT_LAST_WRAPPER+2,  // flattened and non-flattened and null-restricted
+            FT_CHECKED_VALUE    = FT_LAST_WRAPPER+2,  // flat vs non-flat x null value vs null-restricted value
             FT_LIMIT            = FT_LAST_WRAPPER+6;
     private static int afIndex(byte formOp, boolean isVolatile, boolean isFlat, boolean isNullRestricted, int ftypeKind) {
         return ((formOp * FT_LIMIT * 2)
@@ -697,9 +697,7 @@ sealed class DirectMethodHandle extends MethodHandle {
 
     private static final Wrapper[] ALL_WRAPPERS = Wrapper.values();
 
-    private static Kind getFieldKind(boolean isGetter, boolean isVolatile,
-                                     boolean isFlat,
-                                     Wrapper wrapper) {
+    private static Kind getFieldKind(boolean isGetter, boolean isVolatile, boolean isFlat, Wrapper wrapper) {
         if (isGetter) {
             if (isVolatile) {
                 switch (wrapper) {
@@ -762,13 +760,11 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
 
     private static LambdaForm makePreparedFieldLambdaForm(byte formOp, boolean isVolatile,
-                                                          boolean isFlat,
-                                                          boolean isNullRestricted, int ftypeKind) {
+                                                          boolean isFlat, boolean isNullRestricted, int ftypeKind) {
         boolean isGetter  = (formOp & 1) == (AF_GETFIELD & 1);
         boolean isStatic  = (formOp >= AF_GETSTATIC);
         boolean needsInit = (formOp >= AF_GETSTATIC_INIT);
         boolean needsCast = (ftypeKind == FT_CHECKED_REF || ftypeKind == FT_CHECKED_VALUE);
-        boolean needsZeroInstance = isNullRestricted && !isFlat;
         Wrapper fw = (needsCast ? Wrapper.OBJECT : ALL_WRAPPERS[ftypeKind]);
         Class<?> ft = fw.primitiveType();
         assert(needsCast ? true : ftypeKind(ft) == ftypeKind);
@@ -777,13 +773,12 @@ sealed class DirectMethodHandle extends MethodHandle {
         Kind kind = getFieldKind(isGetter, isVolatile, isFlat, fw);
 
         MethodType linkerType;
-        boolean hasValueTypeArg = isFlat;
         if (isGetter) {
-            linkerType = hasValueTypeArg
+            linkerType = isFlat
                             ? MethodType.methodType(ft, Object.class, long.class, Class.class)
                             : MethodType.methodType(ft, Object.class, long.class);
         } else {
-            linkerType = hasValueTypeArg
+            linkerType = isFlat
                             ? MethodType.methodType(void.class, Object.class, long.class, Class.class, ft)
                             : MethodType.methodType(void.class, Object.class, long.class, ft);
         }
@@ -817,12 +812,12 @@ sealed class DirectMethodHandle extends MethodHandle {
         final int OBJ_CHECK = (OBJ_BASE >= 0 ? nameCursor++ : -1);
         final int U_HOLDER  = nameCursor++;  // UNSAFE holder
         final int INIT_BAR  = (needsInit ? nameCursor++ : -1);
-        final int VALUE_TYPE = (hasValueTypeArg ? nameCursor++ : -1);
+        final int VALUE_TYPE = (isFlat ? nameCursor++ : -1);
         final int NULL_CHECK  = (isNullRestricted && !isGetter ? nameCursor++ : -1);
         final int PRE_CAST  = (needsCast && !isGetter ? nameCursor++ : -1);
         final int LINKER_CALL = nameCursor++;
-        final int FIELD_TYPE = (needsZeroInstance && isGetter ? nameCursor++ : -1);
-        final int ZERO_INSTANCE = (needsZeroInstance && isGetter ? nameCursor++ : -1);
+        final int FIELD_TYPE = (isNullRestricted && isGetter ? nameCursor++ : -1);
+        final int ZERO_INSTANCE = (isNullRestricted && isGetter ? nameCursor++ : -1);
         final int POST_CAST = (needsCast && isGetter ? nameCursor++ : -1);
         final int RESULT    = nameCursor-1;  // either the call, zero instance, or the cast
         Name[] names = arguments(nameCursor - ARG_LIMIT, mtype.invokerType());
@@ -835,7 +830,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                 names[PRE_CAST] = new Name(getFunction(NF_checkCast), names[DMH_THIS], names[SET_VALUE]);
         }
         Object[] outArgs = new Object[1 + linkerType.parameterCount()];
-        assert (outArgs.length == (isGetter ? 3 : 4) + (hasValueTypeArg ? 1 : 0));
+        assert (outArgs.length == (isGetter ? 3 : 4) + (isFlat ? 1 : 0));
         outArgs[0] = names[U_HOLDER] = new Name(getFunction(NF_UNSAFE));
         if (isStatic) {
             outArgs[1] = names[F_HOLDER]  = new Name(getFunction(NF_staticBase), names[DMH_THIS]);
@@ -845,7 +840,7 @@ sealed class DirectMethodHandle extends MethodHandle {
             outArgs[2] = names[F_OFFSET]  = new Name(getFunction(NF_fieldOffset), names[DMH_THIS]);
         }
         int x = 3;
-        if (hasValueTypeArg) {
+        if (isFlat) {
             outArgs[x++] = names[VALUE_TYPE] = isStatic ? new Name(getFunction(NF_staticFieldType), names[DMH_THIS])
                                                         : new Name(getFunction(NF_fieldType), names[DMH_THIS]);
         }
@@ -856,7 +851,7 @@ sealed class DirectMethodHandle extends MethodHandle {
         names[LINKER_CALL] = new Name(linker, outArgs);
         if (isGetter) {
             int argIndex = LINKER_CALL;
-            if (needsZeroInstance) {
+            if (isNullRestricted) {
                 names[FIELD_TYPE] = isStatic ? new Name(getFunction(NF_staticFieldType), names[DMH_THIS])
                                              : new Name(getFunction(NF_fieldType), names[DMH_THIS]);
                 names[ZERO_INSTANCE] = new Name(getFunction(NF_zeroInstance), names[FIELD_TYPE], names[LINKER_CALL]);
