@@ -48,7 +48,7 @@ bool CDSConfig::is_valhalla_preview() {
 #if INCLUDE_CDS_JAVA_HEAP
 bool CDSConfig::is_dumping_heap() {
   if (is_valhalla_preview()) {
-    // Not working yet -- e.g., HeapShared::ooo_hash() needs to be implemented for value oops
+    // Not working yet -- e.g., HeapShared::oop_hash() needs to be implemented for value oops
     return false;
   }
   // heap dump is not supported in dynamic dump
