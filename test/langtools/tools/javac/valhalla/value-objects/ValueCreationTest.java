@@ -61,30 +61,22 @@ public class ValueCreationTest {
         runCheck(params, new String [] {
 
          "final value class ValueCreationTest$Point",
-         "flags: (0x0050) ACC_FINAL, ACC_VALUE",
-
-         "0: new           #8                  // class ValueCreationTest$Point",
-
-
-
-         // Check that constructor has been lowered into a static factory method
+         "flags: (0x0010) ACC_FINAL",
          "ValueCreationTest$Point(int, int);",
          "descriptor: (II)V",
          "flags: (0x0000)",
          "0: aload_0",
-         "1: invokespecial #1                  // Method java/lang/Object.\"<init>\":()V",
-         "4: aload_0",
-         "5: iload_1",
-         "6: putfield      #7                  // Field x:I",
-         "9: aload_0",
-        "10: iload_2",
-        "11: putfield      #13                 // Field y:I",
-        "14: return"
+         "1: iload_1",
+         "2: putfield      #1                  // Field x:I",
+         "5: aload_0",
+         "6: iload_2",
+         "7: putfield      #7                  // Field y:I",
+        "10: aload_0",
+        "11: invokespecial #10                 // Method java/lang/Object.\"<init>\":()V",
          });
-
      }
 
-     void runCheck(String [] params, String [] expectedOut) {
+    void runCheck(String [] params, String [] expectedOut) {
         StringWriter s;
         String out;
 
@@ -99,8 +91,8 @@ public class ValueCreationTest {
                 errors++;
             }
         }
-         if (errors > 0) {
-             throw new AssertionError("Unexpected javap output: " + out);
-         }
+        if (errors > 0) {
+            throw new AssertionError("Unexpected javap output: " + out);
+        }
     }
 }
