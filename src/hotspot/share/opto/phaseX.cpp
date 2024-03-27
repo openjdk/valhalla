@@ -2208,6 +2208,15 @@ Node *PhaseCCP::transform_once( Node *n ) {
     _worklist.push(n);          // n re-enters the hash table via the worklist
   }
 
+  if (n->is_Load()) {
+    Node* ld_adr = n->in(MemNode::Address);
+    // PhaseCCP might enable MemNode::can_see_stored_value() for LoadNodes, put the Load on the IGVN worklist to allow LoadNode::Ideal to fold it
+    // TestBasicFunctionality -DScenarios=1 -DTest=test41 triggers this
+    if (type(ld_adr)->is_inlinetypeptr()) {
+      _worklist.push(n);
+    }
+  }
+
   // TEMPORARY fix to ensure that 2nd GVN pass eliminates null checks
   switch( n->Opcode() ) {
   case Op_CallStaticJava:  // Give post-parse call devirtualization a chance

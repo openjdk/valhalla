@@ -580,12 +580,28 @@ void Parse::do_call() {
 
   // Detect the call to the object or abstract class constructor at the end of a value constructor to know when we are done initializing the larval
   if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && peek()->is_InlineType()) {
+    assert(method()->is_object_constructor() && (method()->holder()->is_inlinetype() || method()->holder()->is_abstract()), "Unexpected caller");
     InlineTypeNode* receiver = peek()->as_InlineType();
     // TODO 8325106 re-enable the assert
     //assert(receiver->is_larval(), "must be larval");
-    InlineTypeNode* clone = receiver->clone()->as_InlineType();
+    InlineTypeNode* clone = receiver->clone_if_required(&_gvn, _map);
     clone->set_is_larval(false);
-    replace_in_map(receiver, _gvn.transform(clone));
+    clone = _gvn.transform(clone)->as_InlineType();
+    replace_in_map(receiver, clone);
+
+    if (_caller->has_method()) {
+      // Get receiver from the caller map and update it in the exit map now that we are done initializing it
+      SafePointNode* map = _caller->map();
+      receiver = map->argument(_caller, 0)->as_InlineType();
+      assert(peek()->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(), "Receiver type mismatch");
+      _exits.map()->replace_edge(receiver, clone, &_gvn);
+    }
+  }
+
+  // TODO comment
+  if (false && orig_callee->is_object_constructor() && orig_callee->holder()->is_inlinetype()) {
+    Node* receiver_node = stack(sp() - nargs);
+    receiver_node->as_InlineType()->buffer(this);
   }
 
   // Speculative type of the receiver if any
@@ -800,6 +816,31 @@ void Parse::do_call() {
       Node* retnode = pop();
       retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
       push_node(T_OBJECT, retnode);
+    }
+
+    // We just called the constructor on a value type receiver. Reload it from the buffer
+    if (false && cg->method()->is_object_constructor() && cg->method()->holder()->is_inlinetype()) {
+      InlineTypeNode* buffered_receiver = receiver->as_InlineType();
+      assert(buffered_receiver->is_larval(), "must be larval");
+      assert(buffered_receiver->is_allocated(&gvn()), "larval must be buffered");
+      Node* oop = buffered_receiver->get_oop();
+      // TODO can we detect cases where this is not required? Idea: Can we artificially keep the receiver?
+      // TODO comments
+      // Find the receiver again, it might have been replaced when inlining/parsing the callee
+      Unique_Node_List worklist;
+      for (DUIterator_Fast imax, i = oop->fast_outs(imax); i < imax; i++) {
+        InlineTypeNode* user = oop->fast_out(i)->isa_InlineType();
+        if (user != nullptr) {
+          worklist.push(user);
+        }
+      }
+      if (worklist.size() > 0) {
+        InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, oop, buffered_receiver->bottom_type()->inline_klass(), true);
+        assert(!reloaded->is_larval(), "should not be larval anymore");
+        while (worklist.size() > 0) {
+          replace_in_map(worklist.pop(), reloaded);
+        }
+      }
     }
   }
 

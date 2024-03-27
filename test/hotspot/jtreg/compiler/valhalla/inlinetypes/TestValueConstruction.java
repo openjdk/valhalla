@@ -30,7 +30,7 @@ import jdk.test.lib.Asserts;
  * @summary Test construction of value objects.
  * @library /testlibrary /test/lib /
  * @enablePreview
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -XX:+EnableValhalla -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
@@ -45,7 +45,7 @@ import jdk.test.lib.Asserts;
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  *
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
@@ -62,6 +62,7 @@ import jdk.test.lib.Asserts;
  */
 
 // TODO 8325106 Add -XX:+DeoptimizeALot
+// TODO 8325106 Convert this to an IR Framework test but make sure that test coverage doesn't suffer
 
 public class TestValueConstruction {
 
@@ -91,27 +92,71 @@ public class TestValueConstruction {
         int x;
 
         public MyValue3(int x) {
-          this.x = x;
-          // TODO 8325106 enable
-          //  this(x, 0);
-          //  helper1(this, x, y); // 'this' escapes through argument
-          //  helper2(x, y); // 'this' escapes through receiver
+            this(x, 0);
+            helper1(this, x); // 'this' escapes through argument
+            helper2(x); // 'this' escapes through receiver
         }
 
         public MyValue3(int x, int unused) {
-            this.x = x;
-          //  super();
-          //  helper1(this, x, y); // 'this' escapes through argument
-          //  helper2(x, y); // 'this' escapes through receiver
+            this.x = helper3(x);
+            super();
+            helper1(this, x); // 'this' escapes through argument
+            helper2(x); // 'this' escapes through receiver
         }
 
         public static void helper1(MyValue3 obj, int x) {
             Asserts.assertEQ(obj.x, x);
-        };
+        }
 
         public void helper2(int x) {
             Asserts.assertEQ(this.x, x);
-        };
+        }
+
+        public static int helper3(int x) {
+            return x;
+        }
+    }
+
+    static value class MyValue4 {
+        Integer x;
+
+        public MyValue4(int x) {
+            this.x = x;
+        }
+    }
+
+    static value class MyValue5 {
+        int x;
+
+        public MyValue5(int x, boolean b) {
+            if (b) {
+                this.x = 42;
+            } else {
+                this.x = x;
+            }
+        }
+    }
+
+    static value class MyValue6 {
+        int x;
+        MyValue1 val;
+
+        public MyValue6(int x) {
+            this.x = x;
+            this.val = new MyValue1(x);
+            super();
+        }
+    }
+
+    // Same as MyValue6 but unused MyValue1 construction
+    static value class MyValue7 {
+        int x;
+
+        public MyValue7(int x) {
+            this.x = x;
+            new MyValue1(42);
+            super();
+        }
     }
 
     public static int test1(int x) {
@@ -195,6 +240,22 @@ public class TestValueConstruction {
         return v;
     }
 
+    public static MyValue4 test13(int x) {
+        return new MyValue4(x);
+    }
+
+    public static MyValue5 test14(int x, boolean b) {
+        return new MyValue5(x, b);
+    }
+
+    public static Object test15(int x) {
+        return new MyValue6(x);
+    }
+
+    public static Object test16(int x) {
+        return new MyValue7(x);
+    }
+
     public static void main(String[] args) {
         for (int x = 0; x < 50_000; ++x) {
             Asserts.assertEQ(test1(x),x);
@@ -209,6 +270,10 @@ public class TestValueConstruction {
             Asserts.assertEQ(test10(x), new MyValue3(x));
             Asserts.assertEQ(test11(10), new MyValue3(10));
             Asserts.assertEQ(test12(x), new MyValue3(x));
+            Asserts.assertEQ(test13(x), new MyValue4(x));
+            Asserts.assertEQ(test14(x, (x % 2) == 0), new MyValue5(x, (x % 2) == 0));
+          //  Asserts.assertEQ(test15(x), new MyValue6(x));
+            Asserts.assertEQ(test16(x), new MyValue7(x));
         }
     }
 }

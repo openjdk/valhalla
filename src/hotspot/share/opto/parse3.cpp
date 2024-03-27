@@ -270,7 +270,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     }
 
     // Clone the inline type node and set the new field value
-    InlineTypeNode* new_vt = obj->clone()->as_InlineType();
+    InlineTypeNode* new_vt = obj->as_InlineType()->clone_if_required(&_gvn, _map);
     new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
     {
       PreserveReexecuteState preexecs(this);
@@ -280,8 +280,10 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       new_vt = new_vt->adjust_scalarization_depth(this);
     }
 
-    // TODO 8325106 needed? I think so, because although we are incrementally inlining, we might not incrementally inline this very method
-    if ((!_caller->has_method() || C->inlining_incrementally()) && new_vt->is_allocated(&gvn())) {
+    //if ((!_caller->has_method() || C->inlining_incrementally()) && new_vt->is_allocated(&gvn())) {
+    // TODO Check if caller is a constructor instead? Is that sufficient?
+    if ((!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor()) && new_vt->is_allocated(&gvn())) {
+      assert(new_vt->as_InlineType()->is_allocated(&gvn()), "must be buffered");
       // We need to store to the buffer
       // TODO 8325106 looks like G1BarrierSetC2::g1_can_remove_pre_barrier is not strong enough to remove the pre barrier
       // TODO is it really guaranteed that the preval is null?
