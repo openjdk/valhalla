@@ -25,11 +25,17 @@
  * @test
  * @bug 8266670 8291734 8296743
  * @summary Test expected AccessFlag's on classes.
+ * @modules java.base/jdk.internal.misc
+ * @enablePreview
+ * @run main/othervm --enable-preview ClassAccessFlagTest
+ * @run main ClassAccessFlagTest
  */
 
 import java.lang.annotation.*;
 import java.lang.reflect.*;
 import java.util.*;
+
+import jdk.internal.misc.PreviewFeatures;
 
 /*
  * Class access flags that can directly or indirectly declared in
@@ -47,7 +53,8 @@ import java.util.*;
  * file. Therefore, this test does not attempt to probe the setting of
  * that access flag.
  */
-@ExpectedClassFlags("[PUBLIC, FINAL, IDENTITY]")
+@ExpectedClassFlags(value = "[PUBLIC, FINAL, SUPER]",
+        preview = "[PUBLIC, FINAL, IDENTITY]")
 public final class ClassAccessFlagTest {
     public static void main(String... args) {
         // Top-level and auxiliary classes; i.e. non-inner classes
@@ -56,7 +63,9 @@ public final class ClassAccessFlagTest {
             TestInterface.class,
             TestFinalClass.class,
             TestAbstractClass.class,
-            Foo.class,
+            TestAbstractValueClass.class,
+            TestPrivateAbstractClass.class,
+            TestPrivateAbstractValueClass.class,
             StaticTestInterface.class,
             TestMarkerAnnotation.class,
             ExpectedClassFlags.class,
@@ -82,9 +91,11 @@ public final class ClassAccessFlagTest {
             clazz.getAnnotation(ExpectedClassFlags.class);
         if (expected != null) {
             String actual = clazz.accessFlags().toString();
-            if (!expected.value().equals(actual)) {
+            String expectedFlags = (PreviewFeatures.isEnabled() && !expected.preview().isEmpty())
+                    ? expected.preview() : expected.value();
+            if (!expectedFlags.equals(actual)) {
                 throw new RuntimeException("On " + clazz +
-                                           " expected " + expected.value() +
+                                           " expected " + expected +
                                            " got " + actual);
             }
         }
@@ -188,23 +199,31 @@ public final class ClassAccessFlagTest {
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
     /*package*/ interface PackageInterface {}
 
-    @ExpectedClassFlags("[FINAL, IDENTITY]")
+    @ExpectedClassFlags(value = "[FINAL]",
+            preview = "[FINAL, IDENTITY]")
     /*package*/ final class TestFinalClass {}
 
-    @ExpectedClassFlags("[IDENTITY, ABSTRACT]")
+    @ExpectedClassFlags(value = "[ABSTRACT]",
+            preview = "[IDENTITY, ABSTRACT]")
     /*package*/ abstract class TestAbstractClass {}
+
+    @ExpectedClassFlags(value = "[ABSTRACT]",
+            preview = "[ABSTRACT]")
+    /*package*/ abstract value class TestAbstractValueClass {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT, ANNOTATION]")
     /*package*/ @interface TestMarkerAnnotation {}
 
-    @ExpectedClassFlags("[PUBLIC, STATIC, FINAL, IDENTITY, ENUM]")
+    @ExpectedClassFlags(value = "[PUBLIC, STATIC, FINAL, ENUM]",
+            preview = "[PUBLIC, STATIC, FINAL, IDENTITY, ENUM]")
     public enum MetaSynVar {
         QUUX;
     }
 
     // Is there is at least one special enum constant, the enum class
     // itself is implicitly abstract rather than final.
-    @ExpectedClassFlags("[PROTECTED, STATIC, IDENTITY, ABSTRACT, ENUM]")
+    @ExpectedClassFlags(value = "[PROTECTED, STATIC, ABSTRACT, ENUM]",
+            preview = "[PROTECTED, STATIC, IDENTITY, ABSTRACT, ENUM]")
     protected enum MetaSynVar2 {
         WOMBAT{
             @Override
@@ -213,8 +232,13 @@ public final class ClassAccessFlagTest {
         public abstract int foo();
     }
 
-    @ExpectedClassFlags("[PRIVATE, IDENTITY, ABSTRACT]")
-    private abstract class Foo {}
+    @ExpectedClassFlags(value = "[PRIVATE, ABSTRACT]",
+            preview = "[PRIVATE, IDENTITY, ABSTRACT]")
+    private abstract class TestPrivateAbstractClass {}
+
+    @ExpectedClassFlags(value = "[PRIVATE, ABSTRACT]",
+            preview = "[PRIVATE, ABSTRACT]")
+    private abstract value class TestPrivateAbstractValueClass {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
     interface StaticTestInterface {}
@@ -224,13 +248,15 @@ public final class ClassAccessFlagTest {
 @ExpectedClassFlags("[INTERFACE, ABSTRACT, ANNOTATION]")
 @interface ExpectedClassFlags {
     String value();
+    String preview() default "";
 }
 
 @ExpectedClassFlags("[INTERFACE, ABSTRACT]")
 interface TestInterface {}
 
 
-@ExpectedClassFlags("[FINAL, IDENTITY, ENUM]")
+@ExpectedClassFlags(value="[FINAL, SUPER, ENUM]",
+        preview="[FINAL, IDENTITY, ENUM]")
 enum TestOuterEnum {
     INSTANCE;
 }

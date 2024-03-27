@@ -150,6 +150,7 @@ module java.base {
         java.desktop, // for ScopedValue
         jdk.compiler,
         jdk.incubator.vector,
+        jdk.jfr,
         jdk.jshell;
     exports jdk.internal.access to
         java.desktop,
