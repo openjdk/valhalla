@@ -70,7 +70,7 @@ public class VolatileTest {
             e.printStackTrace();
             return;
         }
-        Asserts.assertTrue(U.isFlattened(f0), "mv0 should be flattened");
-        Asserts.assertFalse(U.isFlattened(f1), "mv1 should not be flattened");
+        Asserts.assertTrue(U.isFlatField(f0), "mv0 should be flattened");
+        Asserts.assertFalse(U.isFlatField(f1), "mv1 should not be flattened");
     }
 }

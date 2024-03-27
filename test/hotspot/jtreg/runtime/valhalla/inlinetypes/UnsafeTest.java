@@ -156,9 +156,9 @@ public class UnsafeTest {
         System.out.format("%s%s header size %d%n", indent, vc, U.valueHeaderSize(vc));
         for (Field f : vc.getDeclaredFields()) {
             System.out.format("%s%s: %s%s offset %d%n", indent, f.getName(),
-                              U.isFlattened(f) ? "flattened " : "", f.getType(),
+                              U.isFlatField(f) ? "flattened " : "", f.getType(),
                               U.objectFieldOffset(vc, f.getName()));
-            if (U.isFlattened(f)) {
+            if (U.isFlatField(f)) {
                 printValueClass(f.getType(), level+1);
             }
         }
