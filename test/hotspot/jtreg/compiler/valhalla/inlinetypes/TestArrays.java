@@ -1430,8 +1430,8 @@ public class TestArrays {
             verif[i] = va[i];
         }
         Object[] result = test59(va);
-        // Result is not a null-restricted array
-        Asserts.assertEQ(result[len], null);
+        // Result is a null-restricted array
+        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
@@ -1451,8 +1451,8 @@ public class TestArrays {
             verif[i] = (MyValue1)va[i];
         }
         Object[] result = test60(va, va.getClass());
-        // Result is not a null-restricted array
-        Asserts.assertEQ(result[len], null);
+        // Result is a null-restricted array
+        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
