@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import jdk.internal.classfile.ClassBuilder;
 import jdk.internal.classfile.Classfile;
 import jdk.internal.classfile.Label;
 import jdk.internal.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.Event;
 import jdk.jfr.ValueDescriptor;
@@ -110,7 +111,7 @@ public final class EventClassBuilder {
 
     private void buildClassInfo(ClassBuilder builder) {
         builder.withSuperclass(Bytecode.classDesc(Event.class));
-        builder.withFlags(AccessFlag.FINAL, AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+        builder.withFlags(AccessFlag.FINAL, AccessFlag.PUBLIC, (PreviewFeatures.isEnabled() ? AccessFlag.IDENTITY : AccessFlag.SUPER));
         List<jdk.internal.classfile.Annotation> annotations = new ArrayList<>();
         for (jdk.jfr.AnnotationElement a : annotationElements) {
             List<jdk.internal.classfile.AnnotationElement> list = new ArrayList<>();
