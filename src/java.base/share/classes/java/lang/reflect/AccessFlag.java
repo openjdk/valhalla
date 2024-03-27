@@ -190,8 +190,6 @@ public enum AccessFlag {
      * flag as set in every class file (JVMS {@jvms 4.1}).
      * If preview feature is enabled, 
      * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
-     * {@code 0x0020} access flag bit is {@linkplain #SUPER SUPER access flag}; otherwise,
-     * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      */
     SUPER(0x0000_0020, false,
             PreviewFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_CLASS,
