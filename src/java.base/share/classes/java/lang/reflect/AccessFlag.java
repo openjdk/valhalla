@@ -188,7 +188,8 @@ public enum AccessFlag {
      * @apiNote
      * In Java SE 8 and above, the JVM treats the {@code ACC_SUPER}
      * flag as set in every class file (JVMS {@jvms 4.1}).
-     * For class file versions up to but not including PreviewFeature VALUE_OBJECTS,
+     * If preview feature is enabled, 
+     * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      * {@code 0x0020} access flag bit is {@linkplain #SUPER SUPER access flag}; otherwise,
      * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      */
