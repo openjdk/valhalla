@@ -26,7 +26,6 @@
  * @bug 8266670 8281463 8293626
  * @summary Basic tests of AccessFlag
  * @modules java.base/jdk.internal.misc
- * @enablePreview
  * @run main/othervm --enable-preview BasicAccessFlagTest
  * @run main BasicAccessFlagTest
  */
@@ -147,7 +146,6 @@ public class BasicAccessFlagTest {
     private static void testMaskToAccessFlagsPositive() {
         for (var accessFlag : AccessFlag.values()) {
             Set<AccessFlag> expectedSet = EnumSet.of(accessFlag);
-            expectedSet.remove(PreviewFeatures.isEnabled() ? AccessFlag.SUPER : AccessFlag.IDENTITY);
             for (var location : accessFlag.locations()) {
                 Set<AccessFlag> computedSet =
                     AccessFlag.maskToAccessFlags(accessFlag.mask(), location);
