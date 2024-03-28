@@ -2042,7 +2042,7 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
 InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass) {
   assert(inline_klass != nullptr, "must be");
-  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass)->clone_with_phis(phase, in(0), !_type->maybe_null());
+  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass, /* transform = */ false)->clone_with_phis(phase, in(0), nullptr, !_type->maybe_null());
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -2072,6 +2072,7 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
     }
     while (casts.size() != 0) {
       // Push the cast(s) through the InlineTypeNode
+      // TODO 8325106 Can we avoid cloning?
       Node* cast = casts.pop()->clone();
       cast->set_req_X(1, n->as_InlineType()->get_oop(), phase);
       n = n->clone();

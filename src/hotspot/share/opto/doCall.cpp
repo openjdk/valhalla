@@ -580,12 +580,22 @@ void Parse::do_call() {
 
   // Detect the call to the object or abstract class constructor at the end of a value constructor to know when we are done initializing the larval
   if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && peek()->is_InlineType()) {
+    assert(method()->is_object_constructor() && (method()->holder()->is_inlinetype() || method()->holder()->is_abstract()), "Unexpected caller");
     InlineTypeNode* receiver = peek()->as_InlineType();
-    // TODO 8325106 re-enable the assert
+    // TODO 8325106 re-enable the assert and add the same check for the receiver in the caller map
     //assert(receiver->is_larval(), "must be larval");
-    InlineTypeNode* clone = receiver->clone()->as_InlineType();
+    InlineTypeNode* clone = receiver->clone_if_required(&_gvn, _map);
     clone->set_is_larval(false);
-    replace_in_map(receiver, _gvn.transform(clone));
+    clone = _gvn.transform(clone)->as_InlineType();
+    replace_in_map(receiver, clone);
+
+    if (_caller->has_method()) {
+      // Get receiver from the caller map and update it in the exit map now that we are done initializing it
+      SafePointNode* map = _caller->map();
+      receiver = map->argument(_caller, 0)->as_InlineType();
+      assert(peek()->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(), "Receiver type mismatch");
+      _exits.map()->replace_edge(receiver, clone, &_gvn);
+    }
   }
 
   // Speculative type of the receiver if any
