@@ -78,9 +78,9 @@ public class TestValueConstruction {
         }
     }
 
-    static abstract value class MyAbstract { }
+    static abstract value class MyAbstract1 { }
 
-    static value class MyValue2 extends MyAbstract {
+    static value class MyValue2 extends MyAbstract1 {
         int x;
 
         public MyValue2(int x) {
@@ -88,7 +88,13 @@ public class TestValueConstruction {
         }
     }
 
-    static value class MyValue3 extends MyAbstract {
+    static abstract value class MyAbstract2 {
+        public MyAbstract2(int x) {
+
+        }
+    }
+
+    static value class MyValue3 extends MyAbstract2 {
         int x;
 
         public MyValue3(int x) {
@@ -99,7 +105,7 @@ public class TestValueConstruction {
 
         public MyValue3(int x, int unused) {
             this.x = helper3(x);
-            super();
+            super(x);
             helper1(this, x); // 'this' escapes through argument
             helper2(x); // 'this' escapes through receiver
         }
