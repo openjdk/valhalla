@@ -31,9 +31,11 @@
  * @bug 8231610
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds /test/hotspot/jtreg/runtime/cds/appcds/test-classes
  * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @compile ../test-classes/HelloInlineClassApp.java ../test-classes/HelloRelocation.java
  * @build jdk.test.whitebox.WhiteBox
- * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle  HelloInlineClassApp$ValueRecord
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. DynamicArchiveRelocationTest
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1605,6 +1605,13 @@ void HeapShared::archive_object_subgraphs(ArchivableStaticFieldInfo fields[],
   for (int i = 0; fields[i].valid(); ) {
     ArchivableStaticFieldInfo* info = &fields[i];
     const char* klass_name = info->klass_name;
+
+    if (CDSConfig::is_valhalla_preview() && strcmp(klass_name, "jdk/internal/module/ArchivedModuleGraph") == 0) {
+      // FIXME -- ArchivedModuleGraph doesn't work when java.base is patched with valhalla classes.
+      i++;
+      continue;
+    }
+
     start_recording_subgraph(info->klass, klass_name, is_full_module_graph);
 
     // If you have specified consecutive fields of the same klass in

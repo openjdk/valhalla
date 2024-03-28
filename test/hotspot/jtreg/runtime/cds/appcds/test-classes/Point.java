@@ -22,6 +22,11 @@
  *
  */
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
 public value class Point {
   int i = 0, j = 0;
 

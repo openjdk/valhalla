@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -253,6 +253,7 @@ private:
   bool   _use_optimized_module_handling;// No module-relation VM options were specified, so we can skip
                                         // some expensive operations.
   bool   _has_full_module_graph;        // Does this CDS archive contain the full archived module graph?
+  bool   _has_valhalla_patched_classes; // Is this archived dumped with --enable-preview -XX:+EnableValhalla?
   size_t _ptrmap_size_in_bits;          // Size of pointer relocation bitmap
   CDSMustMatchFlags _must_match;        // These flags must be the same between dumptime and runtime
   size_t _heap_roots_offset;            // Offset of the HeapShared::roots() object, from the bottom

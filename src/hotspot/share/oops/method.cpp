@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -396,7 +396,7 @@ Symbol* Method::klass_name() const {
 void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   log_trace(cds)("Iter(Method): %p", this);
 
-  if (!method_holder()->is_rewritten()) {
+  if (!method_holder()->is_rewritten() || CDSConfig::is_valhalla_preview()) {
     it->push(&_constMethod, MetaspaceClosure::_writable);
   } else {
     it->push(&_constMethod);
@@ -1262,7 +1262,6 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
       !native_bind_event_is_interesting);
   }
   if (InlineTypeReturnedAsFields && returns_inline_type(THREAD) && !has_scalarized_return()) {
-    assert(!constMethod()->is_shared(), "Cannot update shared const objects");
     set_has_scalarized_return();
   }
 

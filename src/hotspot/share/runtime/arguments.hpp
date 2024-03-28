@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -254,6 +254,8 @@ class Arguments : AllStatic {
   // preview features
   static bool _enable_preview;
 
+  static bool _module_patching_disables_cds;
+
   // Used to save default settings
   static bool _AlwaysCompileLoopMethods;
   static bool _UseOnStackReplacement;
@@ -481,8 +483,9 @@ class Arguments : AllStatic {
   static void set_ext_dirs(char *value)     { _ext_dirs = os::strdup_check_oom(value); }
 
   // Set up the underlying pieces of the boot class path
-  static void add_patch_mod_prefix(const char *module_name, const char *path, bool allow_append);
+  static void add_patch_mod_prefix(const char *module_name, const char *path, bool allow_append, bool allow_cds);
   static bool patch_mod_javabase();
+  static bool module_patching_disables_cds() { return _module_patching_disables_cds; }
   static int finalize_patch_module();
   static void set_boot_class_path(const char *value, bool has_jimage) {
     // During start up, set by os::set_boot_path()

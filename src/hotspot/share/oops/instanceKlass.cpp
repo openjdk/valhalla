@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1006,6 +1006,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     }
     // Aggressively preloading all classes from the Preload attribute
     if (preload_classes() != nullptr) {
+      HandleMark hm(THREAD);
       for (int i = 0; i < preload_classes()->length(); i++) {
         if (constants()->tag_at(preload_classes()->at(i)).is_klass()) continue;
         Symbol* class_name = constants()->klass_at_noresolve(preload_classes()->at(i));
@@ -2833,9 +2834,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_preload_classes);
   it->push(&_record_components);
 
-  if (has_inline_type_fields()) {
-    it->push(&_inline_type_field_klasses);
-  }
+  it->push(&_inline_type_field_klasses, MetaspaceClosure::_writable);
 }
 
 #if INCLUDE_CDS

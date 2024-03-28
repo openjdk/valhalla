@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,7 @@ public:
   static void disable_loading_full_module_graph(const char* reason = nullptr) NOT_CDS_JAVA_HEAP_RETURN;
   static bool      is_loading_full_module_graph()            NOT_CDS_JAVA_HEAP_RETURN_(false);
 
+  static bool      is_valhalla_preview();
 };
 
 #endif // SHARE_CDS_CDSCONFIG_HPP
