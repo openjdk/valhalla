@@ -85,9 +85,9 @@ public class ValueTearing {
             Field TPB_array = TPointBox.class.getDeclaredField("array");
             Field NTPB_field = NTPointBox.class.getDeclaredField("field");
             Field NTPB_array = NTPointBox.class.getDeclaredField("array");
-            TFIELD_FLAT = UNSAFE.isFlattened(TPB_field);
+            TFIELD_FLAT = UNSAFE.isFlatField(TPB_field);
             TARRAY_FLAT = UNSAFE.isFlattenedArray(TPB_array.getType());
-            NTFIELD_FLAT = UNSAFE.isFlattened(NTPB_field);
+            NTFIELD_FLAT = UNSAFE.isFlatField(NTPB_field);
             NTARRAY_FLAT = UNSAFE.isFlattenedArray(NTPB_array.getType());
         } catch (ReflectiveOperationException ex) {
             throw new AssertionError(ex);

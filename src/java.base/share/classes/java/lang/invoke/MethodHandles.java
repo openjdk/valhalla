@@ -5190,7 +5190,6 @@ assert((int)twice.invokeExact(21) == 42);
      */
     public static MethodHandle zero(Class<?> type) {
         Objects.requireNonNull(type);
-        // TODO: implicitly constructible value class
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
         } else {

@@ -200,6 +200,7 @@ public class MethodHandleTest {
         }
         // set an array element to null
         if (nullRestricted) {
+            assertTrue(vh.get(array, 1) != null);
             assertThrows(NullPointerException.class, () -> setter.invoke(array, 1, null));
             assertThrows(NullPointerException.class, () -> vh.set(array, 1, null));
         } else {

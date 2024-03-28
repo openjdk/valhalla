@@ -443,6 +443,12 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
+
+JVM_ENTRY(jboolean, JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj))
+  arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
+  return oop->is_null_free_array();
+JVM_END
+
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
 
 extern volatile jint vm_created;

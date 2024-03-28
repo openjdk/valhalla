@@ -377,7 +377,7 @@ public class TestIntrinsics {
             Y_OFFSET = U.objectFieldOffset(yField);
             Field v1Field = MyValue1.class.getDeclaredField("v1");
             V1_OFFSET = U.objectFieldOffset(v1Field);
-            V1_FLATTENED = U.isFlattened(v1Field);
+            V1_FLATTENED = U.isFlatField(v1Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -588,7 +588,7 @@ public class TestIntrinsics {
         try {
             Field test31_vt_Field = TestIntrinsics.class.getDeclaredField("test31_vt");
             TEST31_VT_OFFSET = U.objectFieldOffset(test31_vt_Field);
-            TEST31_VT_FLATTENED = U.isFlattened(test31_vt_Field);
+            TEST31_VT_FLATTENED = U.isFlatField(test31_vt_Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -639,7 +639,7 @@ public class TestIntrinsics {
             TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
             TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY.getClass());
             TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY.getClass());
-            TEST33_FLATTENED_ARRAY = U.isFlattenedArray(TEST33_ARRAY.getClass());
+            TEST33_FLATTENED_ARRAY = U.isFlatArray(TEST33_ARRAY.getClass());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -1612,13 +1612,13 @@ public class TestIntrinsics {
     public void test80_verifier() throws Exception {
         Test80Value1 v = new Test80Value1();
         Field field = Test80Value1.class.getDeclaredField("v");
-        Asserts.assertEQ(test80(v, U.isFlattened(field), U.objectFieldOffset(field)), v.v);
+        Asserts.assertEQ(test80(v, U.isFlatField(field), U.objectFieldOffset(field)), v.v);
     }
 
-    // Test correctness of the Unsafe::isFlattenedArray intrinsic
+    // Test correctness of the Unsafe::isFlatArray intrinsic
     @Test
     public boolean test81(Class<?> cls) {
-        return U.isFlattenedArray(cls);
+        return U.isFlatArray(cls);
     }
 
     @Run(test = "test81")
@@ -1629,18 +1629,18 @@ public class TestIntrinsics {
         Asserts.assertFalse(test81(int[].class), "test81_4 failed");
     }
 
-    // Verify that Unsafe::isFlattenedArray checks with statically known classes
+    // Verify that Unsafe::isFlatArray checks with statically known classes
     // are folded
     @Test
     @IR(failOn = {LOADK})
     public boolean test82() {
-        boolean check1 = U.isFlattenedArray(TEST33_ARRAY.getClass());
+        boolean check1 = U.isFlatArray(TEST33_ARRAY.getClass());
         if (!TEST33_FLATTENED_ARRAY) {
             check1 = !check1;
         }
-        boolean check2 = !U.isFlattenedArray(String[].class);
-        boolean check3 = !U.isFlattenedArray(String.class);
-        boolean check4 = !U.isFlattenedArray(int[].class);
+        boolean check2 = !U.isFlatArray(String[].class);
+        boolean check3 = !U.isFlatArray(String.class);
+        boolean check4 = !U.isFlatArray(int[].class);
         return check1 && check2 && check3 && check4;
     }
 

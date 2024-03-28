@@ -36,11 +36,15 @@ import java.lang.constant.ClassDesc;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+
+import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.jvm.ClassFile;
 import jdk.internal.classfile.AccessFlags;
 import jdk.internal.classfile.Attributes;
 import jdk.internal.classfile.ClassModel;
 import jdk.internal.classfile.ClassSignature;
 import jdk.internal.classfile.Classfile;
+
 import static jdk.internal.classfile.Classfile.*;
 import jdk.internal.classfile.constantpool.*;
 import jdk.internal.classfile.FieldModel;
@@ -148,7 +152,7 @@ public class ClassWriter extends BasicWriter {
             indent(-1);
         }
 
-        writeModifiers(getClassModifiers(cm.flags().flagsMask()));
+        writeModifiers(getClassModifiers(cm.flags().flagsMask(), classModel.majorVersion(), classModel.minorVersion()));
 
         if ((classModel.flags().flagsMask() & ACC_MODULE) != 0) {
             var attr = classModel.findAttribute(Attributes.MODULE);
@@ -772,6 +776,16 @@ public class ClassWriter extends BasicWriter {
     private static Set<String> getClassModifiers(int mask) {
         return getModifiers(AccessFlags.ofClass((mask & ACC_INTERFACE) != 0
                 ? mask & ~ACC_ABSTRACT : mask).flags());
+    }
+
+    private static Set<String> getClassModifiers(int mask, int majorVersion, int minorVersion) {
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
+        Set<String> result = getModifiers(AccessFlags.ofClass((mask & ACC_INTERFACE) != 0
+                ? mask & ~ACC_ABSTRACT : mask).flags());
+        if ((mask & ACC_INTERFACE) == 0 && Source.isSupported(Source.Feature.VALUE_CLASSES, majorVersion) && previewClassFile) {
+            result.add("value");
+        }
+        return result;
     }
 
     private static Set<String> getMethodModifiers(int mask) {

@@ -188,6 +188,19 @@ public enum Source {
         return this.compareTo(MIN) >= 0;
     }
 
+    public static boolean isSupported(Feature feature, int majorVersion) {
+        Source source = null;
+        for (Target target : Target.values()) {
+            if (majorVersion == target.majorVersion) {
+                source = lookup(target.name);
+            }
+        }
+        if (source != null) {
+            return feature.allowedInSource(source);
+        }
+        return false;
+    }
+
     public Target requiredTarget() {
         return switch(this) {
         case JDK22  -> Target.JDK1_22;
