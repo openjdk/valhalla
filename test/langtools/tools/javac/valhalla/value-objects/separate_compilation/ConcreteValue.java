@@ -27,10 +27,10 @@
  * @test
  * @bug 8288644
  * @summary [lw4] Unable to extend a separately compiled abstract value class
+ * @enablePreview
  * @compile AbstractValueSuper.java ConcreteValue.java
  * @compile ConcreteValue.java
  * @run main ConcreteValue
- * @ignore Verifier error
  */
 
 public value class ConcreteValue extends AbstractValueSuper {
