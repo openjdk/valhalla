@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check behavior of synzhronized key word on value classes instances and methods.
- * @ignore
+ * @enablePreview
  * @compile/fail/ref=CheckSynchronized.out -XDrawDiagnostics CheckSynchronized.java
  */
 
@@ -15,7 +15,7 @@ value final class CheckSynchronized implements java.io.Serializable {
         synchronized(cs) {    // <<-- ERROR, no monitor associated with value class instance.
         }
 
-        CheckSynchronized.ref csr = cs;
+        CheckSynchronized csr = cs;
         synchronized(csr) {
             // Error, no identity.
         }
