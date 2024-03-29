@@ -864,7 +864,7 @@ public class Check {
             }
             return;
         }
-        if (t.isPrimitive() || t.isValueClass())
+        if (t.isPrimitive() || (t.isValueClass() && !t.tsym.isAbstract()))
             typeTagError(pos, diags.fragment(Fragments.TypeReqIdentity), t);
     }
 

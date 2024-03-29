@@ -26,6 +26,7 @@
  *
  * @test
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
+ *      8329345
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
@@ -295,7 +296,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
-        assertFail("compiler.err.type.found.req",
+        // OK if the value class is abstract
+        assertOK(
                 """
                 interface I {}
                 abstract value class VI implements I {}
