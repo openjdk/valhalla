@@ -37,7 +37,7 @@ import jdk.internal.misc.Unsafe;
                        "--enable-preview"})
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
-public class IsFlattenedArray {
+public class IsFlatArray {
 
     private static final Unsafe U = Unsafe.getUnsafe();
     private static final VarHandle objectArrayVarHandle =
@@ -45,8 +45,8 @@ public class IsFlattenedArray {
 
     @State(Scope.Benchmark)
     public static class ClassState {
-        public Class flattenedArrayClass = Point[].class;
-        public Class nonFlattenedArrayClass = String[].class;
+        public Class flatArrayClass = Point[].class;
+        public Class nonFlatArrayClass = String[].class;
 
         public Object[] objectArray = new Object[10];
         public Object objectElement = new Object();
@@ -54,23 +54,23 @@ public class IsFlattenedArray {
     }
 
     @Benchmark
-    public boolean testKnownFlattenedClass() {
-        return U.isFlattenedArray(Point[].class);
+    public boolean testKnownFlatClass() {
+        return U.isFlatArray(Point[].class);
     }
 
     @Benchmark
-    public boolean testKnownNonFlattenedClass() {
-        return U.isFlattenedArray(String[].class);
+    public boolean testKnownNonFlatClass() {
+        return U.isFlatArray(String[].class);
     }
 
     @Benchmark
-    public boolean testUnknownFlattenedClass(ClassState state) {
-        return U.isFlattenedArray(state.flattenedArrayClass);
+    public boolean testUnknownFlatClass(ClassState state) {
+        return U.isFlatArray(state.flatArrayClass);
     }
 
     @Benchmark
-    public boolean testUnknownNonFlattenedClass(ClassState state) {
-        return U.isFlattenedArray(state.nonFlattenedArrayClass);
+    public boolean testUnknownNonFlatClass(ClassState state) {
+        return U.isFlatArray(state.nonFlatArrayClass);
     }
 
     @Benchmark

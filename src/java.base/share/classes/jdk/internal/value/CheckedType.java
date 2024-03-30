@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,10 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8288644
- * @summary [lw4] Unable to extend a separately compiled abstract value class
- * @enablePreview
- * @compile AbstractValueSuper.java ConcreteValue.java
- * @compile ConcreteValue.java
- * @run main ConcreteValue
- */
+package jdk.internal.value;
 
-public value class ConcreteValue extends AbstractValueSuper {
-    public static void main(String [] args) {
-    }
+public sealed interface CheckedType permits NormalCheckedType, NullRestrictedCheckedType {
+    Object cast(Object obj);
+    boolean canCast(Object obj);
+    Class<?> boundingClass();
 }

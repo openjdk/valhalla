@@ -512,7 +512,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_writebackPostSync0:       return inline_unsafe_writebackSync0(false);
   case vmIntrinsics::_allocateInstance:         return inline_unsafe_allocate();
   case vmIntrinsics::_copyMemory:               return inline_unsafe_copyMemory();
-  case vmIntrinsics::_isFlattenedArray:         return inline_unsafe_isFlattenedArray();
+  case vmIntrinsics::_isFlatArray:              return inline_unsafe_isFlatArray();
   case vmIntrinsics::_getLength:                return inline_native_getLength();
   case vmIntrinsics::_copyOf:                   return inline_array_copyOf(false);
   case vmIntrinsics::_copyOfRange:              return inline_array_copyOf(true);
@@ -5221,11 +5221,11 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 #undef XTOP
 
 // TODO 8325106 Remove this and corresponding tests. Flatness is not a property of the Class anymore with JEP 401.
-//----------------------inline_unsafe_isFlattenedArray-------------------
-// public native boolean Unsafe.isFlattenedArray(Class<?> arrayClass);
+//----------------------inline_unsafe_isFlatArray------------------------
+// public native boolean Unsafe.isFlatArray(Class<?> arrayClass);
 // This intrinsic exploits assumptions made by the native implementation
 // (arrayClass is neither null nor primitive) to avoid unnecessary null checks.
-bool LibraryCallKit::inline_unsafe_isFlattenedArray() {
+bool LibraryCallKit::inline_unsafe_isFlatArray() {
   Node* cls = argument(1);
   Node* p = basic_plus_adr(cls, java_lang_Class::klass_offset());
   Node* kls = _gvn.transform(LoadKlassNode::make(_gvn, nullptr, immutable_memory(), p,

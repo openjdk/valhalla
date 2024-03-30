@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,37 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8288644
- * @summary [lw4] Unable to extend a separately compiled abstract value class
- * @enablePreview
- * @compile AbstractValueSuper.java ConcreteValue.java
- * @compile ConcreteValue.java
- * @run main ConcreteValue
- */
+package jdk.internal.value;
 
-public value class ConcreteValue extends AbstractValueSuper {
-    public static void main(String [] args) {
+public final class NullRestrictedCheckedType implements CheckedType {
+    private final Class<?> type;
+    NullRestrictedCheckedType(Class<?> cls) {
+        this.type = cls;
+    }
+
+    @Override
+    public Object cast(Object obj) {
+        if (obj == null) {
+            throw new NullPointerException("null not allowed for null-restricted type " + type.getName());
+        }
+        return type.cast(obj);
+    }
+
+    @Override
+    public boolean canCast(Object obj) {
+        if (obj == null) return false;
+        return type.isAssignableFrom(obj.getClass());
+    }
+
+    @Override
+    public Class<?> boundingClass() {
+        return type;
+    }
+
+    public static NullRestrictedCheckedType of(Class<?> cls) {
+        if (!cls.isValue()) {
+            throw new IllegalArgumentException(cls.getName() + " not a value class");
+        }
+        return new NullRestrictedCheckedType(cls);
     }
 }
