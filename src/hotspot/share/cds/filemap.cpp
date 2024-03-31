@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -279,7 +279,7 @@ void FileMapHeader::populate(FileMapInfo *info, size_t core_region_alignment,
   _max_heap_size = MaxHeapSize;
   _use_optimized_module_handling = MetaspaceShared::use_optimized_module_handling();
   _has_full_module_graph = CDSConfig::is_dumping_full_module_graph();
-
+  _has_valhalla_patched_classes = CDSConfig::is_valhalla_preview();
   // The following fields are for sanity checks for whether this archive
   // will function correctly with this JVM and the bootclasspath it's
   // invoked with.
@@ -358,6 +358,7 @@ void FileMapHeader::print(outputStream* st) {
   st->print_cr("- allow_archiving_with_java_agent:%d", _allow_archiving_with_java_agent);
   st->print_cr("- use_optimized_module_handling:  %d", _use_optimized_module_handling);
   st->print_cr("- has_full_module_graph           %d", _has_full_module_graph);
+  st->print_cr("- has_valhalla_patched_classes    %d", _has_valhalla_patched_classes);
   st->print_cr("- ptrmap_size_in_bits:            " SIZE_FORMAT, _ptrmap_size_in_bits);
   _must_match.print(st);
 }
@@ -2451,6 +2452,24 @@ bool FileMapHeader::validate() {
     log_info(cds)("Unable to use shared archive.\nThe saved state of UseCompressedOops and UseCompressedClassPointers is "
                                "different from runtime, CDS will be disabled.");
     return false;
+  }
+
+  if (is_static()) {
+    const char* err = nullptr;
+    if (CDSConfig::is_valhalla_preview()) {
+      if (!_has_valhalla_patched_classes) {
+        err = "not created";
+      }
+    } else {
+      if (_has_valhalla_patched_classes) {
+        err = "created";
+      }
+    }
+    if (err != nullptr) {
+      log_warning(cds)("This archive was %s with --enable-preview -XX:+EnableValhalla. It is "
+                         "incompatible with the current JVM setting", err);
+      return false;
+    }
   }
 
   if (!_use_optimized_module_handling) {
