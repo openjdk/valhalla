@@ -333,7 +333,11 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
   if (slot->size() == 0) {
     remove(slot);
   }
-  _field_info->adr_at(block->field_index())->set_offset(block->offset());
+  // NULL_MARKER blocks have a field index pointing to the field that needs a null marker,
+  // so the field_info at this index must not be updated with the null marker's offset
+  if (block->kind() != LayoutRawBlock::NULL_MARKER) {
+    _field_info->adr_at(block->field_index())->set_offset(block->offset());
+  }
   if (block->null_marker_offset() != -1) {
     _field_info->adr_at(block->field_index())->set_null_marker_offset(block->null_marker_offset());
   }
@@ -476,45 +480,48 @@ void FieldLayout::remove(LayoutRawBlock* block) {
   }
 }
 
-void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super) {
+void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineKlass*>* inline_fields) {
   ResourceMark rm;
   LayoutRawBlock* b = _blocks;
   while(b != _last) {
     switch(b->kind()) {
       case LayoutRawBlock::REGULAR: {
         FieldInfo* fi = _field_info->adr_at(b->field_index());
-        output->print_cr(" @%d \"%s\" %s %d/%d %s",
+        output->print_cr(" @%d %s %d/%d \"%s\" %s",
                          b->offset(),
-                         fi->name(_cp)->as_C_string(),
-                         fi->signature(_cp)->as_C_string(),
+                         "REGULAR",
                          b->size(),
                          b->alignment(),
-                         "REGULAR");
+                         fi->name(_cp)->as_C_string(),
+                         fi->signature(_cp)->as_C_string());
         break;
       }
       case LayoutRawBlock::FLAT: {
         FieldInfo* fi = _field_info->adr_at(b->field_index());
-        output->print(" @%d \"%s\" %s %d/%d %s ",
+        InlineKlass* ik = inline_fields->at(fi->index());
+        assert(ik != nullptr, "");
+        output->print(" @%d %s %d/%d \"%s\" %s %s@%p",
                          b->offset(),
-                         fi->name(_cp)->as_C_string(),
-                         fi->signature(_cp)->as_C_string(),
+                         "FLAT",
                          b->size(),
                          b->alignment(),
-                         "FLAT");
+                         fi->name(_cp)->as_C_string(),
+                         fi->signature(_cp)->as_C_string(),
+                         ik->name()->as_C_string(),
+                         ik->class_loader_data());
         if (fi->field_flags().has_null_marker()) {
-          output->print_cr("null marker offset %d %s", fi->null_marker_offset(),
+          output->print_cr(" null marker offset %d %s", fi->null_marker_offset(),
                            fi->field_flags().is_null_marker_internal() ? "(internal)" : "");
         } else {
           output->print_cr("");
         }
-
         break;
       }
       case LayoutRawBlock::RESERVED: {
-        output->print_cr(" @%d %d/- %s",
+        output->print_cr(" @%d %s %d/-",
                          b->offset(),
-                         b->size(),
-                         "RESERVED");
+                         "RESERVED",
+                         b->size());
         break;
       }
       case LayoutRawBlock::INHERITED: {
@@ -524,14 +531,14 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
         const InstanceKlass* ik = super;
         while (!found && ik != nullptr) {
           for (AllFieldStream fs(ik->fieldinfo_stream(), ik->constants()); !fs.done(); fs.next()) {
-            if (fs.offset() == b->offset()) {
-              output->print_cr(" @%d \"%s\" %s %d/%d %s",
+            if (fs.offset() == b->offset() && fs.access_flags().is_static() == is_static) {
+              output->print_cr(" @%d %s %d/%d \"%s\" %s",
                   b->offset(),
-                  fs.name()->as_C_string(),
-                  fs.signature()->as_C_string(),
+                  "INHERITED",
                   b->size(),
-                  b->size(), // so far, alignment constraint == size, will change with Valhalla
-                  "INHERITED");
+                  b->size(), // so far, alignment constraint == size, will change with Valhalla => FIXME
+                  fs.name()->as_C_string(),
+                  fs.signature()->as_C_string());
               found = true;
               break;
             }
@@ -541,25 +548,25 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
       break;
     }
     case LayoutRawBlock::EMPTY:
-      output->print_cr(" @%d %d/1 %s",
+      output->print_cr(" @%d %s %d/1",
                        b->offset(),
-                       b->size(),
-                       "EMPTY");
+                      "EMPTY",
+                       b->size());
       break;
     case LayoutRawBlock::PADDING:
-      output->print_cr(" @%d %d/1 %s",
+      output->print_cr(" @%d %s %d/1",
                       b->offset(),
-                      b->size(),
-                      "PADDING");
+                      "PADDING",
+                      b->size());
       break;
     case LayoutRawBlock::NULL_MARKER:
     {
       FieldInfo* fi = _field_info->adr_at(b->field_index());
-      output->print_cr(" @%d %d/1 %s %s",
+      output->print_cr(" @%d %s %d/1 null marker for field at offset %d",
                       b->offset(),
+                      "NULL_MARKER",
                       b->size(),
-                      "NULL_MARKER for field ",
-                      fi->name(_cp)->as_C_string());
+                      fi->offset());
       break;
     }
     default:
@@ -569,10 +576,11 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
   }
 }
 
-FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
+FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData* loader_data, const InstanceKlass* super_klass, ConstantPool* constant_pool,
                                        GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type,
                                        FieldLayoutInfo* info, Array<InlineKlass*>* inline_type_field_klasses) :
   _classname(classname),
+  _loader_data(loader_data),
   _super_klass(super_klass),
   _constant_pool(constant_pool),
   _field_info(field_info),
@@ -670,10 +678,6 @@ void FieldLayoutBuilder::regular_field_sorting() {
     {
       bool field_is_known_value_class =  !fieldinfo.field_flags().is_injected() && _inline_type_field_klasses != nullptr && _inline_type_field_klasses->at(fieldinfo.index()) != nullptr;
       bool is_candidate_for_flattening = fieldinfo.field_flags().is_null_free_inline_type() || (EnableNullableFieldFlattening && field_is_known_value_class);
-      if (field_is_known_value_class && !fieldinfo.field_flags().is_null_free_inline_type()) {
-        ResourceMark rm;
-        tty->print_cr("Found a nullable flattenable field!");
-      }
       // if (!fieldinfo.field_flags().is_null_free_inline_type()) {
       if (!is_candidate_for_flattening) {
         if (group != _static_fields) _nonstatic_oopmap_count++;
@@ -781,10 +785,6 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     {
       bool field_is_known_value_class =  !fieldinfo.field_flags().is_injected() && _inline_type_field_klasses != nullptr && _inline_type_field_klasses->at(fieldinfo.index()) != nullptr;
       bool is_candidate_for_flattening = fieldinfo.field_flags().is_null_free_inline_type() || (EnableNullableFieldFlattening && field_is_known_value_class);
-      if (field_is_known_value_class && !fieldinfo.field_flags().is_null_free_inline_type()) {
-        ResourceMark rm;
-        tty->print_cr("Found a nullable flattenable field!");
-      }
       // if (!fieldinfo.field_flags().is_null_free_inline_type()) {
       if (!is_candidate_for_flattening) {
         if (group != _static_fields) {
@@ -1074,14 +1074,41 @@ void FieldLayoutBuilder::epilogue() {
   // And on machines which supported larger atomics we could similarly
   // allow larger values to be atomic, if properly aligned.
 
+#ifdef ASSERT
+  // Tests verifying integrity of field layouts are using the output of -XX:+PrintFieldLayout
+  // which prints the details of LayoutRawBlocks used to compute the layout.
+  // The code below checks that offsets in the _field_info meta-data match offsets
+  // in the LayoutRawBlocks
+  LayoutRawBlock* b = _layout->blocks();
+  while(b != _layout->last_block()) {
+    if (b->kind() == LayoutRawBlock::REGULAR || b->kind() == LayoutRawBlock::FLAT) {
+      assert(_field_info->adr_at(b->field_index())->offset() == (u4)b->offset()," Must match");
+    }
+    b = b->next_block();
+  }
+  b = _static_layout->blocks();
+  while(b != _static_layout->last_block()) {
+    if (b->kind() == LayoutRawBlock::REGULAR || b->kind() == LayoutRawBlock::FLAT) {
+      assert(_field_info->adr_at(b->field_index())->offset() == (u4)b->offset()," Must match");
+    }
+    b = b->next_block();
+  }
+#endif // ASSERT
+
 
   if (PrintFieldLayout || (PrintInlineLayout && _has_flattening_information)) {
     ResourceMark rm;
-    tty->print_cr("Layout of class %s", _classname->as_C_string());
+    ttyLocker ttl;
+    if (_super_klass != nullptr) {
+      tty->print_cr("Layout of class %s@%p extends %s@%p", _classname->as_C_string(),
+                    _loader_data, _super_klass->name()->as_C_string(), _super_klass->class_loader_data());
+    } else {
+      tty->print_cr("Layout of class %s@%p", _classname->as_C_string(), _loader_data);
+    }
     tty->print_cr("Instance fields:");
-    _layout->print(tty, false, _super_klass);
+    _layout->print(tty, false, _super_klass, _inline_type_field_klasses);
     tty->print_cr("Static fields:");
-    _static_layout->print(tty, true, nullptr);
+    _static_layout->print(tty, true, nullptr, _inline_type_field_klasses);
     tty->print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
     if (_is_inline_type) {
       tty->print_cr("First field offset = %d", _first_field_offset);

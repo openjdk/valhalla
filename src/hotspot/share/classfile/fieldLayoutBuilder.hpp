@@ -228,7 +228,7 @@ class FieldLayout : public ResourceObj {
   void fill_holes(const InstanceKlass* ik);
   LayoutRawBlock* insert(LayoutRawBlock* slot, LayoutRawBlock* block);
   void remove(LayoutRawBlock* block);
-  void print(outputStream* output, bool is_static, const InstanceKlass* super);
+  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineKlass*>* inline_fields);
 };
 
 
@@ -258,6 +258,7 @@ class FieldLayout : public ResourceObj {
 class FieldLayoutBuilder : public ResourceObj {
  private:
   const Symbol* _classname;
+  ClassLoaderData* _loader_data;
   const InstanceKlass* _super_klass;
   ConstantPool* _constant_pool;
   GrowableArray<FieldInfo>* _field_info;
@@ -287,7 +288,7 @@ class FieldLayoutBuilder : public ResourceObj {
   FieldGroup* get_or_create_contended_group(int g);
 
  public:
-  FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
+  FieldLayoutBuilder(const Symbol* classname, ClassLoaderData* loader_data, const InstanceKlass* super_klass, ConstantPool* constant_pool,
                      GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, FieldLayoutInfo* info,
                      Array<InlineKlass*>* inline_type_field_klasses);
 

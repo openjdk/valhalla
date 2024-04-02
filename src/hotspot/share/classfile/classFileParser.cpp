@@ -6441,7 +6441,15 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           assert(klass->is_instance_klass(), "Sanity check");
           ResourceMark rm(THREAD);
           THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Class %s expects class %s to be an inline type, but it is not",
+                    err_msg("Class %s expects class %s to be a value class, but it is an identity class",
+                    _class_name->as_C_string(),
+                    InstanceKlass::cast(klass)->external_name()));
+        }
+        if (klass->is_abstract()) {
+          assert(klass->is_instance_klass(), "Sanity check");
+          ResourceMark rm(THREAD);
+          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                    err_msg("Class %s expects class %s to be concrete value type, but it is an abstract class",
                     _class_name->as_C_string(),
                     InstanceKlass::cast(klass)->external_name()));
         }
@@ -6483,7 +6491,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   }
 
   _field_info = new FieldLayoutInfo();
-  FieldLayoutBuilder lb(class_name(), super_klass(), _cp, /*_fields*/ _temp_field_info,
+  FieldLayoutBuilder lb(class_name(), loader_data(), super_klass(), _cp, /*_fields*/ _temp_field_info,
       _parsed_annotations->is_contended(), is_inline_type(),
       _field_info, _inline_type_field_klasses);
   lb.build_layout();
