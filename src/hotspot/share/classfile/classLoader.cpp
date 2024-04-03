@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1101,6 +1101,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
   ClassFileStream* stream = nullptr;
   s2 classpath_index = 0;
   ClassPathEntry* e = nullptr;
+  bool is_patched = false;
 
   // If search_append_only is true, boot loader visibility boundaries are
   // set to be _first_append_entry to the end. This includes:
@@ -1125,12 +1126,16 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
     // appear in the _patch_mod_entries. The runtime shared class visibility
     // check will determine if a shared class is visible based on the runtime
     // environment, including the runtime --patch-module setting.
-    //
-    // Dynamic dumping requires UseSharedSpaces to be enabled. Since --patch-module
-    // is not supported with UseSharedSpaces, we can never come here during dynamic dumping.
-    assert(!CDSConfig::is_dumping_dynamic_archive(), "sanity");
-    if (!CDSConfig::is_dumping_static_archive()) {
+    if (!CDSConfig::is_valhalla_preview()) {
+      // Dynamic dumping requires UseSharedSpaces to be enabled. Since --patch-module
+      // is not supported with UseSharedSpaces, we can never come here during dynamic dumping.
+      assert(!CDSConfig::is_dumping_dynamic_archive(), "sanity");
+    }
+    if (CDSConfig::is_valhalla_preview() || !CDSConfig::is_dumping_static_archive()) {
       stream = search_module_entries(THREAD, _patch_mod_entries, class_name, file_name);
+      if (stream != nullptr) {
+        is_patched = true;
+      }
     }
   }
 
@@ -1181,6 +1186,10 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
                                                            cl_info,
                                                            CHECK_NULL);
   result->set_classpath_index(classpath_index);
+  if (is_patched) {
+    result->set_shared_classpath_index(0);
+    result->set_shared_class_loader_type(ClassLoader::BOOT_LOADER);
+  }
   return result;
 }
 
@@ -1213,6 +1222,10 @@ void ClassLoader::record_result(JavaThread* current, InstanceKlass* ik,
 
   if (ik->is_hidden()) {
     // We do not archive hidden classes.
+    return;
+  }
+
+  if (ik->shared_classpath_index() == 0 && ik->is_shared_boot_class()) {
     return;
   }
 
@@ -1303,7 +1316,9 @@ void ClassLoader::record_result(JavaThread* current, InstanceKlass* ik,
     // The shared path table is set up after module system initialization.
     // The path table contains no entry before that. Any classes loaded prior
     // to the setup of the shared path table must be from the modules image.
-    assert(stream->from_boot_loader_modules_image(), "stream must be loaded by boot loader from modules image");
+    if (!CDSConfig::is_valhalla_preview()) {
+      assert(stream->from_boot_loader_modules_image(), "stream must be loaded by boot loader from modules image");
+    }
     assert(FileMapInfo::get_number_of_shared_paths() == 0, "shared path table must not have been setup");
     classpath_index = 0;
   }

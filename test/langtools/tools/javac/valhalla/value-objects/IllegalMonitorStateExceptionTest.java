@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,15 +23,24 @@
 
 /*
  * @test
- * @bug 8288644
- * @summary [lw4] Unable to extend a separately compiled abstract value class
+ * @bug 8329400
+ * @summary test to check that IllegalMonitorStateException is thrown for value objects
  * @enablePreview
- * @compile AbstractValueSuper.java ConcreteValue.java
- * @compile ConcreteValue.java
- * @run main ConcreteValue
+ * @run main IllegalMonitorStateExceptionTest
  */
 
-public value class ConcreteValue extends AbstractValueSuper {
-    public static void main(String [] args) {
+public value class IllegalMonitorStateExceptionTest {
+    void m(Object o) {
+        synchronized (o) {}
+    }
+
+    public static void main(String[] args) throws Exception {
+        IllegalMonitorStateExceptionTest v = new IllegalMonitorStateExceptionTest();
+        try {
+            v.m(v);
+            throw new AssertionError("should have failed with IllegalMonitorStateExceptionTest");
+        } catch (IllegalMonitorStateException e) {
+            // as expected
+        }
     }
 }
