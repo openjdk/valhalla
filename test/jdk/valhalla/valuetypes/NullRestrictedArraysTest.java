@@ -105,6 +105,65 @@ public class NullRestrictedArraysTest {
         }
     }
 
+    /*
+     * Test Arrays::copyOf and Arrays::copyOfRange to create null-restricted arrays.
+     */
+    @Test
+    public void testArraysCopyOf() {
+        int len = 4;
+        Object[] array = (Object[]) Array.newInstance(Value.class, len);
+        Object[] nullRestrictedArray = ValueClass.newNullRestrictedArray(Value.class, len);
+        for (int i=0; i < len; i++) {
+            array[i] = new Value(i);
+            nullRestrictedArray[i] = new Value(i);
+        }
+        testCopyOf(array, nullRestrictedArray);
+        testCopyOfRange(array, nullRestrictedArray, 1, len+2);
+    };
+
+    private void testCopyOf(Object[] array, Object[] nullRestrictedArray) {
+        Object[] newArray1 = Arrays.copyOf(array, array.length);
+        Object[] newArray2 = Arrays.copyOf(nullRestrictedArray, nullRestrictedArray.length);
+
+        assertFalse(ValueClass.isNullRestrictedArray(newArray1));
+        assertTrue(ValueClass.isNullRestrictedArray(newArray2));
+
+        // elements in a normal array can be null
+        for (int i=0; i < array.length; i++) {
+            newArray1[i] = null;
+        }
+        // NPE thrown if elements in a null-restricted array set to null
+        assertThrows(NullPointerException.class, () -> newArray2[0] = null);
+    }
+
+    private void testCopyOfRange(Object[] array, Object[] nullRestrictedArray, int from, int to) {
+        Object[] newArray1 = Arrays.copyOfRange(array, from, to);
+        Object[] newArray2 = Arrays.copyOfRange(nullRestrictedArray, from, to);
+        System.out.println("newArray2 " + newArray2.length + " " + Arrays.toString(newArray2));
+        // elements in a normal array can be null
+        for (int i=0; i < newArray1.length; i++) {
+            newArray1[i] = null;
+        }
+        // NPE thrown if elements in a null-restricted array set to null
+        assertThrows(NullPointerException.class, () -> newArray2[0] = null);
+
+        // check the new array padded with null if normal array and
+        // zero instance if null-restricted array
+        for (int i=0; i < newArray1.length; i++) {
+            if (from+1 >= array.length) {
+                // padded with null
+                assertTrue(newArray1[i] == null);
+            }
+        }
+        Class<?> componentType = nullRestrictedArray.getClass().getComponentType();
+        for (int i=0; i < newArray2.length; i++) {
+            if (from+1 >= nullRestrictedArray.length) {
+                // padded with zero instance
+                assertTrue(newArray2[i] == ValueClass.zeroInstance(componentType));
+            }
+        }
+    }
+
     @Test
     public void testVarHandle() {
         int len = 4;

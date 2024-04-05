@@ -27,7 +27,7 @@ package jdk.internal.value;
 
 public final class NormalCheckedType implements CheckedType {
     private final Class<?> type;
-    NormalCheckedType(Class<?> cls) {
+    private NormalCheckedType(Class<?> cls) {
         this.type = cls;
     }
 
@@ -46,7 +46,17 @@ public final class NormalCheckedType implements CheckedType {
         return type;
     }
 
-    public static NormalCheckedType of(Class<?> cls) {
+    /**
+     * {@returns a {@linkplain CheckedType checked type} for the given class if it is a checked type}
+     *
+     * A primitive type and {@code void} is not a checked type.
+     *
+     * @param cls {@code Class} object
+     * @throws IllegalArgumentException if the given class is a primitive type
+     */
+    public static CheckedType of(Class<?> cls) {
+        if (cls.isPrimitive())
+            throw new IllegalArgumentException(cls.getName() + " not a checked type");
         return new NormalCheckedType(cls);
     }
 }
