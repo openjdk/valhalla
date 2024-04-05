@@ -59,7 +59,8 @@ class LayoutRawBlock : public ResourceObj {
     REGULAR,          // primitive or oop field (including not flat inline type fields)
     FLAT,             // flat field
     INHERITED,        // field(s) inherited from super classes
-    NULL_MARKER       // stores the null marker for a flat field
+    NULL_MARKER,       // stores the null marker for a flat field
+    INHERITED_NULL_MARKER
   };
 
  private:

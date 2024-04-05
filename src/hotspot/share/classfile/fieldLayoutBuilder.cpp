@@ -67,7 +67,7 @@ LayoutRawBlock::LayoutRawBlock(int index, Kind kind, int size, int alignment, bo
  _null_marker_offset(-1),
  _is_reference(is_reference),
  _needs_null_marker(false) {
-  assert(kind == REGULAR || kind == FLAT || kind == INHERITED,
+  assert(kind == REGULAR || kind == FLAT || kind == INHERITED || kind == INHERITED_NULL_MARKER,
          "Other kind do not have a field index");
   assert(size > 0, "Sanity check");
   assert(alignment > 0, "Sanity check");
@@ -338,9 +338,6 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
   if (block->kind() != LayoutRawBlock::NULL_MARKER) {
     _field_info->adr_at(block->field_index())->set_offset(block->offset());
   }
-  if (block->null_marker_offset() != -1) {
-    _field_info->adr_at(block->field_index())->set_null_marker_offset(block->null_marker_offset());
-  }
   return block;
 }
 
@@ -354,11 +351,18 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
       if (fs.access_flags().is_static()) continue;
       has_instance_fields = true;
       LayoutRawBlock* block;
-      if (fs.field_flags().is_null_free_inline_type()) {
+      // if (fs.field_flags().is_null_free_inline_type()) {
+      if (fs.is_flat()) {
         InlineKlass* vk = InlineKlass::cast(ik->get_inline_type_field_klass(fs.index()));
         block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, vk->get_exact_size_in_bytes(),
                                    vk->get_alignment(), false);
-
+        if (!fs.field_flags().is_null_free_inline_type()) {
+          assert(fs.field_flags().has_null_marker(), "Nullable flat fields must have a null marker");
+          LayoutRawBlock* marker = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED_NULL_MARKER, 1 /* current NULL_MARKER block are one byte */,
+                                    1, false);
+          marker->set_offset(fs.null_marker_offset());
+          all_fields->append(marker);
+        }
       } else {
         int size = type2aelembytes(type);
         // INHERITED blocks are marked as non-reference because oop_maps are handled by their holder class
@@ -443,9 +447,6 @@ LayoutRawBlock* FieldLayout::insert(LayoutRawBlock* slot, LayoutRawBlock* block)
   assert(slot->kind() == LayoutRawBlock::EMPTY, "Blocks can only be inserted in empty blocks");
   assert(slot->offset() % block->alignment() == 0, "Incompatible alignment");
   block->set_offset(slot->offset());
-  if (block->needs_null_marker() && block->inline_klass()->has_internal_null_marker_offset()) {
-    block->set_null_marker_offset(block->offset() + block->inline_klass()->get_internal_null_marker_offset());
-  }
   slot->set_offset(slot->offset() + block->size());
   assert((slot->size() - block->size()) < slot->size(), "underflow checking");
   assert(slot->size() - block->size() >= 0, "no negative size allowed");
@@ -547,6 +548,12 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
       }
       break;
     }
+    case LayoutRawBlock::INHERITED_NULL_MARKER :
+      output->print_cr(" @%d %s %d/1",
+                       b->offset(),
+                      "INHERITED_NULL_MARKER",
+                       b->size());
+      break;
     case LayoutRawBlock::EMPTY:
       output->print_cr(" @%d %s %d/1",
                        b->offset(),
@@ -906,9 +913,22 @@ void FieldLayoutBuilder::insert_null_markers() {
   GrowableArray<LayoutRawBlock*>* list = new GrowableArray<LayoutRawBlock*>(10);
   for (LayoutRawBlock* block = _layout->first_field_block(); block != _layout->last_block(); block = block->next_block()) {
     if (block->needs_null_marker()) {
-      LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
-      marker->set_field_index(block->field_index());
-      list->append(marker);
+      assert(block->kind() == LayoutRawBlock::FLAT, "Only flat fields might need null markers");
+      if (block->inline_klass()->has_internal_null_marker_offset()) {
+        // The inline klass has an internal null marker slot, let's use it
+        // The inline klass has the internal null marker offset from the begining of the object,
+        // compute the offset relative to begining of payload
+        int internal_null_marker_offset = block->inline_klass()->get_internal_null_marker_offset() - block->inline_klass()->first_field_offset();
+        block->set_null_marker_offset(block->offset() + internal_null_marker_offset);
+        _field_info->adr_at(block->field_index())->set_null_marker_offset(block->null_marker_offset());
+        _field_info->adr_at(block->field_index())->field_flags_addr()->update_null_marker(true);
+        _field_info->adr_at(block->field_index())->field_flags_addr()->update_internal_null_marker(true);
+      } else {
+        // No internal null marker, need a external slot in the container
+        LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
+        marker->set_field_index(block->field_index());
+        list->append(marker);
+      }
     }
   }
   _layout->add(list);

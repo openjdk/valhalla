@@ -57,7 +57,8 @@ public class FieldLayoutAnalyzer {
     REGULAR,
     PADDING,
     FLAT,
-    NULL_MARKER;
+    NULL_MARKER,
+    INHERITED_NULL_MARKER;
 
     static BlockType parseType(String s) {
       switch(s) {
@@ -68,6 +69,7 @@ public class FieldLayoutAnalyzer {
         case "PADDING"     : return PADDING;
         case "FLAT"        : return FLAT;
         case "NULL_MARKER" : return NULL_MARKER;
+        case "INHERITED_NULL_MARKER" : return INHERITED_NULL_MARKER;
         default:
           throw new RuntimeException("Unknown block type: " + s);
       }
@@ -82,16 +84,16 @@ public class FieldLayoutAnalyzer {
                             String signature,
                             String fieldClass,
                             int nullMarkerOffset,
-                            int referenceFieldOffset) {
-                            // nullMarkerOffset  // -1 if field has no null marker
-                            // refField  // for null marker offset, gives the name of the field they refer to (should it be the field offset?)
+                            boolean hasInternalNullMarker,
+                            int referenceFieldOffset) { // for null marker blocks, gives the offset of the field they refer to
+
 
     static FieldBlock createSpecialBlock(int offset, BlockType type, int size, int alignment, int referenceFieldOffset) {
-      return new FieldBlock(offset, type, size, alignment, null, null, null, -1, referenceFieldOffset);
+      return new FieldBlock(offset, type, size, alignment, null, null, null, -1, false, referenceFieldOffset);
     }
 
-    static FieldBlock createJavaFieldBlock(int offset, BlockType type, int size, int alignment, String name, String signature, String fieldClass, int nullMarkerOffset) {
-      return new FieldBlock(offset, type, size, alignment, name, signature, fieldClass, nullMarkerOffset, -1);
+    static FieldBlock createJavaFieldBlock(int offset, BlockType type, int size, int alignment, String name, String signature, String fieldClass, int nullMarkerOffset, boolean hasInternalNullMarker) {
+      return new FieldBlock(offset, type, size, alignment, name, signature, fieldClass, nullMarkerOffset, hasInternalNullMarker, -1);
     }
 
     void print(PrintStream out) {
@@ -103,6 +105,9 @@ public class FieldLayoutAnalyzer {
                 " signature=" + signature +
                 " fieldClass=" + fieldClass);
     }
+
+    boolean isFlat() { return type == BlockType.FLAT; } // Warning: always return false for inherited fields, even flat ones
+    boolean hasNullMarker() {return nullMarkerOffset != -1; }
 
     static FieldBlock parseField(String line) {
       String[] fieldLine = line.split("\\s+");
@@ -124,7 +129,8 @@ public class FieldLayoutAnalyzer {
       switch(type) {
         case BlockType.RESERVED:
         case BlockType.EMPTY:
-        case BlockType.PADDING: {
+        case BlockType.PADDING:
+        case BlockType.INHERITED_NULL_MARKER: {
             block = FieldBlock.createSpecialBlock(offset, type, size, alignment, 0);
             break;
         }
@@ -135,13 +141,18 @@ public class FieldLayoutAnalyzer {
             String signature = fieldLine[5];
             String fieldClass = "";
             int nullMarkerOffset = -1;
+            boolean hasInternalNullMarker = false;
             if (type == BlockType.FLAT) {
               fieldClass = fieldLine[6];
-              if (fieldLine.length > 7) {
+              if (fieldLine.length >= 11) {
                 nullMarkerOffset = Integer.parseInt(fieldLine[10]);
               }
+              if (fieldLine.length >= 12 ) {
+                Asserts.assertEquals(fieldLine[11], "(internal)");
+                hasInternalNullMarker = true;
+              }
             }
-            block = FieldBlock.createJavaFieldBlock(offset, type, size, alignment, name, signature, fieldClass, nullMarkerOffset);
+            block = FieldBlock.createJavaFieldBlock(offset, type, size, alignment, name, signature, fieldClass, nullMarkerOffset, hasInternalNullMarker);
             break;
           }
         case BlockType.NULL_MARKER: {
@@ -251,11 +262,13 @@ public class FieldLayoutAnalyzer {
       throw new RuntimeException("No " + (isStatic ? "static" : "nonstatic") + " field found at offset "+ offset);
     }
 
-    FieldBlock getFieldWithName(String fieldName, boolean isStatic) {
+    FieldBlock getFieldFromName(String fieldName, boolean isStatic) {
       Asserts.assertTrue(fieldName != null);
       ArrayList<FieldBlock> fields = isStatic ? staticFields : nonStaticFields;
       for (FieldBlock block : fields) {
-        if (fieldName.equals(block.name)) return block;
+        if (block.name() == null) continue;
+        String n = block.name().substring(1, block.name().length() - 1); // in the log, name is surrounded by double quotes
+        if (fieldName.equals(n)) return block;
       }
       throw new RuntimeException("No " + (isStatic ? "static" : "nonstatic") + " field found with name "+ fieldName);
     }
@@ -289,6 +302,14 @@ public class FieldLayoutAnalyzer {
     return null;
   }
 
+  ClassLayout getClassLayoutFromName(String name) {
+    for(ClassLayout layout : layouts) {
+      String sub = layout.name.substring(0, layout.name.indexOf('@'));
+      if (name.equals(sub)) return layout;
+    }
+    return null;
+  }
+
   void checkNoOverlapOnFields(ArrayList<FieldBlock> fields) {
     for (int i = 0; i < fields.size() - 1; i++) {
       FieldBlock f0 = fields.get(i);
@@ -317,7 +338,8 @@ public class FieldLayoutAnalyzer {
       Asserts.assertTrue(block.alignment == -1);
       return;
     }
-    if (block.type == BlockType.EMPTY || block.type == BlockType.PADDING || block.type == BlockType.NULL_MARKER) {
+    if (block.type == BlockType.EMPTY || block.type == BlockType.PADDING
+        || block.type == BlockType.NULL_MARKER || block.type == BlockType.INHERITED_NULL_MARKER) {
       Asserts.assertTrue(block.alignment == 1, "alignment = " + block.alignment);
       return;
     }
@@ -343,7 +365,7 @@ public class FieldLayoutAnalyzer {
         if (block.signature().startsWith("[")) {
           Asserts.assertEquals(compressOops ? 4 : 8, block.size());
         } else if (block.signature().startsWith("L")) {
-          if (block.type == BlockType.INHERITED) {
+          if (block.type == BlockType.INHERITED || block.type == BlockType.INHERITED_NULL_MARKER) {
             // Skip for now, will be verified when checking the class declaring the field
           } else if (block.type == BlockType.REGULAR) {
             Asserts.assertEquals(compressOops ? 4 : 8, block.size());
@@ -351,8 +373,8 @@ public class FieldLayoutAnalyzer {
             Asserts.assertEquals(BlockType.FLAT, block.type);
             ClassLayout fcl = getClassLayout(block.fieldClass);
             Asserts.assertNotNull(fcl);
-            Asserts.assertTrue(block.size() == fcl.exactSize);
-            Asserts.assertTrue(block.alignment() == fcl.alignment);
+            Asserts.assertEquals(block.size(), fcl.exactSize);
+            Asserts.assertEquals(block.alignment(), fcl.alignment);
           }
         } else {
           throw new RuntimeException("Unknown signature type: " + block.signature);
@@ -394,11 +416,13 @@ public class FieldLayoutAnalyzer {
             if (b.type != BlockType.INHERITED) found = true;
             i++;
           }
-          Asserts.assertTrue(found, "No declaration found for an inherited field");
-          Asserts.assertTrue(field.size == b.size);
-          Asserts.assertTrue(field.alignment == b.alignment);
-          Asserts.assertEquals(field.name(),b.name());
-          Asserts.assertEquals(field.signature(), b.signature());
+          String location = new String(" at " + layout.name + " offset " + field.offset());
+          Asserts.assertTrue(found, "No declaration found for an inherited field " + location);
+          Asserts.assertNotEquals(field.type, BlockType.EMPTY, location);
+          Asserts.assertEquals(field.size, b.size, location);
+          Asserts.assertEquals(field.alignment, b.alignment, location );
+          Asserts.assertEquals(field.name(), b.name(), location);
+          Asserts.assertEquals(field.signature(), b.signature(), location);
         }
       }
     }
@@ -453,7 +477,8 @@ public class FieldLayoutAnalyzer {
 
   void checkFieldInClass(FieldBlock block, Node node) {
     FieldBlock b = node.classLayout.getFieldAtOffset(block.offset, false);
-    Asserts.assertTrue(b.type == BlockType.INHERITED);
+    Asserts.assertTrue((block.type != BlockType.NULL_MARKER && block.type != BlockType.INHERITED_NULL_MARKER && b.type == BlockType.INHERITED)
+                       || ((block.type == BlockType.NULL_MARKER || block.type == BlockType.INHERITED_NULL_MARKER) && b.type == BlockType.INHERITED_NULL_MARKER));
     Asserts.assertEquals(b.signature(), block.signature());
     Asserts.assertEquals(b.name(), block.name());
     Asserts.assertEquals(b.size(), block.size());
@@ -467,8 +492,13 @@ public class FieldLayoutAnalyzer {
     for (ClassLayout layout : layouts) {
       for (FieldBlock block : layout.nonStaticFields) {
         if (block.type() == BlockType.FLAT && block.nullMarkerOffset() != -1) {
-          FieldBlock marker = layout.getFieldAtOffset(block.nullMarkerOffset(), false);
-          Asserts.assertEquals(block.nullMarkerOffset(), marker.offset());
+          if (block.hasInternalNullMarker()) {
+            Asserts.assertTrue(block.nullMarkerOffset() > block.offset());
+            Asserts.assertTrue(block.nullMarkerOffset() < block.offset() + block.size());
+          } else {
+            FieldBlock marker = layout.getFieldAtOffset(block.nullMarkerOffset(), false);
+            Asserts.assertEquals(block.nullMarkerOffset(), marker.offset());
+          }
         }
         if (block.type() == BlockType.NULL_MARKER) {
           FieldBlock flatField = layout.getFieldAtOffset(block.referenceFieldOffset(), false);
