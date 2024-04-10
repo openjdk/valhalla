@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2177,6 +2177,16 @@ public class IRNode {
     public static final String X86_TESTL_REG = PREFIX + "X86_TESTL_REG" + POSTFIX;
     static {
         machOnlyNameRegex(X86_TESTL_REG, "testL_reg");
+    }
+
+    public static final String CONVF2HFANDS2HF = PREFIX + "CONVF2HFANDS2HF" + POSTFIX;
+    static {
+        machOnlyNameRegex(CONVF2HFANDS2HF, "convF2HFAndS2HF");
+    }
+
+    public static final String REINTERPRETHF2SANDHF2F = PREFIX + "REINTERPRETHF2SANDHF2F" + POSTFIX;
+    static {
+        machOnlyNameRegex(REINTERPRETHF2SANDHF2F, "reinterpretHF2SAndHF2F");
     }
 
     /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3494,13 +3494,18 @@ const Type* SuperWord::container_type(Node* n) {
     return Type::get_const_basic_type(bt);
   }
   const Type* t = _igvn.type(n);
+
+  // First check if the node is a float16 node returning a "Short" type.
+  // If it is, then it needs to be checked before the next condition.
+  // Else it might return TypeInt::INT for float16 nodes instead of TypeInt::SHORT
+  // which could cause assertion errors in VectorCastNode::opcode().
+  if (VectorNode::is_float16_node(n->Opcode())) {
+    return TypeInt::SHORT;
+  }
   if (t->basic_type() == T_INT) {
     // A narrow type of arithmetic operations will be determined by
     // propagating the type of memory operations.
     return TypeInt::INT;
-  }
-  if (VectorNode::is_float16_node(n->Opcode())) {
-    return TypeInt::SHORT;
   }
   return t;
 }

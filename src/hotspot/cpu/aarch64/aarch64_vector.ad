@@ -1,6 +1,6 @@
 //
-// Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
-// Copyright (c) 2020, 2023, Arm Limited. All rights reserved.
+// Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2020, 2024, Arm Limited. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -226,6 +226,13 @@ source %{
           return false;
         }
         break;
+      case Op_AddVHF:
+        // FEAT_FP16 is enabled if both "fphp" and "asimdhp" features are supported.
+        // Only the Neon instructions need this check. SVE supports half-precision floats
+        // by default.
+        if (UseSVE > 0 || (VM_Version::supports_fphp() && VM_Version::supports_asimdhp())) {
+        break;
+      }
       default:
         break;
     }
@@ -568,6 +575,22 @@ instruct vaddL(vReg dst, vReg src1, vReg src2) %{
   ins_pipe(pipe_slow);
 %}
 
+instruct vaddHF(vReg dst, vReg src1, vReg src2) %{
+  match(Set dst (AddVHF src1 src2));
+  format %{ "vaddHF $dst, $src1, $src2" %}
+  ins_encode %{
+    uint length_in_bytes = Matcher::vector_length_in_bytes(this);
+    if (VM_Version::use_neon_for_vector(length_in_bytes)) {
+      __ fadd($dst$$FloatRegister, get_arrangement(this),
+              $src1$$FloatRegister, $src2$$FloatRegister);
+    } else {
+      assert(UseSVE > 0, "must be sve");
+      __ sve_fadd($dst$$FloatRegister, __ H, $src1$$FloatRegister, $src2$$FloatRegister);
+    }
+  %}
+  ins_pipe(pipe_slow);
+%}
+
 instruct vaddF(vReg dst, vReg src1, vReg src2) %{
   match(Set dst (AddVF src1 src2));
   format %{ "vaddF $dst, $src1, $src2" %}
@@ -638,6 +661,16 @@ instruct vaddL_masked(vReg dst_src1, vReg src2, pRegGov pg) %{
   format %{ "vaddL_masked $dst_src1, $pg, $dst_src1, $src2" %}
   ins_encode %{
     __ sve_add($dst_src1$$FloatRegister, __ D, $pg$$PRegister, $src2$$FloatRegister);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct vaddHF_masked(vReg dst_src1, vReg src2, pRegGov pg) %{
+  predicate(UseSVE > 0);
+  match(Set dst_src1 (AddVHF (Binary dst_src1 src2) pg));
+  format %{ "vaddHF_masked $dst_src1, $pg, $dst_src1, $src2" %}
+  ins_encode %{
+    __ sve_fadd($dst_src1$$FloatRegister, __ H, $pg$$PRegister, $src2$$FloatRegister);
   %}
   ins_pipe(pipe_slow);
 %}
