@@ -27,6 +27,7 @@
  * @author Yi Yang
  * @summary Canonicalizes Foo.class.getModifiers() with interpreter mode
  * @library /test/lib
+ * @enablePreview
  * @run main/othervm -Xint
  *                   -XX:CompileCommand=compileonly,*CanonicalizeGetModifiers.test
  *                   compiler.c1.CanonicalizeGetModifiers
@@ -38,6 +39,7 @@
  * @summary Canonicalizes Foo.class.getModifiers() with C1 mode
  * @requires vm.compiler1.enabled
  * @library /test/lib
+ * @enablePreview
  * @run main/othervm -XX:TieredStopAtLevel=1 -XX:+TieredCompilation
  *                   -XX:CompileCommand=compileonly,*CanonicalizeGetModifiers.test
  *                   compiler.c1.CanonicalizeGetModifiers
@@ -49,6 +51,7 @@
  * @summary Canonicalizes Foo.class.getModifiers() with C2 mode
  * @requires vm.compiler2.enabled
  * @library /test/lib
+ * @enablePreview
  * @run main/othervm -XX:-TieredCompilation
  *                   -XX:CompileCommand=compileonly,*CanonicalizeGetModifiers.test
  *                   compiler.c1.CanonicalizeGetModifiers
