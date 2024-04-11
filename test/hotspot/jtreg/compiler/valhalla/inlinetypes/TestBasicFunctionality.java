@@ -1029,7 +1029,7 @@ public class TestBasicFunctionality {
 
     static MyValue41 field41;
 
-    // Test removal of the MemBarRelease following the value buffer initialization
+    // Test detection of value object copies and removal of the MemBarRelease following the value buffer initialization
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, ALLOCA, STORE})
@@ -1042,5 +1042,24 @@ public class TestBasicFunctionality {
         MyValue41 val = new MyValue41(rI);
         test41(val);
         Asserts.assertEQ(field41, val);
+    }
+
+    @DontInline
+    public void test42_helper(MyValue41 val) {
+        Asserts.assertEQ(val, new MyValue41(rI));
+    }
+
+    // Same as test41 but with call argument requiring buffering
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC, ALLOCA, STORE})
+    public void test42(MyValue41 val) {
+        test42_helper(new MyValue41(val.x));
+    }
+
+    @Run(test = "test42")
+    public void test42_verifier() {
+        MyValue41 val = new MyValue41(rI);
+        test42(val);
     }
 }

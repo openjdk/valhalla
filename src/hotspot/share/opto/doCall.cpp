@@ -579,13 +579,23 @@ void Parse::do_call() {
   bool      call_does_dispatch = false;
 
   // Detect the call to the object or abstract class constructor at the end of a value constructor to know when we are done initializing the larval
-  if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && peek()->is_InlineType()) {
-    InlineTypeNode* receiver = peek()->as_InlineType();
-    // TODO 8325106 re-enable the assert
+  if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && stack(sp() - nargs)->is_InlineType()) {
+    assert(method()->is_object_constructor() && (method()->holder()->is_inlinetype() || method()->holder()->is_abstract()), "Unexpected caller");
+    InlineTypeNode* receiver = stack(sp() - nargs)->as_InlineType();
+    // TODO 8325106 re-enable the assert and add the same check for the receiver in the caller map
     //assert(receiver->is_larval(), "must be larval");
-    InlineTypeNode* clone = receiver->clone()->as_InlineType();
+    InlineTypeNode* clone = receiver->clone_if_required(&_gvn, _map);
     clone->set_is_larval(false);
-    replace_in_map(receiver, _gvn.transform(clone));
+    clone = _gvn.transform(clone)->as_InlineType();
+    replace_in_map(receiver, clone);
+
+    if (_caller->has_method()) {
+      // Get receiver from the caller map and update it in the exit map now that we are done initializing it
+      SafePointNode* map = _caller->map();
+      Node* receiver_in_caller = map->argument(_caller, 0)->as_InlineType();
+      assert(receiver_in_caller->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(), "Receiver type mismatch");
+      _exits.map()->replace_edge(receiver_in_caller, clone, &_gvn);
+    }
   }
 
   // Speculative type of the receiver if any
@@ -675,6 +685,7 @@ void Parse::do_call() {
 
   // save across call, for a subsequent cast_not_null.
   Node* receiver = has_receiver ? argument(0) : nullptr;
+  Node* receiver_in_caller = local(0);
 
   // The extra CheckCastPPs for speculative types mess with PhaseStringOpts
   if (receiver != nullptr && !call_does_dispatch && !cg->is_string_late_inline()) {
@@ -801,6 +812,16 @@ void Parse::do_call() {
       retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
       push_node(T_OBJECT, retnode);
     }
+  }
+
+  // Did we inline a value class constructor from another value class constructor?
+  if (cg->is_inline() && cg->method()->is_object_constructor() && cg->method()->holder()->is_inlinetype() &&
+      _method->is_object_constructor() && cg->method()->holder()->is_inlinetype() && receiver_in_caller == receiver) {
+    // Update the receiver in the exit map because the constructor call updated it.
+    // MethodLiveness::BasicBlock::compute_gen_kill_single ensures that the receiver in local(0) is live.
+    assert(local(0)->is_InlineType(), "Unexpected receiver");
+    assert(receiver->bottom_type()->inline_klass() == local(0)->bottom_type()->inline_klass(), "Receiver type mismatch");
+    _exits.map()->replace_edge(receiver, local(0), &_gvn);
   }
 
   // Restart record of parsing work after possible inlining of call
