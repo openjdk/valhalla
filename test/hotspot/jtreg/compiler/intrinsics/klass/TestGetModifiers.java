@@ -25,6 +25,7 @@
 /*
  * @test
  * @library /test/lib
+ * @enablePreview
  * @run main/othervm -Xint
  *                   -XX:CompileCommand=dontinline,*TestGetModifiers.test
  *                   compiler.intrinsics.klass.TestGetModifiers
@@ -34,6 +35,7 @@
  * @test
  * @requires vm.compiler1.enabled
  * @library /test/lib
+ * @enablePreview
  * @run main/othervm -XX:TieredStopAtLevel=1 -XX:+TieredCompilation
  *                   -XX:CompileCommand=dontinline,*TestGetModifiers.test
  *                   compiler.intrinsics.klass.TestGetModifiers
@@ -43,6 +45,7 @@
  * @test
  * @requires vm.compiler2.enabled
  * @library /test/lib
+ * @enablePreview
  * @run main/othervm -XX:-TieredCompilation
  *                   -XX:CompileCommand=dontinline,*TestGetModifiers.test
  *                   compiler.intrinsics.klass.TestGetModifiers
