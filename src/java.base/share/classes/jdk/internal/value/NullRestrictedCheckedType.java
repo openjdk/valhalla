@@ -27,7 +27,7 @@ package jdk.internal.value;
 
 public final class NullRestrictedCheckedType implements CheckedType {
     private final Class<?> type;
-    NullRestrictedCheckedType(Class<?> cls) {
+    private NullRestrictedCheckedType(Class<?> cls) {
         this.type = cls;
     }
 
@@ -50,7 +50,19 @@ public final class NullRestrictedCheckedType implements CheckedType {
         return type;
     }
 
+    /**
+     * {@returns a {@linkplain NullRestrictedCheckedType null-restricted checked type}
+     * for the given class if it is a checked type}
+     *
+     * A primitive type and {@code void} is not a checked type.
+     *
+     * @param cls {@code Class} object
+     * @throws IllegalArgumentException if the given class is a primitive type
+     * @throws IllegalArgumentException if the given class is not a value class
+     */
     public static NullRestrictedCheckedType of(Class<?> cls) {
+        if (cls.isPrimitive())
+            throw new IllegalArgumentException(cls.getName() + " not a checked type");
         if (!cls.isValue()) {
             throw new IllegalArgumentException(cls.getName() + " not a value class");
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/cdsConfig.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -55,6 +56,10 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   set_prototype_header(markWord::inline_type_prototype());
   assert(is_inline_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
+}
+
+InlineKlass::InlineKlass() {
+  assert(CDSConfig::is_dumping_archive() || UseSharedSpaces, "only for CDS");
 }
 
 void InlineKlass::init_fixed_block() {

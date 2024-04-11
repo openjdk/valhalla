@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,8 @@
 #include "cds/heapShared.hpp"
 #include "classfile/classLoaderDataShared.hpp"
 #include "logging/log.hpp"
+#include "runtime/arguments.hpp"
+#include "runtime/globals.hpp"
 
 bool CDSConfig::_is_dumping_static_archive = false;
 bool CDSConfig::_is_dumping_dynamic_archive = false;
@@ -38,8 +40,17 @@ bool CDSConfig::_is_dumping_dynamic_archive = false;
 bool CDSConfig::_dumping_full_module_graph_disabled = false;
 bool CDSConfig::_loading_full_module_graph_disabled = false;
 
+bool CDSConfig::is_valhalla_preview() {
+  return Arguments::enable_preview() && EnableValhalla;
+}
+
+
 #if INCLUDE_CDS_JAVA_HEAP
 bool CDSConfig::is_dumping_heap() {
+  if (is_valhalla_preview()) {
+    // Not working yet -- e.g., HeapShared::oop_hash() needs to be implemented for value oops
+    return false;
+  }
   // heap dump is not supported in dynamic dump
   return is_dumping_static_archive() && HeapShared::can_write();
 }

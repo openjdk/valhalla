@@ -1415,12 +1415,13 @@ public class TestArrays {
         }
     }
 
-    @Test
+    // Ignore: JDK-8329224
+    // @Test
     public Object[] test59(MyValue1[] va) {
         return Arrays.copyOf(va, va.length+1, va.getClass());
     }
 
-    @Run(test = "test59")
+    // @Run(test = "test59")
     public void test59_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
@@ -1430,18 +1431,19 @@ public class TestArrays {
             verif[i] = va[i];
         }
         Object[] result = test59(va);
-        // Result is not a null-restricted array
-        Asserts.assertEQ(result[len], null);
+        // Result is a null-restricted array
+        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
 
-    @Test
+    // Ignore: JDK-8329224
+    // @Test
     public Object[] test60(Object[] va, Class klass) {
         return Arrays.copyOf(va, va.length+1, klass);
     }
 
-    @Run(test = "test60")
+    // @Run(test = "test60")
     public void test60_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
@@ -1451,8 +1453,8 @@ public class TestArrays {
             verif[i] = (MyValue1)va[i];
         }
         Object[] result = test60(va, va.getClass());
-        // Result is not a null-restricted array
-        Asserts.assertEQ(result[len], null);
+        // Result is a null-restricted array
+        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
@@ -1522,7 +1524,8 @@ public class TestArrays {
         return arr;
     }
 
-    @Test
+    // Ignore: JDK-8329224
+    // @Test
     public Object[] test63(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
@@ -1532,7 +1535,7 @@ public class TestArrays {
         return Arrays.copyOf(arr, arr.length+1, arr.getClass());
     }
 
-    @Run(test = "test63")
+    // @Run(test = "test63")
     public void test63_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);

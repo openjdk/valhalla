@@ -663,6 +663,9 @@ public final class Class<T> implements java.io.Serializable,
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     public boolean isValue() {
+        if (!PreviewFeatures.isEnabled()) {
+            return false;
+        }
          if (isPrimitive() || isArray() || isInterface())
              return false;
         return ((getModifiers() & Modifier.IDENTITY) == 0);
@@ -1496,8 +1499,11 @@ public final class Class<T> implements java.io.Serializable,
                 getClassAccessFlagsRaw() : getModifiers();
         var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
         if (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0) {
-            // Ignore unspecified (0x800) access flag for current version
+            // Ignore unspecified (0x0800) access flag for current version
             accessFlags &= ~0x0800;
+        }
+        if (!PreviewFeatures.isEnabled() && location == AccessFlag.Location.INNER_CLASS) {
+            accessFlags &= ~Modifier.IDENTITY; // drop ACC_IDENTITY bit in inner class if not in preview
         }
         return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
     }
