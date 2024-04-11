@@ -165,6 +165,71 @@ public class TestValueConstruction {
         }
     }
 
+    // Constructor calling another constructor of the same value class with control flow dependent initialization
+    static value class MyValue8 {
+        int x;
+
+        public MyValue8(int x) {
+            this(x, 0);
+        }
+
+        public MyValue8(int x, int unused1) {
+            if ((x % 2) == 0) {
+                this.x = 42;
+            } else {
+                this.x = x;
+            }
+        }
+
+        public MyValue8(int x, int unused1, int unused2) {
+            this.x = x;
+        }
+
+        public static MyValue8 valueOf(int x) {
+            if ((x % 2) == 0) {
+                return new MyValue8(42, 0, 0);
+            } else {
+                return new MyValue8(x, 0, 0);
+            }
+        }
+    }
+
+    // Constructor calling another constructor of a different value class
+    static value class MyValue9 {
+        MyValue8 val;
+
+        public MyValue9(int x) {
+            this(x, 0);
+        }
+
+        public MyValue9(int i, int unused1) {
+            val = new MyValue8(i);
+        }
+
+        public MyValue9(int x, int unused1, int unused2) {
+            this(x, 0, 0, 0);
+        }
+
+        public MyValue9(int i, int unused1, int unused2, int unused3) {
+            val = MyValue8.valueOf(i);
+        }
+    }
+
+    // Constructor with a loop
+    static value class MyValue10 {
+        int x;
+        int y;
+
+        public MyValue10(int x, int cnt) {
+            this.x = x;
+            int res = 0;
+            for (int i = 0; i < cnt; ++i) {
+                res += x;
+            }
+            this.y = res;
+        }
+    }
+
     public static int test1(int x) {
         MyValue1 val = new MyValue1(x);
         return val.x;
@@ -262,9 +327,41 @@ public class TestValueConstruction {
         return new MyValue7(x);
     }
 
+    public static MyValue8 test17(int x) {
+        return new MyValue8(x);
+    }
+
+    public static MyValue8 test18(int x) {
+        return new MyValue8(x, 0);
+    }
+
+    public static MyValue8 test19(int x) {
+        return MyValue8.valueOf(x);
+    }
+
+    public static MyValue9 test20(int x) {
+        return new MyValue9(x);
+    }
+
+    public static MyValue9 test21(int x) {
+        return new MyValue9(x, 0);
+    }
+
+    public static MyValue9 test22(int x) {
+        return new MyValue9(x, 0, 0);
+    }
+
+    public static MyValue9 test23(int x) {
+        return new MyValue9(x, 0, 0, 0);
+    }
+
+    public static MyValue10 test24(int x, int cnt) {
+        return new MyValue10(x, cnt);
+    }
+
     public static void main(String[] args) {
         for (int x = 0; x < 50_000; ++x) {
-            Asserts.assertEQ(test1(x),x);
+            Asserts.assertEQ(test1(x), x);
             Asserts.assertEQ(test2(x), new MyValue1(x));
             Asserts.assertEQ(test3(10), new MyValue1(10));
             Asserts.assertEQ(test4(x), new MyValue1(x));
@@ -280,6 +377,14 @@ public class TestValueConstruction {
             Asserts.assertEQ(test14(x, (x % 2) == 0), new MyValue5(x, (x % 2) == 0));
             Asserts.assertEQ(test15(x), new MyValue6(x));
             Asserts.assertEQ(test16(x), new MyValue7(x));
+            Asserts.assertEQ(test17(x), new MyValue8(x));
+            Asserts.assertEQ(test18(x), new MyValue8(x));
+            Asserts.assertEQ(test19(x), new MyValue8(x));
+            Asserts.assertEQ(test20(x), new MyValue9(x));
+            Asserts.assertEQ(test21(x), new MyValue9(x));
+            Asserts.assertEQ(test22(x), new MyValue9(x));
+            Asserts.assertEQ(test23(x), new MyValue9(x));
+            Asserts.assertEQ(test24(x, x % 10), new MyValue10(x, x % 10));
         }
     }
 }
