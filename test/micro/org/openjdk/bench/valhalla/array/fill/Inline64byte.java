@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import java.util.Arrays;
 public class Inline64byte extends StatesQ64byte {
 
     public static class RefStaticField {
-        static Q64byte.ref f = new Q64byte(42);
+        static Q64byte f = new Q64byte(42);
     }
 
     public static class ValStaticField {
@@ -43,7 +43,7 @@ public class Inline64byte extends StatesQ64byte {
 
     @State(Scope.Thread)
     public static class RefInstanceField {
-        Q64byte.ref f = new Q64byte(42);
+        Q64byte f = new Q64byte(42);
     }
 
     @State(Scope.Thread)
@@ -56,7 +56,7 @@ public class Inline64byte extends StatesQ64byte {
     public void Def_to_Val_as_Val_fill(Val_as_Val st) {
         Q64byte[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64byte.default;
+            arr[i] = new Q64byte()  ;
         }
     }
 
@@ -109,16 +109,16 @@ public class Inline64byte extends StatesQ64byte {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Ref_fill(Ref_as_Ref st) {
-        Q64byte.ref[] arr = st.arr;
+        Q64byte[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64byte.default;
+            arr[i] = new Q64byte()  ;
         }
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void New_to_Ref_as_Ref_fill(Ref_as_Ref st) {
-        Q64byte.ref[] arr = st.arr;
+        Q64byte[] arr = st.arr;
         Q64byte v = new Q64byte(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
@@ -128,7 +128,7 @@ public class Inline64byte extends StatesQ64byte {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_fillstat(Ref_as_Ref st) {
-        Q64byte.ref[] arr = st.arr;
+        Q64byte[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = RefStaticField.f;
         }
@@ -137,7 +137,7 @@ public class Inline64byte extends StatesQ64byte {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Ref_fillstat(Ref_as_Ref st) {
-        Q64byte.ref[] arr = st.arr;
+        Q64byte[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = ValStaticField.f;
         }
@@ -146,7 +146,7 @@ public class Inline64byte extends StatesQ64byte {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_fillinst(Ref_as_Ref st, RefInstanceField f) {
-        Q64byte.ref[] arr = st.arr;
+        Q64byte[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = f.f;
         }
@@ -155,7 +155,7 @@ public class Inline64byte extends StatesQ64byte {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Ref_fillinst(Ref_as_Ref st, ValInstanceField f) {
-        Q64byte.ref[] arr = st.arr;
+        Q64byte[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = f.f;
         }
@@ -164,7 +164,7 @@ public class Inline64byte extends StatesQ64byte {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Val_as_Val_arrayfill(Val_as_Val st) {
-        Arrays.fill(st.arr, Q64byte.default);
+        Arrays.fill(st.arr, new Q64byte()  );
     }
 
     @Benchmark
@@ -200,7 +200,7 @@ public class Inline64byte extends StatesQ64byte {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Ref_arrayfill(Ref_as_Ref st) {
-        Arrays.fill(st.arr, Q64byte.default);
+        Arrays.fill(st.arr, new Q64byte()  );
     }
 
     @Benchmark

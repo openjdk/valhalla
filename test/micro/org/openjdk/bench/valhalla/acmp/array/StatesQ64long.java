@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,7 +66,7 @@ public class StatesQ64long {
 
     @State(Scope.Thread)
     public abstract static class RefState {
-        Q64long.ref[] arr1, arr2;
+        Q64long[] arr1, arr2;
     }
 
     @State(Scope.Thread)
@@ -171,8 +171,8 @@ public class StatesQ64long {
     public static class RefState00 extends RefState {
         @Setup
         public void setup() {
-            arr1 = new Q64long.ref[SIZE];
-            arr2 = new Q64long.ref[SIZE];
+            arr1 = new Q64long[SIZE];
+            arr2 = new Q64long[SIZE];
             populate(arr1, arr2, 0);
         }
     }
@@ -180,8 +180,8 @@ public class StatesQ64long {
     public static class RefState25 extends RefState {
         @Setup
         public void setup() {
-            arr1 = new Q64long.ref[SIZE];
-            arr2 = new Q64long.ref[SIZE];
+            arr1 = new Q64long[SIZE];
+            arr2 = new Q64long[SIZE];
             populate(arr1, arr2, 25);
         }
     }
@@ -189,8 +189,8 @@ public class StatesQ64long {
     public static class RefState50 extends RefState {
         @Setup
         public void setup() {
-            arr1 = new Q64long.ref[SIZE];
-            arr2 = new Q64long.ref[SIZE];
+            arr1 = new Q64long[SIZE];
+            arr2 = new Q64long[SIZE];
             populate(arr1, arr2, 50);
         }
     }
@@ -198,8 +198,8 @@ public class StatesQ64long {
     public static class RefState75 extends RefState {
         @Setup
         public void setup() {
-            arr1 = new Q64long.ref[SIZE];
-            arr2 = new Q64long.ref[SIZE];
+            arr1 = new Q64long[SIZE];
+            arr2 = new Q64long[SIZE];
             populate(arr1, arr2, 75);
         }
     }
@@ -207,8 +207,8 @@ public class StatesQ64long {
     public static class RefState100 extends RefState {
         @Setup
         public void setup() {
-            arr1 = new Q64long.ref[SIZE];
-            arr2 = new Q64long.ref[SIZE];
+            arr1 = new Q64long[SIZE];
+            arr2 = new Q64long[SIZE];
             populate(arr1, arr2, 100);
         }
     }

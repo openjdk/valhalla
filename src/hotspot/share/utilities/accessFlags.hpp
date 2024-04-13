@@ -72,8 +72,6 @@ class AccessFlags {
   bool is_native      () const         { return (_flags & JVM_ACC_NATIVE      ) != 0; }
   bool is_interface   () const         { return (_flags & JVM_ACC_INTERFACE   ) != 0; }
   bool is_abstract    () const         { return (_flags & JVM_ACC_ABSTRACT    ) != 0; }
-  bool is_value_class () const         { return (_flags & JVM_ACC_VALUE       ) != 0; }
-  bool is_primitive_class () const     { return (_flags & JVM_ACC_PRIMITIVE   ) != 0; }
   bool is_identity_class  () const     { return (_flags & JVM_ACC_IDENTITY    ) != 0; }
 
   // Attribute flags

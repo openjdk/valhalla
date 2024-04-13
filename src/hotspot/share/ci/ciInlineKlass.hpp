@@ -85,15 +85,11 @@ public:
   int inline_arg_slots();
   int default_value_offset() const;
   ciInstance* default_instance() const;
-  ciInstance* ref_instance() const;
-  ciInstance* val_instance() const;
   bool contains_oops() const;
   int oop_count() const;
   address pack_handler() const;
   address unpack_handler() const;
   InlineKlass* get_InlineKlass() const;
-  ciInstance* ref_mirror();
-  ciInstance* val_mirror();
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

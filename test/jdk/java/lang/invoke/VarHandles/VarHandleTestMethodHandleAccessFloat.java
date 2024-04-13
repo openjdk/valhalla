@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,11 +44,9 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
-    static final Class<?> type = float.class;
-
     static final float static_final_v = 1.0f;
 
-    static float static_v = 1.0f;
+    static float static_v;
 
     final float final_v = 1.0f;
 
@@ -67,16 +65,16 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessFloat.class, "final_v", type);
+                VarHandleTestMethodHandleAccessFloat.class, "final_v", float.class);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessFloat.class, "v", type);
+                VarHandleTestMethodHandleAccessFloat.class, "v", float.class);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessFloat.class, "static_final_v", type);
+            VarHandleTestMethodHandleAccessFloat.class, "static_final_v", float.class);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessFloat.class, "static_v", type);
+            VarHandleTestMethodHandleAccessFloat.class, "static_v", float.class);
 
         vhArray = MethodHandles.arrayElementVarHandle(float[].class);
     }

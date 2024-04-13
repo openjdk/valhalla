@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,16 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public primitive class Q32byte implements Int32, ByByte {
+public value class Q32byte implements Int32, ByByte {
 
     public final byte v0;
     public final byte v1;
     public final byte v2;
     public final byte v3;
+
+    public Q32byte() {
+        this(0);
+    }
 
     public Q32byte(int v) {
         this((byte) (v >>> 24), (byte) (v >>> 16), (byte) (v >>> 8), (byte) (v));

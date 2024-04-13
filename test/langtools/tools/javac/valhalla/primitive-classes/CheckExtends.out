@@ -1,2 +1,0 @@
-CheckExtends.java:10:22: compiler.err.concrete.supertype.for.value.class: CheckExtends.NestedPrimitive, CheckExtends.NestedConcrete
-1 error

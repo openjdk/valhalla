@@ -139,11 +139,9 @@ public:
     void do_NullCheck      (NullCheck*       x) { /* nothing to do */ };
     void do_TypeCast       (TypeCast*        x) { /* nothing to do */ };
     void do_NewInstance    (NewInstance*     x) { /* nothing to do */ };
-    void do_NewInlineTypeInstance(NewInlineTypeInstance* x) { /* nothing to do */ };
     void do_NewTypeArray   (NewTypeArray*    x) { /* nothing to do */ };
     void do_NewObjectArray (NewObjectArray*  x) { /* nothing to do */ };
     void do_NewMultiArray  (NewMultiArray*   x) { /* nothing to do */ };
-    void do_Deoptimize     (Deoptimize*      x) { /* nothing to do */ };
     void do_CheckCast      (CheckCast*       x) { /* nothing to do */ };
     void do_InstanceOf     (InstanceOf*      x) { /* nothing to do */ };
     void do_BlockBegin     (BlockBegin*      x) { /* nothing to do */ };

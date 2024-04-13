@@ -379,6 +379,11 @@ public class Annotate {
                     && types.isSameType(c.type, syms.valueBasedType)) {
                 toAnnotate.flags_field |= Flags.VALUE_BASED;
             }
+
+            if (!c.type.isErroneous()
+                    && types.isSameType(c.type, syms.restrictedType)) {
+                toAnnotate.flags_field |= Flags.RESTRICTED;
+            }
         }
 
         List<T> buf = List.nil();
@@ -551,7 +556,6 @@ public class Annotate {
 
         if (expectedElementType.hasTag(ARRAY)) {
             return getAnnotationArrayValue(expectedElementType, tree, env);
-
         }
 
         //error recovery

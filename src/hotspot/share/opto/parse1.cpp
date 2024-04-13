@@ -611,8 +611,9 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
-      set_local(i, vt);
+      bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_abstract() && !method()->holder()->is_java_lang_Object();
+      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
+      replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flat)
@@ -621,6 +622,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
+      // TODO 8325106 Shouldn't we use replace_in_map here?
       set_local(i, cast);
     }
   }
@@ -936,21 +938,19 @@ void Compile::return_values(JVMState* jvms) {
       InlineTypeNode* vt = res->as_InlineType();
       ret->add_req_batch(nullptr, tf()->range_cc()->cnt() - TypeFunc::Parms);
       if (vt->is_allocated(&kit.gvn()) && !StressCallingConvention) {
-        ret->init_req(TypeFunc::Parms, vt->get_oop());
+        ret->init_req(TypeFunc::Parms, vt);
       } else {
         // Return the tagged klass pointer to signal scalarization to the caller
         Node* tagged_klass = vt->tagged_klass(kit.gvn());
-        if (!method()->signature()->returns_null_free_inline_type()) {
-          // Return null if the inline type is null (IsInit field is not set)
-          Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
-          Node* shl    = kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
-          Node* shr    = kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));
-          tagged_klass = kit.gvn().transform(new AndLNode(tagged_klass, shr));
-        }
+        // Return null if the inline type is null (IsInit field is not set)
+        Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
+        Node* shl    = kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
+        Node* shr    = kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));
+        tagged_klass = kit.gvn().transform(new AndLNode(tagged_klass, shr));
         ret->init_req(TypeFunc::Parms, tagged_klass);
       }
       uint idx = TypeFunc::Parms + 1;
-      vt->pass_fields(&kit, ret, idx, false, method()->signature()->returns_null_free_inline_type());
+      vt->pass_fields(&kit, ret, idx, false, false);
     } else {
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.
@@ -1078,7 +1078,7 @@ void Parse::do_exits() {
   // such unusual early publications.  But no barrier is needed on
   // exceptional returns, since they cannot publish normally.
   //
-  if (method()->is_object_constructor_or_class_initializer() &&
+  if ((method()->is_object_constructor() || method()->is_class_initializer()) &&
        (wrote_final() ||
          (AlwaysSafeConstructors && wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
@@ -1221,8 +1221,14 @@ SafePointNode* Parse::create_entry_map() {
   // If this is an inlined method, we may have to do a receiver null check.
   if (_caller->has_method() && is_normal_parse() && !method()->is_static()) {
     GraphKit kit(_caller);
-    kit.null_check_receiver_before_call(method(), false);
+    Node* receiver = kit.argument(0);
+    Node* null_free = kit.null_check_receiver_before_call(method());
     _caller = kit.transfer_exceptions_into_jvms();
+    if (receiver->is_InlineType() && receiver->as_InlineType()->is_larval()) {
+      // Replace the larval inline type receiver in the exit map as well to make sure that
+      // we can find and update it in Parse::do_call when we are done with the initialization.
+      _exits.map()->replace_edge(receiver, null_free);
+    }
     if (kit.stopped()) {
       _exits.add_exception_states_from(_caller);
       _exits.set_jvms(_caller);
@@ -1653,6 +1659,7 @@ void Parse::do_one_block() {
 #endif //ASSERT
 
     do_one_bytecode();
+    if (failing()) return;
 
     assert(!have_se || stopped() || failing() || (sp() - pre_bc_sp) == depth,
            "incorrect depth prediction: sp=%d, pre_bc_sp=%d, depth=%d", sp(), pre_bc_sp, depth);
@@ -2184,6 +2191,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     // Inline types are merged by merging their field values.
     // Create a cloned InlineTypeNode with phi inputs that
     // represents the merged inline type and update the map.
+    // TODO 8325106 Why can't we pass map here?
     vt = vt->clone_with_phis(&_gvn, region);
     map->set_req(idx, vt);
     return vt->get_oop()->as_Phi();
@@ -2380,14 +2388,16 @@ void Parse::return_current(Node* value) {
     // expects scalarized fields to be passed back.
     bool is_vector_value = value->is_InlineType() &&
                            VectorSupport::skip_value_scalarization(value->as_InlineType()->inline_klass()->get_InlineKlass());
-    // Defer returning VectorBoxAllocation node, they will be expanded and initialized
-    // during box expansion and will replace all uses of box.
+    // Defer returning VectorBoxAllocation node, they are currently uninitialized buffer placeholders.
+    // During box expansion VBAs are expanded into Allocation IR and initialized with wrapped vectors
+    // and replaces all the uses of box.
     bool skip_scalarization = is_vector_value && Compile::current()->inlining_incrementally();
+    assert(!value->is_InlineType() || !value->as_InlineType()->is_larval(), "returning a larval");
     if (!is_vector_value && ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
         return_type->is_inlinetypeptr())) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
+        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), false);
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flat

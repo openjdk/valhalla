@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/cdsConfig.hpp"
 #include "cds/cppVtables.hpp"
 #include "cds/metaspaceShared.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
@@ -40,14 +41,15 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "logging/log.hpp"
-#include "logging/logTag.hpp"
 #include "logging/logStream.hpp"
+#include "logging/logTag.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "nmt/memTracker.hpp"
 #include "oops/constMethod.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/klass.inline.hpp"
@@ -60,19 +62,18 @@
 #include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
-#include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/continuationEntry.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
+#include "runtime/java.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/relocator.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/vm_version.hpp"
-#include "services/memTracker.hpp"
 #include "utilities/align.hpp"
 #include "utilities/quickSort.hpp"
 #include "utilities/vmError.hpp"
@@ -103,7 +104,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags, Symbol* name) {
   set_constMethod(xconst);
   set_access_flags(access_flags);
   set_intrinsic_id(vmIntrinsics::_none);
-  set_method_data(nullptr);
+  clear_method_data();
   clear_method_counters();
   set_vtable_index(Method::garbage_vtable_index);
 
@@ -127,7 +128,7 @@ void Method::deallocate_contents(ClassLoaderData* loader_data) {
   MetadataFactory::free_metadata(loader_data, constMethod());
   set_constMethod(nullptr);
   MetadataFactory::free_metadata(loader_data, method_data());
-  set_method_data(nullptr);
+  clear_method_data();
   MetadataFactory::free_metadata(loader_data, method_counters());
   clear_method_counters();
   // The nmethod will be gone when we get here.
@@ -395,7 +396,7 @@ Symbol* Method::klass_name() const {
 void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   log_trace(cds)("Iter(Method): %p", this);
 
-  if (!method_holder()->is_rewritten()) {
+  if (!method_holder()->is_rewritten() || CDSConfig::is_valhalla_preview()) {
     it->push(&_constMethod, MetaspaceClosure::_writable);
   } else {
     it->push(&_constMethod);
@@ -912,10 +913,6 @@ bool Method::is_constant_getter() const {
           !has_scalarized_args());
 }
 
-bool Method::is_object_constructor_or_class_initializer() const {
-  return (is_object_constructor() || is_class_initializer());
-}
-
 bool Method::is_class_initializer() const {
   // For classfiles version 51 or greater, ensure that the clinit method is
   // static.  Non-static methods with the name "<clinit>" are not static
@@ -928,11 +925,6 @@ bool Method::is_class_initializer() const {
 // A method named <init>, is a classic object constructor.
 bool Method::is_object_constructor() const {
   return name() == vmSymbols::object_initializer_name();
-}
-
-// A method named <vnew> is a factory for an inline class.
-bool Method::is_static_vnew_factory() const {
-  return name() == vmSymbols::inline_factory_name();
 }
 
 bool Method::needs_clinit_barrier() const {
@@ -1209,7 +1201,7 @@ void Method::unlink_code() {
 #if INCLUDE_CDS
 // Called by class data sharing to remove any entry points (which are not shared)
 void Method::unlink_method() {
-  Arguments::assert_is_dumping_archive();
+  assert(CDSConfig::is_dumping_archive(), "sanity");
   _code = nullptr;
   _adapter = nullptr;
   _i2i_entry = nullptr;
@@ -1224,7 +1216,7 @@ void Method::unlink_method() {
   }
   NOT_PRODUCT(set_compiled_invocation_count(0);)
 
-  set_method_data(nullptr);
+  clear_method_data();
   clear_method_counters();
   remove_unshareable_flags();
 }
@@ -1269,11 +1261,7 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
       SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
       !native_bind_event_is_interesting);
   }
-  if (InlineTypeReturnedAsFields &&
-      returns_inline_type(THREAD) &&
-      !has_scalarized_return() &&
-      returns_inline_type(THREAD)->can_be_returned_as_fields()) {
-    assert(!constMethod()->is_shared(), "Cannot update shared const objects");
+  if (InlineTypeReturnedAsFields && returns_inline_type(THREAD) && !has_scalarized_return()) {
     set_has_scalarized_return();
   }
 

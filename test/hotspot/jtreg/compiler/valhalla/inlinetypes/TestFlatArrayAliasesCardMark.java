@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,15 +25,21 @@
 /**
  * @test
  * @bug 8260363
- * @summary [lworld] C2 compilation fails with assert(n->Opcode() != Op_Phi) failed: cannot match
- *
- * @compile -XDenablePrimitiveClasses TestFlatArrayAliasesCardMark.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:-BackgroundCompilation TestFlatArrayAliasesCardMark
- *
+ * @summary C2 compilation fails with assert(n->Opcode() != Op_Phi) failed: cannot match
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:-BackgroundCompilation TestFlatArrayAliasesCardMark
  */
 
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
-primitive class Test0 {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class Test0 {
     int x = 42;
     short[] array = new short[7];
 }
@@ -53,8 +60,10 @@ public class TestFlatArrayAliasesCardMark {
 
     public static void main(String[] args) {
         TestFlatArrayAliasesCardMark t = new TestFlatArrayAliasesCardMark();
-        Test0[] array = new Test0[] {new Test0()};
-        for (int l1 = 0; l1 < 10000; ++l1) {
+        Test0[] array = (Test0[])ValueClass.newNullRestrictedArray(Test0.class, 1);
+        array[0] = new Test0();
+
+        for (int l1 = 0; l1 < 10_000; ++l1) {
             t.method1(array);
         }
     }

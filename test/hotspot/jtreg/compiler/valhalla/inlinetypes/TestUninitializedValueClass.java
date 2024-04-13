@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,8 @@ package compiler.valhalla.inlinetypes;
  * @test
  * @bug 8282569
  * @summary Test that uninitialized default value class is properly handled by C2.
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses
- *                   -XX:CompileCommand=compileonly,*::<init> -Xcomp -XX:-TieredCompilation
+ * @enablePreview
+ * @run main/othervm -XX:CompileCommand=compileonly,*::<init> -Xcomp -XX:-TieredCompilation
  *                   compiler.valhalla.inlinetypes.TestUninitializedValueClass
  */
 

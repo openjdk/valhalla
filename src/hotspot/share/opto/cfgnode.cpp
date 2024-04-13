@@ -1895,6 +1895,17 @@ static Node* split_flow_path(PhaseGVN *phase, PhiNode *phi) {
   return phi;
 }
 
+// Returns the BasicType of a given convert node and a type, with special handling to ensure that conversions to
+// and from half float will return the SHORT basic type, as that wouldn't be returned typically from TypeInt.
+static BasicType get_convert_type(Node* convert, const Type* type) {
+  int convert_op = convert->Opcode();
+  if (type->isa_int() && (convert_op == Op_ConvHF2F || convert_op == Op_ConvF2HF)) {
+    return T_SHORT;
+  }
+
+  return type->basic_type();
+}
+
 //=============================================================================
 //------------------------------simple_data_loop_check-------------------------
 //  Try to determining if the phi node in a simple safe/unsafe data loop.
@@ -2029,8 +2040,9 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 }
 
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
-InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk) {
-  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), !_type->maybe_null());
+InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass) {
+  assert(inline_klass != nullptr, "must be");
+  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass, /* transform = */ false)->clone_with_phis(phase, in(0), nullptr, !_type->maybe_null());
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -2053,17 +2065,18 @@ InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_res
       n = n->in(1);
     }
     if (phase->type(n)->is_zero_type()) {
-      n = InlineTypeNode::make_null(*phase, vk);
+      n = InlineTypeNode::make_null(*phase, inline_klass);
     } else if (n->is_Phi()) {
       assert(can_reshape, "can only handle phis during IGVN");
-      n = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk));
+      n = phase->transform(n->as_Phi()->push_inline_types_down(phase, can_reshape, inline_klass));
     }
     while (casts.size() != 0) {
       // Push the cast(s) through the InlineTypeNode
+      // TODO 8325106 Can we avoid cloning?
       Node* cast = casts.pop()->clone();
       cast->set_req_X(1, n->as_InlineType()->get_oop(), phase);
       n = n->clone();
-      n->as_InlineType()->set_oop(phase->transform(cast));
+      n->as_InlineType()->set_oop(*phase, phase->transform(cast));
       n = phase->transform(n);
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
@@ -2622,83 +2635,43 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 #endif
 
-  // Check recursively if inputs are either an inline type, constant null
-  // or another Phi (including self references through data loops). If so,
-  // push the inline types down through the phis to enable folding of loads.
-  if (EnableValhalla && _type->isa_ptr() && req() > 2) {
-    ResourceMark rm;
-    Unique_Node_List worklist;
-    worklist.push(this);
-    bool can_optimize = true;
-    ciInlineKlass* vk = nullptr;
-    Node_List casts;
+  Node* inline_type = try_push_inline_types_down(phase, can_reshape);
+  if (inline_type != this) {
+    return inline_type;
+  }
 
-    // TODO 8302217 We need to prevent endless pushing through
-    bool only_phi = (outcnt() != 0);
-    for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-      Node* n = fast_out(i);
-      if (n->is_InlineType() && n->in(1) == this) {
-        can_optimize = false;
-        break;
-      }
-      if (!n->is_Phi()) {
-        only_phi = false;
-      }
-    }
-    if (only_phi) {
-      can_optimize = false;
-    }
-    for (uint next = 0; next < worklist.size() && can_optimize; next++) {
-      Node* phi = worklist.at(next);
-      for (uint i = 1; i < phi->req() && can_optimize; i++) {
-        Node* n = phi->in(i);
-        if (n == nullptr) {
-          can_optimize = false;
+  // Try to convert a Phi with two duplicated convert nodes into a phi of the pre-conversion type and the convert node
+  // proceeding the phi, to de-duplicate the convert node and compact the IR.
+  if (can_reshape && progress == nullptr) {
+    ConvertNode* convert = in(1)->isa_Convert();
+    if (convert != nullptr) {
+      int conv_op = convert->Opcode();
+      bool ok = true;
+
+      // Check the rest of the inputs
+      for (uint i = 2; i < req(); i++) {
+        // Make sure that all inputs are of the same type of convert node
+        if (in(i)->Opcode() != conv_op) {
+          ok = false;
           break;
         }
-        while (n->is_ConstraintCast()) {
-          if (n->in(0) != nullptr && n->in(0)->is_top()) {
-            // Will die, don't optimize
-            can_optimize = false;
-            break;
-          }
-          casts.push(n);
-          n = n->in(1);
-        }
-        const Type* t = phase->type(n);
-        // FIXME: Skipping pushing VectorBox across Phi
-        // since they are special type of InlineTypeNode
-        // carrying VBA as oop fields.
-        // We have a seperate handling for pushing VectorBoxes
-        // across PhiNodes in merge_through_phi.
-        // In long run we should eliminate VectorBox which is
-        // just a light weight wrapper of InlineTypeNode.
-        // Only reason to keep VectorBox was to defer buffering
-        // to a later stage and associate VBA which carry
-        // JVM state to reinitialize GraphKit before buffering.
-        if (n->is_VectorBox()) {
-          can_optimize = false;
-          break;
-        }
-        if (n->is_InlineType() && (vk == nullptr || vk == t->inline_klass())) {
-          vk = (vk == nullptr) ? t->inline_klass() : vk;
-        } else if (n->is_Phi() && can_reshape && n->bottom_type()->isa_ptr()) {
-          worklist.push(n);
-        } else if (!t->is_zero_type()) {
-          can_optimize = false;
-        }
       }
-    }
-    // Check if cast nodes can be pushed through
-    const Type* t = Type::get_const_type(vk);
-    while (casts.size() != 0 && can_optimize && t != nullptr) {
-      Node* cast = casts.pop();
-      if (t->filter(cast->bottom_type()) == Type::TOP) {
-        can_optimize = false;
+
+      if (ok) {
+        // Find the local bottom type to set as the type of the phi
+        const Type* source_type = Type::get_const_basic_type(convert->in_type()->basic_type());
+        const Type* dest_type = convert->bottom_type();
+
+        PhiNode* newphi = new PhiNode(in(0), source_type, nullptr);
+        // Set inputs to the new phi be the inputs of the convert
+        for (uint i = 1; i < req(); i++) {
+          newphi->init_req(i, in(i)->in(1));
+        }
+
+        phase->is_IterGVN()->register_new_node_with_optimizer(newphi, this);
+
+        return ConvertNode::create_convert(get_convert_type(convert, source_type), get_convert_type(convert, dest_type), newphi);
       }
-    }
-    if (can_optimize && vk != nullptr) {
-      return push_inline_types_through(phase, can_reshape, vk);
     }
   }
 
@@ -2708,6 +2681,103 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
   return progress;              // Return any progress
+}
+
+// Check recursively if inputs are either an inline type, constant null
+// or another Phi (including self references through data loops). If so,
+// push the inline types down through the phis to enable folding of loads.
+Node* PhiNode::try_push_inline_types_down(PhaseGVN* phase, const bool can_reshape) {
+  if (!can_be_inline_type()) {
+    return this;
+  }
+
+  ciInlineKlass* inline_klass;
+  if (can_push_inline_types_down(phase, can_reshape, inline_klass)) {
+    assert(inline_klass != nullptr, "must be");
+    return push_inline_types_down(phase, can_reshape, inline_klass);
+  }
+  return this;
+}
+
+bool PhiNode::can_push_inline_types_down(PhaseGVN* phase, const bool can_reshape, ciInlineKlass*& inline_klass) {
+  if (req() <= 2) {
+    // Dead phi.
+    return false;
+  }
+  inline_klass = nullptr;
+
+  // TODO 8302217 We need to prevent endless pushing through
+  bool only_phi = (outcnt() != 0);
+  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+    Node* n = fast_out(i);
+    if (n->is_InlineType() && n->in(1) == this) {
+      return false;
+    }
+    if (!n->is_Phi()) {
+      only_phi = false;
+    }
+  }
+  if (only_phi) {
+    return false;
+  }
+
+  ResourceMark rm;
+  Unique_Node_List worklist;
+  worklist.push(this);
+  Node_List casts;
+
+  for (uint next = 0; next < worklist.size(); next++) {
+    Node* phi = worklist.at(next);
+    for (uint i = 1; i < phi->req(); i++) {
+      Node* n = phi->in(i);
+      if (n == nullptr) {
+        return false;
+      }
+      while (n->is_ConstraintCast()) {
+        if (n->in(0) != nullptr && n->in(0)->is_top()) {
+          // Will die, don't optimize
+          return false;
+        }
+        casts.push(n);
+        n = n->in(1);
+      }
+      // FIXME: Skipping pushing VectorBox across Phi
+      // since they are special type of InlineTypeNode
+      // carrying VBA as oop fields.
+      // We have a seperate handling for pushing VectorBoxes
+      // across PhiNodes in merge_through_phi.
+      // In long run we should eliminate VectorBox which is
+      // just a light weight wrapper of InlineTypeNode.
+      // Only reason to keep VectorBox was to defer buffering
+      // to a later stage and associate VBA which carry
+      // JVM state to reinitialize GraphKit before buffering.
+      if (n->is_VectorBox()) {
+        return false;
+      }
+      const Type* type = phase->type(n);
+      if (n->is_InlineType() && (inline_klass == nullptr || inline_klass == type->inline_klass())) {
+        inline_klass = type->inline_klass();
+      } else if (n->is_Phi() && can_reshape && n->bottom_type()->isa_ptr()) {
+        worklist.push(n);
+      } else if (!type->is_zero_type()) {
+        return false;
+      }
+    }
+  }
+  if (inline_klass == nullptr) {
+    return false;
+  }
+
+  // Check if cast nodes can be pushed through
+  const Type* t = Type::get_const_type(inline_klass);
+  while (casts.size() != 0 && t != nullptr) {
+    Node* cast = casts.pop();
+    if (t->filter(cast->bottom_type()) == Type::TOP) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 static int compare_types(const Type* const& e1, const Type* const& e2) {

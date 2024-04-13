@@ -33,7 +33,10 @@
 #include "c1/c1_ValueMap.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "code/debugInfoRec.hpp"
+#include "compiler/compilationMemoryStatistic.hpp"
+#include "compiler/compilerDirectives.hpp"
 #include "compiler/compileLog.hpp"
+#include "compiler/compileTask.hpp"
 #include "compiler/compilerDirectives.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -394,6 +397,7 @@ int Compilation::compile_java_method() {
     PhaseTraceTime timeit(_t_buildIR);
     build_hir();
   }
+  CHECK_BAILOUT_(no_frame_size);
   if (BailoutAfterHIR) {
     BAILOUT_("Bailing out because of -XX:+BailoutAfterHIR", no_frame_size);
   }
@@ -442,11 +446,14 @@ void Compilation::install_code(int frame_size) {
 
 
 void Compilation::compile_method() {
+
   {
     PhaseTraceTime timeit(_t_setup);
 
     // setup compilation
     initialize();
+    CHECK_BAILOUT();
+
   }
 
   if (!method()->can_be_compiled()) {
@@ -600,11 +607,14 @@ Compilation::Compilation(AbstractCompiler* compiler, ciEnv* env, ciMethod* metho
     _cfg_printer_output = new CFGPrinterOutput(this);
   }
 #endif
+  CompilationMemoryStatisticMark cmsm(directive);
+
   {
     ResetNoHandleMark rnhm; // Huh? Required when doing class lookup of the Q-types
     // TODO 8284443 Should only be computed once
     _compiled_entry_signature.compute_calling_conventions(false);
   }
+
   compile_method();
   if (bailed_out()) {
     _env->record_method_not_compilable(bailout_msg());

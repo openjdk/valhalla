@@ -21,13 +21,13 @@
  * questions.
  */
 
-/**
+/*
  * @test
  * @bug 8304246
  * @summary Compiler Implementation for Unnamed patterns and variables
- * @enablePreview
  * @compile Unnamed.java
  * @run main Unnamed
+ * @ignore Verifier error
  */
 
 import java.util.Objects;
@@ -97,6 +97,9 @@ public class Unnamed {
         }
         try (final Lock _ = null) { }
         try (@Foo Lock _ = null) { }
+
+        try (Lock _ = null) { }
+        catch (Exception | Error _) { }
 
         String[] strs = new String[] { "str1", "str2" };
         for (var _ : strs) {

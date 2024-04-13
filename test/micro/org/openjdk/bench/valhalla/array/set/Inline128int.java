@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,14 +41,14 @@ public class Inline128int extends StatesQ128int {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void New_to_Ref_as_Ref_set(Ref_as_Ref st) {
-        Q128int.ref[] arr = st.arr;
+        Q128int[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = new Q128int(i);
         }
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public static Q128int.ref getRef(int i) {
+    public static Q128int getRef(int i) {
         return new Q128int(i);
     }
 
@@ -69,7 +69,7 @@ public class Inline128int extends StatesQ128int {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_set(Ref_as_Ref st) {
-        Q128int.ref[] arr = st.arr;
+        Q128int[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = getRef(i);
         }
@@ -87,7 +87,7 @@ public class Inline128int extends StatesQ128int {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Ref_as_Ref_set(Ref_as_Ref st) {
-        Q128int.ref[] arr = st.arr;
+        Q128int[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = getVal(i);
         }

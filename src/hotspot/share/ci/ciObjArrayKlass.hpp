@@ -38,7 +38,6 @@ class ciObjArrayKlass : public ciArrayKlass {
 private:
   ciKlass* _element_klass;
   ciKlass* _base_element_klass;
-  bool     _null_free;
 
 protected:
   ciObjArrayKlass(Klass* k);
@@ -81,8 +80,6 @@ public:
   virtual bool can_be_inline_array_klass() {
     return element_klass()->can_be_inline_klass();
   }
-
-  virtual bool is_elem_null_free() const { return _null_free; }
 };
 
 #endif // SHARE_CI_CIOBJARRAYKLASS_HPP

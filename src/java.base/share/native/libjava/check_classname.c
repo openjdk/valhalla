@@ -194,8 +194,7 @@ skip_over_field_signature(char *name, jboolean void_okay,
             case JVM_SIGNATURE_DOUBLE:
                 return name + 1;
 
-            case JVM_SIGNATURE_CLASS:
-            case JVM_SIGNATURE_PRIMITIVE_OBJECT: {
+            case JVM_SIGNATURE_CLASS: {
                 /* Skip over the classname, if one is there. */
                 char *p =
                     skip_over_fieldname(name + 1, JNI_TRUE, --length);

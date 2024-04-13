@@ -25,7 +25,6 @@
 
 package java.lang.reflect;
 
-import java.util.Objects;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**

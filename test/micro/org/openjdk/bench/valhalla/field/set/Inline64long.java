@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,7 @@ public class Inline64long extends StatesQ64long {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public static Q64long.ref getRef(int i) {
+    public static Q64long getRef(int i) {
         return new Q64long(i);
     }
 
@@ -100,7 +100,7 @@ public class Inline64long extends StatesQ64long {
     public void Def_to_Val_set(ValState st) {
         ValWrapper[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i].f = Q64long.default;
+            arr[i].f = new Q64long()  ;
         }
     }
 
@@ -154,7 +154,7 @@ public class Inline64long extends StatesQ64long {
     public void Def_to_Ref_set(RefState st) {
         RefWrapper[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i].f = Q64long.default;
+            arr[i].f = new Q64long()  ;
         }
     }
 

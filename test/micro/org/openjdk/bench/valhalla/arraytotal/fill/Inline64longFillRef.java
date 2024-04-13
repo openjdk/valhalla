@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import java.util.Arrays;
 public class Inline64longFillRef extends StatesQ64long {
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public static Q64long.ref get(int i) {
+    public static Q64long get(int i) {
         return new Q64long(i);
     }
 
@@ -41,7 +41,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_fill0(Val_as_Val st) {
         Q64long[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -51,7 +51,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_fill1(Val_as_Val st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }
@@ -60,8 +60,8 @@ public class Inline64longFillRef extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_fill0(Val_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long[] arr = st.arr;
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -71,7 +71,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_fill1(Val_as_Ref st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }
@@ -80,8 +80,8 @@ public class Inline64longFillRef extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_fill0(Ref_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long[] arr = st.arr;
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -91,7 +91,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_fill1(Ref_as_Ref st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }
@@ -101,7 +101,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Int_fill0(Val_as_Int st) {
         Int64[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -111,7 +111,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Int_fill1(Val_as_Int st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }
@@ -121,7 +121,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Int_fill0(Ref_as_Int st) {
         Int64[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -131,7 +131,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Int_fill1(Ref_as_Int st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }
@@ -141,7 +141,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Int_as_Int_fill0(Int_as_Int st) {
         Int64[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -151,7 +151,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Int_as_Int_fill1(Int_as_Int st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }
@@ -161,7 +161,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Obj_fill0(Val_as_Obj st) {
         Object[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -171,7 +171,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Obj_fill1(Val_as_Obj st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }
@@ -181,7 +181,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Obj_fill0(Ref_as_Obj st) {
         Object[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -191,7 +191,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Obj_fill1(Ref_as_Obj st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }
@@ -201,7 +201,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Int_as_Obj_fill0(Int_as_Obj st) {
         Object[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -211,7 +211,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Int_as_Obj_fill1(Int_as_Obj st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }
@@ -221,7 +221,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Obj_as_Obj_fill0(Obj_as_Obj st) {
         Object[] arr = st.arr;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < arr.length; i++) {
             arr[i] = v;
         }
@@ -231,7 +231,7 @@ public class Inline64longFillRef extends StatesQ64long {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Obj_as_Obj_fill1(Obj_as_Obj st) {
         int len = st.arr.length;
-        Q64long.ref v = get(42);
+        Q64long v = get(42);
         for (int i = 0; i < len; i++) {
             st.arr[i] = v;
         }

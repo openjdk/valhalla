@@ -1346,7 +1346,12 @@ void MacroAssembler::call(AddressLiteral entry, Register rscratch) {
 
 void MacroAssembler::ic_call(address entry, jint method_index) {
   RelocationHolder rh = virtual_call_Relocation::spec(pc(), method_index);
+#ifdef _LP64
+  // Needs full 64-bit immediate for later patching.
+  mov64(rax, (intptr_t)Universe::non_oop_word());
+#else
   movptr(rax, (intptr_t)Universe::non_oop_word());
+#endif
   call(AddressLiteral(entry, rh));
 }
 
@@ -1876,6 +1881,92 @@ void MacroAssembler::cmpoop(Register src1, jobject src2, Register rscratch) {
   cmpptr(src1, rscratch);
 }
 #endif
+
+void MacroAssembler::cvtss2sd(XMMRegister dst, XMMRegister src) {
+  if ((UseAVX > 0) && (dst != src)) {
+    xorpd(dst, dst);
+  }
+  Assembler::cvtss2sd(dst, src);
+}
+
+void MacroAssembler::cvtss2sd(XMMRegister dst, Address src) {
+  if (UseAVX > 0) {
+    xorpd(dst, dst);
+  }
+  Assembler::cvtss2sd(dst, src);
+}
+
+void MacroAssembler::cvtsd2ss(XMMRegister dst, XMMRegister src) {
+  if ((UseAVX > 0) && (dst != src)) {
+    xorps(dst, dst);
+  }
+  Assembler::cvtsd2ss(dst, src);
+}
+
+void MacroAssembler::cvtsd2ss(XMMRegister dst, Address src) {
+  if (UseAVX > 0) {
+    xorps(dst, dst);
+  }
+  Assembler::cvtsd2ss(dst, src);
+}
+
+void MacroAssembler::cvtsi2sdl(XMMRegister dst, Register src) {
+  if (UseAVX > 0) {
+    xorpd(dst, dst);
+  }
+  Assembler::cvtsi2sdl(dst, src);
+}
+
+void MacroAssembler::cvtsi2sdl(XMMRegister dst, Address src) {
+  if (UseAVX > 0) {
+    xorpd(dst, dst);
+  }
+  Assembler::cvtsi2sdl(dst, src);
+}
+
+void MacroAssembler::cvtsi2ssl(XMMRegister dst, Register src) {
+  if (UseAVX > 0) {
+    xorps(dst, dst);
+  }
+  Assembler::cvtsi2ssl(dst, src);
+}
+
+void MacroAssembler::cvtsi2ssl(XMMRegister dst, Address src) {
+  if (UseAVX > 0) {
+    xorps(dst, dst);
+  }
+  Assembler::cvtsi2ssl(dst, src);
+}
+
+#ifdef _LP64
+void MacroAssembler::cvtsi2sdq(XMMRegister dst, Register src) {
+  if (UseAVX > 0) {
+    xorpd(dst, dst);
+  }
+  Assembler::cvtsi2sdq(dst, src);
+}
+
+void MacroAssembler::cvtsi2sdq(XMMRegister dst, Address src) {
+  if (UseAVX > 0) {
+    xorpd(dst, dst);
+  }
+  Assembler::cvtsi2sdq(dst, src);
+}
+
+void MacroAssembler::cvtsi2ssq(XMMRegister dst, Register src) {
+  if (UseAVX > 0) {
+    xorps(dst, dst);
+  }
+  Assembler::cvtsi2ssq(dst, src);
+}
+
+void MacroAssembler::cvtsi2ssq(XMMRegister dst, Address src) {
+  if (UseAVX > 0) {
+    xorps(dst, dst);
+  }
+  Assembler::cvtsi2ssq(dst, src);
+}
+#endif  // _LP64
 
 void MacroAssembler::locked_cmpxchgptr(Register reg, AddressLiteral adr, Register rscratch) {
   assert(rscratch != noreg || always_reachable(adr), "missing");
@@ -2573,7 +2664,15 @@ void MacroAssembler::movptr(Register dst, Address src) {
 
 // src should NEVER be a real pointer. Use AddressLiteral for true pointers
 void MacroAssembler::movptr(Register dst, intptr_t src) {
-  LP64_ONLY(mov64(dst, src)) NOT_LP64(movl(dst, src));
+#ifdef _LP64
+  if (is_simm32(src)) {
+    movq(dst, checked_cast<int32_t>(src));
+  } else {
+    mov64(dst, src);
+  }
+#else
+  movl(dst, src);
+#endif
 }
 
 void MacroAssembler::movptr(Address dst, Register src) {
@@ -2873,8 +2972,8 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
 
 void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, Address(klass, Klass::access_flags_offset()));
-  testl(temp_reg, JVM_ACC_VALUE);
-  jcc(Assembler::notZero, is_inline_type);
+  testl(temp_reg, JVM_ACC_IDENTITY);
+  jcc(Assembler::zero, is_inline_type);
 }
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
@@ -2903,26 +3002,20 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
-  andl(temp_reg, 0x1);
-  testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_null_free_inline_type);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
+  jcc(Assembler::notEqual, is_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ResolvedFieldEntry::is_null_free_inline_type_shift);
-  andl(temp_reg, 0x1);
-  testl(temp_reg, temp_reg);
-  jcc(Assembler::zero, not_null_free_inline_type);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
+  jcc(Assembler::equal, not_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ResolvedFieldEntry::is_flat_shift);
-  andl(temp_reg, 0x1);
-  testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_flat);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_flat_shift);
+  jcc(Assembler::notEqual, is_flat);
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
@@ -4486,7 +4579,7 @@ void MacroAssembler::get_inline_type_field_klass(Register klass, Register index,
     bind(done);
   }
 #endif
-  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr));
+  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr, Array<InlineKlass*>::base_offset_in_bytes()));
 }
 
 void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
@@ -10054,6 +10147,17 @@ void MacroAssembler::evporq(XMMRegister dst, XMMRegister nds, AddressLiteral src
   }
 }
 
+void MacroAssembler::vpshufb(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    vpshufb(dst, nds, as_Address(src), vector_len);
+  } else {
+    lea(rscratch, src);
+    vpshufb(dst, nds, Address(rscratch, 0), vector_len);
+  }
+}
+
 void MacroAssembler::vpternlogq(XMMRegister dst, int imm8, XMMRegister src2, AddressLiteral src3, int vector_len, Register rscratch) {
   assert(rscratch != noreg || always_reachable(src3), "missing");
 
@@ -10588,6 +10692,10 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register threa
   movptr(tmp, hdr);
   // Set unlocked_value bit.
   orptr(hdr, markWord::unlocked_value);
+  if (EnableValhalla) {
+    // Mask inline_type bit such that we go to the slow path if object is an inline type
+    andptr(hdr, ~((int) markWord::inline_type_bit_in_place));
+  }
   lock();
   cmpxchgptr(tmp, Address(obj, oopDesc::mark_offset_in_bytes()));
   jcc(Assembler::notEqual, slow);

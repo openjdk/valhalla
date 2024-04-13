@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,7 @@ package sun.invoke.util;
 
 import java.lang.reflect.Modifier;
 import static java.lang.reflect.Modifier.*;
-
 import jdk.internal.reflect.Reflection;
-import jdk.internal.value.PrimitiveClass;
 
 /**
  * This class centralizes information about the JVM's linkage access control.
@@ -107,7 +105,7 @@ public class VerifyAccess {
             return false;
         }
         // Usually refc and defc are the same, but verify defc also in case they differ.
-        if (PrimitiveClass.asPrimaryType(defc) == lookupClass  &&
+        if (defc == lookupClass  &&
             (allowedModes & PRIVATE) != 0)
             return true;        // easy check; all self-access is OK with a private lookup
 
@@ -142,7 +140,7 @@ public class VerifyAccess {
                                  Reflection.areNestMates(defc, lookupClass));
             // for private methods the selected method equals the
             // resolved method - so refc == defc
-            assert (canAccess && PrimitiveClass.asPrimaryType(refc) == PrimitiveClass.asPrimaryType(defc)) || !canAccess;
+            assert (canAccess && refc == defc) || !canAccess;
             return canAccess;
         default:
             throw new IllegalArgumentException("bad modifiers: "+Modifier.toString(mods));
@@ -150,7 +148,7 @@ public class VerifyAccess {
     }
 
     static boolean isRelatedClass(Class<?> refc, Class<?> lookupClass) {
-        return (PrimitiveClass.asPrimaryType(refc) == PrimitiveClass.asPrimaryType(lookupClass) ||
+        return (refc == lookupClass ||
                 isSubClass(refc, lookupClass) ||
                 isSubClass(lookupClass, refc));
     }
@@ -203,9 +201,10 @@ public class VerifyAccess {
             Module lookupModule = lookupClass.getModule();
             Module refModule = refc.getModule();
 
-            // early VM startup case, java.base not defined
-            if (lookupModule == null) {
-                assert refModule == null;
+            // early VM startup case, java.base not defined or
+            // module system is not fully initialized and exports are not set up
+            if (lookupModule == null || !jdk.internal.misc.VM.isModuleSystemInited()) {
+                assert lookupModule == refModule;
                 return true;
             }
 
@@ -229,12 +228,8 @@ public class VerifyAccess {
             Module prevLookupModule = prevLookupClass != null ? prevLookupClass.getModule()
                                                               : null;
             assert refModule != lookupModule || refModule != prevLookupModule;
-            if (isModuleAccessible(refc, lookupModule, prevLookupModule))
-                return true;
 
-            // not exported but allow access during VM initialization
-            // because java.base does not have its exports setup
-            if (!jdk.internal.misc.VM.isModuleSystemInited())
+            if (isModuleAccessible(refc, lookupModule, prevLookupModule))
                 return true;
 
             // public class not accessible to lookupClass
@@ -275,7 +270,7 @@ public class VerifyAccess {
      * @param refc the class attempting to make the reference
      */
     public static boolean isTypeVisible(Class<?> type, Class<?> refc) {
-        if (PrimitiveClass.asPrimaryType(type) == PrimitiveClass.asPrimaryType(refc)) {
+        if (type == refc) {
             return true;  // easy check
         }
         while (type.isArray())  type = type.getComponentType();
@@ -323,7 +318,6 @@ public class VerifyAccess {
         // that differs from "type"; this happens once due to JVM system dictionary
         // memoization.  And the caller never gets to look at the alternate type binding
         // ("res"), whether it exists or not.
-
         final String name = type.getName();
         @SuppressWarnings("removal")
         Class<?> res = java.security.AccessController.doPrivileged(
@@ -336,7 +330,7 @@ public class VerifyAccess {
                         }
                     }
             });
-        return (PrimitiveClass.asPrimaryType(type) == res);
+        return (type == res);
     }
 
     /**

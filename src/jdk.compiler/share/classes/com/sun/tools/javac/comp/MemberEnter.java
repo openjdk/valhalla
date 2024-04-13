@@ -67,7 +67,6 @@ public class MemberEnter extends JCTree.Visitor {
     private final Types types;
     private final Names names;
     private final DeferredLintHandler deferredLintHandler;
-    private final boolean allowValueClasses;
 
     public static MemberEnter instance(Context context) {
         MemberEnter instance = context.get(memberEnterKey);
@@ -89,8 +88,6 @@ public class MemberEnter extends JCTree.Visitor {
         source = Source.instance(context);
         names = Names.instance(context);
         deferredLintHandler = DeferredLintHandler.instance(context);
-        Source source = Source.instance(context);
-        allowValueClasses = Source.Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Construct method type from method signature.
@@ -187,9 +184,6 @@ public class MemberEnter extends JCTree.Visitor {
 
     public void visitMethodDef(JCMethodDecl tree) {
         WriteableScope enclScope = enter.enterScope(env);
-        if (tree.name == tree.name.table.names.init && allowValueClasses && enclScope.owner.isConcreteValueClass()) {
-            tree.name = tree.name.table.names.vnew;
-        }
         MethodSymbol m = new MethodSymbol(0, tree.name, null, enclScope.owner);
         m.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, m, tree);
         tree.sym = m;
@@ -242,21 +236,6 @@ public class MemberEnter extends JCTree.Visitor {
             m.defaultValue = annotate.unfinishedDefaultValue(); // set it to temporary sentinel for now
             annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree.pos());
         }
-
-        if (m.isInitOrVNew() && m.type.getParameterTypes().size() == 0) {
-            int statsSize = tree.body.stats.size();
-            if (statsSize == 0) {
-                m.flags_field |= EMPTYNOARGCONSTR;
-            } else if (statsSize == 1 && TreeInfo.isSuperCall(tree.body.stats.head)) {
-                JCExpressionStatement exec = (JCExpressionStatement) tree.body.stats.head;
-                JCMethodInvocation meth = (JCMethodInvocation)exec.expr;
-                if (meth.args.size() == 0) {
-                    // Deem a constructor "empty" even if it contains a 'super' call,
-                    // as long as it has no argument expressions (to respect common coding style).
-                    m.flags_field |= EMPTYNOARGCONSTR;
-                }
-            }
-        }
     }
 
     /** Create a fresh environment for method bodies.
@@ -275,12 +254,6 @@ public class MemberEnter extends JCTree.Visitor {
         if ((tree.mods.flags & STATIC) != 0) localEnv.info.staticLevel++;
         localEnv.info.yieldResult = null;
         return localEnv;
-    }
-
-    @Override
-    public void visitBlock(JCBlock tree) {
-        if ((tree.flags & STATIC) == 0 && tree.stats.size() > 0)
-            env.info.scope.owner.flags_field |= HASINITBLOCK;
     }
 
     public void visitVarDef(JCVariableDecl tree) {
@@ -322,12 +295,9 @@ public class MemberEnter extends JCTree.Visitor {
         VarSymbol v = new VarSymbol(0, name, vartype, enclScope.owner);
         v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
         tree.sym = v;
-        /* Don't want constant propagation/folding for instance fields of primitive classes,
-           as these can undergo updates via copy on write.
-        */
         if (tree.init != null) {
             v.flags_field |= HASINIT;
-            if ((v.flags_field & FINAL) != 0 && ((v.flags_field & STATIC) != 0 || !v.owner.isValueClass()) &&
+            if ((v.flags_field & FINAL) != 0 &&
                 needsLazyConstValue(tree.init)) {
                 Env<AttrContext> initEnv = getInitEnv(tree, env);
                 initEnv.info.enclVar = v;
@@ -361,7 +331,7 @@ public class MemberEnter extends JCTree.Visitor {
     void checkReceiver(JCVariableDecl tree, Env<AttrContext> localEnv) {
         attr.attribExpr(tree.nameexpr, localEnv);
         MethodSymbol m = localEnv.enclMethod.sym;
-        if (m.isInitOrVNew()) {
+        if (m.isConstructor()) {
             Type outertype = m.owner.owner.type;
             if (outertype.hasTag(TypeTag.METHOD)) {
                 // we have a local inner class

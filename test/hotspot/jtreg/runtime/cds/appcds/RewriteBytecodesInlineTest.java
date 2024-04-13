@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,10 @@
  *          the archived class with the same name is not loaded.
  * @requires vm.cds
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses test-classes/RewriteBytecodesInline.java test-classes/Util.java test-classes/Point.java test-classes/WithInlinedField.java RewriteBytecodesInlineTest.java
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @compile test-classes/RewriteBytecodesInline.java test-classes/Util.java test-classes/Point.java test-classes/WithInlinedField.java RewriteBytecodesInlineTest.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run driver RewriteBytecodesInlineTest
@@ -47,11 +50,12 @@ public class RewriteBytecodesInlineTest {
 
     TestCommon.dump(appJar, TestCommon.list("RewriteBytecodesInline", "Point", "WithInlinedField"),
                     // command-line arguments ...
-                    use_whitebox_jar);
+                    use_whitebox_jar,
+                    "--enable-preview");
 
     OutputAnalyzer output = TestCommon.exec(appJar,
                     // command-line arguments ...
-                    "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                    "--enable-preview",
                     use_whitebox_jar,
                     "-XX:+UnlockDiagnosticVMOptions",
                     "-XX:+WhiteBoxAPI",

@@ -1427,7 +1427,7 @@ void CallRuntimeNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs
     SharedRuntime::java_return_convention(sig_bt, parm_regs, argcnt);
     return;
   }
-  SharedRuntime::c_calling_convention(sig_bt, parm_regs, /*regs2=*/nullptr, argcnt);
+  SharedRuntime::c_calling_convention(sig_bt, parm_regs, argcnt);
 }
 
 void CallLeafVectorNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
@@ -1821,7 +1821,7 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
 void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
 {
   assert(initializer != nullptr &&
-         initializer->is_object_constructor_or_class_initializer(),
+         (initializer->is_object_constructor() || initializer->is_class_initializer()),
          "unexpected initializer method");
   BCEscapeAnalyzer* analyzer = initializer->get_bcea();
   if (analyzer == nullptr) {

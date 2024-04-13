@@ -117,7 +117,7 @@ class Signature : AllStatic {
   // Determine if this signature char introduces an
   // envelope, which is a class name plus ';'.
   static bool has_envelope(char signature_char) {
-    return (signature_char == JVM_SIGNATURE_CLASS) || (signature_char == JVM_SIGNATURE_PRIMITIVE_OBJECT);
+    return (signature_char == JVM_SIGNATURE_CLASS);
   }
 
   // Assuming has_envelope is true, return the symbol
@@ -258,8 +258,7 @@ class SignatureTypeNames : public SignatureIterator {
     case T_LONG:    type_name("jlong"   ); break;
     case T_VOID:    type_name("void"    ); break;
     case T_ARRAY:
-    case T_OBJECT:
-    case T_PRIMITIVE_OBJECT:  type_name("jobject" ); break;
+    case T_OBJECT:  type_name("jobject" ); break;
     default: ShouldNotReachHere();
     }
   }
@@ -408,7 +407,6 @@ class NativeSignatureIterator: public SignatureIterator {
     }
     case T_ARRAY:
     case T_OBJECT:
-    case T_PRIMITIVE_OBJECT:
       pass_object(); _jni_offset++; _offset++;
       break;
     default:
@@ -519,10 +517,6 @@ class SignatureStream : public StackObj {
     // this should always be true, but let's test it:
     assert(_signature->char_at(_end-1) == JVM_SIGNATURE_ENDCLASS, "signature envelope has no semi-colon at end");
     return true;
-  }
-
-  bool has_Q_descriptor() const {
-    return has_envelope() && (_signature->char_at(_begin) == JVM_SIGNATURE_PRIMITIVE_OBJECT);
   }
 
   // return the symbol for chars in symbol_begin()..symbol_end()

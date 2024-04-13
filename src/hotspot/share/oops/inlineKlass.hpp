@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ class InlineKlass: public InstanceKlass {
  public:
   static const KlassKind Kind = InlineKlassKind;
 
-  InlineKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+  InlineKlass();
 
  private:
 
@@ -150,19 +150,6 @@ class InlineKlass: public InstanceKlass {
  public:
   // Type testing
   bool is_inline_klass_slow() const        { return true; }
-  bool is_null_free() const { return access_flags().is_primitive_class(); }
-
-  // ref and val mirror
-  oop ref_mirror() const { return java_mirror(); }
-  oop val_mirror() const { return java_lang_Class::secondary_mirror(java_mirror()); }
-
-  // naming
-  const char* ref_signature_name() const {
-    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_CLASS);
-  }
-  const char* val_signature_name() const {
-    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_PRIMITIVE_OBJECT);
-  }
 
   // Casting from Klass*
   static InlineKlass* cast(Klass* k);

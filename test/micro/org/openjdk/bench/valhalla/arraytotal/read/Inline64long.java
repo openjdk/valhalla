@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ public class Inline64long extends StatesQ64long {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public void ref_consume(Q64long.ref v) {
+    public void ref_consume(Q64long v) {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
@@ -85,7 +85,7 @@ public class Inline64long extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Val_read(Val_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             val_consume(arr[i]);
         }
@@ -94,7 +94,7 @@ public class Inline64long extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Ref_read(Val_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             ref_consume(arr[i]);
         }
@@ -103,7 +103,7 @@ public class Inline64long extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Int_read(Val_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             int_consume(arr[i]);
         }
@@ -112,7 +112,7 @@ public class Inline64long extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Obj_read(Val_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             obj_consume(arr[i]);
         }
@@ -148,7 +148,7 @@ public class Inline64long extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_as_Ref_to_Val_read(Ref_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             val_consume(arr[i]);
         }
@@ -157,7 +157,7 @@ public class Inline64long extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_as_Ref_to_Ref_read(Ref_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             ref_consume(arr[i]);
         }
@@ -166,7 +166,7 @@ public class Inline64long extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_as_Ref_to_Int_read(Ref_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             int_consume(arr[i]);
         }
@@ -175,7 +175,7 @@ public class Inline64long extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_as_Ref_to_Obj_read(Ref_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             obj_consume(arr[i]);
         }

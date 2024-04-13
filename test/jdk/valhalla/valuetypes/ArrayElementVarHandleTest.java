@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,9 @@
 /*
  * @test
  * @summary test VarHandle on value class array
- * @run junit/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=-1 ArrayElementVarHandleTest
- * @run junit/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=0  ArrayElementVarHandleTest
+ * @enablePreview
+ * @run junit/othervm -XX:FlatArrayElementMaxSize=-1 ArrayElementVarHandleTest
+ * @run junit/othervm -XX:FlatArrayElementMaxSize=0  ArrayElementVarHandleTest
  */
 
 import java.lang.invoke.*;

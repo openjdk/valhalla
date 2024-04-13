@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,12 @@
 
 /**
  * @test TestNewAcmp
- * @summary Verifies correctness of the new acmp bytecode.
- * @modules java.base/jdk.internal.value
+ * @summary Verifies correctness of the acmp bytecode with value object operands.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @compile -XDenablePrimitiveClasses TestNewAcmp.java
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
- *                               -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.inlinetypes.TestNewAcmp
  */
 
@@ -51,26 +50,23 @@ import java.util.Arrays;
 import java.util.List;
 import jdk.test.whitebox.WhiteBox;
 
-import jdk.internal.value.PrimitiveClass;
-
 interface MyInterface {
 
 }
 
-abstract class MyAbstract implements MyInterface {
-
+abstract value class MyAbstract implements MyInterface {
 
 }
 
-primitive class MyValue1 extends MyAbstract {
-    final int x;
+value class MyValue1 extends MyAbstract {
+    int x;
 
     MyValue1(int x) {
         this.x = x;
     }
 
     static MyValue1 createDefault() {
-        return MyValue1.default;
+        return new MyValue1(0);
     }
 
     static MyValue1 setX(MyValue1 v, int x) {
@@ -78,15 +74,15 @@ primitive class MyValue1 extends MyAbstract {
     }
 }
 
-primitive class MyValue2 extends MyAbstract {
-    final int x;
+value class MyValue2 extends MyAbstract {
+    int x;
 
     MyValue2(int x) {
         this.x = x;
     }
 
     static MyValue2 createDefault() {
-        return MyValue2.default;
+        return new MyValue2(0);
     }
 
     static MyValue2 setX(MyValue2 v, int x) {
@@ -1738,7 +1734,7 @@ public class TestNewAcmp {
             if (args[i] != null && !parameterTypes[0].isInstance(args[i])) {
                 continue;
             }
-            if (args[i] == null && parameterTypes[0] == PrimitiveClass.asValueType(MyValue1.class)) {
+            if (args[i] == null && parameterTypes[0] == MyValue1.class) {
                 continue;
             }
             if (parameterCount == 1) {
@@ -1760,7 +1756,7 @@ public class TestNewAcmp {
                     if (args[j] != null && !parameterTypes[1].isInstance(args[j])) {
                         continue;
                     }
-                    if (args[j] == null && parameterTypes[1] == PrimitiveClass.asValueType(MyValue1.class)) {
+                    if (args[j] == null && parameterTypes[1] == MyValue1.class) {
                         continue;
                     }
                     System.out.print("Testing " + m.getName() + "(" + args[i] + ", " + args[j] + ")");
@@ -1871,8 +1867,7 @@ public class TestNewAcmp {
 
     private static void enumerateVMOptions() throws Exception {
         String[] baseOptions = {
-            "-XX:+EnableValhalla",
-            "-XX:+EnablePrimitiveClasses",
+            "--enable-preview",
             "-Xbootclasspath/a:.",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+WhiteBoxAPI",

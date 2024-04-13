@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,11 +31,12 @@ import compiler.lib.ir_framework.*;
  * @test
  * @summary Missing InlineTypeNode re-materialization during type sharpening.
  * @library /test/lib /
- * @compile --add-exports java.base/jdk.internal.misc=ALL-UNNAMED TestValueRematDuringTypeSharpening.java
- * @run main/othervm/timeout=300 --add-exports java.base/jdk.internal.misc=ALL-UNNAMED compiler.valhalla.inlinetypes.TestValueRematDuringTypeSharpening
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestValueRematDuringTypeSharpening
  */
 
-abstract class topValue {
+abstract value class topValue {
 }
 
 value class dummyValue1 extends topValue {
@@ -80,7 +81,7 @@ public class TestValueRematDuringTypeSharpening {
    }
 
    public static void main(String [] args) {
-       TestFramework.runWithFlags("-XX:-TieredCompilation", "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED");
+       TestFramework.runWithFlags("-XX:-TieredCompilation", "--enable-preview", "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED");
        System.out.println("PASS");
    }
 }

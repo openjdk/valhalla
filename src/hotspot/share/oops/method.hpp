@@ -312,8 +312,6 @@ class Method : public Metadata {
     return _method_data;
   }
 
-  void set_method_data(MethodData* data);
-
   MethodCounters* method_counters() const {
     return _method_counters;
   }
@@ -366,6 +364,10 @@ class Method : public Metadata {
 private:
   // Either called with CompiledMethod_lock held or from constructor.
   void clear_code();
+
+  void clear_method_data() {
+    _method_data = nullptr;
+  }
 
 public:
   static void set_code(const methodHandle& mh, CompiledMethod* code);
@@ -584,15 +586,8 @@ public:
   // valid static initializer flags.
   bool is_class_initializer() const;
 
-  // returns true if the method name is <init> and the method is not a static factory
+  // returns true if the method name is <init>
   bool is_object_constructor() const;
-
-  // returns true if the method is an object constructor or class initializer
-  // (non-static <init> or <clinit>), but false for factories (static <vnew>).
-  bool is_object_constructor_or_class_initializer() const;
-
-  // returns true if the method name is <vnew> and the method is static
-  bool is_static_vnew_factory() const;
 
   // compiled code support
   // NOTE: code() is inherently racy as deopt can be clearing code

@@ -52,6 +52,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "nmt/memTracker.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
@@ -90,7 +91,6 @@
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/vmOperations.hpp"
-#include "services/memTracker.hpp"
 #include "services/runtimeService.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
@@ -447,7 +447,7 @@ JNI_ENTRY(jobject, jni_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID meth
   methodHandle m (THREAD, Method::resolve_jmethod_id(method_id));
   assert(m->is_static() == (isStatic != 0), "jni_ToReflectedMethod access flags doesn't match");
   oop reflection_method;
-  if (m->is_object_constructor() || m->is_static_vnew_factory()) {
+  if (m->is_object_constructor()) {
     reflection_method = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     reflection_method = Reflection::new_method(m, false, CHECK_NULL);
@@ -503,18 +503,9 @@ JNI_ENTRY_NO_PRESERVE(jboolean, jni_IsAssignableFrom(JNIEnv *env, jclass sub, jc
   Klass* sub_klass   = java_lang_Class::as_Klass(sub_mirror);
   Klass* super_klass = java_lang_Class::as_Klass(super_mirror);
   assert(sub_klass != nullptr && super_klass != nullptr, "invalid arguments to jni_IsAssignableFrom");
-  jboolean ret;
-  if (sub_klass == super_klass && sub_klass->is_inline_klass()) {
-    // val type is a subtype of ref type
-    InlineKlass* ik = InlineKlass::cast(sub_klass);
-    if (sub_mirror == super_mirror || (ik->val_mirror() == sub_mirror && ik->ref_mirror() == super_mirror)) {
-      ret = JNI_TRUE;
-    } else {
-      ret = JNI_FALSE;
-    }
-  } else {
-    ret = sub_klass->is_subtype_of(super_klass) ? JNI_TRUE : JNI_FALSE;
-  }
+  jboolean ret = sub_klass->is_subtype_of(super_klass) ?
+                   JNI_TRUE : JNI_FALSE;
+
   HOTSPOT_JNI_ISASSIGNABLEFROM_RETURN(ret);
   return ret;
 JNI_END
@@ -814,8 +805,7 @@ class JNI_ArgumentPusherVaArg : public JNI_ArgumentPusher {
     case T_DOUBLE:      push_double(va_arg(_ap, jdouble)); break;
 
     case T_ARRAY:
-    case T_OBJECT:
-    case T_PRIMITIVE_OBJECT: push_object(va_arg(_ap, jobject)); break;
+    case T_OBJECT: push_object(va_arg(_ap, jobject)); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -978,7 +968,13 @@ JNI_ENTRY(jobject, jni_AllocObject(JNIEnv *env, jclass clazz))
   jobject ret = nullptr;
   DT_RETURN_MARK(AllocObject, jobject, (const jobject&)ret);
 
-  instanceOop i = InstanceKlass::allocate_instance(JNIHandles::resolve_non_null(clazz), CHECK_NULL);
+  oop clazzoop = JNIHandles::resolve_non_null(clazz);
+  Klass* k = java_lang_Class::as_Klass(clazzoop);
+  if (k == nullptr || k->is_inline_klass()) {
+    ResourceMark rm(THREAD);
+    THROW_(vmSymbols::java_lang_InstantiationException(), nullptr);
+  }
+  instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
   ret = JNIHandles::make_local(THREAD, i);
   return ret;
 JNI_END
@@ -999,18 +995,12 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
     THROW_(vmSymbols::java_lang_InstantiationException(), nullptr);
   }
 
-  if (!k->is_inline_klass()) {
-    instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
-    obj = JNIHandles::make_local(THREAD, i);
-    JavaValue jvalue(T_VOID);
-    JNI_ArgumentPusherArray ap(methodID, args);
-    jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
-  } else {
-    JavaValue jvalue(T_PRIMITIVE_OBJECT);
-    JNI_ArgumentPusherArray ap(methodID, args);
-    jni_invoke_static(env, &jvalue, nullptr, JNI_STATIC, methodID, &ap, CHECK_NULL);
-    obj = jvalue.get_jobject();
-  }
+  instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+  obj = JNIHandles::make_local(THREAD, i);
+  JavaValue jvalue(T_VOID);
+  JNI_ArgumentPusherArray ap(methodID, args);
+  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
+
   return obj;
   JNI_END
 
@@ -1031,18 +1021,12 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
     THROW_(vmSymbols::java_lang_InstantiationException(), nullptr);
   }
 
-  if (!k->is_inline_klass()) {
-    instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
-    obj = JNIHandles::make_local(THREAD, i);
-    JavaValue jvalue(T_VOID);
-    JNI_ArgumentPusherVaArg ap(methodID, args);
-    jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
-  } else {
-    JavaValue jvalue(T_PRIMITIVE_OBJECT);
-    JNI_ArgumentPusherVaArg ap(methodID, args);
-    jni_invoke_static(env, &jvalue, nullptr, JNI_STATIC, methodID, &ap, CHECK_NULL);
-    obj = jvalue.get_jobject();
-  }
+  instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+  obj = JNIHandles::make_local(THREAD, i);
+  JavaValue jvalue(T_VOID);
+  JNI_ArgumentPusherVaArg ap(methodID, args);
+  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
+
   return obj;
 JNI_END
 
@@ -1063,24 +1047,15 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
     THROW_(vmSymbols::java_lang_InstantiationException(), nullptr);
   }
 
-  if (!k->is_inline_klass()) {
-    instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
-    obj = JNIHandles::make_local(THREAD, i);
-    va_list args;
-    va_start(args, methodID);
-    JavaValue jvalue(T_VOID);
-    JNI_ArgumentPusherVaArg ap(methodID, args);
-    jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
-    va_end(args);
-  } else {
-    va_list args;
-    va_start(args, methodID);
-    JavaValue jvalue(T_PRIMITIVE_OBJECT);
-    JNI_ArgumentPusherVaArg ap(methodID, args);
-    jni_invoke_static(env, &jvalue, nullptr, JNI_STATIC, methodID, &ap, CHECK_NULL);
-    va_end(args);
-    obj = jvalue.get_jobject();
-  }
+  instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+  obj = JNIHandles::make_local(THREAD, i);
+  va_list args;
+  va_start(args, methodID);
+  JavaValue jvalue(T_VOID);
+  JNI_ArgumentPusherVaArg ap(methodID, args);
+  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
+  va_end(args);
+
   return obj;
 JNI_END
 

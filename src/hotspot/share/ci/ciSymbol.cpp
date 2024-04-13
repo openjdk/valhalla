@@ -114,18 +114,6 @@ int ciSymbol::utf8_length() {
 }
 
 // ------------------------------------------------------------------
-// ciSymbol::is_Q_signature
-bool ciSymbol::is_Q_signature() const {
-  GUARDED_VM_ENTRY(return get_symbol()->is_Q_signature();)
-}
-
-// ------------------------------------------------------------------
-// ciSymbol::is_Q_array_signature
-bool ciSymbol::is_Q_array_signature() const {
-  GUARDED_VM_ENTRY(return get_symbol()->is_Q_array_signature();)
-}
-
-// ------------------------------------------------------------------
 // ciSymbol::print_impl
 //
 // Implementation of the print method

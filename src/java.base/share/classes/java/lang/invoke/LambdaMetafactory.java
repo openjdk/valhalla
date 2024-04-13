@@ -312,8 +312,7 @@ public final class LambdaMetafactory {
      * @throws LambdaConversionException If {@code caller} does not have full privilege
      *         access, or if {@code interfaceMethodName} is not a valid JVM
      *         method name, or if the return type of {@code factoryType} is not
-     *         an interface, or if the return type of {@code factoryType} is a value
-     *         interface, or if {@code implementation} is not a direct method
+     *         an interface, or if {@code implementation} is not a direct method
      *         handle referencing a method or constructor, or if the linkage
      *         invariants are violated, as defined {@link LambdaMetafactory above}.
      * @throws NullPointerException If any argument is {@code null}.

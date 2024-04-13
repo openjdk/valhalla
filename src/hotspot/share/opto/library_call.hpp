@@ -250,10 +250,11 @@ class LibraryCallKit : public GraphKit {
   static bool klass_needs_init_guard(Node* kls);
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
+  bool inline_newNullRestrictedArray();
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
-  bool inline_unsafe_isFlattenedArray();
+  bool inline_unsafe_isFlatArray();
   bool inline_unsafe_make_private_buffer();
   bool inline_unsafe_finish_private_buffer();
 
@@ -303,7 +304,8 @@ class LibraryCallKit : public GraphKit {
   JVMState* arraycopy_restore_alloc_state(AllocateArrayNode* alloc, int& saved_reexecute_sp);
   void arraycopy_move_allocation_here(AllocateArrayNode* alloc, Node* dest, JVMState* saved_jvms_before_guards, int saved_reexecute_sp,
                                       uint new_idx);
-
+  bool inline_array_sort();
+  bool inline_array_partition();
   typedef enum { LS_get_add, LS_get_set, LS_cmp_swap, LS_cmp_swap_weak, LS_cmp_exchange } LoadStoreKind;
   bool inline_unsafe_load_store(BasicType type,  LoadStoreKind kind, AccessKind access_kind);
   bool inline_unsafe_fence(vmIntrinsics::ID id);

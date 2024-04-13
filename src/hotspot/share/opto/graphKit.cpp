@@ -986,8 +986,18 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     l = in_jvms->loc_size();
     out_jvms->set_locoff(p);
     if (!can_prune_locals) {
-      for (j = 0; j < l; j++)
+      for (j = 0; j < l; j++) {
         call->set_req(p++, in_map->in(k+j));
+        Node* local = in_map->in(k+j);
+        // TODO 8325106
+        /*
+        if (false && local->is_InlineType() && local->isa_InlineType()->is_larval()) {
+          tty->print_cr("LARVAL FOUND in LOCAL");
+          in_map->dump(0);
+          local->dump(0);
+        }
+        */
+      }
     } else {
       p += l;  // already set to top above by add_req_batch
     }
@@ -997,8 +1007,21 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     l = in_jvms->sp();
     out_jvms->set_stkoff(p);
     if (!can_prune_locals) {
-      for (j = 0; j < l; j++)
+      for (j = 0; j < l; j++) {
         call->set_req(p++, in_map->in(k+j));
+        Node* local = in_map->in(k+j);
+        // TODO 8325106 check if there's a larval on stack in the caller state that has been written in the callee state and update it accordingly
+        /*
+        if (false && local->is_InlineType() && local->isa_InlineType()->is_larval()) {
+          tty->print_cr("LARVAL FOUND on STACK");
+          in_map->dump(0);
+          local->dump(0);
+          map()->replaced_nodes().dump(tty);
+          map()->replaced_nodes().apply(call, 0);
+          tty->print_cr("");
+        }
+        */
+      }
     } else if (can_prune_locals && stack_slots_not_pruned != 0) {
       // Divide stack into {S0,...,S1}, where S0 is set to top.
       uint s1 = stack_slots_not_pruned;
@@ -1129,15 +1152,6 @@ bool GraphKit::compute_stack_effects(int& inputs, int& depth) {
       depth = 1 - inputs;
     }
     break;
-
-  case Bytecodes::_withfield: {
-    bool ignored_will_link;
-    ciField* field = method()->get_field_at_bci(bci(), ignored_will_link);
-    int size = InlineTypeNode::stack_size_for_field(field);
-    inputs = size+1;
-    depth = rsize() - inputs;
-    break;
-  }
 
   case Bytecodes::_ireturn:
   case Bytecodes::_lreturn:
@@ -1479,6 +1493,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
+    // TODO 8325106 Can we avoid cloning?
     Node* vt = obj->clone();
     vt->as_InlineType()->set_is_init(_gvn);
     vt = _gvn.transform(vt);
@@ -1878,9 +1893,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
       arg = arg->as_InlineType()->buffer(this);
-      if (!is_late_inline) {
-        arg = arg->as_InlineType()->get_oop();
-      }
     }
     if (t != Type::HALF) {
       arg_num++;
@@ -1945,7 +1957,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
-    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, false);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
@@ -1955,6 +1967,16 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
         ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass(), type->inline_klass()->is_null_free());
       }
     }
+  }
+
+  // We just called the constructor on a value type receiver. Reload it from the buffer
+  if (call->method()->is_object_constructor() && call->method()->holder()->is_inlinetype()) {
+    InlineTypeNode* receiver = call->in(TypeFunc::Parms)->as_InlineType();
+    assert(receiver->is_larval(), "must be larval");
+    assert(receiver->is_allocated(&gvn()), "larval must be buffered");
+    InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, receiver->get_oop(), receiver->bottom_type()->inline_klass(), true);
+    assert(!reloaded->is_larval(), "should not be larval anymore");
+    replace_in_map(receiver, reloaded);
   }
 
   return ret;
@@ -3667,13 +3689,6 @@ Node* GraphKit::inline_type_test(Node* obj, bool is_inline) {
   return _gvn.transform(new BoolNode(cmp, is_inline ? BoolTest::eq : BoolTest::ne));
 }
 
-Node* GraphKit::is_val_mirror(Node* mirror) {
-  Node* p = basic_plus_adr(mirror, java_lang_Class::secondary_mirror_offset());
-  Node* secondary_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
-  Node* cmp = _gvn.transform(new CmpPNode(mirror, secondary_mirror));
-  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
-}
-
 Node* GraphKit::array_lh_test(Node* klass, jint mask, jint val, bool eq) {
   Node* lh_adr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
   // Make sure to use immutable memory here to enable hoisting the check out of loops
@@ -3683,6 +3698,7 @@ Node* GraphKit::array_lh_test(Node* klass, jint mask, jint val, bool eq) {
   return _gvn.transform(new BoolNode(cmp, eq ? BoolTest::eq : BoolTest::ne));
 }
 
+// TODO 8325106 With JEP 401, flatness is not a property of the Class anymore.
 Node* GraphKit::flat_array_test(Node* array_or_klass, bool flat) {
   // We can't use immutable memory here because the mark word is mutable.
   // PhaseIdealLoop::move_flat_array_check_out_of_loop will make sure the
@@ -3908,6 +3924,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     bool can_be_flat = false;
     const TypeAryPtr* ary_type = klass_t->as_instance_type()->isa_aryptr();
     if (UseFlatArray && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
+      // TODO 8325106 Fix comment
       // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue. Don't constant fold.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
       can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flat_in_array());
@@ -4310,6 +4327,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
+  // TODO 8325106 Fix comment
   // Inline type array variants:
   // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue")
   // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue")
@@ -4323,46 +4341,15 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     if (ary_ptr->is_null_free() && !ary_ptr->is_flat()) {
       ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
       default_value = InlineTypeNode::default_oop(gvn(), vk);
-    }
-  } else if (ary_type->can_be_inline_array()) {
-    // Array type is not known, add runtime checks
-    assert(!ary_klass->klass_is_exact(), "unexpected exact type");
-    Node* r = new RegionNode(3);
-    default_value = new PhiNode(r, TypeInstPtr::BOTTOM);
-
-    Node* bol = array_lh_test(klass_node, Klass::_lh_array_tag_flat_value_bit_inplace | Klass::_lh_null_free_array_bit_inplace, Klass::_lh_null_free_array_bit_inplace);
-    IfNode* iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
-
-    // Null-free, non-flat inline type array, initialize with the default value
-    set_control(_gvn.transform(new IfTrueNode(iff)));
-    Node* p = basic_plus_adr(klass_node, in_bytes(ArrayKlass::element_klass_offset()));
-    Node* eklass = _gvn.transform(LoadKlassNode::make(_gvn, control(), immutable_memory(), p, TypeInstPtr::KLASS));
-    Node* adr_fixed_block_addr = basic_plus_adr(eklass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()));
-    Node* adr_fixed_block = make_load(control(), adr_fixed_block_addr, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
-    Node* default_value_offset_addr = basic_plus_adr(adr_fixed_block, in_bytes(InlineKlass::default_value_offset_offset()));
-    Node* default_value_offset = make_load(control(), default_value_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
-    Node* elem_mirror = load_mirror_from_klass(eklass);
-    Node* default_value_addr = basic_plus_adr(elem_mirror, ConvI2X(default_value_offset));
-    Node* val = access_load_at(elem_mirror, default_value_addr, TypeInstPtr::MIRROR, TypeInstPtr::NOTNULL, T_OBJECT, IN_HEAP);
-    r->init_req(1, control());
-    default_value->init_req(1, val);
-
-    // Otherwise initialize with all zero
-    r->init_req(2, _gvn.transform(new IfFalseNode(iff)));
-    default_value->init_req(2, null());
-
-    set_control(_gvn.transform(r));
-    default_value = _gvn.transform(default_value);
-  }
-  if (default_value != nullptr) {
-    if (UseCompressedOops) {
-      // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
-      default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
-      Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
-      Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
-      raw_default_value = _gvn.transform(new OrLNode(lower, upper));
-    } else {
-      raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
+      if (UseCompressedOops) {
+        // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
+        default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
+        Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
+        Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
+        raw_default_value = _gvn.transform(new OrLNode(lower, upper));
+      } else {
+        raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
+      }
     }
   }
 

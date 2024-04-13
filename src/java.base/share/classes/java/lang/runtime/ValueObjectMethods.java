@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.lang.runtime;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -36,30 +37,35 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
+
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.value.PrimitiveClass;
 import sun.invoke.util.Wrapper;
 import sun.security.action.GetIntegerAction;
 import sun.security.action.GetPropertyAction;
 
 import static java.lang.invoke.MethodHandles.constant;
-import static java.lang.invoke.MethodHandles.countedLoop;
 import static java.lang.invoke.MethodHandles.dropArguments;
 import static java.lang.invoke.MethodHandles.filterArguments;
-import static java.lang.invoke.MethodHandles.filterReturnValue;
+import static java.lang.invoke.MethodHandles.foldArguments;
 import static java.lang.invoke.MethodHandles.guardWithTest;
 import static java.lang.invoke.MethodHandles.permuteArguments;
 import static java.lang.invoke.MethodType.methodType;
 import static java.lang.runtime.ObjectMethods.primitiveEquals;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 /**
  * Implementation for Object::equals and Object::hashCode for value objects.
@@ -71,11 +77,21 @@ final class ValueObjectMethods {
     private ValueObjectMethods() {}
     private static final boolean VERBOSE =
             GetPropertyAction.privilegedGetProperty("value.bsm.debug") != null;
-    private static final int THRESHOLD =
+    private static final int MAX_NODE_VISITS =
             GetIntegerAction.privilegedGetProperty("jdk.value.recursion.threshold", Integer.MAX_VALUE);
     private static final JavaLangInvokeAccess JLIA = SharedSecrets.getJavaLangInvokeAccess();
 
     static class MethodHandleBuilder {
+        private static final HashMap<Class<?>, MethodHandle> primitiveSubstitutable = new HashMap<>();
+
+        static {
+            primitiveSubstitutable.putAll(primitiveEquals); // adopt all the primitive eq methods
+            primitiveSubstitutable.put(float.class,
+                    findStatic("eqValue", methodType(boolean.class, float.class, float.class)));
+            primitiveSubstitutable.put(double.class,
+                    findStatic("eqValue", methodType(boolean.class, double.class, double.class)));
+        }
+
         static Stream<MethodHandle> getterStream(Class<?> type, Comparator<MethodHandle> comparator) {
             // filter static fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
@@ -93,10 +109,6 @@ final class ValueObjectMethods {
             return s;
         }
 
-        static List<MethodHandle> getters(Class<?> type, Comparator<MethodHandle> comparator) {
-            return getterStream(type, comparator).toList();
-        }
-
         static MethodHandle hashCodeForType(Class<?> type) {
             if (type.isPrimitive()) {
                 int index = Wrapper.forPrimitiveType(type).ordinal();
@@ -106,8 +118,8 @@ final class ValueObjectMethods {
             }
         }
 
-        static MethodHandle builtinPrimitiveEquals(Class<?> type) {
-            return primitiveEquals.get(type);
+        static MethodHandle builtinPrimitiveSubstitutable(Class<?> type) {
+            return primitiveSubstitutable.get(type);
         }
 
         /*
@@ -130,238 +142,46 @@ final class ValueObjectMethods {
             return ftype;
         }
 
-        /**
-         * A base method for testing substitutability on a recursive data type,
-         * a value class with cyclic membership.
-         *
-         * This method will first invoke a method handle to test the substitutability
-         * of fields whose type is not recursively-typed.  If true, then compares the
-         * value of the fields whose type is a recursive data type.
-         * For a field of its own type {@code f}, invoke the method handle for
-         * this base method on the field value of the given objects.
-         * For a field of other recursive data type, invoke {@link #isSubstitutable(Object, Object)}
-         * on the field value of the given objects.
-         *
-         * @param type  a value class
-         * @param mh    a MethodHandle that tests substitutability of all fields whose type
-         *              is not recursively-typed.  The method type is (V, V)boolean
-         * @param getters all getters for the fields whose type is a recursive data type
-         * @param recur MethodHandle that is capable of recursively calling itself
-         *              to test if two objects of the given value class are substitutable.
-         *              The method type is (Object, Object, AtomicInteger)boolean.
-         * @param o1    an object
-         * @param o2    an object to be compared for substitutability
-         * @param counter an AtomicInteger counter to keep track of the traversal count
-         * @return
-         * @param <V>   a value class
-         */
-        private static <V> boolean substitutableBase(Class<V> type, MethodHandle mh, MethodHandle[] getters,
-                                                     MethodHandle recur, Object o1, Object o2,
-                                                     AtomicInteger counter) throws Throwable {
-            assert isValueClass(type) : type.getName() + " not a value class";
-
-            if (o1 == null && o2 == null) return true;
-            if (o1 == null || o2 == null) return false;
-
-            if (counter.getAndDecrement() == 0) {
-                throw new StackOverflowError("fail to evaluate == for value class " + type.getName());
-            }
-
-            // test if the substitutability of all fields whose type is not recursively-typed
-            var result = (boolean) mh.invoke(o1, o2);
-            if (result) {
-                assert o1.getClass() == type && o2.getClass() == type;
-
-                // test if the fields of a recursive data type are substitutable
-                for (MethodHandle getter : getters) {
-                    Class<?> ftype = fieldType(getter);
-                    var f1 = getter.invoke(o1);
-                    var f2 = getter.invoke(o2);
-
-                    assert !JLIA.isNullRestrictedField(getter) ||  (f1 != null && f2 != null) :
-                            "null restricted field " + ftype.getName() + " in container " + type.getName();
-
-                    boolean substitutable;
-                    if (ftype == type) {
-                        substitutable = (boolean)recur.invokeExact(f1, f2, counter);
-                    } else {
-                        MethodHandle recur2 = RECUR_SUBST_METHOD_HANDLES.get(ftype);
-                        substitutable = (boolean)recur2.invokeExact(f1, f2, counter);
-                    }
-                    if (!substitutable) {
-                        return false;
-                    }
-                }
-            }
-            return result;
-        }
-
-
-        /**
-         * A base method for computing the hashcode for a recursive data type,
-         * a value class with cyclic membership.
-         *
-         * This method will first invoke a method handle to compute the hash code
-         * of the fields whose type is not recursively-typed.  Then compute the
-         * hash code of the remaining fields whose type is a recursive data type.
-         * For a field of its own type {@code f}, invoke the method handle for
-         * this base method on the field value of the given object.
-         * For a field of other recursive data type, invoke {@link Object#hashCode()}
-         * on the field value of the given object.
-         *
-         * @param type  a value class
-         * @param mh    a MethodHandle that computes the hash code of all fields whose
-         *              type is not recursively-typed.  The method type is (V)int
-         * @param getters all getters for the fields whose type is a recursive data type
-         * @param recur MethodHandle that is capable of recursively calling itself
-         *              to compute the hash code of a field of the same type.
-         *              The method type is (Object, AtomicInteger)int.
-         * @param obj   an object
-         * @param counter an AtomicInteger counter to keep track of the traversal count
-         * @return the hash code of a value object of the given type
-         * @param <V>   a value class
-         */
-        private static <V> int hashCodeBase(Class<V> type, MethodHandle mh, MethodHandle[] getters,
-                                            MethodHandle recur, Object obj,
-                                            AtomicInteger counter) throws Throwable {
-            assert isValueClass(type) : type.getName() + " not a value class";
-
-            if (obj == null) return 0;
-
-            if (counter.getAndDecrement() == 0) {
-                throw new StackOverflowError("fail to evaluate hashCode of a value object: " + type.getName());
-            }
-
-            // compute the hash code of all fields whose type is not recursively-typed
-            var result = (int) mh.invoke(obj);
-            if (obj != null) {
-                assert obj.getClass() == type;
-
-                // test if the fields of a recursive data type are substitutable
-                for (MethodHandle getter : getters) {
-                    Class<?> ftype = fieldType(getter);
-                    var f = getter.invoke(obj);
-                    assert !JLIA.isNullRestrictedField(getter) || f != null :
-                            "null restricted field " + ftype.getName() + " in container " + type.getName();
-
-                    int hc;
-                    if (ftype == type) {
-                        hc = (int)recur.invokeExact(f, counter);
-                    } else {
-                        MethodHandle recur2 = RECUR_HASHCODE_METHOD_HANDLES.get(ftype);
-                        hc = (int)recur2.invokeExact(f, counter);
-                    }
-                    result = hashCombiner(result, hc);
-                }
-            }
-            return result;
-        }
-
-        /*
-         * Finds all value class memberships of the given type involved in cycles
-         */
-        private static Set<Class<?>> recursiveValueTypes(Class<?> type) {
-            if (!isValueClass(type)) {
-                return Set.of();
-            }
-
-            Deque<Class<?>> deque = new ArrayDeque<>();
-            Set<Class<?>> visited = new HashSet<>();
-            Set<Class<?>> recursiveTypes = new HashSet<>();
-            Map<Class<?>, List<Class<?>>> unvisitedEdges = new HashMap<>();
-
-            Class<?> c;
-            deque.add(type);
-            while ((c = deque.peek()) != null) {
-                if (visited.contains(c)) {
-                    // remove the current node being visited
-                    deque.pop();
-                    if (deque.contains(c)) {
-                        // include all types in the cycle
-                        for (Class<?> n : deque) {
-                            recursiveTypes.add(n);
-                            if (n == c) {
-                                break;
-                            }
-                        }
-                    }
-
-                    // continue the depth-first search from the parent of c
-                    if ((c = deque.peek()) == null)
-                        continue;
-                } else {
-                    visited.add(c);
-                }
-
-                // depth-first search on the field types of type c that are value classes
-                List<Class<?>> nodes = unvisitedEdges.computeIfAbsent(c, (k) -> fieldTypes(k));
-                if (nodes.isEmpty()) {
-                    // all field types are traversed
-                    deque.pop();
-                } else {
-                    Class<?> n = nodes.remove(0);
-                    deque.push(n);
-                }
-            }
-
-            if (recursiveTypes.isEmpty())
-                return Set.of();
-
-            return Arrays.stream(type.getDeclaredFields())
-                         .filter(f -> !Modifier.isStatic(f.getModifiers()))
-                         .map(f -> f.getType())
-                         .filter(recursiveTypes::contains)
-                         .collect(Collectors.toSet());
-        }
-
-        private static List<Class<?>> fieldTypes(Class<?> type) {
+        private static List<Class<?>> valueTypeFields(Class<?> type) {
             List<Class<?>> result = new ArrayList<>();
             Arrays.stream(type.getDeclaredFields())
                   .filter(f -> !Modifier.isStatic(f.getModifiers()))
                   .map(f -> f.getType())
-                  .filter(ft -> isValueClass(ft) && !result.contains(ft))
+                  .filter(ft -> ft.isValue() && !result.contains(ft))
                   .forEach(result::add);
             return result;
         }
-
-        private static final ClassValue<MethodHandle> RECUR_SUBST_METHOD_HANDLES = new ClassValue<>() {
-            /*
-             * Produces a MethodHandle that returns boolean if two value objects of
-             * a recursive data type are substitutable.  This method is invoked by
-             * the substitutableBase method.
-             *
-             * The method type is (Object, Object, AtomicInteger)boolean.
-             */
-            @Override protected MethodHandle computeValue(Class<?> type) {
-                return recurValueTypeEquals(type, recursiveValueTypes(type));
-            }
-        };
 
         /*
          * Produces a MethodHandle that returns boolean if two value objects
          * are substitutable.  The method type is (V, V)boolean.
          */
         static MethodHandle valueTypeEquals(Class<?> type) {
-            // ensure the reference type of a primitive class not used in the method handle
-            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
-
-            Set<Class<?>> recursiveTypes = recursiveValueTypes(type);
-            if (recursiveTypes.isEmpty()) {
-                return valueTypeEquals(type, getters(type, TYPE_SORTER));
-            } else {
-                MethodHandle target = recurValueTypeEquals(type, recursiveTypes);
-                return MethodHandles.insertArguments(target, 2, new AtomicInteger(THRESHOLD))
-                                    .asType(methodType(boolean.class, type, type));
+            var builder = METHOD_HANDLE_BUILDERS.get(type);
+            if (builder == null) {
+                builder = newBuilder(type);
             }
+            return builder.equalsTarget();
         }
 
         /*
-         * Produces a MethodHandle that returns boolean if the given fields
-         * of the two value objects are substitutable. The method type is (V, V)boolean
+         * Produces a MethodHandle that computes the hash code of a value object.
+         * The method type of the return MethodHandle is (V)int.
+         */
+        static MethodHandle valueTypeHashCode(Class<?> type) {
+            var builder = METHOD_HANDLE_BUILDERS.get(type);
+            if (builder == null) {
+                builder = newBuilder(type);
+            }
+            return builder.hashCodeTarget();
+        }
+
+        /*
+         * Produces a MethodHandle that returns boolean if the given non-recursively typed
+         * fields of the two value objects are substitutable. The method type is (V, V)boolean
          */
         static MethodHandle valueTypeEquals(Class<?> type, List<MethodHandle> getters) {
-            // ensure the reference type of a primitive class not used in the method handle
-            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
+            assert type.isValue();
 
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
@@ -369,8 +189,8 @@ final class ValueObjectMethods {
             MethodHandle accumulator = dropArguments(TRUE, 0, type, type);
             for (MethodHandle getter : getters) {
                 Class<?> ftype = fieldType(getter);
-                MethodHandle eq = substitutableInvoker(ftype).asType(methodType(boolean.class, ftype, ftype));
-                MethodHandle thisFieldEqual = filterArguments(eq, 0, getter, getter);
+                var eq = substitutableInvoker(ftype).asType(methodType(boolean.class, ftype, ftype));
+                var thisFieldEqual = filterArguments(eq, 0, getter, getter);
                 accumulator = guardWithTest(thisFieldEqual, accumulator, instanceFalse);
             }
 
@@ -384,144 +204,28 @@ final class ValueObjectMethods {
         }
 
         /*
-         * Produces a MethodHandle that returns boolean if two value objects of
-         * a recursive data type are substitutable.
-         *
-         * The method type is (Object, Object, AtomicInteger)boolean.
-         */
-        static MethodHandle recurValueTypeEquals(Class<?> type, Set<Class<?>> recursiveTypes) {
-            Stream<MethodHandle> getterStream = getterStream(type, TYPE_SORTER);;
-            List<MethodHandle> nonRecurTypeGetters = new ArrayList<>();
-            List<MethodHandle> recurTypeGetters = new ArrayList<>();
-            getterStream.forEach(getter -> {
-                Class<?> ftype = fieldType(getter);
-                if (recursiveTypes.contains(ftype)) {
-                    // skip the value class that is involved in a cyclic membership
-                    recurTypeGetters.add(getter);
-                } else {
-                    nonRecurTypeGetters.add(getter);
-                }
-            });
-
-            if (recurTypeGetters.isEmpty()) {
-                throw new InternalError("must be a recursive data type: " + type.getName());
-            }
-
-            MethodHandle target = valueTypeEquals(type, nonRecurTypeGetters);
-            // This value class contains cyclic membership
-            // Create a method handle that is capable of calling itself.
-            // - the substitutableBase method first calls the method handle that tests
-            //   the substitutability of all fields that are not a recursive data type
-            // - for a field of its own type, call the recursive method
-            // - for a field of a recursive data type, call isSubstitutable
-            Object[] arguments = new Object[]{type, target, recurTypeGetters.toArray(MethodHandle[]::new)};
-            target = MethodHandles.insertArguments(RECUR_EQUALS, 0, arguments);
-            return recursive(target);
-        }
-
-        private static final ClassValue<MethodHandle> RECUR_HASHCODE_METHOD_HANDLES = new ClassValue<>() {
-            /*
-             * Produces a MethodHandle that returns the hashcode of a value object of
-             * a recursive data type.  This method is invoked by the hashCodeBase method.
-             *
-             * The method type is (Object, AtomicInteger)int.
-             */
-            @Override protected MethodHandle computeValue(Class<?> type) {
-                return recurValueTypeHashCode(type, recursiveValueTypes(type));
-            }
-        };
-
-        /*
-         * Produces a MethodHandle that computes the hash code of a value object.
-         * The method type of the return MethodHandle is (V)int.
-         */
-        static MethodHandle valueTypeHashCode(Class<?> type) {
-            // ensure the reference type of a primitive class not used in the method handle
-            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
-
-            Set<Class<?>> recursiveTypes = recursiveValueTypes(type);
-            if (recursiveTypes.isEmpty()) {
-                return valueTypeHashCode(type, getterStream(type, null).toList());
-            } else {
-                MethodHandle target = recurValueTypeHashCode(type, recursiveTypes);
-                return MethodHandles.insertArguments(target, 1, new AtomicInteger(THRESHOLD))
-                                    .asType(methodType(int.class, type));
-            }
-        }
-
-        /*
          * Produces a MethodHandle that returns the hash code computed from
-         * the given fields of a value object. The method type is (V)int.
+         * the given non-recursively-typed fields of a value object.
+         * The method type is (V)int.
          */
         static MethodHandle valueTypeHashCode(Class<?> type, List<MethodHandle> getters) {
-            // ensure the reference type of a primitive class not used in the method handle
-            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
+            assert type.isValue();
 
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
-            MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
-            MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
-            MethodHandle combiner = filterArguments(HASH_COMBINER, 0, target, classHashCode);
-            // int v = SALT * 31 + type.hashCode();
-            MethodHandle init = permuteArguments(combiner, target.type(), 0, 0);
-            int length = getters.size();
-            MethodHandle iterations = dropArguments(constant(int.class, length), 0, type);
-            MethodHandle[] hashers = new MethodHandle[length];
-            for (int i=0; i < length; i++) {
-                MethodHandle getter = getters.get(i);
-                Class<?> ftype = fieldType(getter);
-
+            MethodHandle classHasher = dropArguments(hashCodeForType(Class.class).bindTo(type), 0, type);
+            MethodHandle hashCombiner = dropArguments(HASH_COMBINER, 2, type);
+            MethodHandle accumulator = foldArguments(foldArguments(hashCombiner, 1, classHasher), 0, target);
+            for (MethodHandle getter : getters) {
+                Class<?> ft = fieldType(getter);
                 // For primitive types or reference types, this calls Objects::hashCode.
                 // For value objects and the hashCode method is not overridden,
                 // VM will call valueObjectHashCode to compute the hash code.
-                MethodHandle hasher = hashCodeForType(ftype);
-                hashers[i] = filterReturnValue(getter, hasher);
+                var hasher = hashCodeForType(ft);
+                var hashThisField = filterArguments(hasher, 0, getter);    // (R)I
+                var combineHashes = foldArguments(hashCombiner, 1, hashThisField);
+                accumulator = foldArguments(combineHashes, 0, accumulator);
             }
-
-            // for (int i=0; i < getters.length; i++) {
-            //   v = computeHash(v, i, a);
-            // }
-            MethodHandle body = COMPUTE_HASH.bindTo(hashers)
-                    .asType(methodType(int.class, int.class, int.class, type));
-            return countedLoop(iterations, init, body);
-        }
-
-        /*
-         * Produces a MethodHandle that returns the hashcode of a value object of
-         * a recursive data type.  This method is invoked by the hashCodeBase method.
-         *
-         * The method type is (Object, AtomicInteger)int.
-         */
-        static MethodHandle recurValueTypeHashCode(Class<?> type, Set<Class<?>> recursiveTypes) {
-            Stream<MethodHandle> getterStream = getterStream(type, null);;
-            List<MethodHandle> nonRecurTypeGetters = new ArrayList<>();
-            List<MethodHandle> recurTypeGetters = new ArrayList<>();
-            getterStream.forEach(getter -> {
-                Class<?> ftype = fieldType(getter);
-                if (recursiveTypes.contains(ftype)) {
-                    // skip the value class that is involved in a cyclic membership
-                    recurTypeGetters.add(getter);
-                } else {
-                    nonRecurTypeGetters.add(getter);
-                }
-            });
-
-            if (recurTypeGetters.isEmpty()) {
-                throw new InternalError("must be a recursive data type: " + type.getName());
-            }
-
-            MethodHandle target = valueTypeHashCode(type, nonRecurTypeGetters);
-            if (VERBOSE) {
-                System.out.println(type.getName() + " valueHashCode " + nonRecurTypeGetters + " recursive types " + recurTypeGetters);
-            }
-            // This value class contains cyclic membership
-            // Create a method handle that is capable of calling itself.
-            // - the hashCodeBase method first calls the method handle that computes the hash code
-            //   of all fields whose type is not recursively-typed
-            // - for a field of its own type, call the recursive method
-            // - for a field of a recursive data type, call valueObjectHashCode
-            Object[] arguments = new Object[]{type, target, recurTypeGetters.toArray(MethodHandle[]::new)};
-            target = MethodHandles.insertArguments(RECUR_HASHCODE, 0, arguments);
-            return recursive(target);
+            return accumulator;
         }
 
         // ------ utility methods ------
@@ -539,9 +243,6 @@ final class ValueObjectMethods {
             assert a != null && b != null && isSameValueClass(a, b);
             try {
                 Class<?> type = a.getClass();
-                if (PrimitiveClass.isPrimitiveClass(type)) {
-                    type = PrimitiveClass.asValueType(type);
-                }
                 return (boolean) substitutableInvoker(type).invoke(type.cast(a), type.cast(b));
             } catch (Error|RuntimeException e) {
                 throw e;
@@ -574,10 +275,41 @@ final class ValueObjectMethods {
             return accumulator * 31 + value;
         }
 
-        private static int computeHashCode(MethodHandle[] hashers, int v, int i, Object o) {
+        private static int[] newCounter(int[] counter) {
+            return new int[] { counter[0] };
+        }
+
+        private static boolean recurValueEq(MethodHandle target, Object o1, Object o2, int[] counter) {
+            assert counter[0] > 0;
+
+            if (o1 == null && o2 == null) return true;
+            if (o1 == null || o2 == null) return false;
+            if (o1.getClass() != o2.getClass()) return false;
+
+            if (--counter[0] == 0) {
+                throw new StackOverflowError("fail to evaluate == for value class " + o1.getClass().getName());
+            }
+
             try {
-                int hc = (int)hashers[i].invoke(o);
-                return hashCombiner(v, hc);
+                return (boolean) target.invoke(o1, o2, counter);
+            } catch (Error|RuntimeException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw new InternalError(e);
+            }
+        }
+
+        private static int recurValueHashCode(MethodHandle target, Object o, int[] counter) {
+            assert counter[0] > 0;
+
+            if (o == null) return 0;
+
+            if (--counter[0] == 0) {
+                throw new StackOverflowError("fail to evaluate hashCode for value class " + o.getClass().getName());
+            }
+
+            try {
+                return (int) target.invoke(o, counter);
             } catch (Error|RuntimeException e) {
                 throw e;
             } catch (Throwable e) {
@@ -587,25 +319,29 @@ final class ValueObjectMethods {
 
         private static final MethodHandle FALSE = constant(boolean.class, false);
         private static final MethodHandle TRUE = constant(boolean.class, true);
+        // Substitutability test for float
+        private static boolean eqValue(float a, float b) {
+            return Float.floatToRawIntBits(a) == Float.floatToRawIntBits(b);
+        }
+        // Substitutability test for double
+        private static boolean eqValue(double a, double b) {
+            return Double.doubleToRawLongBits(a) == Double.doubleToRawLongBits(b);
+        }
         private static final MethodHandle OBJECT_EQUALS =
-            findStatic("eq", methodType(boolean.class, Object.class, Object.class));
+                findStatic("eq", methodType(boolean.class, Object.class, Object.class));
         private static final MethodHandle IS_SAME_VALUE_CLASS =
-            findStatic("isSameValueClass", methodType(boolean.class, Object.class, Object.class));
+                findStatic("isSameValueClass", methodType(boolean.class, Object.class, Object.class));
         private static final MethodHandle IS_NULL =
-            findStatic("isNull", methodType(boolean.class, Object.class, Object.class));
+                findStatic("isNull", methodType(boolean.class, Object.class, Object.class));
         private static final MethodHandle HASH_COMBINER =
-            findStatic("hashCombiner", methodType(int.class, int.class, int.class));
-        private static final MethodHandle COMPUTE_HASH =
-            findStatic("computeHashCode", methodType(int.class, MethodHandle[].class, int.class, int.class, Object.class));
+                findStatic("hashCombiner", methodType(int.class, int.class, int.class));
         private static final MethodHandle[] HASHCODE = initHashCode();
-        private static final MethodHandle RECUR_EQUALS =
-            findStatic("substitutableBase",
-                       methodType(boolean.class, Class.class, MethodHandle.class, MethodHandle[].class,
-                                  MethodHandle.class, Object.class, Object.class, AtomicInteger.class));
-        private static final MethodHandle RECUR_HASHCODE =
-            findStatic("hashCodeBase",
-                       methodType(int.class, Class.class, MethodHandle.class, MethodHandle[].class,
-                                  MethodHandle.class, Object.class, AtomicInteger.class));
+        private static final MethodHandle RECUR_VALUE_EQ =
+                findStatic("recurValueEq", methodType(boolean.class, MethodHandle.class, Object.class, Object.class, int[].class));
+        private static final MethodHandle RECUR_VALUE_HASHCODE =
+                findStatic("recurValueHashCode", methodType(int.class, MethodHandle.class, Object.class, int[].class));
+        private static final MethodHandle NEW_COUNTER =
+                findStatic("newCounter", methodType(int[].class, int[].class));
 
         private static MethodHandle[] initHashCode() {
             MethodHandle[] mhs = new MethodHandle[Wrapper.COUNT];
@@ -640,6 +376,680 @@ final class ValueObjectMethods {
             int value = (int)((nt >>> 32) ^ nt);
             SALT = GetIntegerAction.privilegedGetProperty("value.bsm.salt", value);
         }
+
+        static MethodHandleBuilder newBuilder(Class<?> type) {
+            assert type.isValue();
+
+            Deque<Class<?>> deque = new ArrayDeque<>();
+            deque.add(type);
+            Map<Class<?>, MethodHandleBuilder> visited = new HashMap<>();
+            var builder = new MethodHandleBuilder(type, deque, visited);
+            visited.put(type, builder);
+            return builder;
+        }
+
+        enum Status {
+            NOT_START,
+            IN_PROGRESS,
+            TRAVERSAL_DONE,
+            READY
+        }
+
+        final Class<?> type;
+        final List<Class<?>> fieldValueTypes;
+        // a map of the type of a field T to a cycle of T -> ... -> V
+        // where V is this builder's value type
+        final Map<Class<?>, List<Class<?>>> cyclicMembers = new HashMap<>();
+        // recursively-typed fields declared in this builder's value type
+        final Set<Class<?>> recurFieldTypes = new HashSet<>();
+        final Deque<Class<?>> path;
+        final Map<Class<?>, MethodHandleBuilder> visited;;
+        volatile Status status = Status.NOT_START;
+        volatile MethodHandle equalsTarget;
+        volatile MethodHandle hashCodeTarget;
+
+        static final VarHandle STATUS_HANDLE;
+        static {
+            VarHandle vh = null;
+            try {
+                vh = MethodHandles.lookup().findVarHandle(MethodHandleBuilder.class, "status", Status.class);
+            } catch (ReflectiveOperationException e) {
+                throw new InternalError(e);
+            }
+            STATUS_HANDLE = vh;
+        }
+
+        /**
+         * Constructs a new MethodHandleBuilder for the given value type.
+         *
+         * @param type a value class
+         * @param path the graph traversal
+         * @param visited a map of a visited type to a builder
+         */
+        private MethodHandleBuilder(Class<?> type, Deque<Class<?>> path, Map<Class<?>, MethodHandleBuilder> visited) {
+            this.type = type;
+            this.fieldValueTypes = valueTypeFields(type);
+            this.path = path;
+            this.visited = visited;
+            if (VERBOSE) {
+                System.out.println("New builder for " + type.getName() + " " + path);
+            }
+        }
+
+        /*
+         * Returns a method handle that implements equals method for this builder's value class.
+         */
+        MethodHandle equalsTarget() {
+            if (status != Status.READY)
+                throw new IllegalStateException(type.getName() + " not ready");
+
+            var mh = equalsTarget;
+            if (mh != null) return mh;
+
+            generateMethodHandle();
+            return equalsTarget;
+        }
+
+        /*
+         * Returns a method handle that implements hashCode method for this builder's value class.
+         */
+        MethodHandle hashCodeTarget() {
+            if (status != Status.READY)
+                throw new IllegalStateException(type.getName() + " not ready");
+
+            var mh = hashCodeTarget;
+            if (mh != null) return mh;
+
+            generateMethodHandle();
+            return hashCodeTarget;
+        }
+
+        /*
+         * Build the graph for this builder's value type.  Detect all cycles.
+         * This builder after this method returns is in DONE_TRAVERSAL or READY status.
+         *
+         * A builder for type V will change to READY status when the entire graph for V
+         * is traversed (i.e. all builders in this graph are in DONE_TRAVERSAL or READY
+         * status).
+         */
+        MethodHandleBuilder build() {
+            if (status == Status.READY) return this;
+
+            if (!STATUS_HANDLE.compareAndSet(this, Status.NOT_START, Status.IN_PROGRESS)) {
+                throw new RuntimeException(type.getName() + " in progress");
+            }
+
+            // traverse the graph and find all cycles
+            detectCycles();
+
+            if (!STATUS_HANDLE.compareAndSet(this, Status.IN_PROGRESS, Status.TRAVERSAL_DONE)) {
+                throw new RuntimeException(type.getName() + " failed to set done traversal. " + status);
+            }
+
+            // Check if this node V is ready for building equals/hashCode method handles.
+            // V is ready if the types of all its fields are done traversal.
+            if (ready()) {
+                // Do a pass on all the cycles containing V.  V is ready.
+                // If a node N in the cycle has completed the traversal (i.e. cycles are detected),
+                // call ready() on N to update its status if ready.
+                for (List<Class<?>> cycle : cyclicMembers.values()) {
+                    cycle.stream().filter(c -> c != type)
+                                  .map(visited::get)
+                                  .filter(b -> b.status == Status.TRAVERSAL_DONE)
+                                  .forEach(MethodHandleBuilder::ready);
+                }
+            }
+            return this;
+        }
+
+        /*
+         * Traverses the graph and finds all cycles.
+         */
+        private void detectCycles() {
+            LinkedList<Class<?>> deque = new LinkedList<>();
+            deque.addAll(fieldValueTypes);
+            while (!deque.isEmpty()) {
+                Class<?> n = deque.pop();
+                // detect cyclic membership
+                if (path.contains(n)) {
+                    List<Class<?>> cycle = new ArrayList<>();
+                    Iterator<Class<?>> iter = path.iterator();
+                    while (iter.hasNext()) {
+                        Class<?> c = iter.next();
+                        cycle.add(c);
+                        if (c == n) break;
+                    }
+                    cyclicMembers.put(n, cycle);
+                    path.pop();
+                    continue;
+                }
+
+                try {
+                    path.push(n);
+                    if (!visited.containsKey(n)) {
+                        // Duplicate the path and pass it to an unvisited node
+                        Deque<Class<?>> newPath = new ArrayDeque<>();
+                        newPath.addAll(path);
+                        visited.computeIfAbsent(n, c -> new MethodHandleBuilder(n, newPath, visited));
+                    }
+
+                    var builder = visited.get(n);
+                    switch (builder.status) {
+                        case NOT_START -> builder.build();
+                        case TRAVERSAL_DONE -> builder.ready();
+                    }
+                } finally {
+                    path.pop();
+                }
+            }
+
+            // propagate the cycles to the recursively-typed value classes
+            // For each cycle A -> B -> C -> A, the cycle is recorded in all
+            // the nodes (A, B, and C) in this cycle.
+            for (Map.Entry<Class<?>, List<Class<?>>> e : cyclicMembers.entrySet()) {
+                Class<?> c = e.getKey();
+                List<Class<?>> cycle = e.getValue();
+                var builder = visited.get(c);
+                for (Class<?> ft : cycle) {
+                    if (ft != c && builder.fieldValueTypes.contains(ft)) {
+                        var v = builder.cyclicMembers.put(ft, cycle);
+                        assert v == null || cycle.equals(v) : "mismatched cycle: " + v + " vs " + cycle;
+                    }
+                }
+            }
+        }
+
+        /*
+         * Tests if this builder is ready for generating equals and hashCode
+         * method handles for the value class.
+         *
+         * This builder is ready if and only if the type graph of all its fields
+         * are traversed and all cycles are detected.
+         *
+         * Before setting to READY, the recursively-typed fields are recorded
+         * that includes all types in the cycles and the field types which
+         * references recursive types
+         */
+        private boolean ready() {
+            if (status == Status.READY) return true;
+
+            boolean inProgress = fieldValueTypes.stream().map(visited::get)
+                                                .anyMatch(b -> b.status == Status.IN_PROGRESS);
+            if (inProgress)
+                return false;
+
+            // collect the recursively-typed value classes required by this method handle
+            // all types in the cycles and the field types which references recursive types
+            recurFieldTypes.addAll(cyclicMembers.keySet());
+            for (Class<?> c : fieldValueTypes) {
+                if (c == type) continue;
+
+                // if this field type references a recursive type
+                var b = visited.get(c);
+                if (b.cyclicMembers.size() > 0 || b.recurFieldTypes.size() > 0)
+                    recurFieldTypes.add(c);
+            };
+
+            // Finished recording recursively-typed fields.  Set to READY.
+            if (!STATUS_HANDLE.compareAndSet(this, Status.TRAVERSAL_DONE, Status.READY)) {
+                throw new RuntimeException(type.getName() + " failed to set READY. " + status);
+            }
+            return true;
+        }
+
+        void generateMethodHandle() {
+            if (status != Status.READY)
+                throw new IllegalStateException(type.getName() + " not ready");
+
+            // non-recursive value type
+            if (recurFieldTypes.isEmpty()) {
+                if (cyclicMembers.size() > 0)
+                    throw new RuntimeException(type.getName() + " should not reach here");
+
+                this.equalsTarget = valueTypeEquals(type, getterStream(type, TYPE_SORTER).toList());
+                this.hashCodeTarget = valueTypeHashCode(type, getterStream(type, null).toList());
+                return;
+            }
+
+            if (VERBOSE) {
+                System.out.println(debugString());
+            }
+
+            // generate the base function for each recursive type
+            // boolean base1(MethodHandle entry, MethodHandle base1, MethodHandle base2,....., Object o1, Object o2, int[] counter)
+            // :
+            // boolean baseN(MethodHandle entry, MethodHandle base1, MethodHandle base2,....., Object o1, Object o2, int[] counter)
+            //
+            List<Class<?>> recursiveTypes = aggregateRecursiveTypes();
+            Map<Class<?>, MethodHandle> bases = new LinkedHashMap<>();
+            Map<Class<?>, MethodHandle> hashCodeBases = new LinkedHashMap<>();
+            for (Class<?> c : recursiveTypes) {
+                bases.put(c, visited.get(c).generateSubstBase(recursiveTypes));
+                hashCodeBases.put(c, visited.get(c).generateHashCodeBase(recursiveTypes));
+            }
+
+            var handles = bases.values().stream().toArray(MethodHandle[]::new);
+            var hashCodeHandles = hashCodeBases.values().stream().toArray(MethodHandle[]::new);
+
+            // The entry point for equals for this value type T looks like this:
+            //
+            // boolean entry(MethodHandle entry, MethodHandle base1, MethodHandle base2,....., Object o1, Object o2, int[] counter) {
+            //    int[] newCounter = new int[] { counter[0] } ;
+            //    return baseT(o1, o2, newCounter);
+            // }
+            this.equalsTarget = newValueEquals(recursiveTypes, handles);
+            this.hashCodeTarget = newValueHashCode(recursiveTypes, hashCodeHandles);
+
+            // Precompute the method handles for all recursive data types in the cycles
+            // They share the generated base method handles.
+            var cycles = cyclicMembers.values().stream().flatMap(List::stream)
+                                .filter(c -> c != type)
+                                .collect(toMap(Function.identity(), visited::get));
+            for (Class<?> n : cycles.keySet()) {
+                var builder = cycles.get(n);
+                if (builder.status != Status.READY) {
+                    throw new InternalError(type.getName() + " is not ready: " + status);
+                }
+
+                var mh = builder.equalsTarget;
+                var mh2 = builder.hashCodeTarget;
+                if (mh != null && mh2 != null) {
+                    continue;
+                }
+
+                // precompute the method handles for each recursive type in the cycle
+                if (mh == null) {
+                    builder.equalsTarget = builder.newValueEquals(recursiveTypes, handles);
+                }
+                if (mh2 == null) {
+                    builder.hashCodeTarget = builder.newValueHashCode(recursiveTypes, hashCodeHandles);
+                }
+            }
+
+            // cache the builders with precomputed method handles in the cache
+            synchronized (CACHED_METHOD_HANDLE_BUILDERS) {
+                for (Class<?> n : cycles.keySet()) {
+                    try {
+                        // the builder is added to the builder cache and propapate to
+                        // the class value
+                        CACHED_METHOD_HANDLE_BUILDERS.computeIfAbsent(n, cycles::get);
+                        METHOD_HANDLE_BUILDERS.get(n);
+                    } finally {
+                        // Remove it from the builder cache once it's in class value
+                        CACHED_METHOD_HANDLE_BUILDERS.remove(n);
+                    }
+                }
+            }
+
+            // equals and hashCode are generated.  Clear the path and visited builders.
+            clear();
+        }
+
+        private void clear() {
+            path.clear();
+            visited.clear();
+        }
+
+        /*
+         * Aggregates all recursive data types for this builder's value types.
+         * The result is used in generating a recursive method handle
+         * for this builder's value type.
+         *
+         * A graph of V:
+         * V -> P -> V
+         *   -> N -> N (self-recursive)
+         *   -> E -> F -> E
+         *
+         * V, P, N, E, F are the mutual recursive types for V. The recursive method handle
+         * for V is created with the base functions for V, P, N, E, F and it can mutually
+         * call the recursive method handle for these types.  Specifically, MH_V calls
+         * MH_P which calls MH_V, MH_N which calls itself, and MH_E which calls MH_F.
+         */
+        private List<Class<?>> aggregateRecursiveTypes() {
+            boolean ready = true;
+            for (List<Class<?>> cycle : cyclicMembers.values()) {
+                // ensure all nodes in all cycles that are done traversal and ready for
+                // method handle generation
+                cycle.stream().filter(c -> c != type)
+                              .map(visited::get)
+                              .filter(b -> b.status == Status.TRAVERSAL_DONE)
+                              .forEach(MethodHandleBuilder::ready);
+
+                // check the status
+                ready = ready && cycle.stream().filter(c -> c != type)
+                                      .map(visited::get)
+                                      .allMatch(b -> b.status == Status.READY);
+            }
+
+            if (!ready) {
+                throw new IllegalStateException(type.getName() + " " + status);
+            }
+
+            /*
+             * Traverse the graph for V to find all mutual recursive types for V.
+             *
+             * Node T is a mutual recursive type for V if any of the following:
+             * 1. T is a recursively-typed field in V
+             * 2. T is a type involved the cycles from V ... -> T ... -> V
+             * 3. T is a mutual recursive type for N where N is a mutual recursive type for V.
+             */
+            Deque<Class<?>> deque = new ArrayDeque<>();
+            List<Class<?>> recurTypes = new ArrayList<>();
+            recurTypes.add(type);
+            Stream.concat(recurFieldTypes.stream(),
+                          cyclicMembers.values().stream().flatMap(List::stream))
+                  .filter(Predicate.not(deque::contains)).forEach(deque::add);
+            while (!deque.isEmpty()) {
+                Class<?> c = deque.pop();
+                if (recurTypes.contains(c)) continue;
+
+                recurTypes.add(c);
+
+                var builder = visited.get(c);
+                Stream.concat(builder.recurFieldTypes.stream(),
+                              builder.cyclicMembers.values().stream().flatMap(List::stream))
+                      .filter(n -> !recurTypes.contains(n) && !deque.contains(n))
+                      .forEach(deque::push);
+            }
+            return recurTypes;
+        }
+
+        /*
+         * Create a new method handle that implements equals(T, Object) for value class T
+         * for this builder using the given base method handles.  The return method handle
+         * is capable of recursively calling itself for value class T whose entry point:
+         *   boolean entry(MethodHandle entry, MethodHandle base1, MethodHandle base2, ..., Object o1, Object o2, int[] counter) {
+         *       int[] newCounter = new int[] { counter[0] };
+         *       return baseT(o1, o2, newCounter);
+         *   }
+         *
+         * The counter is used to keep of node visits and throw StackOverflowError
+         * if the counter gets "unreasonably" large of a cyclic value graph
+         * (regardless of how many real stack frames were consumed.)
+         */
+        MethodHandle newValueEquals(List<Class<?>> recursiveTypes, MethodHandle[] bases) {
+            var entry = equalsEntry(recursiveTypes);
+            var mh = MethodHandles.insertArguments(recursive(entry, bases), 2, new int[] {MAX_NODE_VISITS});
+            return mh.asType(methodType(boolean.class, type, type));
+        }
+
+        /*
+         * Create a new method handle that implements hashCode(T) for value class T
+         * for this builder using the given base method handles.  The return method handle
+         * is capable of recursively calling itself for value class T whose entry point:
+         *   boolean entry(MethodHandle entry, MethodHandle base1, MethodHandle base2, ..., Object o, int[] counter) {
+         *       int[] newCounter = new int[] { counter[0] };
+         *       return baseT(o, newCounter);
+         *   }
+         *
+         * The counter is used to keep of node visits and throw StackOverflowError
+         * if the counter gets "unreasonably" large of a cyclic value graph
+         * (regardless of how many real stack frames were consumed.)
+         */
+        MethodHandle newValueHashCode(List<Class<?>> recursiveTypes, MethodHandle[] bases) {
+            var entry = hashCodeEntry(recursiveTypes);
+            var mh = MethodHandles.insertArguments(recursive(entry, bases), 1, new int[] {MAX_NODE_VISITS});
+            return mh.asType(methodType(int.class, type));
+        }
+
+        /*
+         * Create a method handle where the first N+1 parameters are MethodHandle and
+         * N is the number of the recursive value types and followed with
+         * Object, Object and int[] parameters.  The pseudo code looks like this:
+         *
+         * boolean eq(MethodHandle entry, MethodHandle base1, MethodHandle base2, ..., Object o1, Object o2, int[] counter) {
+         *    if (o1 == null && o2 == null) return true;
+         *    if (o1 == null || o2 == null) return false;
+         *    if (o1.getClass() != o2. getClass()) return false;
+         *
+         *    int[] newCounter = new int[] { counter[0]; }
+         *    return (boolean) baseT.invoke(o1, o2, newCounter);
+         * }
+         */
+        MethodHandle equalsEntry(List<Class<?>> recursiveTypes) {
+            List<Class<?>> leadingMHParams = new ArrayList<>();
+            // the first MethodHandle parameter is this entry point
+            // followed with MethodHandle parameter for each mutual exclusive value class
+            int mhParamCount = recursiveTypes.size()+1;
+            for (int i=0; i < mhParamCount; i++) {
+                leadingMHParams.add(MethodHandle.class);
+            }
+
+            MethodType mt = methodType(boolean.class, Stream.concat(leadingMHParams.stream(), Stream.of(type, type, int[].class))
+                    .collect(toList()));
+            var allParameters = mt.parameterList();
+            MethodHandle instanceTrue = dropArguments(TRUE, 0, allParameters).asType(mt);
+            MethodHandle instanceFalse = dropArguments(FALSE, 0, allParameters).asType(mt);
+            MethodHandle isNull = dropArguments(dropArguments(IS_NULL, 0, leadingMHParams), mhParamCount+2, int[].class).asType(mt);
+            MethodHandle isSameValueType = dropArguments(dropArguments(IS_SAME_VALUE_CLASS, 0, leadingMHParams), mhParamCount+2, int[].class).asType(mt);
+
+            int index = recursiveTypes.indexOf(type);
+            var mtype = methodType(boolean.class, Stream.concat(leadingMHParams.stream(), Stream.of(type, type, int[].class)).collect(toList()));
+            var recurEq = RECUR_VALUE_EQ.asType(methodType(boolean.class, MethodHandle.class, type, type, int[].class));
+            var eq = permuteArguments(recurEq, mtype, index+1, mhParamCount, mhParamCount+1, mhParamCount+2);
+            eq = filterArguments(eq, mhParamCount+2, NEW_COUNTER);
+
+            // if both arguments are null, return true;
+            // otherwise return the method handle corresponding to this type
+            return guardWithTest(isNull,
+                                 instanceTrue,
+                                 guardWithTest(isSameValueType, eq, instanceFalse));
+        }
+
+        /*
+         * A base method for substitutability test for a recursive data type,
+         * a value class with cyclic membership.
+         *
+         * The signature of this base method is:
+         *    boolean base(MethodHandle entry, MethodHandle base1, MethodHandle base2, ..., V o1, V o2, int[] counter)
+         *
+         * where the first N+1 parameters are MethodHandle and N is the number of
+         * the recursive value types and followed with Object, Object and int[] parameters.
+         *
+         * This method first calls the method handle that tests the substitutability
+         * of all fields that are not recursively-typed, if any, and then test
+         * the substitutability of the fields that are of each recursive value type.
+         * The pseudo code looks like this:
+         *
+         * boolean base(MethodHandle entry, MethodHandle base1, MethodHandle base2, ..., V o1, V o2, int[] counter) {
+         *    if (o1 == null && o2 == null) return true;
+         *    if (o1 == null || o2 == null) return false;
+         *    if (o1.getClass() != o2. getClass()) return false;
+         *
+         *    for each non-recursively-typed field {
+         *        if (field value of o1 != field value of o2) return false;
+         *    }
+         *
+         *    for each recursively-typed field of type T {
+         *        if (--counter[0] == 0) throw new StackOverflowError();
+         *        // baseT is the method handle corresponding to the recursive type T
+         *        boolean rc = (boolean) baseT.invoke(o1, o2, counter);
+         *        if (!rc) return false;
+         *    }
+         *    return true;
+         * }
+         */
+        MethodHandle generateSubstBase(List<Class<?>> recursiveTypes) {
+            List<MethodHandle> nonRecurGetters = new ArrayList<>();
+            Map<Class<?>, List<MethodHandle>> recurGetters = new LinkedHashMap<>();
+            getterStream(type, TYPE_SORTER).forEach(mh -> {
+                Class<?> ft = fieldType(mh);
+                if (!this.recurFieldTypes.contains(ft)) {
+                    nonRecurGetters.add(mh);
+                } else {
+                    assert recursiveTypes.contains(ft);
+                    recurGetters.computeIfAbsent(ft, t -> new ArrayList<>()).add(mh);
+                }
+            });
+
+            // The first parameter is the method handle of the entry point
+            // followed with one MethodHandle for each recursive value type
+            List<Class<?>> leadingMHParams = new ArrayList<>();
+            int mhParamCount = recursiveTypes.size()+1;
+            for (int i=0; i < mhParamCount; i++) {
+                leadingMHParams.add(MethodHandle.class);
+            }
+
+            MethodType mt = methodType(boolean.class,
+                                       Stream.concat(leadingMHParams.stream(), Stream.of(type, type, int[].class)).collect(toList()));
+            var allParameters = mt.parameterList();
+
+            var instanceTrue = dropArguments(TRUE, 0, allParameters).asType(mt);
+            var instanceFalse = dropArguments(FALSE, 0, allParameters).asType(mt);
+            var accumulator = dropArguments(TRUE, 0, allParameters).asType(mt);
+            var isNull = dropArguments(dropArguments(IS_NULL, 0, leadingMHParams), mhParamCount+2, int[].class).asType(mt);
+            var isSameValueType = dropArguments(dropArguments(IS_SAME_VALUE_CLASS, 0, leadingMHParams), mhParamCount+2, int[].class).asType(mt);
+
+            // This value class contains cyclic membership.
+            // Create a method handle that first calls the method handle that tests
+            // the substitutability of all fields that are not recursively-typed, if any,
+            // and then test the substitutability of the fields that are of each recursive
+            // value type.
+            //
+            // Method handle for the substitutability test for recursive types is built
+            // before that for non-recursive types.
+            for (Map.Entry<Class<?>, List<MethodHandle>> e : recurGetters.entrySet()) {
+                Class<?> ft = e.getKey();
+                int index = recursiveTypes.indexOf(ft);
+                var mtype = methodType(boolean.class,
+                                Stream.concat(leadingMHParams.stream(), Stream.of(ft, ft, int[].class)).collect(toList()));
+                var recurEq = RECUR_VALUE_EQ.asType(methodType(boolean.class, MethodHandle.class, ft, ft, int[].class));
+                var eq = permuteArguments(recurEq, mtype, index+1, mhParamCount, mhParamCount+1, mhParamCount+2);
+                for (MethodHandle getter : e.getValue()) {
+                    assert ft == fieldType(getter);
+                    var thisFieldEqual = filterArguments(eq, mhParamCount, getter, getter);
+                    accumulator = guardWithTest(thisFieldEqual, accumulator, instanceFalse);
+                }
+            }
+
+            if (nonRecurGetters.isEmpty()) {
+                // if both arguments are null, return true;
+                // otherwise return accumulator;
+                return guardWithTest(isNull,
+                                     instanceTrue,
+                                     guardWithTest(isSameValueType, accumulator, instanceFalse));
+            } else {
+                // method handle for substitutability test of the non-recursive-typed fields
+                var mh = valueTypeEquals(type, nonRecurGetters);
+                mh = dropArguments(dropArguments(mh, 0, leadingMHParams), mhParamCount+2, int[].class).asType(mt);
+                return guardWithTest(mh, accumulator, instanceFalse);
+            }
+        }
+
+        /*
+         * Create a method handle where the first N+1 parameters are MethodHandle and
+         * N is the number of the recursive value types and followed with
+         * Object and int[] parameters.  The pseudo code looks like this:
+         *
+         * int hashCode(MethodHandle entry, MethodHandle base1, MethodHandle base2, ..., Object o, int[] counter) {
+         *    int[] newCounter = new int[] { counter[0]; }
+         *    return (int) baseT.invoke(o, newCounter);
+         * }
+         */
+        MethodHandle hashCodeEntry(List<Class<?>> recursiveTypes) {
+            List<Class<?>> leadingMHParams = new ArrayList<>();
+            int mhParamCount = recursiveTypes.size()+1;
+            // the first MethodHandle parameter is this entry point
+            // followed with MethodHandle parameter for each mutual exclusive value class
+            for (int i=0; i < mhParamCount; i++) {
+                leadingMHParams.add(MethodHandle.class);
+            }
+
+            int index = recursiveTypes.indexOf(type);
+            var mtype = methodType(int.class, Stream.concat(leadingMHParams.stream(), Stream.of(type, int[].class)).collect(toList()));
+            var recurHashCode = RECUR_VALUE_HASHCODE.asType(methodType(int.class, MethodHandle.class, type, int[].class));
+            var mh = permuteArguments(recurHashCode, mtype, index+1, mhParamCount, mhParamCount+1);
+            return filterArguments(mh, mhParamCount+1, NEW_COUNTER);
+        }
+
+        /**
+         * A base method for computing the hashcode for a recursive data type,
+         * a value class with cyclic membership.
+         *
+         * The signature of this base method is:
+         *    int base(MethodHandle entry, MethodHandle base1, MethodHandle base2, ..., V o, int[] counter)
+         *
+         * where the first N+1 parameters are MethodHandle and N is the number of
+         * the recursive value types and followed with Object and int[] parameters.
+         *
+         * This method will first invoke a method handle to compute the hash code
+         * of the not recursively-typed fields.  Then compute the hash code of the
+         * remaining recursively-typed fields.
+         */
+        MethodHandle generateHashCodeBase(List<Class<?>> recursiveTypes) {
+            assert status == Status.READY;
+
+            List<MethodHandle> nonRecurGetters = new ArrayList<>();
+            Map<Class<?>, List<MethodHandle>> recurGetters = new LinkedHashMap<>();
+            getterStream(type, null).forEach(mh -> {
+                Class<?> ft = fieldType(mh);
+                if (!this.recurFieldTypes.contains(ft)) {
+                    nonRecurGetters.add(mh);
+                } else {
+                    assert recursiveTypes.contains(ft);
+                    recurGetters.computeIfAbsent(ft, t -> new ArrayList<>()).add(mh);
+                }
+            });
+
+            int mhParamCount = recursiveTypes.size()+1;
+            List<Class<?>> leadingMHParams = new ArrayList<>();
+            for (int i=0; i < mhParamCount; i++) {    // include entry point
+                leadingMHParams.add(MethodHandle.class);
+            }
+
+            MethodType mt = methodType(int.class,
+                                       Stream.concat(leadingMHParams.stream(), Stream.of(type, int[].class)).collect(toList()));
+            var allParameters = mt.parameterList();
+            var hashCombiner = dropArguments(HASH_COMBINER, 2, allParameters);
+            var salt = dropArguments(constant(int.class, SALT), 0, allParameters);
+            var classHasher = dropArguments(hashCodeForType(Class.class).bindTo(type), 0, allParameters);
+            var accumulator = foldArguments(foldArguments(hashCombiner, 1, classHasher), 0, salt);
+            for (MethodHandle getter : nonRecurGetters) {
+                Class<?> ft = fieldType(getter);
+                var hasher = dropArguments(hashCodeForType(ft), 0, leadingMHParams);
+                var hashThisField = filterArguments(hasher, mhParamCount, getter);
+                var combineHashes = foldArguments(hashCombiner, 1, hashThisField);
+                accumulator = foldArguments(combineHashes, 0, accumulator);
+            }
+
+            for (Map.Entry<Class<?>, List<MethodHandle>> e : recurGetters.entrySet()) {
+                Class<?> ft = e.getKey();
+                int index = recursiveTypes.indexOf(ft);
+                var mtype = methodType(int.class, Stream.concat(leadingMHParams.stream(), Stream.of(ft, int[].class)).collect(toList()));
+                var recurHashCode = RECUR_VALUE_HASHCODE.asType(methodType(int.class, MethodHandle.class, ft, int[].class));
+                var hasher = permuteArguments(recurHashCode, mtype, index + 1, mhParamCount, mhParamCount + 1);
+                for (MethodHandle getter : e.getValue()) {
+                    assert ft == fieldType(getter);
+                    var hashThisField = filterArguments(hasher, mhParamCount, getter);
+                    var combineHashes = foldArguments(hashCombiner, 1, hashThisField);
+                    accumulator = foldArguments(combineHashes, 0, accumulator);
+                }
+            }
+            return accumulator;
+        }
+
+        private String debugString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(type.getName()).append(" ").append(status).append("\n");
+            sb.append(fieldValueTypes.stream().filter(c -> !recurFieldTypes.contains(c))
+                            .map(Class::getName)
+                            .collect(joining(" ", "  non-recursive types: ", "\n")));
+            sb.append(recurFieldTypes.stream().map(Class::getName)
+                            .collect(joining(" ", "  recursive types: ", "\n")));
+            for (var n : cyclicMembers.keySet()) {
+                List<Class<?>> cycle = cyclicMembers.get(n);
+                sb.append("  cycle: ");
+                int start = cycle.indexOf(n);
+                for (int i=start; i < cycle.size(); i++ ) {
+                    sb.append(cycle.get(i).getName()).append(" -> ");
+                }
+                for (int i=0; i < start; i++) {
+                    sb.append(cycle.get(i).getName()).append(" -> ");
+                }
+                sb.append(n.getName()).append("\n");
+            };
+            return sb.toString();
+        }
     }
 
     private static LinkageError newLinkageError(Throwable e) {
@@ -662,13 +1072,9 @@ final class ValueObjectMethods {
      * <li>If {@code a} and {@code b} are both values of the same builtin primitive type,
      *     this method returns {@code a == b} with the following exception:
      *     <ul>
-     *     <li> If {@code a} and {@code b} both represent {@code NaN},
-     *          this method returns {@code true}, even though {@code NaN == NaN}
-     *          has the value {@code false}.
-     *     <li> If {@code a} is floating point positive zero while {@code b} is
-     *          floating point negative zero, or vice versa, this method
-     *          returns {@code false}, even though {@code +0.0 == -0.0} has
-     *          the value {@code true}.
+     *     <li> For primitive types {@code float} and {@code double} the
+     *          comparison uses the raw bits corresponding to {@link Float#floatToRawIntBits(float)}
+     *          and {@link Double#doubleToRawLongBits(double)} respectively.
      *     </ul>
      * <li>If {@code a} and {@code b} are both instances of the same reference type,
      *     this method returns {@code a == b}.
@@ -712,12 +1118,12 @@ final class ValueObjectMethods {
      * @return {@code true} if the arguments are substitutable to each other;
      *         {@code false} otherwise.
      * @param <T> type
-     * @see Float#equals(Object)
-     * @see Double#equals(Object)
+     * @see Float#floatToRawIntBits(float)
+     * @see Double#doubleToRawLongBits(double)
      */
     private static <T> boolean isSubstitutable(T a, Object b) {
         if (VERBOSE) {
-            System.out.println("substitutable " + a + " vs " + b);
+            System.out.println("substitutable " + a.getClass() + ": " + a + " vs " + b);
         }
 
         // Called directly from the VM.
@@ -731,9 +1137,6 @@ final class ValueObjectMethods {
 
         try {
             Class<?> type = a.getClass();
-            if (PrimitiveClass.isPrimitiveClass(type)) {
-                type = PrimitiveClass.asValueType(type);
-            }
             return (boolean) substitutableInvoker(type).invoke(a, b);
         } catch (Error|RuntimeException e) {
             if (VERBOSE) e.printStackTrace();
@@ -753,8 +1156,8 @@ final class ValueObjectMethods {
      *     returns a method handle testing the two arguments are the same value,
      *     i.e. {@code a == b}.
      * <li>If {@code T} is {@code float} or {@code double}, this method
-     *     returns a method handle representing {@link Float#equals(Object)} or
-     *     {@link Double#equals(Object)} respectively.
+     *     returns a method handle representing {@link Float#floatToRawIntBits(float)} or
+     *     {@link Double#doubleToRawLongBits(double)} respectively.
      * <li>If {@code T} is a reference type that is not {@code Object} and not an
      *     interface, this method returns a method handle testing
      *     the two arguments are the same reference, i.e. {@code a == b}.
@@ -774,14 +1177,30 @@ final class ValueObjectMethods {
      * @return a method handle for substitutability test
      */
     private static <T> MethodHandle substitutableInvoker(Class<T> type) {
-        if (type.isPrimitive())
-            return MethodHandleBuilder.builtinPrimitiveEquals(type);
-
-        if (isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type)) {
+        if (type.isPrimitive()) {
+            return MethodHandleBuilder.builtinPrimitiveSubstitutable(type);
+        }
+        if (type.isValue()) {
             return SUBST_TEST_METHOD_HANDLES.get(type);
         }
         return MethodHandleBuilder.referenceTypeEquals(type);
     }
+
+    private static final ClassValue<MethodHandleBuilder> METHOD_HANDLE_BUILDERS = new ClassValue<>() {
+        @Override protected MethodHandleBuilder computeValue(Class<?> type) {
+            var builder = CACHED_METHOD_HANDLE_BUILDERS.get(type);
+            if (builder == null) {
+                builder = MethodHandleBuilder.newBuilder(type).build();
+            }
+            return builder;
+        }
+    };
+
+    // This cache is only used to propagate the builders of mutual recursive types
+    // A -> B -> C -> A as method handles for equals/hashCode for A, B, C are
+    // all precomputed.  This map should only be non-empty only during the short
+    // window propagating to the method handle builder class value.
+    private static Map<Class<?>, MethodHandleBuilder> CACHED_METHOD_HANDLE_BUILDERS = new ConcurrentHashMap<>();
 
     // store the method handle for value classes in ClassValue
     private static final ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
@@ -796,14 +1215,13 @@ final class ValueObjectMethods {
      * @return the hash code of the given value object.
      */
     private static int valueObjectHashCode(Object o) {
-        Class<?> c = o.getClass();
+        Class<?> type = o.getClass();
         try {
             // Note: javac disallows user to call super.hashCode if user implemented
             // risk for recursion for experts crafting byte-code
-            if (!c.isValue())
-                throw new InternalError("must be value or primitive class: " + c.getName());
+            if (!type.isValue())
+                throw new InternalError("must be value class: " + type.getName());
 
-            Class<?> type = PrimitiveClass.isPrimitiveClass(c) ? PrimitiveClass.asValueType(c) : c;
             return (int) HASHCODE_METHOD_HANDLES.get(type).invoke(o);
         } catch (Error|RuntimeException e) {
             throw e;
@@ -811,13 +1229,6 @@ final class ValueObjectMethods {
             if (VERBOSE) e.printStackTrace();
             throw new InternalError(e);
         }
-    }
-
-    /**
-     * Returns true if the given type is a value class.
-     */
-    private static boolean isValueClass(Class<?> type) {
-        return type.isValue() && !PrimitiveClass.isPrimitiveClass(type);
     }
 
     private static final ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
@@ -883,7 +1294,7 @@ final class ValueObjectMethods {
      *   return base2(&recursive, &recursive2, &recursive3, a2...);
      * }
      * R3 recursive3(A3... a3) {
-     *   return base2(&recursive, &recursive2, &recursive3, a3...);
+     *   return base3(&recursive, &recursive2, &recursive3, a3...);
      * }
      * R base(MethodHandle recur, MethodHandle recur2,
      *        MethodHandle recur3, A... a) {

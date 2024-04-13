@@ -472,8 +472,6 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
     case Bytecodes::_goto_w:
     case Bytecodes::_aconst_null:
     case Bytecodes::_new:
-    case Bytecodes::_aconst_init:
-    case Bytecodes::_withfield:
     case Bytecodes::_iconst_m1:
     case Bytecodes::_iconst_0:
     case Bytecodes::_iconst_1:
@@ -621,9 +619,12 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
       break;
 
     case Bytecodes::_return:
-      if (instruction->method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+      if (instruction->method()->intrinsic_id() == vmIntrinsics::_Object_init ||
+          (instruction->method()->is_object_constructor() && instruction->method()->holder()->is_inlinetype())) {
         // return from Object.init implicitly registers a finalizer
         // for the receiver if needed, so keep it alive.
+        // Value class constructors update the scalarized receiver. Keep it live so that
+        // we can find it after (chained) constructor calls and propagate updates to the caller.
         load_one(0);
       }
       break;
