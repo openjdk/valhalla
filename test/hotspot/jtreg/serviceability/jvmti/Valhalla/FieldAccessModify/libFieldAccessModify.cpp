@@ -62,9 +62,9 @@ static void printJValue(const char *prefix, JNIEnv *jni_env, char signature_type
     */
     char signature[64] = {};
     if (signature_type == 'Q' || signature_type == 'L') {
-        sprintf(signature, "(Ljava/lang/Object;)Ljava/lang/String;");
+        snprintf(signature, sizeof(signature), "(Ljava/lang/Object;)Ljava/lang/String;");
     } else {
-        sprintf(signature, "(%c)Ljava/lang/String;", signature_type);
+        snprintf(signature, sizeof(signature), "(%c)Ljava/lang/String;", signature_type);
     }
 
     jclass clsString = jni_env->FindClass("java/lang/String");

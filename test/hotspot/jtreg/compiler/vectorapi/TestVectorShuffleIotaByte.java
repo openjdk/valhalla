@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
  * @test
  * @bug 8265956
  * @modules jdk.incubator.vector
+ * @enablePreview
  * @run testng/othervm compiler.vectorapi.TestVectorShuffleIotaByte
  */
 

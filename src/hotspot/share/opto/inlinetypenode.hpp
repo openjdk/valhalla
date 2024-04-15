@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ protected:
     init_class_id(Class_InlineType);
     init_req(Oop, oop);
     Compile::current()->add_inline_type(this);
+    _is_larval = false;
   }
 
   enum { Control,    // Control input.
@@ -50,6 +51,13 @@ protected:
          Values      // Nodes corresponding to values of the inline type's fields.
                      // Nodes are connected in increasing order of the index of the field they correspond to.
   };
+
+  bool _is_larval;
+
+  virtual uint hash() const { return TypeNode::hash() + _is_larval; }
+  // TODO 8325106 why can't we gvn larvals?
+  virtual bool cmp(const Node &n) const { return TypeNode::cmp(n) && !((InlineTypeNode&)n)._is_larval && !_is_larval; }
+  virtual uint size_of() const { return sizeof(*this); }
 
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
@@ -72,24 +80,24 @@ public:
   ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
   InlineTypeNode* adjust_scalarization_depth_impl(GraphKit* kit, GrowableArray<ciType*>& visited);
 
-  static InlineTypeNode* make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited);
-  static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited);
-  static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited);
+  static InlineTypeNode* make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool is_larval = false);
+  static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited, bool is_larval = false);
+  static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform = true);
   static InlineTypeNode* make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited);
 
 public:
   // Create with default field values
-  static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
+  static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk, bool is_larval = false);
   // Create uninitialized
   static InlineTypeNode* make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk, bool null_free = true);
   // Create and initialize by loading the field values from an oop
-  static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true);
+  static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true, bool is_larval = false);
   // Create and initialize by loading the field values from a flat field or array
   static InlineTypeNode* make_from_flat(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = nullptr, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
   static InlineTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free = true);
   // Create with null field values
-  static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
+  static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk, bool transform = true);
 
   static bool is_multifield_scalarized(ciField* field);
   static bool is_multifield_scalarized(BasicType bt, int vec_len);
@@ -103,17 +111,20 @@ public:
 
   // Support for control flow merges
   bool has_phi_inputs(Node* region);
-  InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, bool is_init = false);
+  InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map = nullptr, bool is_init = false);
   InlineTypeNode* merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform);
   void add_new_path(Node* region);
 
   // Get oop for heap allocated inline type (may be TypePtr::NULL_PTR)
   Node* get_oop() const    { return in(Oop); }
-  void  set_oop(Node* oop) { set_req(Oop, oop); }
+  void  set_oop(PhaseGVN& gvn, Node* oop) { set_req_X(Oop, oop, &gvn); }
   Node* get_is_init() const { return in(IsInit); }
-  void  set_is_init(PhaseGVN& gvn, bool init = true) { set_req(IsInit, gvn.intcon(init ? 1 : 0)); }
+  void  set_is_init(PhaseGVN& gvn, bool init = true) { set_req_X(IsInit, gvn.intcon(init ? 1 : 0), &gvn); }
   Node* get_is_buffered() const { return in(IsBuffered); }
-  void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req(IsBuffered, gvn.intcon(buffered ? 1 : 0)); }
+  void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req_X(IsBuffered, gvn.intcon(buffered ? 1 : 0), &gvn); }
+
+  void set_is_larval(bool is_larval) { _is_larval = is_larval; }
+  bool is_larval() { return _is_larval; }
 
   // Get indices for inputs.
   static int   get_Oop_idx()    { return InlineTypeNode::Oop; }
@@ -142,7 +153,7 @@ public:
   // Store the inline type as a flat (headerless) representation
   void store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = nullptr, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
   // Store the field values to memory
-  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
+  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED, int offset = -1) const;
   // Initialize the inline type by loading its field values from memory
   void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, GrowableArray<ciType*>& visited, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Make sure that inline type is fully scalarized
@@ -152,7 +163,7 @@ public:
   InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
 
-  void replace_call_results(GraphKit* kit, CallNode* call, Compile* C, bool null_free = true);
+  void replace_call_results(GraphKit* kit, CallNode* call, Compile* C);
 
   // Allocate all non-flat inline type fields
   Node* allocate_fields(GraphKit* kit);
@@ -170,7 +181,7 @@ public:
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIdealLoop* phase);
 
-  virtual Node* Identity(PhaseGVN* phase);
+  InlineTypeNode* clone_if_required(PhaseGVN* gvn, SafePointNode* map, bool safe_for_replace = true);
 
   virtual const Type* Value(PhaseGVN* phase) const;
 

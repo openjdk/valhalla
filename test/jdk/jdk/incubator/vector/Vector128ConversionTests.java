@@ -36,6 +36,7 @@ import java.util.List;
  * @test
  * @modules jdk.incubator.vector
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @run testng/othervm  -XX:-TieredCompilation --add-opens jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED
  * Vector128ConversionTests
  */

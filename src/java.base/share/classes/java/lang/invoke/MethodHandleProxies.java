@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ import jdk.internal.classfile.ClassHierarchyResolver;
 import jdk.internal.classfile.Classfile;
 import jdk.internal.classfile.CodeBuilder;
 import jdk.internal.classfile.TypeKind;
-import jdk.internal.misc.ValhallaFeatures;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.module.Modules;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
@@ -371,7 +371,7 @@ public class MethodHandleProxies {
         return Classfile.of(ClassHierarchyResolverOption.of(ClassHierarchyResolver.ofClassLoading(loader)))
                         .build(proxyDesc, clb -> {
             clb.withSuperclass(CD_Object);
-            clb.withFlags((ValhallaFeatures.isEnabled() ? ACC_IDENTITY : 0) | ACC_FINAL | ACC_SYNTHETIC);
+            clb.withFlags((PreviewFeatures.isEnabled() ? ACC_IDENTITY  : 0) | ACC_FINAL | ACC_SYNTHETIC);
             clb.withInterfaceSymbols(ifaceDesc);
 
             // static and instance fields

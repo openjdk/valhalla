@@ -37,6 +37,7 @@ import java.util.List;
  * @requires (os.arch != "ppc64") & (os.arch != "ppc64le")
  * @modules jdk.incubator.vector
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @run testng/othervm/timeout=300  -XX:-TieredCompilation --add-opens jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED
  *      Vector64ConversionTests
  */

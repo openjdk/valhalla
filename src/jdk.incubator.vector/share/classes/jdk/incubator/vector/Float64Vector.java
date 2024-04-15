@@ -557,11 +557,11 @@ value class Float64Vector extends FloatVector {
         private final VectorPayloadMF16Z payload;
 
         Float64Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF16Z)(prepare(payload, offset, VSPECIES));
         }
 
         Float64Mask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF16Z)(prepare(val, VSPECIES));
         }
 
 
@@ -734,16 +734,16 @@ value class Float64Vector extends FloatVector {
         }
 
         public Float64Shuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF16B)(prepare(indexes, i, VSPECIES));
         }
 
         public Float64Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF16B)(prepare(fn, VSPECIES));
+        }
+        public Float64Shuffle(int[] indexes) {
+            this.payload = (VectorPayloadMF16B)(prepare(indexes, 0, VSPECIES));
         }
 
-        public Float64Shuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

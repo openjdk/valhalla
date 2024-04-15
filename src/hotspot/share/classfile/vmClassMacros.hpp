@@ -168,6 +168,16 @@
   /* support for stack dump lock analysis */                                                                    \
   do_klass(java_util_concurrent_locks_AbstractOwnableSynchronizer_klass, java_util_concurrent_locks_AbstractOwnableSynchronizer) \
                                                                                                                 \
+  /* support for vectors*/                                                                                      \
+  do_klass(vector_VectorSupport_klass,                  jdk_internal_vm_vector_VectorSupport                  ) \
+  do_klass(vector_VectorPayload_klass,                  jdk_internal_vm_vector_VectorPayload                  ) \
+  do_klass(vector_Vector_klass,                         jdk_internal_vm_vector_Vector                         ) \
+  do_klass(vector_VectorMask_klass,                     jdk_internal_vm_vector_VectorMask                     ) \
+  do_klass(vector_VectorShuffle_klass,                  jdk_internal_vm_vector_VectorShuffle                  ) \
+                                                                                                                \
+  /* support multi-field based vectors */                                                                       \
+  do_klass(vector_VectorPayloadMF_klass,                jdk_internal_vm_vector_VectorPayloadMF                ) \
+                                                                                                                \
   /* boxing klasses */                                                                                          \
   do_klass(Boolean_klass,                               java_lang_Boolean                                     ) \
   do_klass(Character_klass,                             java_lang_Character                                   ) \
@@ -183,16 +193,6 @@
                                                                                                                 \
   /* support for records */                                                                                     \
   do_klass(RecordComponent_klass,                       java_lang_reflect_RecordComponent                     ) \
-                                                                                                                \
-  /* support for vectors*/                                                                                      \
-  do_klass(vector_VectorSupport_klass,                  jdk_internal_vm_vector_VectorSupport                  ) \
-  do_klass(vector_VectorPayload_klass,                  jdk_internal_vm_vector_VectorPayload                  ) \
-  do_klass(vector_Vector_klass,                         jdk_internal_vm_vector_Vector                         ) \
-  do_klass(vector_VectorMask_klass,                     jdk_internal_vm_vector_VectorMask                     ) \
-  do_klass(vector_VectorShuffle_klass,                  jdk_internal_vm_vector_VectorShuffle                  ) \
-                                                                                                                \
-  /* support multi-field based vectors */                                                                       \
-  do_klass(vector_VectorPayloadMF_klass,                jdk_internal_vm_vector_VectorPayloadMF                ) \
                                                                                                                 \
   /* GC support */                                                                                              \
   do_klass(FillerObject_klass,                          jdk_internal_vm_FillerObject                          ) \

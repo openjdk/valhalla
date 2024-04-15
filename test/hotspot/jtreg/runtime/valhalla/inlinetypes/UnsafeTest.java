@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,9 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile Point.java UnsafeTest.java
- * @run main/othervm -XX:+EnableValhalla  -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 import jdk.internal.misc.Unsafe;
@@ -155,9 +156,9 @@ public class UnsafeTest {
         System.out.format("%s%s header size %d%n", indent, vc, U.valueHeaderSize(vc));
         for (Field f : vc.getDeclaredFields()) {
             System.out.format("%s%s: %s%s offset %d%n", indent, f.getName(),
-                              U.isFlattened(f) ? "flattened " : "", f.getType(),
+                              U.isFlatField(f) ? "flattened " : "", f.getType(),
                               U.objectFieldOffset(vc, f.getName()));
-            if (U.isFlattened(f)) {
+            if (U.isFlatField(f)) {
                 printValueClass(f.getType(), level+1);
             }
         }

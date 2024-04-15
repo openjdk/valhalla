@@ -36,6 +36,7 @@ import java.util.List;
  * @test
  * @modules jdk.incubator.vector
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @run testng/othervm  -XX:-TieredCompilation --add-opens jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED
  * VectorMaxConversionTests
  */
@@ -47,6 +48,7 @@ import java.util.List;
  * @requires vm.gc.ZSinglegen
  * @modules jdk.incubator.vector
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @run testng/othervm  -XX:-TieredCompilation --add-opens jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED
  *                      -XX:+UnlockDiagnosticVMOptions -XX:+UseKNLSetting -XX:+UseZGC -XX:-ZGenerational -XX:+IgnoreUnrecognizedVMOptions
  *                      VectorMaxConversionTests
@@ -59,6 +61,7 @@ import java.util.List;
  * @requires vm.gc.ZGenerational
  * @modules jdk.incubator.vector
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @run testng/othervm  -XX:-TieredCompilation --add-opens jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED
  *                      -XX:+UnlockDiagnosticVMOptions -XX:+UseKNLSetting -XX:+UseZGC -XX:+ZGenerational -XX:+IgnoreUnrecognizedVMOptions
  *                      VectorMaxConversionTests

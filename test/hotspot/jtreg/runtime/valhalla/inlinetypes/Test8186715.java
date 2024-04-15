@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
+ * @enablePreview
  * @compile Test8186715.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.Test8186715
+ * @run main/othervm runtime.valhalla.inlinetypes.Test8186715
  */
 
 public class Test8186715 {

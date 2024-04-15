@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "ci/ciEnv.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -86,6 +87,7 @@
 #include "runtime/stackValue.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/threadWXSetters.inline.hpp"
 #include "runtime/vframe.hpp"
@@ -1550,13 +1552,26 @@ static void reassign_vectorized_multi_fields(frame* fr, RegisterMap* reg_map, Lo
 static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
   GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
   InstanceKlass* ik = klass;
+  int skip_next_fields_cnt = 0;
   while (ik != nullptr) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-      if (!fs.access_flags().is_static() && !fs.is_multifield() && (!skip_internal || !fs.field_flags().is_injected())) {
+      if (skip_next_fields_cnt > 0) {
+         skip_next_fields_cnt--;
+         continue;
+      }
+      int bundle_size = 1;
+      bool is_multifield_scalarized = false;
+      if (fs.is_multifield_base()) {
+         BasicType ft = Signature::basic_type(fs.signature());
+         bundle_size = fs.field_descriptor().secondary_fields_count(fs.index());
+         is_multifield_scalarized = ciEnv::is_multifield_scalarized(ft, bundle_size);
+         skip_next_fields_cnt = !is_multifield_scalarized ? bundle_size - 1: 0;
+      }
+      if (!fs.access_flags().is_static() && (!skip_internal || !fs.field_flags().is_injected())) {
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        field._secondary_fields_count = fs.is_multifield_base() ? fs.field_descriptor().secondary_fields_count(fs.index()) : 1;
+        field._secondary_fields_count = !is_multifield_scalarized && fs.is_multifield_base() ? bundle_size : 1;
         if (fs.is_null_free_inline_type()) {
           if (fs.is_flat()) {
             field._is_flat = true;
@@ -1764,9 +1779,19 @@ bool Deoptimization::relock_objects(JavaThread* thread, GrowableArray<MonitorInf
             }
           }
         }
-        BasicLock* lock = mon_info->lock();
-        ObjectSynchronizer::enter(obj, lock, deoptee_thread);
-        assert(mon_info->owner()->is_locked(), "object must be locked now");
+        if (LockingMode == LM_LIGHTWEIGHT && exec_mode == Unpack_none) {
+          // We have lost information about the correct state of the lock stack.
+          // Inflate the locks instead. Enter then inflate to avoid races with
+          // deflation.
+          ObjectSynchronizer::enter(obj, nullptr, deoptee_thread);
+          assert(mon_info->owner()->is_locked(), "object must be locked now");
+          ObjectMonitor* mon = ObjectSynchronizer::inflate(deoptee_thread, obj(), ObjectSynchronizer::inflate_cause_vm_internal);
+          assert(mon->owner() == deoptee_thread, "must be");
+        } else {
+          BasicLock* lock = mon_info->lock();
+          ObjectSynchronizer::enter(obj, lock, deoptee_thread);
+          assert(mon_info->owner()->is_locked(), "object must be locked now");
+        }
       }
     }
   }

@@ -47,6 +47,7 @@ import jdk.test.lib.Utils;
  * @summary Add identity transformations for vector logic operations
  * @requires (os.simpleArch == "x64" & vm.cpu.features ~= ".*avx.*") | os.arch=="aarch64"
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.VectorLogicalOpIdentityTest
  */

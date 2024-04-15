@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  *  Copyright (c) 2021, Rado Smogura. All rights reserved.
  *
  *  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -26,13 +26,13 @@
 
 /*
  * @test
- * @enablePreview
  * @summary Test if memory ordering is preserved
  *
  * @run main/othervm -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+AbortVMOnCompilationFailure
  *      -XX:CompileThreshold=100 -XX:CompileCommand=dontinline,compiler.vectorapi.VectorMemoryAlias::test
  *      compiler.vectorapi.VectorMemoryAlias
  * @modules jdk.incubator.vector
+ * @enablePreview
  */
 
 package compiler.vectorapi;

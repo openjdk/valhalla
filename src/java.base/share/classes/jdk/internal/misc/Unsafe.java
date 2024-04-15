@@ -26,8 +26,6 @@
 package jdk.internal.misc;
 
 import jdk.internal.ref.Cleaner;
-import jdk.internal.value.PrimitiveClass;
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
@@ -183,20 +181,20 @@ public final class Unsafe {
     /**
      * Returns true if the given field is flattened.
      */
-    public boolean isFlattened(Field f) {
+    public boolean isFlatField(Field f) {
         if (f == null) {
             throw new NullPointerException();
         }
-        return isFlattenedField0(f);
+        return isFlatField0(f);
     }
 
-    private native boolean isFlattenedField0(Object o);
+    private native boolean isFlatField0(Object o);
 
     /**
      * Returns true if the given class is a flattened array.
      */
     @IntrinsicCandidate
-    public native boolean isFlattenedArray(Class<?> arrayClass);
+    public native boolean isFlatArray(Class<?> arrayClass);
 
     /**
      * Fetches a reference value from a given Java variable.
@@ -262,34 +260,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native <V> void putValue(Object o, long offset, Class<?> valueType, V v);
-
-    /**
-     * Fetches a reference value of the given type from a given Java variable.
-     * This method can return a reference to a value if it is non-null.
-     * If the value is null, this method returns a default value for
-     * primitive value types or null for identity classes and value classes.
-     *
-     * @param type type
-     */
-    public Object getReference(Object o, long offset, Class<?> type) {
-        Object ref = getReference(o, offset);
-        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
-            // If the type of the returned reference is a primitive value type,
-            // return the zero instance if null
-            ref = ValueClass.zeroInstance(type);
-        }
-        return ref;
-    }
-
-    public Object getReferenceVolatile(Object o, long offset, Class<?> type) {
-        Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
-            // If the type of the returned reference is a primitive value type,
-            // return the zero instance if null
-            ref = ValueClass.zeroInstance(type);
-        }
-        return ref;
-    }
 
     /**
      * Returns an uninitialized default instance of the given value class.

@@ -294,6 +294,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_arraycopy:                return inline_arraycopy();
 
+  case vmIntrinsics::_arraySort:                return inline_array_sort();
+  case vmIntrinsics::_arrayPartition:           return inline_array_partition();
+
   case vmIntrinsics::_compareToL:               return inline_string_compareTo(StrIntrinsicNode::LL);
   case vmIntrinsics::_compareToU:               return inline_string_compareTo(StrIntrinsicNode::UU);
   case vmIntrinsics::_compareToLU:              return inline_string_compareTo(StrIntrinsicNode::LU);
@@ -509,7 +512,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_writebackPostSync0:       return inline_unsafe_writebackSync0(false);
   case vmIntrinsics::_allocateInstance:         return inline_unsafe_allocate();
   case vmIntrinsics::_copyMemory:               return inline_unsafe_copyMemory();
-  case vmIntrinsics::_isFlattenedArray:         return inline_unsafe_isFlattenedArray();
+  case vmIntrinsics::_isFlatArray:              return inline_unsafe_isFlatArray();
   case vmIntrinsics::_getLength:                return inline_native_getLength();
   case vmIntrinsics::_copyOf:                   return inline_array_copyOf(false);
   case vmIntrinsics::_copyOfRange:              return inline_array_copyOf(true);
@@ -521,6 +524,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_allocateUninitializedArray: return inline_unsafe_newArray(true);
   case vmIntrinsics::_newArray:                   return inline_unsafe_newArray(false);
+  case vmIntrinsics::_newNullRestrictedArray:   return inline_newNullRestrictedArray();
 
   case vmIntrinsics::_isAssignableFrom:         return inline_native_subtype_check();
 
@@ -532,11 +536,6 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_isHidden:
   case vmIntrinsics::_getSuperclass:
   case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
-
-  case vmIntrinsics::_asPrimaryType:
-  case vmIntrinsics::_asPrimaryTypeArg:
-  case vmIntrinsics::_asValueType:
-  case vmIntrinsics::_asValueTypeArg:           return inline_primitive_Class_conversion(intrinsic_id());
 
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_floatToIntBits:
@@ -1120,6 +1119,7 @@ bool LibraryCallKit::inline_countPositives() {
   Node* ba_start = array_element_address(ba, offset, T_BYTE);
   Node* result = new CountPositivesNode(control(), memory(TypeAryPtr::BYTES), ba_start, len);
   set_result(_gvn.transform(result));
+  clear_upper_avx();
   return true;
 }
 
@@ -1374,6 +1374,7 @@ bool LibraryCallKit::inline_string_indexOfChar(StrIntrinsicNode::ArgEnc ae) {
   set_control(_gvn.transform(region));
   record_for_igvn(region);
   set_result(_gvn.transform(phi));
+  clear_upper_avx();
 
   return true;
 }
@@ -4111,36 +4112,6 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   return true;
 }
 
-//-------------------------inline_primitive_Class_conversion-------------------
-//               Class<T> java.lang.Class                  .asPrimaryType()
-// public static Class<T> jdk.internal.value.PrimitiveClass.asPrimaryType(Class<T>)
-//               Class<T> java.lang.Class                  .asValueType()
-// public static Class<T> jdk.internal.value.PrimitiveClass.asValueType(Class<T>)
-bool LibraryCallKit::inline_primitive_Class_conversion(vmIntrinsics::ID id) {
-  Node* mirror = argument(0); // Receiver/argument Class
-  const TypeInstPtr* mirror_con = _gvn.type(mirror)->isa_instptr();
-  if (mirror_con == nullptr) {
-    return false;
-  }
-
-  bool is_val_mirror = true;
-  ciType* tm = mirror_con->java_mirror_type(&is_val_mirror);
-  if (tm != nullptr) {
-    Node* result = mirror;
-    if ((id == vmIntrinsics::_asPrimaryType || id == vmIntrinsics::_asPrimaryTypeArg) && is_val_mirror) {
-      result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->ref_mirror()));
-    } else if (id == vmIntrinsics::_asValueType || id == vmIntrinsics::_asValueTypeArg) {
-      if (!tm->is_inlinetype()) {
-        return false; // Throw UnsupportedOperationException
-      } else if (!is_val_mirror) {
-        result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->val_mirror()));
-      }
-    }
-    set_result(result);
-    return true;
-  }
-  return false;
-}
 
 //-------------------------inline_Class_cast-------------------
 bool LibraryCallKit::inline_Class_cast() {
@@ -4157,8 +4128,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-  bool requires_null_check = false;
-  ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
+  ciType* tm = mirror_con->java_mirror_type();
   if (tm != nullptr && tm->is_klass() &&
       tp != nullptr) {
     if (!tp->is_loaded()) {
@@ -4168,9 +4138,6 @@ bool LibraryCallKit::inline_Class_cast() {
       int static_res = C->static_subtype_check(TypeKlassPtr::make(tm->as_klass(), Type::trust_interfaces), tp->as_klass_type());
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
-        if (requires_null_check) {
-          obj = null_check(obj);
-        }
         set_result(obj);
         return true;
       } else if (static_res == Compile::SSC_always_false) {
@@ -4191,9 +4158,6 @@ bool LibraryCallKit::inline_Class_cast() {
   // Class.cast() is java implementation of _checkcast bytecode.
   // Do checkcast (Parse::do_checkcast()) optimizations here.
 
-  if (requires_null_check) {
-    obj = null_check(obj);
-  }
   mirror = null_check(mirror);
   // If mirror is dead, only null-path is taken.
   if (stopped()) {
@@ -4214,26 +4178,6 @@ bool LibraryCallKit::inline_Class_cast() {
   Node* io = i_o();
   Node* mem = merged_memory();
   if (!stopped()) {
-    if (EnableValhalla && !requires_null_check) {
-      // Check if we are casting to QMyValue
-      Node* ctrl_val_mirror = generate_fair_guard(is_val_mirror(mirror), nullptr);
-      if (ctrl_val_mirror != nullptr) {
-        RegionNode* r = new RegionNode(3);
-        record_for_igvn(r);
-        r->init_req(1, control());
-
-        // Casting to QMyValue, check for null
-        set_control(ctrl_val_mirror);
-        { // PreserveJVMState because null check replaces obj in map
-          PreserveJVMState pjvms(this);
-          Node* null_ctr = top();
-          null_check_oop(obj, &null_ctr);
-          region->init_req(_npe_path, null_ctr);
-          r->init_req(2, control());
-        }
-        set_control(_gvn.transform(r));
-      }
-    }
 
     Node* bad_type_ctrl = top();
     // Do checkcast optimizations.
@@ -4324,10 +4268,6 @@ bool LibraryCallKit::inline_native_subtype_check() {
     Node* subk   = klasses[1];  // the argument to isAssignableFrom
     Node* superk = klasses[0];  // the receiver
     region->set_req(_both_ref_path, gen_subtype_check(subk, superk));
-    // If superc is an inline mirror, we also need to check if superc == subc because LMyValue
-    // is not a subtype of QMyValue but due to subk == superk the subtype check will pass.
-    generate_fair_guard(is_val_mirror(args[0]), prim_region);
-    // now we have a successful reference subtype check
     region->set_req(_ref_subtype_path, control());
   }
 
@@ -4429,6 +4369,34 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   return generate_fair_guard(bol, region);
 }
 
+//-----------------------inline_newNullRestrictedArray--------------------------
+// public static native Object[] newNullRestrictedArray(Class<?> componentType, int length);
+bool LibraryCallKit::inline_newNullRestrictedArray() {
+  Node* componentType = argument(0);
+  Node* length = argument(1);
+
+  const TypeInstPtr* tp = _gvn.type(componentType)->isa_instptr();
+  if (tp != nullptr) {
+    ciInstanceKlass* ik = tp->instance_klass();
+    if (ik == C->env()->Class_klass()) {
+      ciType* t = tp->java_mirror_type();
+      if (t != nullptr && t->is_inlinetype()) {
+        ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
+        if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
+          const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
+          array_klass_type = array_klass_type->cast_to_null_free();
+          Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false);  // no arguments to push
+          AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(obj);
+          alloc->set_null_free();
+          set_result(obj);
+          assert(gvn().type(obj)->is_aryptr()->is_null_free(), "must be null-free");
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 
 //-----------------------inline_native_newArray--------------------------
 // private static native Object java.lang.reflect.Array.newArray(Class<?> componentType, int length);
@@ -5266,11 +5234,12 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 
 #undef XTOP
 
-//----------------------inline_unsafe_isFlattenedArray-------------------
-// public native boolean Unsafe.isFlattenedArray(Class<?> arrayClass);
+// TODO 8325106 Remove this and corresponding tests. Flatness is not a property of the Class anymore with JEP 401.
+//----------------------inline_unsafe_isFlatArray------------------------
+// public native boolean Unsafe.isFlatArray(Class<?> arrayClass);
 // This intrinsic exploits assumptions made by the native implementation
 // (arrayClass is neither null nor primitive) to avoid unnecessary null checks.
-bool LibraryCallKit::inline_unsafe_isFlattenedArray() {
+bool LibraryCallKit::inline_unsafe_isFlatArray() {
   Node* cls = argument(1);
   Node* p = basic_plus_adr(cls, java_lang_Class::klass_offset());
   Node* kls = _gvn.transform(LoadKlassNode::make(_gvn, nullptr, immutable_memory(), p,
@@ -5585,12 +5554,24 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
   for (uint i = 0; i < size; i++) {
     sfpt->init_req(i, alloc->in(i));
   }
+  int adjustment = 1;
+  // TODO 8325106 why can't we check via the type of the const klass node?
+  if (alloc->is_null_free()) {
+    // A null-free, tightly coupled array allocation can only come from LibraryCallKit::inline_newNullRestrictedArray
+    // which requires both the component type and the array length on stack for re-execution. Re-create and push
+    // the component type.
+    ciArrayKlass* klass = alloc->in(AllocateNode::KlassNode)->bottom_type()->is_aryklassptr()->exact_klass()->as_array_klass();
+    ciInstance* instance = klass->component_mirror_instance();
+    const TypeInstPtr* t_instance = TypeInstPtr::make(instance);
+    sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp(), makecon(t_instance));
+    adjustment++;
+  }
   // re-push array length for deoptimization
-  sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp(), alloc->in(AllocateNode::ALength));
-  old_jvms->set_sp(old_jvms->sp()+1);
-  old_jvms->set_monoff(old_jvms->monoff()+1);
-  old_jvms->set_scloff(old_jvms->scloff()+1);
-  old_jvms->set_endoff(old_jvms->endoff()+1);
+  sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp() + adjustment - 1, alloc->in(AllocateNode::ALength));
+  old_jvms->set_sp(old_jvms->sp() + adjustment);
+  old_jvms->set_monoff(old_jvms->monoff() + adjustment);
+  old_jvms->set_scloff(old_jvms->scloff() + adjustment);
+  old_jvms->set_endoff(old_jvms->endoff() + adjustment);
   old_jvms->set_should_reexecute(true);
 
   sfpt->set_i_o(map()->i_o());
@@ -5746,6 +5727,107 @@ void LibraryCallKit::create_new_uncommon_trap(CallStaticJavaNode* uncommon_trap_
   _gvn.hash_delete(uncommon_trap_call);
   uncommon_trap_call->set_req(0, top()); // not used anymore, kill it
 }
+
+//------------------------------inline_array_partition-----------------------
+bool LibraryCallKit::inline_array_partition() {
+
+  Node* elementType     = null_check(argument(0));
+  Node* obj             = argument(1);
+  Node* offset          = argument(2);
+  Node* fromIndex       = argument(4);
+  Node* toIndex         = argument(5);
+  Node* indexPivot1     = argument(6);
+  Node* indexPivot2     = argument(7);
+
+  Node* pivotIndices = nullptr;
+
+  // Set the original stack and the reexecute bit for the interpreter to reexecute
+  // the bytecode that invokes DualPivotQuicksort.partition() if deoptimization happens.
+  { PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+
+    const TypeInstPtr* elem_klass = gvn().type(elementType)->isa_instptr();
+    ciType* elem_type = elem_klass->const_oop()->as_instance()->java_mirror_type();
+    BasicType bt = elem_type->basic_type();
+    address stubAddr = nullptr;
+    stubAddr = StubRoutines::select_array_partition_function();
+    // stub not loaded
+    if (stubAddr == nullptr) {
+      return false;
+    }
+    // get the address of the array
+    const TypeAryPtr* obj_t = _gvn.type(obj)->isa_aryptr();
+    if (obj_t == nullptr || obj_t->elem() == Type::BOTTOM ) {
+      return false; // failed input validation
+    }
+    Node* obj_adr = make_unsafe_address(obj, offset);
+
+    // create the pivotIndices array of type int and size = 2
+    Node* size = intcon(2);
+    Node* klass_node = makecon(TypeKlassPtr::make(ciTypeArrayKlass::make(T_INT)));
+    pivotIndices = new_array(klass_node, size, 0);  // no arguments to push
+    AllocateArrayNode* alloc = tightly_coupled_allocation(pivotIndices);
+    guarantee(alloc != nullptr, "created above");
+    Node* pivotIndices_adr = basic_plus_adr(pivotIndices, arrayOopDesc::base_offset_in_bytes(T_INT));
+
+    // pass the basic type enum to the stub
+    Node* elemType = intcon(bt);
+
+    // Call the stub
+    const char *stubName = "array_partition_stub";
+    make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::array_partition_Type(),
+                      stubAddr, stubName, TypePtr::BOTTOM,
+                      obj_adr, elemType, fromIndex, toIndex, pivotIndices_adr,
+                      indexPivot1, indexPivot2);
+
+  } // original reexecute is set back here
+
+  if (!stopped()) {
+    set_result(pivotIndices);
+  }
+
+  return true;
+}
+
+
+//------------------------------inline_array_sort-----------------------
+bool LibraryCallKit::inline_array_sort() {
+
+  Node* elementType     = null_check(argument(0));
+  Node* obj             = argument(1);
+  Node* offset          = argument(2);
+  Node* fromIndex       = argument(4);
+  Node* toIndex         = argument(5);
+
+  const TypeInstPtr* elem_klass = gvn().type(elementType)->isa_instptr();
+  ciType* elem_type = elem_klass->const_oop()->as_instance()->java_mirror_type();
+  BasicType bt = elem_type->basic_type();
+  address stubAddr = nullptr;
+  stubAddr = StubRoutines::select_arraysort_function();
+  //stub not loaded
+  if (stubAddr == nullptr) {
+    return false;
+  }
+
+  // get address of the array
+  const TypeAryPtr* obj_t = _gvn.type(obj)->isa_aryptr();
+  if (obj_t == nullptr || obj_t->elem() == Type::BOTTOM ) {
+    return false; // failed input validation
+  }
+  Node* obj_adr = make_unsafe_address(obj, offset);
+
+  // pass the basic type enum to the stub
+  Node* elemType = intcon(bt);
+
+  // Call the stub.
+  const char *stubName = "arraysort_stub";
+  make_runtime_call(RC_LEAF|RC_NO_FP, OptoRuntime::array_sort_Type(),
+                    stubAddr, stubName, TypePtr::BOTTOM,
+                    obj_adr, elemType, fromIndex, toIndex);
+
+  return true;
+}
+
 
 //------------------------------inline_arraycopy-----------------------
 // public static native void java.lang.System.arraycopy(Object src,  int  srcPos,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,7 @@ public class InlineOpt extends StatesQOpt {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int Val_as_Ref_fields(Val_as_Ref st) {
         int s = 0;
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].value.intValue();
         }
@@ -57,7 +57,7 @@ public class InlineOpt extends StatesQOpt {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int Ref_as_Ref_fields(Ref_as_Ref st) {
         int s = 0;
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].value.intValue();
         }
@@ -79,7 +79,7 @@ public class InlineOpt extends StatesQOpt {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int Val_as_Ref_sum(Val_as_Ref st) {
         int s = 0;
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].get().intValue();
         }
@@ -90,7 +90,7 @@ public class InlineOpt extends StatesQOpt {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int Ref_as_Ref_sum(Ref_as_Ref st) {
         int s = 0;
-        QOpt.ref<Int32>[] arr = st.arr;
+        QOpt<Int32>[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].get().intValue();
         }

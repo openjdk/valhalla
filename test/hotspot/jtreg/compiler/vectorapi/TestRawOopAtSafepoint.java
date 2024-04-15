@@ -32,6 +32,7 @@ import jdk.test.lib.Asserts;
  * @summary Verify that CheckCastPPs with raw oop inputs are not floating below a safepoint.
  * @library /test/lib
  * @modules jdk.incubator.vector
+ * @enablePreview
  * @run main/othervm -XX:-TieredCompilation -Xbatch
  *                   -XX:CompileCommand=compileonly,compiler.vectorapi.TestRawOopAtSafepoint::test*
  *                   -XX:CompileCommand=dontinline,compiler.vectorapi.TestRawOopAtSafepoint::safepoint

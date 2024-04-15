@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,8 +34,9 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires (os.family == "linux" | os.family == "mac")
+ * @enablePreview
  * @compile TestJNIIsSameObject.java
- * @run main/othervm/native -XX:+EnableValhalla TestJNIIsSameObject
+ * @run main/othervm/native TestJNIIsSameObject
  */
 
 public class TestJNIIsSameObject {

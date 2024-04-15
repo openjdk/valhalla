@@ -321,11 +321,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
 
   // "lock" stores the address of the monitor stack slot, so this is not an oop
   LIR_Opr lock = new_register(T_INT);
-  // Need a scratch register for inline type
-  LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (EnableValhalla && x->maybe_inlinetype()) {
-    scratch = new_register(T_INT);
-  }
+  LIR_Opr scratch = new_register(T_INT);
 
   CodeEmitInfo* info_for_exception = nullptr;
   if (x->needs_null_check()) {
@@ -341,7 +337,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   // object is already locked (xhandlers expect object to be unlocked)
   CodeEmitInfo* info = state_for(x, x->state(), true);
   monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
-                        x->monitor_no(), info_for_exception, info, throw_imse_stub);
+                x->monitor_no(), info_for_exception, info, throw_imse_stub);
 }
 
 
@@ -353,8 +349,9 @@ void LIRGenerator::do_MonitorExit(MonitorExit* x) {
 
   LIR_Opr lock = new_register(T_INT);
   LIR_Opr obj_temp = new_register(T_INT);
+  LIR_Opr scratch = new_register(T_INT);
   set_no_result(x);
-  monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no());
+  monitor_exit(obj_temp, lock, syncTempOpr(), scratch, x->monitor_no());
 }
 
 void LIRGenerator::do_NegateOp(NegateOp* x) {
@@ -1139,7 +1136,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
     tty->print_cr("   ###class not loaded at new bci %d", x->printable_bci());
   }
 #endif
-  CodeEmitInfo* info = state_for(x, x->state());
+  CodeEmitInfo* info = state_for(x, x->needs_state_before() ? x->state_before() : x->state());
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), x->is_unresolved(),
                /* allow_inline */ false,
@@ -1150,23 +1147,6 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
                FrameMap::r3_metadata_opr, info);
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
-}
-
-void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
-  // Mapping to do_NewInstance (same code) but use state_before for reexecution.
-  CodeEmitInfo* info = state_for(x, x->state_before());
-  x->set_to_object_type();
-  LIR_Opr reg = result_register_for(x->type());
-  new_instance(reg, x->klass(), false,
-               /* allow_inline */ true,
-               FrameMap::r10_oop_opr,
-               FrameMap::r11_oop_opr,
-               FrameMap::r4_oop_opr,
-               LIR_OprFact::illegalOpr,
-               FrameMap::r3_metadata_opr, info);
-  LIR_Opr result = rlock_result(x);
-  __ move(reg, result);
-
 }
 
 void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {

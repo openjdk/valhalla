@@ -1140,6 +1140,9 @@ JVM_GetTemporaryDirectory(JNIEnv *env);
 JNIEXPORT jarray JNICALL
 JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len);
 
+JNIEXPORT jboolean JNICALL
+JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj);
+
 /* Generics reflection support.
  *
  * Returns information about the given class's EnclosingMethod

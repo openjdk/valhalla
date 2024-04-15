@@ -250,10 +250,6 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   }
 
   switch (id) {
-  case vmIntrinsics::_asPrimaryType:
-  case vmIntrinsics::_asPrimaryTypeArg:
-  case vmIntrinsics::_asValueType:
-  case vmIntrinsics::_asValueTypeArg:
   case vmIntrinsics::_isInstance:
   case vmIntrinsics::_isAssignableFrom:
   case vmIntrinsics::_getModifiers:
@@ -265,6 +261,7 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_Class_cast:
   case vmIntrinsics::_getLength:
   case vmIntrinsics::_newArray:
+  case vmIntrinsics::_newNullRestrictedArray:
   case vmIntrinsics::_getClass:
     if (!InlineClassNatives) return true;
     break;

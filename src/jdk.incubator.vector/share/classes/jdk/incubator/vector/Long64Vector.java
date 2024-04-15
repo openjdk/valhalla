@@ -556,11 +556,11 @@ value class Long64Vector extends LongVector {
         private final VectorPayloadMF8Z payload;
 
         Long64Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF8Z)(prepare(payload, offset, VSPECIES));
         }
 
         Long64Mask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF8Z)(prepare(val, VSPECIES));
         }
 
 
@@ -733,16 +733,16 @@ value class Long64Vector extends LongVector {
         }
 
         public Long64Shuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF8B)(prepare(indexes, i, VSPECIES));
         }
 
         public Long64Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF8B)(prepare(fn, VSPECIES));
+        }
+        public Long64Shuffle(int[] indexes) {
+            this.payload = (VectorPayloadMF8B)(prepare(indexes, 0, VSPECIES));
         }
 
-        public Long64Shuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

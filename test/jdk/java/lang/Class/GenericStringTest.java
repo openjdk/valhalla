@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,9 @@
  * @bug 6298888 6992705 8161500 6304578
  * @summary Check Class.toGenericString()
  * @author Joseph D. Darcy
- * @compile -XDenablePrimitiveClasses GenericStringTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses GenericStringTest
+ * @enablePreview
+ * @compile GenericStringTest.java
+ * @run main/othervm GenericStringTest
  */
 
 import java.lang.reflect.*;
@@ -73,8 +74,7 @@ public class GenericStringTest {
                                      LocalMap.class,
                                      AnEnum.class,
                                      AnotherEnum.class,
-                                     AValueClass.class,
-                                     APrimitiveClass.class)) {
+                                     AValueClass.class)) {
             failures += checkToGenericString(clazz, clazz.getAnnotation(ExpectedGenericString.class).value());
         }
 
@@ -118,6 +118,3 @@ enum AnotherEnum {
 
 @ExpectedGenericString("final value class AValueClass<E>")
 value class AValueClass<E> {}
-
-@ExpectedGenericString("final primitive class APrimitiveClass<E>")
-primitive class APrimitiveClass<E> {}

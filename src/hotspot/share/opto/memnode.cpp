@@ -245,7 +245,8 @@ Node *MemNode::optimize_memory_chain(Node *mchain, const TypePtr *t_adr, Node *l
       // clone the Phi with our address type
       result = mphi->split_out_instance(t_adr, igvn);
     } else {
-      assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
+      // TODO 8325106
+      // assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
     }
   }
   return result;
@@ -598,8 +599,13 @@ Node* LoadNode::find_previous_arraycopy(PhaseValues* phase, Node* ld_alloc, Node
         Node* dest = ac->in(ArrayCopyNode::Dest);
 
         if (dest == ld_base) {
-          const TypeX *ld_offs_t = phase->type(ld_offs)->isa_intptr_t();
-          if (ac->modifies(ld_offs_t->_lo, ld_offs_t->_hi, phase, can_see_stored_value)) {
+          const TypeX* ld_offs_t = phase->type(ld_offs)->isa_intptr_t();
+          assert(!ld_offs_t->empty(), "dead reference should be checked already");
+          // Take into account vector or unsafe access size
+          jlong ld_size_in_bytes = (jlong)memory_size();
+          jlong offset_hi = ld_offs_t->_hi + ld_size_in_bytes - 1;
+          offset_hi = MIN2(offset_hi, (jlong)(TypeX::MAX->_hi)); // Take care for overflow in 32-bit VM
+          if (ac->modifies(ld_offs_t->_lo, (intptr_t)offset_hi, phase, can_see_stored_value)) {
             return ac;
           }
           if (!can_see_stored_value) {
@@ -977,7 +983,7 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
                          (tp != nullptr) && (tp->isa_aryptr() != nullptr) &&
                          tp->isa_aryptr()->is_stable();
 
-    return (eliminate_boxing && non_volatile) || is_stable_ary;
+    return (eliminate_boxing && non_volatile) || is_stable_ary || tp->is_inlinetypeptr();
   }
 
   return false;
@@ -2065,24 +2071,6 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != nullptr && const_oop->is_instance()) {
-      ciType* mirror_type = const_oop->as_instance()->java_mirror_type();
-      if (mirror_type != nullptr) {
-        const Type* const_oop = nullptr;
-        ciInlineKlass* vk = mirror_type->is_inlinetype() ? mirror_type->as_inline_klass() : nullptr;
-        // Fold default value loads
-        if (vk != nullptr && off == vk->default_value_offset()) {
-          const_oop = TypeInstPtr::make(vk->default_instance());
-        }
-        // Fold class mirror loads
-        if (off == java_lang_Class::primary_mirror_offset()) {
-          const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->ref_instance());
-        } else if (off == java_lang_Class::secondary_mirror_offset()) {
-          const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->val_instance());
-        }
-        if (const_oop != nullptr) {
-          return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
-        }
-      }
       const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), bt);
       if (con_type != nullptr) {
         return con_type;
@@ -2119,6 +2107,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     } else {
       // Check for a load of the default value offset from the InlineKlassFixedBlock:
       // LoadI(LoadP(inline_klass, adr_inlineklass_fixed_block_offset), default_value_offset_offset)
+      // TODO 8325106 remove?
       intptr_t offset = 0;
       Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
       if (base != nullptr && base->is_Load() && offset == in_bytes(InlineKlass::default_value_offset_offset())) {
@@ -2444,8 +2433,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             offset == java_lang_Class::array_klass_offset())) {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
-      bool null_free = false;
-      ciType* t = tinst->java_mirror_type(&null_free);
+      ciType* t = tinst->java_mirror_type();
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != nullptr) {
         // constant oop => constant klass
@@ -2455,7 +2443,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          return TypeKlassPtr::make(ciArrayKlass::make(t, null_free), Type::trust_interfaces);
+          return TypeKlassPtr::make(ciArrayKlass::make(t), Type::trust_interfaces);
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has null for a klass field

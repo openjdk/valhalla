@@ -24,6 +24,7 @@
 /**
  * @test
  * @modules jdk.incubator.vector
+ * @enablePreview
  */
 
 import jdk.incubator.vector.*;

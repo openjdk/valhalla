@@ -66,14 +66,14 @@ public class NewObjects {
 
     @TADescription(annotation = "TA", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE)
     public String eqtestObject() {
-        return "void eqtestObject() { if (null == new @TA String()); }";
+        return "void eqtestObject(String s) { if (s == new @TA String()); }";
     }
 
     @TADescription(annotation = "TA", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE)
     @TADescription(annotation = "TB", type = NEW,
             genericLocation = { 3, 0 }, offset = ReferenceInfoUtil.IGNORE_VALUE)
     public String eqtestObjectGeneric() {
-        return "void eqtestObjectGeneric() { if (null == new @TA ArrayList<@TB String >()); }";
+        return "void eqtestObjectGeneric(ArrayList<String> as) { if (as == new @TA ArrayList<@TB String >()); }";
     }
 
     @TADescription(annotation = "TA", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE,
@@ -170,14 +170,14 @@ public class NewObjects {
 
     @TADescription(annotation = "RTAs", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE)
     public String eqtestObjectRepeatableAnnotation() {
-        return "void eqtestObject() { if (null == new @RTA @RTA String()); }";
+        return "void eqtestObject(String s) { if (s == new @RTA @RTA String()); }";
     }
 
     @TADescription(annotation = "RTAs", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE)
     @TADescription(annotation = "RTBs", type = NEW,
             genericLocation = { 3, 0 }, offset = ReferenceInfoUtil.IGNORE_VALUE)
     public String eqtestObjectGenericRepeatableAnnotation() {
-        return "void eqtestObjectGeneric() { if (null == new @RTA @RTA ArrayList<@RTB @RTB String >()); }";
+        return "void eqtestObjectGeneric(ArrayList<String> as) { if (as == new @RTA @RTA ArrayList<@RTB @RTB String >()); }";
     }
 
     @TADescription(annotation = "RTAs", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE,

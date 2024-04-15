@@ -25,10 +25,16 @@
 package jdk.incubator.vector;
 
 import java.lang.foreign.MemorySegment;
+
+import jdk.internal.foreign.AbstractMemorySegmentImpl;
+import jdk.internal.foreign.Utils;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.vector.VectorSupport;
 
+import java.lang.foreign.ValueLayout;
+import java.lang.reflect.Array;
 import java.nio.ByteOrder;
+import java.util.Objects;
 import java.util.function.IntUnaryOperator;
 import jdk.internal.misc.Unsafe;
 
@@ -36,7 +42,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 import static jdk.internal.vm.vector.VectorSupport.*;
 
 @SuppressWarnings({"cast", "missing-explicit-ctor"})
-abstract class AbstractVector<E> extends Vector<E> {
+abstract value class AbstractVector<E> extends Vector<E> {
     /**
      * The order of vector bytes when stored in natural,
      * array elements of the same lane type.
@@ -382,6 +388,7 @@ abstract class AbstractVector<E> extends Vector<E> {
             } else {  // Contraction: cast first then unslice.
                 return rsp.zero().slice(rsp.laneCount() - origin,
                                         convert0(kind, rsp));
+
             }
         }
     }

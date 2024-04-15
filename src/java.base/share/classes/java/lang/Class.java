@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,9 +82,9 @@ import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.ConstantPool;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+import jdk.internal.vm.annotation.Stable;
 
 import sun.invoke.util.Wrapper;
 import sun.reflect.generics.factory.CoreReflectionFactory;
@@ -265,22 +265,8 @@ public final class Class<T> implements java.io.Serializable,
      * @return a string representation of this {@code Class} object.
      */
     public String toString() {
-        String s = getName();
-        if (isPrimitive()) {
-            return s;
-        }
-        // Avoid invokedynamic based String concat, might be not available
-        // Prepend type of class
-        s = (isInterface() ? "interface " : "class ").concat(s);
-        if (isValue()) {
-            // prepend value class type
-            s = (isPrimitiveClass() ? "primitive " : "value ").concat(s);
-            if (isPrimitiveClass() && isPrimaryType()) {
-                // Append .ref
-                s = s.concat(".ref");
-            }
-        }
-        return s;
+        String kind = isInterface() ? "interface " : isPrimitive() ? "" : "class ";
+        return kind.concat(getName());
     }
 
     /**
@@ -344,7 +330,7 @@ public final class Class<T> implements java.io.Serializable,
                     sb.append('@');
                 }
                 if (isValue()) {
-                    sb.append(isPrimitiveClass() ? "primitive " : "value ");
+                    sb.append("value ");
                 }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");
@@ -560,8 +546,8 @@ public final class Class<T> implements java.io.Serializable,
 
     /** Called after security check for system loader access checks have been made. */
     private static native Class<?> forName0(String name, boolean initialize,
-                                    ClassLoader loader,
-                                    Class<?> caller)
+                                            ClassLoader loader,
+                                            Class<?> caller)
         throws ClassNotFoundException;
 
 
@@ -652,34 +638,6 @@ public final class Class<T> implements java.io.Serializable,
         }
     }
 
-    // set by VM if this class is an exotic type such as primitive class
-    // otherwise, these two fields are null
-    private transient Class<T> primaryType;
-    private transient Class<T> secondaryType;
-
-    /**
-     * Returns {@code true} if this class is a primitive class.
-     * <p>
-     * Each primitive class has a {@linkplain #isPrimaryType() primary type}
-     * representing the <em>primitive reference type</em> and a
-     * {@linkplain #isPrimitiveValueType() secondary type} representing
-     * the <em>primitive value type</em>.  The primitive reference type
-     * and primitive value type can be obtained by calling the
-     * {@link #asPrimaryType()} and {@link #asValueType} method
-     * of a primitive class respectively.
-     * <p>
-     * A primitive class is a {@linkplain #isValue() value class}.
-     *
-     * @return {@code true} if this class is a primitive class, otherwise {@code false}
-     * @see #isValue()
-     * @see #asPrimaryType()
-     * @see #asValueType()
-     * @since Valhalla
-     */
-    /* package */ boolean isPrimitiveClass() {
-        return (this.getModifiers() & PrimitiveClass.PRIMITIVE_CLASS) != 0;
-    }
-
     /**
      * {@return {@code true} if this {@code Class} object represents an identity
      * class or interface; otherwise {@code false}}
@@ -696,98 +654,21 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * {@return {@code true} if this {@code Class} object represents a value
-     * class or interface; otherwise {@code false}}
+     * class; otherwise {@code false}}
      *
-     * If this {@code Class} object represents an array type, a primitive type, or
-     * {@code void}, then this method returns {@code false}.
+     * If this {@code Class} object represents an array type, an interface,
+     * a primitive type, or {@code void}, then this method returns {@code false}.
      *
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     public boolean isValue() {
-        return (this.getModifiers() & Modifier.VALUE) != 0;
-    }
-
-    /**
-     * Returns a {@code Class} object representing the primary type
-     * of this class or interface.
-     * <p>
-     * If this {@code Class} object represents a primitive type or an array type,
-     * then this method returns this class.
-     * <p>
-     * If this {@code Class} object represents a {@linkplain #isPrimitiveClass()
-     * primitive class}, then this method returns the <em>primitive reference type</em>
-     * type of this primitive class.
-     * <p>
-     * Otherwise, this {@code Class} object represents a non-primitive class or interface
-     * and this method returns this class.
-     *
-     * @return the {@code Class} representing the primary type of
-     *         this class or interface
-     * @since Valhalla
-     */
-    @IntrinsicCandidate
-    /* package */ Class<?> asPrimaryType() {
-        return isPrimitiveClass() ? primaryType : this;
-    }
-
-    /**
-     * Returns a {@code Class} object representing the <em>primitive value type</em>
-     * of this class if this class is a {@linkplain #isPrimitiveClass() primitive class}.
-     *
-     * @apiNote Alternatively, this method returns null if this class is not
-     *          a primitive class rather than throwing UOE.
-     *
-     * @return the {@code Class} representing the {@linkplain #isPrimitiveValueType()
-     * primitive value type} of this class if this class is a primitive class
-     * @throws UnsupportedOperationException if this class or interface
-     *         is not a primitive class
-     * @since Valhalla
-     */
-    @IntrinsicCandidate
-    /* package */ Class<?> asValueType() {
-        if (isPrimitiveClass())
-            return secondaryType;
-
-        throw new UnsupportedOperationException(this.getName().concat(" is not a primitive class"));
-    }
-
-    /**
-     * Returns {@code true} if this {@code Class} object represents the primary type
-     * of this class or interface.
-     * <p>
-     * If this {@code Class} object represents a primitive type or an array type,
-     * then this method returns {@code true}.
-     * <p>
-     * If this {@code Class} object represents a {@linkplain #isPrimitiveClass()
-     * primitive}, then this method returns {@code true} if this {@code Class}
-     * object represents a primitive reference type, or returns {@code false}
-     * if this {@code Class} object represents a primitive value type.
-     * <p>
-     * If this {@code Class} object represents a non-primitive class or interface,
-     * then this method returns {@code true}.
-     *
-     * @return {@code true} if this {@code Class} object represents
-     * the primary type of this class or interface
-     * @since Valhalla
-     */
-    /* package */ boolean isPrimaryType() {
-        if (isPrimitiveClass()) {
-            return this == primaryType;
+        if (!PreviewFeatures.isEnabled()) {
+            return false;
         }
-        return true;
-    }
-
-    /**
-     * Returns {@code true} if this {@code Class} object represents
-     * a {@linkplain #isPrimitiveClass() primitive} value type.
-     *
-     * @return {@code true} if this {@code Class} object represents
-     * the value type of a primitive class
-     * @since Valhalla
-     */
-    /* package */ boolean isPrimitiveValueType() {
-        return isPrimitiveClass() && this == secondaryType;
+         if (isPrimitive() || isArray() || isInterface())
+             return false;
+        return ((getModifiers() & Modifier.IDENTITY) == 0);
     }
 
     /**
@@ -1219,6 +1100,7 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     // set by VM
+    @Stable
     private transient Module module;
 
     // Initialized in JVM not by private constructor
@@ -1546,8 +1428,6 @@ public final class Class<T> implements java.io.Serializable,
      * {@code private}, {@code final}, {@code static},
      * {@code abstract} and {@code interface}; they should be decoded
      * using the methods of class {@code Modifier}.
-     * The modifiers also include the Java Virtual Machine's constants for
-     * {@code identity class} and {@code value class}.
      *
      * <p> If the underlying class is an array class:
      * <ul>
@@ -1619,8 +1499,11 @@ public final class Class<T> implements java.io.Serializable,
                 getClassAccessFlagsRaw() : getModifiers();
         var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
         if (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0) {
-            // Ignore unspecified (0x800) access flag for current version
+            // Ignore unspecified (0x0800) access flag for current version
             accessFlags &= ~0x0800;
+        }
+        if (!PreviewFeatures.isEnabled() && location == AccessFlag.Location.INNER_CLASS) {
+            accessFlags &= ~Modifier.IDENTITY; // drop ACC_IDENTITY bit in inner class if not in preview
         }
         return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
     }
@@ -1780,13 +1663,9 @@ public final class Class<T> implements java.io.Serializable,
             return enclosingClass == null || name == null || descriptor == null;
         }
 
-        boolean isObjectConstructor() { return !isPartial() && ConstantDescs.INIT_NAME.equals(name); }
+        boolean isConstructor() { return !isPartial() && ConstantDescs.INIT_NAME.equals(name); }
 
-        boolean isValueFactoryMethod() { return !isPartial() && ConstantDescs.VNEW_NAME.equals(name); }
-
-        boolean isMethod() { return !isPartial() && !isObjectConstructor()
-                                        && !isValueFactoryMethod()
-                                        && !ConstantDescs.CLASS_INIT_NAME.equals(name); }
+        boolean isMethod() { return !isPartial() && !isConstructor() && !ConstantDescs.CLASS_INIT_NAME.equals(name); }
 
         Class<?> getEnclosingClass() { return enclosingClass; }
 
@@ -1843,7 +1722,7 @@ public final class Class<T> implements java.io.Serializable,
         if (enclosingInfo == null)
             return null;
         else {
-            if (!enclosingInfo.isObjectConstructor() && !enclosingInfo.isValueFactoryMethod())
+            if (!enclosingInfo.isConstructor())
                 return null;
 
             ConstructorRepository typeInfo = ConstructorRepository.make(enclosingInfo.getDescriptor(),
@@ -2026,15 +1905,10 @@ public final class Class<T> implements java.io.Serializable,
                     dimensions++;
                     cl = cl.getComponentType();
                 } while (cl.isArray());
-                return cl.getTypeName().concat("[]".repeat(dimensions));
+                return cl.getName().concat("[]".repeat(dimensions));
             } catch (Throwable e) { /*FALLTHRU*/ }
         }
-        if (isPrimitiveClass()) {
-            // TODO: null-default
-            return isPrimaryType() ? getName().concat(".ref") : getName();
-        } else {
-            return getName();
-        }
+        return getName();
     }
 
     /**
@@ -3974,7 +3848,7 @@ public final class Class<T> implements java.io.Serializable,
                 return constructor;
             }
         }
-        throw new NoSuchMethodException(methodToString(isValue() ? "<vnew>" : "<init>", parameterTypes));
+        throw new NoSuchMethodException(methodToString("<init>", parameterTypes));
     }
 
     //
@@ -4279,9 +4153,6 @@ public final class Class<T> implements java.io.Serializable,
     @SuppressWarnings("unchecked")
     @IntrinsicCandidate
     public T cast(Object obj) {
-        if (isPrimitiveValueType() && obj == null)
-            throw new NullPointerException(getName() + " is a primitive value type");
-
         if (obj != null && !isInstance(obj))
             throw new ClassCastException(cannotCastMsg(obj));
         return (T) obj;
@@ -4787,13 +4658,11 @@ public final class Class<T> implements java.io.Serializable,
 
         if (isArray()) {
             return "[" + componentType.descriptorString();
-        }
-        char typeDesc = isPrimitiveValueType() ? 'Q' : 'L';
-        if (isHidden()) {
+        } else if (isHidden()) {
             String name = getName();
             int index = name.indexOf('/');
             return new StringBuilder(name.length() + 2)
-                    .append(typeDesc)
+                    .append('L')
                     .append(name.substring(0, index).replace('.', '/'))
                     .append('.')
                     .append(name, index + 1, name.length())
@@ -4802,7 +4671,7 @@ public final class Class<T> implements java.io.Serializable,
         } else {
             String name = getName().replace('.', '/');
             return new StringBuilder(name.length() + 2)
-                    .append(typeDesc)
+                    .append('L')
                     .append(name)
                     .append(';')
                     .toString();

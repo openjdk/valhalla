@@ -640,7 +640,7 @@ void Canonicalizer::do_Convert        (Convert*         x) {
 }
 
 void Canonicalizer::do_NullCheck      (NullCheck*       x) {
-  if (x->obj()->as_NewArray() != nullptr || x->obj()->as_NewInstance() != nullptr || x->obj()->as_NewInlineTypeInstance()) {
+  if (x->obj()->as_NewArray() != nullptr || x->obj()->as_NewInstance() != nullptr) {
     set_canonical(x->obj());
   } else {
     Constant* con = x->obj()->as_Constant();
@@ -659,11 +659,9 @@ void Canonicalizer::do_NullCheck      (NullCheck*       x) {
 void Canonicalizer::do_TypeCast       (TypeCast*        x) {}
 void Canonicalizer::do_Invoke         (Invoke*          x) {}
 void Canonicalizer::do_NewInstance    (NewInstance*     x) {}
-void Canonicalizer::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {}
 void Canonicalizer::do_NewTypeArray   (NewTypeArray*    x) {}
 void Canonicalizer::do_NewObjectArray (NewObjectArray*  x) {}
 void Canonicalizer::do_NewMultiArray  (NewMultiArray*   x) {}
-void Canonicalizer::do_Deoptimize     (Deoptimize*      x) {}
 void Canonicalizer::do_CheckCast      (CheckCast*       x) {
   if (x->klass()->is_loaded()) {
     Value obj = x->obj();
@@ -692,7 +690,7 @@ void Canonicalizer::do_InstanceOf     (InstanceOf*      x) {
   if (x->klass()->is_loaded()) {
     Value obj = x->obj();
     ciType* exact = obj->exact_type();
-    if (exact != nullptr && exact->is_loaded() && (obj->as_NewInstance() || obj->as_NewArray() || obj->as_NewInlineTypeInstance())) {
+    if (exact != nullptr && exact->is_loaded() && (obj->as_NewInstance() || obj->as_NewArray())) {
       set_constant(exact->is_subtype_of(x->klass()) ? 1 : 0);
       return;
     }
@@ -815,7 +813,7 @@ void Canonicalizer::do_If(If* x) {
       }
     }
   } else if (rt == objectNull &&
-           (l->as_NewInstance() || l->as_NewArray() || l->as_NewInlineTypeInstance() ||
+           (l->as_NewInstance() || l->as_NewArray() ||
              (l->as_Local() && l->as_Local()->is_receiver()))) {
     if (x->cond() == Instruction::eql) {
       BlockBegin* sux = x->fsux();

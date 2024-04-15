@@ -49,7 +49,7 @@ import static jdk.incubator.vector.VectorOperators.*;
  * {@code byte} values.
  */
 @SuppressWarnings({"cast"})  // warning: redundant cast
-public abstract class ByteVector extends AbstractVector<Byte> {
+public abstract value class ByteVector extends AbstractVector<Byte> {
 
     static final int FORBID_OPCODE_KIND = VO_ONLYFP;
     /**
@@ -2965,7 +2965,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
      *
      * @param i the lane index
      * @return the lane element at lane index {@code i}
-     * @throws IllegalArgumentException if the index is is out of range
+     * @throws IllegalArgumentException if the index is out of range
      * ({@code < 0 || >= length()})
      */
     public abstract byte lane(int i);
@@ -2983,7 +2983,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
      * @param e the value to be placed
      * @return the result of replacing the lane element of this vector at lane
      * index {@code i} with value {@code e}.
-     * @throws IllegalArgumentException if the index is is out of range
+     * @throws IllegalArgumentException if the index is out of range
      * ({@code < 0 || >= length()})
      */
     public abstract ByteVector withLane(int i, byte e);
@@ -3401,8 +3401,6 @@ public abstract class ByteVector extends AbstractVector<Byte> {
      *         if {@code offset+N*1 < 0}
      *         or {@code offset+N*1 >= ms.byteSize()}
      *         for any lane {@code N} in the vector
-     * @throws IllegalArgumentException if the memory segment is a heap segment that is
-     *         not backed by a {@code byte[]} array.
      * @throws IllegalStateException if the memory segment's session is not alive,
      *         or if access occurs from a thread other than the thread owning the session.
      * @since 19
@@ -3453,8 +3451,6 @@ public abstract class ByteVector extends AbstractVector<Byte> {
      *         or {@code offset+N*1 >= ms.byteSize()}
      *         for any lane {@code N} in the vector
      *         where the mask is set
-     * @throws IllegalArgumentException if the memory segment is a heap segment that is
-     *         not backed by a {@code byte[]} array.
      * @throws IllegalStateException if the memory segment's session is not alive,
      *         or if access occurs from a thread other than the thread owning the session.
      * @since 19

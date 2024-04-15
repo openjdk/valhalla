@@ -42,6 +42,7 @@ import jdk.test.lib.Utils;
  * @modules jdk.incubator.vector
  * @requires vm.cpu.features ~= ".*sve.*"
  * @library /test/lib /
+ * @enablePreview
  * @run driver compiler.vectorapi.TestReverseByteTransformsSVE
  */
 

@@ -188,6 +188,19 @@ public enum Source {
         return this.compareTo(MIN) >= 0;
     }
 
+    public static boolean isSupported(Feature feature, int majorVersion) {
+        Source source = null;
+        for (Target target : Target.values()) {
+            if (majorVersion == target.majorVersion) {
+                source = lookup(target.name);
+            }
+        }
+        if (source != null) {
+            return feature.allowedInSource(source);
+        }
+        return false;
+    }
+
     public Target requiredTarget() {
         return switch(this) {
         case JDK22  -> Target.JDK1_22;
@@ -245,11 +258,11 @@ public enum Source {
         UNCONDITIONAL_PATTERN_IN_INSTANCEOF(JDK21, Fragments.FeatureUnconditionalPatternsInInstanceof, DiagKind.PLURAL),
         RECORD_PATTERNS(JDK21, Fragments.FeatureDeconstructionPatterns, DiagKind.PLURAL),
         STRING_TEMPLATES(JDK21, Fragments.FeatureStringTemplates, DiagKind.PLURAL),
-        PRIMITIVE_CLASSES(JDK21, Fragments.FeaturePrimitiveClasses, DiagKind.PLURAL),
-        VALUE_CLASSES(JDK21, Fragments.FeatureValueClasses, DiagKind.PLURAL),
         UNNAMED_CLASSES(JDK21, Fragments.FeatureUnnamedClasses, DiagKind.PLURAL),
         WARN_ON_ILLEGAL_UTF8(MIN, JDK21),
-        UNNAMED_VARIABLES(JDK21, Fragments.FeatureUnnamedVariables, DiagKind.PLURAL),
+        UNNAMED_VARIABLES(JDK22, Fragments.FeatureUnnamedVariables, DiagKind.PLURAL),
+        SUPER_INIT(JDK22, Fragments.FeatureSuperInit, DiagKind.NORMAL),
+        VALUE_CLASSES(JDK22, Fragments.FeatureValueClasses, DiagKind.PLURAL),
         ;
 
         enum DiagKind {
@@ -305,9 +318,6 @@ public enum Source {
 
         public Error error(String sourceName) {
             Assert.checkNonNull(optFragment);
-            if (this == PRIMITIVE_CLASSES) {
-                return Errors.PrimitiveClassesNotSupported(minLevel.name);
-            }
             return optKind == DiagKind.NORMAL ?
                     Errors.FeatureNotSupportedInSource(optFragment, sourceName, minLevel.name) :
                     Errors.FeatureNotSupportedInSourcePlural(optFragment, sourceName, minLevel.name);

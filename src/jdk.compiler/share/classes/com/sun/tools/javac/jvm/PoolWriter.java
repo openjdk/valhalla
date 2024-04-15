@@ -33,7 +33,6 @@ import com.sun.tools.javac.code.Symbol.MethodHandleSymbol;
 import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.ConstantPoolQType;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.jvm.ClassWriter.PoolOverflow;
 import com.sun.tools.javac.jvm.ClassWriter.StringOverflow;
@@ -121,21 +120,7 @@ public class PoolWriter {
      * or an array type.
      */
     int putClass(Type t) {
-        /* Their is nothing to be gained by having the pair of class types Foo.ref and Foo.val
-           result in two different CONSTANT_Class_info strucures in the pool. These are
-           indistinguishable at the class file level. Hence we coalesce them here.
-        */
-        if (t.isReferenceProjection())
-            t = t.valueProjection();
         return pool.writeIfNeeded(types.erasure(t));
-    }
-
-    /**
-     * Puts a type into the pool and return its index. The type could be either a class, a type variable
-     * or an array type.
-     */
-    int putClass(ConstantPoolQType t) {
-        return pool.writeIfNeeded(t);
     }
 
     /**
@@ -240,13 +225,13 @@ public class PoolWriter {
     /**
      * Enter an inner class into the `innerClasses' set.
      */
-    void enterInnerClass(ClassSymbol c) {
+    void enterInner(ClassSymbol c) {
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }
         c.complete();
         if (c.owner.enclClass() != null && !innerClasses.contains(c)) {
-            enterInnerClass(c.owner.enclClass());
+            enterInner(c.owner.enclClass());
             innerClasses.add(c);
         }
     }
@@ -346,7 +331,7 @@ public class PoolWriter {
 
         @Override
         protected void classReference(ClassSymbol c) {
-            enterInnerClass(c);
+            enterInner(c);
         }
 
         protected void reset() {
@@ -396,14 +381,14 @@ public class PoolWriter {
             int tag = c.poolTag();
             switch (tag) {
                 case ClassFile.CONSTANT_Class: {
-                    Type ct = c instanceof ConstantPoolQType ? ((ConstantPoolQType)c).type : (Type)c;
+                    Type ct = (Type)c;
                     Name name = ct.hasTag(ARRAY) ?
                             typeSig(ct) :
-                      c instanceof ConstantPoolQType ? names.fromString("Q" + externalize(ct.tsym.flatName()) + ";") : externalize(ct.tsym.flatName());
+                            externalize(ct.tsym.flatName());
                     poolbuf.appendByte(tag);
                     poolbuf.appendChar(putName(name));
                     if (ct.hasTag(CLASS)) {
-                        enterInnerClass((ClassSymbol)ct.tsym);
+                        enterInner((ClassSymbol)ct.tsym);
                     }
                     break;
                 }

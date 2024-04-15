@@ -48,7 +48,6 @@ int AbstractInterpreter::BasicType_as_index(BasicType type) {
     case T_DOUBLE : i = 8; break;
     case T_OBJECT : i = 9; break;
     case T_ARRAY  : i = 9; break;
-    case T_PRIMITIVE_OBJECT : i = 10; break;
     default       : ShouldNotReachHere();
   }
   assert(0 <= i && i < AbstractInterpreter::number_of_result_handlers,

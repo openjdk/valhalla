@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,8 @@
 /*
  * @test
  * @summary test MethodHandle and VarHandle of value classes
- * @run junit/othervm -XX:+EnableValhalla MethodHandleTest
+ * @enablePreview
+ * @run junit/othervm MethodHandleTest
  */
 
 import java.lang.invoke.*;
@@ -100,9 +101,9 @@ public class MethodHandleTest {
                 // value class with int fields
                 Arguments.of("MethodHandleTest$Point", P, Set.of("x", "y")),
                 // value class whose fields are null-restricted and of value class
-                Arguments.of( "MethodHandleTest$Line", L, Set.of("p1", "p2")),
+                Arguments.of("MethodHandleTest$Line", L, Set.of("p1", "p2")),
                 // identity class whose non-final fields are of value type,
-                Arguments.of( "MethodHandleTest$Ref", R, Set.of("p", "l", "list", "vo"))
+                Arguments.of("MethodHandleTest$Ref", R, Set.of("p", "l", "list", "vo"))
         );
     }
 
@@ -133,10 +134,10 @@ public class MethodHandleTest {
 
     static Stream<Arguments> setters() {
         return Stream.of(
-                Arguments.of( Ref.class, R, "p", true),
-                Arguments.of( Ref.class, R, "l", false),
-                Arguments.of( Ref.class, R, "list", false),
-                Arguments.of( Ref.class, R, "vo", false)
+                Arguments.of(Ref.class, R, "p", true),
+                Arguments.of(Ref.class, R, "l", false),
+                Arguments.of(Ref.class, R, "list", false),
+                Arguments.of(Ref.class, R, "vo", false)
         );
     }
     @ParameterizedTest
@@ -199,6 +200,7 @@ public class MethodHandleTest {
         }
         // set an array element to null
         if (nullRestricted) {
+            assertTrue(vh.get(array, 1) != null);
             assertThrows(NullPointerException.class, () -> setter.invoke(array, 1, null));
             assertThrows(NullPointerException.class, () -> vh.set(array, 1, null));
         } else {

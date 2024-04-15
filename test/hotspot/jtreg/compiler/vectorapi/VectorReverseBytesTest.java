@@ -44,6 +44,7 @@ import jdk.test.lib.Utils;
  * @requires vm.compiler2.enabled
  * @requires (os.simpleArch == "x64" & vm.cpu.features ~= ".*avx2.*") | os.arch == "aarch64"
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.VectorReverseBytesTest
  */

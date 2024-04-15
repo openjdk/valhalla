@@ -303,24 +303,6 @@ inline bool java_lang_Class::is_primitive(oop java_class) {
   return is_primitive;
 }
 
-inline bool java_lang_Class::is_primary_mirror(oop java_class) {
-  Klass* k = as_Klass(java_class);
-  if (k->is_inline_klass()) {
-    return java_class == primary_mirror(java_class);
-  } else {
-    return true;
-  }
-}
-
-inline bool java_lang_Class::is_secondary_mirror(oop java_class) {
-  Klass* k = as_Klass(java_class);
-  if (k->is_inline_klass()) {
-    return java_class == secondary_mirror(java_class);
-  } else {
-    return false;
-  }
-}
-
 inline size_t java_lang_Class::oop_size(oop java_class) {
   assert(_oop_size_offset != 0, "must be set");
   int size = java_class->int_field(_oop_size_offset);

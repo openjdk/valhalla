@@ -1319,26 +1319,10 @@ void LIRGenerator::do_Convert(Convert* x) {
 void LIRGenerator::do_NewInstance(NewInstance* x) {
   print_if_not_loaded(x);
 
-  CodeEmitInfo* info = state_for(x, x->state());
+  CodeEmitInfo* info = state_for(x, x->needs_state_before() ? x->state_before() : x->state());
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), x->is_unresolved(),
-               /* allow_inline */ false,
-               FrameMap::rcx_oop_opr,
-               FrameMap::rdi_oop_opr,
-               FrameMap::rsi_oop_opr,
-               LIR_OprFact::illegalOpr,
-               FrameMap::rdx_metadata_opr, info);
-  LIR_Opr result = rlock_result(x);
-  __ move(reg, result);
-}
-
-void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
-  // Mapping to do_NewInstance (same code) but use state_before for reexecution.
-  CodeEmitInfo* info = state_for(x, x->state_before());
-  x->set_to_object_type();
-  LIR_Opr reg = result_register_for(x->type());
-  new_instance(reg, x->klass(), false,
-               /* allow_inline */ true,
+               !x->is_unresolved() && x->klass()->is_inlinetype(),
                FrameMap::rcx_oop_opr,
                FrameMap::rdi_oop_opr,
                FrameMap::rsi_oop_opr,

@@ -37,6 +37,7 @@ import jdk.test.lib.Utils;
  * @requires os.arch=="aarch64"
  * @summary AArch64: Optimize VectorMask.truecount() on Neon
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.TestVectorMaskTrueCount
  */

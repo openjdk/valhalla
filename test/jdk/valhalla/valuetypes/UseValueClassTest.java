@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.ParameterizedTest;
 
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.misc.ValhallaFeatures;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.stream.Stream;
 
 import java.time.Duration;
@@ -64,6 +62,16 @@ public class UseValueClassTest {
     // Classes to be checked
     private static Stream<Class<?>> classProvider() {
         Class<?>[] classes = {
+                Byte.class,
+                Short.class,
+                Integer.class,
+                Long.class,
+                Float.class,
+                Double.class,
+                Boolean.class,
+                Character.class,
+                Number.class,
+                Record.class,
                 Duration.class,
                 Instant.class,
                 LocalDate.class,
@@ -85,15 +93,13 @@ public class UseValueClassTest {
     }
 
     /**
-     * Verify that the class is a value class if --enable-preview and -XX:+EnableValhallait true
+     * Verify that the class is a value class if --enable-preview is true
      * @param clazz a class
      */
     @ParameterizedTest
     @MethodSource("classProvider")
     public void testValue(Class<?> clazz) {
-        System.out.printf("isPreview: %s, Valhalla.isEnabled: %s%n",
-                PreviewFeatures.isEnabled(), ValhallaFeatures.isEnabled());
-        assertEquals(PreviewFeatures.isEnabled() && ValhallaFeatures.isEnabled(),
-                clazz.isValue(), clazz.getName());
+        System.out.printf("isPreview: %s%n", PreviewFeatures.isEnabled());
+        assertEquals(PreviewFeatures.isEnabled(), clazz.isValue(), clazz.getName());
     }
 }

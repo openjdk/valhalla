@@ -30,6 +30,7 @@ import org.testng.annotations.Test;
 /**
  * @test
  * @modules jdk.incubator.vector java.base/jdk.internal.vm.vector
+ * @enablePreview
  * @run testng PreferredSpeciesTest
  */
 
@@ -39,6 +40,7 @@ import org.testng.annotations.Test;
  * @requires vm.compiler2.enabled
  * @summary Test the initialization of vector shapes
  * @modules jdk.incubator.vector java.base/jdk.internal.vm.vector
+ * @enablePreview
  * @run testng/othervm -XX:MaxVectorSize=8 PreferredSpeciesTest
  * @run testng/othervm -XX:MaxVectorSize=4 PreferredSpeciesTest
  */

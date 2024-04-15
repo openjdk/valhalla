@@ -242,10 +242,6 @@ public enum Opcode {
     IFNONNULL(0xc7, BRANCH),
     GOTO_W(0xc8, BRANCH_W),
     JSR_W(0xc9, BRANCH_W),
-
-    ACONST_INIT(203, CPREF_W),
-    WITHFIELD(204, CPREF_W),
-
     // impdep 0xfe: PicoJava nonpriv
     // impdep 0xff: Picojava priv
 

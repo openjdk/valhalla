@@ -112,7 +112,7 @@ int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
   } else {
     // Only unpack the receiver, all other arguments are already scalarized
     InstanceKlass* holder = method->method_holder();
-    int rec_len = holder->is_inline_klass() ? InlineKlass::cast(holder)->extended_sig()->length() : 1;
+    int rec_len = (holder->is_inline_klass() && method->is_scalarized_arg(0)) ? InlineKlass::cast(holder)->extended_sig()->length() : 1;
     // Copy scalarized signature but skip receiver and inline type delimiters
     for (int i = 0; i < sig->length(); i++) {
       if (SigEntry::skip_value_delimiters(sig, i) && rec_len <= 0) {

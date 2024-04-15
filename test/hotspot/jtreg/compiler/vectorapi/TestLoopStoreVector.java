@@ -32,6 +32,7 @@ import jdk.incubator.vector.VectorSpecies;
  * @bug 8260339
  * @summary StoreVectorNode is not considered with -XX:+OptimizeFill
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+OptimizeFill compiler.vectorapi.TestLoopStoreVector
  */
@@ -41,6 +42,7 @@ import jdk.incubator.vector.VectorSpecies;
  * @bug 8288180
  * @summary VectorPhase must ensure that SafePointNode's memory input is MergeMemNode, required for GraphKit
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+OptimizeFill -XX:+StressReflectiveCode compiler.vectorapi.TestLoopStoreVector
  */

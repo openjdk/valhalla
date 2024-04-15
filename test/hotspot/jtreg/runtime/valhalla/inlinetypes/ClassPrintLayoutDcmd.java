@@ -35,8 +35,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @summary Test the VM.class_print_layout command
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile ClassPrintLayoutDcmd.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
+ * @run main/othervm runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
  */
 
 public value class ClassPrintLayoutDcmd {

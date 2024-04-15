@@ -35,6 +35,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.annotation.Annotation;
+import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.StringConcatFactory;
@@ -89,7 +90,6 @@ import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 import jdk.internal.vm.StackableScope;
 import jdk.internal.vm.ThreadContainer;
-import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 import sun.nio.fs.DefaultFileSystemProvider;
@@ -2455,8 +2455,8 @@ public final class System {
             public void addEnableNativeAccessToAllUnnamed() {
                 Module.implAddEnableNativeAccessToAllUnnamed();
             }
-            public void ensureNativeAccess(Module m, Class<?> owner, String methodName) {
-                m.ensureNativeAccess(owner, methodName);
+            public void ensureNativeAccess(Module m, Class<?> owner, String methodName, Class<?> currentClass) {
+                m.ensureNativeAccess(owner, methodName, currentClass);
             }
             public ServicesCatalog getServicesCatalog(ModuleLayer layer) {
                 return layer.getServicesCatalog();
@@ -2667,30 +2667,22 @@ public final class System {
                 return StackWalker.newInstance(options, null, contScope, continuation);
             }
 
-            @Override
-            public Class<?> asPrimaryType(Class<?> clazz) {
-                return clazz.asPrimaryType();
-            }
-            public Class<?> asValueType(Class<?> clazz) {
-                return clazz.asValueType();
-            }
-
-            public boolean isPrimaryType(Class<?> clazz) {
-                return clazz.isPrimaryType();
-            }
-            public boolean isPrimitiveValueType(Class<?> clazz) {
-                return clazz.isPrimitiveValueType();
-            }
-            public boolean isPrimitiveClass(Class<?> clazz) {
-                return clazz.isPrimitiveClass();
-            }
-
             public int classFileFormatVersion(Class<?> clazz) {
                 return clazz.getClassFileVersion();
             }
 
             public String getLoaderNameID(ClassLoader loader) {
-                return loader.nameAndId();
+                return loader != null ? loader.nameAndId() : "null";
+            }
+
+            @Override
+            public void copyToSegmentRaw(String string, MemorySegment segment, long offset) {
+                string.copyToSegmentRaw(segment, offset);
+            }
+
+            @Override
+            public boolean bytesCompatible(String string, Charset charset) {
+                return string.bytesCompatible(charset);
             }
         });
     }

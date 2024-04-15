@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,11 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
@@ -36,8 +41,10 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Test calls from {C1} to {C2, Interpreter}, and vice versa.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses TestCallingConventionC1.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestCallingConventionC1
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestCallingConventionC1
  */
 
 @ForceCompileClassInitializer
@@ -47,13 +54,13 @@ public class TestCallingConventionC1 {
         final Scenario[] scenarios = {
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
                 new Scenario(0,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "--enable-preview",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation"),
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
                 new Scenario(1,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "--enable-preview",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
@@ -62,21 +69,21 @@ public class TestCallingConventionC1 {
                 // Same as above, but flip all the compLevel=CompLevel.C1_SIMPLE and compLevel=CompLevel.C2, so we test
                 // the compliment of the above scenario.
                 new Scenario(2,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "--enable-preview",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
                              "-DFlipC1C2=true"),
                 // Only C1. Tiered compilation disabled.
                 new Scenario(3,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "--enable-preview",
                              "-XX:TieredStopAtLevel=1",
                              "-XX:+TieredCompilation",
                              "-XX:+IgnoreUnrecognizedVMOptions",
                              "-XX:-PatchALot"),
                 // Only C2.
                 new Scenario(4,
-                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                             "--enable-preview",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:-TieredCompilation")
         };
@@ -89,10 +96,11 @@ public class TestCallingConventionC1 {
     }
 
     // Helper methods and classes
-
-    static primitive class Point {
-        final int x;
-        final int y;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Point {
+        int x;
+        int y;
         public Point(int x, int y) {
             this.x = x;
             this.y = y;
@@ -162,8 +170,11 @@ public class TestCallingConventionC1 {
         return functors[n];
     }
 
+    @NullRestricted
     static Point pointField  = new Point(123, 456);
+    @NullRestricted
     static Point pointField1 = new Point(1123, 1456);
+    @NullRestricted
     static Point pointField2 = new Point(2123, 2456);
 
     static interface Intf {
@@ -211,8 +222,10 @@ public class TestCallingConventionC1 {
         public int func2(int a, int b, Point p)     { return field + a + b + p.x + p.y + 1; }
     }
 
-    static primitive class MyImplVal1 implements Intf {
-        final int field;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyImplVal1 implements Intf {
+        int field;
         MyImplVal1() {
             field = 11000;
         }
@@ -226,8 +239,10 @@ public class TestCallingConventionC1 {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
-    static primitive class MyImplVal2 implements Intf {
-        final int field;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyImplVal2 implements Intf {
+        int field;
         MyImplVal2() {
             field = 12000;
         }
@@ -241,8 +256,10 @@ public class TestCallingConventionC1 {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
-    static primitive class MyImplVal1X implements Intf {
-        final int field;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyImplVal1X implements Intf {
+        int field;
         MyImplVal1X() {
             field = 11000;
         }
@@ -254,8 +271,10 @@ public class TestCallingConventionC1 {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
-    static primitive class MyImplVal2X implements Intf {
-        final int field;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyImplVal2X implements Intf {
+        int field;
         MyImplVal2X() {
             field = 12000;
         }
@@ -279,38 +298,49 @@ public class TestCallingConventionC1 {
         return intfs[n];
     }
 
-    static primitive class FixedPoints {
-        final boolean Z0 = false;
-        final boolean Z1 = true;
-        final byte    B  = (byte)2;
-        final char    C  = (char)34;
-        final short   S  = (short)456;
-        final int     I  = 5678;
-        final long    J  = 0x1234567800abcdefL;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class FixedPoints {
+        boolean Z0 = false;
+        boolean Z1 = true;
+        byte    B  = (byte)2;
+        char    C  = (char)34;
+        short   S  = (short)456;
+        int     I  = 5678;
+        long    J  = 0x1234567800abcdefL;
     }
+    @NullRestricted
     static FixedPoints fixedPointsField = new FixedPoints();
 
-    static primitive class FloatPoint {
-        final float x;
-        final float y;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class FloatPoint {
+        float x;
+        float y;
         public FloatPoint(float x, float y) {
             this.x = x;
             this.y = y;
         }
     }
 
-    static primitive class DoublePoint {
-        final double x;
-        final double y;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class DoublePoint {
+        double x;
+        double y;
         public DoublePoint(double x, double y) {
             this.x = x;
             this.y = y;
         }
     }
+    @NullRestricted
     static FloatPoint floatPointField = new FloatPoint(123.456f, 789.012f);
+    @NullRestricted
     static DoublePoint doublePointField = new DoublePoint(123.456, 789.012);
 
-    static primitive class EightFloats {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EightFloats {
         float f1, f2, f3, f4, f5, f6, f7, f8;
         public EightFloats() {
             f1 = 1.1f;
@@ -323,6 +353,7 @@ public class TestCallingConventionC1 {
             f8 = 8.8f;
         }
     }
+
     static EightFloats eightFloatsField = new EightFloats();
 
     static class Number {
@@ -340,9 +371,11 @@ public class TestCallingConventionC1 {
         public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2);
     }
 
-    static primitive class RefPoint implements RefPoint_Access {
-        final Number x;
-        final Number y;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class RefPoint implements RefPoint_Access {
+        Number x;
+        Number y;
         public RefPoint(int x, int y) {
             this.x = new Number(x);
             this.y = new Number(y);
@@ -425,12 +458,16 @@ public class TestCallingConventionC1 {
         return refPoint_Access_impls[i % refPoint_Access_impls.length];
     }
 
+    @NullRestricted
     static RefPoint refPointField1 = new RefPoint(12, 34);
+    @NullRestricted
     static RefPoint refPointField2 = new RefPoint(56789, 0x12345678);
 
-    // This inline class has too many fields to fit in registers on x64 for
+    // This value class has too many fields to fit in registers on x64 for
     // InlineTypeReturnedAsFields.
-    static primitive class TooBigToReturnAsFields {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class TooBigToReturnAsFields {
         int a0 = 0;
         int a1 = 1;
         int a2 = 2;
@@ -443,13 +480,14 @@ public class TestCallingConventionC1 {
         int a9 = 9;
     }
 
+    @NullRestricted
     static TooBigToReturnAsFields tooBig = new TooBigToReturnAsFields();
 
     //**********************************************************************
     // PART 1 - C1 calls interpreted code
     //**********************************************************************
 
-    //** C1 passes inline type to interpreter (static)
+    //** C1 passes value object to interpreter (static)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test1() {
         return test1_helper(pointField);
@@ -463,13 +501,13 @@ public class TestCallingConventionC1 {
     @Run(test = "test1")
     public void test1_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 10;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test1() + i;
             Asserts.assertEQ(result, pointField.func() + i);
         }
     }
 
-    //** C1 passes inline type to interpreter (monomorphic)
+    //** C1 passes value object to interpreter (monomorphic)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test2() {
         return test2_helper(pointField);
@@ -483,13 +521,13 @@ public class TestCallingConventionC1 {
     @Run(test = "test2")
     public void test2_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 10;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test2() + i;
             Asserts.assertEQ(result, pointField.func() + i);
         }
     }
 
-    // C1 passes inline type to interpreter (megamorphic: vtable)
+    // C1 passes value object to interpreter (megamorphic: vtable)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test3(Functor functor) {
         return functor.apply_interp(pointField);
@@ -498,7 +536,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test3")
     public void test3_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 100;
-        for (int i=0; i<count; i++) {  // need a loop to test inline cache and vtable indexing
+        for (int i = 0; i < count; i++) {  // need a loop to test inline cache and vtable indexing
             Functor functor = info.isWarmUp() ? functors[0] : getFunctor();
             int result = test3(functor) + i;
             Asserts.assertEQ(result, functor.apply_interp(pointField) + i);
@@ -514,14 +552,14 @@ public class TestCallingConventionC1 {
     @Run(test = "test3b")
     public void test3b_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 100;
-        for (int i=0; i<count; i++) {  // need a loop to test inline cache and vtable indexing
+        for (int i = 0; i < count; i++) {  // need a loop to test inline cache and vtable indexing
             Functor functor = info.isWarmUp() ? functors[0] : getFunctor();
             int result = test3b(functor) + i;
             Asserts.assertEQ(result, functor.apply_interp(pointField) + i);
         }
     }
 
-    // C1 passes inline type to interpreter (megamorphic: itable)
+    // C1 passes value object to interpreter (megamorphic: itable)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test4(FunctorInterface fi) {
         return fi.apply_interp(pointField);
@@ -530,7 +568,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test4")
     public void test4_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 100;
-        for (int i=0; i<count; i++) {  // need a loop to test inline cache and itable indexing
+        for (int i = 0; i < count; i++) {  // need a loop to test inline cache and itable indexing
             Functor functor = info.isWarmUp() ? functors[0] : getFunctor();
             int result = test4(functor) + i;
             Asserts.assertEQ(result, functor.apply_interp(pointField) + i);
@@ -541,7 +579,7 @@ public class TestCallingConventionC1 {
     // PART 2 - interpreter calls C1
     //**********************************************************************
 
-    // Interpreter passes inline type to C1 (static)
+    // Interpreter passes value object to C1 (static)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     static public int test20(Point p1, long l, Point p2) {
         return p1.x + p2.y;
@@ -554,7 +592,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(result, n);
     }
 
-    // Interpreter passes inline type to C1 (instance method in inline class)
+    // Interpreter passes value object to C1 (instance method in value class)
     @Test
     public int test21(Point p) {
         return test21_helper(p);
@@ -592,7 +630,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test30")
     public void test30_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test30();
             int n = pointField.x + pointField.y;
             Asserts.assertEQ(result, n);
@@ -614,7 +652,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test31")
     public void test31_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test31();
             int n = pointField1.x + pointField2.y;
             Asserts.assertEQ(result, n);
@@ -636,7 +674,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test32")
     public void test32_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test32();
             int n = pointField1.x + pointField2.y + 0 + 1;
             Asserts.assertEQ(result, n);
@@ -652,7 +690,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test33")
     public void test33_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = info.isWarmUp() ? intfs[0] : getIntf(i+1);
             int result = test33(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func1(123, 456) + i);
@@ -668,7 +706,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test34")
     public void test34_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = info.isWarmUp() ? intfs[0] : getIntf(i+1);
             int result = test34(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
@@ -690,7 +728,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test35")
     public void test35_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test35();
             int n = 1 + 2 + 3  + 4 + 5 + pointField.x + pointField.y;
             Asserts.assertEQ(result, n);
@@ -712,7 +750,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test36")
     public void test36_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test36();
             int n = 6 + 8;
             Asserts.assertEQ(result, n);
@@ -734,7 +772,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test37")
     public void test37_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test37();
             int n = 6 + 8;
             Asserts.assertEQ(result, n);
@@ -760,14 +798,14 @@ public class TestCallingConventionC1 {
     @Run(test = "test38")
     public void test38_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test38();
             int n = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8;
             Asserts.assertEQ(result, n);
         }
     }
 
-    // C2->C1 invokestatic, packing an inline type with all types of fixed point primitive fields.
+    // C2->C1 invokestatic, packing a value object with all types of fixed point primitive fields.
     @Test(compLevel = CompLevel.C2)
     public long test39() {
         return test39_helper(1, fixedPointsField, 2, fixedPointsField);
@@ -786,7 +824,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test39")
     public void test39_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             long result = test39();
             long n = test39_helper(1, fixedPointsField, 2, fixedPointsField);
             Asserts.assertEQ(result, n);
@@ -808,7 +846,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test40")
     public void test40_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             double result = test40();
             double n = test40_helper(1.1f, 1.2, floatPointField, doublePointField, 1.3f, 1.4, 1.5f, 1.7, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12);
             Asserts.assertEQ(result, n);
@@ -830,7 +868,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test41")
     public void test41_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             double result = test41();
             double n = test41_helper(1, 1.2, pointField, floatPointField, doublePointField, 1.3f, 4, 1.5f, 1.7, 1.7, 1.8, 9, 1.10, 1.11, 1.12);
             Asserts.assertEQ(result, n);
@@ -860,7 +898,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test42")
     public void test42_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             float result = test42();
             float n = test42_helper(eightFloatsField, pointField, 3, 4, 5, floatPointField, 7);
             Asserts.assertEQ(result, n);
@@ -885,7 +923,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test43")
     public void test43_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             float result = test43();
             float n = test43_helper(floatPointField, 1, 2, 3, 4, 5, 6);
             Asserts.assertEQ(result, n);
@@ -913,7 +951,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test44")
     public void test44_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             float result = test44();
             float n = test44_helper(floatPointField, floatPointField, 1, 2, 3, 4, 5, 6);
             Asserts.assertEQ(result, n);
@@ -940,7 +978,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test45")
     public void test45_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             float result = test45();
             float n = test45_helper(floatPointField, floatPointField, floatPointField, floatPointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
             Asserts.assertEQ(result, n);
@@ -969,7 +1007,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test46")
     public void test46_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 2;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             float result = test46();
             float n = test46_helper(floatPointField, floatPointField, pointField, floatPointField, floatPointField, pointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
             Asserts.assertEQ(result, n);
@@ -984,7 +1022,7 @@ public class TestCallingConventionC1 {
 
     static void checkStackTrace(Throwable t, String... methodNames) {
         StackTraceElement[] trace = t.getStackTrace();
-        for (int i=0; i<methodNames.length; i++) {
+        for (int i = 0; i < methodNames.length; i++) {
             if (!methodNames[i].equals(trace[i].getMethodName())) {
                 String error = "Unexpected stack trace: level " + i + " should be " + methodNames[i];
                 System.out.println(error);
@@ -1026,14 +1064,14 @@ public class TestCallingConventionC1 {
     @Run(test = "test47")
     public void test47_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             test47_value = 777 + i;
             test47(i);
             Asserts.assertEQ(test47_value, i);
         }
     }
 
-    // C2->C1 invokestatic, make sure stack walking works (with returned inline type)
+    // C2->C1 invokestatic, make sure stack walking works (with returned value object)
     @Test(compLevel = CompLevel.C2)
     public int test48(int n) {
         try {
@@ -1062,7 +1100,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test48")
     public void test48_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int n = test48(i);
             Asserts.assertEQ(n, i);
         }
@@ -1098,7 +1136,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test49")
     public void test49_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int n = test49(i);
             Asserts.assertEQ(n, i);
         }
@@ -1133,14 +1171,14 @@ public class TestCallingConventionC1 {
     @Run(test = "test50")
     public void test50_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int n = test50(i);
             Asserts.assertEQ(n, i);
         }
     }
 
 
-    // C2->C1 invokestatic, inline class with ref fields (RefPoint)
+    // C2->C1 invokestatic, value class with ref fields (RefPoint)
     @Test(compLevel = CompLevel.C2)
     public int test51() {
         return test51_helper(refPointField1);
@@ -1155,14 +1193,14 @@ public class TestCallingConventionC1 {
     @Run(test = "test51")
     public void test51_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test51();
             int n = test51_helper(refPointField1);
             Asserts.assertEQ(result, n);
         }
     }
 
-    // C2->C1 invokestatic, inline class with ref fields (Point, RefPoint)
+    // C2->C1 invokestatic, value class with ref fields (Point, RefPoint)
     @Test(compLevel = CompLevel.C2)
     public int test52() {
         return test52_helper(pointField, refPointField1);
@@ -1177,14 +1215,14 @@ public class TestCallingConventionC1 {
     @Run(test = "test52")
     public void test52_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test52();
             int n = test52_helper(pointField, refPointField1);
             Asserts.assertEQ(result, n);
         }
     }
 
-    // C2->C1 invokestatic, inline class with ref fields (RefPoint, RefPoint, RefPoint, RefPoint)
+    // C2->C1 invokestatic, value class with ref fields (RefPoint, RefPoint, RefPoint, RefPoint)
     @Test(compLevel = CompLevel.C2)
     public int test53() {
         return test53_helper(refPointField1, refPointField2, refPointField1, refPointField2);
@@ -1202,14 +1240,14 @@ public class TestCallingConventionC1 {
     @Run(test = "test53")
     public void test53_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test53();
             int n = test53_helper(refPointField1, refPointField2, refPointField1, refPointField2);
             Asserts.assertEQ(result, n);
         }
     }
 
-    // C2->C1 invokestatic, inline class with ref fields (RefPoint, RefPoint, float, int, RefPoint, RefPoint)
+    // C2->C1 invokestatic, value class with ref fields (RefPoint, RefPoint, float, int, RefPoint, RefPoint)
     @Test(compLevel = CompLevel.C2)
     public int test54() {
         return test54_helper(refPointField1, refPointField2, 1.0f, 2, refPointField1, refPointField2);
@@ -1228,7 +1266,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test54")
     public void test54_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             int result = test54();
             int n = test54_helper(refPointField1, refPointField2, 1.0f, 2, refPointField1, refPointField2);
             Asserts.assertEQ(result, n);
@@ -1273,7 +1311,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test55")
     public void test55_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             Point p1 = new Point(1, 2);
             int result;
             try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
@@ -1299,7 +1337,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test56")
     public void test56_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             int result;
             try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
@@ -1324,7 +1362,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test57")
     public void test57_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             int result;
             try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
@@ -1355,7 +1393,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test58")
     public void test58_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = refPointField1;
             RefPoint rp3 = new RefPoint(222, 777);
@@ -1390,7 +1428,7 @@ public class TestCallingConventionC1 {
     public void test59_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
         boolean doGC = !info.isWarmUp();
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             int result = test59(rp1, doGC);
             int n = test59_helper(rp1, 11, 222, 3333, 4444, doGC);
@@ -1421,7 +1459,7 @@ public class TestCallingConventionC1 {
     public void test60_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
         boolean doGC = !info.isWarmUp();
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = new RefPoint(33, 44);
             int result = test60(rp1, rp2, doGC);
@@ -1439,7 +1477,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test61")
     public void test61_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint_Access rpa = get_RefPoint_Access();
             RefPoint rp2 = refPointField2;
             int result = test61(rpa, rp2);
@@ -1457,7 +1495,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test62")
     public void test62_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint_Access rpa = get_RefPoint_Access();
             RefPoint rp2 = new RefPoint(111, 2222);
             int result;
@@ -1478,7 +1516,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test63")
     public void test63_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint_Access rpa = get_RefPoint_Access();
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = refPointField1;
@@ -1510,7 +1548,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test64")
     public void test64_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint_Access rpa = get_RefPoint_Access();
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = refPointField1;
@@ -1536,7 +1574,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test76")
     public void test76_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint rp1 = refPointField1;
             RefPoint rp2 = refPointField2;
             int result = test76(rp1, rp2);
@@ -1555,7 +1593,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test77")
     public void test77_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) { // need a loop to test inline cache
+        for (int i = 0; i < count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = new RefPoint(22, 33);
             int result;
@@ -1666,7 +1704,7 @@ public class TestCallingConventionC1 {
     }
 
     //-------------------------------------------------------------------------------
-    // Tests for InlineTypeReturnedAsFields vs the inline class TooBigToReturnAsFields
+    // Tests for InlineTypeReturnedAsFields vs the value class TooBigToReturnAsFields
     //-------------------------------------------------------------------------------
 
     // C2->C1 invokestatic with InlineTypeReturnedAsFields (TooBigToReturnAsFields)
@@ -1742,18 +1780,18 @@ public class TestCallingConventionC1 {
     }
 
     //-------------------------------------------------------------------------------
-    // Tests for how C1 handles InlineTypeReturnedAsFields in both calls and returns (RefPoint.ref)
+    // Tests for how C1 handles InlineTypeReturnedAsFields in both calls and returns
     //-------------------------------------------------------------------------------
 
-    // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint.ref)
+    // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint)
     @Test(compLevel = CompLevel.C2)
-    public RefPoint.ref test87(RefPoint.ref p) {
+    public RefPoint test87(RefPoint p) {
         return test87_helper(p);
     }
 
     @DontInline
     @ForceCompile(CompLevel.C1_SIMPLE)
-    private static RefPoint.ref test87_helper(RefPoint.ref p) {
+    private static RefPoint test87_helper(RefPoint p) {
         return p;
     }
 
@@ -1763,15 +1801,15 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(test87(refPointField1), refPointField1);
     }
 
-    // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint.ref with constant null)
+    // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint with constant null)
     @Test(compLevel = CompLevel.C2)
-    public RefPoint.ref test88() {
+    public RefPoint test88() {
         return test88_helper();
     }
 
     @DontInline
     @ForceCompile(CompLevel.C1_SIMPLE)
-    private static RefPoint.ref test88_helper() {
+    private static RefPoint test88_helper() {
         return null;
     }
 
@@ -1780,15 +1818,15 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(test88(), null);
     }
 
-    // C1->C2 invokestatic with InlineTypeReturnedAsFields (RefPoint.ref)
+    // C1->C2 invokestatic with InlineTypeReturnedAsFields (RefPoint)
     @Test(compLevel = CompLevel.C1_SIMPLE)
-    public RefPoint.ref test89(RefPoint.ref p) {
+    public RefPoint test89(RefPoint p) {
         return test89_helper(p);
     }
 
     @DontInline
     @ForceCompile(CompLevel.C2)
-    private static RefPoint.ref test89_helper(RefPoint.ref p) {
+    private static RefPoint test89_helper(RefPoint p) {
         return p;
     }
 
@@ -1802,10 +1840,10 @@ public class TestCallingConventionC1 {
     // Tests for unverified entries: there are 6 cases:
     // C1 -> Unverified Value Entry compiled by C1
     // C1 -> Unverified Value Entry compiled by C2
-    // C2 -> Unverified Entry compiled by C1 (target is NOT an inline type)
-    // C2 -> Unverified Entry compiled by C2 (target is NOT an inline type)
-    // C2 -> Unverified Entry compiled by C1 (target IS an inline type, i.e., has VVEP_RO)
-    // C2 -> Unverified Entry compiled by C2 (target IS an inline type, i.e., has VVEP_RO)
+    // C2 -> Unverified Entry compiled by C1 (target is NOT a value class)
+    // C2 -> Unverified Entry compiled by C2 (target is NOT a value class)
+    // C2 -> Unverified Entry compiled by C1 (target IS a value class, i.e., has VVEP_RO)
+    // C2 -> Unverified Entry compiled by C2 (target IS a value class, i.e., has VVEP_RO)
     //----------------------------------------------------------------------------------
 
     // C1->C1 invokeinterface -- call Unverified Value Entry of MyImplPojo1.func2 (compiled by C1)
@@ -1822,7 +1860,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test90")
     public void test90_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = test90_intfs[i % test90_intfs.length];
             int result = test90(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
@@ -1843,7 +1881,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test91")
     public void test91_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = test91_intfs[i % test91_intfs.length];
             int result = test91(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
@@ -1864,7 +1902,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test92")
     public void test92_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = test92_intfs[i % test92_intfs.length];
             int result = test92(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
@@ -1885,7 +1923,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test93")
     public void test93_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = test93_intfs[i % test93_intfs.length];
             int result = test93(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
@@ -1906,7 +1944,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test94")
     public void test94_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = test94_intfs[i % test94_intfs.length];
             int result = test94(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
@@ -1927,7 +1965,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test95")
     public void test95_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = test95_intfs[i % test95_intfs.length];
             int result = test95(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
@@ -1954,7 +1992,7 @@ public class TestCallingConventionC1 {
     public void test96_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20000; // Do enough iteration to cause GC inside StubRoutines::store_inline_type_fields_to_buf
         Number x = new Number(10); // old object
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Number y = new Number(i); // new object for each iteraton
             RefPoint rp1 = new RefPoint(x, y);
             RefPoint rp2 = test96(rp1, info.isWarmUp());
@@ -1982,7 +2020,7 @@ public class TestCallingConventionC1 {
     @ForceCompile(CompLevel.C1_SIMPLE)
     public void test97_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             int result = test97(pointField1, pointField2);
             int n = test97_helper(pointField1, pointField2);
             Asserts.assertEQ(result, n);
@@ -2008,7 +2046,7 @@ public class TestCallingConventionC1 {
     @ForceCompile(CompLevel.C1_SIMPLE)
     public void test98_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             int result = test98(pointField1, pointField2);
             int n = test98_helper(pointField1, pointField2);
             Asserts.assertEQ(result, n);
@@ -2034,7 +2072,7 @@ public class TestCallingConventionC1 {
     @ForceCompile(CompLevel.C1_SIMPLE)
     public void test99_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             int result = test99(pointField1, pointField2);
             int n = test99_helper(pointField1, pointField2);
             Asserts.assertEQ(result, n);
@@ -2082,7 +2120,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test100")
     public void test100_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 4;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             FloatPoint fp1 = new FloatPoint(i+0,  i+11);
             FloatPoint fp2 = new FloatPoint(i+222, i+3333);
             RefPoint rp = new RefPoint(i+44444, i+555555);
@@ -2111,7 +2149,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test101")
     public void test101_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             RefPoint rp = new RefPoint(1, 2);
             Object x = rp.x;
             Object y = rp.y;
@@ -2146,7 +2184,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test102")
     public void test102_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 5;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             RefPoint rp = new RefPoint(11, 22);
             Object x = rp.x;
             Object y = rp.y;
@@ -2167,7 +2205,9 @@ public class TestCallingConventionC1 {
         test103_v = new Test103Value(); // invokestatic "Test103Value.<init>()QTest103Value;"
     }
 
-    static primitive class Test103Value {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test103Value {
         int x = rI;
     }
 
@@ -2185,14 +2225,16 @@ public class TestCallingConventionC1 {
     }
 
 
-    // Same as test103, but with an inline class that's too big to return as fields.
+    // Same as test103, but with a value class that's too big to return as fields.
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public void test104() {
         // when this method is compiled by C1, the Test104Value class is not yet loaded.
         test104_v = new Test104Value(); // invokestatic "Test104Value.<init>()QTest104Value;"
     }
 
-    static primitive class Test104Value {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test104Value {
         long x0 = rL;
         long x1 = rL;
         long x2 = rL;
@@ -2239,7 +2281,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test105")
     public void test105_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = test105_intfs[i % test105_intfs.length];
             int result = test105(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func1(123, 456) + i);
@@ -2261,7 +2303,7 @@ public class TestCallingConventionC1 {
     @Run(test = "test106")
     public void test106_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             Intf intf = test106_intfs[i % test106_intfs.length];
             int result = test106(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func1(123, 456) + i);
@@ -2281,10 +2323,10 @@ public class TestCallingConventionC1 {
         Intf intf1 = new MyImplVal1X();
         Intf intf2 = new MyImplVal2X();
 
-        for (int i=0; i<1000; i++) {
+        for (int i = 0; i < 1000; i++) {
             test107(intf1, 123, 456);
         }
-        for (int i=0; i<500_000; i++) {
+        for (int i = 0; i < 500_000; i++) {
             // Run enough loops so that test107 will be compiled by C2.
             if (i % 30 == 0) {
                 // This will indirectly call MyImplVal2X.func1, but the call frequency is low, so
@@ -2316,10 +2358,10 @@ public class TestCallingConventionC1 {
         Intf intf1 = new MyImplVal1X();
         Intf intf2 = new MyImplVal2X();
 
-        for (int i=0; i<1000; i++) {
+        for (int i = 0; i < 1000; i++) {
             test108(intf1, 123, 456);
         }
-        for (int i=0; i<500_000; i++) {
+        for (int i = 0; i < 500_000; i++) {
             // Run enough loops so that test108 will be compiled by C2.
             if (i % 30 == 0) {
                 // This will indirectly call MyImplVal2X.func2, but the call frequency is low, so
@@ -2351,10 +2393,10 @@ public class TestCallingConventionC1 {
         Intf intf1 = new MyImplPojo0();
         Intf intf2 = new MyImplPojo3();
 
-        for (int i=0; i<1000; i++) {
+        for (int i = 0; i < 1000; i++) {
             test109(intf1, 123, 456);
         }
-        for (int i=0; i<500_000; i++) {
+        for (int i = 0; i < 500_000; i++) {
             // Run enough loops so that test109 will be compiled by C2.
             if (i % 30 == 0) {
                 // This will indirectly call MyImplPojo3.func2, but the call frequency is low, so

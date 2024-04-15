@@ -63,7 +63,6 @@ import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.JavaSecurityAccess;
 import jdk.internal.util.ByteArray;
-import jdk.internal.value.ValueClass;
 import sun.reflect.misc.ReflectUtil;
 
 /**
@@ -2106,7 +2105,7 @@ public final class ObjectStreamClass implements Serializable {
                 Field f = fields[i].getField();
                 vals[offsets[i]] = switch (typeCodes[i]) {
                     case 'L', '[' ->
-                            UNSAFE.isFlattened(f)
+                            UNSAFE.isFlatField(f)
                                     ? UNSAFE.getValue(obj, readKeys[i], f.getType())
                                     : UNSAFE.getReference(obj, readKeys[i]);
                     default       -> throw new InternalError();
@@ -2159,7 +2158,7 @@ public final class ObjectStreamClass implements Serializable {
                                 obj.getClass().getName());
                         }
                         if (!dryRun) {
-                            if (UNSAFE.isFlattened(f)) {
+                            if (UNSAFE.isFlatField(f)) {
                                 UNSAFE.putValue(obj, key, f.getType(), val);
                             } else {
                                 UNSAFE.putReference(obj, key, val);

@@ -156,13 +156,13 @@ public class VectorSupport {
 
     public static class VectorSpecies<E> { }
 
-    public abstract static class VectorPayload { }
+    public abstract value static class VectorPayload { }
 
-    public static abstract class Vector<E> extends VectorPayload { }
+    public static abstract value class Vector<E> extends VectorPayload { }
 
-    public static abstract class VectorMask<E> extends VectorPayload { }
+    public static abstract value class VectorMask<E> extends VectorPayload { }
 
-    public static abstract class VectorShuffle<E> extends VectorPayload { }
+    public static abstract value class VectorShuffle<E> extends VectorPayload { }
 
     @LooselyConsistentValue
     public abstract value static class VectorPayloadMF {
@@ -382,6 +382,36 @@ public class VectorSupport {
                 System.out.println(e);
             }
             return -1L;
+        }
+
+        public String toString() {
+            StringBuilder sb = new StringBuilder("multifield payload : [ ");
+            try {
+                long start_offset = multiFieldOffset();
+                Class<?> elemType = getClass().getDeclaredField("mfield").getType();
+                for (int i = 0; i < length(); i++) {
+                    if (elemType == byte.class)
+                        sb.append(U.getByte(this, start_offset + i));
+                    else if (elemType == short.class)
+                        sb.append(U.getShort(this, start_offset + i * Short.BYTES));
+                    else if (elemType == int.class)
+                        sb.append(U.getInt(this, start_offset + i * Integer.BYTES));
+                    else if (elemType == long.class)
+                        sb.append(U.getLong(this, start_offset + i * Long.BYTES));
+                    else if (elemType == float.class)
+                        sb.append(U.getFloat(this, start_offset + i * Float.BYTES));
+                    else if (elemType == double.class)
+                        sb.append(U.getDouble(this, start_offset + i * Double.BYTES));
+                    else
+                        assert false;
+                    if (i < (length() - 1))
+                        sb.append(" , ");
+                }
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+            sb.append(" ] ");
+            return sb.toString();
         }
     }
 
@@ -1458,3 +1488,4 @@ public class VectorSupport {
 
     private static native int registerNatives();
 }
+

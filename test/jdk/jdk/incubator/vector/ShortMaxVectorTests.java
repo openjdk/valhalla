@@ -24,7 +24,8 @@
 /*
  * @test
  * @modules jdk.incubator.vector
- * @run testng/othervm -ea -esa -Xbatch ShortMaxVectorTests
+ * @enablePreview
+ * @run testng/othervm -ea -esa -Xbatch -XX:-TieredCompilation ShortMaxVectorTests
  */
 
 // -- This file was mechanically generated: Do not edit! -- //

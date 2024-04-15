@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,9 +69,9 @@ public class StatesQ64long extends SizeBase {
 
 
     public static class RefWrapper {
-        public Q64long.ref f;
+        public Q64long f;
 
-        public RefWrapper(Q64long.ref f) {
+        public RefWrapper(Q64long f) {
             this.f = f;
         }
     }

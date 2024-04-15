@@ -41,6 +41,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/resolvedIndyEntry.hpp"
+#include "oops/resolvedMethodEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/continuation.hpp"
@@ -235,11 +236,10 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
     __ load_unsigned_short(cache, Address(cache, in_bytes(ResolvedIndyEntry::num_parameters_offset())));
     __ lea(rsp, Address(rsp, cache, Interpreter::stackElementScale()));
   } else {
-    __ get_cache_and_index_at_bcp(cache, index, 1, index_size);
-    Register flags = cache;
-    __ movl(flags, Address(cache, index, Address::times_ptr, ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset()));
-    __ andl(flags, ConstantPoolCacheEntry::parameter_size_mask);
-    __ lea(rsp, Address(rsp, flags, Interpreter::stackElementScale()));
+    assert(index_size == sizeof(u2), "Can only be u2");
+    __ load_method_entry(cache, index);
+    __ load_unsigned_short(cache, Address(cache, in_bytes(ResolvedMethodEntry::num_parameters_offset())));
+    __ lea(rsp, Address(rsp, cache, Interpreter::stackElementScale()));
   }
 
    const Register java_thread = NOT_LP64(rcx) LP64_ONLY(r15_thread);
@@ -366,7 +366,6 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
   case T_DOUBLE : /* nothing to do */        break;
 #endif // _LP64
 
-  case T_PRIMITIVE_OBJECT: // fall through (inline types are handled with oops)
   case T_OBJECT :
     // retrieve result from frame
     __ movptr(rax, Address(rbp, frame::interpreter_frame_oop_temp_offset*wordSize));

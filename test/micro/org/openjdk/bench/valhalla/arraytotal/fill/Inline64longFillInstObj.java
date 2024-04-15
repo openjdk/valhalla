@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,7 +61,7 @@ public class Inline64longFillInstObj extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Obj_to_Val_as_Ref_fillinst0(Val_as_Ref st, InstanceField f) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = (Q64long) f.f;
         }
@@ -79,7 +79,7 @@ public class Inline64longFillInstObj extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Obj_to_Ref_as_Ref_fillinst0(Ref_as_Ref st, InstanceField f) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = (Q64long) f.f;
         }

@@ -210,8 +210,6 @@ class ClassFileParser {
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _is_implicitly_constructible;
-  bool _carries_value_modifier;      // Has ACC_VALUE mddifier or one of its super types has
-  bool _carries_identity_modifier;   // Has ACC_IDENTITY modifier or one of its super types has
   bool _has_loosely_consistent_annotation;
   bool _has_implicitly_constructible_annotation;
 
@@ -504,7 +502,7 @@ class ClassFileParser {
 
   void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS);
 
-  void verify_legal_class_modifiers(jint flags, const char* name, const Symbol* out_class, bool is_Object, TRAPS) const;
+  void verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const;
   void verify_legal_field_modifiers(jint flags,
                                     AccessFlags class_access_flags,
                                     TRAPS) const;
@@ -524,8 +522,6 @@ class ClassFileParser {
                                         unsigned int length,
                                         TRAPS) const;
 
-  bool is_jdk_internal_class(const Symbol* outer_class, const char * inner_class) const;
-  bool is_jdk_internal_class(const Klass* cls);
 
   // Wrapper for constantTag.is_klass_[or_]reference.
   // In older versions of the VM, Klass*s cannot sneak into early phases of
@@ -600,16 +596,10 @@ class ClassFileParser {
 
   bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
-  bool is_inline_type() const { return _access_flags.is_value_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
-  bool is_value_class() const { return _access_flags.is_value_class(); }
+  bool is_inline_type() const { return !_access_flags.is_identity_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
   bool is_abstract_class() const { return _access_flags.is_abstract(); }
   bool is_identity_class() const { return _access_flags.is_identity_class(); }
-  bool is_value_capable_class() const;
   bool has_inline_fields() const { return _has_inline_type_fields; }
-  bool carries_identity_modifier() const { return _carries_identity_modifier; }
-  void set_carries_identity_modifier() { _carries_identity_modifier = true; }
-  bool carries_value_modifier() const { return _carries_value_modifier; }
-  void set_carries_value_modifier() { _carries_value_modifier = true; }
 
   u2 java_fields_count() const { return _java_fields_count; }
 
@@ -620,6 +610,7 @@ class ClassFileParser {
   ReferenceType super_reference_type() const;
   bool is_instance_ref_klass() const;
   bool is_java_lang_ref_Reference_subclass() const;
+  static bool is_jdk_internal_class(const Symbol*);
 
   AccessFlags access_flags() const { return _access_flags; }
 

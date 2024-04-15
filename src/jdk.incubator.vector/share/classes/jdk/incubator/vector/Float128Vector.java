@@ -561,11 +561,11 @@ value class Float128Vector extends FloatVector {
         private final VectorPayloadMF32Z payload;
 
         Float128Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF32Z)(prepare(payload, offset, VSPECIES));
         }
 
         Float128Mask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF32Z)(prepare(val, VSPECIES));
         }
 
 
@@ -738,16 +738,16 @@ value class Float128Vector extends FloatVector {
         }
 
         public Float128Shuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF32B)(prepare(indexes, i, VSPECIES));
         }
 
         public Float128Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF32B)(prepare(fn, VSPECIES));
+        }
+        public Float128Shuffle(int[] indexes) {
+            this.payload = (VectorPayloadMF32B)(prepare(indexes, 0, VSPECIES));
         }
 
-        public Float128Shuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

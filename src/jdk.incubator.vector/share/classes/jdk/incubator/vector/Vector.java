@@ -1172,7 +1172,7 @@ import java.util.Arrays;
  *
  */
 @SuppressWarnings({"exports", "missing-explicit-ctor"})
-public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vector<E> {
+public abstract value class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vector<E> {
 
     /**
      * Default Constructor for abstract vector.

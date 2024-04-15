@@ -247,9 +247,6 @@ class Symbol : public MetaspaceObj {
     return starts_with('(') && ends_with('V');
   }
 
-  bool is_Q_signature() const;
-  bool is_Q_array_signature() const;
-  bool is_Q_method_signature() const;
   Symbol* fundamental_name(TRAPS);
   bool is_same_fundamental_type(Symbol*) const;
 
@@ -297,7 +294,6 @@ class Symbol : public MetaspaceObj {
   void print_utf8_on(outputStream* st) const;
   void print_on(outputStream* st) const;         // First level print
   void print_value_on(outputStream* st) const;   // Second level print.
-  void print_Qvalue_on(outputStream* st) const;  // Second level print for Q-types.
 
   // printing on default output stream
   void print() const;

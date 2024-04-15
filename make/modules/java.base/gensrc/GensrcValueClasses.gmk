@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,16 @@
 # Generate the value class replacements for selected java.base source files
 
 java.base-VALUE_CLASS-REPLACEMENTS := \
+    java/lang/Byte.java \
+    java/lang/Short.java \
+    java/lang/Integer.java \
+    java/lang/Long.java \
+    java/lang/Float.java \
+    java/lang/Double.java \
+    java/lang/Boolean.java \
+    java/lang/Character.java \
+    java/lang/Number.java \
+    java/lang/Record.java \
     java/util/Optional.java \
     java/util/OptionalInt.java \
     java/util/OptionalLong.java \
@@ -53,7 +63,8 @@ $(eval $(call SetupTextFileProcessing, JAVA_BASE_VALUECLASS_REPLACEMENTS, \
     SOURCE_BASE_DIR := $(TOPDIR)/src/java.base/share/classes, \
     OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/gensrc-valueclasses/java.base/, \
     REPLACEMENTS := \
-        public final class => public final value class, \
+        public final class => public final value class ; \
+        public abstract class => public abstract value class, \
 ))
 
 TARGETS += $(JAVA_BASE_VALUECLASS_REPLACEMENTS)

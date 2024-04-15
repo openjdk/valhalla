@@ -34,6 +34,7 @@ import jdk.incubator.vector.VectorShuffle;
  * @test
  * @bug 8265907
  * @modules jdk.incubator.vector
+ * @enablePreview
  * @run main/othervm -XX:CompileThresholdScaling=0.3 -XX:-TieredCompilation compiler.vectorapi.TestVectorShuffleIota
  */
 

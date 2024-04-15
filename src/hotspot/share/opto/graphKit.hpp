@@ -86,7 +86,8 @@ class GraphKit : public Phase {
 
 #ifdef ASSERT
   ~GraphKit() {
-    assert(!has_exceptions(), "user must call transfer_exceptions_into_jvms");
+    assert(failing() || !has_exceptions(),
+           "unless compilation failed, user must call transfer_exceptions_into_jvms");
 #if 0
     // During incremental inlining, the Node_Array of the C->for_igvn() worklist and the IGVN
     // worklist are shared but the _in_worklist VectorSet is not. To avoid inconsistencies,
@@ -701,7 +702,7 @@ class GraphKit : public Phase {
 
   // Do a null check on the receiver as it would happen before the call to
   // callee (with all arguments still on the stack).
-  Node* null_check_receiver_before_call(ciMethod* callee, bool replace_value = true) {
+  Node* null_check_receiver_before_call(ciMethod* callee) {
     assert(!callee->is_static(), "must be a virtual method");
     // Callsite signature can be different from actual method being called (i.e _linkTo* sites).
     // Use callsite signature always.
@@ -858,7 +859,6 @@ class GraphKit : public Phase {
 
   // Inline types
   Node* inline_type_test(Node* obj, bool is_inline = true);
-  Node* is_val_mirror(Node* mirror);
   Node* array_lh_test(Node* kls, jint mask, jint val, bool eq = true);
   Node* flat_array_test(Node* array_or_klass, bool flat = true);
   Node* null_free_array_test(Node* klass, bool null_free = true);

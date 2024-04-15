@@ -656,7 +656,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax);
                                    k < kmax && can_eliminate; k++) {
           Node* n = use->fast_out(k);
-          if (!n->is_Store() && n->Opcode() != Op_CastP2X && !bs->is_gc_pre_barrier_node(n)) {
+          if (!n->is_Store() && n->Opcode() != Op_CastP2X && !bs->is_gc_pre_barrier_node(n) && !reduce_merge_precheck) {
             DEBUG_ONLY(disq_node = n;)
             if (n->is_Load() || n->is_LoadStore()) {
               NOT_PRODUCT(fail_eliminate = "Field load";)
@@ -687,6 +687,11 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
           NOT_PRODUCT(fail_eliminate = "null or TOP memory";)
           can_eliminate = false;
         } else if (!reduce_merge_precheck) {
+          if (res->is_Phi() && res->as_Phi()->can_be_inline_type()) {
+            // Can only eliminate allocation if the phi had been replaced by an InlineTypeNode before which did not happen.
+            // TODO 8325106 Why wasn't it replaced by an InlineTypeNode?
+            can_eliminate = false;
+          }
           safepoints->append_if_missing(sfpt);
         }
       } else if (use->is_InlineType() && use->as_InlineType()->get_oop() == res) {
@@ -704,12 +709,15 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
             }
           } else {
             // Add other uses to the worklist to process individually
-            worklist.push(u);
+            // TODO will be fixed by 8328470
+            worklist.push(use);
           }
         }
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // Store to mark word of inline type larval buffer
         assert(res_type->is_inlinetypeptr(), "Unexpected store to mark word");
+      } else if (res_type->is_inlinetypeptr() && use->Opcode() == Op_MemBarRelease) {
+        // Inline type buffer allocations are followed by a membar
       } else if (reduce_merge_precheck && (use->is_Phi() || use->is_EncodeP() || use->Opcode() == Op_MemBarRelease)) {
         // Nothing to do
       } else if (use->Opcode() != Op_CastP2X) { // CastP2X is used by card mark
@@ -757,6 +765,11 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
       }
 #endif /*ASSERT*/
     }
+  }
+
+  if (TraceReduceAllocationMerges && !can_eliminate && reduce_merge_precheck) {
+    tty->print_cr("\tCan't eliminate allocation because '%s': ", fail_eliminate != nullptr ? fail_eliminate : "");
+    DEBUG_ONLY(if (disq_node != nullptr) disq_node->dump();)
   }
 #endif
   return can_eliminate;
@@ -897,9 +910,9 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     Node* field_val = nullptr;
     const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
     if (res_type->is_flat()) {
-      ciInlineKlass* vk = res_type->is_aryptr()->elem()->inline_klass();
-      assert(vk->flat_in_array(), "must be flat in array");
-      field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), vk, field_addr_type->isa_aryptr(), 0, alloc);
+      ciInlineKlass* inline_klass = res_type->is_aryptr()->elem()->inline_klass();
+      assert(inline_klass->flat_in_array(), "must be flat in array");
+      field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), inline_klass, field_addr_type->isa_aryptr(), 0, alloc);
     } else {
       field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
     }
@@ -943,9 +956,18 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
         field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
       }
     }
+
+    // Keep track of inline types to scalarize them later
     if (field_val->is_InlineType()) {
-      // Keep track of inline types to scalarize them later
       value_worklist->push(field_val);
+    } else if (field_val->is_Phi()) {
+      PhiNode* phi = field_val->as_Phi();
+      // Eagerly replace inline type phis now since we could be removing an inline type allocation where we must
+      // scalarize all its fields in safepoints.
+      field_val = phi->try_push_inline_types_down(&_igvn, true);
+      if (field_val->is_InlineType()) {
+        value_worklist->push(field_val);
+      }
     }
     sfpt->add_req(field_val);
   }
@@ -1085,7 +1107,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         assert(use->as_InlineType()->get_oop() == res, "unexpected inline type ptr use");
         // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
-        use->as_InlineType()->set_oop(_igvn.zerocon(T_OBJECT));
+        use->as_InlineType()->set_oop(_igvn, _igvn.zerocon(T_OBJECT));
         const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
         _igvn.set_type(use, toop);
         use->as_InlineType()->set_type(toop);
@@ -1100,6 +1122,10 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         // Store to mark word of inline type larval buffer
         assert(inline_alloc, "Unexpected store to mark word");
         _igvn.replace_node(use, use->in(MemNode::Memory));
+      } else if (use->Opcode() == Op_MemBarRelease) {
+        // Inline type buffer allocations are followed by a membar
+        assert(inline_alloc, "Unexpected MemBarRelease");
+        use->as_MemBar()->remove(&_igvn);
       } else {
         eliminate_gc_barrier(use);
       }
@@ -1207,7 +1233,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
   bool boxing_alloc = (res == nullptr) && C->eliminate_boxing() &&
                       tklass->isa_instklassptr() &&
                       tklass->is_instklassptr()->instance_klass()->is_box_klass();
-  if (!alloc->_is_scalar_replaceable && (!boxing_alloc || (res != nullptr))) {
+  if (!alloc->_is_scalar_replaceable && !boxing_alloc && !inline_alloc) {
     return false;
   }
 

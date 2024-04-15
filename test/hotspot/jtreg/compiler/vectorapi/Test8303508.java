@@ -32,6 +32,7 @@ import jdk.incubator.vector.VectorSpecies;
  * @bug 8303508
  * @summary Vector.lane() gets wrong value on x86
  * @modules jdk.incubator.vector
+ * @enablePreview
  * @library /test/lib
  *
  * @run main/othervm -Xbatch -XX:-TieredCompilation -ea compiler.vectorapi.Test8303508

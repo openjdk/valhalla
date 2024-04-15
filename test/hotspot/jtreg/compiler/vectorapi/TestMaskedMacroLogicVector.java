@@ -30,6 +30,7 @@
  * @requires vm.compiler2.enabled
  * @requires os.simpleArch == "x64"
  * @library /test/lib /
+ * @enablePreview
  * @run driver compiler.vectorapi.TestMaskedMacroLogicVector
  */
 
