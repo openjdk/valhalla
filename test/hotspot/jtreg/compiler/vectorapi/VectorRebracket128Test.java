@@ -40,6 +40,7 @@ import jdk.internal.vm.annotation.ForceInline;
  * @requires vm.gc.ZSinglegen
  * @modules jdk.incubator.vector
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @run testng/othervm -XX:CompileCommand=compileonly,jdk/incubator/vector/ByteVector.fromMemorySegment
  *      -XX:-TieredCompilation -XX:CICompilerCount=1 -XX:+UseZGC -XX:-ZGenerational -Xbatch -Xmx256m VectorRebracket128Test
  */
@@ -50,6 +51,7 @@ import jdk.internal.vm.annotation.ForceInline;
  * @requires vm.gc.ZGenerational
  * @modules jdk.incubator.vector
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @run testng/othervm -XX:CompileCommand=compileonly,jdk/incubator/vector/ByteVector.fromMemorySegment
  *      -XX:-TieredCompilation -XX:CICompilerCount=1 -XX:+UseZGC -XX:+ZGenerational -Xbatch -Xmx256m VectorRebracket128Test
  */

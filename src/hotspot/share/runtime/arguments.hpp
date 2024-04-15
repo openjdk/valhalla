@@ -322,7 +322,7 @@ class Arguments : AllStatic {
   static jint match_special_option_and_act(const JavaVMInitArgs* args,
                                            ScopedVMInitArgs* args_out);
 
-  static bool enable_valhalla(const char* prop_value);
+  static bool is_jdk_incubator_vector(const char* prop_value);
 
   static bool handle_deprecated_print_gc_flags();
 

@@ -1137,7 +1137,6 @@ class XorVMaskNode : public XorVNode {
 class ReplicateNode : public VectorNode {
  public:
   ReplicateNode(Node* in1, const TypeVect* vt) : VectorNode(in1, vt) {
-    assert(vt->element_basic_type() != T_BOOLEAN, "not support");
     assert(vt->element_basic_type() != T_CHAR, "not support");
   }
   virtual int Opcode() const;

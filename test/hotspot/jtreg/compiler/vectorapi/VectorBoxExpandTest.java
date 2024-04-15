@@ -31,6 +31,7 @@ import jdk.incubator.vector.IntVector;
  * @summary C2 crashes when expanding VectorBox
  * @modules jdk.incubator.vector
  * @library /test/lib
+ * @enablePreview
  *
  * @run main/othervm -Xbatch -XX:-TieredCompilation -ea -XX:CompileCommand=dontinline,*VectorBoxExpandTest.test compiler.vectorapi.VectorBoxExpandTest
  */

@@ -44,6 +44,7 @@ import jdk.test.lib.Utils;
  * @requires vm.cpu.features ~= ".*sve.*"
  * @summary AArch64: Fix register issues in SVE backend match rules
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.VectorMaskedNotTest
  */

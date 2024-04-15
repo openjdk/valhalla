@@ -555,11 +555,11 @@ value class Double64Vector extends DoubleVector {
         private final VectorPayloadMF8Z payload;
 
         Double64Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF8Z)(prepare(payload, offset, VSPECIES));
         }
 
         Double64Mask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF8Z)(prepare(val, VSPECIES));
         }
 
 
@@ -732,16 +732,16 @@ value class Double64Vector extends DoubleVector {
         }
 
         public Double64Shuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF8B)(prepare(indexes, i, VSPECIES));
         }
 
         public Double64Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF8B)(prepare(fn, VSPECIES));
+        }
+        public Double64Shuffle(int[] indexes) {
+            this.payload = (VectorPayloadMF8B)(prepare(indexes, 0, VSPECIES));
         }
 
-        public Double64Shuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

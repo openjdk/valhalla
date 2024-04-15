@@ -131,7 +131,7 @@ do
   # For each size
   Log true "${Type}:"
 
-  for bits in 64 128 256 512
+  for bits in 64 128 256 512 Max
   do
     vectortype=${typeprefix}${Type}${bits}Vector
     vectorteststype=${typeprefix}${Type}${bits}VectorTests
@@ -206,7 +206,7 @@ do
 
   # Generate tests for loads and stores
   # For each size
-  for bits in 64 128 256 512
+  for bits in 64 128 256 512 Max
   do
     vectortype=${typeprefix}${Type}${bits}Vector
     vectorteststype=${typeprefix}${Type}${bits}VectorLoadStoreTests

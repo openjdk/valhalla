@@ -44,6 +44,7 @@ import jdk.test.lib.Utils;
  * @requires os.arch=="aarch64"
  * @summary AArch64: Support SVE fabd instruction
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.VectorAbsDiffTest
  */

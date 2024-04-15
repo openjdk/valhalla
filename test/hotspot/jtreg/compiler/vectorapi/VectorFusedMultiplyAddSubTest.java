@@ -48,6 +48,7 @@ import jdk.test.lib.Utils;
  * @requires vm.cpu.features ~= ".*sve.*"
  * @summary AArch64: Add optimized rules for masked vector multiply-add/sub for SVE
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.VectorFusedMultiplyAddSubTest
  */

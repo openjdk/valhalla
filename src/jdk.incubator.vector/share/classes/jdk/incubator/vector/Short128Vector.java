@@ -580,11 +580,11 @@ value class Short128Vector extends ShortVector {
         private final VectorPayloadMF64Z payload;
 
         Short128Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF64Z)(prepare(payload, offset, VSPECIES));
         }
 
         Short128Mask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF64Z)(prepare(val, VSPECIES));
         }
 
 
@@ -757,16 +757,16 @@ value class Short128Vector extends ShortVector {
         }
 
         public Short128Shuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF64B)(prepare(indexes, i, VSPECIES));
         }
 
         public Short128Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF64B)(prepare(fn, VSPECIES));
+        }
+        public Short128Shuffle(int[] indexes) {
+            this.payload = (VectorPayloadMF64B)(prepare(indexes, 0, VSPECIES));
         }
 
-        public Short128Shuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

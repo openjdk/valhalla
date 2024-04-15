@@ -570,11 +570,11 @@ value class Long512Vector extends LongVector {
         private final VectorPayloadMF64Z payload;
 
         Long512Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF64Z)(prepare(payload, offset, VSPECIES));
         }
 
         Long512Mask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF64Z)(prepare(val, VSPECIES));
         }
 
 
@@ -747,16 +747,16 @@ value class Long512Vector extends LongVector {
         }
 
         public Long512Shuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF64B)(prepare(indexes, i, VSPECIES));
         }
 
         public Long512Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF64B)(prepare(fn, VSPECIES));
+        }
+        public Long512Shuffle(int[] indexes) {
+            this.payload = (VectorPayloadMF64B)(prepare(indexes, 0, VSPECIES));
         }
 
-        public Long512Shuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

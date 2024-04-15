@@ -36,13 +36,14 @@ import static jdk.incubator.vector.VectorOperators.*;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
 
-abstract class AbstractMask<E> extends VectorMask<E> {
+abstract value class AbstractMask<E> extends VectorMask<E> {
 
     public static final Unsafe U =  Unsafe.getUnsafe();
 
     /*package-private*/
     abstract VectorPayloadMF getBits();
 
+    @ForceInline
     static <F> VectorPayloadMF prepare(VectorPayloadMF payload, int offset, VectorSpecies<F> species) {
         boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
         VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(species.elementType(), species.length(), isMaxShape);
@@ -56,6 +57,7 @@ abstract class AbstractMask<E> extends VectorMask<E> {
         return res;
     }
 
+    @ForceInline
     static <F> VectorPayloadMF prepare(boolean val, VectorSpecies<F> species) {
         boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
         VectorPayloadMF res = VectorPayloadMF.newMaskInstanceFactory(species.elementType(), species.length(), isMaxShape);

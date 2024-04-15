@@ -45,6 +45,7 @@ import org.testng.annotations.Test;
  * @library /test/lib
  * @summary Tests X86 backend related incorrectness issues in legacy storemask patterns
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run testng/othervm -XX:-TieredCompilation -XX:CompileThreshold=100 compiler.vectorapi.VectorMaskLoadStoreTest
  */
@@ -57,6 +58,7 @@ import org.testng.annotations.Test;
  *          "-XX:DisableIntrinsic=_VectorMaskOp" is required to break "VectorMaskToLong (VectorLongToMask l) ==> l" opt.
  *          This is because when _VectorMaskOp is disabled, VectorMaskToLong won't be generated.
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run testng/othervm -XX:-TieredCompilation -XX:CompileThreshold=100 -XX:+UnlockDiagnosticVMOptions
  *                     -XX:DisableIntrinsic=_VectorMaskOp compiler.vectorapi.VectorMaskLoadStoreTest

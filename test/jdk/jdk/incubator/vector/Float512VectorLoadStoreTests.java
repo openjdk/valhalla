@@ -24,6 +24,7 @@
 /*
  * @test
  * @modules jdk.incubator.vector java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @run testng/othervm -XX:-TieredCompilation Float512VectorLoadStoreTests
  *
  */

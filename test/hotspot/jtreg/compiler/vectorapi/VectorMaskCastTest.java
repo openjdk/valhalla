@@ -45,6 +45,7 @@ import jdk.test.lib.Utils;
  * @library /test/lib /
  * @summary Unify vector mask cast and add missing rules for VectorMaskCast
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.VectorMaskCastTest
  */

@@ -36,6 +36,7 @@ import compiler.vectorapi.reshape.utils.VectorReshapeHelper;
  * @summary Test that vector cast intrinsics work as intended on avx1.
  * @requires vm.cpu.features ~= ".*avx.*"
  * @library /test/lib /
+ * @enablePreview
  * @run main compiler.vectorapi.reshape.TestVectorCastAVX1
  */
 public class TestVectorCastAVX1 {

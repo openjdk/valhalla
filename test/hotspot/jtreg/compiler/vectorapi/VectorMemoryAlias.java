@@ -32,6 +32,7 @@
  *      -XX:CompileThreshold=100 -XX:CompileCommand=dontinline,compiler.vectorapi.VectorMemoryAlias::test
  *      compiler.vectorapi.VectorMemoryAlias
  * @modules jdk.incubator.vector
+ * @enablePreview
  */
 
 package compiler.vectorapi;

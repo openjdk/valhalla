@@ -47,6 +47,7 @@ import jdk.test.lib.Utils;
  * @requires os.arch=="aarch64"
  * @summary Add optimized rules for vector compare with zero on NEON
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.VectorCompareWithZeroTest
  */

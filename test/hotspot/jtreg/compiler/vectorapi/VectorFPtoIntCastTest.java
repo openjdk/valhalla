@@ -28,6 +28,7 @@
 * @modules jdk.incubator.vector
 * @requires vm.compiler2.enabled
 * @library /test/lib /
+* @enablePreview
 * @run driver compiler.vectorapi.VectorFPtoIntCastTest
 */
 

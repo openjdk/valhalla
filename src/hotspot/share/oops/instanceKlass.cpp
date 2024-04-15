@@ -76,6 +76,7 @@
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/methodComparator.hpp"
+#include "prims/vectorSupport.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/atomic.hpp"
@@ -1024,11 +1025,13 @@ bool InstanceKlass::link_class_impl(TRAPS) {
         if (constants()->tag_at(preload_classes()->at(i)).is_klass()) continue;
         Symbol* class_name = constants()->klass_at_noresolve(preload_classes()->at(i));
         if (class_name == name()) continue;
+        if (ClassFileParser::is_jdk_internal_class(class_name)) continue;
         log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the Preload attribute", class_name->as_C_string(), name()->as_C_string());
         oop loader = class_loader();
         oop protection_domain = this->protection_domain();
         Klass* klass = SystemDictionary::resolve_or_null(class_name,
                                                           Handle(THREAD, loader), Handle(THREAD, protection_domain), THREAD);
+        if (klass && VectorSupport::is_vector(klass)) continue;
         if (HAS_PENDING_EXCEPTION) {
           CLEAR_PENDING_EXCEPTION;
         }

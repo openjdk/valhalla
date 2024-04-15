@@ -849,11 +849,11 @@ value class $vectortype$ extends $abstractvectortype$ {
         private final VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$Z payload;
 
         $masktype$(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$Z)(prepare(payload, offset, VSPECIES));
         }
 
         $masktype$(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$Z)(prepare(val, VSPECIES));
         }
 #else[Max]
         $masktype$(VectorPayloadMF payload) {
@@ -864,11 +864,11 @@ value class $vectortype$ extends $abstractvectortype$ {
         private final VectorPayloadMF$vectorsizeinbytes$Z payload;
 
         $masktype$(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$Z)(prepare(payload, offset, VSPECIES));
         }
 
         $masktype$(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$Z)(prepare(val, VSPECIES));
         }
 #end[Max]
 
@@ -1065,11 +1065,14 @@ value class $vectortype$ extends $abstractvectortype$ {
         }
 
         public $shuffletype$(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$B)(prepare(indexes, i, VSPECIES));
         }
 
         public $shuffletype$(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$B)(prepare(fn, VSPECIES));
+        }
+        public $shuffletype$(int[] indexes) {
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$$Boxbitsinitials$B)(prepare(indexes, 0, VSPECIES));
         }
 #else[Max]
         @NullRestricted
@@ -1082,17 +1085,17 @@ value class $vectortype$ extends $abstractvectortype$ {
         }
 
         public $shuffletype$(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$B)(prepare(indexes, i, VSPECIES));
         }
 
         public $shuffletype$(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$B)(prepare(fn, VSPECIES));
+        }
+        public $shuffletype$(int[] indexes) {
+            this.payload = (VectorPayloadMF$vectorsizeinbytes$B)(prepare(indexes, 0, VSPECIES));
         }
 #end[Max]
 
-        public $shuffletype$(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

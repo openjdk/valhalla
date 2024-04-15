@@ -44,6 +44,7 @@ import jdk.test.lib.Utils;
  * @requires os.arch=="aarch64"
  * @summary AArch64: Fix performance regression after auto-vectorization on NEON
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.TestVectorMulAddSub
  */

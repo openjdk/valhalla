@@ -45,6 +45,7 @@ import jdk.test.lib.Utils;
  * @requires vm.cpu.features ~= ".*asimd.*"
  * @summary AArch64: [vector] Make all bits set vector sharable for match rules
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.AllBitsSetVectorMatchRuleTest
  */

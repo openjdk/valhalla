@@ -130,7 +130,7 @@ import java.util.Objects;
  * performance penalties.
  */
 @SuppressWarnings("exports")
-public abstract class VectorMask<E> extends jdk.internal.vm.vector.VectorSupport.VectorMask<E> {
+public abstract value class VectorMask<E> extends jdk.internal.vm.vector.VectorSupport.VectorMask<E> {
 
     /**
      * Default Constructor for abstract VectorMask.

@@ -36,6 +36,7 @@ import compiler.vectorapi.reshape.utils.VectorReshapeHelper;
  * @summary Test that vector cast intrinsics work as intended on avx512bw.
  * @requires vm.cpu.features ~= ".*avx512bw.*"
  * @library /test/lib /
+ * @enablePreview
  * @run main compiler.vectorapi.reshape.TestVectorCastAVX512BW
  */
 public class TestVectorCastAVX512BW {

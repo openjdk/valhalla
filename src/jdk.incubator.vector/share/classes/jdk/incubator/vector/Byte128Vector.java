@@ -596,11 +596,11 @@ value class Byte128Vector extends ByteVector {
         private final VectorPayloadMF128Z payload;
 
         Byte128Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF128Z)(prepare(payload, offset, VSPECIES));
         }
 
         Byte128Mask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF128Z)(prepare(val, VSPECIES));
         }
 
 
@@ -773,16 +773,16 @@ value class Byte128Vector extends ByteVector {
         }
 
         public Byte128Shuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF128B)(prepare(indexes, i, VSPECIES));
         }
 
         public Byte128Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF128B)(prepare(fn, VSPECIES));
+        }
+        public Byte128Shuffle(int[] indexes) {
+            this.payload = (VectorPayloadMF128B)(prepare(indexes, 0, VSPECIES));
         }
 
-        public Byte128Shuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

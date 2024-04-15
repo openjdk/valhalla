@@ -30,7 +30,7 @@ import jdk.internal.vm.annotation.ForceInline;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
 
-abstract class AbstractShuffle<E> extends VectorShuffle<E> {
+abstract value class AbstractShuffle<E> extends VectorShuffle<E> {
     static final IntUnaryOperator IDENTITY = i -> i;
 
     public static final Unsafe U = Unsafe.getUnsafe();
@@ -41,6 +41,7 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
     /*package-private*/
     abstract VectorPayloadMF indices();
 
+    @ForceInline
     static <F> VectorPayloadMF prepare(int[] indices, int offset, VectorSpecies<F> species) {
         int length = species.length();
         boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
@@ -56,6 +57,7 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
         return payload;
     }
 
+    @ForceInline
     static <F> VectorPayloadMF prepare(IntUnaryOperator f, VectorSpecies<F> species) {
         int length = species.length();
         boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;

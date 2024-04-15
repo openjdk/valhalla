@@ -554,11 +554,11 @@ value class DoubleMaxVector extends DoubleVector {
         private final VectorPayloadMFMaxLZ payload;
 
         DoubleMaxMask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMFMaxLZ)(prepare(payload, offset, VSPECIES));
         }
 
         DoubleMaxMask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMFMaxLZ)(prepare(val, VSPECIES));
         }
 
 
@@ -731,16 +731,16 @@ value class DoubleMaxVector extends DoubleVector {
         }
 
         public DoubleMaxShuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMFMaxLB)(prepare(indexes, i, VSPECIES));
         }
 
         public DoubleMaxShuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMFMaxLB)(prepare(fn, VSPECIES));
+        }
+        public DoubleMaxShuffle(int[] indexes) {
+            this.payload = (VectorPayloadMFMaxLB)(prepare(indexes, 0, VSPECIES));
         }
 
-        public DoubleMaxShuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

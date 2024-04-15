@@ -580,11 +580,11 @@ value class Int256Vector extends IntVector {
         private final VectorPayloadMF64Z payload;
 
         Int256Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF64Z)(prepare(payload, offset, VSPECIES));
         }
 
         Int256Mask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF64Z)(prepare(val, VSPECIES));
         }
 
 
@@ -757,16 +757,16 @@ value class Int256Vector extends IntVector {
         }
 
         public Int256Shuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF64B)(prepare(indexes, i, VSPECIES));
         }
 
         public Int256Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF64B)(prepare(fn, VSPECIES));
+        }
+        public Int256Shuffle(int[] indexes) {
+            this.payload = (VectorPayloadMF64B)(prepare(indexes, 0, VSPECIES));
         }
 
-        public Int256Shuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

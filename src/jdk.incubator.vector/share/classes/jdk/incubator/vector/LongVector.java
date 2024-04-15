@@ -49,7 +49,7 @@ import static jdk.incubator.vector.VectorOperators.*;
  * {@code long} values.
  */
 @SuppressWarnings({"cast"})  // warning: redundant cast
-public abstract class LongVector extends AbstractVector<Long> {
+public abstract value class LongVector extends AbstractVector<Long> {
 
     static final int FORBID_OPCODE_KIND = VO_ONLYFP;
     /**

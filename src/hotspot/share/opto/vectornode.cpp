@@ -925,14 +925,9 @@ bool VectorNode::is_all_ones_vector(Node* n) {
 bool VectorNode::is_all_zeros_vector(Node* n) {
   switch (n->Opcode()) {
   case Op_Replicate:
-    return is_integral_type(n->bottom_type()->is_vect()->element_basic_type()) &&
-           is_con(n->in(1), 0);
+    return n->in(1)->bottom_type()->is_zero_type();
   case Op_MaskAll:
     return is_con(n->in(1), 0);
-  case Op_ReplicateF:
-    return n->in(1)->bottom_type() == TypeF::ZERO;
-  case Op_ReplicateD:
-    return n->in(1)->bottom_type() == TypeD::ZERO;
   default:
     return false;
   }

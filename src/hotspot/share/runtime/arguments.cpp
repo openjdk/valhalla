@@ -2317,7 +2317,7 @@ jint Arguments::parse_xss(const JavaVMOption* option, const char* tail, intx* ou
   return JNI_OK;
 }
 
-bool Arguments::enable_valhalla(const char* prop_value) {
+bool Arguments::is_jdk_incubator_vector(const char* prop_value) {
   return strstr(prop_value, "jdk.incubator.vector");
 }
 
@@ -2430,8 +2430,8 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
       if (!create_numbered_module_property("jdk.module.addmods", tail, addmods_count++)) {
         return JNI_ENOMEM;
       }
-      if (enable_valhalla(tail)) {
-        EnablePrimitiveClasses = true;
+      if (is_jdk_incubator_vector(tail)) {
+        set_enable_preview();
       }
     } else if (match_option(option, "--enable-native-access=", &tail)) {
       if (!create_numbered_module_property("jdk.module.enable.native.access", tail, enable_native_access_count++)) {

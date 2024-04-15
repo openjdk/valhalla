@@ -24,6 +24,7 @@
 /*
  * @test
  * @modules jdk.incubator.vector
+ * @enablePreview
  * @run testng/othervm -ea -esa -Xbatch -XX:-TieredCompilation Double64VectorTests
  */
 

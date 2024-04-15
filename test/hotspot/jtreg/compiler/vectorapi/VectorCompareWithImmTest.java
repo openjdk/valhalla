@@ -45,6 +45,7 @@ import jdk.test.lib.Utils;
  * @requires vm.cpu.features ~= ".*sve.*"
  * @summary AArch64: Add optimized rules for vector compare with immediate for SVE
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run driver compiler.vectorapi.VectorCompareWithImmTest
  */

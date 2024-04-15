@@ -24,7 +24,8 @@
 /*
  * @test
  * @modules jdk.incubator.vector
- * @run testng/othervm -ea -esa -Xbatch IntMaxVectorTests
+ * @enablePreview
+ * @run testng/othervm -ea -esa -Xbatch -XX:-TieredCompilation IntMaxVectorTests
  */
 
 // -- This file was mechanically generated: Do not edit! -- //

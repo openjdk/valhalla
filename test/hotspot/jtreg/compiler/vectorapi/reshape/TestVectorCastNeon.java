@@ -36,6 +36,7 @@ import compiler.vectorapi.reshape.utils.VectorReshapeHelper;
  * @summary Test that vector cast intrinsics work as intended on neon.
  * @requires vm.cpu.features ~= ".*asimd.*"
  * @library /test/lib /
+ * @enablePreview
  * @run main compiler.vectorapi.reshape.TestVectorCastNeon
  */
 public class TestVectorCastNeon {

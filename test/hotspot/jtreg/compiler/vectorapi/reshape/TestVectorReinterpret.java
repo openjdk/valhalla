@@ -40,6 +40,7 @@ import jdk.incubator.vector.VectorSpecies;
  * @modules java.base/jdk.internal.misc
  * @summary Test that vector reinterpret intrinsics work as intended.
  * @library /test/lib /
+ * @enablePreview
  * @run main compiler.vectorapi.reshape.TestVectorReinterpret
  */
 public class TestVectorReinterpret {

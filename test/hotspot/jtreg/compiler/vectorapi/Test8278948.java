@@ -36,6 +36,7 @@ import jdk.test.lib.Utils;
  * @summary Intermediate integer promotion vector length encoding is calculated incorrectly on x86
  * @modules jdk.incubator.vector
  * @library /test/lib
+ * @enablePreview
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:-TieredCompilation -XX:CompileThreshold=100 -XX:UseAVX=1
  *                   compiler.vectorapi.Test8278948
  */

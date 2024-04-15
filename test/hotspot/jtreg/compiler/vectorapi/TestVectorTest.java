@@ -32,6 +32,7 @@ import jdk.incubator.vector.VectorMask;
  * @summary Test idealization of VectorTest intrinsics to eliminate
  *          the materialization of the result as an int
  * @modules jdk.incubator.vector
+ * @enablePreview
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" & vm.cpu.features ~= ".*sse4.*" & (vm.opt.UseSSE == "null" | vm.opt.UseSSE > 3))
  *           | os.arch == "aarch64"

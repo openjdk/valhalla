@@ -42,7 +42,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 import static jdk.internal.vm.vector.VectorSupport.*;
 
 @SuppressWarnings({"cast", "missing-explicit-ctor"})
-abstract class AbstractVector<E> extends Vector<E> {
+abstract value class AbstractVector<E> extends Vector<E> {
     /**
      * The order of vector bytes when stored in natural,
      * array elements of the same lane type.
@@ -388,6 +388,7 @@ abstract class AbstractVector<E> extends Vector<E> {
             } else {  // Contraction: cast first then unslice.
                 return rsp.zero().slice(rsp.laneCount() - origin,
                                         convert0(kind, rsp));
+
             }
         }
     }

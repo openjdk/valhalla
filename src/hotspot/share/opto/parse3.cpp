@@ -36,6 +36,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
+#include "opto/vectornode.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/handles.inline.hpp"
 
@@ -51,6 +52,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
   ciInstanceKlass* field_holder = field->holder();
 
   if (is_get && is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
+    assert(!field->is_multifield_base() && !field->is_multifield(), "Illegal direct read access to multifield through getfield bytecode.");
     InlineTypeNode* vt = peek()->as_InlineType();
     null_check(vt);
     Node* value = vt->field_value_by_offset(field->offset_in_bytes());
@@ -91,7 +93,12 @@ void Parse::do_field_access(bool is_get, bool is_field) {
   // Generate code for the object pointer.
   Node* obj;
   if (is_field) {
-    int obj_depth = is_get ? 0 : field->type()->size();
+    int obj_depth = 0;
+    if (!is_get) {
+      const ciType* ftype = field->type();
+      // A non-scalarized multifield is represented as a single field.
+      obj_depth = field->is_multifield_base() ? ftype->elem_word_count() : ftype->size();
+    }
     obj = null_check(peek(obj_depth));
     // Compile-time detect of null-exception?
     if (stopped())  return;
@@ -143,6 +150,11 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   ciType* field_klass = field->type();
   int offset = field->offset_in_bytes();
   bool must_assert_null = false;
+
+  if (field->is_multifield_base() || field->is_multifield()) {
+    // A read access to multifield should be preformed using Unsafe.get* APIs.
+    assert(false, "Illegal direct read access to mutifield through getfield bytecode");
+  }
 
   Node* ld = nullptr;
   if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
@@ -234,7 +246,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   if (obj->is_InlineType()) {
     // TODO 8325106 Factor into own method
     // TODO 8325106 Assert that we only do this in the constructor and align with checks in ::do_call
-    //if (_method->is_object_constructor() && _method->holder()->is_inlinetype()) {
+    //if (_method->is_object_constructor() && _method->holder()->is_inlinetype())
     assert(obj->as_InlineType()->is_larval(), "must be larval");
 
     // TODO 8325106 Assert that holder is null-free
@@ -267,11 +279,19 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       int nargs = 1 + field->type()->size();
       inc_sp(nargs);
       val = val->as_InlineType()->buffer(this);
+    } else if (field->is_multifield_base()) {
+      assert(!InlineTypeNode::is_multifield_scalarized(field), "Sanity check");
+      // Only possible non-unsafe access to multifield base is within vector payload constructors
+      // for initializing entire bundle with a default value.
+      val = _gvn.transform(VectorNode::scalar2vector(val, field->secondary_fields_count(), Type::get_const_type(field->type()), false));
+    } else if (field->is_multifield()) {
+      assert(false, "Illegal direct write access to mutifield through putfield bytecode");
     }
 
     // Clone the inline type node and set the new field value
-    InlineTypeNode* new_vt = obj->as_InlineType()->clone_if_required(&_gvn, _map);
+    InlineTypeNode* new_vt = obj->clone()->as_InlineType();
     new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
+
     {
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
@@ -280,9 +300,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       new_vt = new_vt->adjust_scalarization_depth(this);
     }
 
-    // TODO 8325106 Double check and explain these checks
-    if ((!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor()) && new_vt->is_allocated(&gvn())) {
-      assert(new_vt->as_InlineType()->is_allocated(&gvn()), "must be buffered");
+    // TODO 8325106 needed? I think so, because although we are incrementally inlining, we might not incrementally inline this very method
+    if ((!_caller->has_method() || C->inlining_incrementally()) && new_vt->is_allocated(&gvn())) {
       // We need to store to the buffer
       // TODO 8325106 looks like G1BarrierSetC2::g1_can_remove_pre_barrier is not strong enough to remove the pre barrier
       // TODO is it really guaranteed that the preval is null?

@@ -628,11 +628,11 @@ value class Short512Vector extends ShortVector {
         private final VectorPayloadMF256Z payload;
 
         Short512Mask(VectorPayloadMF payload, int offset) {
-            this(prepare(payload, offset, VSPECIES));
+            this.payload = (VectorPayloadMF256Z)(prepare(payload, offset, VSPECIES));
         }
 
         Short512Mask(boolean val) {
-            this(prepare(val, VSPECIES));
+            this.payload = (VectorPayloadMF256Z)(prepare(val, VSPECIES));
         }
 
 
@@ -805,16 +805,16 @@ value class Short512Vector extends ShortVector {
         }
 
         public Short512Shuffle(int[] indexes, int i) {
-            this(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF256B)(prepare(indexes, i, VSPECIES));
         }
 
         public Short512Shuffle(IntUnaryOperator fn) {
-            this(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF256B)(prepare(fn, VSPECIES));
+        }
+        public Short512Shuffle(int[] indexes) {
+            this.payload = (VectorPayloadMF256B)(prepare(indexes, 0, VSPECIES));
         }
 
-        public Short512Shuffle(int[] indexes) {
-            this(indexes, 0);
-        }
 
 
         @ForceInline

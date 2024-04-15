@@ -30,6 +30,7 @@ import jdk.incubator.vector.VectorSpecies;
  * @test
  * @bug 8244675
  * @modules jdk.incubator.vector
+ * @enablePreview
  *
  * @run main/othervm -Xbatch -XX:-Inline            compiler.vectorapi.TestNoInline
  * @run main/othervm -Xbatch -XX:-IncrementalInline compiler.vectorapi.TestNoInline
