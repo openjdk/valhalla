@@ -992,6 +992,9 @@ public:
 void Type::check_symmetrical(const Type* t, const Type* mt, const VerifyMeet& verify) const {
   Compile* C = Compile::current();
   const Type* mt2 = verify.meet(t, this);
+
+  // Verify that:
+  //      this meet t == t meet this
   if (mt != mt2) {
     tty->print_cr("=== Meet Not Commutative ===");
     tty->print("t           = ");   t->dump(); tty->cr();
@@ -1008,6 +1011,12 @@ void Type::check_symmetrical(const Type* t, const Type* mt, const VerifyMeet& ve
   // Interface:AnyNull meet Oop:AnyNull == Interface:AnyNull
   // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
 
+  // Verify that:
+  //      !(t meet this)  meet !t ==
+  //      (!t join !this) meet !t == !t
+  // and
+  //      !(t meet this)  meet !this ==
+  //      (!t join !this) meet !this == !this
   if (t2t != t->_dual || t2this != this->_dual) {
     tty->print_cr("=== Meet Not Symmetric ===");
     tty->print("t   =                   ");              t->dump(); tty->cr();
@@ -4521,10 +4530,11 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
                                                             ciKlass*& res_klass, bool& res_xk, bool& res_flat_in_array) {
   ciKlass* this_klass = this_type->klass();
   ciKlass* other_klass = other_type->klass();
-  bool this_flat_in_array = this_type->flat_in_array();
-  bool other_flat_in_array = other_type->flat_in_array();
-  bool this_flat_in_array_orig = this_flat_in_array;
-  bool other_flat_in_array_orig = other_flat_in_array;
+  const bool this_flat_in_array = this_type->flat_in_array();
+  const bool other_flat_in_array = other_type->flat_in_array();
+  const bool this_not_flat_in_array = this_type->not_flat_in_array();
+  const bool other_not_flat_in_array = other_type->not_flat_in_array();
+
   bool this_xk = this_type->klass_is_exact();
   bool other_xk = other_type->klass_is_exact();
   PTR this_ptr = this_type->ptr();
@@ -4572,39 +4582,47 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
   // centerline and or-ed above it.  (N.B. Constants are always exact.)
 
   // Check for subtyping:
+  // Flat in array matrix, yes = y, no = n, maybe = m, top/empty = T:
+  //        yes maybe no   -> Super Klass
+  //   yes   y    y    y
+  // maybe   y    m    m
+  //    no   T    n    n
+  //    |
+  //    v
+  // Sub Klass
+
   const T* subtype = nullptr;
   bool subtype_exact = false;
-  bool flat_array = false;
+  bool flat_in_array = false;
   if (this_type->is_same_java_type_as(other_type)) {
     subtype = this_type;
     subtype_exact = below_centerline(ptr) ? (this_xk && other_xk) : (this_xk || other_xk);
-    flat_array = below_centerline(ptr) ? (this_flat_in_array && other_flat_in_array) : (this_flat_in_array || other_flat_in_array);
-  } else if (!other_xk && this_type->is_meet_subtype_of(other_type) && (!other_flat_in_array || this_flat_in_array)) {
+    flat_in_array = below_centerline(ptr) ? (this_flat_in_array && other_flat_in_array) : (this_flat_in_array || other_flat_in_array);
+  } else if (!other_xk && is_meet_subtype_of(this_type, other_type)) {
     subtype = this_type;     // Pick subtyping class
     subtype_exact = this_xk;
-    flat_array = this_flat_in_array;
-  } else if (!this_xk && other_type->is_meet_subtype_of(this_type) && (!this_flat_in_array || other_flat_in_array)) {
+    bool other_flat_this_maybe_flat = other_flat_in_array && (!this_flat_in_array && !this_not_flat_in_array);
+    flat_in_array = this_flat_in_array || other_flat_this_maybe_flat;
+  } else if (!this_xk && is_meet_subtype_of(other_type, this_type)) {
     subtype = other_type;    // Pick subtyping class
     subtype_exact = other_xk;
-    flat_array = other_flat_in_array;
+    bool this_flat_other_maybe_flat = this_flat_in_array && (!other_flat_in_array && !other_not_flat_in_array);
+    flat_in_array = other_flat_in_array || this_flat_other_maybe_flat;
   }
 
   if (subtype) {
     if (above_centerline(ptr)) { // both are up?
       this_type = other_type = subtype;
       this_xk = other_xk = subtype_exact;
-      this_flat_in_array = other_flat_in_array = flat_array;
     } else if (above_centerline(this_ptr) && !above_centerline(other_ptr)) {
       this_type = other_type; // tinst is down; keep down man
       this_xk = other_xk;
-      this_flat_in_array = other_flat_in_array;
+      flat_in_array = other_flat_in_array;
     } else if (above_centerline(other_ptr) && !above_centerline(this_ptr)) {
       other_type = this_type; // this is down; keep down man
-      other_xk = this_xk;
-      other_flat_in_array = this_flat_in_array;
+      flat_in_array = this_flat_in_array;
     } else {
       this_xk = subtype_exact;  // either they are equal, or we'll do an LCA
-      this_flat_in_array = flat_array;
     }
   }
 
@@ -4615,7 +4633,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
     // handled elsewhere).
     res_klass = this_type->klass();
     res_xk = this_xk;
-    res_flat_in_array = this_flat_in_array;
+    res_flat_in_array = subtype ? flat_in_array : this_flat_in_array;
     return SUBTYPE;
   } // Else classes are not equal
 
@@ -4632,9 +4650,13 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
 
   res_klass = k;
   res_xk = false;
-  res_flat_in_array = this_flat_in_array_orig && other_flat_in_array_orig;
+  res_flat_in_array = this_flat_in_array && other_flat_in_array;
 
   return LCA;
+}
+
+template<class T> bool TypePtr::is_meet_subtype_of(const T* sub_type, const T* super_type) {
+  return sub_type->is_meet_subtype_of(super_type) && !(super_type->flat_in_array() && sub_type->not_flat_in_array());
 }
 
 //------------------------java_mirror_type--------------------------------------
