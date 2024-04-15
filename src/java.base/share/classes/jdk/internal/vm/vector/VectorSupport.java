@@ -1488,3 +1488,4 @@ public class VectorSupport {
 
     private static native int registerNatives();
 }
+
