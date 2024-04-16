@@ -387,7 +387,7 @@ public class SwitchBootstraps {
         List<Class<?>> extraClassLabels = new ArrayList<>();
 
         byte[] classBytes = Classfile.of().build(ClassDesc.of(typeSwitchClassName(caller.lookupClass())), clb -> {
-            clb.withFlags(AccessFlag.FINAL, AccessFlag.SUPER, AccessFlag.SYNTHETIC)
+            clb.withFlags(AccessFlag.FINAL, AccessFlag.SYNTHETIC)
                .withMethodBody("typeSwitch",
                                TYPES_SWITCH_DESCRIPTOR,
                                Classfile.ACC_FINAL | Classfile.ACC_PUBLIC | Classfile.ACC_STATIC,
