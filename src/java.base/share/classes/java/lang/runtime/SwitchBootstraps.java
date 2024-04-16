@@ -50,6 +50,7 @@ import jdk.internal.vm.annotation.Stable;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.NESTMATE;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.STRONG;
 import static java.util.Objects.requireNonNull;
+import jdk.internal.misc.PreviewFeatures;
 
 /**
  * Bootstrap methods for linking {@code invokedynamic} call sites that implement
@@ -387,7 +388,7 @@ public class SwitchBootstraps {
         List<Class<?>> extraClassLabels = new ArrayList<>();
 
         byte[] classBytes = Classfile.of().build(ClassDesc.of(typeSwitchClassName(caller.lookupClass())), clb -> {
-            clb.withFlags(AccessFlag.FINAL, AccessFlag.SYNTHETIC)
+            clb.withFlags(AccessFlag.FINAL, (PreviewFeatures.isEnabled())  ? AccessFlag.IDENTITY : AccessFlag.SUPER, AccessFlag.SYNTHETIC)
                .withMethodBody("typeSwitch",
                                TYPES_SWITCH_DESCRIPTOR,
                                Classfile.ACC_FINAL | Classfile.ACC_PUBLIC | Classfile.ACC_STATIC,
