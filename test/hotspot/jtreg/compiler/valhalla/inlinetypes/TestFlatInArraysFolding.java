@@ -22,33 +22,74 @@
  */
 
 /*
- * @test
+ * @test id=serialgc
  * @bug 8321734
  * @requires vm.gc.Serial
- * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the
- *          flat in array property of the types.
+ * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
+ *          in array property of the types. Additionally check that the type system properly handles the case of a
+ *         super class being flat in array while the sub klass could be flat in array.
  * @library /test/lib /
- * @run driver compiler.valhalla.inlinetypes.TestFlatInArraysFolding
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestFlatInArraysFolding serial
+ */
+
+/*
+ * @test
+ * @bug 8321734
+ * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
+ *          in array property of the types. Additionally check that the type system properly handles the case of a
+ *         super class being flat in array while the sub klass could be flat in array.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestFlatInArraysFolding
  */
 
 package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+
 public class TestFlatInArraysFolding {
     static Object[] oArrArr = new Object[100][100];
     static Object[] oArr = new Object[100];
+    static Object o = new Object();
+
+    // Make sure these are loaded such that A has a flat in array and a not flat in array sub class.
+    static FlatInArray flat = new FlatInArray(34);
+    static NotFlatInArray notFlat = new NotFlatInArray(34);
+
+    // Make sure PUnique is the unique concrete sub class loaded from AUnique.
+    static PUnique pUnique = new PUnique(34);
 
     static int iFld;
 
     public static void main(String[] args) {
-        // Disable Loop Unrolling for IR matching in testCmpP().
-        // Use IgnoreUnrecognizedVMOptions since LoopMaxUnroll is a C2 flag.
-        // testSubTypeCheck() only triggers with SerialGC.
-        new TestFramework()
-                .setDefaultWarmup(0)
-                .addFlags("-XX:+UseSerialGC", "-XX:+IgnoreUnrecognizedVMOptions", "-XX:LoopMaxUnroll=0")
-                .start();
+        Scenario flatArrayElementMaxSize1Scenario = new Scenario(1, "-XX:FlatArrayElementMaxSize=1");
+        Scenario flatArrayElementMaxSize4Scenario = new Scenario(2, "-XX:FlatArrayElementMaxSize=4");
+        Scenario noFlagsScenario = new Scenario(3);
+        TestFramework testFramework = new TestFramework();
+        testFramework.setDefaultWarmup(0)
+                .addFlags("--enable-preview",
+                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED")
+                .addScenarios(flatArrayElementMaxSize1Scenario,
+                              flatArrayElementMaxSize4Scenario, noFlagsScenario);
+
+        if (args.length > 0) {
+            // Disable Loop Unrolling for IR matching in testCmpP().
+            // Use IgnoreUnrecognizedVMOptions since LoopMaxUnroll is a C2 flag.
+            // testSubTypeCheck() only triggers with SerialGC.
+            Scenario serialGCScenario = new Scenario(4, "-XX:+UseSerialGC", "-XX:+IgnoreUnrecognizedVMOptions",
+                                                     "-XX:LoopMaxUnroll=0");
+            testFramework.addScenarios(serialGCScenario);
+        }
+        testFramework.start();
     }
 
     // SubTypeCheck is not folded while CheckCastPPNode is replaced by top which results in a bad graph (data dies while
@@ -61,13 +102,10 @@ public class TestFlatInArraysFolding {
         }
     }
 
-    // Only improve the super class for constants which allows subsequent sub type checks to possibly be commoned up.
-    // The other non-constant cases cannot be improved with a cast node here since they could be folded to top.
-    // Additionally, the benefit would only be minor in non-constant cases.
-
     @Test
     @IR(counts = {IRNode.COUNTED_LOOP, "2", // Loop Unswitching done?
-                  IRNode.STORE_I, "1"}) // CmpP folded in unswitched loop version with flat in array?
+                  IRNode.STORE_I, "1"}, // CmpP folded in unswitched loop version with flat in array?
+        applyIf = {"LoopMaxUnroll", "0"})
     static void testCmpP() {
         for (int i = 0; i < 100; i++) {
             Object arrayElement = oArrArr[i];
@@ -76,5 +114,128 @@ public class TestFlatInArraysFolding {
             }
         }
     }
+
+    // Type system does not correctly handle the case that a super klass is flat in array while the sub klass is
+    // maybe flat in array. This leads to a bad graph.
+    @Test
+    static void testUnswitchingAbstractClass() {
+        Object[] arr = oArr;
+        for (int i = 0; i < 100; i++) {
+            Object arrayElement = arr[i];
+            if (arrayElement instanceof A) {
+                A a = (A)arrayElement;
+                if (a == o) {
+                    a.foo();
+                }
+            }
+        }
+    }
+
+    // Same as testUnswitchingAbstractClass() but with interfaces. This worked before because I has type Object(I)
+    // from which Object is a sub type of.
+    @Test
+    static void testUnswitchingInterface() {
+        Object[] arr = oArr;
+        for (int i = 0; i < 100; i++) {
+            Object arrayElement = arr[i];
+            if (arrayElement instanceof I) {
+                I iVar = (I)arrayElement;
+                if (iVar == o) {
+                    iVar.bar();
+                }
+            }
+        }
+    }
+
+    // PUnique is the unique concrete sub class of AUnique and is not flat in array (with FlatArrayElementMaxSize=4).
+    // The CheckCastPP output of the sub type check uses PUnique while the sub type check itself uses AUnique. This leads
+    // to a bad graph because the type system determines that the flat in array super klass cannot be met with the
+    // not flat in array sub klass. But the sub type check does not fold away because AUnique *could* be flat in array.
+    // Fixed with in JDK-8328480 in mainline but not yet merged in. Applied manually to make this work.
+    @Test
+    static void testSubTypeCheckNotFoldedParsingAbstractClass() {
+        Object[] arr = oArr;
+        for (int i = 0; i < 100; i++) {
+            Object arrayElement = arr[i];
+            if (arrayElement instanceof AUnique) {
+                AUnique aUnique = (AUnique)arrayElement;
+                if (aUnique == o) {
+                    aUnique.foo();
+                }
+            }
+        }
+    }
+
+    // Same as testSubTypeCheckNotFoldedParsingAbstractClass() but with interfaces. This worked before because IUnique
+    // has type Object(IUnique) from which Object is a sub type of.
+    @Test
+    static void testSubTypeCheckNotFoldedParsingInterface() {
+        Object[] arr = oArr;
+        for (int i = 0; i < 100; i++) {
+            Object arrayElement = arr[i];
+            if (arrayElement instanceof IUnique) {
+                IUnique iUnique = (IUnique)arrayElement;
+                if (iUnique == o) {
+                    iUnique.bar();
+                }
+            }
+        }
+    }
+
+    interface IUnique {
+        abstract void bar();
+    }
+
+    static abstract value class AUnique implements IUnique {
+        abstract void foo();
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class PUnique extends AUnique {
+        int x;
+        int y;
+        PUnique(int x) {
+            this.x = x;
+            this.y = 34;
+        }
+
+        public void foo() {}
+        public void bar() {}
+    }
+
+    interface I {
+        void bar();
+    }
+
+    static abstract value class A implements I {
+        abstract void foo();
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class FlatInArray extends A implements I {
+        int x;
+        FlatInArray(int x) {
+            this.x = x;
+        }
+
+        public void foo() {}
+        public void bar() {}
+    }
+
+    // Not flat in array with -XX:FlatArrayElementMaxSize=4
+    static value class NotFlatInArray extends A implements I {
+        int x;
+        int y;
+        NotFlatInArray(int x) {
+            this.x = x;
+            this.y = 34;
+        }
+
+        public void foo() {}
+        public void bar() {}
+    }
+
 }
 
