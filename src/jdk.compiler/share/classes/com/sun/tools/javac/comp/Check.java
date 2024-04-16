@@ -184,7 +184,6 @@ public class Check {
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
-        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -227,10 +226,6 @@ public class Check {
     /** Are sealed classes allowed
      */
     private final boolean allowSealed;
-
-    /** Are value classes allowed
-     */
-    private final boolean allowValueClasses;
 
 /* *************************************************************************
  * Errors and Warnings
