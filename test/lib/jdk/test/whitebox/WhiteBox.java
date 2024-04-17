@@ -536,6 +536,8 @@ public class WhiteBox {
   public native long metaspaceCapacityUntilGC();
   public native long metaspaceSharedRegionAlignment();
 
+  public native void cleanMetaspaces();
+
   // Metaspace Arena Tests
   public native long createMetaspaceTestContext(long commit_limit, long reserve_limit);
   public native void destroyMetaspaceTestContext(long context);
@@ -798,6 +800,10 @@ public class WhiteBox {
   public native void lockCritical();
 
   public native void unlockCritical();
+
+  public native void pinObject(Object o);
+
+  public native void unpinObject(Object o);
 
   public native boolean setVirtualThreadsNotifyJvmtiMode(boolean enabled);
 

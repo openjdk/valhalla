@@ -511,6 +511,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "DynamicDumpSharedSpaces",      JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "RequireSharedSpaces",          JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "UseSharedSpaces",              JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
+  { "RegisterFinalizersAtInit",     JDK_Version::jdk(22), JDK_Version::jdk(23), JDK_Version::jdk(24) },
 
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "DefaultMaxRAMFraction",        JDK_Version::jdk(8),  JDK_Version::undefined(), JDK_Version::undefined() },
@@ -2991,10 +2992,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
   return JNI_OK;
 }
 
-bool match_module(void *module_name, ModulePatchPath *patch) {
-  return (strcmp((char *)module_name, patch->module_name()) == 0);
-}
-
 static bool _java_base_module_patching_disables_cds = false;
 bool Arguments::patch_mod_javabase() {
   return _java_base_module_patching_disables_cds;
@@ -3014,7 +3011,9 @@ void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, 
   }
 
   // Scan patches for matching module
-  int i = _patch_mod_prefix->find((void*)module_name, match_module);
+  int i = _patch_mod_prefix->find_if([&](ModulePatchPath* patch) {
+    return (strcmp(module_name, patch->module_name()) == 0);
+  });
   if (i == -1) {
     _patch_mod_prefix->push(new ModulePatchPath(module_name, path));
   } else {
