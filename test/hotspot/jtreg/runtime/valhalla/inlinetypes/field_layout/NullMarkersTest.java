@@ -273,6 +273,8 @@ public class NullMarkersTest {
     ProcessBuilder pb = exec("NullMarkersTest$TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
+    Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
+
     // Get and parse the test output
     System.out.print(out.getOutput());
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());

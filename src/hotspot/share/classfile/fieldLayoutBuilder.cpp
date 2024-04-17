@@ -460,6 +460,9 @@ LayoutRawBlock* FieldLayout::insert(LayoutRawBlock* slot, LayoutRawBlock* block)
   if (_blocks == slot) {
     _blocks = block;
   }
+  if (_start == slot) {
+    _start = block;
+  }
   return block;
 }
 
@@ -684,7 +687,8 @@ void FieldLayoutBuilder::regular_field_sorting() {
     case T_ARRAY:
     {
       bool field_is_known_value_class =  !fieldinfo.field_flags().is_injected() && _inline_type_field_klasses != nullptr && _inline_type_field_klasses->at(fieldinfo.index()) != nullptr;
-      bool is_candidate_for_flattening = fieldinfo.field_flags().is_null_free_inline_type() || (EnableNullableFieldFlattening && field_is_known_value_class);
+      bool value_has_oops = field_is_known_value_class ? _inline_type_field_klasses->at(fieldinfo.index())->nonstatic_oop_count() > 0 : true;
+      bool is_candidate_for_flattening = fieldinfo.field_flags().is_null_free_inline_type() || (EnableNullableFieldFlattening && field_is_known_value_class && !value_has_oops);
       // if (!fieldinfo.field_flags().is_null_free_inline_type()) {
       if (!is_candidate_for_flattening) {
         if (group != _static_fields) _nonstatic_oopmap_count++;
@@ -791,7 +795,8 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     case T_ARRAY:
     {
       bool field_is_known_value_class =  !fieldinfo.field_flags().is_injected() && _inline_type_field_klasses != nullptr && _inline_type_field_klasses->at(fieldinfo.index()) != nullptr;
-      bool is_candidate_for_flattening = fieldinfo.field_flags().is_null_free_inline_type() || (EnableNullableFieldFlattening && field_is_known_value_class);
+      bool value_has_oops = field_is_known_value_class ? _inline_type_field_klasses->at(fieldinfo.index())->nonstatic_oop_count() > 0 : true;
+      bool is_candidate_for_flattening = fieldinfo.field_flags().is_null_free_inline_type() || (EnableNullableFieldFlattening && field_is_known_value_class && !value_has_oops);
       // if (!fieldinfo.field_flags().is_null_free_inline_type()) {
       if (!is_candidate_for_flattening) {
         if (group != _static_fields) {
@@ -898,7 +903,9 @@ void FieldLayoutBuilder::compute_regular_layout() {
     insert_contended_padding(_layout->last_block());
   }
 
-  insert_null_markers();
+  if (EnableNullableFieldFlattening && _layout->has_missing_null_markers()) {
+    insert_null_markers();
+  }
 
   // Warning: IntanceMirrorKlass expects static oops to be allocated first
   _static_layout->add_contiguously(_static_fields->oop_fields());
@@ -972,7 +979,9 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   _layout->add(_root_group->oop_fields());
   _layout->add(_root_group->small_primitive_fields());
 
-  insert_null_markers();
+  if (EnableNullableFieldFlattening && _layout->has_missing_null_markers()) {
+    insert_null_markers();
+  }
 
   LayoutRawBlock* first_field = _layout->first_field_block();
    if (first_field != nullptr) {

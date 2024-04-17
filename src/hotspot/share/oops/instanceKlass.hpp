@@ -446,6 +446,7 @@ class InstanceKlass: public Klass {
   inline Symbol* field_name        (int index) const;
   inline Symbol* field_signature   (int index) const;
   bool field_is_flat(int index) const { return field_flags(index).is_flat(); }
+  bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
   bool field_is_null_free_inline_type(int index) const;
   bool is_class_in_preload_attribute(Symbol* name) const;
 

@@ -191,6 +191,35 @@ public final class Unsafe {
 
     private native boolean isFlattenedField0(Object o);
 
+    /* Returns true if the given field has a null marker
+     * <p>
+     * Nullable flat fields are stored in a flattened representation
+     * and have an associated null marker to indicate if the the field value is
+     * null or the one stored with the flat representation
+     */
+
+     public boolean hasNullMarker(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        return hasNullMarker0(f);
+     }
+
+     private native boolean hasNullMarker0(Object o);
+
+     /* Returns the offset of the null marker of the field,
+      * or -1 if the field doesn't have a null marker
+      */
+
+     public int nullMarkerOffset(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        return nullMarkerOffset0(f);
+     }
+
+     private native int nullMarkerOffset0(Object o);
+
     /**
      * Returns true if the given class is a flattened array.
      */

@@ -3020,16 +3020,22 @@ void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label
 
 void MacroAssembler::test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker) {
   movl(temp_reg, flags);
-  testl(temp_reg, 1 << ResolvedFieldEntry::has_internal_null_marker_shift);
+  testl(temp_reg, 1 << ResolvedFieldEntry::has_null_marker_shift);
   jcc(Assembler::notEqual, has_null_marker);
+}
+
+void MacroAssembler::test_field_has_internal_null_marker(Register flags, Register temp_reg, Label& has_internal_null_marker) {
+  movl(temp_reg, flags);
+  testl(temp_reg, 1 << ResolvedFieldEntry::has_internal_null_marker_shift);
+  jcc(Assembler::notEqual, has_internal_null_marker);
 }
 
 void MacroAssembler::test_field_is_marked_as_null(Register holder_klass, Register field_index, Register temp_reg, Register obj, Label& is_null) {
   Register offset = temp_reg;
   get_null_marker_offset(holder_klass, field_index, offset);
   Address marker(obj, offset, Address::times_1);
-  access_load_at(T_BYTE, IN_HEAP, obj, marker, noreg, noreg);
-  testb(obj, 0);
+  access_load_at(T_BYTE, IN_HEAP, temp_reg, marker, noreg, noreg);
+  testb(temp_reg, 0);
   jcc(Assembler::zero, is_null);
 }
 
@@ -4624,7 +4630,7 @@ void MacroAssembler::get_null_marker_offset(Register klass, Register index, Regi
     bind(done);
   }
 #endif
-  movptr(offset, Address(offset, index, Address::times_4, Array<InlineKlass*>::base_offset_in_bytes())); // Array<int>
+  movl(offset, Address(offset, index, Address::times_4, Array<int>::base_offset_in_bytes())); // Array<int>
 }
 
 void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
@@ -5757,6 +5763,11 @@ void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Re
 void MacroAssembler::first_field_offset(Register inline_klass, Register offset) {
   movptr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
   movl(offset, Address(offset, InlineKlass::first_field_offset_offset()));
+}
+
+void MacroAssembler::internal_null_marker_offset(Register inline_klass, Register offset){
+  movptr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+  movl(offset, Address(offset, InlineKlass::internal_null_marker_offset_offset()));
 }
 
 void MacroAssembler::data_for_oop(Register oop, Register data, Register inline_klass) {

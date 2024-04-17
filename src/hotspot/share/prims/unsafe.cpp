@@ -339,6 +339,20 @@ UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedField(JNIEnv *env, jobject unsafe, jobj
   return InstanceKlass::cast(k)->field_is_flat(slot);
 } UNSAFE_END
 
+UNSAFE_ENTRY(jboolean, Unsafe_HasNullMarker(JNIEnv *env, jobject unsage, jobject o)) {
+  oop f = JNIHandles::resolve_non_null(o);
+  Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
+  int slot = java_lang_reflect_Field::slot(f);
+  return InstanceKlass::cast(k)->field_has_null_marker(slot);
+} UNSAFE_END
+
+UNSAFE_ENTRY(jint, Unsafe_NullMarkerOffset(JNIEnv *env, jobject unsage, jobject o)) {
+  oop f = JNIHandles::resolve_non_null(o);
+  Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
+  int slot = java_lang_reflect_Field::slot(f);
+  return InstanceKlass::cast(k)->null_marker_offsets_array()->at(slot);
+} UNSAFE_END
+
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedArray(JNIEnv *env, jobject unsafe, jclass c)) {
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
   return k->is_flatArray_klass();
@@ -1002,6 +1016,8 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
 
     {CC "isFlattenedArray", CC "(" CLS ")Z",                     FN_PTR(Unsafe_IsFlattenedArray)},
     {CC "isFlattenedField0", CC "(" OBJ ")Z",                    FN_PTR(Unsafe_IsFlattenedField)},
+    {CC "hasNullMarker0"   , CC "(" OBJ ")Z",                    FN_PTR(Unsafe_HasNullMarker)},
+    {CC "nullMarkerOffset0", CC "(" OBJ ")I",                    FN_PTR(Unsafe_NullMarkerOffset)},
     {CC "getValue",         CC "(" OBJ "J" CLS ")" OBJ,          FN_PTR(Unsafe_GetValue)},
     {CC "putValue",         CC "(" OBJ "J" CLS OBJ ")V",         FN_PTR(Unsafe_PutValue)},
     {CC "uninitializedDefaultValue", CC "(" CLS ")" OBJ,         FN_PTR(Unsafe_UninitializedDefaultValue)},

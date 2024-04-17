@@ -1855,6 +1855,11 @@ void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label
   tbnz(flags, ResolvedFieldEntry::is_flat_shift, is_flat);
 }
 
+void MacroAssembler::test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker) {
+  assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
+  tbnz(flags, ResolvedFieldEntry::has_null_marker_shift, has_null_marker);
+}
+
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
   Label test_mark_word;
   // load mark word

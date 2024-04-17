@@ -315,6 +315,52 @@ JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc
   current->set_vm_result(res);
 JRT_END
 
+JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
+  assert(oopDesc::is_oop(obj), "Sanity check");
+  assert(entry->has_null_marker(), "Otherwise should not get there");
+  Handle obj_h(THREAD, obj);
+
+  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
+  int field_index = entry->field_index();
+  int nm_offset = ik->null_marker_offsets_array()->at(field_index);
+  if (obj_h()->byte_field_acquire(nm_offset) == 0) {
+    current->set_vm_result(nullptr);
+  } else {
+    InlineKlass* field_vklass = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
+    oop res = field_vklass->read_flat_field(obj_h(), ik->field_offset(field_index), CHECK);
+    current->set_vm_result(res);
+  }
+JRT_END
+
+JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
+  assert(oopDesc::is_oop(obj), "Sanity check");
+  Handle obj_h(THREAD, obj);
+  assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
+  Handle val_h(THREAD, value);
+
+  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
+  int nm_offset = ik->null_marker_offsets_array()->at(entry->field_index());
+  if (val_h() == nullptr) {
+    obj_h()->byte_field_put(nm_offset, (jbyte)0);
+    return;
+  }
+  InlineKlass* vk = InlineKlass::cast(val_h()->klass());
+  if (entry->has_internal_null_marker()) {
+    assert(!vk->is_empty_inline_type(), "");
+    if (val_h()->byte_field(vk->get_internal_null_marker_offset()) == 0) {
+      val_h()->byte_field_put(vk->get_internal_null_marker_offset(), (jbyte)1);
+    }
+    vk->write_flat_field(obj_h(), entry->field_offset(), val_h(), CHECK);
+  } else {
+    // First the flat field is updated
+    vk->write_flat_field(obj_h(), entry->field_offset(), val_h(), CHECK);
+    OrderAccess::release();
+    // Memory barrier missing here =============================================> FIXME
+    // Then the null marker is set to non-null
+    obj_h()->byte_field_put(nm_offset, (jbyte)1);
+  }
+JRT_END
+
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
   oop obj = oopFactory::new_typeArray(type, size, CHECK);
   current->set_vm_result(obj);

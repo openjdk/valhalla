@@ -490,7 +490,10 @@ public class FieldLayoutAnalyzer {
 
   void checkNullMarkers() {
     for (ClassLayout layout : layouts) {
+      BlockType last_type = BlockType.RESERVED;
+      boolean has_empty_slot = false;
       for (FieldBlock block : layout.nonStaticFields) {
+        last_type = block.type;
         if (block.type() == BlockType.FLAT && block.nullMarkerOffset() != -1) {
           if (block.hasInternalNullMarker()) {
             Asserts.assertTrue(block.nullMarkerOffset() > block.offset());
@@ -505,7 +508,11 @@ public class FieldLayoutAnalyzer {
           Asserts.assertEquals(flatField.type(), BlockType.FLAT);
           Asserts.assertEquals(flatField.nullMarkerOffset(), block.offset());
         }
+        if (block.type() == BlockType.EMPTY) has_empty_slot = true;
       }
+      // null marker should not be added at the end of the layout if there's an empty slot
+      Asserts.assertTrue(last_type != BlockType.NULL_MARKER || has_empty_slot == false,
+                         "Problem detected in layout of class " + layout.name);
       // static layout => must not have NULL_MARKERS because static fields are never flat
       for (FieldBlock block : layout.staticFields) {
         Asserts.assertNotEquals(block.type(), BlockType.NULL_MARKER);

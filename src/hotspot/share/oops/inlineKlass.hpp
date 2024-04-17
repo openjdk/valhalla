@@ -271,6 +271,10 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(InlineKlassFixedBlock, _first_field_offset);
   }
 
+  static ByteSize internal_null_marker_offset_offset() {
+    return byte_offset_of(InlineKlassFixedBlock, _internal_null_marker_offset);
+  }
+
   void set_default_value_offset(int offset) {
     *((int*)adr_default_value_offset()) = offset;
   }

@@ -52,7 +52,7 @@ class ResolvedFieldEntry {
   u2 _field_index;              // Index into field information in holder InstanceKlass
   u2 _cpool_index;              // Constant pool index
   u1 _tos_state;                // TOS state
-  u1 _flags;                    // Flags: [0000|is_null_free_inline_type|is_flat|is_final|is_volatile]
+  u1 _flags;                    // Flags: [00|has_internal_null_marker|has_null_marker|is_null_free_inline_type|is_flat|is_final|is_volatile]
   u1 _get_code, _put_code;      // Get and Put bytecodes of the field
 
 public:

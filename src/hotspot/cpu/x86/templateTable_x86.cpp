@@ -3230,18 +3230,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(rewrite_inline);
       __ bind(has_null_marker);
         pop_and_check_object(rax);
-        __ load_unsigned_short(rdx, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
-        __ movptr(rcx, Address(cache, ResolvedFieldEntry::field_holder_offset()));
-        // rax = instance, rbx = field offset, rcx = field holder, rdx = field index => no temp reg
-        Label is_marked_null;
-        __ push(rbx);  // save field's offset to free a register
-        __ test_field_is_marked_as_null(rcx, rdx, rbx, rax, is_marked_null);
-        __ pop(rbx); // restore field's offset
-        // TODO: check that all registers below have the righ content:
-        __ read_flat_field(rcx, rdx, rbx, rax);
-        __ jmp (rewrite_inline);
-        __ bind(is_marked_null);
-        __ xorptr(rax, rax); // return null reference
+        __ load_field_entry(rcx, rbx);
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_nullable_flat_field), rax, rcx);
+        __ get_vm_result(rax, r15_thread);
+        __ push(atos);
       __ bind(rewrite_inline);
       if (rc == may_rewrite) {
         patch_bytecode(Bytecodes::_fast_vgetfield, bc, rbx);
@@ -3531,8 +3523,9 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
         do_oop_store(_masm, field, rax);
         __ jmp(Done);
       } else {
-        Label is_inline_type, is_flat, has_null_marker, write_null, rewrite_not_inline, rewrite_inline;
-        __ test_field_is_null_free_inline_type(flags, rscratch1, is_inline_type);
+        Label is_null_free_inline_type, is_flat, has_null_marker, has_internal_null_marker,
+              write_null, rewrite_not_inline, rewrite_inline;
+        __ test_field_is_null_free_inline_type(flags, rscratch1, is_null_free_inline_type);
         __ test_field_has_null_marker(flags, rscratch1, has_null_marker);
           // Not an inline type
           pop_and_check_object(obj);
@@ -3544,7 +3537,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
           }
           __ jmp(Done);
         // Implementation of the inline type semantic
-        __ bind(is_inline_type);
+        __ bind(is_null_free_inline_type);
           __ null_check(rax);
           __ test_field_is_flat(flags, rscratch1, is_flat);
             // field is not flat
@@ -3561,27 +3554,10 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
             __ addptr(obj, off);
             __ access_value_copy(IN_HEAP, rax, obj, rdx);
             __ jmp(rewrite_inline);
-        __ bind(has_null_marker);
-          __ testptr(rax, rax);
-          __ jcc(Assembler::zero, write_null);
-            pop_and_check_object(obj);
-            assert_different_registers(rax, rdx, obj, off);
-            __ load_klass(rdx, rax, rscratch1);
-            __ data_for_oop(rax, rax, rdx);
-            __ addptr(obj, off);
-            __ access_value_copy(IN_HEAP, rax, obj, rdx);
-            // write one to the null marker
-            __ load_klass(rbx, obj, rax);
-            __ load_field_entry(rax, rdx);  // field entry has already been resolved
-            __ load_unsigned_short(rdx, Address(rax, in_bytes(ResolvedFieldEntry::field_index_offset())));
-            __ set_null_marker_to_not_null(rbx, rdx, rax, obj);
-            __ jmp(rewrite_inline);
-          __ bind(write_null);
-            // write zero to the null marker
-            __ load_klass(rbx, obj, rax);
-            __ load_field_entry(rax, rdx);  // field entry has already been resolved
-            __ load_unsigned_short(rdx, Address(rax, in_bytes(ResolvedFieldEntry::field_index_offset())));
-            __ set_null_marker_to_null(rbx, rdx, rax, obj);
+        __ bind(has_null_marker); // has null marker means the field is flat with a null marker
+          pop_and_check_object(rbx);
+          __ load_field_entry(rcx, rdx);
+          call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_nullable_flat_field), rbx, rax, rcx);
         __ bind(rewrite_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_vputfield, bc, rbx, true, byte_no);
@@ -3772,15 +3748,13 @@ void TemplateTable::jvmti_post_fast_field_mod() {
 void TemplateTable::fast_storefield(TosState state) {
   transition(state, vtos);
 
-  Register cache = rcx;
-
   Label notVolatile, Done;
 
   jvmti_post_fast_field_mod();
 
   __ push(rax);
   __ load_field_entry(rcx, rax);
-  load_resolved_field_entry(noreg, cache, rax, rbx, rdx);
+  load_resolved_field_entry(noreg, rcx, rax, rbx, rdx);
   __ pop(rax);
   // RBX: field offset, RCX: RAX: TOS, RDX: flags
 
@@ -3816,9 +3790,10 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
   case Bytecodes::_fast_vputfield:
     {
       Label is_flat, has_null_marker, write_null, done;
+      __ test_field_has_null_marker(flags, rscratch1, has_null_marker);
+      // Null free field cases: flat or not flat
       __ null_check(rax);
       __ test_field_is_flat(flags, rscratch1, is_flat);
-      __ test_field_has_null_marker(flags, rscratch1, has_null_marker);
         // field is not flat
         do_oop_store(_masm, field, rax);
         __ jmp(done);
@@ -3829,27 +3804,10 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
         __ lea(rcx, field);
         __ access_value_copy(IN_HEAP, rax, rcx, rdx);
         __ jmp(done);
-      __ bind(has_null_marker);
-        // rcx = receiver, rcx/rbx => field address, rax = new field value
-        __ testptr(rax, rax);
-        __ jcc(Assembler::zero, write_null);
-          __ load_klass(rdx, rax, rscratch1);
-          __ data_for_oop(rax, rax, rdx);
-          __ lea(rbx, field);
-          __ access_value_copy(IN_HEAP, rax, rbx, rdx);
-          // write one to the null marker
-          // rcx is still the receiver
-          __ load_klass(rbx, rcx, rax);
-          __ load_field_entry(rax, rdx);  // field entry has already been resolved
-          __ load_unsigned_short(rdx, Address(rax, in_bytes(ResolvedFieldEntry::field_index_offset())));
-          __ set_null_marker_to_not_null(rbx, rdx, rax, rcx);
-          __ jmp(done);
-        __ bind(write_null);
-          // write zero to the null marker
-          __ load_klass(rbx, rcx, rax);
-          __ load_field_entry(rax, rdx);  // field entry has already been resolved
-          __ load_unsigned_short(rdx, Address(rax, in_bytes(ResolvedFieldEntry::field_index_offset())));
-          __ set_null_marker_to_null(rbx, rdx, rax, rcx);
+      __ bind(has_null_marker); // has null marker means the field is flat with a null marker
+      __ movptr(rbx, rcx);
+      __ load_field_entry(rcx, rdx);
+      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_nullable_flat_field), rbx, rax, rcx);
       __ bind(done);
     }
     break;
@@ -3954,15 +3912,8 @@ void TemplateTable::fast_accessfield(TosState state) {
         __ jmp(Done);
       __ bind(has_null_marker);
         // rax = instance, rcx = resolved entry, rdx = offset
-        __ push(rdx); // save offset
-        __ load_unsigned_short(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_index_offset())));
-        __ movptr(rcx, Address(rcx, ResolvedFieldEntry::field_holder_offset()));
-        __ test_field_is_marked_as_null(rcx, rdx, rbx, rax, is_marked_null);
-        __ pop(rbx); // restore offset
-        __ read_flat_field(rcx, rdx, rbx, rax);
-        __ jmp(Done);
-        __ bind(is_marked_null);
-        __ xorptr(rax, rax); // return null reference
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_nullable_flat_field), rax, rcx);
+        __ get_vm_result(rax, r15_thread);
       __ bind(Done);
       __ verify_oop(rax);
     }
