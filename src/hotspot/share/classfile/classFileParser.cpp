@@ -1479,6 +1479,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     cfs->guarantee_more(8, CHECK);
 
     jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
+    if (supports_inline_types()) {
+      recognized_modifiers |= JVM_ACC_STRICT;
+    }
 
     const jint flags = cfs->get_u2_fast() & recognized_modifiers;
     verify_legal_field_modifiers(flags, class_access_flags, CHECK);
@@ -4763,6 +4766,7 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
   const bool is_volatile  = (flags & JVM_ACC_VOLATILE)  != 0;
   const bool is_transient = (flags & JVM_ACC_TRANSIENT) != 0;
   const bool is_enum      = (flags & JVM_ACC_ENUM)      != 0;
+  const bool is_strict    = (flags & JVM_ACC_STRICT)    != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
 
   const bool is_interface = class_access_flags.is_interface();
@@ -4770,6 +4774,15 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
   const bool is_identity_class = class_access_flags.is_identity_class();
 
   bool is_illegal = false;
+
+  if (supports_inline_types()) {
+    if (is_strict && is_static) {
+      is_illegal = true;
+    }
+    if (is_strict && !is_final) {
+      is_illegal = true;
+    }
+  }
 
   if (is_interface) {
     if (!is_public || !is_static || !is_final || is_private ||
@@ -4783,8 +4796,12 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
     } else {
       if (!is_identity_class && !is_abstract && !is_static && !is_final) {
         is_illegal = true;
-      } else if (is_abstract && !is_identity_class && !is_static) {
-        is_illegal = true;
+      } else if (supports_inline_types()) {
+        if (!is_identity_class && !is_static && !is_strict) {
+          is_illegal = true;
+        } else if (is_abstract && !is_identity_class && !is_static) {
+          is_illegal = true;
+        }
       }
     }
   }
