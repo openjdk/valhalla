@@ -315,6 +315,11 @@ JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc
   current->set_vm_result(res);
 JRT_END
 
+// The protocole to read a nullable flat field is:
+// Step 1: read the null marker with an load_acquire barrier to ensure that
+//         reordered loads won't try to load the value before the null marker is read
+// Step 2: if the null marker value is zero, the field's value is null
+//         otherwise the flat field value can be read like a regular flat field
 JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   assert(entry->has_null_marker(), "Otherwise should not get there");
@@ -332,6 +337,12 @@ JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current
   }
 JRT_END
 
+// The protocole to write a nullable flat field is:
+// If the new field value is null, just write zero to the null marker
+// Otherwise:
+// Step 1: write the field value like a regular flat field
+// Step 2: have a memory barrier to ensure that the whole value content is visible
+// Step 3: update the null marker to a non zero value
 JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
@@ -346,17 +357,16 @@ JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* curren
   }
   InlineKlass* vk = InlineKlass::cast(val_h()->klass());
   if (entry->has_internal_null_marker()) {
-    assert(!vk->is_empty_inline_type(), "");
+    // The interpreter copies values with a bulk operation
+    // To avoid accidently setting the null marker to "null" during
+    // the copying, the null marker is set to non zero in the source object
     if (val_h()->byte_field(vk->get_internal_null_marker_offset()) == 0) {
       val_h()->byte_field_put(vk->get_internal_null_marker_offset(), (jbyte)1);
     }
     vk->write_flat_field(obj_h(), entry->field_offset(), val_h(), CHECK);
   } else {
-    // First the flat field is updated
     vk->write_flat_field(obj_h(), entry->field_offset(), val_h(), CHECK);
     OrderAccess::release();
-    // Memory barrier missing here =============================================> FIXME
-    // Then the null marker is set to non-null
     obj_h()->byte_field_put(nm_offset, (jbyte)1);
   }
 JRT_END
