@@ -86,6 +86,9 @@
 #ifdef COMPILER1
 #include "c1/c1_Runtime1.hpp"
 #endif
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 
 // Shared stub locations
 RuntimeStub*        SharedRuntime::_wrong_method_blob;
@@ -1388,6 +1391,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
     CompiledStaticCall::compute_entry(callee_method, caller_nm, static_call_info);
   }
 
+  JFR_ONLY(bool patched_caller = false;)
   // grab lock, check for deoptimization and potentially patch caller
   {
     CompiledICLocker ml(caller_nm);
@@ -1417,6 +1421,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
           if (!inline_cache->set_to_monomorphic(virtual_call_info)) {
             return false;
           }
+          JFR_ONLY(patched_caller = true;)
         }
       } else {
         if (VM_Version::supports_fast_class_init_checks() &&
@@ -1429,10 +1434,14 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
         if (is_nmethod && caller_nm->method()->is_continuation_enter_intrinsic()) {
           ssc->compute_entry_for_continuation_entry(callee_method, static_call_info);
         }
-        if (ssc->is_clean()) ssc->set(static_call_info);
+        if (ssc->is_clean()) {
+          ssc->set(static_call_info);
+          JFR_ONLY(patched_caller = true;)
+        }
       }
     }
   } // unlock CompiledICLocker
+  JFR_ONLY(if (patched_caller) Jfr::on_backpatching(callee_method(), THREAD);)
   return true;
 }
 
