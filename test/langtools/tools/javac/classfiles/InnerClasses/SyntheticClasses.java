@@ -46,8 +46,8 @@ public class SyntheticClasses {
         File testClasses = new File(System.getProperty("test.classes"));
         for (File classFile : Objects.requireNonNull(testClasses.listFiles(f -> f.getName().endsWith(".class")))) {
             ClassModel cf = ClassFile.of().parse(classFile.toPath());
-            if ((cf.flags().flagsMask() & (Classfile.ACC_SYNTHETIC | Classfile.ACC_ABSTRACT)) == Classfile.ACC_SYNTHETIC) {
-                if ((cf.flags().flagsMask() & Classfile.ACC_IDENTITY) == 0) {
+            if ((cf.flags().flagsMask() & (ClassFile.ACC_SYNTHETIC | ClassFile.ACC_ABSTRACT)) == ClassFile.ACC_SYNTHETIC) {
+                if ((cf.flags().flagsMask() & ClassFile.ACC_IDENTITY) == 0) {
                     throw new IllegalStateException("Missing ACC_IDENTITY on synthetic concrete identity class: " + cf.thisClass().asInternalName());
                 }
             }
