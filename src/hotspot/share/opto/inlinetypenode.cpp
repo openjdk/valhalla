@@ -35,8 +35,8 @@
 
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
-InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, bool is_init) {
-  InlineTypeNode* vt = clone()->as_InlineType();
+InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map, bool is_init) {
+  InlineTypeNode* vt = clone_if_required(gvn, map);
   const Type* t = Type::get_const_type(inline_klass());
   gvn->set_type(vt, t);
   vt->as_InlineType()->set_type(t);
@@ -76,7 +76,7 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, boo
     bool no_circularity = !gvn->C->has_circular_inline_type() || field_is_flat(i);
     if (value->is_InlineType() && no_circularity) {
       // Handle inline type fields recursively
-      value = value->as_InlineType()->clone_with_phis(gvn, region);
+      value = value->as_InlineType()->clone_with_phis(gvn, region, map);
     } else {
       t = Type::get_const_type(type);
       value = PhiNode::make(region, value, t);
@@ -420,7 +420,7 @@ InlineTypeNode* InlineTypeNode::adjust_scalarization_depth_impl(GraphKit* kit, G
     }
     if (value != new_value) {
       if (val == this) {
-        val = clone()->as_InlineType();
+        val = clone_if_required(&kit->gvn(), kit->map());
       }
       val->set_field_value(i, new_value);
     }
@@ -531,7 +531,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   Node* not_null_oop = kit->null_check_oop(get_oop(), &not_buffered_ctl, /* never_see_null = */ false, safe_for_replace);
   if (not_buffered_ctl->is_top()) {
     // Already buffered
-    InlineTypeNode* vt = clone()->as_InlineType();
+    InlineTypeNode* vt = clone_if_required(&kit->gvn(), kit->map(), safe_for_replace);
     vt->set_is_buffered(kit->gvn());
     vt = kit->gvn().transform(vt)->as_InlineType();
     if (safe_for_replace) {
@@ -587,7 +587,6 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
       // store that would make this buffer accessible by other threads.
       AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
       assert(alloc != nullptr, "must have an allocation node");
-      // TODO 8325106 MemBarRelease vs. MemBarStoreStore
       kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
     }
 
@@ -608,7 +607,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
 
   // Use cloned InlineTypeNode to propagate oop from now on
   Node* res_oop = kit->gvn().transform(oop);
-  InlineTypeNode* vt = clone()->as_InlineType();
+  InlineTypeNode* vt = clone_if_required(&kit->gvn(), kit->map(), safe_for_replace);
   vt->set_oop(kit->gvn(), res_oop);
   vt->set_is_buffered(kit->gvn());
   vt = kit->gvn().transform(vt)->as_InlineType();
@@ -667,7 +666,7 @@ void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile
 }
 
 Node* InlineTypeNode::allocate_fields(GraphKit* kit) {
-  InlineTypeNode* vt = clone()->as_InlineType();
+  InlineTypeNode* vt = clone_if_required(&kit->gvn(), kit->map());
   for (uint i = 0; i < field_count(); i++) {
      Node* value = field_value(i);
      if (field_is_flat(i)) {
@@ -875,6 +874,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
   InlineTypeNode* vt = nullptr;
 
   if (oop->isa_InlineType()) {
+    assert(!is_larval || oop->as_InlineType()->is_larval(), "must be larval");
     return oop->as_InlineType();
   } else if (gvn.type(oop)->maybe_null()) {
     // Add a null check because the oop may be null
@@ -907,8 +907,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
       Node* region = new RegionNode(3);
       region->init_req(1, kit->control());
       region->init_req(2, null_ctl);
-
-      vt = vt->clone_with_phis(&gvn, region);
+      vt = vt->clone_with_phis(&gvn, region, kit->map());
       vt->merge_with(&gvn, null_vt, 2, true);
       if (!null_free) {
         vt->set_oop(gvn, oop);
@@ -1257,13 +1256,13 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
   }
 }
 
-InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
+InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk, bool transform) {
   GrowableArray<ciType*> visited;
   visited.push(vk);
-  return make_null_impl(gvn, vk, visited);
+  return make_null_impl(gvn, vk, visited, transform);
 }
 
-InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited) {
+InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform) {
   InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false);
   vt->set_is_buffered(gvn);
   vt->set_is_init(gvn, false);
@@ -1280,7 +1279,20 @@ InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk,
     }
     vt->set_field_value(i, value);
   }
-  return gvn.transform(vt)->as_InlineType();
+  return transform ? gvn.transform(vt)->as_InlineType() : vt;
+}
+
+InlineTypeNode* InlineTypeNode::clone_if_required(PhaseGVN* gvn, SafePointNode* map, bool safe_for_replace) {
+  if (!safe_for_replace || (map == nullptr && outcnt() != 0)) {
+    return clone()->as_InlineType();
+  }
+  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+    if (fast_out(i) != map) {
+      return clone()->as_InlineType();
+    }
+  }
+  gvn->hash_delete(this);
+  return this;
 }
 
 const Type* InlineTypeNode::Value(PhaseGVN* phase) const {

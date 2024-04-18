@@ -111,7 +111,6 @@ $(eval $(call SetupJavaCompilation, BUILD_JDK_MICROBENCHMARK, \
         --add-exports java.base/jdk.internal.misc=ALL-UNNAMED \
         --add-exports java.base/jdk.internal.event=ALL-UNNAMED \
         --add-exports java.base/jdk.internal.foreign=ALL-UNNAMED \
-        -XDenablePrimitiveClasses \
         --enable-preview \
         -processor org.openjdk.jmh.generators.BenchmarkProcessor, \
     JAVA_FLAGS := --add-modules jdk.unsupported --limit-modules java.management \

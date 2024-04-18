@@ -26,7 +26,7 @@
  * @bug 8246774 8326879
  * @summary Basic test that serializes and deserializes a number of records
  * @run testng BasicRecordSer
- * @run testng/othervm -XX:+EnableValhalla BasicRecordSer
+ * @run testng/othervm --enable-preview BasicRecordSer
  * @run testng/othervm/java.security.policy=empty_security.policy BasicRecordSer
  */
 

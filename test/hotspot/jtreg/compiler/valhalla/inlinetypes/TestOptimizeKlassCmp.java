@@ -27,7 +27,7 @@
  * @summary Verify that Parse::optimize_cmp_with_klass() works with value classes.
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+EnableValhalla -Xbatch compiler.valhalla.inlinetypes.TestOptimizeKlassCmp
+ * @run main/othervm -Xbatch compiler.valhalla.inlinetypes.TestOptimizeKlassCmp
  */
 
 package compiler.valhalla.inlinetypes;

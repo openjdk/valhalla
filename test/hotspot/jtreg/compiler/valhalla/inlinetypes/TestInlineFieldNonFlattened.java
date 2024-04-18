@@ -39,13 +39,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @summary VM option "InlineFieldMaxFlatSize" does not work well.
  * @library /test/lib /
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *          TestInlineFieldNonFlattened.java
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -XX:-TieredCompilation
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:-TieredCompilation
  *                   -XX:InlineFieldMaxFlatSize=0
  *                   compiler.valhalla.inlinetypes.TestInlineFieldNonFlattened
  */

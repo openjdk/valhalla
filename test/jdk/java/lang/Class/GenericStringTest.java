@@ -28,7 +28,7 @@
  * @author Joseph D. Darcy
  * @enablePreview
  * @compile GenericStringTest.java
- * @run main/othervm -XX:+EnableValhalla GenericStringTest
+ * @run main/othervm GenericStringTest
  */
 
 import java.lang.reflect.*;

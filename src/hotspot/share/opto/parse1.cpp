@@ -611,7 +611,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      bool is_larval = (i == 0) && method()->is_object_constructor() && method()->intrinsic_id() != vmIntrinsics::_Object_init;
+      bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_abstract() && !method()->holder()->is_java_lang_Object();
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
       replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
@@ -931,7 +931,7 @@ void Compile::return_values(JVMState* jvms) {
       InlineTypeNode* vt = res->as_InlineType();
       ret->add_req_batch(nullptr, tf()->range_cc()->cnt() - TypeFunc::Parms);
       if (vt->is_allocated(&kit.gvn()) && !StressCallingConvention) {
-        ret->init_req(TypeFunc::Parms, vt->get_oop());
+        ret->init_req(TypeFunc::Parms, vt);
       } else {
         // Return the tagged klass pointer to signal scalarization to the caller
         Node* tagged_klass = vt->tagged_klass(kit.gvn());
@@ -1214,8 +1214,14 @@ SafePointNode* Parse::create_entry_map() {
   // If this is an inlined method, we may have to do a receiver null check.
   if (_caller->has_method() && is_normal_parse() && !method()->is_static()) {
     GraphKit kit(_caller);
-    kit.null_check_receiver_before_call(method());
+    Node* receiver = kit.argument(0);
+    Node* null_free = kit.null_check_receiver_before_call(method());
     _caller = kit.transfer_exceptions_into_jvms();
+    if (receiver->is_InlineType() && receiver->as_InlineType()->is_larval()) {
+      // Replace the larval inline type receiver in the exit map as well to make sure that
+      // we can find and update it in Parse::do_call when we are done with the initialization.
+      _exits.map()->replace_edge(receiver, null_free);
+    }
     if (kit.stopped()) {
       _exits.add_exception_states_from(_caller);
       _exits.set_jvms(_caller);
@@ -1602,6 +1608,22 @@ void Parse::do_one_block() {
 
   // Set iterator to start of block.
   iter().reset_to_bci(block()->start());
+
+  if (ProfileExceptionHandlers && block()->is_handler()) {
+    ciMethodData* methodData = method()->method_data();
+    if (methodData->is_mature()) {
+      ciBitData data = methodData->exception_handler_bci_to_data(block()->start());
+      if (!data.exception_handler_entered() || StressPrunedExceptionHandlers) {
+        // dead catch block
+        // Emit an uncommon trap instead of processing the block.
+        set_parse_bci(block()->start());
+        uncommon_trap(Deoptimization::Reason_unreached,
+                      Deoptimization::Action_reinterpret,
+                      nullptr, "dead catch block");
+        return;
+      }
+    }
+  }
 
   CompileLog* log = C->log();
 
@@ -2175,6 +2197,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     // Inline types are merged by merging their field values.
     // Create a cloned InlineTypeNode with phi inputs that
     // represents the merged inline type and update the map.
+    // TODO 8325106 Why can't we pass map here?
     vt = vt->clone_with_phis(&_gvn, region);
     map->set_req(idx, vt);
     return vt->get_oop()->as_Phi();

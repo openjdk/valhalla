@@ -2888,17 +2888,23 @@ public class Lower extends TreeTranslator {
                 if (sym.kind == Kinds.Kind.VAR && ((sym.flags() & RECORD) != 0))
                     fields.append((VarSymbol) sym);
             }
+            ListBuffer<JCStatement> initializers = new ListBuffer<>();
             for (VarSymbol field: fields) {
                 if ((field.flags_field & Flags.UNINITIALIZED_FIELD) != 0) {
                     VarSymbol param = tree.params.stream().filter(p -> p.name == field.name).findFirst().get().sym;
                     make.at(tree.pos);
-                    tree.body.stats = tree.body.stats.append(
-                            make.Exec(
-                                    make.Assign(
-                                            make.Select(make.This(field.owner.erasure(types)), field),
-                                            make.Ident(param)).setType(field.erasure(types))));
-                    // we don't need the flag at the field anymore
+                    initializers.add(make.Exec(
+                            make.Assign(
+                                    make.Select(make.This(field.owner.erasure(types)), field),
+                                    make.Ident(param)).setType(field.erasure(types))));
                     field.flags_field &= ~Flags.UNINITIALIZED_FIELD;
+                }
+            }
+            if (initializers.nonEmpty()) {
+                if (tree.sym.owner.isValueClass()) {
+                    TreeInfo.mapSuperCalls(tree.body, supercall -> make.Block(0, initializers.toList().append(supercall)));
+                } else {
+                    tree.body.stats = tree.body.stats.appendList(initializers);
                 }
             }
         }

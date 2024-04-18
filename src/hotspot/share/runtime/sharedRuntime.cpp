@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -680,6 +680,7 @@ JRT_END
 
 // ret_pc points into caller; we are returning caller's exception handler
 // for given exception
+// Note that the implementation of this method assumes it's only called when an exception has actually occured
 address SharedRuntime::compute_compiled_exc_handler(CompiledMethod* cm, address ret_pc, Handle& exception,
                                                     bool force_unwind, bool top_frame_only, bool& recursive_exception_occurred) {
   assert(cm != nullptr, "must exist");
@@ -782,6 +783,9 @@ address SharedRuntime::compute_compiled_exc_handler(CompiledMethod* cm, address 
     return nullptr;
   }
 
+  if (handler_bci != -1) { // did we find a handler in this method?
+    sd->method()->set_exception_handler_entered(handler_bci); // profile
+  }
   return nm->code_begin() + t->pco();
 }
 
@@ -3173,14 +3177,12 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   ces.compute_calling_conventions();
   if (ces.has_scalarized_args()) {
     if (!method->has_scalarized_args()) {
-      assert(!method()->constMethod()->is_shared(), "Cannot update shared const object");
       method->set_has_scalarized_args();
     }
     if (ces.c1_needs_stack_repair()) {
       method->set_c1_needs_stack_repair();
     }
     if (ces.c2_needs_stack_repair() && !method->c2_needs_stack_repair()) {
-      assert(!method->constMethod()->is_shared(), "Cannot update a shared const object");
       method->set_c2_needs_stack_repair();
     }
   } else if (method->is_abstract()) {

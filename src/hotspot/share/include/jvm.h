@@ -791,12 +791,6 @@ JNIEXPORT jobject JNICALL
 JVM_AssertionStatusDirectives(JNIEnv *env, jclass unused);
 
 /*
- * java.util.concurrent.atomic.AtomicLong
- */
-JNIEXPORT jboolean JNICALL
-JVM_SupportsCX8(void);
-
-/*
  * java.lang.ref.Finalizer
  */
 JNIEXPORT void JNICALL
@@ -1139,6 +1133,9 @@ JVM_GetTemporaryDirectory(JNIEnv *env);
 
 JNIEXPORT jarray JNICALL
 JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len);
+
+JNIEXPORT jboolean JNICALL
+JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj);
 
 /* Generics reflection support.
  *

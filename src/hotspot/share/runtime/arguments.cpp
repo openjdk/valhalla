@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,6 +101,7 @@ bool   Arguments::_ClipInlining                 = ClipInlining;
 size_t Arguments::_default_SharedBaseAddress    = SharedBaseAddress;
 
 bool   Arguments::_enable_preview               = false;
+bool   Arguments::_module_patching_disables_cds = false;
 
 char*  Arguments::_default_shared_archive_path  = nullptr;
 char*  Arguments::SharedArchivePath             = nullptr;
@@ -510,6 +511,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "DynamicDumpSharedSpaces",      JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "RequireSharedSpaces",          JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "UseSharedSpaces",              JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
+  { "RegisterFinalizersAtInit",     JDK_Version::jdk(22), JDK_Version::jdk(23), JDK_Version::jdk(24) },
 
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "DefaultMaxRAMFraction",        JDK_Version::jdk(8),  JDK_Version::undefined(), JDK_Version::undefined() },
@@ -1331,12 +1333,9 @@ bool Arguments::add_property(const char* prop, PropertyWriteable writeable, Prop
 
 #if INCLUDE_CDS
 const char* unsupported_properties[] = { "jdk.module.limitmods",
-                                         "jdk.module.upgrade.path",
-                                         "jdk.module.patch.0" };
+                                         "jdk.module.upgrade.path"};
 const char* unsupported_options[] = { "--limit-modules",
-                                      "--upgrade-module-path",
-                                      "--patch-module"
-                                    };
+                                      "--upgrade-module-path"};
 void Arguments::check_unsupported_dumping_properties() {
   assert(CDSConfig::is_dumping_archive(),
          "this function is only used with CDS dump time");
@@ -1351,6 +1350,11 @@ void Arguments::check_unsupported_dumping_properties() {
       }
     }
     sp = sp->next();
+  }
+
+  if (_module_patching_disables_cds) {
+    vm_exit_during_initialization(
+            "Cannot use the following option when dumping the shared archive", "--patch-module");
   }
 
   // Check for an exploded module build in use with -Xshare:dump.
@@ -1379,6 +1383,16 @@ bool Arguments::check_unsupported_cds_runtime_properties() {
       return true;
     }
   }
+
+  if (_module_patching_disables_cds) {
+    if (RequireSharedSpaces) {
+      warning("CDS is disabled when the %s option is specified.", "--patch-module");
+    } else {
+      log_info(cds)("CDS is disabled when the %s option is specified.", "--patch-module");
+    }
+    return true;
+  }
+
   return false;
 }
 #endif
@@ -2177,7 +2191,7 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
       memcpy(module_name, patch_mod_tail, module_len);
       *(module_name + module_len) = '\0';
       // The path piece begins one past the module_equal sign
-      add_patch_mod_prefix(module_name, module_equal + 1, false /* no append */);
+      add_patch_mod_prefix(module_name, module_equal + 1, false /* no append */, false /* no cds */);
       FREE_C_HEAP_ARRAY(char, module_name);
     } else {
       return JNI_ENOMEM;
@@ -2219,7 +2233,7 @@ int Arguments::finalize_patch_module() {
         module_name[len] = '\0';     // truncate to just module-name
 
         jio_snprintf(path, JVM_MAXPATHLEN, "%s%s", valueclasses_dir, &entry->d_name);
-        add_patch_mod_prefix(module_name, path, true /* append */);
+        add_patch_mod_prefix(module_name, path, true /* append */, true /* cds OK*/);
         log_info(class)("--enable-preview appending value classes for module %s: %s", module_name, entry->d_name);
       }
       FreeHeap(module_name);
@@ -2978,22 +2992,28 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
   return JNI_OK;
 }
 
-bool match_module(void *module_name, ModulePatchPath *patch) {
-  return (strcmp((char *)module_name, patch->module_name()) == 0);
-}
-
+static bool _java_base_module_patching_disables_cds = false;
 bool Arguments::patch_mod_javabase() {
-    return _patch_mod_prefix != nullptr && _patch_mod_prefix->find((void*)JAVA_BASE_NAME, match_module) >= 0;
+  return _java_base_module_patching_disables_cds;
 }
 
-void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool allow_append) {
+void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool allow_append, bool allow_cds) {
+  if (!allow_cds) {
+    _module_patching_disables_cds = true;
+    if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
+      _java_base_module_patching_disables_cds = true;
+    }
+  }
+
   // Create GrowableArray lazily, only if --patch-module has been specified
   if (_patch_mod_prefix == nullptr) {
     _patch_mod_prefix = new (mtArguments) GrowableArray<ModulePatchPath*>(10, mtArguments);
   }
 
   // Scan patches for matching module
-  int i = _patch_mod_prefix->find((void*)module_name, match_module);
+  int i = _patch_mod_prefix->find_if([&](ModulePatchPath* patch) {
+    return (strcmp(module_name, patch->module_name()) == 0);
+  });
   if (i == -1) {
     _patch_mod_prefix->push(new ModulePatchPath(module_name, path));
   } else {
@@ -3174,7 +3194,7 @@ jint Arguments::finalize_vm_init_args() {
     }
   }
 
-  if (UseSharedSpaces && patch_mod_javabase()) {
+  if (UseSharedSpaces && patch_mod_javabase() && _module_patching_disables_cds) {
     no_shared_spaces("CDS is disabled when " JAVA_BASE_NAME " module is patched.");
   }
   if (UseSharedSpaces && check_unsupported_cds_runtime_properties()) {
@@ -3486,11 +3506,15 @@ char* Arguments::get_default_shared_archive_path() {
     if (end != nullptr) *end = '\0';
     size_t jvm_path_len = strlen(jvm_path);
     size_t file_sep_len = strlen(os::file_separator());
-    const size_t len = jvm_path_len + file_sep_len + 20;
+    const size_t len = jvm_path_len + file_sep_len + strlen("classes_nocoops_valhalla.jsa") + 1;
     _default_shared_archive_path = NEW_C_HEAP_ARRAY(char, len, mtArguments);
-    jio_snprintf(_default_shared_archive_path, len,
-                LP64_ONLY(!UseCompressedOops ? "%s%sclasses_nocoops.jsa":) "%s%sclasses.jsa",
-                jvm_path, os::file_separator());
+    LP64_ONLY(bool nocoops = !UseCompressedOops);
+    NOT_LP64(bool nocoops = false);
+    bool valhalla = CDSConfig::is_valhalla_preview();
+    jio_snprintf(_default_shared_archive_path, len, "%s%sclasses%s%s.jsa",
+                jvm_path, os::file_separator(),
+                 nocoops ? "_nocoops" : "",
+                 valhalla ? "_valhalla" : "");
   }
   return _default_shared_archive_path;
 }

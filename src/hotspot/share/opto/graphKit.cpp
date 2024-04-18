@@ -193,9 +193,9 @@ bool GraphKit::stopped() {
 }
 
 
-//-----------------------------has_ex_handler----------------------------------
+//-----------------------------has_exception_handler----------------------------------
 // Tell if this method or any caller method has exception handlers.
-bool GraphKit::has_ex_handler() {
+bool GraphKit::has_exception_handler() {
   for (JVMState* jvmsp = jvms(); jvmsp != nullptr; jvmsp = jvmsp->caller()) {
     if (jvmsp->has_method() && jvmsp->method()->has_exception_handlers()) {
       return true;
@@ -560,7 +560,7 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason) {
     // as hot if there has been at least one in this method.
     if (C->trap_count(reason) != 0
         && method()->method_data()->trap_count(reason) != 0
-        && has_ex_handler()) {
+        && has_exception_handler()) {
         treat_throw_as_hot = true;
     }
   }
@@ -1492,6 +1492,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
+    // TODO 8325106 Can we avoid cloning?
     Node* vt = obj->clone();
     vt->as_InlineType()->set_is_init(_gvn);
     vt = _gvn.transform(vt);
@@ -1892,9 +1893,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
       arg = arg->as_InlineType()->buffer(this);
-      if (!is_late_inline && !arg->as_InlineType()->is_larval()) {
-        arg = arg->as_InlineType()->get_oop();
-      }
     }
     if (t != Type::HALF) {
       arg_num++;

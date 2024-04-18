@@ -50,12 +50,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @modules java.base/jdk.internal.value
  * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestLWorld.java
- * @run main/othervm/timeout=450  --enable-preview compiler.valhalla.inlinetypes.TestLWorld
+ * @run main/othervm/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer

@@ -26,19 +26,13 @@
  * @summary Test accessing value class arrays that exceed the flattening threshold.
  * @library /test/lib
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestFlatArrayThreshold.java
- * @run main/othervm -XX:+EnableValhalla -Xbatch
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xbatch
  *                   TestFlatArrayThreshold
- * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxOops=1 -Xbatch
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ * @run main/othervm -XX:FlatArrayElementMaxOops=1 -Xbatch
  *                   TestFlatArrayThreshold
- * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=1 -Xbatch
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
+ * @run main/othervm -XX:FlatArrayElementMaxSize=1 -Xbatch
  *                   TestFlatArrayThreshold
 
  */

@@ -22,13 +22,14 @@
  */
 
 /**
+ * @ignore Fix JDK-8328461
  * @test
  * @summary Tests that all FieldAccess and FieldModification notifications
             are generated for value classes.
  * @requires vm.jvmti
  * @enablePreview
  * @compile FieldAccessModify.java
- * @run main/othervm/native -agentlib:FieldAccessModify -XX:+EnableValhalla FieldAccessModify
+ * @run main/othervm/native -agentlib:FieldAccessModify FieldAccessModify
  */
 
 import java.lang.reflect.Field;

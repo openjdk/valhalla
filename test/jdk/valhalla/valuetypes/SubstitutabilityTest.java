@@ -26,7 +26,8 @@
  * @modules java.base/java.lang.runtime:open
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run junit/othervm -XX:+EnableValhalla SubstitutabilityTest
+ * @enablePreview
+ * @run junit/othervm SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;

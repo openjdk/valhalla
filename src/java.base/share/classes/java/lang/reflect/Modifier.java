@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import jdk.internal.javac.PreviewFeature;
+
 import java.util.StringJoiner;
 
 /**
@@ -318,6 +320,7 @@ public class Modifier {
      * The {@code int} value representing the {@code ACC_IDENTITY}
      * modifier.
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     public static final int IDENTITY         = 0x00000020;
 
     /**

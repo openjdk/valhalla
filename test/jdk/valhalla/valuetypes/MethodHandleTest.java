@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,8 @@
 /*
  * @test
  * @summary test MethodHandle and VarHandle of value classes
- * @run junit/othervm -XX:+EnableValhalla MethodHandleTest
+ * @enablePreview
+ * @run junit/othervm MethodHandleTest
  */
 
 import java.lang.invoke.*;
@@ -199,6 +200,7 @@ public class MethodHandleTest {
         }
         // set an array element to null
         if (nullRestricted) {
+            assertTrue(vh.get(array, 1) != null);
             assertThrows(NullPointerException.class, () -> setter.invoke(array, 1, null));
             assertThrows(NullPointerException.class, () -> vh.set(array, 1, null));
         } else {

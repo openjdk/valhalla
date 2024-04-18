@@ -26,6 +26,7 @@
  *
  * @test
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
+ *      8329345
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
@@ -295,7 +296,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
-        assertFail("compiler.err.type.found.req",
+        // OK if the value class is abstract
+        assertOK(
                 """
                 interface I {}
                 abstract value class VI implements I {}
@@ -485,41 +487,51 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testConstruction() throws Exception {
-        for (String source : List.of(
-                """
-                value class Test {
-                    int i = 100;
-                }
-                """,
-                """
-                value class Test {
-                    int i;
-                    Test() {
-                        i = 100;
+        record Data(String src, boolean isRecord) {}
+        for (Data data : List.of(
+                new Data(
+                    """
+                    value class Test {
+                        int i = 100;
                     }
-                }
-                """,
-                """
-                value class Test {
-                    int i;
-                    Test() {
-                        i = 100;
-                        super();
+                    """, false),
+                new Data(
+                    """
+                    value class Test {
+                        int i;
+                        Test() {
+                            i = 100;
+                        }
                     }
-                }
-                """,
-                """
-                value class Test {
-                    int i;
-                    Test() {
-                        this.i = 100;
-                        super();
+                    """, false),
+                new Data(
+                    """
+                    value class Test {
+                        int i;
+                        Test() {
+                            i = 100;
+                            super();
+                        }
                     }
-                }
-                """
+                    """, false),
+                new Data(
+                    """
+                    value class Test {
+                        int i;
+                        Test() {
+                            this.i = 100;
+                            super();
+                        }
+                    }
+                    """, false),
+                new Data(
+                    """
+                    value record Test(int i) {}
+                    """, true)
         )) {
             String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,return,";
-            File dir = assertOK(true, source);
+            String expectedCodeSequenceRecord = "aload_0,iload_1,putfield,aload_0,invokespecial,return,";
+            File dir = assertOK(true, data.src);
             for (final File fileEntry : dir.listFiles()) {
                 ClassFile classFile = ClassFile.read(fileEntry);
                 for (Method method : classFile.methods) {
@@ -529,7 +541,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         for (Instruction inst: code.getInstructions()) {
                             foundCodeSequence += inst.getMnemonic() + ",";
                         }
-                        Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                        if (!data.isRecord) {
+                            Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                        } else {
+                            Assert.check(expectedCodeSequenceRecord.equals(foundCodeSequence));
+                        }
                     }
                 }
             }
@@ -571,6 +587,17 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+        assertFail("compiler.err.cant.ref.after.ctor.called",
+                """
+                value class Test {
+                    int i;
+                    Test() {
+                        super();
+                        this.i = i;
+                    }
+                }
+                """
+        );
         assertOK(
                 """
                 class UnrelatedThisLeak {
@@ -585,6 +612,48 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+    }
+
+    @Test
+    void testThisCallingConstructor() throws Exception {
+        // make sure that this() calling constructors doesn't initialize final fields
+        String source =
+                """
+                value class Test {
+                    int i;
+                    Test() {
+                        this(0);
+                    }
+
+                    Test(int i) {
+                        this.i = i;
+                    }
+                }
+                """;
+        File dir = assertOK(true, source);
+        File fileEntry = dir.listFiles()[0];
+        ClassFile classFile = ClassFile.read(fileEntry);
+        String expectedCodeSequenceThisCallingConst = "aload_0,iconst_0,invokespecial,return,";
+        String expectedCodeSequenceNonThisCallingConst = "aload_0,iload_1,putfield,aload_0,invokespecial,return,";
+        for (Method method : classFile.methods) {
+            if (method.getName(classFile.constant_pool).equals("<init>")) {
+                if (method.descriptor.getParameterCount(classFile.constant_pool) == 0) {
+                    Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                    String foundCodeSequence = "";
+                    for (Instruction inst: code.getInstructions()) {
+                        foundCodeSequence += inst.getMnemonic() + ",";
+                    }
+                    Assert.check(expectedCodeSequenceThisCallingConst.equals(foundCodeSequence));
+                } else {
+                    Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                    String foundCodeSequence = "";
+                    for (Instruction inst: code.getInstructions()) {
+                        foundCodeSequence += inst.getMnemonic() + ",";
+                    }
+                    Assert.check(expectedCodeSequenceNonThisCallingConst.equals(foundCodeSequence));
+                }
+            }
+        }
     }
 
     @Test

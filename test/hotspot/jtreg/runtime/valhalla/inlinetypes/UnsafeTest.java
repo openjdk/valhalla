@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -157,9 +157,9 @@ public class UnsafeTest {
         System.out.format("%s%s header size %d%n", indent, vc, U.valueHeaderSize(vc));
         for (Field f : vc.getDeclaredFields()) {
             System.out.format("%s%s: %s%s offset %d%n", indent, f.getName(),
-                              U.isFlattened(f) ? "flattened " : "", f.getType(),
+                              U.isFlatField(f) ? "flattened " : "", f.getType(),
                               U.objectFieldOffset(vc, f.getName()));
-            if (U.isFlattened(f)) {
+            if (U.isFlatField(f)) {
                 printValueClass(f.getType(), level+1);
             }
         }
@@ -184,7 +184,7 @@ public class UnsafeTest {
         Asserts.assertEquals(fields.length, 1);
         Field f = fields[0];
         System.out.println("Field found: " + f);
-        Asserts.assertTrue(U.isFlattened(f));
+        Asserts.assertTrue(U.isFlatField(f));
         Asserts.assertTrue(U.hasNullMarker(f));
         int nmOffset = U.nullMarkerOffset(f);
         Asserts.assertNotEquals(nmOffset, -1);

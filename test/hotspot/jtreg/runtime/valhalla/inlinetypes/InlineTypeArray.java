@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -339,18 +339,7 @@ public class InlineTypeArray {
         myInts[1] = (MyInt) MyInt.MIN;
 
         // Sanity sort another copy
-
-        // Arrays.copyOf() API needs discussion, avoid just now...
-        boolean useArraysCopyOf = false;
-        MyInt[] copyMyInts;
-        if (useArraysCopyOf) {
-            copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
-        } else {
-            copyMyInts = (MyInt[]) (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, myInts.length + 1);
-            for (int i = 0; i < myInts.length; i++) {
-                copyMyInts[i] = myInts[i];
-            }
-        }
+        MyInt[] copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
         MyInt[] expected = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 3);
         expected[0] = myInts[0];
         expected[1] = myInts[1];

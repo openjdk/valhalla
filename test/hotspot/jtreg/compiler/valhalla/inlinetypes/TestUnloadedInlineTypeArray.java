@@ -28,51 +28,27 @@
  * @library /test/lib
  * @summary Test the handling of arrays of unloaded value classes.
  * @enablePreview
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestUnloadedInlineTypeArray.java
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xcomp
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xcomp -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xcomp
+ * @run main/othervm -Xcomp
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xcomp -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=0
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xcomp -XX:-TieredCompilation
+ * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xcomp -XX:-TieredCompilation
+ * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
  *                   TestUnloadedInlineTypeArray
  */
 

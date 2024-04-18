@@ -28,8 +28,7 @@ package compiler.valhalla.inlinetypes;
  * @bug 8282569
  * @summary Test that uninitialized default value class is properly handled by C2.
  * @enablePreview
- * @run main/othervm -XX:+EnableValhalla
- *                   -XX:CompileCommand=compileonly,*::<init> -Xcomp -XX:-TieredCompilation
+ * @run main/othervm -XX:CompileCommand=compileonly,*::<init> -Xcomp -XX:-TieredCompilation
  *                   compiler.valhalla.inlinetypes.TestUninitializedValueClass
  */
 

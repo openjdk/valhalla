@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,20 @@
  * @test
  * @bug 8266670 8291734 8296743
  * @summary Test expected AccessFlag's on classes.
+ * @modules java.base/jdk.internal.misc
+ * @library /test/lib ..
+ * @enablePreview
  */
+
+
+import jdk.internal.misc.PreviewFeatures;
 
 import java.lang.annotation.*;
 import java.lang.reflect.*;
 import java.util.*;
+
+import jtreg.SkippedException;
+
 
 /*
  * Class access flags that can directly or indirectly declared in
@@ -47,18 +56,16 @@ import java.util.*;
  * file. Therefore, this test does not attempt to probe the setting of
  * that access flag.
  */
-@ExpectedClassFlags("[PUBLIC, FINAL, IDENTITY]")
+@ExpectedClassFlags("[PUBLIC, FINAL, SUPER]")
 public final class ClassAccessFlagTest {
     public static void main(String... args) {
+        if (PreviewFeatures.isEnabled()) {
+            throw new SkippedException("Preview mode not supported");
+        }
         // Top-level and auxiliary classes; i.e. non-inner classes
         Class<?>[] testClasses = {
             ClassAccessFlagTest.class,
             TestInterface.class,
-            TestFinalClass.class,
-            TestAbstractClass.class,
-            Foo.class,
-            StaticTestInterface.class,
-            TestMarkerAnnotation.class,
             ExpectedClassFlags.class,
             TestOuterEnum.class
         };
@@ -157,18 +164,6 @@ public final class ClassAccessFlagTest {
                                                arrayClass);
                 }
             }
-            // Verify IDENTITY, ABSTRACT, FINAL, and access mode
-            Set<AccessFlag> expected = new HashSet<>(4);
-            expected.add(AccessFlag.ABSTRACT);
-            expected.add(AccessFlag.FINAL);
-//            expected.add(AccessFlag.IDENTITY);  // NYI Pending: JDK-8294866
-            if (accessLevel != null)
-                expected.add(accessLevel);
-            if (!expected.equals(arrayClass.accessFlags())) {
-                throw new RuntimeException("Unexpected access flags for array: " + accessClass +
-                        ": actual: " + arrayClass.accessFlags() +
-                        ", expected: " + expected);
-            }
         }
 
     }
@@ -177,7 +172,6 @@ public final class ClassAccessFlagTest {
     // locations:
     // PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, INTERFACE, ABSTRACT,
     // SYNTHETIC, ANNOTATION, ENUM.
-    // Include cases for classes with identity, value modifier, or no modifier.
 
     @ExpectedClassFlags("[PUBLIC, STATIC, INTERFACE, ABSTRACT]")
     public      interface PublicInterface {}
@@ -188,23 +182,23 @@ public final class ClassAccessFlagTest {
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
     /*package*/ interface PackageInterface {}
 
-    @ExpectedClassFlags("[FINAL, IDENTITY]")
+    @ExpectedClassFlags("[FINAL]")
     /*package*/ final class TestFinalClass {}
 
-    @ExpectedClassFlags("[IDENTITY, ABSTRACT]")
+    @ExpectedClassFlags("[ABSTRACT]")
     /*package*/ abstract class TestAbstractClass {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT, ANNOTATION]")
     /*package*/ @interface TestMarkerAnnotation {}
 
-    @ExpectedClassFlags("[PUBLIC, STATIC, FINAL, IDENTITY, ENUM]")
+    @ExpectedClassFlags("[PUBLIC, STATIC, FINAL, ENUM]")
     public enum MetaSynVar {
         QUUX;
     }
 
     // Is there is at least one special enum constant, the enum class
     // itself is implicitly abstract rather than final.
-    @ExpectedClassFlags("[PROTECTED, STATIC, IDENTITY, ABSTRACT, ENUM]")
+    @ExpectedClassFlags("[PROTECTED, STATIC, ABSTRACT, ENUM]")
     protected enum MetaSynVar2 {
         WOMBAT{
             @Override
@@ -213,7 +207,7 @@ public final class ClassAccessFlagTest {
         public abstract int foo();
     }
 
-    @ExpectedClassFlags("[PRIVATE, IDENTITY, ABSTRACT]")
+    @ExpectedClassFlags("[PRIVATE, ABSTRACT]")
     private abstract class Foo {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
@@ -230,7 +224,7 @@ public final class ClassAccessFlagTest {
 interface TestInterface {}
 
 
-@ExpectedClassFlags("[FINAL, IDENTITY, ENUM]")
+@ExpectedClassFlags("[FINAL, SUPER, ENUM]")
 enum TestOuterEnum {
     INSTANCE;
 }

@@ -166,7 +166,6 @@ public class Attr extends JCTree.Visitor {
         Options options = Options.instance(context);
 
         Source source = Source.instance(context);
-        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
         allowReifiableTypesInInstanceof = Feature.REIFIABLE_TYPES_INSTANCEOF.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowPatternSwitch = (preview.isEnabled() || !preview.isPreview(Feature.PATTERN_SWITCH)) &&
@@ -184,10 +183,6 @@ public class Attr extends JCTree.Visitor {
         unknownTypeExprInfo = new ResultInfo(KindSelector.VAL_TYP, Type.noType);
         recoveryInfo = new RecoveryInfo(deferredAttr.emptyDeferredAttrContext);
     }
-
-    /** Switch: allow value classes ?
-     */
-    boolean allowValueClasses;
 
     /** Switch: reifiable types in instanceof enabled?
      */
@@ -309,6 +304,17 @@ public class Attr extends JCTree.Visitor {
             } else {
                 log.error(pos, Errors.CantAssignValToVar(Flags.toSource(v.flags() & (STATIC | FINAL)), v));
             }
+        }
+
+        if (!env.info.ctorPrologue &&
+                v.owner.isValueClass() &&
+                !env.info.instanceInitializerBlock && // it is OK instance initializer blocks will go after super() anyways
+                v.owner.kind == TYP &&
+                v.owner == env.enclClass.sym &&
+                (v.flags() & STATIC) == 0 &&
+                (base == null ||
+                        TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base))) {
+            log.error(pos, Errors.CantRefAfterCtorCalled(v));
         }
     }
 
@@ -1425,7 +1431,11 @@ public class Attr extends JCTree.Visitor {
             final Env<AttrContext> localEnv =
                 env.dup(tree, env.info.dup(env.info.scope.dupUnshared(fakeOwner)));
 
-            if ((tree.flags & STATIC) != 0) localEnv.info.staticLevel++;
+            if ((tree.flags & STATIC) != 0) {
+                localEnv.info.staticLevel++;
+            } else {
+                localEnv.info.instanceInitializerBlock = true;
+            }
             // Attribute all type annotations in the block
             annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, localEnv.info.scope.owner, null);
             annotate.flush();
