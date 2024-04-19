@@ -4611,17 +4611,21 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
   }
 
   if (subtype) {
-    if (above_centerline(ptr)) { // both are up?
+    if (above_centerline(ptr)) {
+      // Both types are empty.
       this_type = other_type = subtype;
       this_xk = other_xk = subtype_exact;
     } else if (above_centerline(this_ptr) && !above_centerline(other_ptr)) {
-      this_type = other_type; // tinst is down; keep down man
+      // this_type is empty while other_type is not. Take other_type.
+      this_type = other_type;
       this_xk = other_xk;
       flat_in_array = other_flat_in_array;
     } else if (above_centerline(other_ptr) && !above_centerline(this_ptr)) {
+      // other_type is empty while this_type is not. Take this_type.
       other_type = this_type; // this is down; keep down man
       flat_in_array = this_flat_in_array;
     } else {
+      // this_type and other_type are both non-empty.
       this_xk = subtype_exact;  // either they are equal, or we'll do an LCA
     }
   }

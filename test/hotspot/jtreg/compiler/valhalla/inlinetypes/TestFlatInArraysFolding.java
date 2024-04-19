@@ -236,6 +236,4 @@ public class TestFlatInArraysFolding {
         public void foo() {}
         public void bar() {}
     }
-
 }
-
