@@ -1687,10 +1687,6 @@ void SystemDictionary::check_constraints(InstanceKlass* k,
 
       if ((defining == true) || (k != check)) {
         throwException = true;
-        {
-          ResourceMark rm(THREAD);
-          tty->print_cr("Rejecting loading of %s because of duplicate definition", name->as_C_string());
-        }
         ss.print("loader %s", loader_data->loader_name_and_id());
         ss.print(" attempted duplicate %s definition for %s. (%s)",
                  k->external_kind(), k->external_name(), k->class_in_module_of_loader(false, true));

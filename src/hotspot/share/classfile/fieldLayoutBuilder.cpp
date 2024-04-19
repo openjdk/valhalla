@@ -1003,7 +1003,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     b = b->next_block();
   }
   if (b != _layout->last_block()) {
-    // found an empty slot, register its offset from the beginning of the paypload
+    // found an empty slot, register its offset from the beginning of the payload
     _internal_null_marker_offset = b->offset();
   }
 
@@ -1088,7 +1088,6 @@ void FieldLayoutBuilder::epilogue() {
   _info->_nonstatic_field_size = (nonstatic_field_end - instanceOopDesc::base_offset_in_bytes()) / heapOopSize;
   _info->_has_nonstatic_fields = _has_nonstatic_fields;
   _info->_has_inline_fields = _has_inline_type_fields;
-  _info->_internal_null_marker_offset = _internal_null_marker_offset;
   _info->_has_null_marker_offsets = _has_null_markers;
 
   // An inline type is naturally atomic if it has just one field, and

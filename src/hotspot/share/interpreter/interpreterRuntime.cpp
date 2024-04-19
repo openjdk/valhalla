@@ -363,9 +363,9 @@ JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* curren
     if (val_h()->byte_field(vk->get_internal_null_marker_offset()) == 0) {
       val_h()->byte_field_put(vk->get_internal_null_marker_offset(), (jbyte)1);
     }
-    vk->write_flat_field(obj_h(), entry->field_offset(), val_h(), CHECK);
+    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
   } else {
-    vk->write_flat_field(obj_h(), entry->field_offset(), val_h(), CHECK);
+    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
     OrderAccess::release();
     obj_h()->byte_field_put(nm_offset, (jbyte)1);
   }

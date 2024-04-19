@@ -219,6 +219,7 @@ class InlineKlass: public InstanceKlass {
 
   oop read_flat_field(oop obj, int offset, TRAPS);
   void write_flat_field(oop obj, int offset, oop value, TRAPS);
+  void write_non_null_flat_field(oop obj, int offset, oop value);
 
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>

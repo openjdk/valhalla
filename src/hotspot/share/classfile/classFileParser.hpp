@@ -77,7 +77,6 @@ class FieldLayoutInfo : public ResourceObj {
   bool _has_nonstatic_fields;
   bool _is_naturally_atomic;
   bool _has_inline_fields;
-  bool _internal_null_marker_offset; // if any
   bool _has_null_marker_offsets;
 };
 

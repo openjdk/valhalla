@@ -6508,7 +6508,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     FieldInfoStream::create_FieldInfoStream(_temp_field_info, _java_fields_count,
                                             injected_fields_count, loader_data(), CHECK);
 
-  // Check that the arrays below, allocated in the metaspaces, are correctly deallocated in case the InstanceKlass instance is not created
   _fields_status =
     MetadataFactory::new_array<FieldStatus>(_loader_data, _temp_field_info->length(),
                                             FieldStatus(0), CHECK);

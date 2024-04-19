@@ -567,6 +567,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
   _init_monitor(create_init_monitor("InstanceKlassInitMonitor_lock")),
   _init_thread(nullptr),
   _inline_type_field_klasses(nullptr),
+  _null_marker_offsets(nullptr),
   _preload_classes(nullptr),
   _adr_inlineklass_fixed_block(nullptr)
 {
@@ -721,6 +722,10 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_array<InlineKlass*>(loader_data, inline_type_field_klasses_array());
   }
   set_inline_type_field_klasses_array(nullptr);
+
+  if (null_marker_offsets_array() != nullptr) {
+    MetadataFactory::free_array<int>(loader_data, null_marker_offsets_array());
+  }
 
   // If a method from a redefined class is using this constant pool, don't
   // delete it, yet.  The new class's previous version will point to this.
@@ -2836,6 +2841,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_record_components);
 
   it->push(&_inline_type_field_klasses, MetaspaceClosure::_writable);
+  it->push(&_null_marker_offsets);
 }
 
 #if INCLUDE_CDS

@@ -3523,7 +3523,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
         do_oop_store(_masm, field, rax);
         __ jmp(Done);
       } else {
-        Label is_null_free_inline_type, is_flat, has_null_marker, has_internal_null_marker,
+        Label is_null_free_inline_type, is_flat, has_null_marker,
               write_null, rewrite_not_inline, rewrite_inline;
         __ test_field_is_null_free_inline_type(flags, rscratch1, is_null_free_inline_type);
         __ test_field_has_null_marker(flags, rscratch1, has_null_marker);
@@ -3805,9 +3805,9 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
         __ access_value_copy(IN_HEAP, rax, rcx, rdx);
         __ jmp(done);
       __ bind(has_null_marker); // has null marker means the field is flat with a null marker
-      __ movptr(rbx, rcx);
-      __ load_field_entry(rcx, rdx);
-      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_nullable_flat_field), rbx, rax, rcx);
+        __ movptr(rbx, rcx);
+        __ load_field_entry(rcx, rdx);
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_nullable_flat_field), rbx, rax, rcx);
       __ bind(done);
     }
     break;
@@ -3887,7 +3887,7 @@ void TemplateTable::fast_accessfield(TosState state) {
   switch (bytecode()) {
   case Bytecodes::_fast_vgetfield:
     {
-      Label is_flat, nonnull, Done, has_null_marker, is_marked_null;
+      Label is_flat, nonnull, Done, has_null_marker;
       __ load_unsigned_byte(rscratch1, Address(rcx, in_bytes(ResolvedFieldEntry::flags_offset())));
       __ test_field_has_null_marker(rscratch1, rscratch2, has_null_marker);
       __ test_field_is_flat(rscratch1, rscratch2, is_flat);
@@ -3911,7 +3911,7 @@ void TemplateTable::fast_accessfield(TosState state) {
         __ read_flat_field(rcx, rdx, rbx, rax);
         __ jmp(Done);
       __ bind(has_null_marker);
-        // rax = instance, rcx = resolved entry, rdx = offset
+        // rax = instance, rcx = resolved entry
         call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_nullable_flat_field), rax, rcx);
         __ get_vm_result(rax, r15_thread);
       __ bind(Done);
