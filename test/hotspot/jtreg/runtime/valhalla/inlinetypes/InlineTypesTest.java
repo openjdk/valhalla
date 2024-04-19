@@ -39,8 +39,8 @@ import java.util.concurrent.*;
 
 import static jdk.test.lib.Asserts.*;
 
-import jdk.internal.classfile.Label;
-import jdk.internal.classfile.TypeKind;
+import java.lang.classfile.Label;
+import java.lang.classfile.TypeKind;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -57,7 +57,6 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @modules java.base/jdk.internal.vm.annotation
- *          java.base/jdk.internal.classfile
  * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile InlineTypesTest.java
