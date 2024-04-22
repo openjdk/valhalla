@@ -2712,7 +2712,7 @@ JVM_END
 JVM_ENTRY(jint, JVM_GetFieldIxModifiers(JNIEnv *env, jclass cls, int field_index))
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls));
   k = JvmtiThreadState::class_to_verify_considering_redefinition(k, thread);
-  return InstanceKlass::cast(k)->field_access_flags(field_index) & JVM_RECOGNIZED_FIELD_MODIFIERS;
+  return InstanceKlass::cast(k)->field_access_flags(field_index);
 JVM_END
 
 
@@ -2902,7 +2902,7 @@ JVM_ENTRY(jint, JVM_GetCPFieldModifiers(JNIEnv *env, jclass cls, int cp_index, j
       InstanceKlass* ik = InstanceKlass::cast(k_called);
       for (JavaFieldStream fs(ik); !fs.done(); fs.next()) {
         if (fs.name() == name && fs.signature() == signature) {
-          return fs.access_flags().as_short() & JVM_RECOGNIZED_FIELD_MODIFIERS;
+          return fs.access_flags().as_short();
         }
       }
       return -1;

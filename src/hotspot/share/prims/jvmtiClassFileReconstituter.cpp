@@ -86,7 +86,7 @@ void JvmtiClassFileReconstituter::write_field_infos() {
     // JVMSpec|         attribute_info attributes[attributes_count];
     // JVMSpec|   }
 
-    write_u2(access_flags.get_flags() & JVM_RECOGNIZED_FIELD_MODIFIERS);
+    write_u2(access_flags.get_flags());
     write_u2(name_index);
     write_u2(signature_index);
     u2 attr_count = 0;

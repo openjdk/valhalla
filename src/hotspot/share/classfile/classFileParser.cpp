@@ -1479,8 +1479,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     cfs->guarantee_more(8, CHECK);
 
     jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
-    if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_STRICT;
+    if (!supports_inline_types()) {
+      recognized_modifiers &= ~JVM_ACC_STRICT;
     }
 
     const jint flags = cfs->get_u2_fast() & recognized_modifiers;
