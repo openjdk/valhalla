@@ -155,7 +155,7 @@ class FinalAndVolatile {
 } // end class FinalAndVolatile
 
 
-// A field has both ACC_STRCIT and ACC_STATIC set
+// A field has both ACC_STRICT and ACC_STATIC set
 //
 class StrictAndStatic {
   0xCAFEBABE;

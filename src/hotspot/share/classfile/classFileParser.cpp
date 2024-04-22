@@ -4798,6 +4798,7 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
         is_illegal = true;
       } else if (supports_inline_types()) {
         if (!is_identity_class && !is_static && !is_strict) {
+          /* non-static value class fields must be be strict */
           is_illegal = true;
         } else if (is_abstract && !is_identity_class && !is_static) {
           is_illegal = true;
