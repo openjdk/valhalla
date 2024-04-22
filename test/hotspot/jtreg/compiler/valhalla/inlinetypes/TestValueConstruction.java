@@ -31,32 +31,42 @@ import jdk.test.lib.Asserts;
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @run main/othervm -XX:+EnableValhalla -Xbatch
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla
  *                   -XX:CompileCommand=dontinline,*MyValue*::<init> -Xbatch
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  *
  * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*MyValue*::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
@@ -66,15 +76,38 @@ import jdk.test.lib.Asserts;
 
 public class TestValueConstruction {
 
+    static boolean deopt[] = new boolean[13];
+
     static interface MyInterface {
 
+    }
+
+    static void reportDeopt(int num) {
+        System.out.println("Deopt " + num + " triggered from:");
+        new Exception().printStackTrace(System.out);
+    }
+
+    // Trigger deopts at various places
+    static void checkDeopt(int num) {
+        if (deopt[num]) {
+            // C2 will add an uncommon trap here
+            reportDeopt(num);
+        }
     }
 
     static value class MyValue1 implements MyInterface {
         int x;
 
         public MyValue1(int x) {
+            checkDeopt(0);
             this.x = x;
+            checkDeopt(1);
+            super();
+            checkDeopt(2);
+        }
+
+        public String toString() {
+            return "x: " + x;
         }
     }
 
@@ -84,13 +117,21 @@ public class TestValueConstruction {
         int x;
 
         public MyValue2(int x) {
+            checkDeopt(0);
             this.x = x;
+            checkDeopt(1);
+            super();
+            checkDeopt(2);
+        }
+
+        public String toString() {
+            return "x: " + x;
         }
     }
 
     static abstract value class MyAbstract2 {
         public MyAbstract2(int x) {
-
+            checkDeopt(0);
         }
     }
 
@@ -98,28 +139,38 @@ public class TestValueConstruction {
         int x;
 
         public MyValue3(int x) {
+            checkDeopt(1);
             this(x, 0);
-            helper1(this, x); // 'this' escapes through argument
-            helper2(x); // 'this' escapes through receiver
+            helper1(this, x, 2); // 'this' escapes through argument
+            helper2(x, 3); // 'this' escapes through receiver
+            checkDeopt(4);
         }
 
-        public MyValue3(int x, int unused) {
-            this.x = helper3(x);
+        private MyValue3(int x, int unused) {
+            this.x = helper3(x, 5);
             super(x);
-            helper1(this, x); // 'this' escapes through argument
-            helper2(x); // 'this' escapes through receiver
+            helper1(this, x, 6); // 'this' escapes through argument
+            helper2(x, 7); // 'this' escapes through receiver
+            checkDeopt(8);
         }
 
-        public static void helper1(MyValue3 obj, int x) {
+        public static void helper1(MyValue3 obj, int x, int deoptVal) {
+            checkDeopt(deoptVal);
             Asserts.assertEQ(obj.x, x);
         }
 
-        public void helper2(int x) {
+        public void helper2(int x, int deoptVal) {
+            checkDeopt(deoptVal);
             Asserts.assertEQ(this.x, x);
         }
 
-        public static int helper3(int x) {
+        public static int helper3(int x, int deoptVal) {
+            checkDeopt(deoptVal);
             return x;
+        }
+
+        public String toString() {
+            return "x: " + x;
         }
     }
 
@@ -127,7 +178,15 @@ public class TestValueConstruction {
         Integer x;
 
         public MyValue4(int x) {
+            checkDeopt(0);
             this.x = x;
+            checkDeopt(1);
+            super();
+            checkDeopt(2);
+        }
+
+        public String toString() {
+            return "x: " + x;
         }
     }
 
@@ -135,11 +194,23 @@ public class TestValueConstruction {
         int x;
 
         public MyValue5(int x, boolean b) {
+            checkDeopt(0);
             if (b) {
+                checkDeopt(1);
                 this.x = 42;
+                checkDeopt(2);
             } else {
+                checkDeopt(3);
                 this.x = x;
+                checkDeopt(4);
             }
+            checkDeopt(5);
+            super();
+            checkDeopt(6);
+        }
+
+        public String toString() {
+            return "x: " + x;
         }
     }
 
@@ -148,9 +219,17 @@ public class TestValueConstruction {
         MyValue1 val;
 
         public MyValue6(int x) {
+            checkDeopt(3);
             this.x = x;
+            checkDeopt(4);
             this.val = new MyValue1(x);
+            checkDeopt(5);
             super();
+            checkDeopt(6);
+        }
+
+        public String toString() {
+            return "x: " + x + ", val: " + val;
         }
     }
 
@@ -159,9 +238,17 @@ public class TestValueConstruction {
         int x;
 
         public MyValue7(int x) {
+            checkDeopt(3);
             this.x = x;
+            checkDeopt(4);
             new MyValue1(42);
+            checkDeopt(5);
             super();
+            checkDeopt(6);
+        }
+
+        public String toString() {
+            return "x: " + x;
         }
     }
 
@@ -170,27 +257,46 @@ public class TestValueConstruction {
         int x;
 
         public MyValue8(int x) {
+            checkDeopt(0);
             this(x, 0);
+            checkDeopt(1);
         }
 
         public MyValue8(int x, int unused1) {
+            checkDeopt(2);
             if ((x % 2) == 0) {
+                checkDeopt(3);
                 this.x = 42;
+                checkDeopt(4);
             } else {
+                checkDeopt(5);
                 this.x = x;
+                checkDeopt(6);
             }
+            checkDeopt(7);
+            super();
+            checkDeopt(8);
         }
 
-        public MyValue8(int x, int unused1, int unused2) {
+        private MyValue8(int x, int unused1, int unused2) {
+            checkDeopt(3);
             this.x = x;
+            checkDeopt(4);
         }
 
         public static MyValue8 valueOf(int x) {
+            checkDeopt(0);
             if ((x % 2) == 0) {
+                checkDeopt(1);
                 return new MyValue8(42, 0, 0);
             } else {
+                checkDeopt(2);
                 return new MyValue8(x, 0, 0);
             }
+        }
+
+        public String toString() {
+            return "x: " + x;
         }
     }
 
@@ -199,19 +305,31 @@ public class TestValueConstruction {
         MyValue8 val;
 
         public MyValue9(int x) {
+            checkDeopt(9);
             this(x, 0);
+            checkDeopt(10);
         }
 
         public MyValue9(int i, int unused1) {
+            checkDeopt(11);
             val = new MyValue8(i);
+            checkDeopt(12);
         }
 
         public MyValue9(int x, int unused1, int unused2) {
+            checkDeopt(5);
             this(x, 0, 0, 0);
+            checkDeopt(6);
         }
 
         public MyValue9(int i, int unused1, int unused2, int unused3) {
+            checkDeopt(7);
             val = MyValue8.valueOf(i);
+            checkDeopt(8);
+        }
+
+        public String toString() {
+            return "val: " + val;
         }
     }
 
@@ -221,17 +339,30 @@ public class TestValueConstruction {
         int y;
 
         public MyValue10(int x, int cnt) {
+            checkDeopt(0);
             this.x = x;
+            checkDeopt(1);
             int res = 0;
             for (int i = 0; i < cnt; ++i) {
+                checkDeopt(2);
                 res += x;
+                checkDeopt(3);
             }
+            checkDeopt(4);
             this.y = res;
+            checkDeopt(5);
+            super();
+            checkDeopt(6);
+        }
+
+        public String toString() {
+            return "x: " + x + ", y: " + y;
         }
     }
 
     public static int test1(int x) {
         MyValue1 val = new MyValue1(x);
+        checkDeopt(3);
         return val.x;
     }
 
@@ -247,18 +378,21 @@ public class TestValueConstruction {
         MyValue1 res = null;
         for (int i = 0; i <= 10; ++i) {
             res = new MyValue1(i);
+            checkDeopt(3);
         }
         return res;
     }
 
     public static MyValue1 test4(int x) {
         MyValue1 v = new MyValue1(x);
+        checkDeopt(3);
         v = new MyValue1(x);
         return v;
     }
 
     public static int test5(int x) {
         MyValue2 val = new MyValue2(x);
+        checkDeopt(3);
         return val.x;
     }
 
@@ -274,18 +408,21 @@ public class TestValueConstruction {
         MyValue2 res = null;
         for (int i = 0; i <= 10; ++i) {
             res = new MyValue2(i);
+            checkDeopt(3);
         }
         return res;
     }
 
     public static MyValue2 test8(int x) {
         MyValue2 v = new MyValue2(x);
+        checkDeopt(3);
         v = new MyValue2(x);
         return v;
     }
 
     public static int test9(int x) {
         MyValue3 val = new MyValue3(x);
+        checkDeopt(9);
         return val.x;
     }
 
@@ -300,6 +437,7 @@ public class TestValueConstruction {
     public static Object test11(int limit) {
         MyValue3 res = null;
         for (int i = 0; i <= 10; ++i) {
+            checkDeopt(9);
             res = new MyValue3(i);
         }
         return res;
@@ -307,6 +445,7 @@ public class TestValueConstruction {
 
     public static MyValue3 test12(int x) {
         MyValue3 v = new MyValue3(x);
+        checkDeopt(9);
         v = new MyValue3(x);
         return v;
     }
@@ -360,7 +499,12 @@ public class TestValueConstruction {
     }
 
     public static void main(String[] args) {
-        for (int x = 0; x < 50_000; ++x) {
+        // TODO randomize
+        int deoptNum = Integer.getInteger("deoptNum");
+        for (int x = 0; x <= 50_000; ++x) {
+            if (deoptNum != -1 && x == 50_000) {
+                deopt[deoptNum] = true;
+            }
             Asserts.assertEQ(test1(x), x);
             Asserts.assertEQ(test2(x), new MyValue1(x));
             Asserts.assertEQ(test3(10), new MyValue1(10));

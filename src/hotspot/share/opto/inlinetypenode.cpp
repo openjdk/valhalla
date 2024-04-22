@@ -256,6 +256,12 @@ bool InlineTypeNode::field_is_null_free(uint index) const {
 }
 
 void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
+  // Don't scalarize larvals in their own constructor call because the call might update them
+  // TODO make sure that the larval is the receiver of the call
+  if (is_larval() && sfpt->is_CallJava() && sfpt->as_CallJava()->method() != nullptr && sfpt->as_CallJava()->method()->is_object_constructor() && sfpt->as_CallJava()->method()->holder()->is_inlinetype()) {
+    return;
+  }
+
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
   JVMState* jvms = sfpt->jvms();
