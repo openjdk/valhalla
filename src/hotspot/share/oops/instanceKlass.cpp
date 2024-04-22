@@ -1956,7 +1956,7 @@ Klass* InstanceKlass::find_field(Symbol* name, Symbol* sig, bool is_static, fiel
 bool InstanceKlass::contains_field_offset(int offset) {
   if (this->is_inline_klass()) {
     InlineKlass* vk = InlineKlass::cast(this);
-    return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_exact_size_in_bytes());
+    return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_payload_size_in_bytes());
   } else {
     fieldDescriptor fd;
     return find_field_from_offset(offset, false, &fd);

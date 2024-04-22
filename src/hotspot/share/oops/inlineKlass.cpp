@@ -163,7 +163,7 @@ bool InlineKlass::flat_array() {
     return false;
   }
   // Too big
-  int elem_bytes = get_exact_size_in_bytes();
+  int elem_bytes = get_payload_size_in_bytes();
   if ((FlatArrayElementMaxSize >= 0) && (elem_bytes > FlatArrayElementMaxSize)) {
     return false;
   }

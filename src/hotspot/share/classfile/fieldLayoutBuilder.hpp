@@ -53,14 +53,14 @@ class LayoutRawBlock : public ResourceObj {
  public:
   // Some code relies on the order of values below.
   enum Kind {
-    EMPTY,            // empty slot, space is taken from this to allocate fields
-    RESERVED,         // reserved for JVM usage (for instance object header)
-    PADDING,          // padding (because of alignment constraints or @Contended)
-    REGULAR,          // primitive or oop field (including not flat inline type fields)
-    FLAT,             // flat field
-    INHERITED,        // field(s) inherited from super classes
-    NULL_MARKER,       // stores the null marker for a flat field
-    INHERITED_NULL_MARKER
+    EMPTY,                 // empty slot, space is taken from this to allocate fields
+    RESERVED,              // reserved for JVM usage (for instance object header)
+    PADDING,               // padding (because of alignment constraints or @Contended)
+    REGULAR,               // primitive or oop field (including not flat inline type fields)
+    FLAT,                  // flat field
+    INHERITED,             // field(s) inherited from super classes
+    NULL_MARKER,           // stores the null marker for a flat field
+    INHERITED_NULL_MARKER  // a super-class used this slot to store a null marker
   };
 
  private:

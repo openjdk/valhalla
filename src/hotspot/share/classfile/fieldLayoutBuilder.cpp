@@ -110,7 +110,7 @@ void FieldGroup::add_oop_field(int idx) {
 }
 
 void FieldGroup::add_flat_field(int idx, InlineKlass* vk, bool needs_null_marker) {
-  LayoutRawBlock* block = new LayoutRawBlock(idx, LayoutRawBlock::FLAT, vk->get_exact_size_in_bytes(), vk->get_alignment(), false);
+  LayoutRawBlock* block = new LayoutRawBlock(idx, LayoutRawBlock::FLAT, vk->get_payload_size_in_bytes(), vk->get_alignment(), false);
   block->set_inline_klass(vk);
   if (needs_null_marker) block->set_needs_null_marker();
   if (block->size() >= oopSize) {
@@ -354,7 +354,7 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
       // if (fs.field_flags().is_null_free_inline_type()) {
       if (fs.is_flat()) {
         InlineKlass* vk = InlineKlass::cast(ik->get_inline_type_field_klass(fs.index()));
-        block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, vk->get_exact_size_in_bytes(),
+        block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, vk->get_payload_size_in_bytes(),
                                    vk->get_alignment(), false);
         if (!fs.field_flags().is_null_free_inline_type()) {
           assert(fs.field_flags().has_null_marker(), "Nullable flat fields must have a null marker");

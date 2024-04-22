@@ -124,7 +124,6 @@ class MacroAssembler: public Assembler {
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
   void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
   void test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker);
-  void test_field_has_internal_null_marker(Register flags, Register temp_reg, Label& has_internal_null_marker);
 
   // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);

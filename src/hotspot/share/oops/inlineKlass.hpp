@@ -128,7 +128,7 @@ class InlineKlass: public InstanceKlass {
     *(int*)adr_first_field_offset() = offset;
   }
 
-  int get_exact_size_in_bytes() const {
+  int get_payload_size_in_bytes() const {
     return *(int*)adr_payload_size_in_bytes();
   }
 
