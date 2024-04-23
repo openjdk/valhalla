@@ -401,7 +401,7 @@ static bool rematerialize_objects(JavaThread* thread, int exec_mode, CompiledMet
       }
       JRT_END
     }
-    if (TraceDeoptimization) {
+    if (TraceDeoptimization && objects != nullptr) {
       print_objects(deoptee_thread, objects, realloc_failures);
     }
   }

@@ -249,8 +249,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     if (field->is_null_free()) {
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      int nargs = 1 + field->type()->size();
-      inc_sp(nargs);
+      inc_sp(1);
       val = null_check(val);
       if (stopped()) {
         return;
@@ -264,8 +263,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       // Re-execute if buffering triggers deoptimization.
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      int nargs = 1 + field->type()->size();
-      inc_sp(nargs);
+      inc_sp(1);
       val = val->as_InlineType()->buffer(this);
     }
 
@@ -275,8 +273,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     {
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      int nargs = 1 + field->type()->size();
-      inc_sp(nargs);
+      inc_sp(1);
       new_vt = new_vt->adjust_scalarization_depth(this);
     }
 

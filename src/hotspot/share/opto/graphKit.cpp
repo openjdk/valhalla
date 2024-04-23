@@ -961,7 +961,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
   // Loop over the map input edges associated with jvms, add them
   // to the call node, & reset all offsets to match call node array.
 
-  JVMState* callee = nullptr;
+  JVMState* callee_jvms = nullptr;
   for (JVMState* in_jvms = youngest_jvms; in_jvms != nullptr; ) {
     uint debug_end   = debug_ptr;
     uint debug_start = debug_ptr - in_jvms->debug_size();
@@ -988,11 +988,10 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     out_jvms->set_locoff(p);
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
-        Node* val = in_map->in(k+j);
-        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee != nullptr &&
-            callee->method()->is_object_constructor() && callee->method()->holder()->is_inlinetype() && val->bottom_type()->inline_klass() == callee->method()->holder()) {
-          Node* receiver = callee->map()->local(callee, 0);
-          val = receiver;
+        Node* val = in_map->in(k + j);
+        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee_jvms != nullptr &&
+            callee_jvms->method()->is_object_constructor() && callee_jvms->method()->holder()->is_inlinetype() && val == in_map->argument(in_jvms, 0)) {
+          val = callee_jvms->map()->local(callee_jvms, 0);
         }
         call->set_req(p++, val);
       }
@@ -1007,11 +1006,10 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
         // TODO 8325106 check if there's a larval on stack in the caller state that has been written in the callee state and update it accordingly
-        Node* val = in_map->in(k+j);
-        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee != nullptr &&
-            callee->method()->is_object_constructor() && callee->method()->holder()->is_inlinetype() && val->bottom_type()->inline_klass() == callee->method()->holder()) {
-          Node* receiver = callee->map()->local(callee, 0);
-          val = receiver;
+        Node* val = in_map->in(k + j);
+        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee_jvms != nullptr &&
+            callee_jvms->method()->is_object_constructor() && callee_jvms->method()->holder()->is_inlinetype() && val == in_map->argument(in_jvms, 0)) {
+          val = callee_jvms->map()->local(callee_jvms, 0);
         }
         call->set_req(p++, val);
       }
@@ -1053,7 +1051,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     assert(out_jvms->debug_size() == in_jvms->debug_size(), "size must match");
 
     // Update the two tail pointers in parallel.
-    callee = out_jvms;
+    callee_jvms = out_jvms;
     out_jvms = out_jvms->caller();
     in_jvms  = in_jvms->caller();
   }
