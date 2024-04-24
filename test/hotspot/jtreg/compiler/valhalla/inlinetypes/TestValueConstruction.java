@@ -23,59 +23,75 @@
 
 package compiler.valhalla.inlinetypes;
 
+import java.util.Random;
+
 import jdk.test.lib.Asserts;
+import jdk.test.lib.Utils;
+import jdk.test.whitebox.WhiteBox;
 
 /**
  * @test TestValueConstruction
  * @summary Test construction of value objects.
- * @library /testlibrary /test/lib /
+ * @key randomness
+ * @library /testlibrary /test/lib /compiler/whitebox /
  * @enablePreview
- * @run main/othervm -XX:+EnableValhalla -Xbatch
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI -Xbatch -XX:+DeoptimizeALot
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
+ *                   compiler.valhalla.inlinetypes.TestValueConstruction
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*MyValue*::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI -XX:+DeoptimizeALot
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- *
- * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*MyValue*::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -XX:+EnableValhalla -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
 
 public class TestValueConstruction {
+    static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+
     static boolean VERBOSE = false;
     static boolean deopt[] = new boolean[13];
 
@@ -157,7 +173,7 @@ public class TestValueConstruction {
             checkDeopt(4);
         }
 
-        private MyValue3(int x, int unused) {
+        public MyValue3(int x, int unused) {
             this.x = helper3(x, 5);
             super(x);
             helper1(this, x, 6); // 'this' escapes through argument
@@ -294,7 +310,7 @@ public class TestValueConstruction {
             checkDeopt(8);
         }
 
-        private MyValue8(int x, int unused1, int unused2) {
+        public MyValue8(int x, int unused1, int unused2) {
             checkDeopt(3);
             this.x = x;
             checkDeopt(4);
@@ -392,7 +408,7 @@ public class TestValueConstruction {
             checkDeopt(11);
         }
 
-        private MyValue11(int x, int deoptNum1, int deoptNum2, int deoptNum3, int deoptNum4) {
+        public MyValue11(int x, int deoptNum1, int deoptNum2, int deoptNum3, int deoptNum4) {
             checkDeopt(deoptNum1);
             this.x = x;
             checkDeopt(deoptNum2);
@@ -549,15 +565,31 @@ public class TestValueConstruction {
         return new MyValue11(x);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        Random rand = Utils.getRandomInstance();
+
+        // Randomly exclude some constructors from inlining via the WhiteBox API because CompileCommands don't match on different signatures.
+        WHITE_BOX.testSetDontInlineMethod(MyValue1.class.getConstructor(int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue1.class.getConstructor(int.class, int.class, int.class, int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue3.class.getConstructor(int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue3.class.getConstructor(int.class, int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue8.class.getConstructor(int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue8.class.getConstructor(int.class, int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue8.class.getConstructor(int.class, int.class, int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue9.class.getConstructor(int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue9.class.getConstructor(int.class, int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue9.class.getConstructor(int.class, int.class, int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue9.class.getConstructor(int.class, int.class, int.class, int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue11.class.getConstructor(int.class), rand.nextBoolean());
+        WHITE_BOX.testSetDontInlineMethod(MyValue11.class.getConstructor(int.class, int.class, int.class, int.class, int.class), rand.nextBoolean());
+
         Integer deoptNum = Integer.getInteger("deoptNum");
         if (deoptNum == null) {
-            // TODO randomize
-            deoptNum = -1;
+            deoptNum = rand.nextInt(deopt.length);
         }
         for (int x = 0; x <= 50_000; ++x) {
-            if (deoptNum != -1 && x == 50_000) {
-                // Last iteration, trigger deopt if requested
+            if (x == 50_000) {
+                // Last iteration, trigger deoptimization
                 deopt[deoptNum] = true;
             }
             Asserts.assertEQ(test1(x), x);
