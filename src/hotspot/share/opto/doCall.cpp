@@ -812,9 +812,8 @@ void Parse::do_call() {
     }
 
     // Did we inline a value class constructor from another value class constructor?
-    Node* receiver_in_caller = _caller->map()->argument(_caller, 0);
     if (_caller->has_method() && cg->is_inline() && cg->method()->is_object_constructor() && cg->method()->holder()->is_inlinetype() &&
-        _method->is_object_constructor() && _method->holder()->is_inlinetype() && receiver_in_caller == receiver) {
+        _method->is_object_constructor() && _method->holder()->is_inlinetype() && receiver == _caller->map()->argument(_caller, 0)) {
       // Update the receiver in the exit map because the constructor call updated it.
       // MethodLiveness::BasicBlock::compute_gen_kill_single ensures that the receiver in local(0) is still live.
       assert(local(0)->is_InlineType(), "Unexpected receiver");
