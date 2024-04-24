@@ -37,53 +37,53 @@ import jdk.test.whitebox.WhiteBox;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI -Xbatch
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI -Xbatch -XX:+DeoptimizeALot
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*MyValue*::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI -XX:+DeoptimizeALot
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
- *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
- *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*MyValue*::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
- *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI
- *                   -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+StressIncrementalInlining
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
