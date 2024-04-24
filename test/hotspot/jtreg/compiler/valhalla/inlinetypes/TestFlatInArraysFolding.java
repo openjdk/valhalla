@@ -27,7 +27,7 @@
  * @requires vm.gc.Serial
  * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
  *          in array property of the types. Additionally check that the type system properly handles the case of a
- *         super class being flat in array while the sub klass could be flat in array.
+ *          super class being flat in array while the sub klass could be flat in array.
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -40,7 +40,7 @@
  * @bug 8321734
  * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
  *          in array property of the types. Additionally check that the type system properly handles the case of a
- *         super class being flat in array while the sub klass could be flat in array.
+ *          super class being flat in array while the sub klass could be flat in array.
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
