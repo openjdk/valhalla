@@ -591,8 +591,7 @@ void Parse::do_call() {
 
     if (_caller->has_method()) {
       // Get receiver from the caller map and update it in the exit map now that we are done initializing it
-      SafePointNode* map = _caller->map();
-      Node* receiver_in_caller = map->argument(_caller, 0)->as_InlineType();
+      Node* receiver_in_caller = _caller->map()->argument(_caller, 0);
       assert(receiver_in_caller->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(), "Receiver type mismatch");
       _exits.map()->replace_edge(receiver_in_caller, clone, &_gvn);
     }
@@ -685,7 +684,6 @@ void Parse::do_call() {
 
   // save across call, for a subsequent cast_not_null.
   Node* receiver = has_receiver ? argument(0) : nullptr;
-  Node* receiver_in_caller = local(0);
 
   // The extra CheckCastPPs for speculative types mess with PhaseStringOpts
   if (receiver != nullptr && !call_does_dispatch && !cg->is_string_late_inline()) {
@@ -812,16 +810,16 @@ void Parse::do_call() {
       retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
       push_node(T_OBJECT, retnode);
     }
-  }
 
-  // Did we inline a value class constructor from another value class constructor?
-  if (cg->is_inline() && cg->method()->is_object_constructor() && cg->method()->holder()->is_inlinetype() &&
-      _method->is_object_constructor() && cg->method()->holder()->is_inlinetype() && receiver_in_caller == receiver) {
-    // Update the receiver in the exit map because the constructor call updated it.
-    // MethodLiveness::BasicBlock::compute_gen_kill_single ensures that the receiver in local(0) is live.
-    assert(local(0)->is_InlineType(), "Unexpected receiver");
-    assert(receiver->bottom_type()->inline_klass() == local(0)->bottom_type()->inline_klass(), "Receiver type mismatch");
-    _exits.map()->replace_edge(receiver, local(0), &_gvn);
+    // Did we inline a value class constructor from another value class constructor?
+    if (_caller->has_method() && cg->is_inline() && cg->method()->is_object_constructor() && cg->method()->holder()->is_inlinetype() &&
+        _method->is_object_constructor() && _method->holder()->is_inlinetype() && receiver == _caller->map()->argument(_caller, 0)) {
+      // Update the receiver in the exit map because the constructor call updated it.
+      // MethodLiveness::BasicBlock::compute_gen_kill_single ensures that the receiver in local(0) is still live.
+      assert(local(0)->is_InlineType(), "Unexpected receiver");
+      assert(receiver->bottom_type()->inline_klass() == local(0)->bottom_type()->inline_klass(), "Receiver type mismatch");
+      _exits.map()->replace_edge(receiver, local(0), &_gvn);
+    }
   }
 
   // Restart record of parsing work after possible inlining of call

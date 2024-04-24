@@ -960,6 +960,8 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
 
   // Loop over the map input edges associated with jvms, add them
   // to the call node, & reset all offsets to match call node array.
+
+  JVMState* callee_jvms = nullptr;
   for (JVMState* in_jvms = youngest_jvms; in_jvms != nullptr; ) {
     uint debug_end   = debug_ptr;
     uint debug_start = debug_ptr - in_jvms->debug_size();
@@ -986,16 +988,13 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     out_jvms->set_locoff(p);
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
-        call->set_req(p++, in_map->in(k+j));
-        Node* local = in_map->in(k+j);
-        // TODO 8325106
-        /*
-        if (false && local->is_InlineType() && local->isa_InlineType()->is_larval()) {
-          tty->print_cr("LARVAL FOUND in LOCAL");
-          in_map->dump(0);
-          local->dump(0);
+        Node* val = in_map->in(k + j);
+        // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
+        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee_jvms != nullptr &&
+            callee_jvms->method()->is_object_constructor() && callee_jvms->method()->holder()->is_inlinetype() && val == in_map->argument(in_jvms, 0)) {
+          val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
         }
-        */
+        call->set_req(p++, val);
       }
     } else {
       p += l;  // already set to top above by add_req_batch
@@ -1007,19 +1006,13 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     out_jvms->set_stkoff(p);
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
-        call->set_req(p++, in_map->in(k+j));
-        Node* local = in_map->in(k+j);
-        // TODO 8325106 check if there's a larval on stack in the caller state that has been written in the callee state and update it accordingly
-        /*
-        if (false && local->is_InlineType() && local->isa_InlineType()->is_larval()) {
-          tty->print_cr("LARVAL FOUND on STACK");
-          in_map->dump(0);
-          local->dump(0);
-          map()->replaced_nodes().dump(tty);
-          map()->replaced_nodes().apply(call, 0);
-          tty->print_cr("");
+        Node* val = in_map->in(k + j);
+        // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
+        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee_jvms != nullptr &&
+            callee_jvms->method()->is_object_constructor() && callee_jvms->method()->holder()->is_inlinetype() && val == in_map->argument(in_jvms, 0)) {
+          val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
         }
-        */
+        call->set_req(p++, val);
       }
     } else if (can_prune_locals && stack_slots_not_pruned != 0) {
       // Divide stack into {S0,...,S1}, where S0 is set to top.
@@ -1059,6 +1052,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     assert(out_jvms->debug_size() == in_jvms->debug_size(), "size must match");
 
     // Update the two tail pointers in parallel.
+    callee_jvms = out_jvms;
     out_jvms = out_jvms->caller();
     in_jvms  = in_jvms->caller();
   }
