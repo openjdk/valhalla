@@ -653,6 +653,9 @@ public final class Unsafe {
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
         }
+        if (declaringClass.isValue()) {
+            throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
+        }
         return theInternalUnsafe.objectFieldOffset(f);
     }
 
@@ -692,6 +695,9 @@ public final class Unsafe {
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
         }
+        if (declaringClass.isValue()) {
+            throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
+        }
         return theInternalUnsafe.staticFieldOffset(f);
     }
 
@@ -722,6 +728,9 @@ public final class Unsafe {
         }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get base address on a record class: " + f);
+        }
+        if (declaringClass.isValue()) {
+            throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.staticFieldBase(f);
     }
