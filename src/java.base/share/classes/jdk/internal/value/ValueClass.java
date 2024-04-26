@@ -46,7 +46,7 @@ public class ValueClass {
     public static native boolean isImplicitlyConstructible(Class<?> cls);
 
     /**
-     * {@eturn the default value of the given value class type}
+     * {@return the default value of the given value class type}
      *
      * @throws IllegalArgumentException if {@code cls} is not a
      *         value class type or is not annotated with
