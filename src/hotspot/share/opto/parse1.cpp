@@ -1956,7 +1956,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         // Do the merge
         vtm->merge_with(&_gvn, vtn, pnum, last_merge);
         if (last_merge) {
-          map()->set_req(j, _gvn.transform_no_reclaim(vtm));
+          map()->set_req(j, _gvn.transform(vtm));
           record_for_igvn(vtm);
         }
       } else if (phi != nullptr) {
