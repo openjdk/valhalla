@@ -35,6 +35,7 @@
 #include "runtime/deoptimization.hpp"
 #include "runtime/sharedRuntime.hpp"
 
+class CompilationFailureInfo;
 class CompilationResourceObj;
 class XHandlers;
 class ExceptionInfo;
@@ -86,6 +87,7 @@ class Compilation: public StackObj {
   bool               _has_monitors; // Fastpath monitors detection for Continuations
   bool               _install_code;
   const char*        _bailout_msg;
+  CompilationFailureInfo* _first_failure_details; // Details for the first failure happening during compilation
   bool               _oom;
   ExceptionInfoList* _exception_info_list;
   ExceptionHandlerTable _exception_handler_table;
@@ -214,6 +216,7 @@ class Compilation: public StackObj {
   void bailout(const char* msg);
   bool bailed_out() const                        { return _bailout_msg != nullptr; }
   const char* bailout_msg() const                { return _bailout_msg; }
+  const CompilationFailureInfo* first_failure_details() const { return _first_failure_details; }
 
   static uint desired_max_code_buffer_size() {
     return (uint)NMethodSizeLimit;  // default 64K

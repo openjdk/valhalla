@@ -4339,9 +4339,14 @@ void TemplateTable::_new() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  // make sure klass is initialized & doesn't have finalizer
+  // make sure klass is initialized
+#ifdef _LP64
+  assert(VM_Version::supports_fast_class_init_checks(), "must support fast class initialization checks");
+  __ clinit_barrier(rcx, r15_thread, nullptr /*L_fast_path*/, &slow_case);
+#else
   __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
   __ jcc(Assembler::notEqual, slow_case);
+#endif
 
   __ allocate_instance(rcx, rax, rdx, rbx, true, slow_case);
   __ jmp(done);
