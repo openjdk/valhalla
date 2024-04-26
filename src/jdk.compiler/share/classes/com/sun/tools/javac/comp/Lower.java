@@ -1550,14 +1550,11 @@ public class Lower extends TreeTranslator {
     }
 
     /** Proxy definitions for all free variables in given list, in reverse order.
-     *  @param pos        The source code position of the definition.
-     *  @param freevars   The free variables.
-     *  @param owner      The class in which the definitions go.
+     *  @param pos               The source code position of the definition.
+     *  @param freevars          The free variables.
+     *  @param owner             The class in which the definitions go.
+     *  @param additionalFlags   Any additional flags
      */
-    List<JCVariableDecl> freevarDefs(int pos, List<VarSymbol> freevars, Symbol owner) {
-        return freevarDefs(pos, freevars, owner, 0);
-    }
-
     List<JCVariableDecl> freevarDefs(int pos, List<VarSymbol> freevars, Symbol owner,
             long additionalFlags) {
         long flags = FINAL | SYNTHETIC | additionalFlags;
@@ -2311,7 +2308,7 @@ public class Lower extends TreeTranslator {
 
         // If this is a local class, define proxies for all its free variables.
         List<JCVariableDecl> fvdefs = freevarDefs(
-            tree.pos, freevars(currentClass), currentClass);
+            tree.pos, freevars(currentClass), currentClass, currentClass.isValueClass() ? STRICT : 0);
 
         // Recursively translate superclass, interfaces.
         tree.extending = translate(tree.extending);
