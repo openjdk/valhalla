@@ -1525,11 +1525,11 @@ public final class Unsafe {
     }
 
     /*
-     * For primitive type, CAS should do substitutability test as opposed
+     * For value type, CAS should do substitutability test as opposed
      * to two pointers comparison.
      *
-     * Perhaps we can keep the xxxObject methods for compatibility and
-     * change the JDK 13 xxxReference method signature freely.
+     * TODO: replace global lock workaround with the proper support for
+     * atomic access to value objects and loosely consistent values.
      */
     public final <V> boolean compareAndSetReference(Object o, long offset,
                                                     Class<?> type,
