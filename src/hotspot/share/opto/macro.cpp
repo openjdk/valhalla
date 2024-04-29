@@ -323,7 +323,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
         // own slice so we need to extract the field being accessed from
         // the address computation
         adr_type = adr_type->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot)->is_aryptr();
-        adr = _igvn.transform(new CastPPNode(adr, adr_type));
+        adr = _igvn.transform(new CastPPNode(ctl, adr, adr_type));
       }
       MergeMemNode* mergemen = _igvn.transform(MergeMemNode::make(mem))->as_MergeMem();
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();

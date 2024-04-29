@@ -1481,7 +1481,7 @@ class TypeAryPtr : public TypeOopPtr {
   Offset meet_field_offset(const Type::Offset offset) const;
   Offset dual_field_offset() const;
 
-  ciKlass* compute_klass(DEBUG_ONLY(bool verify = false)) const;
+  ciKlass* compute_klass() const;
 
   // A pointer to delay allocation to Type::Initialize_shared()
 
