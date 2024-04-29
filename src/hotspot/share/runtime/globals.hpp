@@ -806,11 +806,11 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseXMMForArrayCopy, false,                                  \
           "Use SSE2 MOVQ instruction for Arraycopy")                        \
                                                                             \
-  notproduct(bool, PrintFieldLayout, false,                                 \
+  product(bool, PrintFieldLayout, false, DIAGNOSTIC,                        \
           "Print field layout for each class")                              \
                                                                             \
-  notproduct(bool, PrintInlineLayout, false,                                \
-          "Print field layout for each inline type")                        \
+  product(bool, PrintInlineLayout, false, DIAGNOSTIC,                       \
+          "Print field layout for each inline type or class with inline fields") \
                                                                             \
   notproduct(bool, PrintFlatArrayLayout, false,                             \
           "Print array layout for each inline type array")                  \
@@ -821,7 +821,7 @@ const int ObjectAlignmentInBytes = 8;
   product(intx, InlineFieldMaxFlatSize, 128,                                \
           "Max size for flattening inline type fields, <0 no limit")        \
                                                                             \
-  product(bool, EnableNullableFieldFlattening, false,                       \
+  develop(bool, EnableNullableFieldFlattening, false,                       \
           "Allow the JVM to flatten some nullable fields")                  \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4,                                 \

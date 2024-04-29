@@ -323,7 +323,9 @@ public class FieldLayoutAnalyzer {
   }
 
   void checkNoOverlap() {
+    System.out.println("Checking for overlap");
     for (ClassLayout layout : layouts) {
+      System.out.println("\t" + layout.name);
       try {
         checkNoOverlapOnFields(layout.staticFields);
         checkNoOverlapOnFields(layout.nonStaticFields);
@@ -385,7 +387,9 @@ public class FieldLayoutAnalyzer {
   }
 
   void checkSizeAndAlignment() {
+    System.out.println("Checking size and alignment");
     for (ClassLayout layout : layouts) {
+      System.out.println("\t" + layout.name);
       for (FieldBlock block : layout.staticFields) {
         checkSizeAndAlignmentForField(block);
       }
@@ -397,7 +401,9 @@ public class FieldLayoutAnalyzer {
 
   // Verify that fields marked as INHERITED are declared in a super class
   void checkInheritedFields() {
+    System.out.println("Checking Inherited Fields");
     for (ClassLayout layout : layouts) {
+      System.out.println("\t" + layout.name);
       // Preparing the list of ClassLayout of super classes
       ArrayList<ClassLayout> supers = new ArrayList<ClassLayout>();
       String className = layout.superName;
@@ -436,6 +442,7 @@ public class FieldLayoutAnalyzer {
 
   // Verify that all fields declared in a class are present in all subclass
   void checkSubClasses() {
+    System.out.println("Checking sub-classes");
     // Generating the class inheritance graph
     HashMap<String, Node> nodes = new HashMap<String, Node>();
     for (ClassLayout layout : layouts) {
@@ -464,6 +471,7 @@ public class FieldLayoutAnalyzer {
     // Field verification
     for (Node node : nodes.values()) {
       ClassLayout layout = node.classLayout;
+      System.out.println("\t" + layout.name);
       for (FieldBlock block : layout.nonStaticFields) {
         if (block.offset() == 0) continue; // Skip object header
         if (block.type() == BlockType.EMPTY) continue; // Empty spaces can be used by subclasses
@@ -489,7 +497,9 @@ public class FieldLayoutAnalyzer {
   }
 
   void checkNullMarkers() {
+    System.out.println("Checking null markers");
     for (ClassLayout layout : layouts) {
+      System.out.println("\t" + layout.name);
       BlockType last_type = BlockType.RESERVED;
       boolean has_empty_slot = false;
       for (FieldBlock block : layout.nonStaticFields) {

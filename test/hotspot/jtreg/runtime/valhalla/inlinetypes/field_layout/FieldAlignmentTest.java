@@ -21,13 +21,34 @@
  * questions.
  */
 
- /*
- * @test FieldAlignmentTest
+/*
+ * @test id=Oops32
+ * @requires vm.bits == 32
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
- * @run main/othervm FieldAlignmentTest
+ * @run main/othervm FieldAlignmentTest 0
+ */
+
+  /*
+ * @test id=CompressedOops
+ * @requires vm.bits == 64
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
+ * @run main/othervm FieldAlignmentTest 1
+ */
+
+  /*
+ * @test id=NoCompressedOops
+ * @requires vm.bits == 64
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
+ * @run main/othervm FieldAlignmentTest 2
  */
 
  import java.util.ArrayList;
@@ -119,29 +140,51 @@
     jdk.test.lib.helpers.ClassFileInstaller.writeClassToDisk(className, byteCode);
   }
 
-  static ProcessBuilder exec(String... args) throws Exception {
+  static ProcessBuilder exec(String compressedOopsArg, String... args) throws Exception {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
+    Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
+    if (compressedOopsArg != null) {
+      Collections.addAll(argsList, compressedOopsArg);
+    }
+    Collections.addAll(argsList, "-Xmx256m");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + ":.");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
   }
 
   public static void main(String[] args) throws Exception {
+    boolean useCompressedOops;
+    String compressedOopsArg;
+
+    switch(args[0]) {
+      case "0": useCompressedOops = false;
+                compressedOopsArg = null;
+                break;
+      case "1": useCompressedOops = true;
+                compressedOopsArg = "-XX:+UseCompressedOops";
+                break;
+      case "2": useCompressedOops = false;
+                compressedOopsArg = "-XX:-UseCompressedOops";
+                break;
+      default: throw new RuntimeException("Unrecognized configuration");
+    }
+
     // Generate test classes
     FieldAlignmentTest fat = new FieldAlignmentTest();
     fat.generateTests();
     fat.generateTestRunner();
 
     // Execute the test runner in charge of loading all test classes
-    ProcessBuilder pb = exec("TestRunner");
+    ProcessBuilder pb = exec(compressedOopsArg, "TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
     // Analyze the test runner output
     System.out.print(out.getOutput());
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
-    FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo, true);
+
+    FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo, useCompressedOops);
     fla.check();
   }
  }

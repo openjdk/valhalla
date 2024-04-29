@@ -22,12 +22,33 @@
  */
 
  /*
- * @test NullMarkersTest
+ * @test id=NullMarker32
+ * @requires vm.bits == 32
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main/othervm NullMarkersTest
+ * @run main/othervm NullMarkersTest 0
+ */
+
+/*
+ * @test id=NullMarker64CompressedOops
+ * @requires vm.bits == 64
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
+ * @run main/othervm NullMarkersTest 1
+ */
+
+/*
+ * @test id=NullMarker64NoCompressedOops
+ * @requires vm.bits == 64
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
+ * @run main/othervm NullMarkersTest 2
  */
 
 import java.util.ArrayList;
@@ -254,10 +275,16 @@ public class NullMarkersTest {
     Asserts.assertTrue(fb1.hasNullMarker());
   }
 
-  static ProcessBuilder exec(String... args) throws Exception {
+  static ProcessBuilder exec(String compressedOopsArg, String... args) throws Exception {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
+    Collections.addAll(argsList, "-Xint");
+    Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
+    if (compressedOopsArg != null) {
+      Collections.addAll(argsList, compressedOopsArg);
+    }
+    Collections.addAll(argsList, "-Xmx256m");
     Collections.addAll(argsList, "-XX:+EnableNullableFieldFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + ":.");
     Collections.addAll(argsList, args);
@@ -265,12 +292,27 @@ public class NullMarkersTest {
   }
 
   public static void main(String[] args) throws Exception {
+    boolean useCompressedOops;
+    String compressedOopsArg;
+
+    switch(args[0]) {
+      case "0": useCompressedOops = false;
+                compressedOopsArg = null;
+                break;
+      case "1": useCompressedOops = true;
+                compressedOopsArg = "-XX:+UseCompressedOops";
+                break;
+      case "2": useCompressedOops = false;
+                compressedOopsArg = "-XX:-UseCompressedOops";
+                break;
+      default: throw new RuntimeException("Unrecognized configuration");
+    }
+
     // Generate test classes
     NullMarkersTest fat = new NullMarkersTest();
 
-
     // Execute the test runner in charge of loading all test classes
-    ProcessBuilder pb = exec("NullMarkersTest$TestRunner");
+    ProcessBuilder pb = exec(compressedOopsArg, "NullMarkersTest$TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
     Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
@@ -278,16 +320,15 @@ public class NullMarkersTest {
     // Get and parse the test output
     System.out.print(out.getOutput());
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
-    FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo, true);
+    FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo, useCompressedOops);
 
     // Running tests verification method (check that tests produced the right configuration)
-    Class testClass =NullMarkersTest.class;
+    Class testClass = NullMarkersTest.class;
       Method[] testMethods = testClass.getMethods();
       for (Method test : testMethods) {
         if (test.getName().startsWith("check_")) {
           Asserts.assertTrue(Modifier.isStatic(test.getModifiers()));
           Asserts.assertTrue(test.getReturnType().equals(Void.TYPE));
-          System.out.println("Running " + test.getName());
           test.invoke(null, fla);
         }
       }

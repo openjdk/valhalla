@@ -315,7 +315,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc
   current->set_vm_result(res);
 JRT_END
 
-// The protocole to read a nullable flat field is:
+// The protocol to read a nullable flat field is:
 // Step 1: read the null marker with an load_acquire barrier to ensure that
 //         reordered loads won't try to load the value before the null marker is read
 // Step 2: if the null marker value is zero, the field's value is null
@@ -337,7 +337,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current
   }
 JRT_END
 
-// The protocole to write a nullable flat field is:
+// The protocol to write a nullable flat field is:
 // If the new field value is null, just write zero to the null marker
 // Otherwise:
 // Step 1: write the field value like a regular flat field
