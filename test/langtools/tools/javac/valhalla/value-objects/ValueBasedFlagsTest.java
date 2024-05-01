@@ -75,7 +75,7 @@ public class ValueBasedFlagsTest extends TestRunner {
                 """
                 package java.lang;
                 @jdk.internal.ValueBased
-                final class ValueBasedTest {}        
+                final class ValueBasedTest {}
                 """);
         Path classes = base.resolve("classes");
         tb.createDirectories(classes);
