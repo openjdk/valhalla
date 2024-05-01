@@ -988,6 +988,9 @@ public class ClassWriter extends ClassFile {
         Type fldType = v.erasure(types);
         if (fldType.requiresPreload(v.owner)) {
             poolWriter.enterPreloadClass((ClassSymbol) fldType.tsym);
+            if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
+                preview.markUsesPreview(null);
+            }
         }
         int acountIdx = beginAttrs();
         int acount = 0;
