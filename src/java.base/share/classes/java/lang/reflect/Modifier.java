@@ -140,7 +140,10 @@ public class Modifier {
      * @param   mod a set of modifiers
      * @return {@code true} if {@code mod} includes the
      * {@code identity} modifier; {@code false} otherwise.
+     *
+     * @since Valhalla
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public static boolean isIdentity(int mod) {
         return (mod & IDENTITY) != 0;
     }
@@ -319,8 +322,10 @@ public class Modifier {
     /**
      * The {@code int} value representing the {@code ACC_IDENTITY}
      * modifier.
+     *
+     * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public static final int IDENTITY         = 0x00000020;
 
     /**
