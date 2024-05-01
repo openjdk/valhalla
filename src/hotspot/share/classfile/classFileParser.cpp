@@ -4114,6 +4114,7 @@ void ClassFileParser::apply_parsed_class_metadata(
   this_klass->set_permitted_subclasses(_permitted_subclasses);
   this_klass->set_record_components(_record_components);
   this_klass->set_inline_type_field_klasses_array(_inline_type_field_klasses);
+  this_klass->set_null_marker_offsets_array(_null_marker_offsets);
   // Delay the setting of _local_interfaces and _transitive_interfaces until after
   // initialize_supers() in fill_instance_klass(). It is because the _local_interfaces could
   // be shared with _transitive_interfaces and _transitive_interfaces may be shared with
@@ -5751,7 +5752,8 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     InlineKlass* vk = InlineKlass::cast(ik);
     vk->set_alignment(_alignment);
     vk->set_first_field_offset(_first_field_offset);
-    vk->set_exact_size_in_bytes(_exact_size_in_bytes);
+    vk->set_payload_size_in_bytes(_payload_size_in_bytes);
+    vk->set_internal_null_marker_offset(_internal_null_marker_offset);
     InlineKlass::cast(ik)->initialize_calling_convention(CHECK);
   }
 
@@ -5862,6 +5864,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _fac(nullptr),
   _field_info(nullptr),
   _inline_type_field_klasses(nullptr),
+  _null_marker_offsets(nullptr),
   _temp_field_info(nullptr),
   _method_ordering(nullptr),
   _all_mirandas(nullptr),
@@ -5954,6 +5957,7 @@ void ClassFileParser::clear_class_metadata() {
   _fields_annotations = _fields_type_annotations = nullptr;
   _record_components = nullptr;
   _inline_type_field_klasses = nullptr;
+  _null_marker_offsets = nullptr;
 }
 
 // Destructor to clean up
@@ -5974,6 +5978,10 @@ ClassFileParser::~ClassFileParser() {
 
   if (_inline_type_field_klasses != nullptr) {
      MetadataFactory::free_array<InlineKlass*>(_loader_data, _inline_type_field_klasses);
+  }
+
+  if (_null_marker_offsets != nullptr) {
+     MetadataFactory::free_array<int>(_loader_data, _null_marker_offsets);
   }
 
   if (_methods != nullptr) {
@@ -6502,6 +6510,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         }
         assert(klass != nullptr, "Sanity check");
         if (klass->access_flags().is_identity_class()) {
+          assert(klass->is_instance_klass(), "Sanity check");
           ResourceMark rm(THREAD);
           THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
                     err_msg("Class %s expects class %s to be a value class, but it is an identity class",
@@ -6554,14 +6563,15 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   }
 
   _field_info = new FieldLayoutInfo();
-  FieldLayoutBuilder lb(class_name(), super_klass(), _cp, /*_fields*/ _temp_field_info,
+  FieldLayoutBuilder lb(class_name(), loader_data(), super_klass(), _cp, /*_fields*/ _temp_field_info,
       _parsed_annotations->is_contended(), is_inline_type(),
       _field_info, _inline_type_field_klasses);
-  lb.build_layout(CHECK);
+  lb.build_layout();
   if (is_inline_type()) {
     _alignment = lb.get_alignment();
     _first_field_offset = lb.get_first_field_offset();
-    _exact_size_in_bytes = lb.get_exact_size_in_byte();
+    _payload_size_in_bytes = lb.get_payload_size_in_byte();
+    _internal_null_marker_offset = lb.get_internal_null_marker_offset();
   }
   _has_inline_type_fields = _field_info->_has_inline_fields;
 
@@ -6569,9 +6579,21 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _fieldinfo_stream =
     FieldInfoStream::create_FieldInfoStream(_temp_field_info, _java_fields_count,
                                             injected_fields_count, loader_data(), CHECK);
+
   _fields_status =
     MetadataFactory::new_array<FieldStatus>(_loader_data, _temp_field_info->length(),
                                             FieldStatus(0), CHECK);
+  if (_field_info->_has_null_marker_offsets) {
+    int idx = 0;
+    _null_marker_offsets = MetadataFactory::new_array<int>(_loader_data, _temp_field_info->length(), 0, CHECK);
+    for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it, ++idx) {
+      FieldInfo fieldinfo = *it;
+      if (fieldinfo.field_flags().has_null_marker()) {
+        assert(fieldinfo.null_marker_offset() != 0, "Invalid value");
+        _null_marker_offsets->at_put(idx, fieldinfo.null_marker_offset());
+      }
+    }
+  }
 }
 
 void ClassFileParser::set_klass(InstanceKlass* klass) {

@@ -567,6 +567,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
   _init_monitor(create_init_monitor("InstanceKlassInitMonitor_lock")),
   _init_thread(nullptr),
   _inline_type_field_klasses(nullptr),
+  _null_marker_offsets(nullptr),
   _preload_classes(nullptr),
   _adr_inlineklass_fixed_block(nullptr)
 {
@@ -721,6 +722,10 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_array<InlineKlass*>(loader_data, inline_type_field_klasses_array());
   }
   set_inline_type_field_klasses_array(nullptr);
+
+  if (null_marker_offsets_array() != nullptr) {
+    MetadataFactory::free_array<int>(loader_data, null_marker_offsets_array());
+  }
 
   // If a method from a redefined class is using this constant pool, don't
   // delete it, yet.  The new class's previous version will point to this.
@@ -1004,6 +1009,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
         }
       }
     }
+
     // Aggressively preloading all classes from the Preload attribute
     if (preload_classes() != nullptr) {
       HandleMark hm(THREAD);
@@ -1015,7 +1021,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
         oop loader = class_loader();
         oop protection_domain = this->protection_domain();
         Klass* klass = SystemDictionary::resolve_or_null(class_name,
-                                                          Handle(THREAD, loader), Handle(THREAD, protection_domain), THREAD);
+                                                         Handle(THREAD, loader), Handle(THREAD, protection_domain), THREAD);
         if (HAS_PENDING_EXCEPTION) {
           CLEAR_PENDING_EXCEPTION;
         }
@@ -1950,7 +1956,7 @@ Klass* InstanceKlass::find_field(Symbol* name, Symbol* sig, bool is_static, fiel
 bool InstanceKlass::contains_field_offset(int offset) {
   if (this->is_inline_klass()) {
     InlineKlass* vk = InlineKlass::cast(this);
-    return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_exact_size_in_bytes());
+    return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_payload_size_in_bytes());
   } else {
     fieldDescriptor fd;
     return find_field_from_offset(offset, false, &fd);
@@ -2835,6 +2841,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_record_components);
 
   it->push(&_inline_type_field_klasses, MetaspaceClosure::_writable);
+  it->push(&_null_marker_offsets);
 }
 
 #if INCLUDE_CDS

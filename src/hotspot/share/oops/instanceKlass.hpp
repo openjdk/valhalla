@@ -147,7 +147,8 @@ class InlineKlassFixedBlock {
   ArrayKlass** _null_free_inline_array_klasses;
   int _alignment;
   int _first_field_offset;
-  int _exact_size_in_bytes;
+  int _payload_size_in_bytes;
+  int _internal_null_marker_offset; // -1 if none
 
   friend class InlineKlass;
 };
@@ -298,6 +299,7 @@ class InstanceKlass: public Klass {
   Array<FieldStatus>* _fields_status;
 
   Array<InlineKlass*>* _inline_type_field_klasses; // For "inline class" fields, null if none present
+  Array<int>* _null_marker_offsets; // for flat fields with a null marker
   Array<u2>* _preload_classes;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
@@ -444,6 +446,7 @@ class InstanceKlass: public Klass {
   inline Symbol* field_name        (int index) const;
   inline Symbol* field_signature   (int index) const;
   bool field_is_flat(int index) const { return field_flags(index).is_flat(); }
+  bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
   bool field_is_null_free_inline_type(int index) const;
   bool is_class_in_preload_attribute(Symbol* name) const;
 
@@ -935,6 +938,7 @@ public:
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
   static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
+  static ByteSize null_marker_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _null_marker_offsets)); }
   static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
 
   // subclass/subinterface checks
@@ -1024,6 +1028,9 @@ public:
 
   Array<InlineKlass*>* inline_type_field_klasses_array() const { return _inline_type_field_klasses; }
   void set_inline_type_field_klasses_array(Array<InlineKlass*>* array) { _inline_type_field_klasses = array; }
+
+  Array<int>* null_marker_offsets_array() const { return _null_marker_offsets; }
+  void set_null_marker_offsets_array(Array<int>* array) { _null_marker_offsets = array; }
 
   inline InlineKlass* get_inline_type_field_klass(int idx) const;
   inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;

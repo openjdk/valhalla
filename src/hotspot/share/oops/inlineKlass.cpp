@@ -146,6 +146,11 @@ void InlineKlass::write_flat_field(oop obj, int offset, oop value, TRAPS) {
   if (value == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
+  write_non_null_flat_field(obj, offset, value);
+}
+
+void InlineKlass::write_non_null_flat_field(oop obj, int offset, oop value) {
+  assert(value != nullptr, "");
   if (!is_empty_inline_type()) {
     inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
   }
@@ -158,7 +163,7 @@ bool InlineKlass::flat_array() {
     return false;
   }
   // Too big
-  int elem_bytes = get_exact_size_in_bytes();
+  int elem_bytes = get_payload_size_in_bytes();
   if ((FlatArrayElementMaxSize >= 0) && (elem_bytes > FlatArrayElementMaxSize)) {
     return false;
   }
