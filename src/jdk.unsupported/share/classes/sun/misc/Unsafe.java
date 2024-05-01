@@ -26,7 +26,6 @@
 package sun.misc;
 
 import jdk.internal.vm.annotation.ForceInline;
-import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
@@ -617,18 +616,6 @@ public final class Unsafe {
      */
     public static final int INVALID_FIELD_OFFSET = jdk.internal.misc.Unsafe.INVALID_FIELD_OFFSET;
 
-
-    // Temp internal hack (@see java.lang.Class.isValue())
-    private static boolean isValueClass(Class<?> clazz) {
-        if (!PreviewFeatures.isEnabled()) {
-            return false;
-        }
-        if (clazz.isPrimitive() || clazz.isArray() || clazz.isInterface()) {
-             return false;
-        }
-        return ((clazz.getModifiers() & /*Modifier.IDENTITY*/0x00000020) == 0);
-    }
-
     /**
      * Reports the location of a given field in the storage allocation of its
      * class.  Do not expect to perform any sort of arithmetic on this offset;
@@ -655,6 +642,7 @@ public final class Unsafe {
      */
     @Deprecated(since="18")
     @ForceInline
+    @SuppressWarnings("preview")
     public long objectFieldOffset(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -666,7 +654,7 @@ public final class Unsafe {
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
         }
-        if (isValueClass(declaringClass)) {
+        if (declaringClass.isValue()) {
             throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.objectFieldOffset(f);
@@ -697,6 +685,7 @@ public final class Unsafe {
      */
     @Deprecated(since="18")
     @ForceInline
+    @SuppressWarnings("preview")
     public long staticFieldOffset(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -708,7 +697,7 @@ public final class Unsafe {
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
         }
-        if (isValueClass(declaringClass)) {
+        if (declaringClass.isValue()) {
             throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.staticFieldOffset(f);
@@ -731,6 +720,7 @@ public final class Unsafe {
      */
     @Deprecated(since="18")
     @ForceInline
+    @SuppressWarnings("preview")
     public Object staticFieldBase(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -742,7 +732,7 @@ public final class Unsafe {
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get base address on a record class: " + f);
         }
-        if (isValueClass(declaringClass)) {
+        if (declaringClass.isValue()) {
             throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.staticFieldBase(f);

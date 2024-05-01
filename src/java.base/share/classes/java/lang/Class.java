@@ -689,7 +689,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public native boolean isIdentity();
 
     /**
@@ -701,7 +701,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public boolean isValue() {
         if (!PreviewFeatures.isEnabled()) {
             return false;
