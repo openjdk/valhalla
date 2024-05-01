@@ -263,6 +263,31 @@ public class NullableFlatFieldTest {
     Asserts.assertNotNull(c.valb1);
   }
 
+  @ImplicitlyConstructible
+  @LooselyConsistentValue
+  static value class Value3 {
+    int i = 0;
+  }
+
+  static class Container3 {
+    Value3 val;
+  }
+
+  static Container3 getNullContainer3() {
+    return null;
+  }
+
+  public static void test3() {
+    NullPointerException npe = null;
+    Container3 c = getNullContainer3();
+    try {
+      Value3 v = c.val;
+    } catch(NullPointerException e) {
+      npe = e;
+    }
+    Asserts.assertNotNull(npe);
+  }
+
   public static void main(String[] args) {
     // All tests are run twice to exercise both the unresolved bytecodes and the rewritten ones
     for (int i = 0; i < 2; i++) {
@@ -270,6 +295,7 @@ public class NullableFlatFieldTest {
       test0();
       test1();
       test2();
+      test3();
     }
   }
 }

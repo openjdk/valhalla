@@ -3352,7 +3352,7 @@ void TemplateTable::fast_storefield(TosState state)
 
   // access field
   switch (bytecode()) {
-  case Bytecodes::_fast_vputfield: //fall through
+  case Bytecodes::_fast_vputfield:
    {
       Label is_flat, has_null_marker, done;
       __ test_field_has_null_marker(r3, noreg /* temp */, has_null_marker);

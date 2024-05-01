@@ -351,7 +351,6 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
       if (fs.access_flags().is_static()) continue;
       has_instance_fields = true;
       LayoutRawBlock* block;
-      // if (fs.field_flags().is_null_free_inline_type()) {
       if (fs.is_flat()) {
         InlineKlass* vk = InlineKlass::cast(ik->get_inline_type_field_klass(fs.index()));
         block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, vk->get_payload_size_in_bytes(),
