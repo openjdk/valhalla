@@ -2905,7 +2905,7 @@ public class ClassReader {
 
         // read flags, or skip if this is an inner class
         long f = nextChar();
-        long flags = adjustClassFlags(f);
+        long flags = adjustClassFlags(c, f);
         if ((flags & MODULE) == 0) {
             if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
             // read own class name and check that it matches
@@ -2997,7 +2997,7 @@ public class ClassReader {
             ClassSymbol outer = optPoolEntry(outerIdx, poolReader::getClass, null);
             Name name = optPoolEntry(nameIdx, poolReader::getName, names.empty);
             if (name == null) name = names.empty;
-            long flags = adjustClassFlags(nextChar());
+            long flags = adjustClassFlags(c, nextChar());
             if (outer != null) { // we have a member class
                 if (name == names.empty)
                     name = names.one;
@@ -3159,16 +3159,19 @@ public class ClassReader {
         return flags;
     }
 
-    long adjustClassFlags(long flags) {
+    long adjustClassFlags(ClassSymbol c, long flags) {
         boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         if ((flags & ACC_MODULE) != 0) {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_IDENTITY) != 0 || (majorVersion < V66.major && (flags & INTERFACE) == 0)) {
+        if (((flags & ACC_IDENTITY) != 0 && !syms.shouldBeConsideredValueClass(allowValueClasses, c)) || (majorVersion < V66.major && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
-        } else if ((flags & INTERFACE) == 0 && allowValueClasses && previewClassFile && majorVersion >= V66.major) {
-            flags |= VALUE_CLASS;
+        } else if (allowValueClasses) {
+            if (previewClassFile && majorVersion >= V66.major && (flags & INTERFACE) == 0 ||
+                    majorVersion >= V66.major && syms.shouldBeConsideredValueClass(allowValueClasses, c)) {
+                flags |= VALUE_CLASS;
+            }
         }
         flags &= ~ACC_IDENTITY; // ACC_IDENTITY and SYNCHRONIZED bits overloaded
         return flags;

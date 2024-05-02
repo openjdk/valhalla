@@ -308,6 +308,32 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
+        assertFail("compiler.err.type.found.req",
+                """
+                value class V {
+                    final Integer val = Integer.valueOf(42);
+                    void test() {
+                        synchronized (val) { // error
+                        }
+                    }
+                }
+                """);
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions(new String[] {});
+            assertOKWithWarning("compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class",
+                    """
+                    class V {
+                        final Integer val = Integer.valueOf(42);
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """);
+        } finally {
+            setCompileOptions(previousOptions);
+        }
     }
 
     @Test
