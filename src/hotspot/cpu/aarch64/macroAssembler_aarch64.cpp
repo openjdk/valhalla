@@ -1906,16 +1906,6 @@ void MacroAssembler::test_non_flat_array_layout(Register lh, Label& is_non_flat_
   br(Assembler::EQ, is_non_flat_array);
 }
 
-void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
-  tst(lh, Klass::_lh_null_free_array_bit_inplace);
-  br(Assembler::NE, is_null_free_array);
-}
-
-void MacroAssembler::test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array) {
-  tst(lh, Klass::_lh_null_free_array_bit_inplace);
-  br(Assembler::EQ, is_non_null_free_array);
-}
-
 // MacroAssembler protected routines needed to implement
 // public methods
 

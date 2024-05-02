@@ -4597,6 +4597,11 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // Handle inline type arrays
     bool can_validate = !too_many_traps(Deoptimization::Reason_class_check);
     if (!stopped()) {
+      // TODO JDK-8329224
+      if (!orig_t->is_null_free()) {
+        // Not statically known to be null free, add a check
+        generate_fair_guard(null_free_array_test(original), bailout);
+      }
       orig_t = _gvn.type(original)->isa_aryptr();
       if (orig_t != nullptr && orig_t->is_flat()) {
         // Src is flat, check that dest is flat as well
@@ -4622,7 +4627,9 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         // No validation. The subtype check emitted at macro expansion time will not go to the slow
         // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
         // TODO 8251971: Optimize for the case when src/dest are later found to be both flat/null-free.
-        generate_fair_guard(null_free_array_test(klass_node), bailout);
+        // TODO the destination array can be flat because flatness is still a property of the klass
+        generate_fair_guard(flat_array_test(klass_node), bailout);
+        generate_fair_guard(null_free_array_test(original), bailout);
       }
     }
 

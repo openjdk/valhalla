@@ -2236,6 +2236,7 @@ class StubGenerator: public StubCodeGenerator {
     __ tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
     __ br(Assembler::NE, L_failed);
 
+    // TODO this is incorrect and should be removed
     // Check for null-free (non-flat) inline type array -> handle as object array
     __ tst(lh, Klass::_lh_null_free_array_bit_inplace);
     __ br(Assembler::NE, L_failed);

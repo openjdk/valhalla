@@ -1989,6 +1989,7 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
     if (UseArrayMarkWordCheck) {
       __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
     } else {
+      // TODO this is incorrect and should be removed
       __ testl(klass, Klass::_lh_null_free_array_bit_inplace);
       __ jcc(Assembler::notZero, *op->stub()->entry());
     }
@@ -2009,6 +2010,7 @@ void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
     __ bind(test_mark_word);
     __ testl(tmp, markWord::null_free_array_bit_in_place);
   } else {
+    // TODO this is incorrect and should be removed
     Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
     Register klass = op->tmp()->as_register();
     __ load_klass(klass, op->array()->as_register(), tmp_load_klass);
@@ -3246,6 +3248,7 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
     __ load_klass(tmp, obj, tmp_load_klass);
     __ movl(tmp, Address(tmp, Klass::layout_helper_offset()));
     if (is_dest) {
+      // TODO this is incorrect and should be removed
       // Take the slow path if it's a null_free destination array, in case the source array contains nullptrs.
       __ testl(tmp, Klass::_lh_null_free_array_bit_inplace);
     } else {

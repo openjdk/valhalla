@@ -790,12 +790,9 @@ void ciMethodData::dump_replay_data(outputStream* out) {
           ciVirtualCallTypeData* call_type_data = (ciVirtualCallTypeData*)pdata;
           dump_replay_data_call_type_helper<ciVirtualCallTypeData>(out, round, count, call_type_data);
         }
-      } else if (pdata->is_ReceiverTypeData()) {
-        ciReceiverTypeData* vdata = (ciReceiverTypeData*)pdata;
-        dump_replay_data_receiver_type_helper<ciReceiverTypeData>(out, round, count, vdata);
       } else if (pdata->is_CallTypeData()) {
-          ciCallTypeData* call_type_data = (ciCallTypeData*)pdata;
-          dump_replay_data_call_type_helper<ciCallTypeData>(out, round, count, call_type_data);
+        ciCallTypeData* call_type_data = (ciCallTypeData*)pdata;
+        dump_replay_data_call_type_helper<ciCallTypeData>(out, round, count, call_type_data);
       } else if (pdata->is_ArrayStoreData()) {
         ciArrayStoreData* array_store_data = (ciArrayStoreData*)pdata;
         dump_replay_data_type_helper(out, round, count, array_store_data, ciArrayStoreData::array_offset(),
@@ -813,7 +810,9 @@ void ciMethodData::dump_replay_data(outputStream* out) {
                                      acmp_data->left()->valid_type());
         dump_replay_data_type_helper(out, round, count, acmp_data, ciACmpData::right_offset(),
                                      acmp_data->right()->valid_type());
-
+      } else if (pdata->is_ReceiverTypeData()) {
+        ciReceiverTypeData* vdata = (ciReceiverTypeData*)pdata;
+        dump_replay_data_receiver_type_helper<ciReceiverTypeData>(out, round, count, vdata);
       }
     }
     if (parameters != nullptr) {
@@ -971,17 +970,17 @@ void ciSpeculativeTrapData::print_data_on(outputStream* st, const char* extra) c
 }
 
 void ciArrayStoreData::print_data_on(outputStream* st, const char* extra) const {
-  print_shared(st, "ciArrayLoadStoreData", extra);
+  print_shared(st, "ciArrayStoreData", extra);
   tab(st, true);
   st->print("array");
   array()->print_data_on(st);
   tab(st, true);
   st->print("element");
-  print_receiver_data_on(st);
+  rtd_super()->print_receiver_data_on(st);
 }
 
 void ciArrayLoadData::print_data_on(outputStream* st, const char* extra) const {
-  print_shared(st, "ciArrayLoadStoreData", extra);
+  print_shared(st, "ciArrayLoadData", extra);
   tab(st, true);
   st->print("array");
   array()->print_data_on(st);

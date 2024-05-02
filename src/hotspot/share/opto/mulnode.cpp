@@ -720,6 +720,43 @@ const Type* AndLNode::Value(PhaseGVN* phase) const {
     return TypeLong::ZERO;
   }
 
+  // Search for GraphKit::mark_word_test patterns and fold the test if the result is statically known
+  Node* load1 = in(1);
+  Node* load2 = nullptr;
+  if (load1->is_Phi() && phase->type(load1)->isa_long()) {
+    load1 = in(1)->in(1);
+    load2 = in(1)->in(2);
+  }
+  const TypeLong* t2 = phase->type(in(2))->isa_long();
+  if (load1 != nullptr && load1->is_Load() && phase->type(load1)->isa_long() &&
+      (load2 == nullptr || (load2->is_Load() && phase->type(load2)->isa_long())) && t2 && t2->is_con()) {
+    jlong con = t2->get_con();
+    const TypePtr* adr_t1 = phase->type(load1->in(MemNode::Address))->isa_ptr();
+    const TypePtr* adr_t2 = (load2 != nullptr) ? phase->type(load2->in(MemNode::Address))->isa_ptr() : nullptr;
+    if (adr_t1 != nullptr && adr_t1->offset() == oopDesc::mark_offset_in_bytes() &&
+        (load2 == nullptr || (adr_t2 != nullptr && adr_t2->offset() == in_bytes(Klass::prototype_header_offset())))) {
+      if (con == markWord::inline_type_pattern) {
+        if (adr_t1->is_inlinetypeptr()) {
+          return TypeLong::make(markWord::inline_type_pattern);
+        } else if (!adr_t1->can_be_inline_type()) {
+          return TypeLong::ZERO;
+        }
+      } else if (con == markWord::null_free_array_bit_in_place) {
+        if (adr_t1->is_null_free()) {
+          return TypeLong::make(markWord::null_free_array_bit_in_place);
+        } else if (adr_t1->is_not_null_free()) {
+          return TypeLong::ZERO;
+        }
+      } else if (con == markWord::flat_array_bit_in_place) {
+        if (adr_t1->is_flat()) {
+          return TypeLong::make(markWord::flat_array_bit_in_place);
+        } else if (adr_t1->is_not_flat()) {
+          return TypeLong::ZERO;
+        }
+      }
+    }
+  }
+
   return MulNode::Value(phase);
 }
 
@@ -756,14 +793,6 @@ Node* AndLNode::Identity(PhaseGVN* phase) {
         if( (mask&con) == mask )  // If AND is useless, skip it
           return usr;
       }
-    }
-
-    // Check if this is part of an inline type test
-    if (con == markWord::inline_type_pattern && in(1)->is_Load() &&
-        phase->type(in(1)->in(MemNode::Address))->is_inlinetypeptr() &&
-        phase->type(in(1)->in(MemNode::Address))->is_ptr()->offset() == oopDesc::mark_offset_in_bytes()) {
-      assert(EnableValhalla, "should only be used for inline types");
-      return in(2); // Obj is known to be an inline type
     }
   }
   return MulNode::Identity(phase);
