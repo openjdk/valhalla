@@ -2761,7 +2761,6 @@ void InstanceKlass::clean_method_data() {
   for (int m = 0; m < methods()->length(); m++) {
     MethodData* mdo = methods()->at(m)->method_data();
     if (mdo != nullptr) {
-      ConditionalMutexLocker ml(mdo->extra_data_lock(), !SafepointSynchronize::is_at_safepoint());
       mdo->clean_method_data(/*always_clean*/false);
     }
   }
