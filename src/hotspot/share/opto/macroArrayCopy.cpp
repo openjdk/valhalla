@@ -1557,7 +1557,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
         generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       }
       if (EnableValhalla) {
-        // TODO but even the subtype check would not help, right? Or would it?
         // No validation. The subtype check emitted at macro expansion time will not go to the slow
         // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
         generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);

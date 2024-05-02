@@ -2791,18 +2791,15 @@ __ BIND(L_checkcast_copy);
   // live at this point:  r10_src_klass, r11_length, rax (dst_klass)
   {
     // Before looking at dst.length, make sure dst is also an objArray.
-    // This check also fails for flat/null-free arrays which are not supported.
+    // This check also fails for flat arrays which are not supported.
     __ cmpl(Address(rax, lh_offset), objArray_lh);
     __ jcc(Assembler::notEqual, L_failed);
 
 #ifdef ASSERT
     {
-      // TODO this is incorrect and should be removed
       BLOCK_COMMENT("assert not null-free array {");
       Label L;
-      __ movl(rklass_tmp, Address(rax, lh_offset));
-      __ testl(rklass_tmp, Klass::_lh_null_free_array_bit_inplace);
-      __ jcc(Assembler::zero, L);
+      __ test_non_null_free_array_oop(dst, rklass_tmp, L);
       __ stop("unexpected null-free array");
       __ bind(L);
       BLOCK_COMMENT("} assert not null-free array");

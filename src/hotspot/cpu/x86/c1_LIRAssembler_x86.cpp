@@ -1970,29 +1970,14 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
   // We are loading/storing from/to an array that *may* be a flat array (the
   // declared type is Object[], abstract[], interface[] or VT.ref[]).
   // If this array is a flat array, take the slow path.
-  Register klass = op->tmp()->as_register();
-  if (UseArrayMarkWordCheck) {
-    __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
-  } else {
-    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-    __ load_klass(klass, op->array()->as_register(), tmp_load_klass);
-    __ movl(klass, Address(klass, Klass::layout_helper_offset()));
-    __ testl(klass, Klass::_lh_array_tag_flat_value_bit_inplace);
-    __ jcc(Assembler::notZero, *op->stub()->entry());
-  }
+  __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
   if (!op->value()->is_illegal()) {
     // The array is not a flat array, but it might be null-free. If we are storing
     // a null into a null-free array, take the slow path (which will throw NPE).
     Label skip;
     __ cmpptr(op->value()->as_register(), NULL_WORD);
     __ jcc(Assembler::notEqual, skip);
-    if (UseArrayMarkWordCheck) {
-      __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
-    } else {
-      // TODO this is incorrect and should be removed
-      __ testl(klass, Klass::_lh_null_free_array_bit_inplace);
-      __ jcc(Assembler::notZero, *op->stub()->entry());
-    }
+    __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
     __ bind(skip);
   }
 }
@@ -2000,23 +1985,14 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
 void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
   // We are storing into an array that *may* be null-free (the declared type is
   // Object[], abstract[], interface[] or VT.ref[]).
-  if (UseArrayMarkWordCheck) {
-    Label test_mark_word;
-    Register tmp = op->tmp()->as_register();
-    __ movptr(tmp, Address(op->array()->as_register(), oopDesc::mark_offset_in_bytes()));
-    __ testl(tmp, markWord::unlocked_value);
-    __ jccb(Assembler::notZero, test_mark_word);
-    __ load_prototype_header(tmp, op->array()->as_register(), rscratch1);
-    __ bind(test_mark_word);
-    __ testl(tmp, markWord::null_free_array_bit_in_place);
-  } else {
-    // TODO this is incorrect and should be removed
-    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-    Register klass = op->tmp()->as_register();
-    __ load_klass(klass, op->array()->as_register(), tmp_load_klass);
-    __ movl(klass, Address(klass, Klass::layout_helper_offset()));
-    __ testl(klass, Klass::_lh_null_free_array_bit_inplace);
-  }
+  Label test_mark_word;
+  Register tmp = op->tmp()->as_register();
+  __ movptr(tmp, Address(op->array()->as_register(), oopDesc::mark_offset_in_bytes()));
+  __ testl(tmp, markWord::unlocked_value);
+  __ jccb(Assembler::notZero, test_mark_word);
+  __ load_prototype_header(tmp, op->array()->as_register(), rscratch1);
+  __ bind(test_mark_word);
+  __ testl(tmp, markWord::null_free_array_bit_in_place);
 }
 
 void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op) {
@@ -3237,24 +3213,10 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
     __ testptr(obj, obj);
     __ jcc(Assembler::zero, *slow_path->entry());
   }
-  if (UseArrayMarkWordCheck) {
-    if (is_dest) {
-      __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
-    } else {
-      __ test_flat_array_oop(obj, tmp, *slow_path->entry());
-    }
+  if (is_dest) {
+    __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
   } else {
-    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-    __ load_klass(tmp, obj, tmp_load_klass);
-    __ movl(tmp, Address(tmp, Klass::layout_helper_offset()));
-    if (is_dest) {
-      // TODO this is incorrect and should be removed
-      // Take the slow path if it's a null_free destination array, in case the source array contains nullptrs.
-      __ testl(tmp, Klass::_lh_null_free_array_bit_inplace);
-    } else {
-      __ testl(tmp, Klass::_lh_array_tag_flat_value_bit_inplace);
-    }
-    __ jcc(Assembler::notZero, *slow_path->entry());
+    __ test_flat_array_oop(obj, tmp, *slow_path->entry());
   }
 }
 
