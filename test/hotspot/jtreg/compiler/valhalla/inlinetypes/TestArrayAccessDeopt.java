@@ -102,7 +102,7 @@ public class TestArrayAccessDeopt {
             String[] arg = {"--enable-preview", "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED", "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                             "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "TestArrayAccessDeopt", "run"};
-            OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
+            OutputAnalyzer oa = ProcessTools.executeTestJava(arg);
             String output = oa.getOutput();
             oa.shouldNotContain("Uncommon trap occurred");
         } else {

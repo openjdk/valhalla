@@ -266,10 +266,6 @@ public class JavaObject extends JavaLazyReadObject {
                     offset += fieldClass.getInlinedInstanceSize();
                 } else {
                     switch (sig) {
-                        case 'Q': {
-                            warn("(parseFields) field " + getClazz().getName() + "." + f.getName()
-                                    + " is not inlined, but has Q-signature: " + f.getSignature());
-                        } // continue as 'L' object
                         case 'L':
                         case '[': {
                             long id = objectIdAt(offset);

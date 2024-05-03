@@ -315,6 +315,62 @@ JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc
   current->set_vm_result(res);
 JRT_END
 
+// The protocol to read a nullable flat field is:
+// Step 1: read the null marker with an load_acquire barrier to ensure that
+//         reordered loads won't try to load the value before the null marker is read
+// Step 2: if the null marker value is zero, the field's value is null
+//         otherwise the flat field value can be read like a regular flat field
+JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
+  assert(oopDesc::is_oop(obj), "Sanity check");
+  assert(entry->has_null_marker(), "Otherwise should not get there");
+  Handle obj_h(THREAD, obj);
+
+  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
+  int field_index = entry->field_index();
+  int nm_offset = ik->null_marker_offsets_array()->at(field_index);
+  if (obj_h()->byte_field_acquire(nm_offset) == 0) {
+    current->set_vm_result(nullptr);
+  } else {
+    InlineKlass* field_vklass = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
+    oop res = field_vklass->read_flat_field(obj_h(), ik->field_offset(field_index), CHECK);
+    current->set_vm_result(res);
+  }
+JRT_END
+
+// The protocol to write a nullable flat field is:
+// If the new field value is null, just write zero to the null marker
+// Otherwise:
+// Step 1: write the field value like a regular flat field
+// Step 2: have a memory barrier to ensure that the whole value content is visible
+// Step 3: update the null marker to a non zero value
+JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
+  assert(oopDesc::is_oop(obj), "Sanity check");
+  Handle obj_h(THREAD, obj);
+  assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
+  Handle val_h(THREAD, value);
+
+  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
+  int nm_offset = ik->null_marker_offsets_array()->at(entry->field_index());
+  if (val_h() == nullptr) {
+    obj_h()->byte_field_put(nm_offset, (jbyte)0);
+    return;
+  }
+  InlineKlass* vk = InlineKlass::cast(val_h()->klass());
+  if (entry->has_internal_null_marker()) {
+    // The interpreter copies values with a bulk operation
+    // To avoid accidently setting the null marker to "null" during
+    // the copying, the null marker is set to non zero in the source object
+    if (val_h()->byte_field(vk->get_internal_null_marker_offset()) == 0) {
+      val_h()->byte_field_put(vk->get_internal_null_marker_offset(), (jbyte)1);
+    }
+    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
+  } else {
+    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
+    OrderAccess::release();
+    obj_h()->byte_field_put(nm_offset, (jbyte)1);
+  }
+JRT_END
+
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
   oop obj = oopFactory::new_typeArray(type, size, CHECK);
   current->set_vm_result(obj);
@@ -829,7 +885,9 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
 
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
   entry->set_flags(info.access_flags().is_final(), info.access_flags().is_volatile(),
-                   info.is_flat(), info.is_null_free_inline_type());
+                   info.is_flat(), info.is_null_free_inline_type(),
+                   info.has_null_marker(), info.has_internal_null_marker());
+
   entry->fill_in(info.field_holder(), info.offset(),
                  checked_cast<u2>(info.index()), checked_cast<u1>(state),
                  static_cast<u1>(get_code), static_cast<u1>(put_code));

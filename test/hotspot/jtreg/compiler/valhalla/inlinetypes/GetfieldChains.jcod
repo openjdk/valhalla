@@ -81,7 +81,7 @@ class NamedRectangleP {
 class compiler/valhalla/inlinetypes/NamedRectangleN {
   0xCAFEBABE;
   65535; // minor version
-  66; // version
+  67; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -228,7 +228,7 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
 class compiler/valhalla/inlinetypes/NamedRectangleP {
   0xCAFEBABE;
   65535; // minor version
-  66; // version
+  67; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -375,7 +375,7 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
 class compiler/valhalla/inlinetypes/PointN {
   0xCAFEBABE;
   65535; // minor version
-  66; // version
+  67; // version
   [] { // Constant Pool
     ; // first element is empty
     Field #2 #3; // #1
@@ -471,7 +471,7 @@ class compiler/valhalla/inlinetypes/PointN {
 class compiler/valhalla/inlinetypes/RectangleN {
   0xCAFEBABE;
   65535; // minor version
-  66; // version
+  67; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -587,7 +587,7 @@ class compiler/valhalla/inlinetypes/RectangleN {
 class compiler/valhalla/inlinetypes/RectangleP {
   0xCAFEBABE;
   65535; // minor version
-  66; // version
+  67; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1

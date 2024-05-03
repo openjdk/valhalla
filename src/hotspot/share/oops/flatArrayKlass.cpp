@@ -175,7 +175,7 @@ oop FlatArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
 
 jint FlatArrayKlass::array_layout_helper(InlineKlass* vk) {
   BasicType etype = T_PRIMITIVE_OBJECT;
-  int esize = log2i_exact(round_up_power_of_2(vk->get_exact_size_in_bytes()));
+  int esize = log2i_exact(round_up_power_of_2(vk->get_payload_size_in_bytes()));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
 
   int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, true, hsize, etype, esize);

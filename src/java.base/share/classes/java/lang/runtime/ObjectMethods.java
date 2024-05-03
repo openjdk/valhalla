@@ -253,7 +253,6 @@ public class ObjectMethods {
     /**
      * Generates a method handle for the {@code toString} method for a given data class
      * @param receiverClass   the data class
-     * @param simpleName      the simple name of the record class
      * @param getters         the list of getters
      * @param names           the names
      * @return the method handle

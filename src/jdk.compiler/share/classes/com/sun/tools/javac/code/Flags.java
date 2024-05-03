@@ -413,7 +413,7 @@ public class Flags {
     /**
      * Flag to indicate that a field is strict
      */
-    public static final long STRICT = 1L<<51; // VarSymbols
+    public static final long STRICT = 1L<<53; // VarSymbols
 
     /**
      * Describe modifier flags as they might appear in source code, i.e.,

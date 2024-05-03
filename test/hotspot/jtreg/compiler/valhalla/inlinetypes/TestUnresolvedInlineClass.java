@@ -53,7 +53,7 @@ public class TestUnresolvedInlineClass {
 
             // Run test in new VM instance
             String[] arg = {"--enable-preview", "-XX:+InlineTypePassFieldsAsArgs", "TestUnresolvedInlineClass", "run"};
-            OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
+            OutputAnalyzer oa = ProcessTools.executeTestJava(arg);
 
             // Verify that a warning is printed
             String output = oa.getOutput();

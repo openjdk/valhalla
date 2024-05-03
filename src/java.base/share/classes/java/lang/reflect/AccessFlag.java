@@ -206,8 +206,10 @@ public enum AccessFlag {
      * source modifier {@link Modifier#IDENTITY identity}, with a mask
      * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
      * @jvms 4.1 -B. Class access and property modifiers
+     *
+     * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     IDENTITY(Modifier.IDENTITY, false,
             PreviewFeatures.isEnabled() ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET,
             new Function<ClassFileFormatVersion, Set<Location>>() {

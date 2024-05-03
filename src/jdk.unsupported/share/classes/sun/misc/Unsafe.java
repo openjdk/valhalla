@@ -642,6 +642,7 @@ public final class Unsafe {
      */
     @Deprecated(since="18")
     @ForceInline
+    @SuppressWarnings("preview")
     public long objectFieldOffset(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -652,6 +653,9 @@ public final class Unsafe {
         }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
+        }
+        if (declaringClass.isValue()) {
+            throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.objectFieldOffset(f);
     }
@@ -681,6 +685,7 @@ public final class Unsafe {
      */
     @Deprecated(since="18")
     @ForceInline
+    @SuppressWarnings("preview")
     public long staticFieldOffset(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -691,6 +696,9 @@ public final class Unsafe {
         }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
+        }
+        if (declaringClass.isValue()) {
+            throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.staticFieldOffset(f);
     }
@@ -712,6 +720,7 @@ public final class Unsafe {
      */
     @Deprecated(since="18")
     @ForceInline
+    @SuppressWarnings("preview")
     public Object staticFieldBase(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -722,6 +731,9 @@ public final class Unsafe {
         }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get base address on a record class: " + f);
+        }
+        if (declaringClass.isValue()) {
+            throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.staticFieldBase(f);
     }
