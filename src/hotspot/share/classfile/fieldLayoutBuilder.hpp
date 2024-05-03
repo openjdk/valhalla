@@ -181,6 +181,10 @@ class FieldLayout : public ResourceObj {
   LayoutRawBlock* _blocks;  // the layout being computed
   LayoutRawBlock* _start;   // points to the first block where a field can be inserted
   LayoutRawBlock* _last;    // points to the last block of the layout (big empty block)
+  int _super_first_field_offset;
+  int _super_alignment;
+  int _super_min_align_required;
+  bool _super_has_fields;
 
  public:
   FieldLayout(GrowableArray<FieldInfo>* field_info, ConstantPool* cp);
@@ -195,11 +199,15 @@ class FieldLayout : public ResourceObj {
     return block;
   }
 
-  LayoutRawBlock* blocks() { return _blocks; }
+  LayoutRawBlock* blocks() const { return _blocks; }
 
-  LayoutRawBlock* start() { return _start; }
+  LayoutRawBlock* start() const { return _start; }
   void set_start(LayoutRawBlock* start) { _start = start; }
-  LayoutRawBlock* last_block() { return _last; }
+  LayoutRawBlock* last_block() const  { return _last; }
+  int super_first_field_offset() const { return _super_first_field_offset; }
+  int super_alignment() const { return _super_alignment; }
+  int super_min_align_required() const { return _super_min_align_required; }
+  bool super_has_fields() const { return _super_has_fields; }
 
   LayoutRawBlock* first_field_block();
   void add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = nullptr);
@@ -253,13 +261,14 @@ class FieldLayoutBuilder : public ResourceObj {
   int _nonstatic_oopmap_count;
   int _alignment;
   int _first_field_offset;
-  int _exact_size_in_bytes;
+  int _payload_size_in_bytes;
   int _atomic_field_count;
   int _fields_size_sum;
   bool _has_nonstatic_fields;
   bool _has_inline_type_fields;
   bool _is_contended;
   bool _is_inline_type;
+  bool _is_abstract_value;
   bool _has_flattening_information;
   bool _has_nonatomic_values;
   bool _nullable_atomic_flat_candidate;
@@ -268,8 +277,8 @@ class FieldLayoutBuilder : public ResourceObj {
 
  public:
   FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-                     GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, FieldLayoutInfo* info,
-                     Array<InlineKlass*>* inline_type_field_klasses);
+                     GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, bool is_abstract_value,
+                     FieldLayoutInfo* info, Array<InlineKlass*>* inline_type_field_klasses);
 
   int get_alignment() {
     assert(_alignment != -1, "Uninitialized");
@@ -282,8 +291,8 @@ class FieldLayoutBuilder : public ResourceObj {
   }
 
   int get_exact_size_in_byte() {
-    assert(_exact_size_in_bytes != -1, "Uninitialized");
-    return _exact_size_in_bytes;
+    assert(_payload_size_in_bytes != -1, "Uninitialized");
+    return _payload_size_in_bytes;
   }
 
   void build_layout(TRAPS);
