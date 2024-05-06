@@ -3723,7 +3723,6 @@ Node* GraphKit::mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool chec
   // Now check if mark word bits are set
   Node* mask = MakeConX(mask_val);
   Node* masked = _gvn.transform(new AndXNode(_gvn.transform(mark), mask));
-  // TODO needed?
   record_for_igvn(masked); // Give it a chance to be optimized out by IGVN
   Node* cmp = _gvn.transform(new CmpXNode(masked, mask));
   return _gvn.transform(new BoolNode(cmp, eq ? BoolTest::eq : BoolTest::ne));

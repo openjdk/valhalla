@@ -4627,7 +4627,6 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         // No validation. The subtype check emitted at macro expansion time will not go to the slow
         // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
         // TODO 8251971: Optimize for the case when src/dest are later found to be both flat/null-free.
-        // TODO the destination array can be flat because flatness is still a property of the klass
         generate_fair_guard(flat_array_test(klass_node), bailout);
         generate_fair_guard(null_free_array_test(original), bailout);
       }
