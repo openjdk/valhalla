@@ -4372,4 +4372,29 @@ public class TestLWorld {
         }
         test160(null);
     }
+
+    abstract value static class AbstractValueClassSingleSubclass {
+    }
+
+    value static class UniqueValueSubClass extends AbstractValueClassSingleSubclass {
+        int x = 34;
+    }
+
+    static AbstractValueClassSingleSubclass abstractValueClassSingleSubclass = new UniqueValueSubClass();
+
+    @Test
+    public void testUniqueConcreteValueSubKlass(boolean flag) {
+        // C2 should recognize that even though we do not know whether the underlying inline type of the abstract field
+        // abstractValueClassSingleSubclass will be flat or not, we only have a unique concrete sub class which
+        // is known to be flat or not at compile time. This unique sub class optimization was missing, resulting in a
+        // missing InlineTypeNode assertion failure.
+        doNothing(abstractValueClassSingleSubclass, flag ? 23 : 34);
+    }
+
+    void doNothing(Object a, int i) {}
+
+    @Run(test = "testUniqueConcreteValueSubKlass")
+    public void testUniqueConcreteValueSubKlass_verifier() {
+        testUniqueConcreteValueSubKlass(true);
+    }
 }
