@@ -130,6 +130,9 @@ public:
   void set_adr_type(const TypePtr* adr_type) { _adr_type = adr_type; }
 #endif
 
+  // Return the barrier data of n, if available, or 0 otherwise.
+  static uint8_t barrier_data(const Node* n);
+
   // Map a load or store opcode to its corresponding store opcode.
   // (Return -1 if unknown.)
   virtual int store_Opcode() const { return -1; }
@@ -296,6 +299,8 @@ public:
   bool has_unknown_control_dependency() const  { return _control_dependency == UnknownControl; }
   bool has_pinned_control_dependency() const   { return _control_dependency == Pinned; }
 
+  LoadNode* pin_array_access_node() const;
+
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
 #endif
@@ -321,6 +326,8 @@ protected:
   virtual bool depends_only_on_test() const {
     return adr_type() != TypeRawPtr::BOTTOM && _control_dependency == DependsOnlyOnTest;
   }
+
+  LoadNode* clone_pinned() const;
 };
 
 //------------------------------LoadBNode--------------------------------------

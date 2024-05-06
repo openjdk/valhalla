@@ -115,8 +115,9 @@
                             "    @NullRestricted" +
                             "    " + vName + " v1;" +
                             "}";
+        String java_version = System.getProperty("java.specification.version");
         byte[] byteCode = InMemoryJavaCompiler.compile(className, sourceCode,
-                                                      "-source", "22", "--enable-preview",
+                                                      "-source", java_version, "--enable-preview",
                                                       "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED");
         jdk.test.lib.helpers.ClassFileInstaller.writeClassToDisk(className, byteCode);
         testNames.add(className);
@@ -134,8 +135,9 @@
     }
     sb.append("    }");
     sb.append("}");
+    String java_version = System.getProperty("java.specification.version");
     byte[] byteCode = InMemoryJavaCompiler.compile(className, sb.toString(),
-                                                   "-source", "22", "--enable-preview",
+                                                   "-source", java_version, "--enable-preview",
                                                    "-cp", ".");
     jdk.test.lib.helpers.ClassFileInstaller.writeClassToDisk(className, byteCode);
   }
