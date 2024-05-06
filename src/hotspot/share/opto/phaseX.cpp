@@ -1510,17 +1510,6 @@ void PhaseIterGVN::add_users_of_use_to_worklist(Node* n, Node* use, Unique_Node_
     }
   }
 
-  // TODO this fixes. Improve it.
-  // /home/tobias/programs/jtreg/bin/jtreg -jdk:/oracle/valhalla/build/fastdebug/jdk/ -verbose:all -vmoptions:"-DScenarios=0 -DTest=test116" -J-Djavatest.maxOutputSize=1000000 -e:LD_LIBRARY_PATH=/oracle/documents/misc/ -timeoutFactor:10 test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestArrays.java
-  if (n->is_Load() && use->is_Phi()) {
-    for (DUIterator_Fast imax, i = use->fast_outs(imax); i < imax; i++) {
-      Node* u = use->fast_out(i);
-      if (u->Opcode() == Op_AndL) {
-        worklist.push(u);
-      }
-    }
-  }
-
   uint use_op = use->Opcode();
   if(use->is_Cmp()) {       // Enable CMP/BOOL optimization
     add_users_to_worklist0(use, worklist); // Put Bool on worklist
@@ -1936,25 +1925,6 @@ void PhaseCCP::push_more_uses(Unique_Node_List& worklist, Node* parent, const No
   push_and(worklist, parent, use);
   push_cast_ii(worklist, parent, use);
   push_opaque_zero_trip_guard(worklist, use);
-  // TODO this fixes. Improve it. Sync with IGVN worklist pushing.
-  // Give AndLNode::Value a chance to optimize the GraphKit::mark_word_test patterns
-  // /home/tobias/programs/jtreg/bin/jtreg -jdk:/oracle/valhalla/build/fastdebug/jdk/ -verbose:all -vmoptions:"-DScenarios=0 -DTest=test133" -J-Djavatest.maxOutputSize=1000000 -e:LD_LIBRARY_PATH=/oracle/documents/misc/ -timeoutFactor:10 test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestLWorld.java
-  // /home/tobias/programs/jtreg/bin/jtreg -jdk:/oracle/valhalla/build/fastdebug/jdk/ -verbose:all -vmoptions:"-DScenarios=3 -DTest=test77" -J-Djavatest.maxOutputSize=1000000 -e:LD_LIBRARY_PATH=/oracle/documents/misc/ -timeoutFactor:10 test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestNullableArrays.java
-  if (use->is_Load()) {
-    for (DUIterator_Fast imax, i = use->fast_outs(imax); i < imax; i++) {
-      Node* u = use->fast_out(i);
-      if (u->Opcode() == Op_AndL) {
-        worklist.push(u);
-      } else if (u->is_Phi()) {
-        for (DUIterator_Fast imax2, i2 = u->fast_outs(imax2); i2 < imax2; i2++) {
-          Node* u2 = u->fast_out(i2);
-          if (u2->Opcode() == Op_AndL) {
-            worklist.push(u2);
-          }
-        }
-      }
-    }
-  }
 }
 
 
