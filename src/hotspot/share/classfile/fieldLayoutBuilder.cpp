@@ -332,6 +332,7 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
     LayoutRawBlock* adj = new LayoutRawBlock(LayoutRawBlock::EMPTY, adjustment);
     insert(slot, adj);
   }
+  assert(block->size() >= block->size(), "Enough space must remain afte adjustment");
   insert(slot, block);
   if (block->needs_null_marker()) {
     _has_missing_null_markers = true;
@@ -996,7 +997,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   //           - insert padding so the first field will be aligned with max alignment
   //
 
-  if (_layout->super_has_fields()) {  // non-static field layout
+  if (_layout->super_has_fields() && !_is_abstract_value) {  // non-static field layout
     if (!_has_nonstatic_fields) {
       assert(_is_abstract_value, "Concrete value types have at least one field");
       // Nothing to do
@@ -1007,7 +1008,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       assert(_layout->super_alignment() % _alignment == 0, "Incompatible alignment");
 
       if (_alignment < _layout->super_alignment()) {
-        int new_alignment = MAX(_alignment, _layout->super_min_align_required());
+        int new_alignment = _alignment > _layout->super_min_align_required() ? _alignment : _layout->super_min_align_required();
         assert(new_alignment % _alignment == 0, "Must be");
         assert(new_alignment % _layout->super_min_align_required() == 0, "Must be");
         _alignment = new_alignment;
@@ -1035,6 +1036,9 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     if (first_empty->offset() % _alignment != 0) {
       LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, _alignment - (first_empty->offset() % _alignment));
       _layout->insert(first_empty, padding);
+      if (first_empty->size() == 0) {
+        _layout->remove(first_empty);
+      }
       _layout->set_start(padding);
     }
   }
