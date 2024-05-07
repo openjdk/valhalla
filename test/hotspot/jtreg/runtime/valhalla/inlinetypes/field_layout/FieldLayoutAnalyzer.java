@@ -276,7 +276,7 @@ public class FieldLayoutAnalyzer {
   }
 
   ArrayList<ClassLayout> layouts;
-  boolean compressOops;
+  int oopSize;
 
   static String signatureToName(String sig) {
     Asserts.assertTrue((sig.charAt(0) == 'L'));
@@ -284,13 +284,12 @@ public class FieldLayoutAnalyzer {
     return sig.substring(1, sig.length() - 1);
   }
 
-  private FieldLayoutAnalyzer(boolean coop) {
-    compressOops = coop;
+  private FieldLayoutAnalyzer() {
     layouts = new ArrayList<ClassLayout>();
   }
 
-  public static FieldLayoutAnalyzer createFieldLayoutAnalyzer(LogOutput lo, boolean compressOops) {
-    FieldLayoutAnalyzer fla = new FieldLayoutAnalyzer(compressOops);
+  public static FieldLayoutAnalyzer createFieldLayoutAnalyzer(LogOutput lo) {
+    FieldLayoutAnalyzer fla = new FieldLayoutAnalyzer();
     fla.generate(lo);
     return fla;
   }
@@ -365,12 +364,12 @@ public class FieldLayoutAnalyzer {
         break;
       default: {
         if (block.signature().startsWith("[")) {
-          Asserts.assertEquals(compressOops ? 4 : 8, block.size());
+          Asserts.assertEquals(oopSize, block.size());
         } else if (block.signature().startsWith("L")) {
           if (block.type == BlockType.INHERITED || block.type == BlockType.INHERITED_NULL_MARKER) {
             // Skip for now, will be verified when checking the class declaring the field
           } else if (block.type == BlockType.REGULAR) {
-            Asserts.assertEquals(compressOops ? 4 : 8, block.size());
+            Asserts.assertEquals(oopSize, block.size());
           } else {
             Asserts.assertEquals(BlockType.FLAT, block.type);
             ClassLayout fcl = getClassLayout(block.fieldClass);
@@ -543,6 +542,11 @@ public class FieldLayoutAnalyzer {
 
   private void generate(LogOutput lo) {
     while (lo.hasMoreLines()) {
+      if (lo.getCurrentLine().startsWith("Heap oop size = ")) {
+        String[] oopSizeLine = lo.getCurrentLine().split("\\s+");
+        oopSize = Integer.parseInt(oopSizeLine[4]);
+        Asserts.assertTrue(oopSize == 4 || oopSize == 8);
+      }
       if (lo.getCurrentLine().startsWith("Layout of class")) {
         ClassLayout cl = ClassLayout.parseClassLayout(lo);
         layouts.add(cl);
@@ -550,5 +554,6 @@ public class FieldLayoutAnalyzer {
         lo.moveToNextLine(); // skipping line
       }
     }
+    Asserts.assertTrue(oopSize != 0);
   }
  }

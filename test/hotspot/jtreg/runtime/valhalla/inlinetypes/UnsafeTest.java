@@ -27,6 +27,7 @@ package runtime.valhalla.inlinetypes;
 
 /*
  * @test UnsafeTest
+ * @requires vm.debug == true
  * @summary unsafe get/put/with inline type
  * @modules java.base/jdk.internal.misc
  * @library /test/lib

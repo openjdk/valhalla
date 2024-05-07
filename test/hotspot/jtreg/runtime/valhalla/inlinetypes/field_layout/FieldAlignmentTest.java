@@ -115,8 +115,9 @@
                             "    @NullRestricted" +
                             "    " + vName + " v1;" +
                             "}";
+        String java_version = System.getProperty("java.specification.version");
         byte[] byteCode = InMemoryJavaCompiler.compile(className, sourceCode,
-                                                      "-source", "22", "--enable-preview",
+                                                      "-source", java_version, "--enable-preview",
                                                       "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED");
         jdk.test.lib.helpers.ClassFileInstaller.writeClassToDisk(className, byteCode);
         testNames.add(className);
@@ -134,8 +135,9 @@
     }
     sb.append("    }");
     sb.append("}");
+    String java_version = System.getProperty("java.specification.version");
     byte[] byteCode = InMemoryJavaCompiler.compile(className, sb.toString(),
-                                                   "-source", "22", "--enable-preview",
+                                                   "-source", java_version, "--enable-preview",
                                                    "-cp", ".");
     jdk.test.lib.helpers.ClassFileInstaller.writeClassToDisk(className, byteCode);
   }
@@ -155,18 +157,14 @@
   }
 
   public static void main(String[] args) throws Exception {
-    boolean useCompressedOops;
     String compressedOopsArg;
 
     switch(args[0]) {
-      case "0": useCompressedOops = false;
-                compressedOopsArg = null;
+      case "0": compressedOopsArg = null;
                 break;
-      case "1": useCompressedOops = true;
-                compressedOopsArg = "-XX:+UseCompressedOops";
+      case "1": compressedOopsArg = "-XX:+UseCompressedOops";
                 break;
-      case "2": useCompressedOops = false;
-                compressedOopsArg = "-XX:-UseCompressedOops";
+      case "2": compressedOopsArg = "-XX:-UseCompressedOops";
                 break;
       default: throw new RuntimeException("Unrecognized configuration");
     }
@@ -184,7 +182,7 @@
     System.out.print(out.getOutput());
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
 
-    FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo, useCompressedOops);
+    FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
     fla.check();
   }
  }

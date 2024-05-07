@@ -23,6 +23,7 @@
 
  /*
  * @test NullableFlatFieldTest
+ * @requires vm.debug == true
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
