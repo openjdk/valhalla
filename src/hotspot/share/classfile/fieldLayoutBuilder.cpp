@@ -1201,10 +1201,17 @@ void FieldLayoutBuilder::epilogue() {
   }
 #endif // ASSERT
 
+  static bool first_layout_print = true;
+
 
   if (PrintFieldLayout || (PrintInlineLayout && _has_flattening_information)) {
     ResourceMark rm;
     ttyLocker ttl;
+    if (first_layout_print) {
+      tty->print_cr("Field layout log format: @offset size/alignment [name] [signature] [comment]");
+      tty->print_cr("Heap oop size = %d", heapOopSize);
+      first_layout_print = false;
+    }
     if (_super_klass != nullptr) {
       tty->print_cr("Layout of class %s@%p extends %s@%p", _classname->as_C_string(),
                     _loader_data, _super_klass->name()->as_C_string(), _super_klass->class_loader_data());
