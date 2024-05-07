@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,12 @@
 # questions.
 #
 
+# The base module should be built with all warnings enabled. When a
+# new warning is added to javac, it can be temporarily added to the
+# disabled warnings list.
+#
+# ...but this is Valhalla and more clean up needed
+#DISABLED_WARNINGS_java +=
 DISABLED_WARNINGS_java += this-escape restricted preview
 
 DOCLINT += -Xdoclint:all/protected \

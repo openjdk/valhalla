@@ -1479,8 +1479,7 @@ public:
   address arrays_equals(Register a1, Register a2, Register result, Register cnt1,
                         Register tmp1, Register tmp2, Register tmp3, int elem_size);
 
-  void string_equals(Register a1, Register a2, Register result, Register cnt1,
-                     int elem_size);
+  void string_equals(Register a1, Register a2, Register result, Register cnt1);
 
   void fill_words(Register base, Register cnt, Register value);
   void fill_words(Register base, uint64_t cnt, Register value);

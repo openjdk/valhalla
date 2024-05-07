@@ -7847,7 +7847,7 @@ instruct vblendvpFD(legVec dst, legVec src1, legVec src2, legVec mask) %{
 
 instruct vblendvp(legVec dst, legVec src1, legVec src2, legVec mask, legVec vtmp) %{
   predicate(UseAVX > 0 && EnableX86ECoreOpts &&
-            n->in(2)->bottom_type()->isa_vectmask() == NULL &&
+            n->in(2)->bottom_type()->isa_vectmask() == nullptr &&
             Matcher::vector_length_in_bytes(n) <= 32);
   match(Set dst (VectorBlend (Binary src1 src2) mask));
   format %{ "vector_blend  $dst,$src1,$src2,$mask\t! using $vtmp as TEMP" %}
