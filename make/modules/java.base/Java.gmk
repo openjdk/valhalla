@@ -27,9 +27,7 @@
 # new warning is added to javac, it can be temporarily added to the
 # disabled warnings list.
 #
-# ...but this is Valhalla and more clean up needed
-#DISABLED_WARNINGS_java +=
-DISABLED_WARNINGS_java += this-escape restricted preview
+DISABLED_WARNINGS_java +=
 
 DOCLINT += -Xdoclint:all/protected \
     '-Xdoclint/package:java.*,javax.*'

@@ -527,6 +527,9 @@ void ObjectSynchronizer::enter_for(Handle obj, BasicLock* lock, JavaThread* lock
   // the locking_thread with respect to the current thread. Currently only used when
   // deoptimizing and re-locking locks. See Deoptimization::relock_objects
   assert(locking_thread == Thread::current() || locking_thread->is_obj_deopt_suspend(), "must be");
+  assert(locking_thread == Thread::current() || !EnableValhalla, "not supported, fix needed: JDK-8331766");
+  JavaThread* current = locking_thread;
+  CHECK_THROW_NOSYNC_IMSE(obj);
   if (!enter_fast_impl(obj, lock, locking_thread)) {
     // Inflated ObjectMonitor::enter_for is required
 
@@ -545,6 +548,7 @@ void ObjectSynchronizer::enter_for(Handle obj, BasicLock* lock, JavaThread* lock
 
 void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, JavaThread* current) {
   assert(current == Thread::current(), "must be");
+  CHECK_THROW_NOSYNC_IMSE(obj);
   if (!enter_fast_impl(obj, lock, current)) {
     // Inflated ObjectMonitor::enter is required
 
@@ -564,7 +568,7 @@ void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, JavaThread* current)
 // of this algorithm. Make sure to update that code if the following function is
 // changed. The implementation is extremely sensitive to race condition. Be careful.
 bool ObjectSynchronizer::enter_fast_impl(Handle obj, BasicLock* lock, JavaThread* locking_thread) {
-  CHECK_THROW_NOSYNC_IMSE(obj);
+  guarantee(!EnableValhalla || !obj->klass()->is_inline_klass(), "Attempt to inflate inline type");
   if (obj->klass()->is_value_based()) {
     handle_sync_on_value_based_class(obj, locking_thread);
   }
