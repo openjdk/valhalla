@@ -4384,10 +4384,10 @@ public class TestLWorld {
 
     @Test
     public void testUniqueConcreteValueSubKlass(boolean flag) {
-        // C2 should recognize that even though we do not know whether the underlying inline type of the abstract field
-        // abstractValueClassSingleSubclass will be flat or not, we only have a unique concrete sub class which
-        // is known to be flat or not at compile time. This unique sub class optimization was missing, resulting in a
-        // missing InlineTypeNode assertion failure.
+        // C2 should recognize that even though we do not know the exact layout of the underlying inline type of the
+        // abstract field abstractValueClassSingleSubclass (i.e. cannot scalarize), we only have a unique concrete sub
+        // class from which we know at compile time whether it can be scalarized or not. This unique sub class
+        // optimization was missing, resulting in a missing InlineTypeNode assertion failure.
         doNothing(abstractValueClassSingleSubclass, flag ? 23 : 34);
     }
 
