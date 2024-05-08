@@ -28,7 +28,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm ValueFieldInheritanceTest 0
+ * @run main/othervm -Xint ValueFieldInheritanceTest 0
  */
 
 /*
@@ -38,7 +38,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm ValueFieldInheritanceTest 1
+ * @run main/othervm -Xint ValueFieldInheritanceTest 1
  */
 
 /*
@@ -48,7 +48,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm ValueFieldInheritanceTest 2
+ * @run main/othervm -Xint ValueFieldInheritanceTest 2
  */
 
 import java.util.ArrayList;
@@ -195,6 +195,9 @@ public class ValueFieldInheritanceTest {
     ProcessBuilder pb = exec(compressedOopsArg, "ValueFieldInheritanceTest$TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
+    if (out.getExitValue() != 0) {
+      out.outputTo(System.out);
+    }
     Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
     // Get and parse the test output
