@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -179,6 +179,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
     // TypeFlow asserted a specific object type.  Value must have that type.
     Node* bad_type_ctrl = nullptr;
     if (tp->is_inlinetypeptr() && !tp->maybe_null()) {
+      // TODO 8325106 Dead code?
       // Check inline types for null here to prevent checkcast from adding an
       // exception state before the bytecode entry (use 'bad_type_ctrl' instead).
       l = null_check_oop(l, &bad_type_ctrl);
@@ -236,7 +237,10 @@ void Parse::load_interpreter_state(Node* osr_buf) {
   Node *monitors_addr = basic_plus_adr(osr_buf, osr_buf, (max_locals+mcnt*2-1)*wordSize);
   for (index = 0; index < mcnt; index++) {
     // Make a BoxLockNode for the monitor.
-    Node *box = _gvn.transform(new BoxLockNode(next_monitor()));
+    Node *box = new BoxLockNode(next_monitor());
+    // Check for bailout after new BoxLockNode
+    if (failing()) { return; }
+    box = _gvn.transform(box);
 
     // Displaced headers and locked objects are interleaved in the
     // temp OSR buffer.  We only copy the locked objects out here.
@@ -1337,6 +1341,8 @@ void Parse::do_method_entry() {
     kill_dead_locals();
     // Build the FastLockNode
     _synch_lock = shared_lock(lock_obj);
+    // Check for bailout in shared_lock
+    if (failing()) { return; }
   }
 
   // Feed profiling data for parameters to the type system so it can

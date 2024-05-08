@@ -3928,8 +3928,13 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
   } else if (klass->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
+    bool is_flat = o->as_obj_array()->is_flat();
+    bool is_null_free = o->as_obj_array()->is_null_free();
+    if (is_null_free) {
+      etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    }
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()),
-                                        /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
+                                        /* stable= */ false, /* flat= */ false, /* not_flat= */ !is_flat, /* not_null_free= */ !is_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
     // slam nulls down in the subarrays.
@@ -4664,13 +4669,13 @@ template<class T> bool TypePtr::is_meet_subtype_of(const T* sub_type, const T* s
 }
 
 //------------------------java_mirror_type--------------------------------------
-ciType* TypeInstPtr::java_mirror_type() const {
+ciType* TypeInstPtr::java_mirror_type(bool* is_null_free_array) const {
   // must be a singleton type
   if( const_oop() == nullptr )  return nullptr;
 
   // must be of type java.lang.Class
   if( klass() != ciEnv::current()->Class_klass() )  return nullptr;
-  return const_oop()->as_instance()->java_mirror_type();
+  return const_oop()->as_instance()->java_mirror_type(is_null_free_array);
 }
 
 
@@ -6674,6 +6679,7 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
   if (_elem->isa_klassptr()) {
     if (klass_is_exact || _elem->isa_aryklassptr()) {
       assert(!is_null_free() && !is_flat(), "null-free (or flat) inline type arrays should always be exact");
+      // TODO 8325106 Still correct?
       // An array can't be null-free (or flat) if the klass is exact
       not_null_free = true;
       not_flat = true;
@@ -7098,7 +7104,7 @@ const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, ignore_interfaces, false);
   const TypeTuple* domain_cc = has_scalar_args ? TypeTuple::make_domain(method, ignore_interfaces, true) : domain_sig;
   ciSignature* sig = method->signature();
-  bool has_scalar_ret = sig->return_type()->is_inlinetype() && sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
+  bool has_scalar_ret = !method->is_native() && sig->return_type()->is_inlinetype() && sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
   const TypeTuple* range_sig = TypeTuple::make_range(sig, ignore_interfaces, false);
   const TypeTuple* range_cc = has_scalar_ret ? TypeTuple::make_range(sig, ignore_interfaces, true) : range_sig;
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);

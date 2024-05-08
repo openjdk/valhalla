@@ -25,6 +25,7 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
+import jdk.test.whitebox.WhiteBox;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -45,14 +46,18 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @build jdk.test.whitebox.WhiteBox
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=450 compiler.valhalla.inlinetypes.TestCallingConvention
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=450 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention
  */
 
 @ForceCompileClassInitializer
 public class TestCallingConvention {
+
+    private final static WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
     static {
         try {
@@ -1328,5 +1333,18 @@ public class TestCallingConvention {
         if (!info.isWarmUp()) {
             Asserts.assertEQ(test56(false), null);
         }
+    }
+
+    static long expectedFlatArrayElementMaxSize = WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize");
+
+    // Test value class return from native method
+    @Test
+    public long test57() {
+        return WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize");
+    }
+
+    @Run(test = "test57")
+    public void test57_verifier(RunInfo info) throws Throwable {
+        Asserts.assertEQ(test57(), expectedFlatArrayElementMaxSize);
     }
 }

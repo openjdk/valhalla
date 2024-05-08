@@ -2011,9 +2011,6 @@ const int ObjectAlignmentInBytes = 8;
   develop(bool, StressCallingConvention, false,                             \
           "Stress the scalarized calling convention.")                      \
                                                                             \
-  product(bool, UseArrayMarkWordCheck, NOT_LP64(false) LP64_ONLY(true),     \
-          "Use bits in the mark word to check for flat/null-free arrays")   \
-                                                                            \
   product(ccstrlist, ForceNonTearable, "", DIAGNOSTIC,                      \
           "List of inline classes which are forced to be atomic "           \
           "(whitespace and commas separate names, "                         \
@@ -2050,6 +2047,11 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(bool, ProfileExceptionHandlers, true,                             \
           "Profile exception handlers")                                     \
+                                                                            \
+  product(bool, AlwaysRecordEvolDependencies, true, EXPERIMENTAL,           \
+                "Unconditionally record nmethod dependencies on class "     \
+                "rewriting/transformation independently of the JVMTI "      \
+                "can_{retransform/redefine}_classes capabilities.")         \
 
 // end of RUNTIME_FLAGS
 

@@ -1415,13 +1415,12 @@ public class TestArrays {
         }
     }
 
-    // Ignore: JDK-8329224
-    // @Test
+    @Test
     public Object[] test59(MyValue1[] va) {
         return Arrays.copyOf(va, va.length+1, va.getClass());
     }
 
-    // @Run(test = "test59")
+    @Run(test = "test59")
     public void test59_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
@@ -1437,13 +1436,12 @@ public class TestArrays {
         verify(verif, result);
     }
 
-    // Ignore: JDK-8329224
-    // @Test
+    @Test
     public Object[] test60(Object[] va, Class klass) {
         return Arrays.copyOf(va, va.length+1, klass);
     }
 
-    // @Run(test = "test60")
+    @Run(test = "test60")
     public void test60_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
@@ -1524,8 +1522,7 @@ public class TestArrays {
         return arr;
     }
 
-    // Ignore: JDK-8329224
-    // @Test
+    @Test
     public Object[] test63(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
         for (; i < 10; i++);
@@ -1535,7 +1532,7 @@ public class TestArrays {
         return Arrays.copyOf(arr, arr.length+1, arr.getClass());
     }
 
-    // @Run(test = "test63")
+    @Run(test = "test63")
     public void test63_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
@@ -1547,8 +1544,8 @@ public class TestArrays {
         NonValueClass[] oa = new NonValueClass[len];
         test63_helper(42, va, oa);
         Object[] result = test63(va, oa);
-        // Result is not a null-restricted array
-        Asserts.assertEQ(result[len], null);
+        // Result is a null-restricted array
+        Asserts.assertEQ(result[len], MyValue1.createDefaultInline());
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
@@ -2840,8 +2837,9 @@ public class TestArrays {
     // Some more Arrays.copyOf tests with only constant class
 
     @Test
-    @IR(counts = {CLASS_CHECK_TRAP, "= 1"},
-        failOn = INTRINSIC_SLOW_PATH)
+    @IR(counts = {CLASS_CHECK_TRAP, "= 1"})
+    // TODO JDK-8329224
+    // failOn = INTRINSIC_SLOW_PATH)
     public Object[] test118(Object[] src) {
         return Arrays.copyOf(src, 8, val_src.getClass());
     }
@@ -2870,8 +2868,9 @@ public class TestArrays {
     }
 
     @Test
-    @IR(counts = {CLASS_CHECK_TRAP, "= 1"},
-        failOn = INTRINSIC_SLOW_PATH)
+    @IR(counts = {CLASS_CHECK_TRAP, "= 1"})
+    // TODO JDK-8329224
+    // failOn = INTRINSIC_SLOW_PATH)
     public Object[] test120(Object[] src) {
         return Arrays.copyOf(src, 8, NonValueClass[].class);
     }
@@ -2984,14 +2983,9 @@ public class TestArrays {
         res = test125(val_src, val_src.getClass());
         verify(val_src, res);
         res = test125(obj_src, val_src.getClass());
-        verify(val_src, res);
-        try {
-            test125(obj_null_src, val_src.getClass());
-// TODO 8325106 Remove
-//            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // expected
-        }
+        verify(obj_src, res);
+        res = test125(obj_null_src, val_src.getClass());
+        verify(obj_null_src, res);
         try {
             test125(arr, val_src.getClass());
             throw new RuntimeException("ArrayStoreException expected");

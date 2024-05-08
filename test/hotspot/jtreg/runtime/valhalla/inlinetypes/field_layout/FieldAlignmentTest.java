@@ -157,18 +157,14 @@
   }
 
   public static void main(String[] args) throws Exception {
-    boolean useCompressedOops;
     String compressedOopsArg;
 
     switch(args[0]) {
-      case "0": useCompressedOops = false;
-                compressedOopsArg = null;
+      case "0": compressedOopsArg = null;
                 break;
-      case "1": useCompressedOops = true;
-                compressedOopsArg = "-XX:+UseCompressedOops";
+      case "1": compressedOopsArg = "-XX:+UseCompressedOops";
                 break;
-      case "2": useCompressedOops = false;
-                compressedOopsArg = "-XX:-UseCompressedOops";
+      case "2": compressedOopsArg = "-XX:-UseCompressedOops";
                 break;
       default: throw new RuntimeException("Unrecognized configuration");
     }
@@ -186,7 +182,7 @@
     System.out.print(out.getOutput());
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
 
-    FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo, useCompressedOops);
+    FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
     fla.check();
   }
  }

@@ -263,9 +263,8 @@ void TenuredGeneration::compute_new_size_inner() {
   }
 }
 
-void TenuredGeneration::space_iterate(SpaceClosure* blk,
-                                                 bool usedOnly) {
-  blk->do_space(space());
+HeapWord* TenuredGeneration::block_start(const void* p) const {
+  return space()->block_start_const(p);
 }
 
 void TenuredGeneration::younger_refs_iterate(OopIterateClosure* blk) {
@@ -331,7 +330,7 @@ TenuredGeneration::TenuredGeneration(ReservedSpace rs,
                                        _the_space, _gen_counters);
 }
 
-void TenuredGeneration::gc_prologue(bool full) {
+void TenuredGeneration::gc_prologue() {
   _capacity_at_prologue = capacity();
   _used_at_prologue = used();
 }
@@ -450,10 +449,6 @@ TenuredGeneration::expand_and_allocate(size_t word_size, bool is_tlab) {
   return _the_space->allocate(word_size);
 }
 
-size_t TenuredGeneration::unsafe_max_alloc_nogc() const {
-  return _the_space->free();
-}
-
 size_t TenuredGeneration::contiguous_available() const {
   return _the_space->free() + _virtual_space.uncommitted_size();
 }
@@ -485,7 +480,7 @@ bool TenuredGeneration::no_allocs_since_save_marks() {
   return _the_space->saved_mark_at_top();
 }
 
-void TenuredGeneration::gc_epilogue(bool full) {
+void TenuredGeneration::gc_epilogue() {
   // update the generation and space performance counters
   update_counters();
   if (ZapUnusedHeapArea) {
