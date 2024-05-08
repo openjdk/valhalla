@@ -1523,6 +1523,12 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.valueBasedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == TYP);
                 sym.flags_field |= VALUE_BASED;
+            } else if (proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
+                Assert.check(sym.kind == TYP);
+                sym.flags_field |= MIGRATED_VALUE_CLASS;
+                if (needsValueFlag(sym, sym.flags_field)) {
+                    sym.flags_field |= VALUE_CLASS;
+                }
             } else if (proxy.type.tsym.flatName() == syms.restrictedType.tsym.flatName()) {
                 Assert.check(sym.kind == MTH);
                 sym.flags_field |= RESTRICTED;
@@ -1539,6 +1545,11 @@ public class ClassReader {
                     setFlagIfAttributeTrue(proxy, sym, names.reflective, PREVIEW_REFLECTIVE);
                 }  else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
                     sym.flags_field |= VALUE_BASED;
+                }  else if (proxy.type.tsym == syms.migratedValueClassType.tsym && sym.kind == TYP) {
+                    sym.flags_field |= MIGRATED_VALUE_CLASS;
+                    if (needsValueFlag(sym, sym.flags_field)) {
+                        sym.flags_field |= VALUE_CLASS;
+                    }
                 }  else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
                     sym.flags_field |= RESTRICTED;
@@ -3160,21 +3171,32 @@ public class ClassReader {
     }
 
     long adjustClassFlags(ClassSymbol c, long flags) {
-        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         if ((flags & ACC_MODULE) != 0) {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if (((flags & ACC_IDENTITY) != 0 && !syms.shouldBeConsideredValueClass(allowValueClasses, c)) || (majorVersion < V66.major && (flags & INTERFACE) == 0)) {
+        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags)) || (majorVersion < V66.major && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
-        } else if (allowValueClasses) {
-            if (previewClassFile && majorVersion >= V66.major && (flags & INTERFACE) == 0 ||
-                    majorVersion >= V66.major && syms.shouldBeConsideredValueClass(allowValueClasses, c)) {
-                flags |= VALUE_CLASS;
-            }
+        } else if (needsValueFlag(c, flags)) {
+            flags |= VALUE_CLASS;
         }
         flags &= ~ACC_IDENTITY; // ACC_IDENTITY and SYNCHRONIZED bits overloaded
         return flags;
+    }
+
+    private boolean needsValueFlag(Symbol c, long flags) {
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
+        if (allowValueClasses) {
+            if (previewClassFile && majorVersion >= V66.major && (flags & INTERFACE) == 0 ||
+                    majorVersion >= V66.major && isMigratedValueClass(flags)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isMigratedValueClass(long flags) {
+        return allowValueClasses && ((flags & MIGRATED_VALUE_CLASS) != 0);
     }
 
     /**

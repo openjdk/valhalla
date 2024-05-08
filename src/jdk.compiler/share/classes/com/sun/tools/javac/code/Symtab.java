@@ -250,18 +250,8 @@ public class Symtab {
     // valhalla
     public final Type valueBasedType;
     public final Type valueBasedInternalType;
-    // the following should be considered value classes if in preview mode
-    private final Type byteWrapperType;
-    private final Type shortWrapperType;
-    private final Type integerWrapperType;
-    private final Type longWrapperType;
-    private final Type floatWrapperType;
-    private final Type doubleWrapperType;
-    private final Type booleanWrapperType;
-    private final Type characterWrapperType;
-    private final Type optionalType;
-    private final Type numberType;
-    private final Set<TypeSymbol> valueClassesInStdLib;
+    public final Type migratedValueClassType;
+    public final Type migratedValueClassInternalType;
 
     /** The symbol representing the length field of an array.
      */
@@ -634,6 +624,8 @@ public class Symtab {
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
+        migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
+        migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         classDescType = enterClass("java.lang.constant.ClassDesc");
         enumDescType = enterClass("java.lang.Enum$EnumDesc");
         // For serialization lint checking
@@ -645,31 +637,6 @@ public class Symtab {
         externalizableType = enterClass("java.io.Externalizable");
         objectInputType  = enterClass("java.io.ObjectInput");
         objectOutputType = enterClass("java.io.ObjectOutput");
-
-        byteWrapperType = enterClass("java.lang.Byte");
-        shortWrapperType = enterClass("java.lang.Short");
-        integerWrapperType = enterClass("java.lang.Integer");
-        longWrapperType = enterClass("java.lang.Long");
-        floatWrapperType = enterClass("java.lang.Float");
-        doubleWrapperType = enterClass("java.lang.Double");
-        booleanWrapperType = enterClass("java.lang.Boolean");
-        characterWrapperType = enterClass("java.lang.Character");
-        optionalType = enterClass("java.util.Optional");
-        numberType = enterClass("java.lang.Number");
-
-        valueClassesInStdLib = Set.of(
-                byteWrapperType.tsym,
-                shortWrapperType.tsym,
-                integerWrapperType.tsym,
-                longWrapperType.tsym,
-                floatWrapperType.tsym,
-                doubleWrapperType.tsym,
-                booleanWrapperType.tsym,
-                characterWrapperType.tsym,
-                optionalType.tsym,
-                numberType.tsym,
-                recordType.tsym
-        );
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);
         synthesizeEmptyInterfaceIfMissing(cloneableType);
         synthesizeEmptyInterfaceIfMissing(serializableType);
@@ -964,9 +931,5 @@ public class Symtab {
 
     public Iterable<PackageSymbol> getPackagesForName(Name candidate) {
         return packages.getOrDefault(candidate, Collections.emptyMap()).values();
-    }
-
-    public boolean shouldBeConsideredValueClass(boolean allowValueClasses, ClassSymbol csym) {
-        return allowValueClasses && valueClassesInStdLib.contains(csym);
     }
 }
