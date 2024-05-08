@@ -589,4 +589,3 @@ public interface Opcodes {
     int IFNULL = 198; // visitJumpInsn
     int IFNONNULL = 199; // -
 }
-

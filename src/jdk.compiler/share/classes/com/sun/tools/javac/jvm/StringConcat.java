@@ -417,7 +417,7 @@ public abstract class StringConcat {
                 for (JCTree arg : t) {
                     Object constVal = arg.type.constValue();
                     if ("".equals(constVal)) continue;
-                    if (arg.type == syms.botType) {
+                    if (arg.type == syms.botType && arg.hasTag(LITERAL)) {
                         // Concat the null into the recipe right away
                         recipe.append((String) null);
                     } else if (constVal != null) {

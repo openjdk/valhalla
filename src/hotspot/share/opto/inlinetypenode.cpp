@@ -271,7 +271,9 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   uint first_ind = (sfpt->req() - jvms->scloff());
   SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(type()->isa_instptr(),
                                                                   nullptr,
-                                                                  first_ind, nfields);
+                                                                  first_ind,
+                                                                  sfpt->jvms()->depth(),
+                                                                  nfields);
   sobj->init_req(0, igvn->C->root());
   // Nullable inline types have an IsInit field that needs
   // to be checked before using the field values.
