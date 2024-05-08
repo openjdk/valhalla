@@ -287,6 +287,8 @@ public class TestBasicFunctionality {
     }
 
     // Test loop with uncommon trap referencing a value object
+    // TODO 8315003 Re-enable
+    /*
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         counts = {SCOBJ, ">= 1", LOAD, "<= 12"}) // TODO 8227588 (loads should be removed)
@@ -317,6 +319,7 @@ public class TestBasicFunctionality {
         long result = test12(info.isWarmUp());
         Asserts.assertEQ(result, info.isWarmUp() ? rL + (1000 * rI) : ((Math.abs(rI) % 10) + 1) * hash());
     }
+    */
 
     // Test loop with uncommon trap referencing a value object
     @Test
