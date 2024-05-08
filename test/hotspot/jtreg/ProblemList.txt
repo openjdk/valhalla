@@ -79,6 +79,11 @@ compiler/floatingpoint/TestSubnormalDouble.java 8317810 generic-i586
 compiler/intrinsics/float16/TestConstFloat16ToFloat.java 8325264 macosx-aarch64
 compiler/intrinsics/float16/Binary16Conversion.java 8325264 macosx-aarch64
 
+# Valhalla
+compiler/gcbarriers/TestZGCUnrolling.java 8331551 generic-all
+compiler/valhalla/inlinetypes/TestBasicFunctionality.java 8287061 generic-all
+compiler/valhalla/inlinetypes/TestValueClasses.java 8331909 macosx-aarch64
+
 #############################################################################
 
 # :hotspot_gc
@@ -179,6 +184,9 @@ serviceability/sa/TestJmapCoreMetaspace.java 8190936 generic-all
 serviceability/sa/TestPrintMdo.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 serviceability/sa/ClhsdbDumpclass.java 8190936 generic-all
+
+serviceability/jvmti/GetOwnedMonitorInfo/GetOwnedMonitorInfoWithEATest.java 8331766 generic-all
+serviceability/jvmti/GetOwnedMonitorStackDepthInfo/GetOwnedMonitorStackDepthInfoWithEATest.java 8331766 generic-all
 
 #############################################################################
 

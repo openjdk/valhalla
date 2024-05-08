@@ -816,3 +816,5 @@ java/awt/Focus/FrameMinimizeTest/FrameMinimizeTest.java 8016266 linux-x64
 
 # valhalla
 jdk/jfr/event/runtime/TestSyncOnValueBasedClassEvent.java 8328777 generic-all
+com/sun/jdi/EATests.java 8331766 generic-all
+
