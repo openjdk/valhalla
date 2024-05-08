@@ -6679,7 +6679,7 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
   if (_elem->isa_klassptr()) {
     if (klass_is_exact || _elem->isa_aryklassptr()) {
       assert(!is_null_free() && !is_flat(), "null-free (or flat) inline type arrays should always be exact");
-      // TODO
+      // TODO 8325106 Still correct?
       // An array can't be null-free (or flat) if the klass is exact
       not_null_free = true;
       not_flat = true;
