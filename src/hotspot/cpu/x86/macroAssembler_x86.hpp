@@ -135,8 +135,6 @@ class MacroAssembler: public Assembler {
   // Check array klass layout helper for flat or null-free arrays...
   void test_flat_array_layout(Register lh, Label& is_flat_array);
   void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
-  void test_null_free_array_layout(Register lh, Label& is_null_free_array);
-  void test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array);
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.

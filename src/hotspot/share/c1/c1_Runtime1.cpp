@@ -476,6 +476,9 @@ static void profile_flat_array(JavaThread* current, bool load) {
   Method* method = vfst.method();
   MethodData* md = method->method_data();
   if (md != nullptr) {
+    // Lock to access ProfileData, and ensure lock is not broken by a safepoint
+    MutexLocker ml(md->extra_data_lock(), Mutex::_no_safepoint_check_flag);
+
     ProfileData* data = md->bci_to_data(bci);
     assert(data != nullptr, "incorrect profiling entry");
     if (data->is_ArrayLoadData()) {

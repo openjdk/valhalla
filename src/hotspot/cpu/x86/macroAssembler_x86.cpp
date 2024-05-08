@@ -2579,7 +2579,9 @@ void MacroAssembler::movptr(Register dst, Address src) {
 // src should NEVER be a real pointer. Use AddressLiteral for true pointers
 void MacroAssembler::movptr(Register dst, intptr_t src) {
 #ifdef _LP64
-  if (is_simm32(src)) {
+  if (is_uimm32(src)) {
+    movl(dst, checked_cast<uint32_t>(src));
+  } else if (is_simm32(src)) {
     movq(dst, checked_cast<int32_t>(src));
   } else {
     mov64(dst, src);
@@ -2981,9 +2983,7 @@ void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, L
 #ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
 #else
-  load_klass(temp_reg, oop, noreg);
-  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
-  test_null_free_array_layout(temp_reg, is_null_free_array);
+  Unimplemented();
 #endif
 }
 
@@ -2991,9 +2991,7 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
 #ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
 #else
-  load_klass(temp_reg, oop, noreg);
-  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
-  test_non_null_free_array_layout(temp_reg, is_non_null_free_array);
+  Unimplemented();
 #endif
 }
 
@@ -3006,17 +3004,6 @@ void MacroAssembler::test_non_flat_array_layout(Register lh, Label& is_non_flat_
   testl(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
   jcc(Assembler::zero, is_non_flat_array);
 }
-
-void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
-  testl(lh, Klass::_lh_null_free_array_bit_inplace);
-  jcc(Assembler::notZero, is_null_free_array);
-}
-
-void MacroAssembler::test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array) {
-  testl(lh, Klass::_lh_null_free_array_bit_inplace);
-  jcc(Assembler::zero, is_non_null_free_array);
-}
-
 
 void MacroAssembler::os_breakpoint() {
   // instead of directly emitting a breakpoint, call os:breakpoint for better debugability
