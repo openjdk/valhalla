@@ -1135,7 +1135,7 @@ bool PhaseIterGVN::verify_node_value(Node* n) {
   }
   tty->cr();
   tty->print_cr("Missed Value optimization:");
-  n->dump_bfs(1, 0, "");
+  n->dump_bfs(3, 0, "");
   tty->print_cr("Current type:");
   told->dump_on(tty);
   tty->cr();
@@ -1510,6 +1510,17 @@ void PhaseIterGVN::add_users_of_use_to_worklist(Node* n, Node* use, Unique_Node_
     }
   }
 
+  // AndLNode::Ideal folds GraphKit::mark_word_test patterns. Give it a chance to run.
+  // TODO 8325106 Improve this to handle all patterns
+  if (n->is_Load() && use->is_Phi()) {
+    for (DUIterator_Fast imax, i = use->fast_outs(imax); i < imax; i++) {
+      Node* u = use->fast_out(i);
+      if (u->Opcode() == Op_AndL) {
+        worklist.push(u);
+      }
+    }
+  }
+
   uint use_op = use->Opcode();
   if(use->is_Cmp()) {       // Enable CMP/BOOL optimization
     add_users_to_worklist0(use, worklist); // Put Bool on worklist
@@ -1803,7 +1814,7 @@ PhaseCCP::~PhaseCCP() {
 #ifdef ASSERT
 void PhaseCCP::verify_type(Node* n, const Type* tnew, const Type* told) {
   if (tnew->meet(told) != tnew->remove_speculative()) {
-    n->dump(1);
+    n->dump(3);
     tty->print("told = "); told->dump(); tty->cr();
     tty->print("tnew = "); tnew->dump(); tty->cr();
     fatal("Not monotonic");

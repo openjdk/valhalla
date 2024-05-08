@@ -2773,7 +2773,7 @@ void PhaseMacroExpand::expand_subtypecheck_node(SubTypeCheckNode *check) {
 // }
 void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
   bool array_inputs = _igvn.type(check->in(FlatArrayCheckNode::ArrayOrKlass))->isa_oopptr() != nullptr;
-  if (UseArrayMarkWordCheck && array_inputs) {
+  if (array_inputs) {
     Node* mark = MakeConX(0);
     Node* locked_bit = MakeConX(markWord::unlocked_value);
     Node* mem = check->in(FlatArrayCheckNode::Memory);

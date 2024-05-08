@@ -858,10 +858,10 @@ class GraphKit : public Phase {
   Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false);
 
   // Inline types
+  Node* mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool check_lock = true);
   Node* inline_type_test(Node* obj, bool is_inline = true);
-  Node* array_lh_test(Node* kls, jint mask, jint val, bool eq = true);
   Node* flat_array_test(Node* array_or_klass, bool flat = true);
-  Node* null_free_array_test(Node* klass, bool null_free = true);
+  Node* null_free_array_test(Node* array, bool null_free = true);
   Node* inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);
 
   Node* gen_subtype_check(Node* obj, Node* superklass);

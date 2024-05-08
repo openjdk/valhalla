@@ -839,23 +839,20 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
     return false; // May be null
   }
   for (uint i = 0; i < field_count(); ++i) {
-    ciType* ft = field_type(i);
     Node* value = field_value(i);
     if (field_is_null_free(i)) {
+      // Null-free value class field must have the default value
       if (!value->is_InlineType() || !value->as_InlineType()->is_default(gvn)) {
         return false;
       }
       continue;
     } else if (value->is_InlineType()) {
-      if (value->as_InlineType()->is_default(gvn)) {
+      // Nullable value class field must be null
+      const Type* tinit = gvn->type(value->as_InlineType()->get_is_init());
+      if (tinit->isa_int() && tinit->is_int()->is_con(0)) {
         continue;
-      } else {
-        const Type* tinit = gvn->type(value->as_InlineType()->get_is_init());
-        if (tinit->isa_int() && tinit->is_int()->is_con(0)) {
-          continue;
-        }
-        return false;
       }
+      return false;
     }
     if (!gvn->type(value)->is_zero_type()) {
       return false;
@@ -883,7 +880,14 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
   InlineTypeNode* vt = nullptr;
 
   if (oop->isa_InlineType()) {
-    assert(!is_larval || oop->as_InlineType()->is_larval(), "must be larval");
+    // TODO 8325106 Re-enable assert and fix OSR code
+    // Issue triggers with TestValueConstruction.java and -XX:Tier0BackedgeNotifyFreqLog=0 -XX:Tier2BackedgeNotifyFreqLog=0 -XX:Tier3BackedgeNotifyFreqLog=0 -XX:Tier2BackEdgeThreshold=1 -XX:Tier3BackEdgeThreshold=1 -XX:Tier4BackEdgeThreshold=1 -Xbatch -XX:-TieredCompilation
+    // assert(!is_larval || oop->as_InlineType()->is_larval(), "must be larval");
+    if (is_larval && !oop->as_InlineType()->is_larval()) {
+      vt = oop->clone()->as_InlineType();
+      vt->set_is_larval(true);
+      return gvn.transform(vt)->as_InlineType();
+    }
     return oop->as_InlineType();
   } else if (gvn.type(oop)->maybe_null()) {
     // Add a null check because the oop may be null

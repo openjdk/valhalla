@@ -661,8 +661,6 @@ public:
   // Check array klass layout helper for flat or null-free arrays...
   void test_flat_array_layout(Register lh, Label& is_flat_array);
   void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
-  void test_null_free_array_layout(Register lh, Label& is_null_free_array);
-  void test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array);
 
   static address target_addr_for_insn(address insn_addr, unsigned insn);
   static address target_addr_for_insn_or_null(address insn_addr, unsigned insn);

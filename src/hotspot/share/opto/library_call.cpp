@@ -4140,14 +4140,19 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-  ciType* tm = mirror_con->java_mirror_type();
+  bool is_null_free_array = false;
+  ciType* tm = mirror_con->java_mirror_type(&is_null_free_array);
   if (tm != nullptr && tm->is_klass() &&
       tp != nullptr) {
     if (!tp->is_loaded()) {
       // Don't use intrinsic when class is not loaded.
       return false;
     } else {
-      int static_res = C->static_subtype_check(TypeKlassPtr::make(tm->as_klass(), Type::trust_interfaces), tp->as_klass_type());
+      const TypeKlassPtr* tklass = TypeKlassPtr::make(tm->as_klass(), Type::trust_interfaces);
+      if (is_null_free_array) {
+        tklass = tklass->is_aryklassptr()->cast_to_null_free();
+      }
+      int static_res = C->static_subtype_check(tklass, tp->as_klass_type());
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
         set_result(obj);
@@ -4596,6 +4601,11 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // Handle inline type arrays
     bool can_validate = !too_many_traps(Deoptimization::Reason_class_check);
     if (!stopped()) {
+      // TODO JDK-8329224
+      if (!orig_t->is_null_free()) {
+        // Not statically known to be null free, add a check
+        generate_fair_guard(null_free_array_test(original), bailout);
+      }
       orig_t = _gvn.type(original)->isa_aryptr();
       if (orig_t != nullptr && orig_t->is_flat()) {
         // Src is flat, check that dest is flat as well
@@ -4621,7 +4631,8 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         // No validation. The subtype check emitted at macro expansion time will not go to the slow
         // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
         // TODO 8251971: Optimize for the case when src/dest are later found to be both flat/null-free.
-        generate_fair_guard(null_free_array_test(klass_node), bailout);
+        generate_fair_guard(flat_array_test(klass_node), bailout);
+        generate_fair_guard(null_free_array_test(original), bailout);
       }
     }
 

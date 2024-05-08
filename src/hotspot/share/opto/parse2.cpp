@@ -92,7 +92,7 @@ void Parse::array_load(BasicType bt) {
     bt = T_OBJECT;
   } else if (!ary_t->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
-    assert(UseFlatArray && is_reference_type(bt) && elemptr->can_be_inline_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
+    assert(UseFlatArray && is_reference_type(bt) && elemptr->can_be_inline_type() && !ary_t->is_not_null_free() &&
            (!elemptr->is_inlinetypeptr() || elemptr->inline_klass()->flat_in_array()), "array can't be flat");
     IdealKit ideal(this);
     IdealVariable res(ideal);
@@ -314,7 +314,7 @@ void Parse::array_store(BasicType bt) {
       return;
     } else if (!ary_t->is_not_null_free()) {
       // Array is not flat but may be null free
-      assert(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact(), "array can't be null-free");
+      assert(elemtype->is_oopptr()->can_be_inline_type(), "array can't be null-free");
       ary = inline_array_null_guard(ary, cast_val, 3, true);
     }
   }
@@ -497,7 +497,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     }
     if (!null_free_array) {
       { // Deoptimize if null-free array
-        BuildCutout unless(this, null_free_array_test(load_object_klass(ary), /* null_free = */ false), PROB_MAX);
+        BuildCutout unless(this, null_free_array_test(ary, /* null_free = */ false), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
       assert(!stopped(), "null-free array should have been caught earlier");

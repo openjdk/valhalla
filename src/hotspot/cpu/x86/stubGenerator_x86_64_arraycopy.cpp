@@ -2658,16 +2658,18 @@ address StubGenerator::generate_generic_copy(const char *name,
   __ cmpq(r10_src_klass, rax);
   __ jcc(Assembler::notEqual, L_failed);
 
+  // Check for flat inline type array -> return -1
+  __ test_flat_array_oop(src, rax, L_failed);
+
+  // Check for null-free (non-flat) inline type array -> handle as object array
+  __ test_null_free_array_oop(src, rax, L_objArray);
+
   const Register rax_lh = rax;  // layout helper
   __ movl(rax_lh, Address(r10_src_klass, lh_offset));
 
   // Check for flat inline type array -> return -1
   __ testl(rax_lh, Klass::_lh_array_tag_flat_value_bit_inplace);
   __ jcc(Assembler::notZero, L_failed);
-
-  // Check for null-free (non-flat) inline type array -> handle as object array
-  __ testl(rax_lh, Klass::_lh_null_free_array_bit_inplace);
-  __ jcc(Assembler::notZero, L_objArray);
 
   //  if (!src->is_Array()) return -1;
   __ cmpl(rax_lh, Klass::_lh_neutral_value);
@@ -2789,7 +2791,7 @@ __ BIND(L_checkcast_copy);
   // live at this point:  r10_src_klass, r11_length, rax (dst_klass)
   {
     // Before looking at dst.length, make sure dst is also an objArray.
-    // This check also fails for flat/null-free arrays which are not supported.
+    // This check also fails for flat arrays which are not supported.
     __ cmpl(Address(rax, lh_offset), objArray_lh);
     __ jcc(Assembler::notEqual, L_failed);
 
@@ -2797,9 +2799,7 @@ __ BIND(L_checkcast_copy);
     {
       BLOCK_COMMENT("assert not null-free array {");
       Label L;
-      __ movl(rklass_tmp, Address(rax, lh_offset));
-      __ testl(rklass_tmp, Klass::_lh_null_free_array_bit_inplace);
-      __ jcc(Assembler::zero, L);
+      __ test_non_null_free_array_oop(dst, rklass_tmp, L);
       __ stop("unexpected null-free array");
       __ bind(L);
       BLOCK_COMMENT("} assert not null-free array");

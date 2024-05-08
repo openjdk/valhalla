@@ -3685,37 +3685,64 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   return res;
 }
 
-Node* GraphKit::inline_type_test(Node* obj, bool is_inline) {
+Node* GraphKit::mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool check_lock) {
+  // Load markword
   Node* mark_adr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(nullptr, mark_adr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  Node* mask = MakeConX(markWord::inline_type_pattern);
-  Node* masked = _gvn.transform(new AndXNode(mark, mask));
-  Node* cmp = _gvn.transform(new CmpXNode(masked, mask));
-  return _gvn.transform(new BoolNode(cmp, is_inline ? BoolTest::eq : BoolTest::ne));
-}
+  if (check_lock) {
+    // Check if obj is locked
+    Node* locked_bit = MakeConX(markWord::unlocked_value);
+    locked_bit = _gvn.transform(new AndXNode(locked_bit, mark));
+    Node* cmp = _gvn.transform(new CmpXNode(locked_bit, MakeConX(0)));
+    Node* is_unlocked = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
+    IfNode* iff = new IfNode(control(), is_unlocked, PROB_MAX, COUNT_UNKNOWN);
+    _gvn.transform(iff);
+    Node* locked_region = new RegionNode(3);
+    Node* mark_phi = new PhiNode(locked_region, TypeX_X);
 
-Node* GraphKit::array_lh_test(Node* klass, jint mask, jint val, bool eq) {
-  Node* lh_adr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
-  // Make sure to use immutable memory here to enable hoisting the check out of loops
-  Node* lh_val = _gvn.transform(LoadNode::make(_gvn, nullptr, immutable_memory(), lh_adr, lh_adr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
-  Node* masked = _gvn.transform(new AndINode(lh_val, intcon(mask)));
-  Node* cmp = _gvn.transform(new CmpINode(masked, intcon(val)));
+    // Unlocked: Use bits from mark word
+    locked_region->init_req(1, _gvn.transform(new IfTrueNode(iff)));
+    mark_phi->init_req(1, mark);
+
+    // Locked: Load prototype header from klass
+    set_control(_gvn.transform(new IfFalseNode(iff)));
+    // Make loads control dependent to make sure they are only executed if array is locked
+    Node* klass_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
+    Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, control(), C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
+    Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
+    Node* proto = _gvn.transform(LoadNode::make(_gvn, control(), C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
+
+    locked_region->init_req(2, control());
+    mark_phi->init_req(2, proto);
+    set_control(_gvn.transform(locked_region));
+    record_for_igvn(locked_region);
+
+    mark = mark_phi;
+  }
+
+  // Now check if mark word bits are set
+  Node* mask = MakeConX(mask_val);
+  Node* masked = _gvn.transform(new AndXNode(_gvn.transform(mark), mask));
+  record_for_igvn(masked); // Give it a chance to be optimized out by IGVN
+  Node* cmp = _gvn.transform(new CmpXNode(masked, mask));
   return _gvn.transform(new BoolNode(cmp, eq ? BoolTest::eq : BoolTest::ne));
 }
 
-// TODO 8325106 With JEP 401, flatness is not a property of the Class anymore.
+Node* GraphKit::inline_type_test(Node* obj, bool is_inline) {
+  return mark_word_test(obj, markWord::inline_type_pattern, is_inline, /* check_lock = */ false);
+}
+
 Node* GraphKit::flat_array_test(Node* array_or_klass, bool flat) {
   // We can't use immutable memory here because the mark word is mutable.
   // PhaseIdealLoop::move_flat_array_check_out_of_loop will make sure the
   // check is moved out of loops (mainly to enable loop unswitching).
-  Node* mem = UseArrayMarkWordCheck ? memory(Compile::AliasIdxRaw) : immutable_memory();
-  Node* cmp = _gvn.transform(new FlatArrayCheckNode(C, mem, array_or_klass));
+  Node* cmp = _gvn.transform(new FlatArrayCheckNode(C, memory(Compile::AliasIdxRaw), array_or_klass));
   record_for_igvn(cmp); // Give it a chance to be optimized out by IGVN
   return _gvn.transform(new BoolNode(cmp, flat ? BoolTest::eq : BoolTest::ne));
 }
 
-Node* GraphKit::null_free_array_test(Node* klass, bool null_free) {
-  return array_lh_test(klass, Klass::_lh_null_free_array_bit_inplace, 0, !null_free);
+Node* GraphKit::null_free_array_test(Node* array, bool null_free) {
+  return mark_word_test(array, markWord::null_free_array_bit_in_place, null_free);
 }
 
 // Deoptimize if 'ary' is a null-free inline type array and 'val' is null
@@ -3728,7 +3755,7 @@ Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool sa
     set_control(null_ctl);
     {
       // Deoptimize if null-free array
-      BuildCutout unless(this, null_free_array_test(load_object_klass(ary), /* null_free = */ false), PROB_MAX);
+      BuildCutout unless(this, null_free_array_test(ary, /* null_free = */ false), PROB_MAX);
       inc_sp(nargs);
       uncommon_trap(Deoptimization::Reason_null_check,
                     Deoptimization::Action_none);

@@ -678,6 +678,9 @@ int Method::extra_stack_words() {
 // locations the GC is unaware of.
 InlineKlass* Method::returns_inline_type(Thread* thread) const {
   assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
+  if (is_native()) {
+    return nullptr;
+  }
   NoSafepointVerifier nsv;
   SignatureStream ss(signature());
   while (!ss.at_return_type()) {
