@@ -979,23 +979,8 @@ void FieldLayoutBuilder::insert_null_markers() {
 void FieldLayoutBuilder::compute_inline_class_layout() {
   prologue();
   inline_class_field_sorting();
-  // Inline types are not polymorphic, so they cannot inherit fields.
-  // By consequence, at this stage, the layout must be composed of a RESERVED
-  // block, followed by an EMPTY block.
-  assert(_layout->start()->kind() == LayoutRawBlock::RESERVED, "Unexpected");
 
-  // if super has fields:
-  //   - inject padding to ensure no fields would be placed before the first field (not absolutely necessary if current class has no fields)
-  //   - inherit alignment => verify that inherited alignment and current class alignment are compatible
-  //     (if current class is abstract value, alignment must be max alignment)  <= wrong, only if abstract value has instance fields
-  // if super has no fields:
-  //   - if is_inline_type, proceed as usual
-  //   - if is_abstract_value:
-  //       - if current class has no instance field: do nothing     => need instance fields count
-  //       - if current class has fields:
-  //           - set alignment to max alignment
-  //           - insert padding so the first field will be aligned with max alignment
-  //
+  assert(_layout->start()->kind() == LayoutRawBlock::RESERVED, "Unexpected");
 
   if (_layout->super_has_fields() && !_is_abstract_value) {  // non-static field layout
     if (!_has_nonstatic_fields) {
@@ -1042,7 +1027,6 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       _layout->set_start(padding);
     }
   }
-
 
   _layout->add(_root_group->big_primitive_fields());
   _layout->add(_root_group->oop_fields());

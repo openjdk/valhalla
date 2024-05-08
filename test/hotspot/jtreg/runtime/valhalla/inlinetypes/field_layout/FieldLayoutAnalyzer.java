@@ -484,7 +484,6 @@ public class FieldLayoutAnalyzer {
         if (current.classLayout == null) {
           current.classLayout = layout;
         } else {
-          System.out.println(current.classLayout.name + " vs " + layout.name);
           Asserts.assertEQ(current.classLayout, layout);
         }
         if (layout.superName != null) {
@@ -507,7 +506,7 @@ public class FieldLayoutAnalyzer {
       for (FieldBlock block : layout.nonStaticFields) {
         if (block.offset() == 0) continue; // Skip object header
         if (block.type() == BlockType.EMPTY) continue; // Empty spaces can be used by subclasses
-        if (block.type() == BlockType.PADDING) continue; // PADDING should have a finer inspection, preserved for @Contended and other imperative padding, and relaxes for abstract value conservative padding
+        if (block.type() == BlockType.PADDING) continue; // PADDING should have a finer inspection, preserved for @Contended and other imperative padding, and relaxed for abstract value conservative padding
         // A special case for PADDING might be needed too => must NOT be used in subclasses
         for (Node subnode : node.subClasses) {
           try {
@@ -525,7 +524,6 @@ public class FieldLayoutAnalyzer {
     FieldBlock b = node.classLayout.getFieldAtOffset(block.offset, false);
     Asserts.assertTrue((block.type != BlockType.NULL_MARKER && block.type != BlockType.INHERITED_NULL_MARKER && b.type == BlockType.INHERITED)
                        || ((block.type == BlockType.NULL_MARKER || block.type == BlockType.INHERITED_NULL_MARKER) && b.type == BlockType.INHERITED_NULL_MARKER));
-                       // Missing case of PADDING
     Asserts.assertEquals(b.signature(), block.signature());
     Asserts.assertEquals(b.name(), block.name());
     Asserts.assertEquals(b.size(), block.size());
