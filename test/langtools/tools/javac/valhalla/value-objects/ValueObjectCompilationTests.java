@@ -308,9 +308,9 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
-        assertFail("compiler.err.type.found.req",
+        assertFail("compiler.err.type.found.req", // --enable-preview -source"
                 """
-                value class V {
+                class V {
                     final Integer val = Integer.valueOf(42);
                     void test() {
                         synchronized (val) { // error
@@ -321,7 +321,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         String[] previousOptions = getCompileOptions();
         try {
             setCompileOptions(new String[] {});
-            assertOKWithWarning("compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class",
+            assertOKWithWarning("compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class", // empty options
                     """
                     class V {
                         final Integer val = Integer.valueOf(42);
@@ -331,6 +331,33 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         }
                     }
                     """);
+            setCompileOptions(new String[] {"--source",
+                    Integer.toString(Runtime.version().feature())});
+            assertOKWithWarning("compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class", // --source
+                    """
+                    class V {
+                        final Integer val = Integer.valueOf(42);
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """);
+            setCompileOptions(new String[] {"--enable-preview", "--source",
+                    Integer.toString(Runtime.version().feature())});
+            assertFail("compiler.err.type.found.req", // --enable-preview --source
+                    """
+                    class V {
+                        final Integer val = Integer.valueOf(42);
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """);
+            /* we should add tests for --release and --release --enable-preview once the stubs used for the latest
+             * release have been updated, right now they are the same as those for 22
+             */
         } finally {
             setCompileOptions(previousOptions);
         }
