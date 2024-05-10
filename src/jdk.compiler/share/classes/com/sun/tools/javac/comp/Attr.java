@@ -1944,8 +1944,10 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitSynchronized(JCSynchronized tree) {
-        chk.checkIdentityType(tree.pos(), attribExpr(tree.lock, env));
-        if (env.info.lint.isEnabled(LintCategory.SYNCHRONIZATION) && isValueBased(tree.lock.type)) {
+        boolean identityType = chk.checkIdentityType(tree.pos(), attribExpr(tree.lock, env));
+        if (env.info.lint.isEnabled(LintCategory.SYNCHRONIZATION) &&
+                identityType &&
+                isValueBased(tree.lock.type)) {
             log.warning(LintCategory.SYNCHRONIZATION, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
         }
         attribStat(tree.body, env);
@@ -1955,7 +1957,6 @@ public class Attr extends JCTree.Visitor {
         private boolean isValueBased(Type t) {
             return t != null && t.tsym != null && (t.tsym.flags() & VALUE_BASED) != 0;
         }
-
 
     public void visitTry(JCTry tree) {
         // Create a new local environment with a local

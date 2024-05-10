@@ -849,19 +849,23 @@ public class Check {
      *  @param pos           Position to be used for error reporting.
      *  @param t             The type to be checked.
      */
-    void checkIdentityType(DiagnosticPosition pos, Type t) {
+    boolean checkIdentityType(DiagnosticPosition pos, Type t) {
         if (t.hasTag(TYPEVAR)) {
             t = types.skipTypeVars(t, false);
         }
         if (t.isIntersection()) {
             IntersectionClassType ict = (IntersectionClassType)t;
+            boolean result = true;
             for (Type component : ict.getExplicitComponents()) {
-                checkIdentityType(pos, component);
+                result &= checkIdentityType(pos, component);
             }
-            return;
+            return result;
         }
-        if (t.isPrimitive() || (t.isValueClass() && !t.tsym.isAbstract()))
+        if (t.isPrimitive() || (t.isValueClass() && !t.tsym.isAbstract())) {
             typeTagError(pos, diags.fragment(Fragments.TypeReqIdentity), t);
+            return false;
+        }
+        return true;
     }
 
     /** Check that each type is a reference type, i.e. a class, interface or array type

@@ -226,8 +226,6 @@ public class Symtab {
     public final Type recordType;
     public final Type switchBootstrapsType;
     public final Type constantBootstrapsType;
-    public final Type valueBasedType;
-    public final Type valueBasedInternalType;
     public final Type classDescType;
     public final Type enumDescType;
 
@@ -247,6 +245,12 @@ public class Symtab {
     public final Type templateRuntimeType;
     public final Type processorType;
     public final Type linkageType;
+
+    // valhalla
+    public final Type valueBasedType;
+    public final Type valueBasedInternalType;
+    public final Type migratedValueClassType;
+    public final Type migratedValueClassInternalType;
 
     /** The symbol representing the length field of an array.
      */
@@ -620,6 +624,8 @@ public class Symtab {
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
+        migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
+        migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         classDescType = enterClass("java.lang.constant.ClassDesc");
         enumDescType = enterClass("java.lang.Enum$EnumDesc");
         // For serialization lint checking
