@@ -550,6 +550,8 @@ class Parse : public GraphKit {
   void do_get_xxx(Node* obj, ciField* field);
   void do_put_xxx(Node* obj, ciField* field, bool is_field);
 
+  ciType* improve_abstract_inline_type_klass(ciType* field_klass);
+
   // implementation of object creation bytecodes
   void do_new();
   void do_newarray(BasicType elemtype);
