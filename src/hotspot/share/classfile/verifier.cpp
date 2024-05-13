@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1054,7 +1054,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::integer_type(), CHECK_VERIFY(this));
           atype = current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
-          if (!atype.is_nonscalar_array()) {
+          if (!atype.is_reference_array()) {
             verify_error(ErrorContext::bad_type(bci,
                 current_frame.stack_top_ctx(),
                 TypeOrigin::implicit(VerificationType::reference_check())),
@@ -1232,7 +1232,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           atype = current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
           // more type-checking is done at runtime
-          if (!atype.is_nonscalar_array()) {
+          if (!atype.is_reference_array()) {
             verify_error(ErrorContext::bad_type(bci,
                 current_frame.stack_top_ctx(),
                 TypeOrigin::implicit(VerificationType::reference_check())),
@@ -1632,12 +1632,12 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_if_acmpeq :
         case Bytecodes::_if_acmpne :
           current_frame.pop_stack(
-            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+            VerificationType::reference_check(), CHECK_VERIFY(this));
           // fall through
         case Bytecodes::_ifnull :
         case Bytecodes::_ifnonnull :
           current_frame.pop_stack(
-            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+            VerificationType::reference_check(), CHECK_VERIFY(this));
           target = bcs.dest();
           stackmap_table.check_jump_target
             (&current_frame, target, CHECK_VERIFY(this));
@@ -1688,7 +1688,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           no_control_flow = true; break;
         case Bytecodes::_areturn :
           type = current_frame.pop_stack(
-            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+            VerificationType::reference_check(), CHECK_VERIFY(this));
           verify_return_value(return_type, type, bci,
                               &current_frame, CHECK_VERIFY(this));
           no_control_flow = true; break;
@@ -1787,7 +1787,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_monitorenter :
         case Bytecodes::_monitorexit : {
           VerificationType ref = current_frame.pop_stack(
-            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+            VerificationType::reference_check(), CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
         case Bytecodes::_multianewarray :
@@ -3104,7 +3104,7 @@ void ClassVerifier::verify_dload(int index, StackMapFrame* current_frame, TRAPS)
 
 void ClassVerifier::verify_aload(int index, StackMapFrame* current_frame, TRAPS) {
   VerificationType type = current_frame->get_local(
-    index, VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+    index, VerificationType::reference_check(), CHECK_VERIFY(this));
   current_frame->push_stack(type, CHECK_VERIFY(this));
 }
 
@@ -3141,7 +3141,7 @@ void ClassVerifier::verify_dstore(int index, StackMapFrame* current_frame, TRAPS
 
 void ClassVerifier::verify_astore(int index, StackMapFrame* current_frame, TRAPS) {
   VerificationType type = current_frame->pop_stack(
-    VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+    VerificationType::reference_check(), CHECK_VERIFY(this));
   current_frame->set_local(index, type, CHECK_VERIFY(this));
 }
 
