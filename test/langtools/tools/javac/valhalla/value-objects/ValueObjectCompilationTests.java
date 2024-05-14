@@ -536,6 +536,40 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
             }
         }
+
+        // testing experimental @Strict annotation
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {"--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"};
+            setCompileOptions(testOptions);
+            for (String source : List.of(
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict final int i = 0;
+                    }
+                    """
+            )) {
+                File dir = assertOK(true, source);
+                for (final File fileEntry : dir.listFiles()) {
+                    ClassFile classFile = ClassFile.read(fileEntry);
+                    for (Field field : classFile.fields) {
+                        if (!field.access_flags.is(Flags.STATIC)) {
+                            Set<String> fieldFlags = field.access_flags.getFieldFlags();
+                            Assert.check(fieldFlags.contains("ACC_STRICT"));
+                        }
+                    }
+                }
+            }
+        } finally {
+            setCompileOptions(previousOptions);
+        }
     }
 
     @Test
