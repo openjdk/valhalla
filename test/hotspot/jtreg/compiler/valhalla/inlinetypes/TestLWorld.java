@@ -3310,9 +3310,8 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR})
-        // TODO 8326401
-        // counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test113_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -4372,5 +4371,30 @@ public class TestLWorld {
             // Expected
         }
         test160(null);
+    }
+
+    abstract value static class AbstractValueClassSingleSubclass {
+    }
+
+    value static class UniqueValueSubClass extends AbstractValueClassSingleSubclass {
+        int x = 34;
+    }
+
+    static AbstractValueClassSingleSubclass abstractValueClassSingleSubclass = new UniqueValueSubClass();
+
+    @Test
+    public void testUniqueConcreteValueSubKlass(boolean flag) {
+        // C2 should recognize that even though we do not know the exact layout of the underlying inline type of the
+        // abstract field abstractValueClassSingleSubclass (i.e. cannot scalarize), we only have a unique concrete sub
+        // class from which we know at compile time whether it can be scalarized or not. This unique sub class
+        // optimization was missing, resulting in a missing InlineTypeNode assertion failure.
+        doNothing(abstractValueClassSingleSubclass, flag ? 23 : 34);
+    }
+
+    void doNothing(Object a, int i) {}
+
+    @Run(test = "testUniqueConcreteValueSubKlass")
+    public void testUniqueConcreteValueSubKlass_verifier() {
+        testUniqueConcreteValueSubKlass(true);
     }
 }

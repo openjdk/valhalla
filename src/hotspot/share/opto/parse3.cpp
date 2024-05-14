@@ -141,6 +141,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
 
   ciType* field_klass = field->type();
+  field_klass = improve_abstract_inline_type_klass(field_klass);
   int offset = field->offset_in_bytes();
   bool must_assert_null = false;
 
@@ -225,6 +226,23 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
 }
 
+// If the field klass is an abstract value klass (for which we do not know the layout, yet), it could have a unique
+// concrete sub klass for which we have a fixed layout. This allows us to use InlineTypeNodes instead.
+ciType* Parse::improve_abstract_inline_type_klass(ciType* field_klass) {
+  Dependencies* dependencies = C->dependencies();
+  if (UseUniqueSubclasses && dependencies != nullptr && field_klass->is_instance_klass()) {
+    ciInstanceKlass* instance_klass = field_klass->as_instance_klass();
+    if (instance_klass->is_loaded() && instance_klass->is_abstract_value_klass()) {
+      ciInstanceKlass* sub_klass = instance_klass->unique_concrete_subklass();
+      if (sub_klass != nullptr && sub_klass != field_klass) {
+        field_klass = sub_klass;
+        dependencies->assert_abstract_with_unique_concrete_subtype(instance_klass, sub_klass);
+      }
+    }
+  }
+  return field_klass;
+}
+
 void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   bool is_vol = field->is_volatile();
   int offset = field->offset_in_bytes();
@@ -249,8 +267,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     if (field->is_null_free()) {
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      int nargs = 1 + field->type()->size();
-      inc_sp(nargs);
+      inc_sp(1);
       val = null_check(val);
       if (stopped()) {
         return;
@@ -264,8 +281,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       // Re-execute if buffering triggers deoptimization.
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      int nargs = 1 + field->type()->size();
-      inc_sp(nargs);
+      inc_sp(1);
       val = val->as_InlineType()->buffer(this);
     }
 
@@ -275,8 +291,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     {
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      int nargs = 1 + field->type()->size();
-      inc_sp(nargs);
+      inc_sp(1);
       new_vt = new_vt->adjust_scalarization_depth(this);
     }
 

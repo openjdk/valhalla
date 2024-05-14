@@ -334,6 +334,11 @@ public class Flags {
     public static final long VALUE_BASED = 1L<<53; //ClassSymbols only
 
     /**
+     * Flag to indicate the given ClassSymbol is a value based.
+     */
+    public static final long MIGRATED_VALUE_CLASS = 1L<<57; //ClassSymbols only
+
+    /**
      * Flag to indicate the given symbol has a @Deprecated annotation.
      */
     public static final long DEPRECATED_ANNOTATION = 1L<<54;
@@ -413,7 +418,7 @@ public class Flags {
     /**
      * Flag to indicate that a field is strict
      */
-    public static final long STRICT = 1L<<51; // VarSymbols
+    public static final long STRICT = 1L<<53; // VarSymbols
 
     /**
      * Describe modifier flags as they might appear in source code, i.e.,

@@ -85,10 +85,14 @@ inline void Mapper<CON>::map_field_info(const FieldInfo& fi) {
     if (fi.field_flags().is_contended()) {
       _consumer->accept_uint(fi.contention_group());
     }
+    if (fi.field_flags().has_null_marker()) {
+      _consumer->accept_uint(fi.null_marker_offset());
+    }
   } else {
     assert(fi.initializer_index() == 0, "");
     assert(fi.generic_signature_index() == 0, "");
     assert(fi.contention_group() == 0, "");
+    assert(fi.null_marker_offset() == 0, "");
   }
 }
 
@@ -119,6 +123,11 @@ inline void FieldInfoReader::read_field_info(FieldInfo& fi) {
   } else {
     fi._contention_group = 0;
   }
+  if (fi._field_flags.has_null_marker()) {
+    fi._null_marker_offset = next_uint();
+  } else {
+    fi._null_marker_offset = 0;
+  }
 }
 
 inline FieldInfoReader&  FieldInfoReader::skip_field_info() {
@@ -129,7 +138,8 @@ inline FieldInfoReader&  FieldInfoReader::skip_field_info() {
   if (ff.has_any_optionals()) {
     const int init_gen_cont = (ff.is_initialized() +
                                 ff.is_generic() +
-                                ff.is_contended());
+                                ff.is_contended() +
+                                ff.has_null_marker());
     skip(init_gen_cont);  // up to three items
   }
   return *this;

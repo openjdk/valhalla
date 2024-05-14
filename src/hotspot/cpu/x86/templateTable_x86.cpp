@@ -184,7 +184,7 @@ void TemplateTable::patch_bytecode(Bytecodes::Code bc, Register bc_reg,
   Label L_patch_done;
 
   switch (bc) {
-  case Bytecodes::_fast_qputfield:
+  case Bytecodes::_fast_vputfield:
   case Bytecodes::_fast_aputfield:
   case Bytecodes::_fast_bputfield:
   case Bytecodes::_fast_zputfield:
@@ -3194,8 +3194,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         __ push(atos);
         __ jmp(Done);
     } else {
-      Label is_flat, nonnull, is_inline_type, rewrite_inline;
+      Label is_flat, nonnull, is_inline_type, rewrite_inline, has_null_marker;
       __ test_field_is_null_free_inline_type(flags, rscratch1, is_inline_type);
+      __ test_field_has_null_marker(flags, rscratch1, has_null_marker);
       // field is not a null free inline type
       pop_and_check_object(obj);
       __ load_heap_oop(rax, field);
@@ -3221,14 +3222,21 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(rewrite_inline);
         __ bind(is_flat);
           pop_and_check_object(rax);
-          __ load_unsigned_short(flags, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
+          __ load_unsigned_short(rdx, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
           __ movptr(rcx, Address(cache, ResolvedFieldEntry::field_holder_offset()));
-          __ read_flat_field(rcx, flags, rbx, rax);
+          __ read_flat_field(rcx, rdx, rbx, rax);
           __ verify_oop(rax);
           __ push(atos);
+          __ jmp(rewrite_inline);
+      __ bind(has_null_marker);
+        pop_and_check_object(rax);
+        __ load_field_entry(rcx, rbx);
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_nullable_flat_field), rax, rcx);
+        __ get_vm_result(rax, r15_thread);
+        __ push(atos);
       __ bind(rewrite_inline);
       if (rc == may_rewrite) {
-        patch_bytecode(Bytecodes::_fast_qgetfield, bc, rbx);
+        patch_bytecode(Bytecodes::_fast_vgetfield, bc, rbx);
       }
         __ jmp(Done);
     }
@@ -3515,37 +3523,44 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
         do_oop_store(_masm, field, rax);
         __ jmp(Done);
       } else {
-        Label is_inline_type, is_flat, rewrite_not_inline, rewrite_inline;
-        __ test_field_is_null_free_inline_type(flags, rscratch1, is_inline_type);
-        // Not an inline type
-        pop_and_check_object(obj);
-        // Store into the field
-        do_oop_store(_masm, field, rax);
-        __ bind(rewrite_not_inline);
-        if (rc == may_rewrite) {
-          patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
-        }
-        __ jmp(Done);
+        Label is_null_free_inline_type, is_flat, has_null_marker,
+              write_null, rewrite_not_inline, rewrite_inline;
+        __ test_field_is_null_free_inline_type(flags, rscratch1, is_null_free_inline_type);
+        __ test_field_has_null_marker(flags, rscratch1, has_null_marker);
+          // Not an inline type
+          pop_and_check_object(obj);
+          // Store into the field
+          do_oop_store(_masm, field, rax);
+          __ bind(rewrite_not_inline);
+          if (rc == may_rewrite) {
+            patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
+          }
+          __ jmp(Done);
         // Implementation of the inline type semantic
-        __ bind(is_inline_type);
-        __ null_check(rax);
-        __ test_field_is_flat(flags, rscratch1, is_flat);
-        // field is not flat
-        pop_and_check_object(obj);
-        // Store into the field
-        do_oop_store(_masm, field, rax);
-        __ jmp(rewrite_inline);
-        __ bind(is_flat);
-        // field is flat
-        pop_and_check_object(obj);
-        assert_different_registers(rax, rdx, obj, off);
-        __ load_klass(rdx, rax, rscratch1);
-        __ data_for_oop(rax, rax, rdx);
-        __ addptr(obj, off);
-        __ access_value_copy(IN_HEAP, rax, obj, rdx);
+        __ bind(is_null_free_inline_type);
+          __ null_check(rax);
+          __ test_field_is_flat(flags, rscratch1, is_flat);
+            // field is not flat
+            pop_and_check_object(obj);
+            // Store into the field
+            do_oop_store(_masm, field, rax);
+          __ jmp(rewrite_inline);
+          __ bind(is_flat);
+            // field is flat
+            pop_and_check_object(obj);
+            assert_different_registers(rax, rdx, obj, off);
+            __ load_klass(rdx, rax, rscratch1);
+            __ data_for_oop(rax, rax, rdx);
+            __ addptr(obj, off);
+            __ access_value_copy(IN_HEAP, rax, obj, rdx);
+            __ jmp(rewrite_inline);
+        __ bind(has_null_marker); // has null marker means the field is flat with a null marker
+          pop_and_check_object(rbx);
+          __ load_field_entry(rcx, rdx);
+          call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_nullable_flat_field), rbx, rax, rcx);
         __ bind(rewrite_inline);
         if (rc == may_rewrite) {
-          patch_bytecode(Bytecodes::_fast_qputfield, bc, rbx, true, byte_no);
+          patch_bytecode(Bytecodes::_fast_vputfield, bc, rbx, true, byte_no);
         }
         __ jmp(Done);
       }
@@ -3688,7 +3703,7 @@ void TemplateTable::jvmti_post_fast_field_mod() {
     // to do it for every data type, we use the saved values as the
     // jvalue object.
     switch (bytecode()) {          // load values into the jvalue object
-    case Bytecodes::_fast_qputfield: //fall through
+    case Bytecodes::_fast_vputfield: //fall through
     case Bytecodes::_fast_aputfield: __ push_ptr(rax); break;
     case Bytecodes::_fast_bputfield: // fall through
     case Bytecodes::_fast_zputfield: // fall through
@@ -3714,7 +3729,7 @@ void TemplateTable::jvmti_post_fast_field_mod() {
     NOT_LP64(__ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::post_field_modification), rbx, rax, rcx));
 
     switch (bytecode()) {             // restore tos values
-    case Bytecodes::_fast_qputfield: // fall through
+    case Bytecodes::_fast_vputfield: // fall through
     case Bytecodes::_fast_aputfield: __ pop_ptr(rax); break;
     case Bytecodes::_fast_bputfield: // fall through
     case Bytecodes::_fast_zputfield: // fall through
@@ -3733,15 +3748,13 @@ void TemplateTable::jvmti_post_fast_field_mod() {
 void TemplateTable::fast_storefield(TosState state) {
   transition(state, vtos);
 
-  Register cache = rcx;
-
   Label notVolatile, Done;
 
   jvmti_post_fast_field_mod();
 
   __ push(rax);
   __ load_field_entry(rcx, rax);
-  load_resolved_field_entry(noreg, cache, rax, rbx, rdx);
+  load_resolved_field_entry(noreg, rcx, rax, rbx, rdx);
   __ pop(rax);
   // RBX: field offset, RCX: RAX: TOS, RDX: flags
 
@@ -3770,22 +3783,31 @@ void TemplateTable::fast_storefield(TosState state) {
 
 void TemplateTable::fast_storefield_helper(Address field, Register rax, Register flags) {
 
+  // DANGER: 'field' argument depends on rcx and rbx
+
   // access field
   switch (bytecode()) {
-  case Bytecodes::_fast_qputfield:
+  case Bytecodes::_fast_vputfield:
     {
-      Label is_flat, done;
+      Label is_flat, has_null_marker, write_null, done;
+      __ test_field_has_null_marker(flags, rscratch1, has_null_marker);
+      // Null free field cases: flat or not flat
       __ null_check(rax);
       __ test_field_is_flat(flags, rscratch1, is_flat);
-      // field is not flat
-      do_oop_store(_masm, field, rax);
-      __ jmp(done);
+        // field is not flat
+        do_oop_store(_masm, field, rax);
+        __ jmp(done);
       __ bind(is_flat);
-      // field is flat
-      __ load_klass(rdx, rax, rscratch1);
-      __ data_for_oop(rax, rax, rdx);
-      __ lea(rcx, field);
-      __ access_value_copy(IN_HEAP, rax, rcx, rdx);
+        // field is flat
+        __ load_klass(rdx, rax, rscratch1);
+        __ data_for_oop(rax, rax, rdx);
+        __ lea(rcx, field);
+        __ access_value_copy(IN_HEAP, rax, rcx, rdx);
+        __ jmp(done);
+      __ bind(has_null_marker); // has null marker means the field is flat with a null marker
+        __ movptr(rbx, rcx);
+        __ load_field_entry(rcx, rdx);
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_nullable_flat_field), rbx, rax, rcx);
       __ bind(done);
     }
     break;
@@ -3863,10 +3885,11 @@ void TemplateTable::fast_accessfield(TosState state) {
 
   // access field
   switch (bytecode()) {
-  case Bytecodes::_fast_qgetfield:
+  case Bytecodes::_fast_vgetfield:
     {
-      Label is_flat, nonnull, Done;
+      Label is_flat, nonnull, Done, has_null_marker;
       __ load_unsigned_byte(rscratch1, Address(rcx, in_bytes(ResolvedFieldEntry::flags_offset())));
+      __ test_field_has_null_marker(rscratch1, rscratch2, has_null_marker);
       __ test_field_is_flat(rscratch1, rscratch2, is_flat);
         // field is not flat
         __ load_heap_oop(rax, field);
@@ -3886,6 +3909,11 @@ void TemplateTable::fast_accessfield(TosState state) {
         __ movptr(rcx, Address(rcx, ResolvedFieldEntry::field_holder_offset()));
         __ pop(rbx); // restore offset
         __ read_flat_field(rcx, rdx, rbx, rax);
+        __ jmp(Done);
+      __ bind(has_null_marker);
+        // rax = instance, rcx = resolved entry
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_nullable_flat_field), rax, rcx);
+        __ get_vm_result(rax, r15_thread);
       __ bind(Done);
       __ verify_oop(rax);
     }
@@ -4339,9 +4367,14 @@ void TemplateTable::_new() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  // make sure klass is initialized & doesn't have finalizer
+  // make sure klass is initialized
+#ifdef _LP64
+  assert(VM_Version::supports_fast_class_init_checks(), "must support fast class initialization checks");
+  __ clinit_barrier(rcx, r15_thread, nullptr /*L_fast_path*/, &slow_case);
+#else
   __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
   __ jcc(Assembler::notEqual, slow_case);
+#endif
 
   __ allocate_instance(rcx, rax, rdx, rbx, true, slow_case);
   __ jmp(done);

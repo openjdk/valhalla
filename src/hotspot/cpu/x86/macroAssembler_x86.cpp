@@ -1882,92 +1882,6 @@ void MacroAssembler::cmpoop(Register src1, jobject src2, Register rscratch) {
 }
 #endif
 
-void MacroAssembler::cvtss2sd(XMMRegister dst, XMMRegister src) {
-  if ((UseAVX > 0) && (dst != src)) {
-    xorpd(dst, dst);
-  }
-  Assembler::cvtss2sd(dst, src);
-}
-
-void MacroAssembler::cvtss2sd(XMMRegister dst, Address src) {
-  if (UseAVX > 0) {
-    xorpd(dst, dst);
-  }
-  Assembler::cvtss2sd(dst, src);
-}
-
-void MacroAssembler::cvtsd2ss(XMMRegister dst, XMMRegister src) {
-  if ((UseAVX > 0) && (dst != src)) {
-    xorps(dst, dst);
-  }
-  Assembler::cvtsd2ss(dst, src);
-}
-
-void MacroAssembler::cvtsd2ss(XMMRegister dst, Address src) {
-  if (UseAVX > 0) {
-    xorps(dst, dst);
-  }
-  Assembler::cvtsd2ss(dst, src);
-}
-
-void MacroAssembler::cvtsi2sdl(XMMRegister dst, Register src) {
-  if (UseAVX > 0) {
-    xorpd(dst, dst);
-  }
-  Assembler::cvtsi2sdl(dst, src);
-}
-
-void MacroAssembler::cvtsi2sdl(XMMRegister dst, Address src) {
-  if (UseAVX > 0) {
-    xorpd(dst, dst);
-  }
-  Assembler::cvtsi2sdl(dst, src);
-}
-
-void MacroAssembler::cvtsi2ssl(XMMRegister dst, Register src) {
-  if (UseAVX > 0) {
-    xorps(dst, dst);
-  }
-  Assembler::cvtsi2ssl(dst, src);
-}
-
-void MacroAssembler::cvtsi2ssl(XMMRegister dst, Address src) {
-  if (UseAVX > 0) {
-    xorps(dst, dst);
-  }
-  Assembler::cvtsi2ssl(dst, src);
-}
-
-#ifdef _LP64
-void MacroAssembler::cvtsi2sdq(XMMRegister dst, Register src) {
-  if (UseAVX > 0) {
-    xorpd(dst, dst);
-  }
-  Assembler::cvtsi2sdq(dst, src);
-}
-
-void MacroAssembler::cvtsi2sdq(XMMRegister dst, Address src) {
-  if (UseAVX > 0) {
-    xorpd(dst, dst);
-  }
-  Assembler::cvtsi2sdq(dst, src);
-}
-
-void MacroAssembler::cvtsi2ssq(XMMRegister dst, Register src) {
-  if (UseAVX > 0) {
-    xorps(dst, dst);
-  }
-  Assembler::cvtsi2ssq(dst, src);
-}
-
-void MacroAssembler::cvtsi2ssq(XMMRegister dst, Address src) {
-  if (UseAVX > 0) {
-    xorps(dst, dst);
-  }
-  Assembler::cvtsi2ssq(dst, src);
-}
-#endif  // _LP64
-
 void MacroAssembler::locked_cmpxchgptr(Register reg, AddressLiteral adr, Register rscratch) {
   assert(rscratch != noreg || always_reachable(adr), "missing");
 
@@ -2665,7 +2579,9 @@ void MacroAssembler::movptr(Register dst, Address src) {
 // src should NEVER be a real pointer. Use AddressLiteral for true pointers
 void MacroAssembler::movptr(Register dst, intptr_t src) {
 #ifdef _LP64
-  if (is_simm32(src)) {
+  if (is_uimm32(src)) {
+    movl(dst, checked_cast<uint32_t>(src));
+  } else if (is_simm32(src)) {
     movq(dst, checked_cast<int32_t>(src));
   } else {
     mov64(dst, src);
@@ -3018,6 +2934,12 @@ void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label
   jcc(Assembler::notEqual, is_flat);
 }
 
+void MacroAssembler::test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker) {
+  movl(temp_reg, flags);
+  testl(temp_reg, 1 << ResolvedFieldEntry::has_null_marker_shift);
+  jcc(Assembler::notEqual, has_null_marker);
+}
+
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
   Label test_mark_word;
   // load mark word
@@ -3061,9 +2983,7 @@ void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, L
 #ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
 #else
-  load_klass(temp_reg, oop, noreg);
-  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
-  test_null_free_array_layout(temp_reg, is_null_free_array);
+  Unimplemented();
 #endif
 }
 
@@ -3071,9 +2991,7 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
 #ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
 #else
-  load_klass(temp_reg, oop, noreg);
-  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
-  test_non_null_free_array_layout(temp_reg, is_non_null_free_array);
+  Unimplemented();
 #endif
 }
 
@@ -3086,17 +3004,6 @@ void MacroAssembler::test_non_flat_array_layout(Register lh, Label& is_non_flat_
   testl(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
   jcc(Assembler::zero, is_non_flat_array);
 }
-
-void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
-  testl(lh, Klass::_lh_null_free_array_bit_inplace);
-  jcc(Assembler::notZero, is_null_free_array);
-}
-
-void MacroAssembler::test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array) {
-  testl(lh, Klass::_lh_null_free_array_bit_inplace);
-  jcc(Assembler::zero, is_non_null_free_array);
-}
-
 
 void MacroAssembler::os_breakpoint() {
   // instead of directly emitting a breakpoint, call os:breakpoint for better debugability

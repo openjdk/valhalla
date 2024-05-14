@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -416,8 +416,11 @@ class Parse : public GraphKit {
   void set_block(Block* b)            { _block = b; }
 
   // Derived accessors:
-  bool is_normal_parse() const  { return _entry_bci == InvocationEntryBci; }
-  bool is_osr_parse() const     { return _entry_bci != InvocationEntryBci; }
+  bool is_osr_parse() const {
+    assert(_entry_bci != UnknownBci, "uninitialized _entry_bci");
+    return _entry_bci != InvocationEntryBci;
+  }
+  bool is_normal_parse() const  { return !is_osr_parse(); }
   int osr_bci() const           { assert(is_osr_parse(),""); return _entry_bci; }
 
   void set_parse_bci(int bci);
@@ -547,6 +550,8 @@ class Parse : public GraphKit {
   void do_get_xxx(Node* obj, ciField* field);
   void do_put_xxx(Node* obj, ciField* field, bool is_field);
 
+  ciType* improve_abstract_inline_type_klass(ciType* field_klass);
+
   // implementation of object creation bytecodes
   void do_new();
   void do_newarray(BasicType elemtype);
@@ -562,7 +567,6 @@ class Parse : public GraphKit {
   float   branch_prediction(float &cnt, BoolTest::mask btest, int target_bci, Node* test);
   bool    seems_never_taken(float prob) const;
   bool    path_is_suitable_for_uncommon_trap(float prob) const;
-  bool    seems_stable_comparison() const;
 
   void    do_ifnull(BoolTest::mask btest, Node* c);
   void    do_if(BoolTest::mask btest, Node* c, bool can_trap = true, bool new_path = false, Node** ctrl_taken = nullptr);

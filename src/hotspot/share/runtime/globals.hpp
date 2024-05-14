@@ -546,10 +546,17 @@ const int ObjectAlignmentInBytes = 8;
           "thrown from JVM")                                                \
                                                                             \
   product(bool, HeapDumpBeforeFullGC, false, MANAGEABLE,                    \
-          "Dump heap to file before any major stop-the-world GC")           \
+          "Dump heap to file before any major stop-the-world GC "           \
+          "(also see FullGCHeapDumpLimit)")                                 \
                                                                             \
   product(bool, HeapDumpAfterFullGC, false, MANAGEABLE,                     \
-          "Dump heap to file after any major stop-the-world GC")            \
+          "Dump heap to file after any major stop-the-world GC "            \
+          "(also see FullGCHeapDumpLimit)")                                 \
+                                                                            \
+  product(uint, FullGCHeapDumpLimit, 0, MANAGEABLE,                         \
+          "Limit the number of heap dumps triggered by "                    \
+          "HeapDumpBeforeFullGC or HeapDumpAfterFullGC "                    \
+          "(0 means no limit)")                                             \
                                                                             \
   product(bool, HeapDumpOnOutOfMemoryError, false, MANAGEABLE,              \
           "Dump heap to file when java.lang.OutOfMemoryError is thrown "    \
@@ -806,11 +813,11 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseXMMForArrayCopy, false,                                  \
           "Use SSE2 MOVQ instruction for Arraycopy")                        \
                                                                             \
-  notproduct(bool, PrintFieldLayout, false,                                 \
+  product(bool, PrintFieldLayout, false, DIAGNOSTIC,                        \
           "Print field layout for each class")                              \
                                                                             \
-  notproduct(bool, PrintInlineLayout, false,                                \
-          "Print field layout for each inline type")                        \
+  product(bool, PrintInlineLayout, false, DIAGNOSTIC,                       \
+          "Print field layout for each inline type or class with inline fields") \
                                                                             \
   notproduct(bool, PrintFlatArrayLayout, false,                             \
           "Print array layout for each inline type array")                  \
@@ -820,6 +827,9 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(intx, InlineFieldMaxFlatSize, 128,                                \
           "Max size for flattening inline type fields, <0 no limit")        \
+                                                                            \
+  develop(bool, EnableNullableFieldFlattening, false,                       \
+          "Allow the JVM to flatten some nullable fields")                  \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
@@ -887,9 +897,6 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   develop(bool, TraceBytecodes, false,                                      \
           "Trace bytecode execution")                                       \
-                                                                            \
-  develop(bool, TraceICs, false,                                            \
-          "Trace inline cache changes")                                     \
                                                                             \
   notproduct(bool, TraceInvocationCounterOverflow, false,                   \
           "Trace method invocation counter overflow")                       \
@@ -2004,9 +2011,6 @@ const int ObjectAlignmentInBytes = 8;
   develop(bool, StressCallingConvention, false,                             \
           "Stress the scalarized calling convention.")                      \
                                                                             \
-  product(bool, UseArrayMarkWordCheck, NOT_LP64(false) LP64_ONLY(true),     \
-          "Use bits in the mark word to check for flat/null-free arrays")   \
-                                                                            \
   product(ccstrlist, ForceNonTearable, "", DIAGNOSTIC,                      \
           "List of inline classes which are forced to be atomic "           \
           "(whitespace and commas separate names, "                         \
@@ -2043,6 +2047,11 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(bool, ProfileExceptionHandlers, true,                             \
           "Profile exception handlers")                                     \
+                                                                            \
+  product(bool, AlwaysRecordEvolDependencies, true, EXPERIMENTAL,           \
+                "Unconditionally record nmethod dependencies on class "     \
+                "rewriting/transformation independently of the JVMTI "      \
+                "can_{retransform/redefine}_classes capabilities.")         \
 
 // end of RUNTIME_FLAGS
 

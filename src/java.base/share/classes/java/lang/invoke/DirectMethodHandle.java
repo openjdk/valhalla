@@ -962,9 +962,9 @@ sealed class DirectMethodHandle extends MethodHandle {
                 case NF_checkReceiver:
                     member = new MemberName(DirectMethodHandle.class, "checkReceiver", OBJ_OBJ_TYPE, REF_invokeVirtual);
                     return new NamedFunction(
-                        MemberName.getFactory().resolveOrFail(REF_invokeVirtual, member,
-                                                              DirectMethodHandle.class, LM_TRUSTED,
-                                                              NoSuchMethodException.class));
+                            MemberName.getFactory().resolveOrFail(REF_invokeVirtual, member,
+                                                                  DirectMethodHandle.class, LM_TRUSTED,
+                                                                  NoSuchMethodException.class));
                 case NF_fieldType:
                     return getNamedFunction("fieldType", CLS_OBJ_TYPE);
                 case NF_staticFieldType:

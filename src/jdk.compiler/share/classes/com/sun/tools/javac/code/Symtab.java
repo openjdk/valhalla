@@ -163,6 +163,7 @@ public class Symtab {
      */
     public final Type objectType;
     public final Type objectMethodsType;
+    public final Type exactConversionsSupportType;
     public final Type objectsType;
     public final Type classType;
     public final Type classLoaderType;
@@ -225,8 +226,6 @@ public class Symtab {
     public final Type recordType;
     public final Type switchBootstrapsType;
     public final Type constantBootstrapsType;
-    public final Type valueBasedType;
-    public final Type valueBasedInternalType;
     public final Type classDescType;
     public final Type enumDescType;
 
@@ -246,6 +245,13 @@ public class Symtab {
     public final Type templateRuntimeType;
     public final Type processorType;
     public final Type linkageType;
+
+    // valhalla
+    public final Type valueBasedType;
+    public final Type valueBasedInternalType;
+    public final Type migratedValueClassType;
+    public final Type migratedValueClassInternalType;
+    public final Type strictType;
 
     /** The symbol representing the length field of an array.
      */
@@ -545,6 +551,7 @@ public class Symtab {
         // Enter predefined classes. All are assumed to be in the java.base module.
         objectType = enterClass("java.lang.Object");
         objectMethodsType = enterClass("java.lang.runtime.ObjectMethods");
+        exactConversionsSupportType = enterClass("java.lang.runtime.ExactConversionsSupport");
         objectsType = enterClass("java.util.Objects");
         classType = enterClass("java.lang.Class");
         stringType = enterClass("java.lang.String");
@@ -618,6 +625,9 @@ public class Symtab {
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
+        strictType = enterSyntheticAnnotation("jdk.internal.vm.annotation.Strict");
+        migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
+        migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         classDescType = enterClass("java.lang.constant.ClassDesc");
         enumDescType = enterClass("java.lang.Enum$EnumDesc");
         // For serialization lint checking

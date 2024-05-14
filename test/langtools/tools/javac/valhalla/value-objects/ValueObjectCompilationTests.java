@@ -308,6 +308,59 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
+        assertFail("compiler.err.type.found.req", // --enable-preview -source"
+                """
+                class V {
+                    final Integer val = Integer.valueOf(42);
+                    void test() {
+                        synchronized (val) { // error
+                        }
+                    }
+                }
+                """);
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions(new String[] {});
+            assertOKWithWarning("compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class", // empty options
+                    """
+                    class V {
+                        final Integer val = Integer.valueOf(42);
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """);
+            setCompileOptions(new String[] {"--source",
+                    Integer.toString(Runtime.version().feature())});
+            assertOKWithWarning("compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class", // --source
+                    """
+                    class V {
+                        final Integer val = Integer.valueOf(42);
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """);
+            setCompileOptions(new String[] {"--enable-preview", "--source",
+                    Integer.toString(Runtime.version().feature())});
+            assertFail("compiler.err.type.found.req", // --enable-preview --source
+                    """
+                    class V {
+                        final Integer val = Integer.valueOf(42);
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """);
+            /* we should add tests for --release and --release --enable-preview once the stubs used for the latest
+             * release have been updated, right now they are the same as those for 22
+             */
+        } finally {
+            setCompileOptions(previousOptions);
+        }
     }
 
     @Test
@@ -482,6 +535,40 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
             }
+        }
+
+        // testing experimental @Strict annotation
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {"--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"};
+            setCompileOptions(testOptions);
+            for (String source : List.of(
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict final int i = 0;
+                    }
+                    """
+            )) {
+                File dir = assertOK(true, source);
+                for (final File fileEntry : dir.listFiles()) {
+                    ClassFile classFile = ClassFile.read(fileEntry);
+                    for (Field field : classFile.fields) {
+                        if (!field.access_flags.is(Flags.STATIC)) {
+                            Set<String> fieldFlags = field.access_flags.getFieldFlags();
+                            Assert.check(fieldFlags.contains("ACC_STRICT"));
+                        }
+                    }
+                }
+            }
+        } finally {
+            setCompileOptions(previousOptions);
         }
     }
 

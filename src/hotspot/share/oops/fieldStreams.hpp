@@ -127,6 +127,10 @@ class FieldStreamBase : public StackObj {
     return field()->contended_group();
   }
 
+  int null_marker_offset() const {
+    return field()->null_marker_offset();
+  }
+
   // Convenient methods
 
   FieldInfo to_FieldInfo() {
