@@ -2622,9 +2622,9 @@ public class TestNullableInlineTypes {
     // Test that calling convention optimization prevents buffering of arguments
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not cached)
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not cached)
+        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     public MyValue1 test94(MyValue1 vt) {
         MyValue1 res = test94_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -2658,9 +2658,9 @@ public class TestNullableInlineTypes {
     // Same as test94 but with static methods to trigger simple adapter logic
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not cached)
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not cached)
+        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     public static MyValue1 test95(MyValue1 vt) {
         MyValue1 res = test95_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
