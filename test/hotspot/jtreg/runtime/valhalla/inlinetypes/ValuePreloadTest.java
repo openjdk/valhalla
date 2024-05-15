@@ -26,7 +26,7 @@
  * @library /test/lib
  * @enablePreview
  * @compile ValuePreloadClient0.java PreloadValue0.java ValuePreloadClient1.jcod
- * @run driver ValuePreloadTest
+ * @run main ValuePreloadTest
  */
 
 import java.util.ArrayList;
