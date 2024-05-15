@@ -1057,7 +1057,7 @@ public class TestUnloadedInlineTypeField {
 
     @Run(test = "test27")
     public void test27_verifier() {
-        Asserts.assertEQ(test27(), 0);
+        Asserts.assertEQ(test27(), rI);
     }
 
     @ImplicitlyConstructible
