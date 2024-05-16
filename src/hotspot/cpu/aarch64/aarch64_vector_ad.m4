@@ -221,8 +221,9 @@ source %{
         // Only the Neon instructions need this check. SVE supports half-precision floats
         // by default.
         if (UseSVE > 0 || (VM_Version::supports_fphp() && VM_Version::supports_asimdhp())) {
-        break;
-      }
+          break;
+        }
+        return false;
       default:
         break;
     }
