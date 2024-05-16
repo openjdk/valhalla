@@ -1037,7 +1037,7 @@ public class TestUnloadedInlineTypeField {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue27 {
-        int foo = rI;
+        int foo = 42;
     }
 
     static class MyValue27Holder {
@@ -1057,7 +1057,7 @@ public class TestUnloadedInlineTypeField {
 
     @Run(test = "test27")
     public void test27_verifier() {
-        Asserts.assertEQ(test27(), 0);
+        Asserts.assertEQ(test27(), 42);
     }
 
     @ImplicitlyConstructible
