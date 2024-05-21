@@ -309,6 +309,26 @@ public class FieldLayoutAnalyzer {
     return null;
   }
 
+  void checkOffsetOnFields(ArrayList<FieldBlock> fields) {
+    HashMap<Integer, FieldBlock> map = new HashMap<Integer, FieldBlock>();
+    for (FieldBlock fb : fields) {
+      Asserts.assertFalse(map.containsKey(fb.offset()), "Duplicate offset at " + fb.offset());
+      map.put(fb.offset(), fb);
+    }
+  }
+
+  void checkOffsets() {
+    for (ClassLayout layout : layouts) {
+      try {
+        checkOffsetOnFields(layout.staticFields);
+        checkOffsetOnFields(layout.nonStaticFields);
+      } catch(Throwable t) {
+        System.out.println("Unexpection exception when checking offsets in class " + layout.name);
+        throw t;
+      }
+    }
+  }
+
   void checkNoOverlapOnFields(ArrayList<FieldBlock> fields) {
     for (int i = 0; i < fields.size() - 1; i++) {
       FieldBlock f0 = fields.get(i);
@@ -322,19 +342,19 @@ public class FieldLayoutAnalyzer {
   }
 
   void checkNoOverlap() {
-    System.out.println("Checking for overlap");
     for (ClassLayout layout : layouts) {
-      System.out.println("\t" + layout.name);
       try {
         checkNoOverlapOnFields(layout.staticFields);
         checkNoOverlapOnFields(layout.nonStaticFields);
       } catch(Throwable t) {
-        throw new RuntimeException("Unexpection exception when checking for overlaps/holes in class " + layout.name);
+        System.out.println("Unexpection exception when checking for overlaps/holes in class " + layout.name);
+        throw t;
       }
     }
   }
 
   void checkSizeAndAlignmentForField(FieldBlock block) {
+    Asserts.assertTrue(block.size() > 0);
     if (block.type == BlockType.RESERVED) {
       Asserts.assertTrue(block.alignment == -1);
       return;
@@ -386,49 +406,59 @@ public class FieldLayoutAnalyzer {
   }
 
   void checkSizeAndAlignment() {
-    System.out.println("Checking size and alignment");
     for (ClassLayout layout : layouts) {
-      System.out.println("\t" + layout.name);
-      for (FieldBlock block : layout.staticFields) {
-        checkSizeAndAlignmentForField(block);
+      try {
+        for (FieldBlock block : layout.staticFields) {
+          checkSizeAndAlignmentForField(block);
+        }
+      } catch(Throwable t) {
+        System.out.println("Unexpected exception when checking size and alignment in static fields of class " + layout.name);
+        throw t;
       }
-      for (FieldBlock block : layout.nonStaticFields) {
-        checkSizeAndAlignmentForField(block);
+      try {
+        for (FieldBlock block : layout.nonStaticFields) {
+          checkSizeAndAlignmentForField(block);
+        }
+      } catch(Throwable t) {
+        System.out.println("Unexpected exception when checking size and alignment in non-static fields of class " + layout.name);
+        throw t;
       }
     }
   }
 
   // Verify that fields marked as INHERITED are declared in a super class
   void checkInheritedFields() {
-    System.out.println("Checking Inherited Fields");
     for (ClassLayout layout : layouts) {
-      System.out.println("\t" + layout.name);
-      // Preparing the list of ClassLayout of super classes
-      ArrayList<ClassLayout> supers = new ArrayList<ClassLayout>();
-      String className = layout.superName;
-      while (className != null) {
-        ClassLayout cl = getClassLayout(className);
-        supers.add(cl);
-        className = cl.superName;
-      }
-      for (FieldBlock field : layout.nonStaticFields) {
-        if (field.type == BlockType.INHERITED) {
-          int i = 0;
-          boolean found = false;
-          FieldBlock b = null;
-          while(i < supers.size() && !found) {
-            b = supers.get(i).getFieldAtOffset(field.offset, false);
-            if (b.type != BlockType.INHERITED) found = true;
-            i++;
-          }
-          String location = new String(" at " + layout.name + " offset " + field.offset());
-          Asserts.assertTrue(found, "No declaration found for an inherited field " + location);
-          Asserts.assertNotEquals(field.type, BlockType.EMPTY, location);
-          Asserts.assertEquals(field.size, b.size, location);
-          Asserts.assertEquals(field.alignment, b.alignment, location );
-          Asserts.assertEquals(field.name(), b.name(), location);
-          Asserts.assertEquals(field.signature(), b.signature(), location);
+      try {
+        // Preparing the list of ClassLayout of super classes
+        ArrayList<ClassLayout> supers = new ArrayList<ClassLayout>();
+        String className = layout.superName;
+        while (className != null) {
+          ClassLayout cl = getClassLayout(className);
+          supers.add(cl);
+          className = cl.superName;
         }
+        for (FieldBlock field : layout.nonStaticFields) {
+          if (field.type == BlockType.INHERITED) {
+            int i = 0;
+            boolean found = false;
+            FieldBlock b = null;
+            while(i < supers.size() && !found) {
+              b = supers.get(i).getFieldAtOffset(field.offset, false);
+              if (b.type != BlockType.INHERITED) found = true;
+              i++;
+            }
+            String location = new String(" at " + layout.name + " offset " + field.offset());
+            Asserts.assertTrue(found, "No declaration found for an inherited field " + location);
+            Asserts.assertNotEquals(field.type, BlockType.EMPTY, location);
+            Asserts.assertEquals(field.size, b.size, location);
+            Asserts.assertEquals(field.alignment, b.alignment, location );
+            Asserts.assertEquals(field.name(), b.name(), location);
+            Asserts.assertEquals(field.signature(), b.signature(), location);
+          }
+        }
+      } catch(Throwable t) {
+        System.out.println("Unexpexted exception when checking inherited fields in class " + layout.name);
       }
     }
   }
@@ -441,42 +471,50 @@ public class FieldLayoutAnalyzer {
 
   // Verify that all fields declared in a class are present in all subclass
   void checkSubClasses() {
-    System.out.println("Checking sub-classes");
     // Generating the class inheritance graph
     HashMap<String, Node> nodes = new HashMap<String, Node>();
     for (ClassLayout layout : layouts) {
-      if (layout.name.contains("$$Lambda@0")) continue; // Skipping lambda classes
-      Node current = nodes.get(layout.name);
-      if (current == null) {
-        current = new Node();
-        nodes.put(layout.name, current);
-      }
-      if (current.classLayout == null) {
-        current.classLayout = layout;
-      } else {
-        System.out.println(current.classLayout.name + " vs " + layout.name);
-        Asserts.assertEQ(current.classLayout, layout);
-      }
-      if (layout.superName != null) {
-        Node superNode = nodes.get(layout.superName);
-        if (superNode == null) {
-          superNode = new Node();
-          superNode.subClasses.add(current);
-          nodes.put(layout.superName, superNode);
+      try {
+        if (layout.name.contains("$$Lambda@0")) continue; // Skipping lambda classes
+        Node current = nodes.get(layout.name);
+        if (current == null) {
+          current = new Node();
+          nodes.put(layout.name, current);
         }
-        superNode.subClasses.add(current);
+        if (current.classLayout == null) {
+          current.classLayout = layout;
+        } else {
+          Asserts.assertEQ(current.classLayout, layout);
+        }
+        if (layout.superName != null) {
+          Node superNode = nodes.get(layout.superName);
+          if (superNode == null) {
+            superNode = new Node();
+            superNode.subClasses.add(current);
+            nodes.put(layout.superName, superNode);
+          }
+          superNode.subClasses.add(current);
+        }
+      } catch(Throwable t) {
+        System.out.println("Unexpected exception when generating list of sub-classes of class " + layout.name);
+        throw t;
       }
     }
     // Field verification
     for (Node node : nodes.values()) {
       ClassLayout layout = node.classLayout;
-      System.out.println("\t" + layout.name);
       for (FieldBlock block : layout.nonStaticFields) {
         if (block.offset() == 0) continue; // Skip object header
         if (block.type() == BlockType.EMPTY) continue; // Empty spaces can be used by subclasses
+        if (block.type() == BlockType.PADDING) continue; // PADDING should have a finer inspection, preserved for @Contended and other imperative padding, and relaxed for abstract value conservative padding
         // A special case for PADDING might be needed too => must NOT be used in subclasses
         for (Node subnode : node.subClasses) {
-          checkFieldInClass(block, subnode);
+          try {
+            checkFieldInClass(block, subnode);
+          } catch(Throwable t) {
+            System.out.println("Unexpected exception when checking subclass " + subnode.classLayout.name + " of class " + layout.name);
+            throw t;
+          }
         }
       }
     }
@@ -496,43 +534,47 @@ public class FieldLayoutAnalyzer {
   }
 
   void checkNullMarkers() {
-    System.out.println("Checking null markers");
     for (ClassLayout layout : layouts) {
-      System.out.println("\t" + layout.name);
-      BlockType last_type = BlockType.RESERVED;
-      boolean has_empty_slot = false;
-      for (FieldBlock block : layout.nonStaticFields) {
-        last_type = block.type;
-        if (block.type() == BlockType.FLAT && block.nullMarkerOffset() != -1) {
-          if (block.hasInternalNullMarker()) {
-            Asserts.assertTrue(block.nullMarkerOffset() > block.offset());
-            Asserts.assertTrue(block.nullMarkerOffset() < block.offset() + block.size());
-          } else {
-            FieldBlock marker = layout.getFieldAtOffset(block.nullMarkerOffset(), false);
-            Asserts.assertEquals(block.nullMarkerOffset(), marker.offset());
+      try {
+        BlockType last_type = BlockType.RESERVED;
+        boolean has_empty_slot = false;
+        for (FieldBlock block : layout.nonStaticFields) {
+          last_type = block.type;
+          if (block.type() == BlockType.FLAT && block.nullMarkerOffset() != -1) {
+            if (block.hasInternalNullMarker()) {
+              Asserts.assertTrue(block.nullMarkerOffset() > block.offset());
+              Asserts.assertTrue(block.nullMarkerOffset() < block.offset() + block.size());
+            } else {
+              FieldBlock marker = layout.getFieldAtOffset(block.nullMarkerOffset(), false);
+              Asserts.assertEquals(block.nullMarkerOffset(), marker.offset());
+            }
+          }
+          if (block.type() == BlockType.NULL_MARKER) {
+            FieldBlock flatField = layout.getFieldAtOffset(block.referenceFieldOffset(), false);
+            Asserts.assertEquals(flatField.type(), BlockType.FLAT);
+            Asserts.assertEquals(flatField.nullMarkerOffset(), block.offset());
+          }
+          if (block.type() == BlockType.EMPTY) has_empty_slot = true;
+        }
+        // null marker should not be added at the end of the layout if there's an empty slot
+        Asserts.assertTrue(last_type != BlockType.NULL_MARKER || has_empty_slot == false,
+                          "Problem detected in layout of class " + layout.name);
+        // static layout => must not have NULL_MARKERS because static fields are never flat
+        for (FieldBlock block : layout.staticFields) {
+          Asserts.assertNotEquals(block.type(), BlockType.NULL_MARKER);
+          if (block.type() == BlockType.FLAT) {
+            Asserts.assertEquals(block.nullMarkerOffset(), -1); // -1 means no null marker
           }
         }
-        if (block.type() == BlockType.NULL_MARKER) {
-          FieldBlock flatField = layout.getFieldAtOffset(block.referenceFieldOffset(), false);
-          Asserts.assertEquals(flatField.type(), BlockType.FLAT);
-          Asserts.assertEquals(flatField.nullMarkerOffset(), block.offset());
-        }
-        if (block.type() == BlockType.EMPTY) has_empty_slot = true;
-      }
-      // null marker should not be added at the end of the layout if there's an empty slot
-      Asserts.assertTrue(last_type != BlockType.NULL_MARKER || has_empty_slot == false,
-                         "Problem detected in layout of class " + layout.name);
-      // static layout => must not have NULL_MARKERS because static fields are never flat
-      for (FieldBlock block : layout.staticFields) {
-        Asserts.assertNotEquals(block.type(), BlockType.NULL_MARKER);
-        if (block.type() == BlockType.FLAT) {
-          Asserts.assertEquals(block.nullMarkerOffset(), -1); // -1 means no null marker
-        }
+      } catch(Throwable t) {
+        System.out.println("Unexpected exception while checking null markers in class " + layout.name);
+        throw t;
       }
     }
   }
 
   void check() {
+    checkOffsets();
     checkNoOverlap();
     checkSizeAndAlignment();
     checkInheritedFields();
