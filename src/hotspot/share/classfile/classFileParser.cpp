@@ -4855,8 +4855,6 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
         if (!is_identity_class && !is_static && !is_strict) {
           /* non-static value class fields must be be strict */
           is_illegal = true;
-        } else if (is_abstract && !is_identity_class && !is_static) {
-          is_illegal = true;
         }
       }
     }
@@ -6358,20 +6356,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     if (_super_klass->has_nonstatic_concrete_methods()) {
       _has_nonstatic_concrete_methods = true;
     }
-
-    if (EnableValhalla && !_access_flags.is_identity_class()) {
-      const InstanceKlass* k = _super_klass;
-      int inherited_instance_fields = 0;
-      while (k != nullptr) {
-        for (AllFieldStream fs(k); !fs.done(); fs.next()) {
-          if (!fs.access_flags().is_static()) inherited_instance_fields++;
-        }
-        k = k->super() == nullptr ? nullptr :  InstanceKlass::cast(k->super());
-      }
-      if (inherited_instance_fields > 0) {
-        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), "Value classes don't support inherited non-static fields yet");
-      }
-    }
   }
 
   if (_parsed_annotations->has_annotation(AnnotationCollector::_jdk_internal_LooselyConsistentValue) && _access_flags.is_identity_class()) {
@@ -6565,6 +6549,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _field_info = new FieldLayoutInfo();
   FieldLayoutBuilder lb(class_name(), loader_data(), super_klass(), _cp, /*_fields*/ _temp_field_info,
       _parsed_annotations->is_contended(), is_inline_type(),
+      access_flags().is_abstract() && !access_flags().is_identity_class(),
       _field_info, _inline_type_field_klasses);
   lb.build_layout();
   if (is_inline_type()) {
