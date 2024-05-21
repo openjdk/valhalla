@@ -112,15 +112,15 @@ public class ObjectMethods {
     }
 
     static void checkSynchronized(Object val) {
-        boolean sawImse = false;
+        boolean sawIe = false;
         try {
             synchronized (val) {
-                throw new IllegalStateException("Unreachable code, reached");
+                throw new IdentityException("Unreachable code, reached");
             }
-        } catch (IllegalMonitorStateException imse) {
-            sawImse = true;
+        } catch (IdentityException ie) {
+            sawIe = true;
         }
-        if (!sawImse) {
+        if (!sawIe) {
             throw new RuntimeException("monitorenter did not fail");
         }
         // synchronized method modifiers tested by "BadInlineTypes" CFP tests
@@ -129,7 +129,7 @@ public class ObjectMethods {
 
     // Check we haven't broken the mismatched monitor block check...
     static void checkMonitorExit(Object val) {
-        boolean sawImse = false;
+        boolean sawIe = false;
         try {
             InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
                                                 "mismatchedMonitorExit",
@@ -143,12 +143,12 @@ public class ObjectMethods {
             throw new IllegalStateException("Unreachable code, reached");
         } catch (Throwable t) {
             if (t instanceof IllegalMonitorStateException) {
-                sawImse = true;
+                sawIe = true;
             } else {
                 throw new RuntimeException(t);
             }
         }
-        if (!sawImse) {
+        if (!sawIe) {
             throw new RuntimeException("monitorexit did not fail");
         }
     }

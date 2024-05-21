@@ -1737,7 +1737,7 @@ public class TestLWorld {
         try {
             test56(testValue1);
             throw new RuntimeException("test56 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -1760,7 +1760,7 @@ public class TestLWorld {
         try {
             test57(testValue1);
             throw new RuntimeException("test57 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -1784,7 +1784,7 @@ public class TestLWorld {
         try {
             test58();
             throw new RuntimeException("test58 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -1806,7 +1806,7 @@ public class TestLWorld {
         try {
             test59(new Object(), true);
             throw new RuntimeException("test59 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -1825,18 +1825,18 @@ public class TestLWorld {
         try {
             test60(false);
             throw new RuntimeException("test60 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
         try {
             test60(true);
             throw new RuntimeException("test60 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
 
-    // Test catching the IllegalMonitorStateException in compiled code
+    // Test catching the IdentityException in compiled code
     @Test
     public void test61(Object vt) {
         boolean thrown = false;
@@ -1844,7 +1844,7 @@ public class TestLWorld {
             synchronized (vt) {
                 throw new RuntimeException("test61 failed: no exception thrown");
             }
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             thrown = true;
         }
         if (!thrown) {
@@ -1861,7 +1861,7 @@ public class TestLWorld {
     public void test62(Object o) {
         try {
             synchronized (o) { }
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
             return;
         }
@@ -1883,7 +1883,7 @@ public class TestLWorld {
     public void test63_verifier() {
         try {
             test63(testValue1);
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
             return;
         }
@@ -3776,7 +3776,7 @@ public class TestLWorld {
         try {
             test130();
             throw new RuntimeException("test130 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -3801,7 +3801,7 @@ public class TestLWorld {
         try {
             test131();
             throw new RuntimeException("test131 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -3829,7 +3829,7 @@ public class TestLWorld {
         try {
             test132();
             throw new RuntimeException("test132 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -3851,7 +3851,7 @@ public class TestLWorld {
         try {
             test133(false);
             throw new RuntimeException("test133 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -3874,7 +3874,7 @@ public class TestLWorld {
         try {
             test134(true);
             throw new RuntimeException("test134 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }

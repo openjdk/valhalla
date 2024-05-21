@@ -39,7 +39,7 @@ public value class IllegalMonitorStateExceptionTest {
         try {
             v.m(v);
             throw new AssertionError("should have failed with IllegalMonitorStateExceptionTest");
-        } catch (IllegalMonitorStateException e) {
+        } catch (IdentityException e) {
             // as expected
         }
     }

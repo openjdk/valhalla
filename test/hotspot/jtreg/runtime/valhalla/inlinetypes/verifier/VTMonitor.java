@@ -45,7 +45,7 @@ public value final class VTMonitor {
             synchronized(a) {
                 throw new RuntimeException("Synchronization on inline type should fail");
             }
-        } catch (java.lang.IllegalMonitorStateException e) {
+        } catch (java.lang.IdentityException e) {
             // Expected
         }
     }

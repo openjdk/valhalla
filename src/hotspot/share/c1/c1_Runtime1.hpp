@@ -65,6 +65,7 @@ class StubAssembler;
   stub(throw_class_cast_exception)   \
   stub(throw_incompatible_class_change_error)   \
   stub(throw_illegal_monitor_state_exception)   \
+  stub(throw_identity_exception)     \
   stub(slow_subtype_check)           \
   stub(monitorenter)                 \
   stub(monitorenter_nofpu)             /* optimized version that does not preserve fpu registers */ \
@@ -125,6 +126,7 @@ class Runtime1: public AllStatic {
   static uint _throw_class_cast_exception_count;
   static uint _throw_incompatible_class_change_error_count;
   static uint _throw_illegal_monitor_state_exception_count;
+  static uint _throw_identity_exception_count;
   static uint _throw_count;
 #endif
 
@@ -173,6 +175,7 @@ class Runtime1: public AllStatic {
   static void throw_class_cast_exception(JavaThread* current, oopDesc* object);
   static void throw_incompatible_class_change_error(JavaThread* current);
   static void throw_illegal_monitor_state_exception(JavaThread* current);
+  static void throw_identity_exception(JavaThread* current);
   static void throw_array_store_exception(JavaThread* current, oopDesc* object);
 
   static void monitorenter(JavaThread* current, oopDesc* obj, BasicObjectLock* lock);
