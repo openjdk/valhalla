@@ -598,19 +598,10 @@ void ErrorContext::stackmap_details(outputStream* ss, const Method* method) cons
 
 // Methods in ClassVerifier
 
-VerificationType reference_or_inline_type(InstanceKlass* klass) {
-  // if (klass->is_inline_klass()) {
-  //   return VerificationType::inline_type(klass->name());
-  // } else {
-  //   return VerificationType::reference_type(klass->name());
-  // }  // LW401 CR required: verifier update/cleanup
-  return VerificationType::reference_type(klass->name());
-}
-
 ClassVerifier::ClassVerifier(JavaThread* current, InstanceKlass* klass)
     : _thread(current), _previous_symbol(nullptr), _symbols(nullptr), _exception_type(nullptr),
       _message(nullptr), _klass(klass) {
-  _this_type = reference_or_inline_type(klass);
+  _this_type = VerificationType::reference_type(klass->name());
 }
 
 ClassVerifier::~ClassVerifier() {
