@@ -2385,13 +2385,23 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       }
       stack_object_type = current_frame->pop_stack(CHECK_VERIFY(this));
 
-      // The JVMS 2nd edition allows field initialization before the superclass
+      // Field initialization is allowed before the superclass
       // initializer, if the field is defined within the current class.
       fieldDescriptor fd;
-      if (stack_object_type == VerificationType::uninitialized_this_type() &&
-          target_class_type.equals(current_type()) &&
-          _klass->find_local_field(field_name, field_sig, &fd)) {
-        stack_object_type = current_type();
+      bool is_local_field = _klass->find_local_field(field_name, field_sig, &fd) &&
+                            target_class_type.equals(current_type());
+      if (stack_object_type == VerificationType::uninitialized_this_type()) {
+        if (is_local_field) {
+          // Set the type to the current type so the is_assignable check passes.
+          stack_object_type = current_type();
+        }
+      } else {
+        // `strict` fields are not writable, but only local fields produce verification errors
+        if (is_local_field && fd.access_flags().is_strict()) {
+          verify_error(ErrorContext::bad_code(bci),
+                       "Illegal use of putfield on a strict field");
+          return;
+        }
       }
       is_assignable = target_class_type.is_assignable_from(
         stack_object_type, this, false, CHECK_VERIFY(this));
