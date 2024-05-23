@@ -4829,13 +4829,15 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
   const bool is_identity_class = class_access_flags.is_identity_class();
 
   bool is_illegal = false;
+  const char* error_msg = "";
 
   if (supports_inline_types()) {
     if (is_strict && is_static) {
       is_illegal = true;
-    }
-    if (is_strict && !is_final) {
+      error_msg = "field cannot be strict and static";
+    } else if (is_strict && !is_final) {
       is_illegal = true;
+      error_msg = "strict field must be final";
     }
   }
 
@@ -4844,19 +4846,26 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
         is_protected || is_volatile || is_transient ||
         (major_gte_1_5 && is_enum)) {
       is_illegal = true;
+      error_msg = "interface fields must be public, static and final, and may be synthetic";
     }
   } else { // not interface
-    if (has_illegal_visibility(flags) || (is_final && is_volatile)) {
+    if (has_illegal_visibility(flags)) {
       is_illegal = true;
+      error_msg = "invalid visibility flags for class field";
+    } else if (is_final && is_volatile) {
+      is_illegal = true;
+      error_msg = "fields cannot be final and volatile";
     } else {
       if (!is_identity_class && !is_abstract && !is_static && !is_final) {
         is_illegal = true;
+        error_msg = "unclear 3";
       } else if (supports_inline_types()) {
         if (!is_identity_class && !is_static && !is_strict) {
-          /* non-static value class fields must be be strict */
+          error_msg = "value class fields must be either strict or static";
           is_illegal = true;
         } else if (is_abstract && !is_identity_class && !is_static) {
           is_illegal = true;
+          error_msg = "unclear 4";
         }
       }
     }
@@ -4867,8 +4876,8 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
-      "Illegal field modifiers in class %s: 0x%X",
-      _class_name->as_C_string(), flags);
+      "Illegal field modifiers (%s) in class %s: 0x%X",
+      error_msg, _class_name->as_C_string(), flags);
     return;
   }
 }

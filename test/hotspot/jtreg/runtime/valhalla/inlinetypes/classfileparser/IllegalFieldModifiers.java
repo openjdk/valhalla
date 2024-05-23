@@ -1,7 +1,5 @@
-
-
 /*
- * Copyright (c) 2024, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,16 +46,16 @@ public class IllegalFieldModifiers {
   public static void main(String[] args) throws Exception {
 
     // Test that ACC_FINAL with ACC_VOLATILE is illegal.
-    runTest("FinalAndVolatile", "Illegal field modifiers in class FinalAndVolatile");
+    runTest("FinalAndVolatile", "Illegal field modifiers (fields cannot be final and volatile) in class FinalAndVolatile");
 
     // Test that ACC_STATIC with ACC_STRICT is illegal.
-    runTest("StrictAndStatic", "Illegal field modifiers in class StrictAndStatic");
+    runTest("StrictAndStatic", "Illegal field modifiers (field cannot be strict and static) in class StrictAndStatic");
 
     // Test that ACC_STRICT without ACC_FINAL is illegal.
-    runTest("StrictNotFinal", "Illegal field modifiers in class StrictNotFinal");
+    runTest("StrictNotFinal", "Illegal field modifiers (strict field must be final) in class StrictNotFinal");
 
     // Test that a value class cannot have field without ACC_STATIC or ACC_STRICT
-    runTest("NotStaticNotStrict", "Illegal field modifiers in class NotStaticNotStrict");
+    runTest("NotStaticNotStrict", "Illegal field modifiers (value class fields must be either strict or static) in class NotStaticNotStrict");
   }
 
 }
