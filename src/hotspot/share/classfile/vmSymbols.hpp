@@ -220,6 +220,7 @@ class SerializeClosure;
   template(java_lang_IllegalArgumentException,        "java/lang/IllegalArgumentException")       \
   template(java_lang_IllegalStateException,           "java/lang/IllegalStateException")          \
   template(java_lang_IllegalMonitorStateException,    "java/lang/IllegalMonitorStateException")   \
+  template(java_lang_IdentityException,               "java/lang/IdentityException")              \
   template(java_lang_IllegalThreadStateException,     "java/lang/IllegalThreadStateException")    \
   template(java_lang_IndexOutOfBoundsException,       "java/lang/IndexOutOfBoundsException")      \
   template(java_lang_InstantiationException,          "java/lang/InstantiationException")         \

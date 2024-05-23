@@ -4707,7 +4707,7 @@ void TemplateTable::monitorenter() {
 
   __ bind(is_inline_type);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                    InterpreterRuntime::throw_illegal_monitor_state_exception));
+                    InterpreterRuntime::throw_identity_exception));
   __ should_not_reach_here();
 }
 

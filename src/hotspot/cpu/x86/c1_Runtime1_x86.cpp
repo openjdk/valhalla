@@ -1350,6 +1350,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case throw_identity_exception_id:
+      { StubFrame f(sasm, "throw_identity_exception", dont_gc_arguments);
+        oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_identity_exception), false);
+      }
+      break;
+
     case slow_subtype_check_id:
       {
         // Typical calling sequence:

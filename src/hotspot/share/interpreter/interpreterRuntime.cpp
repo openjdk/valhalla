@@ -957,11 +957,9 @@ JRT_LEAF(void, InterpreterRuntime::monitorexit(BasicObjectLock* elem))
   elem->set_obj(nullptr);
 JRT_END
 
-
 JRT_ENTRY(void, InterpreterRuntime::throw_illegal_monitor_state_exception(JavaThread* current))
   THROW(vmSymbols::java_lang_IllegalMonitorStateException());
 JRT_END
-
 
 JRT_ENTRY(void, InterpreterRuntime::new_illegal_monitor_state_exception(JavaThread* current))
   // Returns an illegal exception to install into the current thread. The
@@ -977,6 +975,9 @@ JRT_ENTRY(void, InterpreterRuntime::new_illegal_monitor_state_exception(JavaThre
   current->set_vm_result(exception());
 JRT_END
 
+JRT_ENTRY(void, InterpreterRuntime::throw_identity_exception(JavaThread* current))
+  THROW(vmSymbols::java_lang_IdentityException());
+JRT_END
 
 //------------------------------------------------------------------------------------------------------------------------
 // Invokes

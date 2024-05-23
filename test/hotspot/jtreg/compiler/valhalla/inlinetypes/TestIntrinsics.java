@@ -1161,7 +1161,7 @@ public class TestIntrinsics {
         try {
             test59(MyValue1.class);
             throw new RuntimeException("test59 failed: synchronization on value object should not succeed");
-        } catch (IllegalMonitorStateException e) {
+        } catch (IdentityException e) {
 
         }
     }

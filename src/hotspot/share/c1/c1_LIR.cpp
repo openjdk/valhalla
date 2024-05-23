@@ -838,7 +838,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       assert(opLock->_result->is_illegal(), "unused");
 
       do_stub(opLock->_stub);
-      do_stub(opLock->_throw_imse_stub);
+      do_stub(opLock->_throw_ie_stub);
 
       break;
     }
@@ -1206,8 +1206,8 @@ void LIR_OpLock::emit_code(LIR_Assembler* masm) {
   if (stub()) {
     masm->append_code_stub(stub());
   }
-  if (throw_imse_stub()) {
-    masm->append_code_stub(throw_imse_stub());
+  if (throw_ie_stub()) {
+    masm->append_code_stub(throw_ie_stub());
   }
 }
 
@@ -1561,7 +1561,7 @@ void LIR_List::fcmp2int(LIR_Opr left, LIR_Opr right, LIR_Opr dst, bool is_unorde
                      dst));
 }
 
-void LIR_List::lock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info, CodeStub* throw_imse_stub) {
+void LIR_List::lock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info, CodeStub* throw_ie_stub) {
   append(new LIR_OpLock(
                     lir_lock,
                     hdr,
@@ -1570,7 +1570,7 @@ void LIR_List::lock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scrat
                     scratch,
                     stub,
                     info,
-                    throw_imse_stub));
+                    throw_ie_stub));
 }
 
 void LIR_List::unlock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub) {
