@@ -4399,7 +4399,7 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 61.65535 and later
+  // Inline types are only supported by class file version 67.65535 and later
   return _major_version > JAVA_23_VERSION ||
          (_major_version == JAVA_23_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
@@ -4719,13 +4719,19 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
   const bool is_annotation = (flags & JVM_ACC_ANNOTATION) != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
 
+  const bool valid_value_class = is_identity || is_interface ||
+                                 (supports_inline_types() && (!is_identity && (is_abstract || is_final)));
+
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
       (is_interface && major_gte_1_5 && (is_identity || is_enum)) ||   //  ACC_SUPER (now ACC_IDENTITY) was illegal for interfaces
-      (!is_interface && major_gte_1_5 && is_annotation)) {
+      (!is_interface && major_gte_1_5 && is_annotation) ||
+      (!valid_value_class)) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
-    if (!is_identity)  class_note = " (a value class)";
+    if (!valid_value_class) {
+      class_note = " (a value class must be final or else abstract)";
+    }
     if (name == nullptr) { // Not an inner class
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
