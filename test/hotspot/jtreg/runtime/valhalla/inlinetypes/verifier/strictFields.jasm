@@ -24,9 +24,28 @@
 // Defines the classes used by StrictFields.java to check verification
 // of strict fields.
 
-// StrictBase is a well formed value class with a strict field
-public class StrictBase version 67:65535 {
+// StrictIgnore is an earlier classfile version for which strict must be ignored
+// so we can write to it multiple times in the constructor.
+public class StrictIgnore version 66:0 {
   final strict Field x:I;
+
+  public Method "<init>":"()V" stack 2 {
+      aload_0;
+      iconst_1;
+      putfield x:I;
+      aload_0;
+      invokespecial Method java/lang/Object."<init>":"()V";
+      aload_0;
+      iconst_1;
+      putfield x:I;
+      return;
+   }
+}
+
+// StrictBase is a well formed value class with a strict field, that can
+// be used for subclassing.
+public abstract class StrictBase version 67:65535 {
+  protected final strict Field x:I;
 
   public Method "<init>":"()V" stack 2 {
       aload_0;
@@ -40,7 +59,7 @@ public class StrictBase version 67:65535 {
 
 // PostInitStrict is a bad value class that writes to a strict field after the
 // super constructor call.
-public class PostInitStrict version 67:65535 {
+public final class PostInitStrict version 67:65535 {
   final strict Field y:I;
 
   public Method "<init>":"()V" stack 2 {
@@ -49,6 +68,34 @@ public class PostInitStrict version 67:65535 {
       aload_0;
       iconst_1;
       putfield y:I;
+      return;
+   }
+}
+
+// BadStrictSubPreInit is a bad value class that tries to write to an inherited
+// strict field while acting on UninitializedThis.
+public final class BadStrictSubPreInit extends StrictBase version 67:65535 {
+
+  public Method "<init>":"()V" stack 2 {
+      aload_0;
+      iconst_1;
+      putfield x:I;
+      aload_0;
+      invokespecial Method StrictBase."<init>":"()V";
+      return;
+   }
+}
+
+// BadStrictSubPostInit is a bad value class that tries to write to an inherited
+// strict field in "regular" code.
+public final class BadStrictSubPostInit extends StrictBase version 67:65535 {
+
+  public Method "<init>":"()V" stack 2 {
+      aload_0;
+      invokespecial Method StrictBase."<init>":"()V";
+      aload_0;
+      iconst_1;
+      putfield x:I;
       return;
    }
 }
