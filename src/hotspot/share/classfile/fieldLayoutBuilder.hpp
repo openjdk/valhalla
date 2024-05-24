@@ -198,6 +198,10 @@ class FieldLayout : public ResourceObj {
   LayoutRawBlock* _blocks;  // the layout being computed
   LayoutRawBlock* _start;   // points to the first block where a field can be inserted
   LayoutRawBlock* _last;    // points to the last block of the layout (big empty block)
+  int _super_first_field_offset;
+  int _super_alignment;
+  int _super_min_align_required;
+  bool _super_has_fields;
   bool _has_missing_null_markers;
 
  public:
@@ -217,7 +221,11 @@ class FieldLayout : public ResourceObj {
 
   LayoutRawBlock* start() const { return _start; }
   void set_start(LayoutRawBlock* start) { _start = start; }
-  LayoutRawBlock* last_block() const { return _last; }
+  LayoutRawBlock* last_block() const  { return _last; }
+  int super_first_field_offset() const { return _super_first_field_offset; }
+  int super_alignment() const { return _super_alignment; }
+  int super_min_align_required() const { return _super_min_align_required; }
+  bool super_has_fields() const { return _super_has_fields; }
   bool has_missing_null_markers() const { return _has_missing_null_markers; }
 
   LayoutRawBlock* first_field_block();
@@ -281,6 +289,7 @@ class FieldLayoutBuilder : public ResourceObj {
   bool _has_inline_type_fields;
   bool _is_contended;
   bool _is_inline_type;
+  bool _is_abstract_value;
   bool _has_flattening_information;
   bool _has_nonatomic_values;
   bool _nullable_atomic_flat_candidate;
@@ -290,8 +299,8 @@ class FieldLayoutBuilder : public ResourceObj {
 
  public:
   FieldLayoutBuilder(const Symbol* classname, ClassLoaderData* loader_data, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-                     GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, FieldLayoutInfo* info,
-                     Array<InlineKlass*>* inline_type_field_klasses);
+                     GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, bool is_abstract_value,
+                     FieldLayoutInfo* info, Array<InlineKlass*>* inline_type_field_klasses);
 
   int get_alignment() {
     assert(_alignment != -1, "Uninitialized");

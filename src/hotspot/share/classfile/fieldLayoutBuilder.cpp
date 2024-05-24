@@ -149,6 +149,10 @@ FieldLayout::FieldLayout(GrowableArray<FieldInfo>* field_info, ConstantPool* cp)
   _blocks(nullptr),
   _start(_blocks),
   _last(_blocks),
+  _super_first_field_offset(-1),
+  _super_alignment(-1),
+  _super_min_align_required(-1),
+  _super_has_fields(false),
   _has_missing_null_markers(false) {}
 
 void FieldLayout::initialize_static_layout() {
@@ -174,9 +178,9 @@ void FieldLayout::initialize_instance_layout(const InstanceKlass* super_klass) {
     _start = _blocks;
     insert(first_empty_block(), new LayoutRawBlock(LayoutRawBlock::RESERVED, instanceOopDesc::base_offset_in_bytes()));
   } else {
-    bool has_fields = reconstruct_layout(super_klass);
+    _super_has_fields = reconstruct_layout(super_klass);
     fill_holes(super_klass);
-    if ((UseEmptySlotsInSupers && !super_klass->has_contended_annotations()) || !has_fields) {
+    if ((UseEmptySlotsInSupers && !super_klass->has_contended_annotations()) || !_super_has_fields) {
       _start = _blocks; // Setting _start to _blocks instead of _last would allow subclasses
       // to allocate fields in empty slots of their super classes
     } else {
@@ -261,7 +265,7 @@ void FieldLayout::add_field_at_offset(LayoutRawBlock* block, int offset, LayoutR
     if ((slot->offset() <= block->offset() && (slot->offset() + slot->size()) > block->offset()) ||
         slot == _last){
       assert(slot->kind() == LayoutRawBlock::EMPTY, "Matching slot must be an empty slot");
-      assert(slot->size() >= block->offset() + block->size() ,"Matching slot must be big enough");
+      assert(slot->size() >= block->offset() - slot->offset() + block->size() ,"Matching slot must be big enough");
       if (slot->offset() < block->offset()) {
         int adjustment = block->offset() - slot->offset();
         LayoutRawBlock* adj = new LayoutRawBlock(LayoutRawBlock::EMPTY, adjustment);
@@ -271,7 +275,9 @@ void FieldLayout::add_field_at_offset(LayoutRawBlock* block, int offset, LayoutR
       if (slot->size() == 0) {
         remove(slot);
       }
-      _field_info->adr_at(block->field_index())->set_offset(block->offset());
+      if (block->kind() == LayoutRawBlock::REGULAR || block->kind() == LayoutRawBlock::FLAT) {
+        _field_info->adr_at(block->field_index())->set_offset(block->offset());
+      }
       return;
     }
     slot = slot->next_block();
@@ -326,6 +332,7 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
     LayoutRawBlock* adj = new LayoutRawBlock(LayoutRawBlock::EMPTY, adjustment);
     insert(slot, adj);
   }
+  assert(block->size() >= block->size(), "Enough space must remain afte adjustment");
   insert(slot, block);
   if (block->needs_null_marker()) {
     _has_missing_null_markers = true;
@@ -343,6 +350,9 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
 
 bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
   bool has_instance_fields = false;
+  if (ik->is_abstract() && !ik->is_identity_class()) {
+    _super_alignment = type2aelembytes(BasicType::T_LONG);
+  }
   GrowableArray<LayoutRawBlock*>* all_fields = new GrowableArray<LayoutRawBlock*>(32);
   while (ik != nullptr) {
     for (AllFieldStream fs(ik->fieldinfo_stream(), ik->constants()); !fs.done(); fs.next()) {
@@ -350,11 +360,14 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
       // distinction between static and non-static fields is missing
       if (fs.access_flags().is_static()) continue;
       has_instance_fields = true;
+      if (_super_first_field_offset == -1 || fs.offset() < _super_first_field_offset) _super_first_field_offset = fs.offset();
       LayoutRawBlock* block;
       if (fs.is_flat()) {
         InlineKlass* vk = InlineKlass::cast(ik->get_inline_type_field_klass(fs.index()));
         block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, vk->get_payload_size_in_bytes(),
                                    vk->get_alignment(), false);
+        assert(_super_alignment == -1 || _super_alignment >=  vk->get_alignment(), "Invalid value alignment");
+        _super_min_align_required = _super_min_align_required > vk->get_alignment() ? _super_min_align_required : vk->get_alignment();
         if (!fs.field_flags().is_null_free_inline_type()) {
           assert(fs.field_flags().has_null_marker(), "Nullable flat fields must have a null marker");
           LayoutRawBlock* marker = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED_NULL_MARKER, 1 /* current NULL_MARKER block are one byte */,
@@ -366,6 +379,9 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
         int size = type2aelembytes(type);
         // INHERITED blocks are marked as non-reference because oop_maps are handled by their holder class
         block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, size, size, false);
+        // For primitive types, the alignment is equal to the size
+        assert(_super_alignment == -1 || _super_alignment >=  size, "Invalid value alignment");
+        _super_min_align_required = _super_min_align_required > size ? _super_min_align_required : size;
       }
       block->set_offset(fs.offset());
       all_fields->append(block);
@@ -586,7 +602,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
 }
 
 FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData* loader_data, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-                                       GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type,
+                                       GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type,bool is_abstract_value,
                                        FieldLayoutInfo* info, Array<InlineKlass*>* inline_type_field_klasses) :
   _classname(classname),
   _loader_data(loader_data),
@@ -611,6 +627,7 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData*
   _has_inline_type_fields(false),
   _is_contended(is_contended),
   _is_inline_type(is_inline_type),
+  _is_abstract_value(is_abstract_value),
   _has_flattening_information(is_inline_type),
   _has_nonatomic_values(false),
   _nullable_atomic_flat_candidate(false),
@@ -761,7 +778,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
  *     of the resulting instance is not considered)
  */
 void FieldLayoutBuilder::inline_class_field_sorting() {
-  assert(_is_inline_type, "Should only be used for inline classes");
+  assert(_is_inline_type || _is_abstract_value, "Should only be used for inline classes");
   int alignment = 1;
   for (GrowableArrayIterator<FieldInfo> it = _field_info->begin(); it != _field_info->end(); ++it) {
     FieldGroup* group = nullptr;
@@ -854,7 +871,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     if (!fieldinfo.access_flags().is_static() && field_alignment > alignment) alignment = field_alignment;
   }
   _alignment = alignment;
-  assert(_has_nonstatic_fields, "Empty value instances should have an injected field to have a non-zero size");
+  assert(_has_nonstatic_fields || _is_abstract_value, "Concrete value types do not support zero instance size yet");
 }
 
 void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
@@ -962,16 +979,53 @@ void FieldLayoutBuilder::insert_null_markers() {
 void FieldLayoutBuilder::compute_inline_class_layout() {
   prologue();
   inline_class_field_sorting();
-  // Inline types are not polymorphic, so they cannot inherit fields.
-  // By consequence, at this stage, the layout must be composed of a RESERVED
-  // block, followed by an EMPTY block.
+
   assert(_layout->start()->kind() == LayoutRawBlock::RESERVED, "Unexpected");
-  assert(_layout->start()->next_block()->kind() == LayoutRawBlock::EMPTY, "Unexpected");
-  LayoutRawBlock* first_empty = _layout->start()->next_block();
-  if (first_empty->offset() % _alignment != 0) {
-    LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, _alignment - (first_empty->offset() % _alignment));
-    _layout->insert(first_empty, padding);
-    _layout->set_start(padding->next_block());
+
+  if (_layout->super_has_fields() && !_is_abstract_value) {  // non-static field layout
+    if (!_has_nonstatic_fields) {
+      assert(_is_abstract_value, "Concrete value types have at least one field");
+      // Nothing to do
+    } else {
+      // decide which alignment to use, then set first allowed field offset
+
+      assert(_layout->super_alignment() >= _alignment, "Incompatible alignment");
+      assert(_layout->super_alignment() % _alignment == 0, "Incompatible alignment");
+
+      if (_alignment < _layout->super_alignment()) {
+        int new_alignment = _alignment > _layout->super_min_align_required() ? _alignment : _layout->super_min_align_required();
+        assert(new_alignment % _alignment == 0, "Must be");
+        assert(new_alignment % _layout->super_min_align_required() == 0, "Must be");
+        _alignment = new_alignment;
+      }
+      if (_layout->first_empty_block()->offset() < _layout->first_field_block()->offset()) {
+        LayoutRawBlock* first_empty = _layout->start()->next_block();
+        if (first_empty->offset() % _alignment != 0) {
+          int size =  _alignment - (first_empty->offset() % _alignment);
+          LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, size);
+          _layout->insert(first_empty, padding);
+          _layout->set_start(padding);
+        } else {
+          _layout->set_start( _layout->start());
+        }
+      } else {
+        _layout->set_start(_layout->first_field_block());
+      }
+    }
+  } else {
+    if (_is_abstract_value && _has_nonstatic_fields) {
+      _alignment = type2aelembytes(BasicType::T_LONG);
+    }
+    assert(_layout->start()->next_block()->kind() == LayoutRawBlock::EMPTY, "Unexpected");
+    LayoutRawBlock* first_empty = _layout->start()->next_block();
+    if (first_empty->offset() % _alignment != 0) {
+      LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, _alignment - (first_empty->offset() % _alignment));
+      _layout->insert(first_empty, padding);
+      if (first_empty->size() == 0) {
+        _layout->remove(first_empty);
+      }
+      _layout->set_start(padding);
+    }
   }
 
   _layout->add(_root_group->big_primitive_fields());
@@ -983,27 +1037,36 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   }
 
   LayoutRawBlock* first_field = _layout->first_field_block();
-   if (first_field != nullptr) {
-     _first_field_offset = _layout->first_field_block()->offset();
-     _payload_size_in_bytes = _layout->last_block()->offset() - _layout->first_field_block()->offset();
-   } else {
-     // special case for empty value types
-     _first_field_offset = _layout->blocks()->size();
-     _payload_size_in_bytes = 0;
-   }
-  _payload_size_in_bytes = _layout->last_block()->offset() - _layout->first_field_block()->offset();
+  if (first_field != nullptr) {
+    _first_field_offset = _layout->first_field_block()->offset();
+    _payload_size_in_bytes = _layout->last_block()->offset() - _layout->first_field_block()->offset();
+  } else {
+    // special case for empty value types
+    _first_field_offset = _layout->blocks()->size();
+    _payload_size_in_bytes = 0;
+  }
+  if (_layout->first_field_block() == nullptr) {
+    assert(_is_abstract_value, "Concrete inline types must have at least one field");
+    _payload_size_in_bytes = 0;
+  } else {
+    _payload_size_in_bytes = _layout->last_block()->offset() - _layout->first_field_block()->offset();
+  }
 
   // Looking if there's an empty slot inside the layout that could be used to store a null marker
   LayoutRawBlock* b = _layout->first_field_block();
-  while (b != _layout->last_block()) {
-    if (b->kind() == LayoutRawBlock::EMPTY) {
-      break;
+  if (b != nullptr) {
+    while (b != _layout->last_block()) {
+      if (b->kind() == LayoutRawBlock::EMPTY) {
+        break;
+      }
+      b = b->next_block();
     }
-    b = b->next_block();
-  }
-  if (b != _layout->last_block()) {
-    // found an empty slot, register its offset from the beginning of the payload
-    _internal_null_marker_offset = b->offset();
+    if (b != _layout->last_block()) {
+      // found an empty slot, register its offset from the beginning of the payload
+      _internal_null_marker_offset = b->offset();
+    }
+  } else {
+    assert(_is_abstract_value, "Only abstract value can have no fields");
   }
 
   // Warning:: InstanceMirrorKlass expects static oops to be allocated first
@@ -1157,7 +1220,7 @@ void FieldLayoutBuilder::epilogue() {
 }
 
 void FieldLayoutBuilder::build_layout() {
-  if (_is_inline_type) {
+  if (_is_inline_type || _is_abstract_value) {
     compute_inline_class_layout();
   } else {
     compute_regular_layout();
