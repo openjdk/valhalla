@@ -4831,11 +4831,16 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
 
   const bool is_interface = class_access_flags.is_interface();
-  const bool is_abstract = class_access_flags.is_abstract();
   const bool is_identity_class = class_access_flags.is_identity_class();
 
   bool is_illegal = false;
   const char* error_msg = "";
+
+  // There is some overlap in the checks that apply, for example interface fields
+  // must be static, static fields can't be strict, and therefore interfaces can't
+  // have strict fields. So we don't have to check every possible invalid combination
+  // individually as long as all are covered. Once we have found an illegal combination
+  // we can stop checking.
 
   if (supports_inline_types()) {
     if (is_strict && is_static) {
@@ -4847,29 +4852,25 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
     }
   }
 
-  if (is_interface) {
-    if (!is_public || !is_static || !is_final || is_private ||
-        is_protected || is_volatile || is_transient ||
-        (major_gte_1_5 && is_enum)) {
-      is_illegal = true;
-      error_msg = "interface fields must be public, static and final, and may be synthetic";
-    }
-  } else { // not interface
-    if (has_illegal_visibility(flags)) {
-      is_illegal = true;
-      error_msg = "invalid visibility flags for class field";
-    } else if (is_final && is_volatile) {
-      is_illegal = true;
-      error_msg = "fields cannot be final and volatile";
-    } else {
-      if (!is_identity_class && !is_abstract && !is_static && !is_final) {
+  if (!is_illegal) {
+    if (is_interface) {
+      if (!is_public || !is_static || !is_final || is_private ||
+          is_protected || is_volatile || is_transient ||
+          (major_gte_1_5 && is_enum)) {
         is_illegal = true;
-        error_msg = "unclear 3";
+        error_msg = "interface fields must be public, static and final, and may be synthetic";
+      }
+    } else { // not interface
+      if (has_illegal_visibility(flags)) {
+        is_illegal = true;
+        error_msg = "invalid visibility flags for class field";
+      } else if (is_final && is_volatile) {
+        is_illegal = true;
+        error_msg = "fields cannot be final and volatile";
       } else if (supports_inline_types()) {
         if (!is_identity_class && !is_static && !is_strict) {
-          error_msg = "value class fields must be either strict or static";
           is_illegal = true;
-          error_msg = "unclear 4";
+          error_msg = "value class fields must be either strict or static";
         }
       }
     }
