@@ -624,6 +624,11 @@ TypeOrigin ClassVerifier::ref_ctx(const char* sig) {
   return TypeOrigin::implicit(vt);
 }
 
+static bool supports_value_types(InstanceKlass* klass) {
+  int ver = klass->major_version();
+  return ver > Verifier::VALUE_TYPES_MAJOR_VERSION ||
+         (ver == Verifier::VALUE_TYPES_MAJOR_VERSION && klass->minor_version() == Verifier::JAVA_PREVIEW_MINOR_VERSION);
+}
 
 void ClassVerifier::verify_class(TRAPS) {
   log_info(verification)("Verifying class %s with new format", _klass->external_name());
@@ -2395,7 +2400,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
           // Set the type to the current type so the is_assignable check passes.
           stack_object_type = current_type();
         }
-      } else {
+      } else if (supports_value_types(_klass)) {
         // `strict` fields are not writable, but only local fields produce verification errors
         if (is_local_field && fd.access_flags().is_strict()) {
           verify_error(ErrorContext::bad_code(bci),
