@@ -124,7 +124,7 @@ uint Runtime1::_arraycopy_checkcast_cnt = 0;
 uint Runtime1::_arraycopy_checkcast_attempt_cnt = 0;
 uint Runtime1::_new_type_array_slowcase_cnt = 0;
 uint Runtime1::_new_object_array_slowcase_cnt = 0;
-uint Runtime1::_new_flat_array_slowcase_cnt = 0;
+uint Runtime1::_new_null_free_array_slowcase_cnt = 0;
 uint Runtime1::_new_instance_slowcase_cnt = 0;
 uint Runtime1::_new_multi_array_slowcase_cnt = 0;
 uint Runtime1::_load_flat_array_slowcase_cnt = 0;
@@ -429,8 +429,8 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* current, Klass* array_kla
 JRT_END
 
 
-JRT_ENTRY(void, Runtime1::new_flat_array(JavaThread* current, Klass* array_klass, jint length))
-  NOT_PRODUCT(_new_flat_array_slowcase_cnt++;)
+JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_klass, jint length))
+  NOT_PRODUCT(_new_null_free_array_slowcase_cnt++;)
 
   // Note: no handle for klass needed since they are not used
   //       anymore after new_objArray() and no GC can happen before.
@@ -1696,7 +1696,7 @@ void Runtime1::print_statistics() {
 
   tty->print_cr(" _new_type_array_slowcase_cnt:    %u", _new_type_array_slowcase_cnt);
   tty->print_cr(" _new_object_array_slowcase_cnt:  %u", _new_object_array_slowcase_cnt);
-  tty->print_cr(" _new_flat_array_slowcase_cnt:    %u", _new_flat_array_slowcase_cnt);
+  tty->print_cr(" _new_null_free_array_slowcase_cnt: %u", _new_null_free_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %u", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %u", _new_multi_array_slowcase_cnt);
   tty->print_cr(" _load_flat_array_slowcase_cnt:   %u", _load_flat_array_slowcase_cnt);

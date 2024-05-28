@@ -701,7 +701,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
     case new_type_array_id:
     case new_object_array_id:
-    case new_flat_array_id:
+    case new_null_free_array_id:
       {
         Register length   = r19; // Incoming
         Register klass    = r3; // Incoming
@@ -712,7 +712,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         } else if (id == new_object_array_id) {
           __ set_info("new_object_array", dont_gc_arguments);
         } else {
-          __ set_info("new_flat_array", dont_gc_arguments);
+          __ set_info("new_null_free_array", dont_gc_arguments);
         }
 
 #ifdef ASSERT
@@ -735,9 +735,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
             __ br(Assembler::EQ, ok);
             __ stop("assert(is an object or inline type array klass)");
             break;
-          case new_flat_array_id:
-            // TODO 8325106 Fix comment
-            // new "[QVT;"
+          case new_null_free_array_id:
             __ cmpw(t0, Klass::_lh_array_tag_vt_value);  // the array can be a flat array.
             __ br(Assembler::EQ, ok);
             __ cmpw(t0, Klass::_lh_array_tag_obj_value); // the array cannot be a flat array (due to InlineArrayElementMaxFlatSize, etc)
@@ -759,8 +757,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         } else if (id == new_object_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_object_array), klass, length);
         } else {
-          assert(id == new_flat_array_id, "must be");
-          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_flat_array), klass, length);
+          assert(id == new_null_free_array_id, "must be");
+          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_null_free_array), klass, length);
         }
 
         oop_maps = new OopMapSet();

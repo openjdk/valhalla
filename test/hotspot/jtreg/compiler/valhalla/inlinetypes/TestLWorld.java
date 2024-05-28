@@ -1371,8 +1371,6 @@ public class TestLWorld {
     }
 
     // Test for bug in Escape Analysis
-    // TODO 8325106 Re-enable
-    /*
     @DontInline
     public void test41_dontinline(Object o) {
         Asserts.assertEQ(o, rI);
@@ -1391,7 +1389,6 @@ public class TestLWorld {
     public void test41_verifier() {
         test41();
     }
-    */
 
     // Test for bug in Escape Analysis
     private static final MyValue1 test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
@@ -3756,14 +3753,11 @@ public class TestLWorld {
     }
 
     @Test
-    // TODO 8325106
-    /*
     @IR(failOn = {LOAD},
         // LockNode keeps MyValue1 allocation alive up until macro expansion which in turn keeps MyValue2
         // alloc alive. Although the MyValue1 allocation is removed (unused), MyValue2 is expanded first
         // and therefore stays.
         counts = {ALLOC, "<= 1", STORE, "<= 1"})
-    */
     public void test130() {
         Object obj = test130_inlinee();
         synchronized (obj) {
@@ -4045,9 +4039,7 @@ public class TestLWorld {
 
     // Test merging of buffered default and non-default inline types
     @Test
-    // TODO 8325106 With incremental inlining, we already buffer the larval which can't use the default oop because it might be overridden.
-    @IR(applyIf = {"AlwaysIncrementalInline", "false"},
-        failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC_G})
     public Object test144(int i) {
         if (i == 0) {
             return MyValue1.createDefaultInline();
@@ -4128,11 +4120,8 @@ public class TestLWorld {
 
     // Test post-parse call devirtualization with inline type receiver
     @Test
-    // TODO 8325106
-    /*
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC})
-    */
     @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
         counts = {compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
     public long test150() {
