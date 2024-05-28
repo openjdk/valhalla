@@ -180,8 +180,6 @@ serviceability/sa/TestPrintMdo.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 serviceability/sa/ClhsdbDumpclass.java 8190936 generic-all
 
-serviceability/jvmti/GetOwnedMonitorInfo/GetOwnedMonitorInfoWithEATest.java 8331766 generic-all
-serviceability/jvmti/GetOwnedMonitorStackDepthInfo/GetOwnedMonitorStackDepthInfoWithEATest.java 8331766 generic-all
 
 #############################################################################
 
