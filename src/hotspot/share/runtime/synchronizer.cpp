@@ -527,7 +527,6 @@ void ObjectSynchronizer::enter_for(Handle obj, BasicLock* lock, JavaThread* lock
   // the locking_thread with respect to the current thread. Currently only used when
   // deoptimizing and re-locking locks. See Deoptimization::relock_objects
   assert(locking_thread == Thread::current() || locking_thread->is_obj_deopt_suspend(), "must be");
-  assert(locking_thread == Thread::current() || !EnableValhalla, "not supported, fix needed: JDK-8331766");
   JavaThread* current = locking_thread;
   CHECK_THROW_NOSYNC_IMSE(obj);
   if (!enter_fast_impl(obj, lock, locking_thread)) {
