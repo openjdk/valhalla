@@ -2236,8 +2236,9 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(test80(), test80Result);
     }
 
-// TODO 8325106 Fails because they are not compilable with Scenario 3, probably we run out of nodes ...
+// TODO 8325632 Fails with -XX:+UnlockExperimentalVMOptions -XX:PerMethodSpecTrapLimit=0 -XX:PerMethodTrapLimit=0
 /*
+
     @ForceInline
     public Object test81_helper(Object obj, int i) {
         if ((i % 2) == 0) {
@@ -2377,12 +2378,9 @@ public class TestNullableInlineTypes {
         return obj;
     }
 
-// TODO 8325106 Fails because they are not compilable with Scenario 3, probably we run out of nodes ...
-/*
     // Same as test81 but with wrapper
     @Test
-    // TODO 8325106 Fails with Scenario 5
-    // @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test85() {
         Object val = new MyValue1Wrapper(null);
         for (int i = 0; i < 10; ++i) {
@@ -2408,7 +2406,6 @@ public class TestNullableInlineTypes {
         }
         Asserts.assertEquals(test85(), test85Result);
     }
-*/
 
     static final class ObjectWrapper {
         public Object obj;

@@ -80,6 +80,8 @@ public:
   virtual bool can_be_inline_array_klass() {
     return element_klass()->can_be_inline_klass();
   }
+
+  virtual bool is_elem_null_free() const;
 };
 
 #endif // SHARE_CI_CIOBJARRAYKLASS_HPP

@@ -2020,7 +2020,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               pending_field_access()->inc_offset(offset - field->holder()->as_inline_klass()->first_field_offset());
             } else {
               null_check(obj);
-              DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field->holder(), field->offset_in_bytes());
+              DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field->holder(), field->offset_in_bytes(), state_before);
               set_pending_field_access(dfa);
             }
           } else {
@@ -2046,6 +2046,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               set_pending_load_indexed(nullptr);
               need_membar = true;
             } else {
+              if (has_pending_field_access()) {
+                state_before = pending_field_access()->state_before();
+              }
               NewInstance* new_instance = new NewInstance(inline_klass, state_before, false, true);
               _memory->new_instance(new_instance);
               apush(append_split(new_instance));

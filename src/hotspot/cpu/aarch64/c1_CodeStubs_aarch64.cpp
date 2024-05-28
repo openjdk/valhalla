@@ -258,7 +258,7 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   assert(_klass_reg->as_register() == r3, "klass_reg must in r3");
 
   if (_is_null_free) {
-    __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_flat_array_id)));
+    __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_null_free_array_id)));
   } else {
     __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
   }

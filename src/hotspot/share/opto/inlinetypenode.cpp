@@ -314,13 +314,15 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
   bool use_oop = false;
   if (allow_oop && is_allocated(igvn) && oop->is_Phi()) {
     Unique_Node_List worklist;
+    VectorSet visited;
+    visited.set(oop->_idx);
     worklist.push(oop);
     use_oop = true;
     while (worklist.size() > 0 && use_oop) {
       Node* n = worklist.pop();
       for (uint i = 1; i < n->req(); i++) {
         Node* in = n->in(i);
-        if (in->is_Phi()) {
+        if (in->is_Phi() && !visited.test_set(in->_idx)) {
           worklist.push(in);
         // TestNullableArrays.test123 fails when enabling this, probably we should make sure that we don't load from a just allocated object
         //} else if (!(in->is_Con() || in->is_Parm() || in->is_Load() || (in->isa_DecodeN() && in->in(1)->is_Load()))) {
@@ -534,6 +536,13 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
     // Already buffered
     return this;
   }
+
+  // TODO 8325106
+  /*
+  if (inline_klass()->is_initialized() && inline_klass()->is_empty()) {
+    assert(false, "Should not buffer empty inline klass");
+  }
+  */
 
   // Check if inline type is already buffered
   Node* not_buffered_ctl = kit->top();
@@ -805,9 +814,7 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
   // Create a new InlineTypeNode with default values
   Node* oop = vk->is_initialized() && !is_larval ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
-  // TODO 8325106 we should be able to set buffered here for non-larvals, right?
-  //vt->set_is_buffered(gvn, vk->is_initialized());
-  vt->set_is_buffered(gvn, false);
+  vt->set_is_buffered(gvn, vk->is_initialized() && !is_larval);
   vt->set_is_init(gvn);
   vt->set_is_larval(is_larval);
   for (uint i = 0; i < vt->field_count(); ++i) {
@@ -1231,6 +1238,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
 // Search for multiple allocations of this inline type and try to replace them by dominating allocations.
 // Equivalent InlineTypeNodes are merged by GVN, so we just need to search for AllocateNode users to find redundant allocations.
 void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
+  // TODO 8332886 Really needed? GVN is disabled anyway.
   if (is_larval()) {
     return;
   }
