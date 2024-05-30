@@ -719,6 +719,8 @@ class NullCheckEliminator: public ValueVisitor {
   void handle_ProfileCall     (ProfileCall* x);
   void handle_ProfileReturnType (ProfileReturnType* x);
   void handle_ProfileACmpTypes(ProfileACmpTypes* x);
+  void handle_Constant        (Constant* x);
+  void handle_IfOp            (IfOp* x);
 };
 
 
@@ -733,7 +735,7 @@ class NullCheckEliminator: public ValueVisitor {
 // that in for safety, otherwise should think more about it.
 void NullCheckVisitor::do_Phi            (Phi*             x) { nce()->handle_Phi(x);      }
 void NullCheckVisitor::do_Local          (Local*           x) {}
-void NullCheckVisitor::do_Constant       (Constant*        x) { /* FIXME: handle object constants */ }
+void NullCheckVisitor::do_Constant       (Constant*        x) { nce()->handle_Constant(x); }
 void NullCheckVisitor::do_LoadField      (LoadField*       x) { nce()->handle_AccessField(x); }
 void NullCheckVisitor::do_StoreField     (StoreField*      x) { nce()->handle_AccessField(x); }
 void NullCheckVisitor::do_ArrayLength    (ArrayLength*     x) { nce()->handle_ArrayLength(x); }
@@ -744,7 +746,7 @@ void NullCheckVisitor::do_ArithmeticOp   (ArithmeticOp*    x) { if (x->can_trap(
 void NullCheckVisitor::do_ShiftOp        (ShiftOp*         x) {}
 void NullCheckVisitor::do_LogicOp        (LogicOp*         x) {}
 void NullCheckVisitor::do_CompareOp      (CompareOp*       x) {}
-void NullCheckVisitor::do_IfOp           (IfOp*            x) {}
+void NullCheckVisitor::do_IfOp           (IfOp*            x) { nce()->handle_IfOp(x); }
 void NullCheckVisitor::do_Convert        (Convert*         x) {}
 void NullCheckVisitor::do_NullCheck      (NullCheck*       x) { nce()->handle_NullCheck(x); }
 void NullCheckVisitor::do_TypeCast       (TypeCast*        x) {}
@@ -888,7 +890,9 @@ void NullCheckEliminator::iterate_one(BlockBegin* block) {
     // visiting instructions which are references in other blocks or
     // visiting instructions more than once.
     mark_visitable(instr);
-    if (instr->is_pinned() || instr->can_trap() || (instr->as_NullCheck() != nullptr)) {
+    if (instr->is_pinned() || instr->can_trap() || (instr->as_NullCheck() != nullptr)
+        || (instr->as_Constant() != nullptr && instr->as_Constant()->type()->is_object())
+        || (instr->as_IfOp() != nullptr)) {
       mark_visited(instr);
       instr->input_values_do(this);
       instr->visit(&_visitor);
@@ -1207,6 +1211,28 @@ void NullCheckEliminator::handle_ProfileReturnType(ProfileReturnType* x) {
 void NullCheckEliminator::handle_ProfileACmpTypes(ProfileACmpTypes* x) {
   x->set_left_maybe_null(!set_contains(x->left()));
   x->set_right_maybe_null(!set_contains(x->right()));
+}
+
+void NullCheckEliminator::handle_Constant(Constant *x) {
+  ObjectType* ot = x->type()->as_ObjectType();
+  if (ot != nullptr && ot->is_loaded()) {
+    ObjectConstant* oc = ot->as_ObjectConstant();
+    if (oc == nullptr || !oc->value()->is_null_object()) {
+      set_put(x);
+      if (PrintNullCheckElimination) {
+        tty->print_cr("Constant %d is non-null", x->id());
+      }
+    }
+  }
+}
+
+void NullCheckEliminator::handle_IfOp(IfOp *x) {
+  if (x->type()->is_object() && set_contains(x->tval()) && set_contains(x->fval())) {
+    set_put(x);
+    if (PrintNullCheckElimination) {
+      tty->print_cr("IfOp %d is non-null", x->id());
+    }
+  }
 }
 
 void Optimizer::eliminate_null_checks() {
