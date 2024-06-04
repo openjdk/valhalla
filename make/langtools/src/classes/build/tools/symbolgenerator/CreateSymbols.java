@@ -1252,6 +1252,12 @@ public class CreateSymbols {
             annotationType = VALUE_BASED_ANNOTATION_INTERNAL;
         }
 
+        if (MIGRATED_VALUE_CLASS_ANNOTATION.equals(annotationType)) {
+            //the non-public MigratedValueClass annotation will not be available in ct.sym,
+            //replace with purely synthetic javac-internal annotation:
+            annotationType = MIGRATED_VALUE_CLASS_ANNOTATION_INTERNAL;
+        }
+
         return new Annotation(null,
                               addString(constantPool, annotationType),
                               createElementPairs(constantPool, values));
