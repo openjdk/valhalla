@@ -344,12 +344,17 @@ public class CreateSymbols {
             "Ljdk/internal/ValueBased;";
     private static final String VALUE_BASED_ANNOTATION_INTERNAL =
             "Ljdk/internal/ValueBased+Annotation;";
+    private static final String MIGRATED_VALUE_CLASS_ANNOTATION =
+            "Ljdk/internal/MigratedValueClass;";
+    private static final String MIGRATED_VALUE_CLASS_ANNOTATION_INTERNAL =
+            "Ljdk/internal/MigratedValueClass+Annotation;";
     public static final Set<String> HARDCODED_ANNOTATIONS = new HashSet<>(
             List.of("Ljdk/Profile+Annotation;",
                     "Lsun/Proprietary+Annotation;",
                     PREVIEW_FEATURE_ANNOTATION_OLD,
                     PREVIEW_FEATURE_ANNOTATION_NEW,
-                    VALUE_BASED_ANNOTATION));
+                    VALUE_BASED_ANNOTATION,
+                    MIGRATED_VALUE_CLASS_ANNOTATION));
 
     private void stripNonExistentAnnotations(LoadDescriptions data) {
         Set<String> allClasses = data.classes.name2Class.keySet();
