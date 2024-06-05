@@ -4846,9 +4846,11 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
   if (supports_inline_types()) {
     if (is_strict && is_static) {
       is_illegal = true;
+      error_msg = "field cannot be strict and static";
     }
-    if (is_strict && !is_final) {
+    else if (is_strict && !is_final) {
       is_illegal = true;
+      error_msg = "strict field must be final";
     }
   }
 

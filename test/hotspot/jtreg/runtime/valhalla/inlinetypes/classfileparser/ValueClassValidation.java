@@ -29,12 +29,16 @@
  * @run main/othervm -Xverify:remote ValueClassValidation
  */
 
+import javax.management.RuntimeErrorException;
+
 public class ValueClassValidation {
   public static void runTest(String test_name, String cfe_message, String icce_message) throws Exception {
     System.out.println("Testing: " + test_name);
+    boolean gotException = false;
     try {
         Class newClass = Class.forName(test_name);
     } catch (java.lang.ClassFormatError e) {
+      gotException = true;
       if (cfe_message != null) {
         if (!e.getMessage().contains(cfe_message)) {
             throw new RuntimeException( "Wrong ClassFormatError: " + e.getMessage());
@@ -43,12 +47,20 @@ public class ValueClassValidation {
         throw new RuntimeException( "Unexpected ClassFormatError: " + e.getMessage());
       }
     } catch (java.lang.IncompatibleClassChangeError e) {
+      gotException = true;
       if (icce_message != null) {
         if (!e.getMessage().contains(icce_message)) {
             throw new RuntimeException( "Wrong IncompatibleClassChangeError: " + e.getMessage());
         }
       } else {
         throw new RuntimeException( "Unexpected IncompatibleClassChangeError: " + e.getMessage());
+      }
+    }
+    if (!gotException) {
+      if (cfe_message != null) {
+        throw new RuntimeException("Missing ClassFormatError in test" + test_name);
+      } else if (icce_message != null) {
+        throw new RuntimeException("Missing IncompatibleClassChangeError in test" + test_name);
       }
     }
   }
