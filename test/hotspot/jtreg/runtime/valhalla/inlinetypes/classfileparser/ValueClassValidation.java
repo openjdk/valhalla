@@ -88,6 +88,10 @@ public class ValueClassValidation {
     // Test an abstract value class extending a concrete (i.e. final) value class
     runTest("AbstractValueClass3", null, "class AbstractValueClass3 cannot inherit from final class FinalValue");
 
+    //Test a concrete class without ACC_IDENTITY but with an older class file version, declaring a field without ACC_STATIC nor ACC_STRICT
+    // (Test that the VM fixes missing ACC_IDENTITY in old class files)
+    runTest("NotStaticNotStrictInOldClass", null, null);
+
     // Test a concrete value class with a static synchronized method
     runTest("StaticSynchMethod", null, null);
 
