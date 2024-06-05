@@ -61,8 +61,12 @@ public class IllegalFieldModifiers {
     // Test that ACC_STRICT without ACC_FINAL is illegal.
     runTest("StrictNotFinal", "Illegal field modifiers (strict field must be final) in class StrictNotFinal: 0x800");
 
-    // Test that a value class cannot have field without ACC_STATIC or ACC_STRICT
+    // Test that a concrete value class cannot have field without ACC_STATIC or ACC_STRICT
     runTest("NotStaticNotStrict", "Illegal field modifiers (value class fields must be either strict or static) in class NotStaticNotStrict: 0x10");
+
+    // Test that an abstract value class cannot have field without ACC_STATIC or ACC_STRICT
+    runTest("NotStaticNotStrictInAbstract", "Illegal field modifiers (value class fields must be either strict or static) in class NotStaticNotStrictInAbstract: 0x10");
+
   }
 
 }
