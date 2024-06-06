@@ -79,11 +79,19 @@ public class ValueClassValidation {
     // Test a concrete value class extending an abstract identity class
     runTest("ValueClass", null, "Value type ValueClass has an identity type as supertype");
 
+    // Test a concrete identity class without ACC_IDENTITY but with an older class file version, extending an abstract identity class
+    // (Test that the VM fixes missing ACC_IDENTITY in old class files)
+    runTest("IdentityClass", null, null);
+
     // Test a concrete value class extending a concrete (i.e. final) value class
     runTest("ValueClass2", null, "class ValueClass2 cannot inherit from final class FinalValue");
 
     // Test an abstract value class extending an abstract identity class
     runTest("AbstractValueClass2", null, "Value type AbstractValueClass2 has an identity type as supertype");
+
+    // Test an abstract identity class without ACC_IDENTITY but with an older class file version, extending an abstract identity class
+    // (Test that the VM fixes missing ACC_IDENTITY in old class files)
+    runTest("AbstractIdentityClass2", null, null);
 
     // Test an abstract value class extending a concrete (i.e. final) value class
     runTest("AbstractValueClass3", null, "class AbstractValueClass3 cannot inherit from final class FinalValue");
