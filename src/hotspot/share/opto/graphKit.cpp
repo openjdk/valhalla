@@ -2859,7 +2859,6 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
     // At macro expansion, we would have already folded the SubTypeCheckNode
     // being expanded here because we always perform the static sub type
     // check in SubTypeCheckNode::sub() regardless of whether
-    //
     // StressReflectiveCode is set or not. We can therefore skip this
     // static check when StressReflectiveCode is on.
     switch (C->static_subtype_check(superk, subk)) {
