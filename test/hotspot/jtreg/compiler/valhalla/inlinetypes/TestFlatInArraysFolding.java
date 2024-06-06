@@ -75,8 +75,7 @@ public class TestFlatInArraysFolding {
         Scenario noFlagsScenario = new Scenario(3);
         TestFramework testFramework = new TestFramework();
         testFramework.setDefaultWarmup(0)
-                // TODO 8331912 Remove -XX:-ExpandSubTypeCheckAtParseTime
-                .addFlags("--enable-preview", "-XX:-ExpandSubTypeCheckAtParseTime",
+                .addFlags("--enable-preview",
                           "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                           "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED")
                 .addScenarios(flatArrayElementMaxSize1Scenario,
