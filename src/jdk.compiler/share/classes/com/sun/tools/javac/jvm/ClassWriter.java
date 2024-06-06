@@ -852,13 +852,13 @@ public class ClassWriter extends ClassFile {
         endAttr(alenIdx);
     }
 
-     /** Write out "Preload" attribute by enumerating the value classes encountered in field/method descriptors during this compilation.
+     /** Write out "LoadableDescriptors" attribute by enumerating the value classes encountered in field/method descriptors during this compilation.
       */
-     void writePreloadAttribute() {
-        int alenIdx = writeAttr(names.Preload);
-        databuf.appendChar(poolWriter.preloadClasses.size());
-        for (ClassSymbol c : poolWriter.preloadClasses) {
-            databuf.appendChar(poolWriter.putClass(c));
+     void writeLoadableDescriptorsAttribute() {
+        int alenIdx = writeAttr(names.LoadableDescriptors);
+        databuf.appendChar(poolWriter.loadableDescriptors.size());
+        for (Symbol c : poolWriter.loadableDescriptors) {
+            databuf.appendChar(poolWriter.putDescriptor(c));
         }
         endAttr(alenIdx);
      }
@@ -986,8 +986,8 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.putName(v.name));
         databuf.appendChar(poolWriter.putDescriptor(v));
         Type fldType = v.erasure(types);
-        if (fldType.requiresPreload(v.owner)) {
-            poolWriter.enterPreloadClass((ClassSymbol) fldType.tsym);
+        if (fldType.requiresLoadableDescriptors(v.owner)) {
+            poolWriter.enterLoadableDescriptorsClass((ClassSymbol) fldType.tsym);
             if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
                 preview.markUsesPreview(null);
             }
@@ -1019,13 +1019,13 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.putDescriptor(m));
         MethodType mtype = (MethodType) m.externalType(types);
         for (Type t : mtype.getParameterTypes()) {
-            if (t.requiresPreload(m.owner)) {
-                poolWriter.enterPreloadClass((ClassSymbol) t.tsym);
+            if (t.requiresLoadableDescriptors(m.owner)) {
+                poolWriter.enterLoadableDescriptorsClass((ClassSymbol) t.tsym);
             }
         }
         Type returnType = mtype.getReturnType();
-        if (returnType.requiresPreload(m.owner)) {
-            poolWriter.enterPreloadClass((ClassSymbol) returnType.tsym);
+        if (returnType.requiresLoadableDescriptors(m.owner)) {
+            poolWriter.enterLoadableDescriptorsClass((ClassSymbol) returnType.tsym);
         }
         int acountIdx = beginAttrs();
         int acount = 0;
@@ -1734,8 +1734,8 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
 
-        if (!poolWriter.preloadClasses.isEmpty()) {
-            writePreloadAttribute();
+        if (!poolWriter.loadableDescriptors.isEmpty()) {
+            writeLoadableDescriptorsAttribute();
             acount++;
         }
 
