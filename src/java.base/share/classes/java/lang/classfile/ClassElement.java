@@ -37,7 +37,7 @@ import java.lang.classfile.attribute.ModuleTargetAttribute;
 import java.lang.classfile.attribute.NestHostAttribute;
 import java.lang.classfile.attribute.NestMembersAttribute;
 import java.lang.classfile.attribute.PermittedSubclassesAttribute;
-import java.lang.classfile.attribute.PreloadAttribute;
+import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.lang.classfile.attribute.RecordAttribute;
 import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
 import java.lang.classfile.attribute.RuntimeInvisibleTypeAnnotationsAttribute;
@@ -66,7 +66,7 @@ public sealed interface ClassElement extends ClassFileElement
                 EnclosingMethodAttribute, InnerClassesAttribute,
                 ModuleAttribute, ModuleHashesAttribute, ModuleMainClassAttribute,
                 ModulePackagesAttribute, ModuleResolutionAttribute, ModuleTargetAttribute,
-                NestHostAttribute, NestMembersAttribute, PermittedSubclassesAttribute, PreloadAttribute,
+                NestHostAttribute, NestMembersAttribute, PermittedSubclassesAttribute, LoadableDescriptorsAttribute,
                 RecordAttribute,
                 RuntimeInvisibleAnnotationsAttribute, RuntimeInvisibleTypeAnnotationsAttribute,
                 RuntimeVisibleAnnotationsAttribute, RuntimeVisibleTypeAnnotationsAttribute,

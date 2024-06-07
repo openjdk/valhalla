@@ -527,10 +527,10 @@ public class AttributeWriter extends BasicWriter {
                 }
                 indent(-1);
             }
-            case PreloadAttribute attr -> {
-                println("Preload:");
+            case LoadableDescriptorsAttribute attr -> {
+                println("LoadableDescriptors:");
                 indent(+1);
-                for (var sc : attr.preloads()) {
+                for (var sc : attr.loadableDescriptors()) {
                     println(constantWriter.stringValue(sc));
                 }
                 indent(-1);

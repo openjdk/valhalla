@@ -33,8 +33,8 @@ import java.io.IOException;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-public class Preload_attribute extends Attribute {
-    Preload_attribute(ClassReader cr, int name_index, int length) throws IOException {
+public class LoadableDescriptors_attribute extends Attribute {
+    LoadableDescriptors_attribute(ClassReader cr, int name_index, int length) throws IOException {
         super(name_index, length);
         number_of_classes = cr.readUnsignedShort();
         value_class_info_index = new int[number_of_classes];
@@ -43,7 +43,7 @@ public class Preload_attribute extends Attribute {
     }
 
     public <R, D> R accept(Visitor<R, D> visitor, D data) {
-        return visitor.visitPreload(this, data);
+        return visitor.visitLoadableDescriptors(this, data);
     }
 
     public final int number_of_classes;
