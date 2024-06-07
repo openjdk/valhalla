@@ -355,8 +355,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         else if (accidentallySerializable)
             generateSerializationHostileMethods();
 
-        // generate Preload attribute if it references any value class
-        PreloadAttributeBuilder builder = new PreloadAttributeBuilder(targetClass);
+        // generate LoadableDescriptors attribute if it references any value class
+        LoadableDescriptorsAttributeBuilder builder = new LoadableDescriptorsAttributeBuilder(targetClass);
         builder.add(factoryType)
                .add(interfaceMethodType)
                .add(implMethodType)
@@ -580,41 +580,41 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     }
 
     /*
-     * Preload attribute builder
+     * LoadableDescriptors attribute builder
      */
-    static class PreloadAttributeBuilder {
-        private final Set<Class<?>> preloadClasses = new HashSet<>();
-        PreloadAttributeBuilder(Class<?> targetClass) {
-            if (requiresPreload(targetClass)) {
-                preloadClasses.add(targetClass);
+    static class LoadableDescriptorsAttributeBuilder {
+        private final Set<Class<?>> loadableDescriptors = new HashSet<>();
+        LoadableDescriptorsAttributeBuilder(Class<?> targetClass) {
+            if (requiresLoadableDescriptors(targetClass)) {
+                loadableDescriptors.add(targetClass);
             }
         }
 
         /*
          * Add the value types referenced in the given MethodType.
          */
-        PreloadAttributeBuilder add(MethodType mt) {
+        LoadableDescriptorsAttributeBuilder add(MethodType mt) {
             // parameter types
             for (Class<?> paramType : mt.ptypes()) {
-                if (requiresPreload(paramType)) {
-                    preloadClasses.add(paramType);
+                if (requiresLoadableDescriptors(paramType)) {
+                    loadableDescriptors.add(paramType);
                 }
             }
             // return type
-            if (requiresPreload(mt.returnType())) {
-                preloadClasses.add(mt.returnType());
+            if (requiresLoadableDescriptors(mt.returnType())) {
+                loadableDescriptors.add(mt.returnType());
             }
             return this;
         }
 
-        PreloadAttributeBuilder add(MethodType... mtypes) {
+        LoadableDescriptorsAttributeBuilder add(MethodType... mtypes) {
             for (MethodType mt : mtypes) {
                 add(mt);
             }
             return this;
         }
 
-        boolean requiresPreload(Class<?> cls) {
+        boolean requiresLoadableDescriptors(Class<?> cls) {
             Class<?> c = cls;
             while (c.isArray()) {
                 c = c.getComponentType();
@@ -623,11 +623,11 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         }
 
         boolean isEmpty() {
-            return preloadClasses.isEmpty();
+            return loadableDescriptors.isEmpty();
         }
 
         Attribute build() {
-            return new Attribute("Preload") {
+            return new Attribute("LoadableDescriptors") {
                 @Override
                 protected ByteVector write(ClassWriter cw,
                                            byte[] code,
@@ -635,8 +635,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                                            int maxStack,
                                            int maxLocals) {
                     ByteVector attr = new ByteVector();
-                    attr.putShort(preloadClasses.size());
-                    for (Class<?> c : preloadClasses) {
+                    attr.putShort(loadableDescriptors.size());
+                    for (Class<?> c : loadableDescriptors) {
                         attr.putShort(cw.newClass(Type.getInternalName(c)));
                     }
                     return attr;

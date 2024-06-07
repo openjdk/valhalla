@@ -454,7 +454,7 @@
  *     | EnclosingMethodAttribute?(ClassEntry className, NameAndTypeEntry method)
  *     | InnerClassesAttribute?(List<InnerClassInfo> classes)
  *     | PermittedSubclassesAttribute?(List<ClassEntry> permittedSubclasses)
- *     | PreloadAttribute?(List<ClassEntry> preloads)
+ *     | LoadableDescriptorsAttribute?(List<ClassEntry> loadableDescriptors)
  *     | DeclarationElement*
  * }
  *<p>

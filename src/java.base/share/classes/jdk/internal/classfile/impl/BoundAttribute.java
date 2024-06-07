@@ -935,20 +935,20 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         }
     }
 
-    public static final class BoundPreloadAttribute extends BoundAttribute<PreloadAttribute>
-            implements PreloadAttribute {
-        private List<ClassEntry> preloads = null;
+    public static final class BoundLoadableDescriptorsAttribute extends BoundAttribute<LoadableDescriptorsAttribute>
+            implements LoadableDescriptorsAttribute {
+        private List<Utf8Entry> loadableDescriptors = null;
 
-        public BoundPreloadAttribute(ClassReader cf, AttributeMapper<PreloadAttribute> mapper, int pos) {
+        public BoundLoadableDescriptorsAttribute(ClassReader cf, AttributeMapper<LoadableDescriptorsAttribute> mapper, int pos) {
             super(cf, mapper, pos);
         }
 
         @Override
-        public List<ClassEntry> preloads() {
-            if (preloads == null) {
-                preloads = readEntryList(payloadStart);
+        public List<Utf8Entry> loadableDescriptors() {
+            if (loadableDescriptors == null) {
+                loadableDescriptors = readEntryList(payloadStart);
             }
-            return preloads;
+            return loadableDescriptors;
         }
     }
 

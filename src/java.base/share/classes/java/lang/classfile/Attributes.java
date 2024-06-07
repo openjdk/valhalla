@@ -64,7 +64,7 @@ import java.lang.classfile.attribute.ModuleTargetAttribute;
 import java.lang.classfile.attribute.NestHostAttribute;
 import java.lang.classfile.attribute.NestMembersAttribute;
 import java.lang.classfile.attribute.PermittedSubclassesAttribute;
-import java.lang.classfile.attribute.PreloadAttribute;
+import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.lang.classfile.attribute.RecordAttribute;
 import java.lang.classfile.attribute.RecordComponentInfo;
 import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
@@ -166,8 +166,8 @@ public class Attributes {
     /** PermittedSubclasses */
     public static final String NAME_PERMITTED_SUBCLASSES = "PermittedSubclasses";
 
-    /** Preload */
-    public static final String NAME_PRELOAD = "Preload";
+    /** LoadableDescriptors */
+    public static final String NAME_LOADABLE_DESCRIPTORS = "LoadableDescriptors";
 
     /** Record */
     public static final String NAME_RECORD = "Record";
@@ -724,17 +724,17 @@ public class Attributes {
                 }
             };
 
-    /** Attribute mapper for the {@code Preload} attribute */
-    public static final AttributeMapper<PreloadAttribute>
-            PRELOAD = new AbstractAttributeMapper<>(NAME_PRELOAD) {
+    /** Attribute mapper for the {@code LoadableDescriptors} attribute */
+    public static final AttributeMapper<LoadableDescriptorsAttribute>
+            LOADABLE_DESCRIPTORS = new AbstractAttributeMapper<>(NAME_LOADABLE_DESCRIPTORS) {
                 @Override
-                public PreloadAttribute readAttribute(AttributedElement e, ClassReader cf, int p) {
-                    return new BoundAttribute.BoundPreloadAttribute(cf, this, p);
+                public LoadableDescriptorsAttribute readAttribute(AttributedElement e, ClassReader cf, int p) {
+                    return new BoundAttribute.BoundLoadableDescriptorsAttribute(cf, this, p);
                 }
 
                 @Override
-                protected void writeBody(BufWriter buf, PreloadAttribute attr) {
-                    buf.writeListIndices(attr.preloads());
+                protected void writeBody(BufWriter buf, LoadableDescriptorsAttribute attr) {
+                    buf.writeListIndices(attr.loadableDescriptors());
                 }
 
                 @Override
@@ -1039,7 +1039,7 @@ public class Attributes {
             NEST_HOST,
             NEST_MEMBERS,
             PERMITTED_SUBCLASSES,
-            PRELOAD,
+            LOADABLE_DESCRIPTORS,
             RECORD,
             RUNTIME_INVISIBLE_ANNOTATIONS,
             RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS,
