@@ -652,14 +652,18 @@ public /*primitive*/ class Float16 extends Number
     // @IntrinsicCandidate
     public static Float16 negate(Float16 f16) {
         // Negate sign bit only. Per IEE 754-2019 section 5.5.1,
-        // negative is a bit-level operation and not a logical
+        // negate is a bit-level operation and not a logical
         // operation.
         return shortBitsToFloat16((short)(f16.value ^ (short)0x0000_8000));
     }
 
     // To be considered:
-    // abs
+    // abs // bit-level per section 5.5.1
     // copysign
+    // scalb
     // nextUp / nextDown
     // getExponent
+    // IEEEremainder
+    // signum
+    // ulp
 }
