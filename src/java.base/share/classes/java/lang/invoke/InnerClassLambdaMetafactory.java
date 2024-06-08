@@ -583,10 +583,10 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      * LoadableDescriptors attribute builder
      */
     static class LoadableDescriptorsAttributeBuilder {
-        private final Set<Class<?>> loadableDescriptors = new HashSet<>();
+        private final Set<String> loadableDescriptors = new HashSet<>();
         LoadableDescriptorsAttributeBuilder(Class<?> targetClass) {
             if (requiresLoadableDescriptors(targetClass)) {
-                loadableDescriptors.add(targetClass);
+                loadableDescriptors.add(Type.getDescriptor(targetClass));
             }
         }
 
@@ -597,12 +597,12 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             // parameter types
             for (Class<?> paramType : mt.ptypes()) {
                 if (requiresLoadableDescriptors(paramType)) {
-                    loadableDescriptors.add(paramType);
+                    loadableDescriptors.add(Type.getDescriptor(paramType));
                 }
             }
             // return type
             if (requiresLoadableDescriptors(mt.returnType())) {
-                loadableDescriptors.add(mt.returnType());
+                loadableDescriptors.add(Type.getDescriptor(mt.returnType()));
             }
             return this;
         }
@@ -615,11 +615,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         }
 
         boolean requiresLoadableDescriptors(Class<?> cls) {
-            Class<?> c = cls;
-            while (c.isArray()) {
-                c = c.getComponentType();
-            }
-            return c.isValue();
+            return cls.isValue();
         }
 
         boolean isEmpty() {
@@ -636,8 +632,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                                            int maxLocals) {
                     ByteVector attr = new ByteVector();
                     attr.putShort(loadableDescriptors.size());
-                    for (Class<?> c : loadableDescriptors) {
-                        attr.putShort(cw.newClass(Type.getInternalName(c)));
+                    for (String s : loadableDescriptors) {
+                        attr.putShort(cw.newUTF8(s));
                     }
                     return attr;
                 }

@@ -28,6 +28,7 @@ import java.lang.classfile.attribute.CompilationIDAttribute;
 import java.lang.classfile.attribute.DeprecatedAttribute;
 import java.lang.classfile.attribute.EnclosingMethodAttribute;
 import java.lang.classfile.attribute.InnerClassesAttribute;
+import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.lang.classfile.attribute.ModuleAttribute;
 import java.lang.classfile.attribute.ModuleHashesAttribute;
 import java.lang.classfile.attribute.ModuleMainClassAttribute;
@@ -37,7 +38,6 @@ import java.lang.classfile.attribute.ModuleTargetAttribute;
 import java.lang.classfile.attribute.NestHostAttribute;
 import java.lang.classfile.attribute.NestMembersAttribute;
 import java.lang.classfile.attribute.PermittedSubclassesAttribute;
-import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.lang.classfile.attribute.RecordAttribute;
 import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
 import java.lang.classfile.attribute.RuntimeInvisibleTypeAnnotationsAttribute;
@@ -64,9 +64,10 @@ public sealed interface ClassElement extends ClassFileElement
                 FieldModel, MethodModel,
                 CustomAttribute, CompilationIDAttribute, DeprecatedAttribute,
                 EnclosingMethodAttribute, InnerClassesAttribute,
+                LoadableDescriptorsAttribute,
                 ModuleAttribute, ModuleHashesAttribute, ModuleMainClassAttribute,
                 ModulePackagesAttribute, ModuleResolutionAttribute, ModuleTargetAttribute,
-                NestHostAttribute, NestMembersAttribute, PermittedSubclassesAttribute, LoadableDescriptorsAttribute,
+                NestHostAttribute, NestMembersAttribute, PermittedSubclassesAttribute,
                 RecordAttribute,
                 RuntimeInvisibleAnnotationsAttribute, RuntimeInvisibleTypeAnnotationsAttribute,
                 RuntimeVisibleAnnotationsAttribute, RuntimeVisibleTypeAnnotationsAttribute,

@@ -987,7 +987,7 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.putDescriptor(v));
         Type fldType = v.erasure(types);
         if (fldType.requiresLoadableDescriptors(v.owner)) {
-            poolWriter.enterLoadableDescriptorsClass((ClassSymbol) fldType.tsym);
+            poolWriter.enterLoadableDescriptorsClass(fldType.tsym);
             if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
                 preview.markUsesPreview(null);
             }
@@ -1020,12 +1020,12 @@ public class ClassWriter extends ClassFile {
         MethodType mtype = (MethodType) m.externalType(types);
         for (Type t : mtype.getParameterTypes()) {
             if (t.requiresLoadableDescriptors(m.owner)) {
-                poolWriter.enterLoadableDescriptorsClass((ClassSymbol) t.tsym);
+                poolWriter.enterLoadableDescriptorsClass(t.tsym);
             }
         }
         Type returnType = mtype.getReturnType();
         if (returnType.requiresLoadableDescriptors(m.owner)) {
-            poolWriter.enterLoadableDescriptorsClass((ClassSymbol) returnType.tsym);
+            poolWriter.enterLoadableDescriptorsClass(returnType.tsym);
         }
         int acountIdx = beginAttrs();
         int acount = 0;

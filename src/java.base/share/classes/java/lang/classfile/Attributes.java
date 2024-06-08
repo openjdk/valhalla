@@ -44,6 +44,7 @@ import java.lang.classfile.attribute.InnerClassInfo;
 import java.lang.classfile.attribute.InnerClassesAttribute;
 import java.lang.classfile.attribute.LineNumberInfo;
 import java.lang.classfile.attribute.LineNumberTableAttribute;
+import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.lang.classfile.attribute.LocalVariableInfo;
 import java.lang.classfile.attribute.LocalVariableTableAttribute;
 import java.lang.classfile.attribute.LocalVariableTypeInfo;
@@ -64,7 +65,6 @@ import java.lang.classfile.attribute.ModuleTargetAttribute;
 import java.lang.classfile.attribute.NestHostAttribute;
 import java.lang.classfile.attribute.NestMembersAttribute;
 import java.lang.classfile.attribute.PermittedSubclassesAttribute;
-import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.lang.classfile.attribute.RecordAttribute;
 import java.lang.classfile.attribute.RecordComponentInfo;
 import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
@@ -130,6 +130,9 @@ public class Attributes {
     /** LineNumberTable */
     public static final String NAME_LINE_NUMBER_TABLE = "LineNumberTable";
 
+    /** LoadableDescriptors */
+    public static final String NAME_LOADABLE_DESCRIPTORS = "LoadableDescriptors";
+
     /** LocalVariableTable */
     public static final String NAME_LOCAL_VARIABLE_TABLE = "LocalVariableTable";
 
@@ -165,9 +168,6 @@ public class Attributes {
 
     /** PermittedSubclasses */
     public static final String NAME_PERMITTED_SUBCLASSES = "PermittedSubclasses";
-
-    /** LoadableDescriptors */
-    public static final String NAME_LOADABLE_DESCRIPTORS = "LoadableDescriptors";
 
     /** Record */
     public static final String NAME_RECORD = "Record";
@@ -1027,6 +1027,7 @@ public class Attributes {
             EXCEPTIONS,
             INNER_CLASSES,
             LINE_NUMBER_TABLE,
+            LOADABLE_DESCRIPTORS,
             LOCAL_VARIABLE_TABLE,
             LOCAL_VARIABLE_TYPE_TABLE,
             METHOD_PARAMETERS,
@@ -1039,7 +1040,6 @@ public class Attributes {
             NEST_HOST,
             NEST_MEMBERS,
             PERMITTED_SUBCLASSES,
-            LOADABLE_DESCRIPTORS,
             RECORD,
             RUNTIME_INVISIBLE_ANNOTATIONS,
             RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS,
