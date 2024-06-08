@@ -106,30 +106,33 @@ public /*primitive*/ class Float16 extends Number
         shortBitsToFloat16(floatToFloat16(0x1.0p-24f));
 
     /**
-     * The number of bits used to represent a {@code Float16} value.
+     * The number of bits used to represent a {@code Float16} value,
+     * {@value}.
      */
     public static final int SIZE = 16;
 
     /**
-     * The number of bits in the significand of a {@code Float16} value.
-     * This corresponds to parameter N in section {@jls 4.2.3} of
-     * <cite>The Java Language Specification</cite>.
+     * The number of bits in the significand of a {@code Float16}
+     * value, {@value}.  This corresponds to parameter N in section
+     * {@jls 4.2.3} of <cite>The Java Language Specification</cite>.
      */
     public static final int PRECISION = 11;
 
     /**
-     * Maximum exponent a finite {@code Float16} variable may have.
+     * Maximum exponent a finite {@code Float16} variable may have,
+     * {@value}.
      */
     public static final int MAX_EXPONENT = (1 << (SIZE - PRECISION - 1)) - 1; // 15
 
     /**
      * Minimum exponent a normalized {@code Float16} variable may
-     * have.
+     * have, {@value}.
      */
     public static final int MIN_EXPONENT = 1 - MAX_EXPONENT; // -14
 
     /**
-     * The number of bytes used to represent a {@code Float16} value.
+     * The number of bytes used to represent a {@code Float16} value,
+     * {@value}.
      */
     public static final int BYTES = SIZE / Byte.SIZE;
 
