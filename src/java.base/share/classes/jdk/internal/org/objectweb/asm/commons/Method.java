@@ -223,7 +223,6 @@ public class Method {
         if (descriptor != null) {
             stringBuilder.append(descriptor);
         } else {
-            // FIXME: support Q-type
             stringBuilder.append('L');
             if (elementType.indexOf('.') < 0) {
                 if (!defaultPackage) {
@@ -293,4 +292,3 @@ public class Method {
         return name.hashCode() ^ descriptor.hashCode();
     }
 }
-

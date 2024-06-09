@@ -43,6 +43,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/resolvedIndyEntry.hpp"
+#include "oops/resolvedMethodEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
@@ -499,10 +500,9 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
     __ add(esp, esp, cache, Assembler::LSL, 3);
   } else {
     // Pop N words from the stack
-    __ get_cache_and_index_at_bcp(cache, index, 1, index_size);
-    __ ldr(cache, Address(cache, ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset()));
-    __ andr(cache, cache, ConstantPoolCacheEntry::parameter_size_mask);
-
+    assert(index_size == sizeof(u2), "Can only be u2");
+    __ load_method_entry(cache, index);
+    __ load_unsigned_short(cache, Address(cache, in_bytes(ResolvedMethodEntry::num_parameters_offset())));
     __ add(esp, esp, cache, Assembler::LSL, 3);
   }
 
@@ -593,7 +593,6 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
   case T_VOID   : /* nothing to do */        break;
   case T_FLOAT  : /* nothing to do */        break;
   case T_DOUBLE : /* nothing to do */        break;
-  case T_PRIMITIVE_OBJECT: // fall through (value types are handled with oops)
   case T_OBJECT :
     // retrieve result from frame
     __ ldr(r0, Address(rfp, frame::interpreter_frame_oop_temp_offset*wordSize));
@@ -1389,6 +1388,9 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   __ bind(native_return);
   __ get_method(rmethod);
   // result potentially in r0 or v0
+
+  // Restore cpu control state after JNI call
+  __ restore_cpu_control_state_after_jni(rscratch1, rscratch2);
 
   // make room for the pushes we're about to do
   __ sub(rscratch1, esp, 4 * wordSize);

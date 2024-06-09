@@ -138,8 +138,8 @@ bool Instruction::maybe_flat_array() {
   if (UseFlatArray) {
     ciType* type = declared_type();
     if (type != nullptr) {
-      if (type->is_obj_array_klass() && !type->as_obj_array_klass()->is_elem_null_free()) {
-        // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
+      if (type->is_obj_array_klass()) {
+        // Due to array covariance, the runtime type might be a flat array.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
         if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flat_in_array())) {
           return true;
@@ -287,7 +287,7 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  return ciArrayKlass::make(klass(), is_null_free());
+  return ciArrayKlass::make(klass());
 }
 
 ciType* NewMultiArray::exact_type() const {
@@ -303,14 +303,6 @@ ciType* NewInstance::exact_type() const {
 }
 
 ciType* NewInstance::declared_type() const {
-  return exact_type();
-}
-
-ciType* NewInlineTypeInstance::exact_type() const {
-  return klass();
-}
-
-ciType* NewInlineTypeInstance::declared_type() const {
   return exact_type();
 }
 
@@ -421,9 +413,6 @@ StoreField::StoreField(Value obj, int offset, ciField* field, Value value, bool 
   values_do(&assert_value);
 #endif
   pin();
-  if (value->as_NewInlineTypeInstance() != nullptr) {
-    value->as_NewInlineTypeInstance()->set_not_larva_anymore();
-  }
 }
 
 StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value,
@@ -438,9 +427,6 @@ StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt
   values_do(&assert_value);
 #endif
   pin();
-  if (value->as_NewInlineTypeInstance() != nullptr) {
-    value->as_NewInlineTypeInstance()->set_not_larva_anymore();
-  }
 }
 
 
@@ -448,7 +434,7 @@ StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt
 
 
 Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-               ciMethod* target, ValueStack* state_before, bool null_free)
+               ciMethod* target, ValueStack* state_before)
   : StateSplit(result_type, state_before)
   , _code(code)
   , _recv(recv)
@@ -457,7 +443,6 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
 {
   set_flag(TargetIsLoadedFlag,   target->is_loaded());
   set_flag(TargetIsFinalFlag,    target_is_loaded() && target->is_final_method());
-  set_null_free(null_free);
 
   assert(args != nullptr, "args must exist");
 #ifdef ASSERT
@@ -469,18 +454,12 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
   _signature = new BasicTypeList(number_of_arguments() + (has_receiver() ? 1 : 0));
   if (has_receiver()) {
     _signature->append(as_BasicType(receiver()->type()));
-    if (receiver()->as_NewInlineTypeInstance() != nullptr) {
-      receiver()->as_NewInlineTypeInstance()->set_not_larva_anymore();
-    }
   }
   for (int i = 0; i < number_of_arguments(); i++) {
     Value v = argument_at(i);
     ValueType* t = v->type();
     BasicType bt = as_BasicType(t);
     _signature->append(bt);
-    if (v->as_NewInlineTypeInstance() != nullptr) {
-      v->as_NewInlineTypeInstance()->set_not_larva_anymore();
-    }
   }
 }
 
@@ -962,8 +941,6 @@ bool BlockBegin::try_merge(ValueStack* new_state, bool has_irreducible_loops) {
         if (new_value != existing_value && (existing_phi == nullptr || existing_phi->block() != this)) {
           existing_state->setup_phi_for_stack(this, index);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for stack %d", existing_state->stack_at(index)->type()->tchar(), existing_state->stack_at(index)->id(), index));
-          if (new_value->as_NewInlineTypeInstance() != nullptr) {new_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
-          if (existing_value->as_NewInlineTypeInstance() != nullptr) {existing_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
         }
       }
 
@@ -978,8 +955,6 @@ bool BlockBegin::try_merge(ValueStack* new_state, bool has_irreducible_loops) {
         } else if (new_value != existing_value && (existing_phi == nullptr || existing_phi->block() != this)) {
           existing_state->setup_phi_for_local(this, index);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for local %d", existing_state->local_at(index)->type()->tchar(), existing_state->local_at(index)->id(), index));
-          if (new_value->as_NewInlineTypeInstance() != nullptr) {new_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
-          if (existing_value->as_NewInlineTypeInstance() != nullptr) {existing_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
         }
       }
     }

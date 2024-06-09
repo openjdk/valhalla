@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,8 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
- * @run main/othervm -XX:+EnableValhalla NullRestrictedArrayTest
+ * @enablePreview
+ * @run main/othervm NullRestrictedArrayTest
  */
 
 
@@ -123,7 +124,7 @@ public class NullRestrictedArrayTest {
       Throwable exception = null;
       try {
         Object array = ValueClass.newNullRestrictedArray(ValueClass3.class, 8);
-        Asserts.assertTrue(UNSAFE.isFlattenedArray(array.getClass()), "Expecting flat array but array is not flat");
+        Asserts.assertTrue(UNSAFE.isFlatArray(array.getClass()), "Expecting flat array but array is not flat");
       } catch (Throwable e) {
         System.out.println("Received: " + e);
         exception = e;

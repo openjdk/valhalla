@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,7 +68,7 @@ public class ArrayListOfIntBench {
     ArrayListInt arrayListInt;
     ArrayListPrimitiveInt arrayListPrimitiveInt;
     ArrayList<Integer> arrayListOfInteger;
-    ArrayList<PrimitiveInt.ref> arrayListOfPrimitiveInt;
+    ArrayList<PrimitiveInt> arrayListOfPrimitiveInt;
     Random random;
 
     @Setup
@@ -88,7 +88,7 @@ public class ArrayListOfIntBench {
             arrayListOfInteger.add(i, i);
         }
 
-        arrayListOfPrimitiveInt = new ArrayList<PrimitiveInt.ref>(size);
+        arrayListOfPrimitiveInt = new ArrayList<PrimitiveInt>(size);
         for (int i = 0; i < size; i++) {
             arrayListOfPrimitiveInt.add(i, new PrimitiveInt(i));
         }
@@ -125,7 +125,7 @@ public class ArrayListOfIntBench {
 
     @Benchmark
     public Object appendListOfPrimitiveInt() {
-        ArrayList<PrimitiveInt.ref> list = new ArrayList<>(size);
+        ArrayList<PrimitiveInt> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             list.add(new PrimitiveInt(i));
         }
@@ -222,7 +222,7 @@ public class ArrayListOfIntBench {
 
     @Benchmark
     public int thrashListOfPrimitiveInt() {
-        final ArrayList<PrimitiveInt.ref> list = arrayListOfPrimitiveInt;
+        final ArrayList<PrimitiveInt> list = arrayListOfPrimitiveInt;
         int sum = 0;
 
         for (int i = 0; i < 1000; i++) {

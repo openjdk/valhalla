@@ -54,7 +54,6 @@ ciObjArrayKlass::ciObjArrayKlass(Klass* k) : ciArrayKlass(k) {
   if (!ciObjectFactory::is_initialized()) {
     assert(_element_klass->is_java_lang_Object(), "only arrays of object are shared");
   }
-  _null_free = k->name()->is_Q_array_signature() && k->name()->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
 }
 
 // ------------------------------------------------------------------
@@ -75,7 +74,6 @@ ciObjArrayKlass::ciObjArrayKlass(ciSymbol* array_name,
   } else {
     _element_klass = nullptr;
   }
-  _null_free = array_name->is_Q_array_signature() && array_name->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
 }
 
 // ------------------------------------------------------------------
@@ -120,7 +118,6 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
     name[pos] = JVM_SIGNATURE_ARRAY;
   }
   Symbol* base_name_sym = element_name->get_symbol();
-  assert(base_name_sym->char_at(0) != JVM_SIGNATURE_PRIMITIVE_OBJECT, "unloaded array klass element should not have Q-type");
   if (Signature::is_array(base_name_sym) ||
       Signature::has_envelope(base_name_sym)) {
     strncpy(&name[pos], (char*)element_name->base(), element_len);
@@ -178,8 +175,9 @@ ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {
+  // TODO 8325106 Fix comment
   // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
-  if (!is_elem_null_free() && (!is_loaded() || element_klass()->is_inlinetype())) {
+  if (!is_loaded() || element_klass()->is_inlinetype()) {
     return nullptr;
   }
   ciType* base = base_element_type();
@@ -192,4 +190,8 @@ ciKlass* ciObjArrayKlass::exact_klass() {
     return this;
   }
   return nullptr;
+}
+
+bool ciObjArrayKlass::is_elem_null_free() const {
+  GUARDED_VM_ENTRY(return get_Klass()->is_null_free_array_klass();)
 }

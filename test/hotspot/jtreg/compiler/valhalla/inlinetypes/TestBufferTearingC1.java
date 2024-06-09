@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Arm Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -27,16 +27,26 @@ package compiler.valhalla.inlinetypes;
 /**
  * @test TestBufferTearingC1
  * @key randomness
- * @summary Additional tests for C1 missing barriers when buffering inline types.
- * @compile -XDenablePrimitiveClasses TestBufferTearingC1.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
- *                   -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
+ * @summary Tests for C1 missing barriers when buffering value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
+ *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
  *                   -XX:TieredStopAtLevel=1
  *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
  */
 
-primitive class Point {
-    public final int x, y;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class Point {
+    public int x, y;
 
     public Point(int x, int y) {
         this.x = x;
@@ -44,8 +54,10 @@ primitive class Point {
     }
 }
 
-primitive class Rect {
-    public final Point a, b;
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class Rect {
+    public Point a, b;
 
     public Rect(Point a, Point b) {
         this.a = a;
@@ -55,9 +67,14 @@ primitive class Rect {
 
 public class TestBufferTearingC1 {
 
-    public static Point[] points = new Point[] { new Point(1, 1) };
+    public static Point[] points = (Point[])ValueClass.newNullRestrictedArray(Point.class, 1);
     public static Rect rect = new Rect(new Point(1, 1), new Point(2, 2));
-    public static Rect[] rects = new Rect[] { rect };
+    public static Rect[] rects = (Rect[])ValueClass.newNullRestrictedArray(Rect.class, 1);
+
+    static {
+        points[0] = new Point(1, 1);
+        rects[0] = rect;
+    }
 
     public static Object ref1 = points[0];
     public static Object ref2 = rect.a;

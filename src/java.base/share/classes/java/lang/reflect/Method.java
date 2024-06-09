@@ -26,7 +26,6 @@
 package java.lang.reflect;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
@@ -134,7 +133,6 @@ public final class Method extends Executable {
            byte[] annotations,
            byte[] parameterAnnotations,
            byte[] annotationDefault) {
-        assert PrimitiveClass.isPrimaryType(declaringClass);
         this.clazz = declaringClass;
         this.name = name;
         this.parameterTypes = parameterTypes;
@@ -424,13 +422,13 @@ public final class Method extends Executable {
     @Override
     void specificToStringHeader(StringBuilder sb) {
         sb.append(getReturnType().getTypeName()).append(' ');
-        sb.append(getDeclaringClassTypeName()).append('.');
+        sb.append(getDeclaringClass().getTypeName()).append('.');
         sb.append(getName());
     }
 
     @Override
     String toShortString() {
-        return "method " + getDeclaringClassTypeName() +
+        return "method " + getDeclaringClass().getTypeName() +
                 '.' + toShortSignature();
     }
 
@@ -493,7 +491,7 @@ public final class Method extends Executable {
     void specificToGenericStringHeader(StringBuilder sb) {
         Type genRetType = getGenericReturnType();
         sb.append(genRetType.getTypeName()).append(' ');
-        sb.append(getDeclaringClassTypeName()).append('.');
+        sb.append(getDeclaringClass().getTypeName()).append('.');
         sb.append(getName());
     }
 

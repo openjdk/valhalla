@@ -506,7 +506,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
     public void visitApply(JCMethodInvocation invoke) {
 
         // Get method symbol
-        MethodSymbol sym = (MethodSymbol)TreeInfo.symbolFor(invoke.meth);
+        Symbol sym = TreeInfo.symbolFor(invoke.meth);
 
         // Recurse on method expression
         scan(invoke.meth);
@@ -530,7 +530,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
         invoke(invoke, sym, invoke.args, receiverRefs);
     }
 
-    private void invoke(JCTree site, MethodSymbol sym, List<JCExpression> args, RefSet<?> receiverRefs) {
+    private void invoke(JCTree site, Symbol sym, List<JCExpression> args, RefSet<?> receiverRefs) {
 
         // Skip if ignoring warnings for a constructor invoked via 'this()'
         if (suppressed.contains(sym))
@@ -774,7 +774,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
 
         // Explicit 'this' reference?
         Type.ClassType currentClassType = (Type.ClassType)methodClass.sym.type;
-        if (isExplicitThisReference(types, currentClassType, tree)) {
+        if (TreeInfo.isExplicitThisReference(types, currentClassType, tree)) {
             refs.mapInto(refs, ThisRef.class, direct -> new ExprRef(depth, direct));
             return;
         }
@@ -810,6 +810,10 @@ class ThisEscapeAnalyzer extends TreeScanner {
 
     @Override
     public void visitReference(JCMemberReference tree) {
+        if (tree.type.isErroneous()) {
+            //error recovery - ignore erroneous member references
+            return ;
+        }
 
         // Scan target expression and extract 'this' references, if any
         scan(tree.expr);
@@ -1156,43 +1160,6 @@ class ThisEscapeAnalyzer extends TreeScanner {
         return sym != null &&
             sym.kind == VAR &&
             (sym.owner.kind == MTH || sym.owner.kind == VAR);
-    }
-
-    /** Check if the given tree is an explicit reference to the 'this' instance of the
-     *  class currently being compiled. This is true if tree is:
-     *  - An unqualified 'this' identifier
-     *  - A 'super' identifier qualified by a class name whose type is 'currentClass' or a supertype
-     *  - A 'this' identifier qualified by a class name whose type is 'currentClass' or a supertype
-     *    but also NOT an enclosing outer class of 'currentClass'.
-     */
-    private boolean isExplicitThisReference(Types types, Type.ClassType currentClass, JCTree tree) {
-        switch (tree.getTag()) {
-            case PARENS:
-                return isExplicitThisReference(types, currentClass, TreeInfo.skipParens(tree));
-            case IDENT:
-            {
-                JCIdent ident = (JCIdent)tree;
-                Names names = ident.name.table.names;
-                return ident.name == names._this;
-            }
-            case SELECT:
-            {
-                JCFieldAccess select = (JCFieldAccess)tree;
-                Type selectedType = types.erasure(select.selected.type);
-                if (!selectedType.hasTag(CLASS))
-                    return false;
-                ClassSymbol currentClassSym = (ClassSymbol)((Type.ClassType)types.erasure(currentClass)).tsym;
-                ClassSymbol selectedClassSym = (ClassSymbol)((Type.ClassType)selectedType).tsym;
-                Names names = select.name.table.names;
-                return currentClassSym.isSubClass(selectedClassSym, types) &&
-                        (select.name == names._super ||
-                        (select.name == names._this &&
-                            (currentClassSym == selectedClassSym ||
-                            !currentClassSym.isEnclosedBy(selectedClassSym))));
-            }
-            default:
-                return false;
-        }
     }
 
     // When scanning nodes we can be in one of two modes:

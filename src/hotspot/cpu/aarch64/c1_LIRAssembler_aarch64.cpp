@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -284,7 +284,8 @@ void LIR_Assembler::osr_entry() {
         __ bind(L);
       }
 #endif
-      __ ldp(r19, r20, Address(OSR_buf, slot_offset));
+      __ ldr(r19, Address(OSR_buf, slot_offset));
+      __ ldr(r20, Address(OSR_buf, slot_offset + BytesPerWord));
       __ str(r19, frame_map()->address_for_monitor_lock(i));
       __ str(r20, frame_map()->address_for_monitor_object(i));
     }
@@ -1553,27 +1554,13 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
   // We are loading/storing from/to an array that *may* be a flat array (the
   // declared type is Object[], abstract[], interface[] or VT.ref[]).
   // If this array is a flat array, take the slow path.
-
-  Register klass = op->tmp()->as_register();
-  if (UseArrayMarkWordCheck) {
-    __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
-  } else {
-    __ load_klass(klass, op->array()->as_register());
-    __ ldrw(klass, Address(klass, Klass::layout_helper_offset()));
-    __ tst(klass, Klass::_lh_array_tag_flat_value_bit_inplace);
-    __ br(Assembler::NE, *op->stub()->entry());
-  }
+  __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
   if (!op->value()->is_illegal()) {
     // The array is not a flat array, but it might be null-free. If we are storing
     // a null into a null-free array, take the slow path (which will throw NPE).
     Label skip;
     __ cbnz(op->value()->as_register(), skip);
-    if (UseArrayMarkWordCheck) {
-      __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
-    } else {
-      __ tst(klass, Klass::_lh_null_free_array_bit_inplace);
-      __ br(Assembler::NE, *op->stub()->entry());
-    }
+    __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
     __ bind(skip);
   }
 }
@@ -1581,21 +1568,14 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
 void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
   // We are storing into an array that *may* be null-free (the declared type is
   // Object[], abstract[], interface[] or VT.ref[]).
-  if (UseArrayMarkWordCheck) {
-    Label test_mark_word;
-    Register tmp = op->tmp()->as_register();
-    __ ldr(tmp, Address(op->array()->as_register(), oopDesc::mark_offset_in_bytes()));
-    __ tst(tmp, markWord::unlocked_value);
-    __ br(Assembler::NE, test_mark_word);
-    __ load_prototype_header(tmp, op->array()->as_register());
-    __ bind(test_mark_word);
-    __ tst(tmp, markWord::null_free_array_bit_in_place);
-  } else {
-    Register klass = op->tmp()->as_register();
-    __ load_klass(klass, op->array()->as_register());
-    __ ldr(klass, Address(klass, Klass::layout_helper_offset()));
-    __ tst(klass, Klass::_lh_null_free_array_bit_inplace);
-  }
+  Label test_mark_word;
+  Register tmp = op->tmp()->as_register();
+  __ ldr(tmp, Address(op->array()->as_register(), oopDesc::mark_offset_in_bytes()));
+  __ tst(tmp, markWord::unlocked_value);
+  __ br(Assembler::NE, test_mark_word);
+  __ load_prototype_header(tmp, op->array()->as_register());
+  __ bind(test_mark_word);
+  __ tst(tmp, markWord::null_free_array_bit_in_place);
 }
 
 void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op) {
@@ -1690,7 +1670,6 @@ void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
 
 
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
-  assert(VM_Version::supports_cx8(), "wrong machine");
   Register addr;
   if (op->addr()->is_register()) {
     addr = as_reg(op->addr());
@@ -2371,22 +2350,10 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
   if (null_check) {
     __ cbz(obj, *slow_path->entry());
   }
-  if (UseArrayMarkWordCheck) {
-    if (is_dest) {
-      __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
-    } else {
-      __ test_flat_array_oop(obj, tmp, *slow_path->entry());
-    }
+  if (is_dest) {
+    __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
   } else {
-    __ load_klass(tmp, obj);
-    __ ldr(tmp, Address(tmp, Klass::layout_helper_offset()));
-    if (is_dest) {
-      // Take the slow path if it's a null_free destination array, in case the source array contains nulls.
-      __ tst(tmp, Klass::_lh_null_free_array_bit_inplace);
-    } else {
-      __ tst(tmp, Klass::_lh_array_tag_flat_value_bit_inplace);
-    }
-    __ br(Assembler::NE, *slow_path->entry());
+    __ test_flat_array_oop(obj, tmp, *slow_path->entry());
   }
 }
 
@@ -2916,7 +2883,10 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
   __ verify_oop(obj);
 
   if (tmp != obj) {
+    assert_different_registers(obj, tmp, rscratch1, rscratch2, mdo_addr.base(), mdo_addr.index());
     __ mov(tmp, obj);
+  } else {
+    assert_different_registers(obj, rscratch1, rscratch2, mdo_addr.base(), mdo_addr.index());
   }
   if (do_null) {
     __ cbnz(tmp, update);
@@ -2973,10 +2943,11 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
           __ cbz(rscratch2, none);
           __ cmp(rscratch2, (u1)TypeEntries::null_seen);
           __ br(Assembler::EQ, none);
-          // There is a chance that the checks above (re-reading profiling
-          // data from memory) fail if another thread has just set the
+          // There is a chance that the checks above
+          // fail if another thread has just set the
           // profiling to this obj's klass
           __ dmb(Assembler::ISHLD);
+          __ eor(tmp, tmp, rscratch2); // get back original value before XOR
           __ ldr(rscratch2, mdo_addr);
           __ eor(tmp, tmp, rscratch2);
           __ andr(rscratch1, tmp, TypeEntries::type_klass_mask);
@@ -3001,6 +2972,10 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
         __ bind(none);
         // first time here. Set profile type.
         __ str(tmp, mdo_addr);
+#ifdef ASSERT
+        __ andr(tmp, tmp, TypeEntries::type_mask);
+        __ verify_klass_ptr(tmp);
+#endif
       }
     } else {
       // There's a single possible klass at this profile point
@@ -3032,6 +3007,10 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
 #endif
         // first time here. Set profile type.
         __ str(tmp, mdo_addr);
+#ifdef ASSERT
+        __ andr(tmp, tmp, TypeEntries::type_mask);
+        __ verify_klass_ptr(tmp);
+#endif
       } else {
         assert(ciTypeEntries::valid_ciklass(current_klass) != nullptr &&
                ciTypeEntries::valid_ciklass(current_klass) != exact_klass, "inconsistent");

@@ -190,16 +190,7 @@ VerificationType StackMapReader::parse_verification_type(u1* flags, TRAPS) {
       return VerificationType::bogus_type();
     }
     Symbol* klass_name = _cp->klass_name_at(class_index);
-    if (klass_name->is_Q_signature()) {
-      Symbol* fund_name = klass_name->fundamental_name(THREAD);
-      if (fund_name == nullptr) {
-        _stream->stackmap_format_error("TBD something bad happened", THREAD);
-        return VerificationType::bogus_type();
-      }
-      return VerificationType::inline_type(fund_name);
-    } else {
-      return VerificationType::reference_type(klass_name);
-    }
+    return VerificationType::reference_type(klass_name);
   }
   if (tag == ITEM_UninitializedThis) {
     if (flags != nullptr) {

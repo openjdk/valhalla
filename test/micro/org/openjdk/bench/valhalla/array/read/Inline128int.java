@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ public class Inline128int extends StatesQ128int {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public void ref_consume(Q128int.ref v) {
+    public void ref_consume(Q128int v) {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
@@ -72,7 +72,7 @@ public class Inline128int extends StatesQ128int {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Val_read(Val_as_Ref st) {
-        Q128int.ref[] arr = st.arr;
+        Q128int[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             val_consume(arr[i]);
         }
@@ -81,7 +81,7 @@ public class Inline128int extends StatesQ128int {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Ref_read(Val_as_Ref st) {
-        Q128int.ref[] arr = st.arr;
+        Q128int[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             ref_consume(arr[i]);
         }
@@ -90,7 +90,7 @@ public class Inline128int extends StatesQ128int {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Int_read(Val_as_Ref st) {
-        Q128int.ref[] arr = st.arr;
+        Q128int[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             int_consume(arr[i]);
         }

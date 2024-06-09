@@ -46,8 +46,6 @@ enum {
   JVM_CONSTANT_MethodTypeInError        = 105,  // Error tag due to resolution error
   JVM_CONSTANT_DynamicInError           = 106,  // Error tag due to resolution error
   JVM_CONSTANT_InternalMax              = 106,  // Last implementation tag
-  // internal constant tag flags
-  JVM_CONSTANT_QDescBit                 = (1 << 7) // Separate bit, encode Q type descriptors
 };
 
 class constantTag {
@@ -74,10 +72,6 @@ class constantTag {
 
   bool is_unresolved_klass_in_error() const {
     return value() == JVM_CONSTANT_UnresolvedClassInError;
-  }
-
-  bool is_Qdescriptor_klass() const {
-    return (_tag & JVM_CONSTANT_QDescBit) != 0;
   }
 
   bool is_method_handle_in_error() const {
@@ -127,14 +121,9 @@ class constantTag {
     _tag = JVM_CONSTANT_Invalid;
   }
   constantTag(jbyte tag) {
-    jbyte entry_tag = tag & ~JVM_CONSTANT_QDescBit;
-    assert((((tag & JVM_CONSTANT_QDescBit) == 0) && (entry_tag >= 0 && entry_tag <= JVM_CONSTANT_NameAndType) ||
-           (entry_tag >= JVM_CONSTANT_MethodHandle && entry_tag <= JVM_CONSTANT_InvokeDynamic) ||
-           (entry_tag >= JVM_CONSTANT_InternalMin && entry_tag <= JVM_CONSTANT_InternalMax))
-           || (((tag & JVM_CONSTANT_QDescBit) != 0) && (entry_tag == JVM_CONSTANT_Class ||
-               entry_tag == JVM_CONSTANT_UnresolvedClass || entry_tag == JVM_CONSTANT_UnresolvedClassInError
-               || entry_tag == JVM_CONSTANT_ClassIndex))
-               , "Invalid constant tag");
+    assert((tag >= 0 && tag <= JVM_CONSTANT_NameAndType) ||
+           (tag >= JVM_CONSTANT_MethodHandle && tag <= JVM_CONSTANT_InvokeDynamic) ||
+           (tag >= JVM_CONSTANT_InternalMin && tag <= JVM_CONSTANT_InternalMax), "Invalid constant tag");
     _tag = tag;
   }
 
@@ -158,7 +147,7 @@ class constantTag {
     }
   }
 
-  jbyte value() const                { return _tag & ~JVM_CONSTANT_QDescBit; }
+  jbyte value() const                { return _tag; }
   jbyte tag() const                  { return _tag; }
   jbyte error_value() const;
   jbyte non_error_value() const;

@@ -26,7 +26,6 @@
 package java.lang.reflect;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.ConstructorAccessor;
@@ -128,7 +127,6 @@ public final class Constructor<T> extends Executable {
                 String signature,
                 byte[] annotations,
                 byte[] parameterAnnotations) {
-        assert PrimitiveClass.isPrimaryType(declaringClass);
         this.clazz = declaringClass;
         this.parameterTypes = parameterTypes;
         this.exceptionTypes = checkedExceptions;
@@ -367,13 +365,13 @@ public final class Constructor<T> extends Executable {
 
     @Override
     void specificToStringHeader(StringBuilder sb) {
-        sb.append(getDeclaringClassTypeName());
+        sb.append(getDeclaringClass().getTypeName());
     }
 
     @Override
     String toShortString() {
         StringBuilder sb = new StringBuilder("constructor ");
-        sb.append(getDeclaringClassTypeName());
+        sb.append(getDeclaringClass().getTypeName());
         sb.append('(');
         StringJoiner sj = new StringJoiner(",");
         for (Class<?> parameterType : getSharedParameterTypes()) {

@@ -47,6 +47,16 @@ static void assert_test_pattern(Handle object, const char* pattern) {
   ASSERT_THAT(st.base(), testing::HasSubstr(pattern));
 }
 
+static void assert_mark_word_print_pattern(Handle object, const char* pattern) {
+  if (LockingMode == LM_MONITOR) {
+    // With heavy monitors, we do not use the mark word. Printing the oop only shows "monitor" regardless of the
+    // locking state.
+    assert_test_pattern(object, "monitor");
+  } else {
+    assert_test_pattern(object, pattern);
+  }
+}
+
 class LockerThread : public JavaTestThread {
   oop _obj;
   public:
@@ -86,13 +96,13 @@ TEST_VM(markWord, printing) {
   // Thread tries to lock it.
   {
     ObjectLocker ol(h_obj, THREAD);
-    assert_test_pattern(h_obj, "locked");
+    assert_mark_word_print_pattern(h_obj, "locked");
   }
-  assert_test_pattern(h_obj, "is_neutral no_hash");
+  assert_mark_word_print_pattern(h_obj, "is_neutral no_hash");
 
   // Hash the object then print it.
   intx hash = h_obj->identity_hash();
-  assert_test_pattern(h_obj, "is_neutral hash=0x");
+  assert_mark_word_print_pattern(h_obj, "is_neutral hash=0x");
 
   // Wait gets the lock inflated.
   {
@@ -111,7 +121,11 @@ TEST_VM(markWord, printing) {
 
 static void assert_unlocked_state(markWord mark) {
   EXPECT_FALSE(mark.has_displaced_mark_helper());
-  EXPECT_FALSE(mark.has_locker());
+  if (LockingMode == LM_LEGACY) {
+    EXPECT_FALSE(mark.has_locker());
+  } else if (LockingMode == LM_LIGHTWEIGHT) {
+    EXPECT_FALSE(mark.is_fast_locked());
+  }
   EXPECT_FALSE(mark.has_monitor());
   EXPECT_FALSE(mark.is_being_inflated());
   EXPECT_FALSE(mark.is_locked());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ public class InlineField {
         public int my_method();
     }
 
-    public static primitive class Val1 implements MyInterface {
+    public static value class Val1 implements MyInterface {
         public final int f0;
         public Val1(int f0) {
             this.f0 = f0;
@@ -62,7 +62,7 @@ public class InlineField {
         }
     }
 
-    public static primitive class Val2 implements MyInterface {
+    public static value class Val2 implements MyInterface {
         public final int f0;
         public Val2(int f0) {
             this.f0 = f0;
@@ -73,7 +73,7 @@ public class InlineField {
         }
     }
 
-    public static primitive class Val3 implements MyInterface {
+    public static value class Val3 implements MyInterface {
         public final int f0;
         public Val3(int f0) {
             this.f0 = f0;
@@ -93,9 +93,9 @@ public class InlineField {
     }
 
     public static class Ref1Wrapper {
-        public Val1.ref f;
+        public Val1 f;
 
-        public Ref1Wrapper(Val1.ref f) {
+        public Ref1Wrapper(Val1 f) {
             this.f = f;
         }
     }

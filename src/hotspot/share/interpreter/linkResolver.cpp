@@ -961,32 +961,16 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
                                  TRAPS) {
   assert(byte == Bytecodes::_getstatic || byte == Bytecodes::_putstatic ||
          byte == Bytecodes::_getfield  || byte == Bytecodes::_putfield  ||
-         byte == Bytecodes::_withfield ||
          byte == Bytecodes::_nofast_getfield  || byte == Bytecodes::_nofast_putfield  ||
          (byte == Bytecodes::_nop && !link_info.check_access()), "bad field access bytecode");
 
   bool is_static = (byte == Bytecodes::_getstatic || byte == Bytecodes::_putstatic);
   bool is_put    = (byte == Bytecodes::_putfield  || byte == Bytecodes::_putstatic ||
-                    byte == Bytecodes::_nofast_putfield || byte == Bytecodes::_withfield);
+                    byte == Bytecodes::_nofast_putfield);
   // Check if there's a resolved klass containing the field
   Klass* resolved_klass = link_info.resolved_klass();
   Symbol* field = link_info.name();
   Symbol* sig = link_info.signature();
-
-
-  if (byte == Bytecodes::_withfield && !resolved_klass->is_inline_klass()) {
-    ResourceMark rm(THREAD);
-    char msg[200];
-    jio_snprintf(msg, sizeof(msg), "Bytecode withfield cannot be used on identity class %s", resolved_klass->external_name());
-    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), msg);
-  }
-
-  if (is_put && !is_static && byte != Bytecodes::_withfield && resolved_klass->is_inline_klass()) {
-    ResourceMark rm(THREAD);
-    char msg[200];
-    jio_snprintf(msg, sizeof(msg), "Bytecode putfield cannot be used on primitive class %s", resolved_klass->external_name());
-    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), msg);
-  }
 
   // Resolve instance field
   Klass* sel_klass = resolved_klass->find_field(field, sig, &fd);
@@ -1019,26 +1003,15 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
     // (1) by methods declared in the class declaring the field and
     // (2) by the <clinit> method (in case of a static field)
     //     or by the <init> method (in case of an instance field).
-    // (3) by withfield when field is in a value type and the
-    //     selected class and current class are nest mates.
     if (is_put && fd.access_flags().is_final()) {
 
       if (sel_klass != current_klass) {
-        // If byte code is a withfield check if they are nestmates.
-        bool are_nestmates = false;
-        if (sel_klass->is_instance_klass() &&
-            InstanceKlass::cast(sel_klass)->is_inline_klass() &&
-            current_klass->is_instance_klass()) {
-          are_nestmates = InstanceKlass::cast(current_klass)->has_nestmate_access_to(InstanceKlass::cast(sel_klass), THREAD);
-        }
-        if (!are_nestmates) {
-          ResourceMark rm(THREAD);
-          stringStream ss;
-          ss.print("Update to %s final field %s.%s attempted from a different class (%s) than the field's declaring class",
-                   is_static ? "static" : "non-static", resolved_klass->external_name(), fd.name()->as_C_string(),
-                    current_klass->external_name());
-          THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), ss.as_string());
-        }
+        ResourceMark rm(THREAD);
+        stringStream ss;
+        ss.print("Update to %s final field %s.%s attempted from a different class (%s) than the field's declaring class",
+                  is_static ? "static" : "non-static", resolved_klass->external_name(), fd.name()->as_C_string(),
+                  current_klass->external_name());
+        THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), ss.as_string());
       }
 
       if (fd.constants()->pool_holder()->major_version() >= 53) {
@@ -1730,12 +1703,11 @@ void LinkResolver::resolve_invokeinterface(CallInfo& result, Handle recv, const 
 }
 
 bool LinkResolver::resolve_previously_linked_invokehandle(CallInfo& result, const LinkInfo& link_info, const constantPoolHandle& pool, int index, TRAPS) {
-  int cache_index = ConstantPool::decode_cpcache_index(index, true);
-  ConstantPoolCacheEntry* cpce = pool->cache()->entry_at(cache_index);
-  if (!cpce->is_f1_null()) {
+  ResolvedMethodEntry* method_entry = pool->cache()->resolved_method_entry_at(index);
+  if (method_entry->method() != nullptr) {
     Klass* resolved_klass = link_info.resolved_klass();
-    methodHandle method(THREAD, cpce->f1_as_method());
-    Handle     appendix(THREAD, cpce->appendix_if_resolved(pool));
+    methodHandle method(THREAD, method_entry->method());
+    Handle     appendix(THREAD, pool->cache()->appendix_if_resolved(method_entry));
     result.set_handle(resolved_klass, method, appendix, CHECK_false);
     JFR_ONLY(Jfr::on_resolution(result, CHECK_false);)
     return true;

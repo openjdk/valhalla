@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,19 +27,59 @@ import compiler.lib.ir_framework.CompLevel;
 import compiler.lib.ir_framework.Run;
 import compiler.lib.ir_framework.Scenario;
 import compiler.lib.ir_framework.Test;
-import jdk.test.lib.Asserts;
 
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+import jdk.test.lib.Asserts;
 
 /*
  * @test
  * @key randomness
- * @summary Verify that chains of getfields on flattened fields are correctly optimized
+ * @summary Verify that chains of getfields on flat fields are correctly optimized.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @compile GetfieldChains.jcod
- * @compile -XDenablePrimitiveClasses TestGetfieldChains.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestGetfieldChains
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestGetfieldChains
  */
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class Point {
+    int x = 4;
+    int y = 7;
+}
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class Rectangle {
+    @NullRestricted
+    Point p0 = new Point();
+    @NullRestricted
+    Point p1 = new Point();
+}
+
+class NamedRectangle {
+    @NullRestricted
+    Rectangle rect = new Rectangle();
+    String name = "";
+
+    static int getP1X(NamedRectangle nr) {
+        return nr.rect
+            .p1
+            .x;
+    }
+
+    static Point getP1(NamedRectangle nr) {
+        return nr.rect
+            .p1;
+    }
+}
 
 public class TestGetfieldChains {
 
@@ -48,28 +88,23 @@ public class TestGetfieldChains {
         final Scenario[] scenarios = {
                 new Scenario(0,
                         // C1 only
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:TieredStopAtLevel=1",
                         "-XX:+TieredCompilation"),
                 new Scenario(1,
                         // C2 only. (Make sure the tests are correctly written)
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:TieredStopAtLevel=4",
                         "-XX:-TieredCompilation",
                         "-XX:-OmitStackTraceInFastThrow"),
                 new Scenario(2,
                         // interpreter only
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-Xint"),
                 new Scenario(3,
-                        // Xcomp Only C1.
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                        // Xcomp Only C1
                         "-XX:TieredStopAtLevel=1",
                         "-XX:+TieredCompilation",
                         "-Xcomp"),
                 new Scenario(4,
-                        // Xcomp Only C2.
-                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                        // Xcomp Only C2
                         "-XX:TieredStopAtLevel=4",
                         "-XX:-TieredCompilation",
                         "-XX:-OmitStackTraceInFastThrow",
@@ -78,11 +113,14 @@ public class TestGetfieldChains {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
+                   .addFlags("--enable-preview",
+                             "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .start();
     }
 
 
-    // Simple chain of getfields ending with primitive field
+    // Simple chain of getfields ending with value type field
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test1() {
         return NamedRectangle.getP1X(new NamedRectangle());
@@ -94,7 +132,7 @@ public class TestGetfieldChains {
         Asserts.assertEQ(res, 4);
     }
 
-    // Simple chain of getfields ending with a flattened field
+    // Simple chain of getfields ending with a flat field
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public Point test2() {
         return NamedRectangle.getP1(new NamedRectangle());
@@ -113,7 +151,8 @@ public class TestGetfieldChains {
         NullPointerException npe = null;
         try {
             NamedRectangle.getP1X(null);
-        } catch(NullPointerException e) {
+            throw new RuntimeException("No NullPointerException thrown");
+        } catch (NullPointerException e) {
             npe = e;
         }
         return npe;
@@ -125,16 +164,16 @@ public class TestGetfieldChains {
         Asserts.assertNE(npe, null);
         StackTraceElement st = npe.getStackTrace()[0];
         Asserts.assertEQ(st.getMethodName(), "getP1X");
-        Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on file NamedRectangle.java
     }
 
-    // Chain of getfields but one getfield in the middle of the chain trigger an illegal access
+    // Chain of getfields but one getfield in the middle of the chain triggers an illegal access
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public IllegalAccessError test4() {
         IllegalAccessError iae = null;
         try {
-            int i = NamedRectangleP.getP1X(new NamedRectangleP());
-        } catch(IllegalAccessError e) {
+            int i = NamedRectangleP.getP1Y(new NamedRectangleP());
+            throw new RuntimeException("No IllegalAccessError thrown");
+        } catch (IllegalAccessError e) {
             iae = e;
         }
         return iae;
@@ -145,18 +184,18 @@ public class TestGetfieldChains {
         IllegalAccessError iae = test4();
         Asserts.assertNE(iae, null);
         StackTraceElement st = iae.getStackTrace()[0];
-        Asserts.assertEQ(st.getMethodName(), "getP1X");
-        Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on jcod file generated from NamedRectangle.java
+        Asserts.assertEQ(st.getMethodName(), "getP1Y");
         Asserts.assertTrue(iae.getMessage().contains("class compiler.valhalla.inlinetypes.NamedRectangleP tried to access private field compiler.valhalla.inlinetypes.RectangleP.p1"));
     }
 
-    // Chain of getfields but the last getfield trigger a NoSuchFieldError
+    // Chain of getfields but the last getfield triggers a NoSuchFieldError
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public NoSuchFieldError test5() {
         NoSuchFieldError nsfe = null;
         try {
             int i = NamedRectangleN.getP1X(new NamedRectangleN());
-        } catch(NoSuchFieldError e) {
+            throw new RuntimeException("No NoSuchFieldError thrown");
+        } catch (NoSuchFieldError e) {
             nsfe = e;
         }
         return nsfe;
@@ -168,41 +207,89 @@ public class TestGetfieldChains {
         Asserts.assertNE(nsfe, null);
         StackTraceElement st = nsfe.getStackTrace()[0];
         Asserts.assertEQ(st.getMethodName(), "getP1X");
-        Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on jcod file generated from NamedRectangle.java
         Asserts.assertEQ(nsfe.getMessage(), "Class compiler.valhalla.inlinetypes.PointN does not have member field 'int x'");
     }
 
-    static primitive class EmptyType { }
-    static primitive class EmptyContainer {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EmptyType1 { }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EmptyContainer1 {
         int i = 0;
-        EmptyType et = new EmptyType();
+        @NullRestricted
+        EmptyType1 et = new EmptyType1();
     }
-    static primitive class Container {
-        EmptyContainer container0 = new EmptyContainer();
-        EmptyContainer container1 = new EmptyContainer();
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Container1 {
+        @NullRestricted
+        EmptyContainer1 container0 = new EmptyContainer1();
+        @NullRestricted
+        EmptyContainer1 container1 = new EmptyContainer1();
     }
 
     @Test(compLevel = CompLevel.C1_SIMPLE)
-    public EmptyType test6() {
-        Container c = new Container();
+    public EmptyType1 test6() {
+        Container1 c = new Container1();
         return c.container1.et;
     }
 
     @Run(test = "test6")
     public void test6_verifier() {
-        EmptyType et = test6();
-        Asserts.assertEQ(et, EmptyType.default);
+        EmptyType1 et = test6();
+        Asserts.assertEQ(et, new EmptyType1());
     }
 
     @Test(compLevel = CompLevel.C1_SIMPLE)
-    public EmptyType test7() {
-        Container[] ca = new Container[10];
+    public EmptyType1 test7() {
+        Container1[] ca = (Container1[])ValueClass.newNullRestrictedArray(Container1.class, 10);
         return ca[3].container0.et;
     }
 
     @Run(test = "test7")
     public void test7_verifier() {
-        EmptyType et = test7();
-        Asserts.assertEQ(et, EmptyType.default);
+        EmptyType1 et = test7();
+        Asserts.assertEQ(et, new EmptyType1());
+    }
+
+    // Same as test6/test7 but not null-free and EmptyContainer2 with only one field
+
+    static value class EmptyType2 { }
+
+    static value class EmptyContainer2 {
+        EmptyType2 et = null;
+    }
+
+    static value class Container2 {
+        EmptyContainer2 container0 = new EmptyContainer2();
+        EmptyContainer2 container1 = new EmptyContainer2();
+    }
+
+    @Test(compLevel = CompLevel.C1_SIMPLE)
+    public EmptyType2 test8() {
+        Container2 c = new Container2();
+        return c.container1.et;
+    }
+
+    @Run(test = "test8")
+    public void test8_verifier() {
+        EmptyType2 et = test8();
+        Asserts.assertEQ(et, null);
+    }
+
+    @Test(compLevel = CompLevel.C1_SIMPLE)
+    public EmptyType2 test9() {
+        Container2[] ca = new Container2[10];
+        ca[3] = new Container2();
+        return ca[3].container0.et;
+    }
+
+    @Run(test = "test9")
+    public void test9_verifier() {
+        EmptyType2 et = test9();
+        Asserts.assertEQ(et, null);
     }
 }

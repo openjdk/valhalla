@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,9 @@
  * @test TestFieldNullability
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
- * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
- * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFieldNullabilityClasses.jasm
+ * @enablePreview
  * @compile TestFieldNullability.java
- * @run main/othervm -XX:+EnableValhalla  -Xmx128m -XX:InlineFieldMaxFlatSize=32
+ * @run main/othervm -Xmx128m -XX:InlineFieldMaxFlatSize=32
  *                   runtime.valhalla.inlinetypes.TestFieldNullability
  */
 
@@ -73,37 +72,7 @@ public class TestFieldNullability {
         MyBigValue nullBigField;
     }
 
-    static class Wrapper {
-        @NullRestricted
-        TestPrimitiveClass c;
-    }
-
-    static void testPrimitiveClass() {
-        TestPrimitiveClass that = new Wrapper().c;
-        Asserts.assertNull(that.nullField, "Invalid non null value for uninitialized non flattenable field");
-        Asserts.assertNull(that.nullBigField, "Invalid non null value for uninitialized non flattenable field");
-        boolean NPE = false;
-        try {
-            TestPrimitiveClass tv = that.withNullableField(that.nullField);
-        } catch(NullPointerException e) {
-            NPE = true;
-        }
-        Asserts.assertFalse(NPE, "Invalid NPE when assigning null to a non flattenable field");
-        try {
-            TestPrimitiveClass tv = that.withNullfreeField((MyValue) that.nullField);
-        } catch(NullPointerException e) {
-            NPE = true;
-        }
-        Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattened field");
-        try {
-            TestPrimitiveClass tv = that.withNullfreeBigField((MyBigValue) that.nullBigField);
-        } catch(NullPointerException e) {
-            NPE = true;
-        }
-        Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattenable field");
-    }
-
-    static void testIdentityClass() {
+    public static void main(String[] args) {
         TestIdentityClass that = new TestIdentityClass();
         Asserts.assertNull(that.nullField, "Invalid non null value for uninitialized non flattenable field");
         Asserts.assertNull(that.nullBigField, "Invalid non null value for uninitialized non flattenable field");
@@ -126,11 +95,6 @@ public class TestFieldNullability {
             NPE = true;
         }
         Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattenable field");
-    }
-
-    public static void main(String[] args) {
-        testIdentityClass();
-        testPrimitiveClass();
     }
 
 }

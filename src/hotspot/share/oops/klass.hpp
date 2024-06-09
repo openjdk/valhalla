@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -196,9 +196,8 @@ private:
 
 protected:
 
-  // Constructor
   Klass(KlassKind kind);
-  Klass() : _kind(UnknownKlassKind) { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
+  Klass();
 
   void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
@@ -425,7 +424,6 @@ protected:
   static const int _lh_null_free_mask  = 1;
 
   static const jint _lh_array_tag_flat_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
-  static const jint _lh_null_free_array_bit_inplace = (jint) (_lh_null_free_mask << _lh_null_free_shift);
 
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");
@@ -605,7 +603,7 @@ protected:
     if (has_archived_mirror_index()) {
       // _java_mirror is not a valid OopHandle but rather an encoded reference in the shared heap
       return false;
-    } else if (_java_mirror.ptr_raw() == nullptr) {
+    } else if (_java_mirror.is_empty()) {
       return false;
     } else {
       return true;
@@ -691,7 +689,6 @@ protected:
   bool is_interface() const             { return _access_flags.is_interface(); }
   bool is_abstract() const              { return _access_flags.is_abstract(); }
   bool is_synthetic() const             { return _access_flags.is_synthetic(); }
-  bool is_value_class() const           { return _access_flags.is_value_class(); }
   bool is_identity_class() const        { return _access_flags.is_identity_class(); }
   void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
   bool has_finalizer() const            { return _access_flags.has_finalizer(); }

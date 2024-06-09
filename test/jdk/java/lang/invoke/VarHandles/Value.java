@@ -21,14 +21,16 @@
  * questions.
  */
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+
+@ImplicitlyConstructible
 value class Value {
-    Point p;
-    public Value(Point p) {
-        this.p = p;
+    int v;
+    public Value(int v) {
+        this.v = v;
     }
 
-    static Value getInstance(Point p) {
-        return new Value(p);
+    public static Value getInstance(int v) {
+        return new Value(v);
     }
-
 }

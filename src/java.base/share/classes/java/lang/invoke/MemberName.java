@@ -25,7 +25,9 @@
 
 package java.lang.invoke;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.value.CheckedType;
+import jdk.internal.value.NormalCheckedType;
+import jdk.internal.value.NullRestrictedCheckedType;
 import sun.invoke.util.VerifyAccess;
 
 import java.lang.reflect.Constructor;
@@ -92,8 +94,7 @@ final class MemberName implements Member, Cloneable {
     /** Return the simple name of this member.
      *  For a type, it is the same as {@link Class#getSimpleName}.
      *  For a method or field, it is the simple name of the member.
-     *  For an identity object constructor, it is {@code "<init>"}.
-     *  For a value class static factory method, it is {@code "<vnew>"}.
+     *  For a constructor, it is always {@code "<init>"}.
      */
     public String getName() {
         if (name == null) {
@@ -183,11 +184,10 @@ final class MemberName implements Member, Cloneable {
      */
     public MethodType getInvocationType() {
         MethodType itype = getMethodOrFieldType();
-        Class<?> c = PrimitiveClass.isPrimitiveClass(clazz) ? PrimitiveClass.asValueType(clazz) : clazz;
-        if (isObjectConstructor() && getReferenceKind() == REF_newInvokeSpecial)
-            return itype.changeReturnType(c);
+        if (isConstructor() && getReferenceKind() == REF_newInvokeSpecial)
+            return itype.changeReturnType(clazz);
         if (!isStatic())
-            return itype.insertParameterTypes(0, c);
+            return itype.insertParameterTypes(0, clazz);
         return itype;
     }
 
@@ -227,6 +227,14 @@ final class MemberName implements Member, Cloneable {
         return (Class<?>) type;
     }
 
+    /**
+     * Return {@code CheckedType} representing the type of this member.
+     */
+    public CheckedType getCheckedFieldType() {
+        return isNullRestricted() ? NullRestrictedCheckedType.of(getFieldType())
+                                  : NormalCheckedType.of(getFieldType());
+    }
+
     /** Utility method to produce either the method type or field type of this member. */
     public Object getType() {
         return (isInvocable() ? getMethodType() : getFieldType());
@@ -250,7 +258,7 @@ final class MemberName implements Member, Cloneable {
         if (isField()) {
             assert(staticIsConsistent());
             assert(MethodHandleNatives.refKindIsField(refKind));
-        } else if (isObjectConstructor()) {
+        } else if (isConstructor()) {
             assert(refKind == REF_newInvokeSpecial || refKind == REF_invokeSpecial);
         } else if (isMethod()) {
             assert(staticIsConsistent());
@@ -390,8 +398,6 @@ final class MemberName implements Member, Cloneable {
     }
     /** Utility method to query the modifier flags of this member. */
     public boolean isFinal() {
-        // all fields declared in a value type are effectively final
-        assert(!clazz.isValue() || !isField() || Modifier.isFinal(flags));
         return Modifier.isFinal(flags);
     }
     /** Utility method to query whether this member or its defining class is final. */
@@ -432,39 +438,29 @@ final class MemberName implements Member, Cloneable {
         return allFlagsSet(SYNTHETIC);
     }
 
-    /** Query whether this member is a flattened field */
+    /** Query whether this member is a flat field */
     public boolean isFlat() { return (flags & MN_FLAT_FIELD) == MN_FLAT_FIELD; }
 
     /** Query whether this member is a null-restricted field */
     public boolean isNullRestricted() { return (flags & MN_NULL_RESTRICTED) == MN_NULL_RESTRICTED; }
 
-    /** Query whether this member is a field of a primitive class. */
-    public boolean isInlineableField()  {
-        if (isField()) {
-            Class<?> type = getFieldType();
-            return PrimitiveClass.isPrimitiveValueType(type) || (type.isValue() && !PrimitiveClass.isPrimitiveClass(type));
-        }
-        return false;
-    }
-
     static final String CONSTRUCTOR_NAME = "<init>";
-    static final String VALUE_FACTORY_NAME = "<vnew>";  // the ever-popular
 
     // modifiers exported by the JVM:
     static final int RECOGNIZED_MODIFIERS = 0xFFFF;
 
     // private flags, not part of RECOGNIZED_MODIFIERS:
     static final int
-            IS_METHOD             = MN_IS_METHOD,              // method (not object constructor)
-            IS_OBJECT_CONSTRUCTOR = MN_IS_OBJECT_CONSTRUCTOR,  // object constructor
+            IS_METHOD             = MN_IS_METHOD,              // method (not constructor)
+            IS_CONSTRUCTOR        = MN_IS_CONSTRUCTOR,         // constructor
             IS_FIELD              = MN_IS_FIELD,               // field
             IS_TYPE               = MN_IS_TYPE,                // nested type
             CALLER_SENSITIVE      = MN_CALLER_SENSITIVE,       // @CallerSensitive annotation detected
-            TRUSTED_FINAL         = MN_TRUSTED_FINAL;    // trusted final field
+            TRUSTED_FINAL         = MN_TRUSTED_FINAL;          // trusted final field
 
     static final int ALL_ACCESS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
-    static final int ALL_KINDS = IS_METHOD | IS_OBJECT_CONSTRUCTOR | IS_FIELD | IS_TYPE;
-    static final int IS_INVOCABLE = IS_METHOD | IS_OBJECT_CONSTRUCTOR;
+    static final int ALL_KINDS = IS_METHOD | IS_CONSTRUCTOR | IS_FIELD | IS_TYPE;
+    static final int IS_INVOCABLE = IS_METHOD | IS_CONSTRUCTOR;
 
     /** Utility method to query whether this member is a method or constructor. */
     public boolean isInvocable() {
@@ -475,14 +471,9 @@ final class MemberName implements Member, Cloneable {
         return allFlagsSet(IS_METHOD);
     }
     /** Query whether this member is a constructor. */
-    public boolean isObjectConstructor() {
-        return allFlagsSet(IS_OBJECT_CONSTRUCTOR);
+    public boolean isConstructor() {
+        return allFlagsSet(IS_CONSTRUCTOR);
     }
-    /** Query whether this member is an object constructor or static <init> factory */
-    public boolean isStaticValueFactoryMethod() {
-        return VALUE_FACTORY_NAME.equals(name) && isMethod();
-    }
-
     /** Query whether this member is a field. */
     public boolean isField() {
         return allFlagsSet(IS_FIELD);
@@ -606,7 +597,7 @@ final class MemberName implements Member, Cloneable {
     /** If this MN is not REF_newInvokeSpecial, return a clone with that ref. kind.
      *  In that case it must already be REF_invokeSpecial.
      */
-    public MemberName asObjectConstructor() {
+    public MemberName asConstructor() {
         switch (getReferenceKind()) {
         case REF_invokeSpecial:     return clone().changeReferenceKind(REF_newInvokeSpecial, REF_invokeSpecial);
         case REF_newInvokeSpecial:  return this;
@@ -642,14 +633,9 @@ final class MemberName implements Member, Cloneable {
         // fill in vmtarget, vmindex while we have ctor in hand:
         MethodHandleNatives.init(this, ctor);
         assert(isResolved() && this.clazz != null);
-        this.name = this.clazz.isValue() ? VALUE_FACTORY_NAME : CONSTRUCTOR_NAME;
-        if (this.type == null) {
-            Class<?> rtype = void.class;
-            if (isStatic()) {  // a value class static factory, not a true constructor
-                rtype = getDeclaringClass();
-            }
-            this.type = new Object[] { rtype, ctor.getParameterTypes() };
-        }
+        this.name = CONSTRUCTOR_NAME;
+        if (this.type == null)
+            this.type = new Object[] { void.class, ctor.getParameterTypes() };
     }
     /** Create a name for the given reflected field.  The resulting name will be in a resolved state.
      */
@@ -669,7 +655,7 @@ final class MemberName implements Member, Cloneable {
         this.name = fld.getName();
         this.type = fld.getType();
         byte refKind = this.getReferenceKind();
-        assert(refKind == (isStatic() ? REF_getStatic : REF_getField)) : " refKind " + refKind;
+        assert(refKind == (isStatic() ? REF_getStatic : REF_getField));
         if (makeSetter) {
             changeReferenceKind((byte)(refKind + (REF_putStatic - REF_getStatic)), refKind);
         }
@@ -781,14 +767,13 @@ final class MemberName implements Member, Cloneable {
     }
     /** Create a method or constructor name from the given components:
      *  Declaring class, name, type, reference kind.
-     *  It will be an object constructor if and only if the name is {@code "<init>"}.
-     *  It will be a value class instance factory method if and only if the name is {@code "<vnew>"}.
+     *  It will be a constructor if and only if the name is {@code "<init>"}.
      *  The declaring class may be supplied as null if this is to be a bare name and type.
      *  The last argument is optional, a boolean which requests REF_invokeSpecial.
      *  The resulting name will in an unresolved state.
      */
     public MemberName(Class<?> defClass, String name, MethodType type, byte refKind) {
-        int initFlags = CONSTRUCTOR_NAME.equals(name) ? IS_OBJECT_CONSTRUCTOR : IS_METHOD;
+        int initFlags = CONSTRUCTOR_NAME.equals(name) ? IS_CONSTRUCTOR : IS_METHOD;
         init(defClass, name, type, flagsMods(initFlags, 0, refKind));
         initResolved(false);
     }
@@ -806,7 +791,7 @@ final class MemberName implements Member, Cloneable {
             if (!(type instanceof MethodType))
                 throw newIllegalArgumentException("not a method type");
         } else if (refKind == REF_newInvokeSpecial) {
-            kindFlags = IS_OBJECT_CONSTRUCTOR;
+            kindFlags = IS_CONSTRUCTOR;
             if (!(type instanceof MethodType) ||
                 !CONSTRUCTOR_NAME.equals(name))
                 throw newIllegalArgumentException("not a constructor type or name");
@@ -924,7 +909,7 @@ final class MemberName implements Member, Cloneable {
     private String message() {
         if (isResolved())
             return "no access";
-        else if (isObjectConstructor())
+        else if (isConstructor())
             return "no such constructor";
         else if (isMethod())
             return "no such method";
@@ -937,7 +922,7 @@ final class MemberName implements Member, Cloneable {
         if (isResolved() || !(resolution instanceof NoSuchMethodError ||
                               resolution instanceof NoSuchFieldError))
             ex = new IllegalAccessException(message);
-        else if (isObjectConstructor())
+        else if (isConstructor())
             ex = new NoSuchMethodException(message);
         else if (isMethod())
             ex = new NoSuchMethodException(message);

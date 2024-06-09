@@ -205,7 +205,7 @@ class GraphKit : public Phase {
   bool stopped();
 
   // Tell if this method or any caller method has exception handlers.
-  bool has_ex_handler();
+  bool has_exception_handler();
 
   // Save an exception without blowing stack contents or other JVM state.
   // (The extra pointer is stuck with add_req on the map, beyond the JVMS.)
@@ -702,7 +702,7 @@ class GraphKit : public Phase {
 
   // Do a null check on the receiver as it would happen before the call to
   // callee (with all arguments still on the stack).
-  Node* null_check_receiver_before_call(ciMethod* callee, bool replace_value = true) {
+  Node* null_check_receiver_before_call(ciMethod* callee) {
     assert(!callee->is_static(), "must be a virtual method");
     // Callsite signature can be different from actual method being called (i.e _linkTo* sites).
     // Use callsite signature always.
@@ -858,11 +858,10 @@ class GraphKit : public Phase {
   Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false);
 
   // Inline types
+  Node* mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool check_lock = true);
   Node* inline_type_test(Node* obj, bool is_inline = true);
-  Node* is_val_mirror(Node* mirror);
-  Node* array_lh_test(Node* kls, jint mask, jint val, bool eq = true);
   Node* flat_array_test(Node* array_or_klass, bool flat = true);
-  Node* null_free_array_test(Node* klass, bool null_free = true);
+  Node* null_free_array_test(Node* array, bool null_free = true);
   Node* inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);
 
   Node* gen_subtype_check(Node* obj, Node* superklass);

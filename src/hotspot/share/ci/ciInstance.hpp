@@ -55,7 +55,7 @@ public:
   // If this object is a java mirror, return the corresponding type.
   // Otherwise, return null.
   // (Remember that a java mirror is an instance of java.lang.Class.)
-  ciType* java_mirror_type(bool* is_val_mirror = nullptr);
+  ciType* java_mirror_type(bool* is_null_free_array = nullptr);
 
   // What kind of ciObject is this?
   bool is_instance()     { return true; }

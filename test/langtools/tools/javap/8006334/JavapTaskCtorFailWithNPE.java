@@ -47,7 +47,7 @@ public class JavapTaskCtorFailWithNPE {
     //we will also check the output just to confirm that we get the expected one
     private static final String expOutput =
         "Compiled from \"JavapTaskCtorFailWithNPE.java\"\n" +
-        "public identity class JavapTaskCtorFailWithNPE {\n" +
+        "public class JavapTaskCtorFailWithNPE {\n" +
         "  public JavapTaskCtorFailWithNPE();\n" +
         "  public static void main(java.lang.String[]);\n" +
         "}\n";

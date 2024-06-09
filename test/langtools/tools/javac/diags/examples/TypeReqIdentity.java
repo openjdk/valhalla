@@ -23,8 +23,10 @@
 
 // key: compiler.misc.type.req.identity
 // key: compiler.err.type.found.req
-// options: -XDenablePrimitiveClasses
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version}
 
-primitive class TypeReqIdentity {
+value class TypeReqIdentity {
     { synchronized (this) {} }
 }

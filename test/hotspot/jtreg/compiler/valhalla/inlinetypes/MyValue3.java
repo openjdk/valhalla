@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,15 @@ import jdk.test.lib.Utils;
 import compiler.lib.ir_framework.DontInline;
 import compiler.lib.ir_framework.ForceInline;
 
-final primitive class MyValue3Inline {
-    final float f7;
-    final double f8;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue3Inline {
+    float f7;
+    double f8;
 
     @ForceInline
     public MyValue3Inline(float f7, double f8) {
@@ -50,7 +56,7 @@ final primitive class MyValue3Inline {
 
     @ForceInline
     public static MyValue3Inline createDefault() {
-        return MyValue3Inline.default;
+        return new MyValue3Inline(0, 0);
     }
 
     @ForceInline
@@ -64,20 +70,23 @@ final primitive class MyValue3Inline {
 
 // Inline type definition to stress test return of an inline type in registers
 // (uses all registers of calling convention on x86_64)
-public final primitive class MyValue3 extends MyAbstract {
-    final char c;
-    final byte bb;
-    final short s;
-    final int i;
-    final long l;
-    final Object o;
-    final float f1;
-    final double f2;
-    final float f3;
-    final double f4;
-    final float f5;
-    final double f6;
-    final MyValue3Inline v1;
+@ImplicitlyConstructible
+@LooselyConsistentValue
+public value class MyValue3 extends MyAbstract {
+    char c;
+    byte bb;
+    short s;
+    int i;
+    long l;
+    Object o;
+    float f1;
+    double f2;
+    float f3;
+    double f4;
+    float f5;
+    double f6;
+    @NullRestricted
+    MyValue3Inline v1;
 
     @ForceInline
     public MyValue3(char c, byte bb, short s, int i, long l, Object o,
@@ -165,7 +174,7 @@ public final primitive class MyValue3 extends MyAbstract {
 
     @ForceInline
     public static MyValue3 createDefault() {
-        return MyValue3.default;
+        return new MyValue3((char)0, (byte)0, (short)0, 0, 0, null, 0, 0, 0, 0, 0, 0, MyValue3Inline.createDefault());
     }
 
     @ForceInline

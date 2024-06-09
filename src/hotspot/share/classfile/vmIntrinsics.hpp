@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -199,7 +199,7 @@ class methodHandle;
   /* Float16 intrinsics, similar to what we have in Math. */                                                            \
   do_intrinsic(_sum_float16,              java_lang_Float16,      sum_name,           floa16_float16_signature,  F_S)   \
    do_name(sum_name, "sum")                                                                                             \
-   do_signature(floa16_float16_signature, "(Qjava/lang/Float16;Qjava/lang/Float16;)Qjava/lang/Float16;")                \
+   do_signature(floa16_float16_signature, "(Ljava/lang/Float16;Ljava/lang/Float16;)Ljava/lang/Float16;")                \
                                                                                                                         \
   /* StrictMath intrinsics, similar to what we have in Math. */                                                         \
   do_intrinsic(_min_strict,               java_lang_StrictMath,   min_name,           int2_int_signature,        F_S)   \
@@ -305,12 +305,6 @@ class methodHandle;
    do_name(     setCurrentThread_name,                           "setCurrentThread")                                    \
                                                                                                                         \
   /* reflective intrinsics, for java/lang/Class, etc. */                                                                \
-  do_intrinsic(_asPrimaryType,            java_lang_Class,        asPrimaryType_name, void_class_signature,      F_R)   \
-  do_intrinsic(_asPrimaryTypeArg,         jdk_internal_value_PrimitiveClass, asPrimaryType_name, class_class_signature, F_S) \
-   do_name(     asPrimaryType_name,                              "asPrimaryType")                                       \
-  do_intrinsic(_asValueType,              java_lang_Class,        asValueType_name, void_class_signature,        F_R)   \
-  do_intrinsic(_asValueTypeArg,           jdk_internal_value_PrimitiveClass, asValueType_name,   class_class_signature, F_S) \
-   do_name(     asValueType_name,                                "asValueType")                                         \
   do_intrinsic(_isAssignableFrom,         java_lang_Class,        isAssignableFrom_name, class_boolean_signature, F_RN) \
    do_name(     isAssignableFrom_name,                           "isAssignableFrom")                                    \
   do_intrinsic(_isInstance,               java_lang_Class,        isInstance_name, object_boolean_signature,     F_RN)  \
@@ -341,6 +335,9 @@ class methodHandle;
   do_intrinsic(_newArray,                 java_lang_reflect_Array, newArray_name, newArray_signature,            F_SN)  \
    do_name(     newArray_name,                                    "newArray")                                           \
    do_signature(newArray_signature,                               "(Ljava/lang/Class;I)Ljava/lang/Object;")             \
+  do_intrinsic(_newNullRestrictedArray,   jdk_internal_value_ValueClass, newNullRestrictedArray_name, newNullRestrictedArray_signature, F_SN) \
+   do_signature(newNullRestrictedArray_signature,                 "(Ljava/lang/Class;I)[Ljava/lang/Object;")            \
+   do_name(     newNullRestrictedArray_name,                      "newNullRestrictedArray")                             \
                                                                                                                         \
   do_intrinsic(_onSpinWait,               java_lang_Thread,       onSpinWait_name, onSpinWait_signature,         F_S)   \
    do_name(     onSpinWait_name,                                  "onSpinWait")                                         \
@@ -414,7 +411,6 @@ class methodHandle;
    do_signature(indexOfI_signature,                              "([BI[BII)I")                                          \
    do_signature(indexOfChar_signature,                           "([BIII)I")                                            \
   do_intrinsic(_equalsL,                  java_lang_StringLatin1,equals_name, equalsB_signature,                 F_S)   \
-  do_intrinsic(_equalsU,                  java_lang_StringUTF16, equals_name, equalsB_signature,                 F_S)   \
                                                                                                                         \
   do_intrinsic(_isDigit,                  java_lang_CharacterDataLatin1, isDigit_name,      int_bool_signature,  F_R)   \
    do_name(     isDigit_name,                                           "isDigit")                                      \
@@ -608,7 +604,8 @@ class methodHandle;
   do_intrinsic(_notifyJvmtiVThreadEnd, java_lang_VirtualThread, notifyJvmtiEnd_name, void_method_signature, F_RN)       \
   do_intrinsic(_notifyJvmtiVThreadMount, java_lang_VirtualThread, notifyJvmtiMount_name, bool_void_signature, F_RN)     \
   do_intrinsic(_notifyJvmtiVThreadUnmount, java_lang_VirtualThread, notifyJvmtiUnmount_name, bool_void_signature, F_RN) \
-  do_intrinsic(_notifyJvmtiVThreadHideFrames, java_lang_VirtualThread, notifyJvmtiHideFrames_name, bool_void_signature, F_RN) \
+  do_intrinsic(_notifyJvmtiVThreadHideFrames, java_lang_VirtualThread, notifyJvmtiHideFrames_name, bool_void_signature, F_SN) \
+  do_intrinsic(_notifyJvmtiVThreadDisableSuspend, java_lang_VirtualThread, notifyJvmtiDisableSuspend_name, bool_void_signature, F_SN) \
                                                                                                                         \
   /* support for UnsafeConstants */                                                                                     \
   do_class(jdk_internal_misc_UnsafeConstants,      "jdk/internal/misc/UnsafeConstants")                                 \
@@ -632,8 +629,8 @@ class methodHandle;
   do_intrinsic(_copyMemory,               jdk_internal_misc_Unsafe,     copyMemory_name, copyMemory_signature,         F_RN)     \
    do_name(     copyMemory_name,                                        "copyMemory0")                                           \
    do_signature(copyMemory_signature,                                   "(Ljava/lang/Object;JLjava/lang/Object;JJ)V")            \
-  do_intrinsic(_isFlattenedArray,         jdk_internal_misc_Unsafe,     isFlattenedArray_name, class_boolean_signature, F_RN)    \
-   do_name(     isFlattenedArray_name,                                  "isFlattenedArray")                                      \
+  do_intrinsic(_isFlatArray,              jdk_internal_misc_Unsafe,     isFlatArray_name, class_boolean_signature, F_RN)         \
+   do_name(     isFlatArray_name,                                       "isFlatArray")                                           \
   do_intrinsic(_loadFence,                jdk_internal_misc_Unsafe,     loadFence_name, loadFence_signature,           F_R)      \
    do_name(     loadFence_name,                                         "loadFence")                                             \
    do_alias(    loadFence_signature,                                    void_method_signature)                                   \
@@ -1021,6 +1018,7 @@ class methodHandle;
                                      "I"                                                                                                       \
                                      "Ljava/lang/Object;"                                                                                      \
                                      "J"                                                                                                       \
+                                     "Z"                                                                                                       \
                                      "Ljava/lang/Object;"                                                                                      \
                                      "J"                                                                                                       \
                                      "Ljdk/internal/vm/vector/VectorSupport$VectorSpecies;"                                                    \
@@ -1035,6 +1033,7 @@ class methodHandle;
                                             "I"                                                                                                \
                                             "Ljava/lang/Object;"                                                                               \
                                             "J"                                                                                                \
+                                            "Z"                                                                                                \
                                             "Ljdk/internal/vm/vector/VectorSupport$VectorMask;"                                                \
                                             "I"                                                                                                \
                                             "Ljava/lang/Object;"                                                                               \
@@ -1050,6 +1049,7 @@ class methodHandle;
                                       "I"                                                                                                      \
                                       "Ljava/lang/Object;"                                                                                     \
                                       "J"                                                                                                      \
+                                      "Z"                                                                                                      \
                                       "Ljdk/internal/vm/vector/VectorSupport$VectorPayload;"                                                   \
                                       "Ljava/lang/Object;"                                                                                     \
                                       "J"                                                                                                      \
@@ -1064,6 +1064,7 @@ class methodHandle;
                                              "I"                                                                                               \
                                              "Ljava/lang/Object;"                                                                              \
                                              "J"                                                                                               \
+                                             "Z"                                                                                               \
                                              "Ljdk/internal/vm/vector/VectorSupport$Vector;"                                                   \
                                              "Ljdk/internal/vm/vector/VectorSupport$VectorMask;"                                               \
                                              "Ljava/lang/Object;"                                                                              \

@@ -248,10 +248,11 @@ class LibraryCallKit : public GraphKit {
   static bool klass_needs_init_guard(Node* kls);
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
+  bool inline_newNullRestrictedArray();
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
-  bool inline_unsafe_isFlattenedArray();
+  bool inline_unsafe_isFlatArray();
   bool inline_unsafe_make_private_buffer();
   bool inline_unsafe_finish_private_buffer();
 
@@ -268,6 +269,7 @@ class LibraryCallKit : public GraphKit {
 #if INCLUDE_JVMTI
   bool inline_native_notify_jvmti_funcs(address funcAddr, const char* funcName, bool is_start, bool is_end);
   bool inline_native_notify_jvmti_hide();
+  bool inline_native_notify_jvmti_sync();
 #endif
 
 #ifdef JFR_HAVE_INTRINSICS

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "opto/output.hpp"
 #include "opto/runtime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/globals_extension.hpp"
 #include "utilities/macros.hpp"
 
 
@@ -63,6 +64,13 @@ const char* C2Compiler::retry_no_superword() {
 void compiler_stubs_init(bool in_compiler_thread);
 
 bool C2Compiler::init_c2_runtime() {
+
+#ifdef ASSERT
+  if (!AlignVector && VerifyAlignVector) {
+    warning("VerifyAlignVector disabled because AlignVector is not enabled.");
+    FLAG_SET_CMDLINE(VerifyAlignVector, false);
+  }
+#endif
 
   // Check assumptions used while running ADLC
   Compile::adlc_verification();
@@ -116,7 +124,8 @@ void C2Compiler::compile_method(ciEnv* env, ciMethod* target, int entry_bci, boo
   bool do_escape_analysis = DoEscapeAnalysis;
   bool do_iterative_escape_analysis = DoEscapeAnalysis;
   bool do_reduce_allocation_merges = ReduceAllocationMerges && EliminateAllocations;
-  bool eliminate_boxing = EliminateAutoBox;
+  // TODO 8328675 Re-enable
+  bool eliminate_boxing = false; // EliminateAutoBox;
   bool do_locks_coarsening = EliminateLocks;
   bool do_superword = UseSuperWord;
 
@@ -237,7 +246,6 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
     if (!Matcher::match_rule_supported(Op_StrComp)) return false;
     break;
   case vmIntrinsics::_equalsL:
-  case vmIntrinsics::_equalsU:
     if (!Matcher::match_rule_supported(Op_StrEquals)) return false;
     break;
   case vmIntrinsics::_vectorizedHashCode:
@@ -737,16 +745,13 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_nanoTime:
   case vmIntrinsics::_allocateInstance:
   case vmIntrinsics::_allocateUninitializedArray:
-  case vmIntrinsics::_isFlattenedArray:
+  case vmIntrinsics::_isFlatArray:
   case vmIntrinsics::_newArray:
+  case vmIntrinsics::_newNullRestrictedArray:
   case vmIntrinsics::_getLength:
   case vmIntrinsics::_copyOf:
   case vmIntrinsics::_copyOfRange:
   case vmIntrinsics::_clone:
-  case vmIntrinsics::_asPrimaryType:
-  case vmIntrinsics::_asPrimaryTypeArg:
-  case vmIntrinsics::_asValueType:
-  case vmIntrinsics::_asValueTypeArg:
   case vmIntrinsics::_isAssignableFrom:
   case vmIntrinsics::_isInstance:
   case vmIntrinsics::_getModifiers:
@@ -834,6 +839,7 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_notifyJvmtiVThreadMount:
   case vmIntrinsics::_notifyJvmtiVThreadUnmount:
   case vmIntrinsics::_notifyJvmtiVThreadHideFrames:
+  case vmIntrinsics::_notifyJvmtiVThreadDisableSuspend:
 #endif
     break;
 

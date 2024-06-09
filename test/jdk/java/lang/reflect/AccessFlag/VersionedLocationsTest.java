@@ -117,7 +117,7 @@ public class VersionedLocationsTest {
 
             new StepFunctionTC(SUPER,
                                Set.of(AccessFlag.Location.CLASS),
-                               ClassFileFormatVersion.RELEASE_21),
+                               ClassFileFormatVersion.RELEASE_22),
 
             new StepFunctionTC(OPEN,
                                Set.of(),

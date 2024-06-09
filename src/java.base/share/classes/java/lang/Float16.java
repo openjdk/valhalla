@@ -55,10 +55,12 @@ import static java.lang.Float.floatToFloat16;
  * @since 20.00
  */
 
-// Currently Float16 is a primitive class but in future will be aligned with
+// Currently Float16 is a value based class but in future will be aligned with
 // Enhanced Primitive Boxes described by JEP-402 (https://openjdk.org/jeps/402)
-public /*primitive*/ class Float16 extends Number
- /* implements Comparable<Float16>*/ { // Not supported
+@jdk.internal.MigratedValueClass
+@jdk.internal.ValueBased
+public final class Float16 extends Number {
+    // implements Comparable<Float16>
     private final short value;
     private static final long serialVersionUID = 16; // Not needed for a primitive class?
 
@@ -410,6 +412,7 @@ public /*primitive*/ class Float16 extends Number
      * @param   f16   a {@code Float16} floating-point number.
      * @return the bits that represent the floating-point number.
      */
+<<<<<<< HEAD
     public static short float16ToRawShortBits(Float16 f16) {
         return f16.value;
     }
@@ -669,4 +672,9 @@ public /*primitive*/ class Float16 extends Number
     // IEEEremainder
     // signum
     // ulp
+=======
+    public short float16ToRawShortBits() { return value; }
+
+    private static final long serialVersionUID = 16; // Not needed for a primitive class?
+>>>>>>> refs/remotes/origin/lworld+fp16
 }

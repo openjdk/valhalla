@@ -134,7 +134,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
         TypeKind kind = t.getKind();
         if (kind == TypeKind.PACKAGE || kind == TypeKind.MODULE)
             throw new IllegalArgumentException(t.toString());
-        return types.erasure((Type)t).stripMetadataIfNeeded();
+        return types.erasure((Type)t).stripMetadata();
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
@@ -155,7 +155,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
     @DefinedBy(Api.LANGUAGE_MODEL)
     public TypeMirror capture(TypeMirror t) {
         validateTypeNotIn(t, EXEC_OR_PKG_OR_MOD);
-        return types.capture((Type)t).stripMetadataIfNeeded();
+        return types.capture((Type)t).stripMetadata();
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
@@ -277,7 +277,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
             }
             // TODO: Would like a way to check that type args match formals.
 
-            return (DeclaredType) new Type.ClassType(outer, targs.toList(), sym, sym.type.getFlavor());
+            return (DeclaredType) new Type.ClassType(outer, targs.toList(), sym);
         }
 
     /**
@@ -298,9 +298,16 @@ public class JavacTypes implements javax.lang.model.util.Types {
     public TypeMirror asMemberOf(DeclaredType containing, Element element) {
         Type site = (Type)containing;
         Symbol sym = (Symbol)element;
-        if (types.asSuper(site.referenceProjectionOrSelf(), sym.getEnclosingElement()) == null)
+        if (types.asSuper(site, sym.getEnclosingElement()) == null)
             throw new IllegalArgumentException(sym + "@" + site);
         return types.memberType(site, sym);
+    }
+
+
+    @DefinedBy(Api.LANGUAGE_MODEL)
+    @SuppressWarnings("unchecked")
+    public <T extends TypeMirror> T stripAnnotations(T t) {
+        return (T)((Type) t).stripMetadata();
     }
 
 

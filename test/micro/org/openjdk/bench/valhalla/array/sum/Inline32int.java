@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ public class Inline32int extends StatesQ32int {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int Val_as_Ref_fields(Val_as_Ref st) {
         int s = 0;
-        Q32int.ref[] arr = st.arr;
+        Q32int[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].v0;
         }
@@ -56,7 +56,7 @@ public class Inline32int extends StatesQ32int {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int Ref_as_Ref_fields(Ref_as_Ref st) {
         int s = 0;
-        Q32int.ref[] arr = st.arr;
+        Q32int[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].v0;
         }
@@ -78,7 +78,7 @@ public class Inline32int extends StatesQ32int {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int Val_as_Ref_sum(Val_as_Ref st) {
         int s = 0;
-        Q32int.ref[] arr = st.arr;
+        Q32int[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].intSum();
         }
@@ -89,7 +89,7 @@ public class Inline32int extends StatesQ32int {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int Ref_as_Ref_sum(Ref_as_Ref st) {
         int s = 0;
-        Q32int.ref[] arr = st.arr;
+        Q32int[] arr = st.arr;
         for(int i=0; i < arr.length; i++) {
             s += arr[i].intSum();
         }

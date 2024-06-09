@@ -1,7 +1,0 @@
-CheckValueModifier.java:18:14: compiler.err.illegal.combination.of.modifiers: interface, primitive
-CheckValueModifier.java:19:15: compiler.err.illegal.combination.of.modifiers: interface, primitive
-CheckValueModifier.java:20:14: compiler.err.mod.not.allowed.here: primitive
-CheckValueModifier.java:21:23: compiler.err.illegal.combination.of.modifiers: abstract, primitive
-CheckValueModifier.java:15:18: compiler.err.mod.not.allowed.here: primitive
-CheckValueModifier.java:16:18: compiler.err.mod.not.allowed.here: primitive
-6 errors

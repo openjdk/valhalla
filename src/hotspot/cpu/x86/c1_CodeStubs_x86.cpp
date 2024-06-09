@@ -252,7 +252,6 @@ NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKl
   _klass_reg = klass_reg;
   _info = new CodeEmitInfo(info);
   assert(stub_id == Runtime1::new_instance_id                 ||
-         stub_id == Runtime1::new_instance_no_inline_id       ||
          stub_id == Runtime1::fast_new_instance_id            ||
          stub_id == Runtime1::fast_new_instance_init_check_id,
          "need new_instance id");
@@ -313,7 +312,7 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   assert(_length->as_register() == rbx, "length must in rbx,");
   assert(_klass_reg->as_register() == rdx, "klass_reg must in rdx");
   if (_is_null_free) {
-    __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_flat_array_id)));
+    __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_null_free_array_id)));
   } else {
     __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
   }
@@ -326,14 +325,14 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
   __ bind(_entry);
-  if (_throw_imse_stub != nullptr) {
+  if (_throw_ie_stub != nullptr) {
     // When we come here, _obj_reg has already been checked to be non-null.
     const int is_value_mask = markWord::inline_type_pattern;
     Register mark = _scratch_reg->as_register();
     __ movptr(mark, Address(_obj_reg->as_register(), oopDesc::mark_offset_in_bytes()));
     __ andptr(mark, is_value_mask);
     __ cmpl(mark, is_value_mask);
-    __ jcc(Assembler::equal, *_throw_imse_stub->entry());
+    __ jcc(Assembler::equal, *_throw_ie_stub->entry());
   }
   ce->store_parameter(_obj_reg->as_register(),  1);
   ce->store_parameter(_lock_reg->as_register(), 0);

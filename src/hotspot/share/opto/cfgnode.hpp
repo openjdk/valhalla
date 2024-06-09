@@ -181,6 +181,9 @@ class PhiNode : public TypeNode {
 
   bool must_wait_for_region_in_irreducible_loop(PhaseGVN* phase) const;
 
+  bool can_push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass*& inline_klass);
+  InlineTypeNode* push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass);
+
 public:
   // Node layout (parallels RegionNode):
   enum { Region,                // Control input is the Phi's region.
@@ -254,7 +257,11 @@ public:
            type()->higher_equal(tp);
   }
 
-  InlineTypeNode* push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk);
+  bool can_be_inline_type() const {
+    return EnableValhalla && _type->isa_instptr() && _type->is_instptr()->can_be_inline_type();
+  }
+
+  Node* try_push_inline_types_down(PhaseGVN* phase, bool can_reshape);
 
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
@@ -432,7 +439,8 @@ public:
   virtual const RegMask &out_RegMask() const;
   Node* fold_compares(PhaseIterGVN* phase);
   static Node* up_one_dom(Node* curr, bool linear_only = false);
-  Node* dominated_by(Node* prev_dom, PhaseIterGVN* igvn);
+  bool is_zero_trip_guard() const;
+  Node* dominated_by(Node* prev_dom, PhaseIterGVN* igvn, bool pin_array_access_nodes);
 
   // Takes the type of val and filters it through the test represented
   // by if_proj and returns a more refined type if one is produced.
@@ -507,6 +515,8 @@ class IfProjNode : public CProjNode {
 public:
   IfProjNode(IfNode *ifnode, uint idx) : CProjNode(ifnode,idx) {}
   virtual Node* Identity(PhaseGVN* phase);
+
+  void pin_array_access_nodes(PhaseIterGVN* igvn);
 
 protected:
   // Type of If input when this branch is always taken

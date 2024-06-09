@@ -101,6 +101,9 @@ public enum Target {
 
     /** JDK 22. */
     JDK1_22("22", 66, 0),
+
+    /** JDK 23. */
+    JDK1_23("23", 67, 0),
     ; // Reduce code churn when appending new constants
 
     private static final Context.Key<Target> targetKey = new Context.Key<>();
@@ -209,6 +212,12 @@ public enum Target {
      */
     public boolean hasSealedClasses() {
         return compareTo(JDK1_15) >= 0;
+    }
+
+    /** Does the target VM support value classes
+     */
+    public boolean hasValueClasses() {
+        return compareTo(JDK1_19) >= 0;
     }
 
     /** Is the ACC_STRICT bit redundant and obsolete

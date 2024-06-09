@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,8 @@ package runtime.valhalla.inlinetypes;
 
 /* @test
  * @summary test JNI functions with inline types
- * @run main/othervm/native -XX:+EnableValhalla -XX:-EnablePrimitiveClasses runtime.valhalla.inlinetypes.InlineWithJni
+ * @enablePreview
+ * @run main/othervm/native runtime.valhalla.inlinetypes.InlineWithJni
  */
 public value class InlineWithJni {
 

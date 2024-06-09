@@ -21,18 +21,14 @@
  * questions.
  */
 
-import static jdk.internal.classfile.TypeAnnotation.TargetType.*;
+import static java.lang.classfile.TypeAnnotation.TargetType.*;
 
 /*
  * @test
  * @bug 8042451
  * @summary Test population of reference info for new object creations
- * @modules java.base/jdk.internal.classfile
- *          java.base/jdk.internal.classfile.attribute
- *          java.base/jdk.internal.classfile.constantpool
- *          java.base/jdk.internal.classfile.instruction
- *          java.base/jdk.internal.classfile.components
- *          java.base/jdk.internal.classfile.impl
+ * @enablePreview
+ * @modules java.base/jdk.internal.classfile.impl
  * @compile -g Driver.java ReferenceInfoUtil.java NewObjects.java
  * @run main Driver NewObjects
  */
@@ -66,14 +62,14 @@ public class NewObjects {
 
     @TADescription(annotation = "TA", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE)
     public String eqtestObject() {
-        return "void eqtestObject() { if (null == new @TA String()); }";
+        return "void eqtestObject(String s) { if (s == new @TA String()); }";
     }
 
     @TADescription(annotation = "TA", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE)
     @TADescription(annotation = "TB", type = NEW,
             genericLocation = { 3, 0 }, offset = ReferenceInfoUtil.IGNORE_VALUE)
     public String eqtestObjectGeneric() {
-        return "void eqtestObjectGeneric() { if (null == new @TA ArrayList<@TB String >()); }";
+        return "void eqtestObjectGeneric(ArrayList<String> as) { if (as == new @TA ArrayList<@TB String >()); }";
     }
 
     @TADescription(annotation = "TA", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE,
@@ -170,14 +166,14 @@ public class NewObjects {
 
     @TADescription(annotation = "RTAs", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE)
     public String eqtestObjectRepeatableAnnotation() {
-        return "void eqtestObject() { if (null == new @RTA @RTA String()); }";
+        return "void eqtestObject(String s) { if (s == new @RTA @RTA String()); }";
     }
 
     @TADescription(annotation = "RTAs", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE)
     @TADescription(annotation = "RTBs", type = NEW,
             genericLocation = { 3, 0 }, offset = ReferenceInfoUtil.IGNORE_VALUE)
     public String eqtestObjectGenericRepeatableAnnotation() {
-        return "void eqtestObjectGeneric() { if (null == new @RTA @RTA ArrayList<@RTB @RTB String >()); }";
+        return "void eqtestObjectGeneric(ArrayList<String> as) { if (as == new @RTA @RTA ArrayList<@RTB @RTB String >()); }";
     }
 
     @TADescription(annotation = "RTAs", type = NEW, offset = ReferenceInfoUtil.IGNORE_VALUE,

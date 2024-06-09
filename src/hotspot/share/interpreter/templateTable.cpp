@@ -437,8 +437,6 @@ void TemplateTable::initialize() {
   def(Bytecodes::_goto_w              , ubcp|____|clvm|____, vtos, vtos, goto_w              ,  _           );
   def(Bytecodes::_jsr_w               , ubcp|____|____|____, vtos, vtos, jsr_w               ,  _           );
   def(Bytecodes::_breakpoint          , ubcp|disp|clvm|____, vtos, vtos, _breakpoint         ,  _           );
-  def(Bytecodes::_aconst_init         , ubcp|____|clvm|____, vtos, atos, aconst_init        , _            );
-  def(Bytecodes::_withfield           , ubcp|____|clvm|____, vtos, atos, withfield           , _            );
 
   // wide Java spec bytecodes
   def(Bytecodes::_iload               , ubcp|____|____|iswd, vtos, itos, wide_iload          ,  _           );
@@ -457,7 +455,7 @@ void TemplateTable::initialize() {
 
   // JVM bytecodes
   def(Bytecodes::_fast_agetfield      , ubcp|____|____|____, atos, atos, fast_accessfield    ,  atos        );
-  def(Bytecodes::_fast_qgetfield      , ubcp|____|clvm|____, atos, atos, fast_accessfield    ,  atos        );
+  def(Bytecodes::_fast_vgetfield      , ubcp|____|clvm|____, atos, atos, fast_accessfield    ,  atos        );
   def(Bytecodes::_fast_bgetfield      , ubcp|____|____|____, atos, itos, fast_accessfield    ,  itos        );
   def(Bytecodes::_fast_cgetfield      , ubcp|____|____|____, atos, itos, fast_accessfield    ,  itos        );
   def(Bytecodes::_fast_dgetfield      , ubcp|____|____|____, atos, dtos, fast_accessfield    ,  dtos        );
@@ -467,7 +465,7 @@ void TemplateTable::initialize() {
   def(Bytecodes::_fast_sgetfield      , ubcp|____|____|____, atos, itos, fast_accessfield    ,  itos        );
 
   def(Bytecodes::_fast_aputfield      , ubcp|____|____|____, atos, vtos, fast_storefield ,   atos        );
-  def(Bytecodes::_fast_qputfield      , ubcp|____|clvm|____, atos, vtos, fast_storefield ,   atos        );
+  def(Bytecodes::_fast_vputfield      , ubcp|____|clvm|____, atos, vtos, fast_storefield ,   atos        );
   def(Bytecodes::_fast_bputfield      , ubcp|____|____|____, itos, vtos, fast_storefield ,   itos        );
   def(Bytecodes::_fast_zputfield      , ubcp|____|____|____, itos, vtos, fast_storefield ,   itos        );
   def(Bytecodes::_fast_cputfield      , ubcp|____|____|____, itos, vtos, fast_storefield  ,  itos        );

@@ -70,11 +70,9 @@ class Canonicalizer: InstructionVisitor {
   virtual void do_TypeCast       (TypeCast*        x);
   virtual void do_Invoke         (Invoke*          x);
   virtual void do_NewInstance    (NewInstance*     x);
-  virtual void do_NewInlineTypeInstance(NewInlineTypeInstance* x);
   virtual void do_NewTypeArray   (NewTypeArray*    x);
   virtual void do_NewObjectArray (NewObjectArray*  x);
   virtual void do_NewMultiArray  (NewMultiArray*   x);
-  virtual void do_Deoptimize     (Deoptimize*      x);
   virtual void do_CheckCast      (CheckCast*       x);
   virtual void do_InstanceOf     (InstanceOf*      x);
   virtual void do_MonitorEnter   (MonitorEnter*    x);

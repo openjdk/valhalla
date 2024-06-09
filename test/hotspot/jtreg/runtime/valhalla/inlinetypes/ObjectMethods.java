@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,14 +28,14 @@ import test.java.lang.invoke.lib.InstructionHelper;
 
 /*
  * @test ObjectMethods
- * @summary Check object method implemented by the VM behave with inline types
- * @modules java.base/jdk.internal.value
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @summary Check object methods implemented by the VM behave with value types
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @enablePreview
  * @compile ObjectMethods.java
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
+ * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
  */
 
 public class ObjectMethods {
@@ -112,15 +112,15 @@ public class ObjectMethods {
     }
 
     static void checkSynchronized(Object val) {
-        boolean sawImse = false;
+        boolean sawIe = false;
         try {
             synchronized (val) {
-                throw new IllegalStateException("Unreachable code, reached");
+                throw new IdentityException("Unreachable code, reached");
             }
-        } catch (IllegalMonitorStateException imse) {
-            sawImse = true;
+        } catch (IdentityException ie) {
+            sawIe = true;
         }
-        if (!sawImse) {
+        if (!sawIe) {
             throw new RuntimeException("monitorenter did not fail");
         }
         // synchronized method modifiers tested by "BadInlineTypes" CFP tests
@@ -129,26 +129,26 @@ public class ObjectMethods {
 
     // Check we haven't broken the mismatched monitor block check...
     static void checkMonitorExit(Object val) {
-        boolean sawImse = false;
+        boolean sawIe = false;
         try {
-            InstructionHelper.loadCode(MethodHandles.lookup(),
-                                        "mismatchedMonitorExit",
-                                        MethodType.methodType(Void.TYPE, Object.class),
-                                        CODE->{
-                                            CODE
-                                                .aload(0)
-                                                .monitorexit()
-                                                .return_();
-                                        }).invokeExact(val);
+            InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
+                                                "mismatchedMonitorExit",
+                                                MethodType.methodType(Void.TYPE, Object.class),
+                                                CODE-> {
+                                                    CODE
+                                                    .aload(0)
+                                                    .monitorexit();
+                                                    CODE.return_();
+                                                }).invokeExact(val);
             throw new IllegalStateException("Unreachable code, reached");
         } catch (Throwable t) {
             if (t instanceof IllegalMonitorStateException) {
-                sawImse = true;
+                sawIe = true;
             } else {
                 throw new RuntimeException(t);
             }
         }
-        if (!sawImse) {
+        if (!sawIe) {
             throw new RuntimeException("monitorexit did not fail");
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,13 @@
 /**
  * @test
  * @bug 8313667
- * @summary Test that GenZ uses correct array copy stub for flat primitive clone arrays when expanding ArrayCopyNode.
+ * @summary Test that GenZ uses correct array copy stub for flat value class arrays when expanding ArrayCopyNode.
  * @requires vm.gc.ZSinglegen
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses TestWrongFlatArrayCopyStubWithZGC.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch -XX:+UseZGC -XX:-ZGenerational
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xbatch -XX:+UseZGC -XX:-ZGenerational
  *                   -XX:CompileCommand=exclude,compiler.valhalla.inlinetypes.TestWrongFlatArrayCopyStubWithZGC::check
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestWrongFlatArrayCopyStubWithZGC::test*
  *                   compiler.valhalla.inlinetypes.TestWrongFlatArrayCopyStubWithZGC
@@ -39,10 +41,15 @@ package compiler.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 public class TestWrongFlatArrayCopyStubWithZGC {
 
     public static void main(String[] args) {
-        ValueWithLong[] arrWithLong = new ValueWithLong[3];
+        ValueWithLong[] arrWithLong = (ValueWithLong[])ValueClass.newNullRestrictedArray(ValueWithLong.class, 3);
         arrWithLong[0] = new ValueWithLong(0x408BE000000fffffL);
         arrWithLong[1] = new ValueWithLong(0x408BE0000000000L);
         long randomValue = Utils.getRandomInstance().nextLong();
@@ -55,7 +62,7 @@ public class TestWrongFlatArrayCopyStubWithZGC {
             check(result[2].l, randomValue);
         }
 
-        ValueWithOop[] arrWithOop = new ValueWithOop[2];
+        ValueWithOop[] arrWithOop = (ValueWithOop[])ValueClass.newNullRestrictedArray(ValueWithOop.class, 2);
         arrWithOop[0] = new ValueWithOop();
         arrWithOop[1] = new ValueWithOop();
 
@@ -77,17 +84,20 @@ public class TestWrongFlatArrayCopyStubWithZGC {
     }
 }
 
-
-final primitive class ValueWithLong {
-    final long l;
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class ValueWithLong {
+    long l;
 
     public ValueWithLong(long l) {
         this.l = l;
     }
 }
 
-final primitive class ValueWithOop {
-    final Object v;
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class ValueWithOop {
+    Object v;
 
     public ValueWithOop() {
         this.v = new Object();

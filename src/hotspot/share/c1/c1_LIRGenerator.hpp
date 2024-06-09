@@ -276,7 +276,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_vectorizedMismatch(Intrinsic* x);
   void do_blackhole(Intrinsic* x);
 
-  bool inline_type_field_access_prolog(AccessField* x);
   void access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = nullptr, int offset = 0);
   void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset);
   LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
@@ -379,7 +378,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   void logic_op   (Bytecodes::Code code, LIR_Opr dst_reg, LIR_Opr left, LIR_Opr right);
 
-  void monitor_enter (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no, CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_imse_stub);
+  void monitor_enter (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no, CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_ie_stub);
   void monitor_exit  (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no);
 
   void new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unresolved, bool allow_inline, LIR_Opr scratch1, LIR_Opr scratch2, LIR_Opr scratch3, LIR_Opr scratch4, LIR_Opr klass_reg, CodeEmitInfo* info);
@@ -580,11 +579,9 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   virtual void do_TypeCast       (TypeCast*        x);
   virtual void do_Invoke         (Invoke*          x);
   virtual void do_NewInstance    (NewInstance*     x);
-  virtual void do_NewInlineTypeInstance(NewInlineTypeInstance* x);
   virtual void do_NewTypeArray   (NewTypeArray*    x);
   virtual void do_NewObjectArray (NewObjectArray*  x);
   virtual void do_NewMultiArray  (NewMultiArray*   x);
-  virtual void do_Deoptimize     (Deoptimize*      x);
   virtual void do_CheckCast      (CheckCast*       x);
   virtual void do_InstanceOf     (InstanceOf*      x);
   virtual void do_MonitorEnter   (MonitorEnter*    x);
