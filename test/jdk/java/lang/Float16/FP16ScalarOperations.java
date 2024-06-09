@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,23 @@
  * @test
  * @bug     8308363
  * @summary Initial compiler support for Float16.add operation.
- * @compile -XDenablePrimitiveClasses FP16ScalarOperations.java
- * @run main/othervm -XX:+EnablePrimitiveClasses -XX:-TieredCompilation -Xbatch FP16ScalarOperations
+ * @compile FP16ScalarOperations.java
+ * @run main/othervm -XX:-TieredCompilation -Xbatch FP16ScalarOperations
  */
 
 import java.util.Random;
+
+import static java.lang.Float16.*;
 
 public class FP16ScalarOperations {
 
     public static Random r = new Random(1024);
 
     public static short actual_value(char oper, short val1, short val2) {
-        Float16 obj1 = Float16.valueOf(val1);
-        Float16 obj2 = Float16.valueOf(val2);
+        Float16 obj1 = shortBitsToFloat16(val1);
+        Float16 obj2 = shortBitsToFloat16(val2);
         switch ((int)oper) {
-            case '+' : return Float16.sum(obj1, obj2).float16ToRawShortBits();
+            case '+' : return float16ToRawShortBits(Float16.sum(obj1, obj2));
             default  : throw new AssertionError("Unsupported Operation!");
         }
     }
