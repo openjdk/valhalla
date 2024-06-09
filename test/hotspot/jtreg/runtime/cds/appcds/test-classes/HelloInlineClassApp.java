@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,15 @@
  *
  */
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 public class HelloInlineClassApp {
-    static primitive class Point {
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Point {
         int x, y;
 
         public String toString() {
@@ -48,13 +55,22 @@ public class HelloInlineClassApp {
         }
     }
 
-    static primitive class Rectangle {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Rectangle {
+        @NullRestricted
         Point p0 = new Point(0,0);
+        @NullRestricted
         Point p1 = new Point(1,1);
     }
 
+    @NullRestricted
     Point point;
+
+    @NullRestricted
     static Rectangle rectangle;
+
+    static value record ValueRecord(int i, String name) {}
 
     public static void main(String[] args) throws Exception {
         Point p = new Point(0, 123);
@@ -103,5 +119,9 @@ public class HelloInlineClassApp {
             throw new RuntimeException("Non-static field point not as expected");
         }
 
+        ValueRecord valueRec = new ValueRecord(30, "thirty");
+        if (!valueRec.toString().equals("ValueRecord[i=30, name=thirty]")) {
+            throw new RuntimeException("ValueRecord toString unexpected value: " + valueRec.toString());
+        }
     }
 }

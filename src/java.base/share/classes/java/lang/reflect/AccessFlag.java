@@ -25,7 +25,8 @@
 
 package java.lang.reflect;
 
-import jdk.internal.misc.ValhallaFeatures;
+import jdk.internal.javac.PreviewFeature;
+import jdk.internal.misc.PreviewFeatures;
 
 import java.util.Collections;
 import java.util.Objects;
@@ -187,17 +188,17 @@ public enum AccessFlag {
      * @apiNote
      * In Java SE 8 and above, the JVM treats the {@code ACC_SUPER}
      * flag as set in every class file (JVMS {@jvms 4.1}).
-     * For class file versions up to Valhalla or if Valhalla is not enabled,
-     * {@code 0x0020} access flag bit is {@linkplain #SUPER SUPER access flag}; otherwise,
+     * If preview feature is enabled,
      * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      */
     SUPER(0x0000_0020, false,
-            ValhallaFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_CLASS,
+            PreviewFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_CLASS,
             new Function<ClassFileFormatVersion, Set<Location>>() {
             @Override
             public Set<Location> apply(ClassFileFormatVersion cffv) {
-                return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
-                        ValhallaFeatures.isEnabled()) ? Location.EMPTY_SET : Location.SET_CLASS;}
+                return (cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0) &&
+                        PreviewFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_CLASS;
+            }
         }),
 
     /**
@@ -205,14 +206,19 @@ public enum AccessFlag {
      * source modifier {@link Modifier#IDENTITY identity}, with a mask
      * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
      * @jvms 4.1 -B. Class access and property modifiers
+     *
+     * @since Valhalla
      */
-    IDENTITY(Modifier.IDENTITY, true,
-            ValhallaFeatures.isEnabled() ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET,
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
+    IDENTITY(Modifier.IDENTITY, false,
+            PreviewFeatures.isEnabled() ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET,
             new Function<ClassFileFormatVersion, Set<Location>>() {
                 @Override
                 public Set<Location> apply(ClassFileFormatVersion cffv) {
-                    return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
-                            ValhallaFeatures.isEnabled()) ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET;}
+                    return (cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0
+                            && PreviewFeatures.isEnabled())
+                            ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET;
+                }
             }),
 
     /**
@@ -263,14 +269,6 @@ public enum AccessFlag {
                              Location.SET_MODULE_REQUIRES:
                              Location.EMPTY_SET;}
                  }),
-
-    /**
-     * The access flag {@code ACC_VALUE}, corresponding to the
-     * source modifier {@link Modifier#VALUE value}, with a mask
-     * value of <code>{@value "0x%04x" Modifier#VALUE}</code>.
-     * @jvms 4.1 -B. Class access and property modifiers
-     */
-    VALUE(Modifier.VALUE, true, Set.of(Location.CLASS, Location.INNER_CLASS), null),
 
     /**
      * The access flag {@code ACC_VOLATILE}, corresponding to the
@@ -697,21 +695,21 @@ public enum AccessFlag {
     private static class LocationToFlags {
         private static Map<Location, Set<AccessFlag>> locationToFlags =
             Map.ofEntries(entry(Location.CLASS,
-                                Set.of(PUBLIC, FINAL, IDENTITY, VALUE,
+                                Set.of(PUBLIC, FINAL, (PreviewFeatures.isEnabled() ? IDENTITY : SUPER),
                                        INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION,
                                        ENUM, AccessFlag.MODULE)),
                           entry(Location.FIELD,
                                 Set.of(PUBLIC, PRIVATE, PROTECTED,
                                        STATIC, FINAL, VOLATILE,
-                                       TRANSIENT, SYNTHETIC, ENUM)),
+                                       TRANSIENT, SYNTHETIC, ENUM, STRICT)),
                           entry(Location.METHOD,
                                 Set.of(PUBLIC, PRIVATE, PROTECTED,
                                        STATIC, FINAL, SYNCHRONIZED,
                                        BRIDGE, VARARGS, NATIVE,
                                        ABSTRACT, STRICT, SYNTHETIC)),
                           entry(Location.INNER_CLASS,
-                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY, VALUE,
+                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY,
                                        STATIC, FINAL, INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION, ENUM)),
                           entry(Location.METHOD_PARAMETER,

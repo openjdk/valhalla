@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,12 +27,14 @@ package runtime.valhalla.inlinetypes;
 
 /*
  * @test UnsafeTest
+ * @requires vm.debug == true
  * @summary unsafe get/put/with inline type
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile Point.java UnsafeTest.java
- * @run main/othervm -XX:+EnableValhalla  -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 -XX:+EnableNullableFieldFlattening runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 import jdk.internal.misc.Unsafe;
@@ -40,6 +42,7 @@ import jdk.internal.misc.VM;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.test.lib.Asserts;
 
 import java.lang.reflect.*;
 import java.util.List;
@@ -88,7 +91,7 @@ public class UnsafeTest {
     }
 
 
-    public static void main(String[] args) throws Throwable {
+    public static void test0() throws Throwable {
         printValueClass(Value3.class, 0);
 
         Value1 v1 = new Value1(new Point(10,10), new Point(20,20), new Point(30,30));
@@ -155,11 +158,50 @@ public class UnsafeTest {
         System.out.format("%s%s header size %d%n", indent, vc, U.valueHeaderSize(vc));
         for (Field f : vc.getDeclaredFields()) {
             System.out.format("%s%s: %s%s offset %d%n", indent, f.getName(),
-                              U.isFlattened(f) ? "flattened " : "", f.getType(),
+                              U.isFlatField(f) ? "flattened " : "", f.getType(),
                               U.objectFieldOffset(vc, f.getName()));
-            if (U.isFlattened(f)) {
+            if (U.isFlatField(f)) {
                 printValueClass(f.getType(), level+1);
             }
         }
     }
+
+    static value class MyValue0 {
+        int val;
+
+        public MyValue0(int i) {
+            val = i;
+        }
+    }
+
+    static class Container0 {
+        MyValue0 v;
+    }
+
+    public static void test1() throws Throwable {
+        Container0 c = new Container0();
+        Class<?> cc = Container0.class;
+        Field[] fields = cc.getDeclaredFields();
+        Asserts.assertEquals(fields.length, 1);
+        Field f = fields[0];
+        System.out.println("Field found: " + f);
+        Asserts.assertTrue(U.isFlatField(f));
+        Asserts.assertTrue(U.hasNullMarker(f));
+        int nmOffset = U.nullMarkerOffset(f);
+        Asserts.assertNotEquals(nmOffset, -1);
+        byte nm = U.getByte(c, nmOffset);
+        Asserts.assertEquals(nm, (byte)0);
+        c.v = new MyValue0(42);
+        Asserts.assertNotNull(c.v);
+        nm = U.getByte(c, nmOffset);
+        Asserts.assertNotEquals(nm, 0);
+        U.getAndSetByteRelease(c, nmOffset, (byte)0);
+        Asserts.assertNull(c.v);
+    }
+
+    public static void main(String[] args) throws Throwable {
+        test0();
+        test1();
+    }
+
 }

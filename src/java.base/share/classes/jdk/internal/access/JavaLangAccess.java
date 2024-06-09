@@ -47,7 +47,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.Stream;
 
-import jdk.internal.javac.PreviewFeature;
 import jdk.internal.misc.CarrierThreadLocal;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.reflect.ConstantPool;
@@ -66,6 +65,11 @@ public interface JavaLangAccess {
      * and parameter types.
      */
     List<Method> getDeclaredPublicMethods(Class<?> klass, String name, Class<?>... parameterTypes);
+
+    /**
+     * Return most specific method that matches name and parameterTypes.
+     */
+    Method findMethod(Class<?> klass, boolean publicOnly, String name, Class<?>... parameterTypes);
 
     /**
      * Return the constant pool for a class.
@@ -421,19 +425,16 @@ public interface JavaLangAccess {
    /**
     * Get the coder for the supplied character.
     */
-   @PreviewFeature(feature=PreviewFeature.Feature.STRING_TEMPLATES)
    long stringConcatCoder(char value);
 
    /**
     * Update lengthCoder for StringBuilder.
     */
-   @PreviewFeature(feature=PreviewFeature.Feature.STRING_TEMPLATES)
    long stringBuilderConcatMix(long lengthCoder, StringBuilder sb);
 
     /**
      * Prepend StringBuilder content.
-     */
-    @PreviewFeature(feature=PreviewFeature.Feature.STRING_TEMPLATES)
+    */
    long stringBuilderConcatPrepend(long lengthCoder, byte[] buf, StringBuilder sb);
 
     /**
@@ -571,39 +572,6 @@ public interface JavaLangAccess {
     StackWalker newStackWalkerInstance(Set<StackWalker.Option> options,
                                        ContinuationScope contScope,
                                        Continuation continuation);
-
-    /**
-     * {@return the primary class for a primitive class}
-     *
-     * @param klass a class
-     */
-    Class<?> asPrimaryType(Class<?> klass);
-
-    /**
-     * {@return the value type of a primitive class}
-     *
-     * @param klass a class
-     */
-    Class<?> asValueType(Class<?> klass);
-
-    /**
-     * {@return true if the class is the primary type of a primitive class}
-     *
-     * @param klass a class
-     */
-    boolean isPrimaryType(Class<?> klass);
-
-    /**
-     * {@return true if the class is the primary type of a primitive class}
-     *
-     * @param klass a class
-     */
-    boolean isPrimitiveValueType(Class<?> klass);
-
-    /**
-     * Returns {@code true} if this class is a primitive class.
-     */
-    boolean isPrimitiveClass(Class<?> klass);
 
     /**
      * Returns the class file format version of the class.

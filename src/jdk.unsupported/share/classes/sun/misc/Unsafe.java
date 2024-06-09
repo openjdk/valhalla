@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package sun.misc;
 
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
@@ -436,9 +435,10 @@ public final class Unsafe {
     /**
      * Allocates a new block of native memory, of the given size in bytes.  The
      * contents of the memory are uninitialized; they will generally be
-     * garbage.  The resulting native pointer will never be zero, and will be
-     * aligned for all value types.  Dispose of this memory by calling {@link
-     * #freeMemory}, or resize it with {@link #reallocateMemory}.
+     * garbage.  The resulting native pointer will be zero if and only if the
+     * requested size is zero.  The resulting native pointer will be aligned for
+     * all value types.   Dispose of this memory by calling {@link #freeMemory}
+     * or resize it with {@link #reallocateMemory}.
      *
      * <em>Note:</em> It is the responsibility of the caller to make
      * sure arguments are checked before the methods are called. While
@@ -643,6 +643,7 @@ public final class Unsafe {
      */
     @Deprecated(since="18")
     @ForceInline
+    @SuppressWarnings("preview")
     public long objectFieldOffset(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -651,11 +652,11 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (PrimitiveClass.isPrimitiveClass(f.getDeclaringClass())) {
-            throw new UnsupportedOperationException("can't get field offset on a primitive class: " + f);
-        }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
+        }
+        if (declaringClass.isValue()) {
+            throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.objectFieldOffset(f);
     }
@@ -685,6 +686,7 @@ public final class Unsafe {
      */
     @Deprecated(since="18")
     @ForceInline
+    @SuppressWarnings("preview")
     public long staticFieldOffset(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -693,11 +695,11 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (PrimitiveClass.isPrimitiveClass(f.getDeclaringClass())) {
-            throw new UnsupportedOperationException("can't get static field offset on a primitive class: " + f);
-        }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
+        }
+        if (declaringClass.isValue()) {
+            throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.staticFieldOffset(f);
     }
@@ -719,6 +721,7 @@ public final class Unsafe {
      */
     @Deprecated(since="18")
     @ForceInline
+    @SuppressWarnings("preview")
     public Object staticFieldBase(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -727,11 +730,11 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get base address on a hidden class: " + f);
         }
-        if (PrimitiveClass.isPrimitiveClass(f.getDeclaringClass())) {
-            throw new UnsupportedOperationException("can't get base address on a primitive class: " + f);
-        }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get base address on a record class: " + f);
+        }
+        if (declaringClass.isValue()) {
+            throw new UnsupportedOperationException("can't get field offset on a value class: " + f);
         }
         return theInternalUnsafe.staticFieldBase(f);
     }

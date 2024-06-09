@@ -73,32 +73,12 @@ tools/javac/annotations/typeAnnotations/referenceinfos/Lambda.java              
 tools/javac/annotations/typeAnnotations/referenceinfos/NestedTypes.java         8057687    generic-all    emit correct byte code an attributes for type annotations
 tools/javac/warnings/suppress/TypeAnnotations.java                              8057683    generic-all    improve ordering of errors with type annotations
 tools/javac/modules/SourceInSymlinkTest.java                                    8180263    windows-all    fails when run on a subst drive
-tools/javac/lambda/bytecode/TestLambdaBytecodeTargetRelease14.java              8312534    linux-i586     fails with assert "g1ConcurrentMark.cpp: Overflow during reference processing"
-tools/javac/varargs/warning/Warn5.java                                          8312534    linux-i586     fails with assert "g1ConcurrentMark.cpp: Overflow during reference processing"
-
-# javac Valhalla
-tools/javac/Diagnostics/8043251/T8043251.java                                   8301662    generic-all
-tools/javac/annotations/SyntheticParameters.java                                8317415    generic-all
-tools/javac/annotations/typeAnnotations/classfile/SyntheticParameters.java      8317415    generic-all
-
-tools/javac/valhalla/primitive-classes/ArrayCreationWithQuestion.java 8323785    generic-all
-tools/javac/valhalla/primitive-classes/BoxValCastTest.java            8323785    generic-all
-tools/javac/valhalla/primitive-classes/ConstantPropagationTest.java   8323785    generic-all
-tools/javac/valhalla/primitive-classes/ProjectedArrayDotClass.java    8323785    generic-all
-tools/javac/valhalla/primitive-classes/QTypeTest.java                 8323785    generic-all
-tools/javac/valhalla/primitive-classes/UnifiedPrimitiveClassBytecodeTest.java 8323785    generic-all
-tools/javac/valhalla/primitive-classes/ValueCreationTest.java         8323785    generic-all
-tools/javac/valhalla/value-objects/ValueCreationTest.java             8323786    generic-all
 
 ###########################################################################
 #
 # javap
 
 tools/javap/output/RepeatingTypeAnnotations.java                                8057687    generic-all    emit correct byte code an attributes for type annotations
-
-# Valhalla
-tools/javap/8006334/JavapTaskCtorFailWithNPE.java                               8323789    generic-all
-tools/javap/TestSuperclass.java                                                 8323790    generic-all
 ###########################################################################
 #
 # jdeps

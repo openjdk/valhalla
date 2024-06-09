@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,20 +25,13 @@
 /*
  * @test
  * @summary Test ConstantDesc for value classes
- * @run junit/othervm -XX:+EnableValhalla ValueConstantDesc
+ * @enablePreview
+ * @run junit/othervm ValueConstantDesc
  */
 
 import java.lang.constant.ClassDesc;
-import java.lang.constant.DirectMethodHandleDesc;
-import java.lang.constant.MethodHandleDesc;
-import java.lang.constant.MethodTypeDesc;
-import java.lang.invoke.MethodHandleInfo;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodType;
 import java.util.stream.Stream;
-
-import jdk.internal.value.PrimitiveClass;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

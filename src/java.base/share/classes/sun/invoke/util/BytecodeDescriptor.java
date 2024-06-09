@@ -25,8 +25,6 @@
 
 package sun.invoke.util;
 
-import jdk.internal.value.PrimitiveClass;
-
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,14 +84,13 @@ public class BytecodeDescriptor {
     private static Class<?> parseSig(String str, int[] i, int end, ClassLoader loader) {
         if (i[0] == end)  return null;
         char c = str.charAt(i[0]++);
-        if (c == 'L' || c == 'Q') {
+        if (c == 'L') {
             int begc = i[0], endc = str.indexOf(';', begc);
             if (endc < 0)  return null;
             i[0] = endc+1;
             String name = str.substring(begc, endc).replace('/', '.');
             try {
-                Class<?> clz = Class.forName(name, false, loader);
-                return c == 'Q' ? PrimitiveClass.asValueType(clz) : PrimitiveClass.asPrimaryType(clz);
+                return Class.forName(name, false, loader);
             } catch (ClassNotFoundException ex) {
                 throw new TypeNotPresentException(name, ex);
             }

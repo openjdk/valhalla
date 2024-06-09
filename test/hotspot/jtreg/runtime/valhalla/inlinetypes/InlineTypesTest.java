@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,12 @@ package runtime.valhalla.inlinetypes;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.MethodTypeDesc;
 import java.lang.invoke.*;
 import java.lang.ref.*;
 import java.nio.ByteBuffer;
+import java.time.chrono.ThaiBuddhistChronology;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -36,36 +39,32 @@ import java.util.concurrent.*;
 
 import static jdk.test.lib.Asserts.*;
 
-
-import jdk.experimental.bytecode.MacroCodeBuilder;
-import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
-import jdk.experimental.bytecode.TypeTag;
+import java.lang.classfile.Label;
+import java.lang.classfile.TypeKind;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Platform;
-import jdk.test.lib.Utils;
 
 import javax.tools.*;
+
 import test.java.lang.invoke.lib.InstructionHelper;
+import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
 
 /**
  * @test InlineTypesTest
  * @summary Test data movement with inline types
  * @modules java.base/jdk.internal.value
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @library /test/lib /test/jdk/java/lang/invoke/common
  * @modules java.base/jdk.internal.vm.annotation
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @enablePreview
  * @compile InlineTypesTest.java
- * @run main/othervm -XX:+EnableValhalla
- *                   -Xmx128m -XX:+ExplicitGCInvokesConcurrent
+ * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
- * @run main/othervm -XX:+EnableValhalla
- *                   -Xmx128m -XX:+ExplicitGCInvokesConcurrent
+ * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   -XX:ForceNonTearable=*
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
  */
@@ -74,7 +73,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
     static TestValue1 staticInlineField;
     @NullRestricted
     TestValue1 nonStaticInlineField;
-    TestValue1[] inlineArray;
+    TestValue1[] valueArray;
 }
 
 @ImplicitlyConstructible
@@ -87,8 +86,9 @@ value class TestValue1 {
     final String name;
 
     public TestValue1() {
-        i = (int)System.nanoTime();
-        name = Integer.valueOf(i).toString();
+        int now =  (int)System.nanoTime();
+        i = now;
+        name = Integer.valueOf(now).toString();
     }
 
     public TestValue1(int i) {
@@ -127,15 +127,18 @@ value class TestValue2 {
     final String s;
 
     public TestValue2() {
-        l = System.nanoTime();
-        s = Long.valueOf(l).toString();
-        d = Double.parseDouble(s);
+        long now = System.nanoTime();
+        l = now;
+        String stringNow = Long.valueOf(now).toString();
+        s = stringNow;
+        d = Double.parseDouble(stringNow);
     }
 
     public TestValue2(long l) {
         this.l = l;
-        s = Long.valueOf(l).toString();
-        d = Double.parseDouble(s);
+        String txt = Long.valueOf(l).toString();
+        s = txt;
+        d = Double.parseDouble(txt);
     }
 
     public static TestValue2 getInstance() {
@@ -286,7 +289,7 @@ public class InlineTypesTest {
             try {
                 testExecutionStackToLocalVariable(testClasses[i]);
                 testExecutionStackToFields(testClasses[i], containerClasses[i]);
-                // testExecutionStackToInlineArray(testClasses[i], containerClasses[i]);
+                testExecutionStackToInlineArray(testClasses[i], containerClasses[i]);
             } catch (Throwable t) {
                 t.printStackTrace();
                 throw new RuntimeException(t);
@@ -297,40 +300,43 @@ public class InlineTypesTest {
     static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
     static void testExecutionStackToLocalVariable(Class<?> inlineClass) throws Throwable {
-        String sig = "()L" + inlineClass.getName() + ";";
-        final String signature = sig.replace('.', '/');
-        MethodHandle fromExecStackToLocalVar = InstructionHelper.loadCode(
+        String sig = "()L" + inlineClass.getName().replace('.', '/') + ";";
+        final MethodTypeDesc voidReturnClass = MethodTypeDesc.ofDescriptor(sig);
+        final ClassDesc systemClassDesc = classDesc(System.class);
+        final ClassDesc inlineClassDesc = classDesc(inlineClass);
+        MethodHandle fromExecStackToLocalVar = InstructionHelper.buildMethodHandle(
                 LOOKUP,
                 "execStackToLocalVar",
                 MethodType.methodType(boolean.class),
                 CODE -> {
-                    CODE.invokestatic(System.class, "gc", "()V", false);
+                    CODE.invokestatic(systemClassDesc, "gc", MethodTypeDesc.ofDescriptor("()V"));
                     int n = -1;
                     while (n < 1024) {
                         n++;
                         CODE
-                        .invokestatic(inlineClass, "getInstance", signature, false)
+                        .invokestatic(inlineClassDesc, "getInstance", voidReturnClass)
                         .astore(n);
                         n++;
                         CODE
-                        .invokestatic(inlineClass, "getNonBufferedInstance", signature, false)
+                        .invokestatic(inlineClassDesc, "getNonBufferedInstance", voidReturnClass)
                         .astore(n);
                     }
-                    CODE.invokestatic(System.class, "gc", "()V", false);
+                    CODE.invokestatic(systemClassDesc, "gc", MethodTypeDesc.ofDescriptor("()V"));
+                    Label endLabel = CODE.newLabel();
                     while (n > 0) {
                         CODE
                         .aload(n)
-                        .invokevirtual(inlineClass, "verify", "()Z", false)
+                        .invokevirtual(inlineClassDesc, "verify", MethodTypeDesc.ofDescriptor("()Z"))
                         .iconst_1()
-                        .ifcmp(TypeTag.I, CondKind.NE, "end");
+                        .if_icmpne(endLabel);
                         n--;
                     }
                     CODE
                     .iconst_1()
-                    .return_(TypeTag.Z)
-                    .label("end")
+                    .returnInstruction(TypeKind.BooleanType)
+                    .labelBinding(endLabel)
                     .iconst_0()
-                    .return_(TypeTag.Z);
+                    .returnInstruction(TypeKind.BooleanType);
                 });
         boolean result = (boolean) fromExecStackToLocalVar.invokeExact();
         System.out.println(result);
@@ -339,69 +345,74 @@ public class InlineTypesTest {
 
     static void testExecutionStackToFields(Class<?> inlineClass, Class<?> containerClass) throws Throwable {
         final int ITERATIONS = Platform.isDebugBuild() ? 3 : 512;
-        String sig = "()L" + inlineClass.getName() + ";";
-        final String methodSignature = sig.replace('.', '/');
-        final String fieldLSignature = "L" + inlineClass.getName().replace('.', '/') + ";";
-        System.out.println(methodSignature);
-        MethodHandle fromExecStackToFields = InstructionHelper.loadCode(
+        String sig = "()L" + inlineClass.getName().replace('.', '/') + ";";
+        final MethodTypeDesc voidReturnClass = MethodTypeDesc.ofDescriptor(sig);
+        final ClassDesc systemClassDesc = classDesc(System.class);
+        final ClassDesc inlineClassDesc = classDesc(inlineClass);
+        final ClassDesc containerClassDesc = classDesc(containerClass);
+
+        MethodHandle fromExecStackToFields = InstructionHelper.buildMethodHandle(
                 LOOKUP,
                 "execStackToFields",
                 MethodType.methodType(boolean.class),
                 CODE -> {
+                    Label loop = CODE.newLabel();
+                    Label end = CODE.newLabel();
+                    Label failed = CODE.newLabel();
                     CODE
-                    .invokestatic(System.class, "gc", "()V", false)
-                    .new_(containerClass)
+                    .invokestatic(systemClassDesc, "gc", MethodTypeDesc.ofDescriptor("()V"), false)
+                    .new_(containerClassDesc)
                     .dup()
-                    .invoke(MacroCodeBuilder.InvocationKind.INVOKESPECIAL, containerClass, "<init>", "()V", false)
-                    .astore_1()
+                    .invokespecial(containerClassDesc, "<init>", MethodTypeDesc.ofDescriptor("()V"))
+                    .astore(1)
                     .iconst_m1()
-                    .istore_2()
-                    .label("loop")
-                    .iload_2()
+                    .istore(2)
+                    .labelBinding(loop)
+                    .iload(2)
                     .ldc(ITERATIONS)
-                    .ifcmp(TypeTag.I, CondKind.EQ, "end")
-                    .aload_1()
-                    .invokestatic(inlineClass, "getInstance", methodSignature, false)
-                    .putfield(containerClass, "nonStaticInlineField", fieldLSignature)
-                    .invokestatic(System.class, "gc", "()V", false)
-                    .aload_1()
-                    .getfield(containerClass, "nonStaticInlineField", fieldLSignature)
-                    .invokevirtual(inlineClass, "verify", "()Z", false)
+                    .if_icmpeq(end)
+                    .aload(1)
+                    .invokestatic(inlineClassDesc, "getInstance", voidReturnClass)
+                    .putfield(containerClassDesc, "nonStaticInlineField", inlineClassDesc)
+                    .invokestatic(systemClassDesc, "gc", MethodTypeDesc.ofDescriptor("()V"))
+                    .aload(1)
+                    .getfield(containerClassDesc, "nonStaticInlineField", inlineClassDesc)
+                    .invokevirtual(inlineClassDesc, "verify", MethodTypeDesc.ofDescriptor("()Z"))
                     .iconst_1()
-                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
-                    .aload_1()
-                    .invokestatic(inlineClass, "getNonBufferedInstance", methodSignature, false)
-                    .putfield(containerClass, "nonStaticInlineField", fieldLSignature)
-                    .invokestatic(System.class, "gc", "()V", false)
-                    .aload_1()
-                    .getfield(containerClass, "nonStaticInlineField", fieldLSignature)
-                    .invokevirtual(inlineClass, "verify", "()Z", false)
+                    .if_icmpne(failed)
+                    .aload(1)
+                    .invokestatic(inlineClassDesc, "getNonBufferedInstance", voidReturnClass)
+                    .putfield(containerClassDesc, "nonStaticInlineField", inlineClassDesc)
+                    .invokestatic(systemClassDesc, "gc", MethodTypeDesc.ofDescriptor("()V"))
+                    .aload(1)
+                    .getfield(containerClassDesc, "nonStaticInlineField", inlineClassDesc)
+                    .invokevirtual(inlineClassDesc, "verify", MethodTypeDesc.ofDescriptor("()Z"))
                     .iconst_1()
-                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
-                    .invokestatic(inlineClass, "getInstance", methodSignature, false)
-                    .putstatic(containerClass, "staticInlineField", fieldLSignature)
-                    .invokestatic(System.class, "gc", "()V", false)
-                    .getstatic(containerClass, "staticInlineField", fieldLSignature)
-                    .checkcast(inlineClass)
-                    .invokevirtual(inlineClass, "verify", "()Z", false)
+                    .if_icmpne(failed)
+                    .invokestatic(inlineClassDesc, "getInstance", voidReturnClass)
+                    .putstatic(containerClassDesc, "staticInlineField", inlineClassDesc)
+                    .invokestatic(systemClassDesc, "gc", MethodTypeDesc.ofDescriptor("()V"))
+                    .getstatic(containerClassDesc, "staticInlineField", inlineClassDesc)
+                    .checkcast(inlineClassDesc)
+                    .invokevirtual(inlineClassDesc, "verify", MethodTypeDesc.ofDescriptor("()Z"))
                     .iconst_1()
-                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
-                    .invokestatic(inlineClass, "getNonBufferedInstance", methodSignature, false)
-                    .putstatic(containerClass, "staticInlineField", fieldLSignature)
-                    .invokestatic(System.class, "gc", "()V", false)
-                    .getstatic(containerClass, "staticInlineField", fieldLSignature)
-                    .checkcast(inlineClass)
-                    .invokevirtual(inlineClass, "verify", "()Z", false)
+                    .if_icmpne(failed)
+                    .invokestatic(inlineClassDesc, "getNonBufferedInstance", voidReturnClass)
+                    .putstatic(containerClassDesc, "staticInlineField", inlineClassDesc)
+                    .invokestatic(systemClassDesc, "gc", MethodTypeDesc.ofDescriptor("()V"))
+                    .getstatic(containerClassDesc, "staticInlineField", inlineClassDesc)
+                    .checkcast(inlineClassDesc)
+                    .invokevirtual(inlineClassDesc, "verify", MethodTypeDesc.ofDescriptor("()Z"))
                     .iconst_1()
-                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
+                    .if_icmpne(failed)
                     .iinc(2, 1)
-                    .goto_("loop")
-                    .label("end")
+                    .goto_(loop)
+                    .labelBinding(end)
                     .iconst_1()
-                    .return_(TypeTag.Z)
-                    .label("failed")
+                    .returnInstruction(TypeKind.BooleanType)
+                    .labelBinding(failed)
                     .iconst_0()
-                    .return_(TypeTag.Z);
+                    .returnInstruction(TypeKind.BooleanType);
                 });
         boolean result = (boolean) fromExecStackToFields.invokeExact();
         System.out.println(result);
@@ -410,75 +421,85 @@ public class InlineTypesTest {
 
     static void testExecutionStackToInlineArray(Class<?> inlineClass, Class<?> containerClass) throws Throwable {
         final int ITERATIONS = Platform.isDebugBuild() ? 3 : 100;
-        String sig = "()L" + inlineClass.getName() + ";";
-        final String signature = sig.replace('.', '/');
-        final String arraySignature = "[L" + inlineClass.getName().replace('.', '/') + ";";
-        System.out.println(arraySignature);
-        MethodHandle fromExecStackToInlineArray = InstructionHelper.loadCode(
+        String sig = "()L" + inlineClass.getName().replace('.', '/') + ";";
+        final MethodTypeDesc voidReturnClass = MethodTypeDesc.ofDescriptor(sig);
+        final ClassDesc systemClassDesc = classDesc(System.class);
+        final ClassDesc inlineClassDesc = classDesc(inlineClass);
+        final ClassDesc containerClassDesc = classDesc(containerClass);
+
+        MethodHandle fromExecStackToInlineArray = InstructionHelper.buildMethodHandle(
                 LOOKUP,
                 "execStackToInlineArray",
                 MethodType.methodType(boolean.class),
                 CODE -> {
+                    Label loop1 = CODE.newLabel();
+                    Label loop2 = CODE.newLabel();
+                    Label end1 = CODE.newLabel();
+                    Label end2 = CODE.newLabel();
+                    Label failed = CODE.newLabel();
                     CODE
-                    .invokestatic(System.class, "gc", "()V", false)
-                    .new_(containerClass)
+                    .invokestatic(systemClassDesc, "gc", MethodTypeDesc.ofDescriptor("()V"))
+                    .new_(containerClassDesc)
                     .dup()
-                    .invoke(MacroCodeBuilder.InvocationKind.INVOKESTATIC, containerClass, "<vnew>", "()V", false)
-                    .astore_1()
+                    .invokespecial(containerClassDesc, "<init>", MethodTypeDesc.ofDescriptor("()V"))
+                    .astore(1)
                     .ldc(ITERATIONS * 3)
-                    .anewarray(inlineClass)
-                    .astore_2()
-                    .aload_2()
-                    .aload_1()
+                    .anewarray(inlineClassDesc)
+                    .astore(2)
+                    .aload(2)
+                    .aload(1)
                     .swap()
-                    .putfield(containerClass, "valueArray", arraySignature)
+                    .putfield(containerClassDesc, "valueArray", inlineClassDesc.arrayType())
                     .iconst_0()
-                    .istore_3()
-                    .label("loop1")
-                    .iload_3()
-                    .ldc(ITERATIONS)
-                    .ifcmp(TypeTag.I, CondKind.GE, "end1")
-                    .aload_2()
-                    .iload_3()
-                    .invokestatic(inlineClass, "getInstance", signature, false)
+                    .istore(3)
+                    .labelBinding(loop1)
+                    .iload(3)
+                    .ldc(ITERATIONS *3)
+                    .if_icmpge(end1)
+                    .aload(2)
+                    .iload(3)
+                    .invokestatic(inlineClassDesc, "getInstance", voidReturnClass)
                     .aastore()
                     .iinc(3, 1)
-                    .aload_2()
-                    .iload_3()
-                    .invokestatic(inlineClass, "getNonBufferedInstance", signature, false)
+                    .aload(2)
+                    .iload(3)
+                    .invokestatic(inlineClassDesc, "getNonBufferedInstance", voidReturnClass)
                     .aastore()
                     .iinc(3, 1)
-                    .aload_2()
-                    .iload_3()
-                    .aconst_init(inlineClass)
+                    .aload(2)
+                    .iload(3)
+                    .new_(inlineClassDesc)
+                    .dup()
+                    .invokespecial(inlineClassDesc, "<init>", MethodTypeDesc.ofDescriptor("()V"))
                     .aastore()
                     .iinc(3, 1)
-                    .goto_("loop1")
-                    .label("end1")
-                    .invokestatic(System.class, "gc", "()V", false)
+                    .goto_(loop1)
+                    .labelBinding(end1)
+                    .invokestatic(systemClassDesc, "gc", MethodTypeDesc.ofDescriptor("()V"))
                     .iconst_0()
-                    .istore_3()
-                    .label("loop2")
-                    .iload_3()
+                    .istore(3)
+                    .labelBinding(loop2)
+                    .iload(3)
                     .ldc(ITERATIONS * 3)
-                    .ifcmp(TypeTag.I, CondKind.GE, "end2")
-                    .aload_2()
-                    .iload_3()
+                    .if_icmpge(end2)
+                    .aload(2)
+                    .iload(3)
                     .aaload()
-                    .invokevirtual(inlineClass, "verify", "()Z", false)
+                    .invokevirtual(inlineClassDesc, "verify", MethodTypeDesc.ofDescriptor("()Z"))
                     .iconst_1()
-                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
+                    .if_icmpne(failed)
                     .iinc(3, 1)
-                    .goto_("loop2")
-                    .label("end2")
+                    .goto_(loop2)
+                    .labelBinding(end2)
                     .iconst_1()
-                    .return_(TypeTag.Z)
-                    .label("failed")
+                    .returnInstruction(TypeKind.BooleanType)
+                    .labelBinding(failed)
                     .iconst_0()
-                    .return_(TypeTag.Z);
+                    .returnInstruction(TypeKind.BooleanType);
                 });
         boolean result = (boolean) fromExecStackToInlineArray.invokeExact();
         System.out.println(result);
         assertTrue(result, "Invariant");
     }
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,9 @@ import jdk.test.lib.Asserts;
  * @summary Inline Type creation test
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile InlineTypeCreation.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.InlineTypeCreation
+ * @run main/othervm runtime.valhalla.inlinetypes.InlineTypeCreation
  */
 public class InlineTypeCreation {
     public static void main(String[] args) {
@@ -46,6 +47,7 @@ public class InlineTypeCreation {
         testLong8();
         testPerson();
         StaticSelf.test();
+        testUnresolvedAndResolvedNew();
     }
 
     void testPoint() {
@@ -91,4 +93,19 @@ public class InlineTypeCreation {
         }
 
     }
+
+    static value class MyPoint {
+         int x,y;
+         MyPoint(int x, int y) {
+             this.x = x;
+             this.y = y;
+         }
+     }
+
+    // Two instantiations of the same class to exercise both the unresolved and resolved paths
+    // in bytecode 'new' implementation
+    void testUnresolvedAndResolvedNew(){
+         MyPoint p1 = new MyPoint(10, 20);
+         MyPoint p2 = new MyPoint(20, 20);
+     }
 }

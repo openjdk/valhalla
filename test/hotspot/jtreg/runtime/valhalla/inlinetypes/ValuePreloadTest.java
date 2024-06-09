@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,24 +24,26 @@
 /*
  * @test ValuePreloadTest
  * @library /test/lib
+ * @enablePreview
  * @compile ValuePreloadClient0.java PreloadValue0.java ValuePreloadClient1.jcod
- * @run driver ValuePreloadTest
+ * @run main ValuePreloadTest
  */
 
-import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.process.OutputAnalyzer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 public class ValuePreloadTest {
 
     static ProcessBuilder exec(String... args) throws Exception {
         List<String> argsList = new ArrayList<>();
-        Collections.addAll(argsList, "-XX:+EnableValhalla", "-XX:-EnablePrimitiveClasses");
+        Collections.addAll(argsList, "--enable-preview");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
         Collections.addAll(argsList, args);
-        return ProcessTools.createJavaProcessBuilder(argsList);
+        return ProcessTools.createTestJavaProcessBuilder(argsList);
     }
 
     static void checkFor(ProcessBuilder pb, String expected) throws Exception {
@@ -52,9 +54,9 @@ public class ValuePreloadTest {
 
     public static void main(String[] args) throws Exception {
         ProcessBuilder pb = exec("-Xlog:class+preload","ValuePreloadClient0");
-        checkFor(pb, "[info][class,preload] Preloading class PreloadValue0 during linking of class ValuePreloadClient0 because of its Preload attribute");
+        checkFor(pb, "[info][class,preload] Preloading class PreloadValue0 during loading of class ValuePreloadClient0. Cause: field type in Preload attribute");
 
         pb = exec("-Xlog:class+preload","ValuePreloadClient1");
-        checkFor(pb, "[warning][class,preload] Preloading of class PreloadValue1 during linking of class ValuePreloadClient1 (Preload attribute) failed");
+        checkFor(pb, "[warning][class,preload] Preloading of class PreloadValue1 during linking of class ValuePreloadClient1 (cause: Preload attribute) failed");
     }
 }

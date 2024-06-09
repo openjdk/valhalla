@@ -60,9 +60,7 @@
 package jdk.internal.org.objectweb.asm;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 
 /**
  * A Java field or method type. This class can be used to make it easier to manipulate type and
@@ -279,7 +277,7 @@ public final class Type {
     /**
       * Returns the {@link Type} corresponding to the given internal name.
       *
-      * @param internalName an internal name.
+      * @param internalName an internal name (see {@link Type#getInternalName()}).
       * @return the {@link Type} corresponding to the given internal name.
       */
     public static Type getObjectType(final String internalName) {
@@ -329,27 +327,12 @@ public final class Type {
       */
     public static Type[] getArgumentTypes(final String methodDescriptor) {
         // First step: compute the number of argument types in methodDescriptor.
-        int numArgumentTypes = 0;
-        // Skip the first character, which is always a '('.
-        int currentOffset = 1;
-        // Parse the argument types, one at a each loop iteration.
-        while (methodDescriptor.charAt(currentOffset) != ')') {
-            while (methodDescriptor.charAt(currentOffset) == '[') {
-                currentOffset++;
-            }
-            char c = methodDescriptor.charAt(currentOffset++);
-            if (c == 'L' || c == 'Q') {
-                // Skip the argument descriptor content.
-                int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
-                currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
-            }
-            ++numArgumentTypes;
-        }
+        int numArgumentTypes = getArgumentCount(methodDescriptor);
 
         // Second step: create a Type instance for each argument type.
         Type[] argumentTypes = new Type[numArgumentTypes];
         // Skip the first character, which is always a '('.
-        currentOffset = 1;
+        int currentOffset = 1;
         // Parse and create the argument types, one at each loop iteration.
         int currentArgumentTypeIndex = 0;
         while (methodDescriptor.charAt(currentOffset) != ')') {
@@ -357,8 +340,7 @@ public final class Type {
             while (methodDescriptor.charAt(currentOffset) == '[') {
                 currentOffset++;
             }
-            char c = methodDescriptor.charAt(currentOffset++);
-            if (c == 'L' || c == 'Q') {
+            if (methodDescriptor.charAt(currentOffset++) == 'L') {
                 // Skip the argument descriptor content.
                 int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
                 currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
@@ -429,8 +411,7 @@ public final class Type {
             while (methodDescriptor.charAt(currentOffset) == '[') {
                 currentOffset++;
             }
-            char c = methodDescriptor.charAt(currentOffset++);
-            if (c == 'L' || c == 'Q') {
+            if (methodDescriptor.charAt(currentOffset++) == 'L') {
                 // Skip the argument descriptor content.
                 int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
                 currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
@@ -473,7 +454,6 @@ public final class Type {
             case '[':
                 return new Type(ARRAY, descriptorBuffer, descriptorBegin, descriptorEnd);
             case 'L':
-            case 'Q':
                 return new Type(OBJECT, descriptorBuffer, descriptorBegin + 1, descriptorEnd - 1);
             case '(':
                 return new Type(METHOD, descriptorBuffer, descriptorBegin, descriptorEnd);
@@ -679,12 +659,8 @@ public final class Type {
             }
             stringBuilder.append(descriptor);
         } else {
-            stringBuilder.append(isPrimitiveClass(currentClass) ? 'Q' : 'L').append(getInternalName(currentClass)).append(';');
+            stringBuilder.append('L').append(getInternalName(currentClass)).append(';');
         }
-    }
-
-    static boolean isPrimitiveClass(Class<?> clazz) {
-        return (clazz.getModifiers() & Opcodes.ACC_PRIMITIVE) != 0;
     }
 
     // -----------------------------------------------------------------------------------------------
@@ -745,13 +721,51 @@ public final class Type {
     }
 
     /**
+      * Returns the number of arguments of this method type. This method should only be used for method
+      * types.
+      *
+      * @return the number of arguments of this method type. Each argument counts for 1, even long and
+      *     double ones. The implicit @literal{this} argument is not counted.
+      */
+    public int getArgumentCount() {
+        return getArgumentCount(getDescriptor());
+    }
+
+    /**
+      * Returns the number of arguments in the given method descriptor.
+      *
+      * @param methodDescriptor a method descriptor.
+      * @return the number of arguments in the given method descriptor. Each argument counts for 1,
+      *     even long and double ones. The implicit @literal{this} argument is not counted.
+      */
+    public static int getArgumentCount(final String methodDescriptor) {
+        int argumentCount = 0;
+        // Skip the first character, which is always a '('.
+        int currentOffset = 1;
+        // Parse the argument types, one at a each loop iteration.
+        while (methodDescriptor.charAt(currentOffset) != ')') {
+            while (methodDescriptor.charAt(currentOffset) == '[') {
+                currentOffset++;
+            }
+            if (methodDescriptor.charAt(currentOffset++) == 'L') {
+                // Skip the argument descriptor content.
+                int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
+                currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
+            }
+            ++argumentCount;
+        }
+        return argumentCount;
+    }
+
+    /**
       * Returns the size of the arguments and of the return value of methods of this type. This method
       * should only be used for method types.
       *
       * @return the size of the arguments of the method (plus one for the implicit this argument),
       *     argumentsSize, and the size of its return value, returnSize, packed into a single int i =
       *     {@code (argumentsSize &lt;&lt; 2) | returnSize} (argumentsSize is therefore equal to {@code
-      *     i &gt;&gt; 2}, and returnSize to {@code i &amp; 0x03}).
+      *     i &gt;&gt; 2}, and returnSize to {@code i &amp; 0x03}). Long and double values have size 2,
+      *     the others have size 1.
       */
     public int getArgumentsAndReturnSizes() {
         return getArgumentsAndReturnSizes(getDescriptor());
@@ -764,7 +778,8 @@ public final class Type {
       * @return the size of the arguments of the method (plus one for the implicit this argument),
       *     argumentsSize, and the size of its return value, returnSize, packed into a single int i =
       *     {@code (argumentsSize &lt;&lt; 2) | returnSize} (argumentsSize is therefore equal to {@code
-      *     i &gt;&gt; 2}, and returnSize to {@code i &amp; 0x03}).
+      *     i &gt;&gt; 2}, and returnSize to {@code i &amp; 0x03}). Long and double values have size 2,
+      *     the others have size 1.
       */
     public static int getArgumentsAndReturnSizes(final String methodDescriptor) {
         int argumentsSize = 1;
@@ -780,8 +795,7 @@ public final class Type {
                 while (methodDescriptor.charAt(currentOffset) == '[') {
                     currentOffset++;
                 }
-                char c = methodDescriptor.charAt(currentOffset++);
-                if (c == 'L' || c == 'Q') {
+                if (methodDescriptor.charAt(currentOffset++) == 'L') {
                     // Skip the argument descriptor content.
                     int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
                     currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
@@ -936,4 +950,3 @@ public final class Type {
         return getDescriptor();
     }
 }
-

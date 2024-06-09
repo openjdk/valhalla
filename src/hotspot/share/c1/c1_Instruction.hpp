@@ -70,7 +70,6 @@ class   ExceptionObject;
 class   StateSplit;
 class     Invoke;
 class     NewInstance;
-class     NewInlineTypeInstance;
 class     NewArray;
 class       NewTypeArray;
 class       NewObjectArray;
@@ -172,11 +171,9 @@ class InstructionVisitor: public StackObj {
   virtual void do_TypeCast       (TypeCast*        x) = 0;
   virtual void do_Invoke         (Invoke*          x) = 0;
   virtual void do_NewInstance    (NewInstance*     x) = 0;
-  virtual void do_NewInlineTypeInstance(NewInlineTypeInstance* x) = 0;
   virtual void do_NewTypeArray   (NewTypeArray*    x) = 0;
   virtual void do_NewObjectArray (NewObjectArray*  x) = 0;
   virtual void do_NewMultiArray  (NewMultiArray*   x) = 0;
-  virtual void do_Deoptimize     (Deoptimize*      x) = 0;
   virtual void do_CheckCast      (CheckCast*       x) = 0;
   virtual void do_InstanceOf     (InstanceOf*      x) = 0;
   virtual void do_MonitorEnter   (MonitorEnter*    x) = 0;
@@ -569,12 +566,10 @@ class Instruction: public CompilationResourceObj {
   virtual StateSplit*       as_StateSplit()      { return nullptr; }
   virtual Invoke*           as_Invoke()          { return nullptr; }
   virtual NewInstance*      as_NewInstance()     { return nullptr; }
-  virtual NewInlineTypeInstance* as_NewInlineTypeInstance() { return nullptr; }
   virtual NewArray*         as_NewArray()        { return nullptr; }
   virtual NewTypeArray*     as_NewTypeArray()    { return nullptr; }
   virtual NewObjectArray*   as_NewObjectArray()  { return nullptr; }
   virtual NewMultiArray*    as_NewMultiArray()   { return nullptr; }
-  virtual Deoptimize*       as_Deoptimize()      { return nullptr; }
   virtual TypeCheck*        as_TypeCheck()       { return nullptr; }
   virtual CheckCast*        as_CheckCast()       { return nullptr; }
   virtual InstanceOf*       as_InstanceOf()      { return nullptr; }
@@ -982,7 +977,7 @@ class DelayedLoadIndexed;
 LEAF(LoadIndexed, AccessIndexed)
  private:
   NullCheck*  _explicit_null_check;              // For explicit null check elimination
-  NewInlineTypeInstance* _vt;
+  NewInstance* _vt;
   DelayedLoadIndexed* _delayed;
 
  public:
@@ -1001,8 +996,8 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* exact_type() const;
   ciType* declared_type() const;
 
-  NewInlineTypeInstance* vt() const { return _vt; }
-  void set_vt(NewInlineTypeInstance* vt) { _vt = vt; }
+  NewInstance* vt() const { return _vt; }
+  void set_vt(NewInstance* vt) { _vt = vt; }
 
   DelayedLoadIndexed* delayed() const { return _delayed; }
   void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
@@ -1304,7 +1299,7 @@ LEAF(Invoke, StateSplit)
  public:
   // creation
   Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-         ciMethod* target, ValueStack* state_before, bool null_free);
+         ciMethod* target, ValueStack* state_before);
 
   // accessors
   Bytecodes::Code code() const                   { return _code; }
@@ -1342,17 +1337,19 @@ LEAF(NewInstance, StateSplit)
  private:
   ciInstanceKlass* _klass;
   bool _is_unresolved;
+  bool _needs_state_before;
 
  public:
   // creation
-  NewInstance(ciInstanceKlass* klass, ValueStack* state_before, bool is_unresolved)
+  NewInstance(ciInstanceKlass* klass, ValueStack* state_before, bool is_unresolved, bool needs_state_before)
   : StateSplit(instanceType, state_before)
-  , _klass(klass), _is_unresolved(is_unresolved)
+  , _klass(klass), _is_unresolved(is_unresolved), _needs_state_before(needs_state_before)
   {}
 
   // accessors
   ciInstanceKlass* klass() const                 { return _klass; }
   bool is_unresolved() const                     { return _is_unresolved; }
+  bool needs_state_before() const                { return _needs_state_before; }
 
   virtual bool needs_exception_state() const     { return false; }
 
@@ -1360,55 +1357,6 @@ LEAF(NewInstance, StateSplit)
   virtual bool can_trap() const                  { return true; }
   ciType* exact_type() const;
   ciType* declared_type() const;
-};
-
-LEAF(NewInlineTypeInstance, StateSplit)
-  ciInlineKlass* _klass;
-  bool _in_larval_state;
-  int _first_local_index;
-  int _on_stack_count;
-public:
-
-  // Default creation, always allocated for now
-  NewInlineTypeInstance(ciInlineKlass* klass, ValueStack* state_before)
-  : StateSplit(instanceType, state_before)
-   , _klass(klass)
-   , _in_larval_state(true)
-   , _first_local_index(-1)
-   , _on_stack_count(1)
-  {
-    set_null_free(true);
-  }
-
-  // accessors
-  ciInlineKlass* klass() const { return _klass; }
-  virtual bool needs_exception_state() const     { return false; }
-
-  // generic
-  virtual bool can_trap() const                  { return true; }
-  ciType* exact_type() const;
-  ciType* declared_type() const;
-
-  // Only done in LIR Generator -> map everything to object
-  void set_to_object_type() { set_type(instanceType); }
-
-  void set_local_index(int index) {
-    decrement_on_stack_count();
-    if (_first_local_index != index) {
-      if (_first_local_index == -1) {
-        _first_local_index = index;
-      } else {
-        set_not_larva_anymore();
-      }
-    }
-  }
-
-  bool in_larval_state() const { return _in_larval_state; }
-  void set_not_larva_anymore() { _in_larval_state = false; }
-
-  int on_stack_count() const { return _on_stack_count; }
-  void increment_on_stack_count() { _on_stack_count++; }
-  void decrement_on_stack_count() { _on_stack_count--; }
 };
 
 BASE(NewArray, StateSplit)
@@ -1461,10 +1409,8 @@ LEAF(NewObjectArray, NewArray)
 
  public:
   // creation
-  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before, bool null_free)
-  : NewArray(length, state_before), _klass(klass) {
-    set_null_free(null_free);
-  }
+  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before)
+  : NewArray(length, state_before), _klass(klass) { }
 
   // accessors
   ciKlass* klass() const                         { return _klass; }
@@ -1503,17 +1449,6 @@ LEAF(NewMultiArray, NewArray)
   ciType* exact_type() const;
 };
 
-LEAF(Deoptimize, StateSplit)
-private:
-  ciKlass*    _klass;
-
- public:
-  Deoptimize(ciKlass* klass, ValueStack* state_before)
-  : StateSplit(objectType, state_before), _klass(klass) {}
-
-  // accessors
-  ciKlass* klass() const                         { return _klass; }
-};
 
 BASE(TypeCheck, StateSplit)
  private:
@@ -1558,10 +1493,8 @@ BASE(TypeCheck, StateSplit)
 LEAF(CheckCast, TypeCheck)
  public:
   // creation
-  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before, bool null_free = false)
-  : TypeCheck(klass, obj, objectType, state_before) {
-    set_null_free(null_free);
-  }
+  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before)
+  : TypeCheck(klass, obj, objectType, state_before) { }
 
   void set_incompatible_class_change_check() {
     set_flag(ThrowIncompatibleClassChangeErrorFlag, true);
@@ -2112,10 +2045,6 @@ LEAF(If, BlockEnd)
     s->append(tsux);
     s->append(fsux);
     set_sux(s);
-    if (!_substitutability_check) {
-      assert(x->as_NewInlineTypeInstance() == nullptr || y->type() == objectNull, "Sanity check");
-      assert(y->as_NewInlineTypeInstance() == nullptr || x->type() == objectNull, "Sanity check");
-    }
   }
 
   // accessors

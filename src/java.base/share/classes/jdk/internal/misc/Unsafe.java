@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,6 @@
 package jdk.internal.misc;
 
 import jdk.internal.ref.Cleaner;
-import jdk.internal.value.PrimitiveClass;
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
@@ -183,20 +181,49 @@ public final class Unsafe {
     /**
      * Returns true if the given field is flattened.
      */
-    public boolean isFlattened(Field f) {
+    public boolean isFlatField(Field f) {
         if (f == null) {
             throw new NullPointerException();
         }
-        return isFlattenedField0(f);
+        return isFlatField0(f);
     }
 
-    private native boolean isFlattenedField0(Object o);
+    private native boolean isFlatField0(Object o);
+
+    /* Returns true if the given field has a null marker
+     * <p>
+     * Nullable flat fields are stored in a flattened representation
+     * and have an associated null marker to indicate if the the field value is
+     * null or the one stored with the flat representation
+     */
+
+     public boolean hasNullMarker(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        return hasNullMarker0(f);
+     }
+
+     private native boolean hasNullMarker0(Object o);
+
+     /* Returns the offset of the null marker of the field,
+      * or -1 if the field doesn't have a null marker
+      */
+
+     public int nullMarkerOffset(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        return nullMarkerOffset0(f);
+     }
+
+     private native int nullMarkerOffset0(Object o);
 
     /**
      * Returns true if the given class is a flattened array.
      */
     @IntrinsicCandidate
-    public native boolean isFlattenedArray(Class<?> arrayClass);
+    public native boolean isFlatArray(Class<?> arrayClass);
 
     /**
      * Fetches a reference value from a given Java variable.
@@ -262,34 +289,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native <V> void putValue(Object o, long offset, Class<?> valueType, V v);
-
-    /**
-     * Fetches a reference value of the given type from a given Java variable.
-     * This method can return a reference to a value if it is non-null.
-     * If the value is null, this method returns a default value for
-     * primitive value types or null for identity classes and value classes.
-     *
-     * @param type type
-     */
-    public Object getReference(Object o, long offset, Class<?> type) {
-        Object ref = getReference(o, offset);
-        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
-            // If the type of the returned reference is a primitive value type,
-            // return the zero instance if null
-            ref = ValueClass.zeroInstance(type);
-        }
-        return ref;
-    }
-
-    public Object getReferenceVolatile(Object o, long offset, Class<?> type) {
-        Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
-            // If the type of the returned reference is a primitive value type,
-            // return the zero instance if null
-            ref = ValueClass.zeroInstance(type);
-        }
-        return ref;
-    }
 
     /**
      * Returns an uninitialized default instance of the given value class.
@@ -724,9 +723,10 @@ public final class Unsafe {
     /**
      * Allocates a new block of native memory, of the given size in bytes.  The
      * contents of the memory are uninitialized; they will generally be
-     * garbage.  The resulting native pointer will never be zero, and will be
-     * aligned for all value types.  Dispose of this memory by calling {@link
-     * #freeMemory}, or resize it with {@link #reallocateMemory}.
+     * garbage.  The resulting native pointer will be zero if and only if the
+     * requested size is zero.  The resulting native pointer will be aligned for
+     * all value types.   Dispose of this memory by calling {@link #freeMemory}
+     * or resize it with {@link #reallocateMemory}.
      *
      * <em>Note:</em> It is the responsibility of the caller to make
      * sure arguments are checked before the methods are called. While
@@ -1555,11 +1555,11 @@ public final class Unsafe {
     }
 
     /*
-     * For primitive type, CAS should do substitutability test as opposed
+     * For value type, CAS should do substitutability test as opposed
      * to two pointers comparison.
      *
-     * Perhaps we can keep the xxxObject methods for compatibility and
-     * change the JDK 13 xxxReference method signature freely.
+     * TODO: replace global lock workaround with the proper support for
+     * atomic access to value objects and loosely consistent values.
      */
     public final <V> boolean compareAndSetReference(Object o, long offset,
                                                     Class<?> type,

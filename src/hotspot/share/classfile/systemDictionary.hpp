@@ -106,7 +106,7 @@ class SystemDictionary : AllStatic {
   // Resolve a superclass or superinterface. Called from ClassFileParser,
   // parse_interfaces, resolve_instance_class_or_null, load_shared_class
   // "class_name" is the class whose super class or interface is being resolved.
-  static InstanceKlass* resolve_super_or_fail(Symbol* class_name,
+  static InstanceKlass* resolve_with_circularity_detection_or_fail(Symbol* class_name,
                                               Symbol* super_name,
                                               Handle class_loader,
                                               Handle protection_domain,
@@ -133,11 +133,6 @@ class SystemDictionary : AllStatic {
   static oop get_platform_class_loader_impl(TRAPS);
 
  public:
-  static Klass* resolve_inline_type_field_or_fail(Symbol* signature,
-                                                  Handle class_loader,
-                                                  Handle protection_domain,
-                                                  bool throw_error,
-                                                  TRAPS);
 
   // Resolve either a hidden or normal class from a stream of bytes, based on ClassLoadInfo
   static InstanceKlass* resolve_from_stream(ClassFileStream* st,

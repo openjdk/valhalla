@@ -297,7 +297,7 @@ public sealed interface ClassDesc
      * @return whether this {@linkplain ClassDesc} describes a class or interface type
      */
     default boolean isClassOrInterface() {
-        return descriptorString().startsWith("L") || descriptorString().startsWith("Q");
+        return descriptorString().startsWith("L");
     }
 
     /**

@@ -201,6 +201,7 @@ class ciMethod : public ciMetadata {
   bool intrinsic_candidate()    const { return get_Method()->intrinsic_candidate();    }
   bool is_class_initializer()   const { return get_Method()->is_class_initializer();   }
   bool changes_current_thread() const { return get_Method()->changes_current_thread(); }
+  bool deprecated()             const { return is_loaded() && get_Method()->deprecated(); }
 
   bool check_intrinsic_candidate() const {
     if (intrinsic_id() == vmIntrinsics::_blackhole) {
@@ -362,8 +363,6 @@ class ciMethod : public ciMetadata {
   bool is_boxing_method() const;
   bool is_unboxing_method() const;
   bool is_object_constructor() const;
-  bool is_static_vnew_factory() const;
-  bool is_object_constructor_or_class_initializer() const;
   bool is_vector_method() const;
 
   bool can_be_statically_bound(ciInstanceKlass* context) const;

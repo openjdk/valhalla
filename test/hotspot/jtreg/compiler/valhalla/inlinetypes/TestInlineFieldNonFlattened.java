@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2023, Arm Limited. All rights reserved.
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,23 +29,26 @@ import java.util.Random;
 
 import jdk.test.lib.Utils;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 /*
  * @test
  * @bug 8311219
- * @summary VM option "InlineFieldMaxFlatSize" cannot work well
+ * @summary VM option "InlineFieldMaxFlatSize" does not work well.
  * @library /test/lib /
- * @compile -XDenablePrimitiveClasses -source 21
- *          TestInlineFieldNonFlattened.java
- *
- * @run main/othervm -XX:+EnableValhalla
- *                   -XX:+EnablePrimitiveClasses
- *                   -XX:-TieredCompilation
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:-TieredCompilation
  *                   -XX:InlineFieldMaxFlatSize=0
  *                   compiler.valhalla.inlinetypes.TestInlineFieldNonFlattened
  */
 
 public class TestInlineFieldNonFlattened {
     static class MyClass {
+        @NullRestricted
         public final MyValue v1 = new MyValue(5);
 
         public MyValue v2;
@@ -55,7 +58,9 @@ public class TestInlineFieldNonFlattened {
         }
     }
 
-    static primitive class MyValue {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue {
         public int field;
 
         public MyValue(int f) {
@@ -88,12 +93,12 @@ public class TestInlineFieldNonFlattened {
     public static void main(String[] args) {
         TestFramework testFramework = new TestFramework();
         testFramework.setDefaultWarmup(10000)
-                     .addFlags("-XX:+EnableValhalla",
-                               "-XX:+EnablePrimitiveClasses",
+                     .addFlags("--enable-preview",
+                               "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                               "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                                "-XX:-TieredCompilation",
                                "-XX:InlineFieldMaxFlatSize=0")
                      .start();
     }
-
 }
 

@@ -162,6 +162,7 @@ import javax.tools.StandardLocation;
  * <tr><th scope="row">{@code fallthrough}          <td>falling through from one case of a {@code switch} statement to
  *                                                      the next
  * <tr><th scope="row">{@code finally}              <td>{@code finally} clauses that do not terminate normally
+ * <tr><th scope="row">{@code incubating}           <td>use of incubating modules
  * <tr><th scope="row">{@code lossy-conversions}    <td>possible lossy conversions in compound assignment
  * <tr><th scope="row">{@code missing-explicit-ctor} <td>missing explicit constructors in public and protected classes
  *                                                      in exported packages
@@ -234,6 +235,7 @@ module jdk.compiler {
     exports com.sun.tools.javac.resources to
         jdk.jshell;
     exports com.sun.tools.javac.code to
+        jdk.jdeps,
         jdk.javadoc,
         jdk.jshell;
     exports com.sun.tools.javac.comp to
@@ -243,6 +245,7 @@ module jdk.compiler {
         jdk.jdeps,
         jdk.javadoc;
     exports com.sun.tools.javac.jvm to
+        jdk.jdeps,
         jdk.javadoc;
     exports com.sun.tools.javac.main to
         jdk.javadoc,

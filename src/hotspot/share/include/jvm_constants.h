@@ -30,7 +30,7 @@
 
 #define JVM_RECOGNIZED_CLASS_MODIFIERS (JVM_ACC_PUBLIC | \
                                         JVM_ACC_FINAL | \
-                                        JVM_ACC_SUPER | \
+                                        JVM_ACC_IDENTITY | \
                                         JVM_ACC_INTERFACE | \
                                         JVM_ACC_ABSTRACT | \
                                         JVM_ACC_ANNOTATION | \
@@ -45,6 +45,7 @@
                                         JVM_ACC_VOLATILE | \
                                         JVM_ACC_TRANSIENT | \
                                         JVM_ACC_ENUM | \
+                                        JVM_ACC_STRICT | \
                                         JVM_ACC_SYNTHETIC)
 
 #define JVM_RECOGNIZED_METHOD_MODIFIERS (JVM_ACC_PUBLIC | \

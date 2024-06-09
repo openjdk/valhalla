@@ -27,7 +27,7 @@
 * @summary Validate compiler IR for FP16 scalar operations.
 * @requires vm.compiler2.enabled
 * @library /test/lib /
-* @compile -XDenablePrimitiveClasses TestFP16ScalarAdd.java
+* @enablePreview
 * @run driver compiler.vectorization.TestFP16ScalarAdd
 */
 
@@ -43,7 +43,7 @@ public class TestFP16ScalarAdd {
     private short res;
 
     public static void main(String args[]) {
-        TestFramework.run(TestFP16ScalarAdd.class);
+        TestFramework.runWithFlags("--enable-preview");
     }
 
     public TestFP16ScalarAdd() {

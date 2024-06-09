@@ -36,7 +36,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.IntFunction;
+import java.util.function.Predicate;
 
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.NestingKind;
@@ -45,7 +47,6 @@ import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Source.Feature;
-import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.comp.Annotate;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
 import com.sun.tools.javac.code.*;
@@ -61,8 +62,10 @@ import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.jvm.ClassFile.Version;
 import com.sun.tools.javac.jvm.PoolConstant.NameAndType;
 import com.sun.tools.javac.main.Option;
+import com.sun.tools.javac.resources.CompilerProperties;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.ByteBuffer.UnderflowException;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -74,6 +77,7 @@ import static com.sun.tools.javac.code.Kinds.Kind.*;
 
 import com.sun.tools.javac.code.Scope.LookupKind;
 
+import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.TypeTag.ARRAY;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
@@ -108,10 +112,6 @@ public class ClassReader {
     /** Switch: allow modules.
      */
     boolean allowModules;
-
-    /** Switch: allow primitive classes.
-     */
-    boolean allowPrimitiveClasses;
 
     /** Switch: allow value classes.
      */
@@ -291,8 +291,8 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
-        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
+        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         warnOnIllegalUtf8 = Feature.WARN_ON_ILLEGAL_UTF8.allowedInSource(source);
@@ -511,14 +511,9 @@ public class ClassReader {
         case 'J':
             sigp++;
             return syms.longType;
-        case 'Q':
         case 'L':
             {
                 // int oldsigp = sigp;
-                if ((char) signature[sigp] == 'Q' && !allowPrimitiveClasses) {
-                    throw badClassFile("bad.class.signature",
-                                       quoteBadSignature());
-                }
                 Type t = classSigToType();
                 if (sigp < siglimit && signature[sigp] == '.')
                     throw badClassFile("deprecated inner class signature syntax " +
@@ -576,13 +571,11 @@ public class ClassReader {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        byte prefix = signature[sigp];
-        if (prefix != 'L' && (!allowPrimitiveClasses || prefix != 'Q'))
+        if (signature[sigp] != 'L')
             throw badClassFile("bad.class.signature", quoteBadSignature());
         sigp++;
         Type outer = Type.noType;
         Name name;
-        ClassType.Flavor flavor;
         int startSbp = sbp;
 
         while (true) {
@@ -594,15 +587,12 @@ public class ClassReader {
                                                          startSbp,
                                                          sbp - startSbp));
 
-                // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
-                flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.Q_TypeOf_X;
                 try {
                     if (outer == Type.noType) {
                         ClassType et = (ClassType) t.erasure(types);
-                        // Todo: This spews out more objects than before, i.e no reuse with identical flavor
-                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata(), flavor);
+                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
                     }
-                    return new ClassType(outer, List.nil(), t, List.nil(), flavor);
+                    return new ClassType(outer, List.nil(), t, List.nil());
                 } finally {
                     sbp = startSbp;
                 }
@@ -612,9 +602,7 @@ public class ClassReader {
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
                                                          sbp - startSbp));
-                // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
-                flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.Q_TypeOf_X;
-                outer = new ClassType(outer, sigToTypes('>'), t, List.nil(), flavor) {
+                outer = new ClassType(outer, sigToTypes('>'), t, List.nil()) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
                         public Type getEnclosingType() {
@@ -677,9 +665,7 @@ public class ClassReader {
                     t = enterClass(readName(signatureBuffer,
                                                  startSbp,
                                                  sbp - startSbp));
-                    // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
-                    flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.Q_TypeOf_X;
-                    outer = new ClassType(outer, List.nil(), t, List.nil(), flavor);
+                    outer = new ClassType(outer, List.nil(), t, List.nil());
                 }
                 signatureBuffer[sbp++] = (byte)'$';
                 continue;
@@ -871,19 +857,6 @@ public class ClassReader {
 
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
-                    if (sym.isInitOrVNew() && sym.type.getParameterTypes().size() == 0) {
-                        try {
-                            int code_length = buf.getInt(bp + 4);
-                            if ((code_length == 1 && buf.getByte(bp + 8) == (byte) ByteCodes.return_) ||
-                                (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
-                                    buf.getByte(bp + 9) == (byte) ByteCodes.invokespecial &&
-                                            buf.getByte(bp + 12) == (byte) ByteCodes.return_)) {
-                                sym.flags_field |= EMPTYNOARGCONSTR;
-                            }
-                        } catch (UnderflowException e) {
-                            throw badClassFile("bad.class.truncated.at.offset", Integer.toString(e.getLength()));
-                        }
-                    }
                     if (saveParameterNames)
                         ((MethodSymbol)sym).code = readCode(sym);
                     else
@@ -1063,13 +1036,6 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-                        // Map value class factory methods back to constructors for the benefit of earlier pipeline stages
-                        if (sym.kind == MTH && sym.name == names.vnew && !sym.type.getReturnType().hasTag(TypeTag.VOID)) {
-                            sym.type = new MethodType(sym.type.getParameterTypes(),
-                                    syms.voidType,
-                                    sym.type.getThrownTypes(),
-                                    syms.methodClass);
-                        }
 
                     }
                 }
@@ -1344,7 +1310,7 @@ public class ClassReader {
                         for (int i = 0; i < numberOfPermittedSubtypes; i++) {
                             subtypes.add(poolReader.getClass(nextChar()));
                         }
-                        ((ClassSymbol)sym).permitted = subtypes.toList();
+                        ((ClassSymbol)sym).setPermittedSubclasses(subtypes.toList());
                     }
                 }
             },
@@ -1423,7 +1389,7 @@ public class ClassReader {
                 return (MethodSymbol)sym;
         }
 
-        if (!names.isInitOrVNew(nt.name))
+        if (nt.name != names.init)
             // not a constructor
             return null;
         if ((flags & INTERFACE) != 0)
@@ -1557,6 +1523,12 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.valueBasedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == TYP);
                 sym.flags_field |= VALUE_BASED;
+            } else if (proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
+                Assert.check(sym.kind == TYP);
+                sym.flags_field |= MIGRATED_VALUE_CLASS;
+                if (needsValueFlag(sym, sym.flags_field)) {
+                    sym.flags_field |= VALUE_CLASS;
+                }
             } else if (proxy.type.tsym.flatName() == syms.restrictedType.tsym.flatName()) {
                 Assert.check(sym.kind == MTH);
                 sym.flags_field |= RESTRICTED;
@@ -1573,6 +1545,11 @@ public class ClassReader {
                     setFlagIfAttributeTrue(proxy, sym, names.reflective, PREVIEW_REFLECTIVE);
                 }  else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
                     sym.flags_field |= VALUE_BASED;
+                }  else if (proxy.type.tsym == syms.migratedValueClassType.tsym && sym.kind == TYP) {
+                    sym.flags_field |= MIGRATED_VALUE_CLASS;
+                    if (needsValueFlag(sym, sym.flags_field)) {
+                        sym.flags_field |= VALUE_CLASS;
+                    }
                 }  else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
                     sym.flags_field |= RESTRICTED;
@@ -2309,12 +2286,321 @@ public class ClassReader {
                 currentClassFile = classFile;
                 List<Attribute.TypeCompound> newList = deproxyTypeCompoundList(proxies);
                 sym.setTypeAttributes(newList.prependList(sym.getRawTypeAttributes()));
+                addTypeAnnotationsToSymbol(sym, newList);
             } finally {
                 currentClassFile = previousClassFile;
             }
         }
     }
 
+    /**
+     * Rewrites types in the given symbol to include type annotations.
+     *
+     * <p>The list of type annotations includes annotations for all types in the signature of the
+     * symbol. Associating the annotations with the correct type requires interpreting the JVMS
+     * 4.7.20-A target_type to locate the correct type to rewrite, and then interpreting the JVMS
+     * 4.7.20.2 type_path to associate the annotation with the correct contained type.
+     */
+    private static void addTypeAnnotationsToSymbol(
+            Symbol s, List<Attribute.TypeCompound> attributes) {
+        new TypeAnnotationSymbolVisitor(attributes).visit(s, null);
+    }
+
+    private static class TypeAnnotationSymbolVisitor
+            extends Types.DefaultSymbolVisitor<Void, Void> {
+
+        private final List<Attribute.TypeCompound> attributes;
+
+        private TypeAnnotationSymbolVisitor(List<Attribute.TypeCompound> attributes) {
+            this.attributes = attributes;
+        }
+
+        @Override
+        public Void visitClassSymbol(Symbol.ClassSymbol s, Void unused) {
+            ClassType t = (ClassType) s.type;
+            int i = 0;
+            ListBuffer<Type> interfaces = new ListBuffer<>();
+            for (Type itf : t.interfaces_field) {
+                interfaces.add(addTypeAnnotations(itf, classExtends(i++)));
+            }
+            t.interfaces_field = interfaces.toList();
+            t.supertype_field = addTypeAnnotations(t.supertype_field, classExtends(65535));
+            if (t.typarams_field != null) {
+                t.typarams_field =
+                        rewriteTypeParameters(
+                                t.typarams_field, TargetType.CLASS_TYPE_PARAMETER_BOUND);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitMethodSymbol(Symbol.MethodSymbol s, Void unused) {
+            Type t = s.type;
+            if (t.hasTag(TypeTag.FORALL)) {
+                Type.ForAll fa = (Type.ForAll) t;
+                fa.tvars = rewriteTypeParameters(fa.tvars, TargetType.METHOD_TYPE_PARAMETER_BOUND);
+                t = fa.qtype;
+            }
+            MethodType mt = (MethodType) t;
+            ListBuffer<Type> argtypes = new ListBuffer<>();
+            int i = 0;
+            for (Symbol.VarSymbol param : s.params) {
+                param.type = addTypeAnnotations(param.type, methodFormalParameter(i++));
+                argtypes.add(param.type);
+            }
+            mt.argtypes = argtypes.toList();
+            ListBuffer<Type> thrown = new ListBuffer<>();
+            i = 0;
+            for (Type thrownType : mt.thrown) {
+                thrown.add(addTypeAnnotations(thrownType, thrownType(i++)));
+            }
+            mt.thrown = thrown.toList();
+            /* possible information loss if the type of the method is void then we can't add type
+             * annotations to it
+             */
+            if (!mt.restype.hasTag(TypeTag.VOID)) {
+                mt.restype = addTypeAnnotations(mt.restype, TargetType.METHOD_RETURN);
+            }
+
+            Type recvtype = mt.recvtype != null ? mt.recvtype : s.implicitReceiverType();
+            if (recvtype != null) {
+                Type annotated = addTypeAnnotations(recvtype, TargetType.METHOD_RECEIVER);
+                if (annotated != recvtype) {
+                    mt.recvtype = annotated;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitVarSymbol(Symbol.VarSymbol s, Void unused) {
+            s.type = addTypeAnnotations(s.type, TargetType.FIELD);
+            return null;
+        }
+
+        @Override
+        public Void visitSymbol(Symbol s, Void unused) {
+            return null;
+        }
+
+        private List<Type> rewriteTypeParameters(List<Type> tvars, TargetType boundType) {
+            ListBuffer<Type> tvarbuf = new ListBuffer<>();
+            int typeVariableIndex = 0;
+            for (Type tvar : tvars) {
+                Type bound = tvar.getUpperBound();
+                if (bound.isCompound()) {
+                    ClassType ct = (ClassType) bound;
+                    int boundIndex = 0;
+                    if (ct.supertype_field != null) {
+                        ct.supertype_field =
+                                addTypeAnnotations(
+                                        ct.supertype_field,
+                                        typeParameterBound(
+                                                boundType, typeVariableIndex, boundIndex++));
+                    }
+                    ListBuffer<Type> itfbuf = new ListBuffer<>();
+                    for (Type itf : ct.interfaces_field) {
+                        itfbuf.add(
+                                addTypeAnnotations(
+                                        itf,
+                                        typeParameterBound(
+                                                boundType, typeVariableIndex, boundIndex++)));
+                    }
+                    ct.interfaces_field = itfbuf.toList();
+                } else {
+                    bound =
+                            addTypeAnnotations(
+                                    bound,
+                                    typeParameterBound(
+                                            boundType,
+                                            typeVariableIndex,
+                                            bound.isInterface() ? 1 : 0));
+                }
+                ((TypeVar) tvar).setUpperBound(bound);
+                tvarbuf.add(tvar);
+                typeVariableIndex++;
+            }
+            return tvarbuf.toList();
+        }
+
+        private Type addTypeAnnotations(Type type, TargetType targetType) {
+            return addTypeAnnotations(type, pos -> pos.type == targetType);
+        }
+
+        private Type addTypeAnnotations(Type type, Predicate<TypeAnnotationPosition> filter) {
+            Assert.checkNonNull(type);
+
+            // Find type annotations that match the given target type
+            ListBuffer<Attribute.TypeCompound> filtered = new ListBuffer<>();
+            for (Attribute.TypeCompound attribute : this.attributes) {
+                if (filter.test(attribute.position)) {
+                    filtered.add(attribute);
+                }
+            }
+            if (filtered.isEmpty()) {
+                return type;
+            }
+
+            // Group the matching annotations by their type path. Each group of annotations will be
+            // added to a type at that location.
+            Map<List<TypeAnnotationPosition.TypePathEntry>, ListBuffer<Attribute.TypeCompound>>
+                    attributesByPath = new HashMap<>();
+            for (Attribute.TypeCompound attribute : filtered.toList()) {
+                attributesByPath
+                        .computeIfAbsent(attribute.position.location, k -> new ListBuffer<>())
+                        .add(attribute);
+            }
+
+            // Search the structure of the type to find the contained types at each type path
+            Map<Type, List<Attribute.TypeCompound>> attributesByType = new HashMap<>();
+            new TypeAnnotationLocator(attributesByPath, attributesByType).visit(type, List.nil());
+
+            // Rewrite the type and add the annotations
+            type = new TypeAnnotationTypeMapping(attributesByType).visit(type, null);
+            Assert.check(attributesByType.isEmpty(), "Failed to apply annotations to types");
+
+            return type;
+        }
+
+        private static Predicate<TypeAnnotationPosition> typeParameterBound(
+                TargetType targetType, int parameterIndex, int boundIndex) {
+            return pos ->
+                    pos.type == targetType
+                            && pos.parameter_index == parameterIndex
+                            && pos.bound_index == boundIndex;
+        }
+
+        private static Predicate<TypeAnnotationPosition> methodFormalParameter(int index) {
+            return pos ->
+                    pos.type == TargetType.METHOD_FORMAL_PARAMETER && pos.parameter_index == index;
+        }
+
+        private static Predicate<TypeAnnotationPosition> thrownType(int index) {
+            return pos -> pos.type == TargetType.THROWS && pos.type_index == index;
+        }
+
+        private static Predicate<TypeAnnotationPosition> classExtends(int index) {
+            return pos -> pos.type == TargetType.CLASS_EXTENDS && pos.type_index == index;
+        }
+    }
+
+    /**
+     * Visit all contained types, assembling a type path to represent the current location, and
+     * record the types at each type path that need to be annotated.
+     */
+    private static class TypeAnnotationLocator
+            extends Types.DefaultTypeVisitor<Void, List<TypeAnnotationPosition.TypePathEntry>> {
+        private final Map<List<TypeAnnotationPosition.TypePathEntry>,
+                          ListBuffer<Attribute.TypeCompound>> attributesByPath;
+        private final Map<Type, List<Attribute.TypeCompound>> attributesByType;
+
+        private TypeAnnotationLocator(
+                Map<List<TypeAnnotationPosition.TypePathEntry>, ListBuffer<Attribute.TypeCompound>>
+                        attributesByPath,
+                Map<Type, List<Attribute.TypeCompound>> attributesByType) {
+            this.attributesByPath = attributesByPath;
+            this.attributesByType = attributesByType;
+        }
+
+        @Override
+        public Void visitClassType(ClassType t, List<TypeAnnotationPosition.TypePathEntry> path) {
+            // As described in JVMS 4.7.20.2, type annotations on nested types are located with
+            // 'left-to-right' steps starting on 'the outermost part of the type for which a type
+            // annotation is admissible'. So the current path represents the outermost containing
+            // type of the type being visited, and we add type path steps for every contained nested
+            // type.
+            List<ClassType> enclosing = List.nil();
+            for (Type curr = t;
+                    curr != null && curr != Type.noType;
+                    curr = curr.getEnclosingType()) {
+                enclosing = enclosing.prepend((ClassType) curr);
+            }
+            for (ClassType te : enclosing) {
+                if (te.typarams_field != null) {
+                    int i = 0;
+                    for (Type typaram : te.typarams_field) {
+                        visit(typaram, path.append(new TypeAnnotationPosition.TypePathEntry(
+                                TypeAnnotationPosition.TypePathEntryKind.TYPE_ARGUMENT, i++)));
+                    }
+                }
+                visitType(te, path);
+                path = path.append(TypeAnnotationPosition.TypePathEntry.INNER_TYPE);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitWildcardType(
+                WildcardType t, List<TypeAnnotationPosition.TypePathEntry> path) {
+            visit(t.type, path.append(TypeAnnotationPosition.TypePathEntry.WILDCARD));
+            return super.visitWildcardType(t, path);
+        }
+
+        @Override
+        public Void visitArrayType(ArrayType t, List<TypeAnnotationPosition.TypePathEntry> path) {
+            visit(t.elemtype, path.append(TypeAnnotationPosition.TypePathEntry.ARRAY));
+            return super.visitArrayType(t, path);
+        }
+
+        @Override
+        public Void visitType(Type t, List<TypeAnnotationPosition.TypePathEntry> path) {
+            ListBuffer<Attribute.TypeCompound> attributes = attributesByPath.remove(path);
+            if (attributes != null) {
+                attributesByType.put(t, attributes.toList());
+            }
+            return null;
+        }
+    }
+
+    /** A type mapping that rewrites the type to include type annotations. */
+    private static class TypeAnnotationTypeMapping extends Type.StructuralTypeMapping<Void> {
+
+        private final Map<Type, List<Attribute.TypeCompound>> attributesByType;
+
+        private TypeAnnotationTypeMapping(
+                Map<Type, List<Attribute.TypeCompound>> attributesByType) {
+            this.attributesByType = attributesByType;
+        }
+
+        private <T extends Type> Type reannotate(T t, BiFunction<T, Void, Type> f) {
+            // We're relying on object identify of Type instances to record where the annotations
+            // need to be added, so we have to retrieve the annotations for each type before
+            // rewriting it, and then add them after its contained types have been rewritten.
+            List<Attribute.TypeCompound> attributes = attributesByType.remove(t);
+            Type mapped = f.apply(t, null);
+            if (attributes == null) {
+                return mapped;
+            }
+            // Runtime-visible and -invisible annotations are completed separately, so if the same
+            // type has annotations from both it will get annotated twice.
+            TypeMetadata.Annotations existing = mapped.getMetadata(TypeMetadata.Annotations.class);
+            if (existing != null) {
+                existing.annotationBuffer().addAll(attributes);
+                return mapped;
+            }
+            return mapped.annotatedType(attributes);
+        }
+
+        @Override
+        public Type visitClassType(ClassType t, Void unused) {
+            return reannotate(t, super::visitClassType);
+        }
+
+        @Override
+        public Type visitWildcardType(WildcardType t, Void unused) {
+            return reannotate(t, super::visitWildcardType);
+        }
+
+        @Override
+        public Type visitArrayType(ArrayType t, Void unused) {
+            return reannotate(t, super::visitArrayType);
+        }
+
+        @Override
+        public Type visitType(Type t, Void unused) {
+            return reannotate(t, (x, u) -> x);
+        }
+    }
 
 /************************************************************************
  * Reading Symbols
@@ -2357,15 +2643,8 @@ public class ClassReader {
                                    Integer.toString(minorVersion));
             }
         }
-        if (names.isInitOrVNew(name) && ((flags & STATIC) != 0)) {
-            flags &= ~STATIC;
-            type = new MethodType(type.getParameterTypes(),
-                    syms.voidType,
-                    type.getThrownTypes(),
-                    syms.methodClass);
-        }
         validateMethodType(name, type);
-        if (names.isInitOrVNew(name) && currentOwner.hasOuterInstance()) {
+        if (name == names.init && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
@@ -2410,7 +2689,7 @@ public class ClassReader {
 
     void validateMethodType(Name name, Type t) {
         if ((!t.hasTag(TypeTag.METHOD) && !t.hasTag(TypeTag.FORALL)) ||
-            ((name == names.init || name == names.vnew) && !t.getReturnType().hasTag(TypeTag.VOID))) {
+            (name == names.init && !t.getReturnType().hasTag(TypeTag.VOID))) {
             throw badClassFile("method.descriptor.invalid", name);
         }
     }
@@ -2474,7 +2753,7 @@ public class ClassReader {
         // the first parameter.  Note that this assumes the
         // skipped parameter has a width of 1 -- i.e. it is not
         // a double width type (long or double.)
-        if (names.isInitOrVNew(sym.name) && currentOwner.hasOuterInstance()) {
+        if (sym.name == names.init && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
@@ -2546,7 +2825,7 @@ public class ClassReader {
                 && parameterAccessFlags[mpIndex] != 0) {
             flags |= parameterAccessFlags[mpIndex];
         }
-        if (parameterNameIndicesMp != null
+        if (parameterNameIndicesMp != null && mpIndex < parameterNameIndicesMp.length
                 // if name_index is 0, then we might still get a name from the LocalVariableTable
                 && parameterNameIndicesMp[mpIndex] != 0) {
             argName = optPoolEntry(parameterNameIndicesMp[mpIndex], poolReader::getName, names.empty);
@@ -2637,15 +2916,7 @@ public class ClassReader {
 
         // read flags, or skip if this is an inner class
         long f = nextChar();
-        long flags = adjustClassFlags(f);
-        if (c == syms.objectType.tsym) {
-            flags &= ~IDENTITY_TYPE; // jlO lacks identity even while being a concrete class.
-        }
-        if ((flags & PRIMITIVE_CLASS) != 0) {
-            if (!allowPrimitiveClasses || (flags & (FINAL | PRIMITIVE_CLASS | IDENTITY_TYPE)) != (FINAL | PRIMITIVE_CLASS)) {
-                throw badClassFile("bad.access.flags", Flags.toString(flags));
-            }
-        }
+        long flags = adjustClassFlags(c, f);
         if ((flags & MODULE) == 0) {
             if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
             // read own class name and check that it matches
@@ -2682,7 +2953,7 @@ public class ClassReader {
         for (int i = 0; i < methodCount; i++) skipMember();
         readClassAttrs(c);
 
-        if (c.permitted != null && !c.permitted.isEmpty()) {
+        if (!c.getPermittedSubclasses().isEmpty()) {
             c.flags_field |= SEALED;
         }
 
@@ -2737,7 +3008,7 @@ public class ClassReader {
             ClassSymbol outer = optPoolEntry(outerIdx, poolReader::getClass, null);
             Name name = optPoolEntry(nameIdx, poolReader::getName, names.empty);
             if (name == null) name = names.empty;
-            long flags = adjustClassFlags(nextChar());
+            long flags = adjustClassFlags(c, nextChar());
             if (outer != null) { // we have a member class
                 if (name == names.empty)
                     name = names.one;
@@ -2799,14 +3070,6 @@ public class ClassReader {
             signatureBuffer = new byte[ns];
         }
         readClass(c);
-        if (previewClassFile) {
-            if ((c.flags_field & SYNTHETIC) != 0 &&
-                    c.owner.kind == PCK &&
-                    (c.flags_field & AUXILIARY) == 0 &&
-                    (c.flags_field & FINAL) != 0) {
-                c.flags_field |= UNNAMED_CLASS;
-            }
-        }
     }
 
     public void readClassFile(ClassSymbol c) {
@@ -2887,6 +3150,11 @@ public class ClassReader {
  ***********************************************************************/
 
     long adjustFieldFlags(long flags) {
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
+        if (allowValueClasses && previewClassFile && (flags & ACC_STRICT) != 0) {
+            flags &= ~ACC_STRICT;
+            flags |= STRICT;
+        }
         return flags;
     }
 
@@ -2902,31 +3170,33 @@ public class ClassReader {
         return flags;
     }
 
-    long adjustClassFlags(long flags) {
-        if ((flags & (ABSTRACT | INTERFACE | ACC_VALUE | ACC_MODULE)) == 0) {
-            flags |= ACC_IDENTITY;
-        }
+    long adjustClassFlags(ClassSymbol c, long flags) {
         if ((flags & ACC_MODULE) != 0) {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_PRIMITIVE) != 0) {
-            flags &= ~ACC_PRIMITIVE;
-            if (allowPrimitiveClasses) {
-                flags |= PRIMITIVE_CLASS;
-            }
-        }
-        if ((flags & ACC_VALUE) != 0) {
-            flags &= ~ACC_VALUE;
-            if (allowValueClasses) {
-                flags |= VALUE_CLASS;
-            }
-        }
-        if ((flags & ACC_IDENTITY) != 0) {
-            flags &= ~ACC_IDENTITY;
+        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags)) || (majorVersion < V66.major && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
+        } else if (needsValueFlag(c, flags)) {
+            flags |= VALUE_CLASS;
         }
+        flags &= ~ACC_IDENTITY; // ACC_IDENTITY and SYNCHRONIZED bits overloaded
         return flags;
+    }
+
+    private boolean needsValueFlag(Symbol c, long flags) {
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
+        if (allowValueClasses) {
+            if (previewClassFile && majorVersion >= V66.major && (flags & INTERFACE) == 0 ||
+                    majorVersion >= V66.major && isMigratedValueClass(flags)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isMigratedValueClass(long flags) {
+        return allowValueClasses && ((flags & MIGRATED_VALUE_CLASS) != 0);
     }
 
     /**

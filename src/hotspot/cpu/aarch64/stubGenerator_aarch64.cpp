@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2022, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -41,6 +41,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "prims/upcallLinker.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/continuationEntry.inline.hpp"
@@ -140,7 +141,8 @@ class StubGenerator: public StubCodeGenerator {
   //     [ return_from_Java     ] <--- sp
   //     [ argument word n      ]
   //      ...
-  // -27 [ argument word 1      ]
+  // -29 [ argument word 1      ]
+  // -28 [ saved Floating-point Control Register ]
   // -26 [ saved v15            ] <--- sp_after_call
   // -25 [ saved v14            ]
   // -24 [ saved v13            ]
@@ -172,8 +174,9 @@ class StubGenerator: public StubCodeGenerator {
 
   // Call stub stack layout word offsets from fp
   enum call_stub_layout {
-    sp_after_call_off = -26,
+    sp_after_call_off  = -28,
 
+    fpcr_off           = sp_after_call_off,
     d15_off            = -26,
     d13_off            = -24,
     d11_off            = -22,
@@ -203,8 +206,9 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", "call_stub");
     address start = __ pc();
 
-    const Address sp_after_call(rfp, sp_after_call_off * wordSize);
+    const Address sp_after_call (rfp, sp_after_call_off * wordSize);
 
+    const Address fpcr_save     (rfp, fpcr_off           * wordSize);
     const Address call_wrapper  (rfp, call_wrapper_off   * wordSize);
     const Address result        (rfp, result_off         * wordSize);
     const Address result_type   (rfp, result_type_off    * wordSize);
@@ -252,6 +256,14 @@ class StubGenerator: public StubCodeGenerator {
     __ stpd(v11, v10,  d11_save);
     __ stpd(v13, v12,  d13_save);
     __ stpd(v15, v14,  d15_save);
+
+    __ get_fpcr(rscratch1);
+    __ str(rscratch1, fpcr_save);
+    // Set FPCR to the state we need. We do want Round to Nearest. We
+    // don't want non-IEEE rounding modes or floating-point traps.
+    __ bfi(rscratch1, zr, 22, 4); // Clear DN, FZ, and Rmode
+    __ bfi(rscratch1, zr, 8, 5);  // Clear exception-control bits (8-12)
+    __ set_fpcr(rscratch1);
 
     // install Java thread in global register now we have saved
     // whatever value it held
@@ -313,7 +325,7 @@ class StubGenerator: public StubCodeGenerator {
     return_address = __ pc();
 
     // store result depending on type (everything that is not
-    // T_OBJECT, T_PRIMITIVE_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+    // T_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     // n.b. this assumes Java returns an integral result in r0
     // and a floating result in j_farg0
     // All of j_rargN may be used to return inline type fields so be careful
@@ -325,8 +337,6 @@ class StubGenerator: public StubCodeGenerator {
     Label is_long, is_float, is_double, check_prim, exit;
     __ ldr(Rresult_type, result_type);
     __ cmp(Rresult_type, (u1)T_OBJECT);
-    __ br(Assembler::EQ, check_prim);
-    __ cmp(Rresult_type, (u1)T_PRIMITIVE_OBJECT);
     __ br(Assembler::EQ, check_prim);
     __ cmp(Rresult_type, (u1)T_LONG);
     __ br(Assembler::EQ, is_long);
@@ -372,6 +382,10 @@ class StubGenerator: public StubCodeGenerator {
     __ ldp(r24, r23,   r24_save);
     __ ldp(r22, r21,   r22_save);
     __ ldp(r20, r19,   r20_save);
+
+    // restore fpcr
+    __ ldr(rscratch1,  fpcr_save);
+    __ set_fpcr(rscratch1);
 
     __ ldp(c_rarg0, c_rarg1,  call_wrapper);
     __ ldrw(c_rarg2, result_type);
@@ -2219,12 +2233,10 @@ class StubGenerator: public StubCodeGenerator {
     __ cbnz(rscratch2, L_failed);
 
     // Check for flat inline type array -> return -1
-    __ tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-    __ br(Assembler::NE, L_failed);
+    __ test_flat_array_oop(src, rscratch2, L_failed);
 
     // Check for null-free (non-flat) inline type array -> handle as object array
-    __ tst(lh, Klass::_lh_null_free_array_bit_inplace);
-    __ br(Assembler::NE, L_failed);
+    __ test_null_free_array_oop(src, rscratch2, L_objArray);
 
     //  if (!src->is_Array()) return -1;
     __ tbz(lh, 31, L_failed);  // i.e. (lh >= 0)
@@ -5337,19 +5349,6 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  address generate_dlog() {
-    __ align(CodeEntryAlignment);
-    StubCodeMark mark(this, "StubRoutines", "dlog");
-    address entry = __ pc();
-    FloatRegister vtmp0 = v0, vtmp1 = v1, vtmp2 = v2, vtmp3 = v3, vtmp4 = v4,
-        vtmp5 = v5, tmpC1 = v16, tmpC2 = v17, tmpC3 = v18, tmpC4 = v19;
-    Register tmp1 = r0, tmp2 = r1, tmp3 = r2, tmp4 = r3, tmp5 = r4;
-    __ fast_log(vtmp0, vtmp1, vtmp2, vtmp3, vtmp4, vtmp5, tmpC1, tmpC2, tmpC3,
-        tmpC4, tmp1, tmp2, tmp3, tmp4, tmp5);
-    return entry;
-  }
-
-
   // code for comparing 16 characters of strings with Latin1 and Utf16 encoding
   void compare_string_16_x_LU(Register tmpL, Register tmpU, Label &DIFF1,
       Label &DIFF2) {
@@ -5494,6 +5493,32 @@ class StubGenerator: public StubCodeGenerator {
       __ subw(result, tmp1, rscratch1);
     __ bind(DONE);
       __ ret(lr);
+    return entry;
+  }
+
+  // r0 = input (float16)
+  // v0 = result (float)
+  // v1 = temporary float register
+  address generate_float16ToFloat() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "float16ToFloat");
+    address entry = __ pc();
+    BLOCK_COMMENT("Entry:");
+    __ flt16_to_flt(v0, r0, v1);
+    __ ret(lr);
+    return entry;
+  }
+
+  // v0 = input (float)
+  // r0 = result (float16)
+  // v1 = temporary float register
+  address generate_floatToFloat16() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "floatToFloat16");
+    address entry = __ pc();
+    BLOCK_COMMENT("Entry:");
+    __ flt_to_flt16(r0, v0, v1);
+    __ ret(lr);
     return entry;
   }
 
@@ -7352,6 +7377,21 @@ class StubGenerator: public StubCodeGenerator {
 
 #endif // INCLUDE_JFR
 
+  // exception handler for upcall stubs
+  address generate_upcall_stub_exception_handler() {
+    StubCodeMark mark(this, "StubRoutines", "upcall stub exception handler");
+    address start = __ pc();
+
+    // Native caller has no idea how to handle exceptions,
+    // so we just crash here. Up to callee to catch exceptions.
+    __ verify_oop(r0);
+    __ movptr(rscratch1, CAST_FROM_FN_PTR(uint64_t, UpcallLinker::handle_uncaught_exception));
+    __ blr(rscratch1);
+    __ should_not_reach_here();
+
+    return start;
+  }
+
   // Continuation point for throwing of implicit exceptions that are
   // not handled in the current activation. Fabricates an exception
   // oop and initiates normal exception dispatching in this
@@ -8456,11 +8496,6 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_updateBytesCRC32C = generate_updateBytesCRC32C();
     }
 
-    // Disabled until JDK-8210858 is fixed
-    // if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_dlog)) {
-    //   StubRoutines::_dlog = generate_dlog();
-    // }
-
     if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_dsin)) {
       StubRoutines::_dsin = generate_dsin_dcos(/* isCos = */ false);
     }
@@ -8469,12 +8504,19 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_dcos = generate_dsin_dcos(/* isCos = */ true);
     }
 
+    if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_float16ToFloat) &&
+        vmIntrinsics::is_intrinsic_available(vmIntrinsics::_floatToFloat16)) {
+      StubRoutines::_hf2f = generate_float16ToFloat();
+      StubRoutines::_f2hf = generate_floatToFloat16();
+    }
+
     if (InlineTypeReturnedAsFields) {
       StubRoutines::_load_inline_type_fields_in_regs =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs), "load_inline_type_fields_in_regs", false);
       StubRoutines::_store_inline_type_fields_to_buf =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), "store_inline_type_fields_to_buf", true);
     }
+
   }
 
   void generate_continuation_stubs() {
@@ -8523,7 +8565,7 @@ class StubGenerator: public StubCodeGenerator {
 
     BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
     if (bs_nm != nullptr) {
-      StubRoutines::aarch64::_method_entry_barrier = generate_method_entry_barrier();
+      StubRoutines::_method_entry_barrier = generate_method_entry_barrier();
     }
 
     StubRoutines::aarch64::_spin_wait = generate_spin_wait();
@@ -8537,6 +8579,8 @@ class StubGenerator: public StubCodeGenerator {
     generate_atomic_entry_points();
 
 #endif // LINUX
+
+    StubRoutines::_upcall_stub_exception_handler = generate_upcall_stub_exception_handler();
 
     StubRoutines::aarch64::set_completed(); // Inidicate that arraycopy and zero_blocks stubs are generated
   }

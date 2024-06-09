@@ -59,8 +59,8 @@ ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n,
 
 ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
                                                       int n, Klass* element_klass,
-                                                      bool null_free, bool qdesc, TRAPS) {
-  assert(!null_free || (n == 1 && element_klass->is_inline_klass() && qdesc), "null-free unsupported");
+                                                      bool null_free, TRAPS) {
+  assert(!null_free || (n == 1 && element_klass->is_inline_klass()), "null-free unsupported");
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
@@ -119,7 +119,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   }
 
   // Create type name for klass.
-  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, qdesc, CHECK_NULL);
+  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
 
   // Initialize instance variables
   ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, null_free, CHECK_NULL);
@@ -143,8 +143,6 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
 ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) : ArrayKlass(name, Kind) {
   set_dimension(n);
   set_element_klass(element_klass);
-
-  assert(!null_free || name->is_Q_array_signature(), "sanity check");
 
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
@@ -203,33 +201,25 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
-  if (rank == 1) { // last dim may be flatArray, check if we have any special storage requirements
-    if (name()->char_at(1) != JVM_SIGNATURE_ARRAY &&  name()->is_Q_array_signature()) {
-      return oopFactory::new_valueArray(element_klass(), length, CHECK_NULL);
-    } else {
-      return oopFactory::new_objArray(element_klass(), length, CHECK_NULL);
-    }
-  }
-  guarantee(rank > 1, "Rank below 1");
-  // Call to lower_dimension uses this pointer, so most be called before a
-  // possible GC
   ArrayKlass* ld_klass = lower_dimension();
   // If length < 0 allocate will throw an exception.
   objArrayOop array = allocate(length, CHECK_NULL);
   objArrayHandle h_array (THREAD, array);
-  if (length != 0) {
-    for (int index = 0; index < length; index++) {
-      oop sub_array = ld_klass->multi_allocate(rank-1, &sizes[1], CHECK_NULL);
-      h_array->obj_at_put(index, sub_array);
-    }
-  } else {
-    // Since this array dimension has zero length, nothing will be
-    // allocated, however the lower dimension values must be checked
-    // for illegal values.
-    for (int i = 0; i < rank - 1; ++i) {
-      sizes += 1;
-      if (*sizes < 0) {
-        THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", *sizes));
+  if (rank > 1) {
+    if (length != 0) {
+      for (int index = 0; index < length; index++) {
+        oop sub_array = ld_klass->multi_allocate(rank-1, &sizes[1], CHECK_NULL);
+        h_array->obj_at_put(index, sub_array);
+      }
+    } else {
+      // Since this array dimension has zero length, nothing will be
+      // allocated, however the lower dimension values must be checked
+      // for illegal values.
+      for (int i = 0; i < rank - 1; ++i) {
+        sizes += 1;
+        if (*sizes < 0) {
+          THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", *sizes));
+        }
       }
     }
   }

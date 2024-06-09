@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@ public abstract class NonPVSuper {
 class NonPVSuper {
   0xCAFEBABE;
   0; // minor version
-  66; // version
+  67; // version
   [33] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -191,7 +191,7 @@ public value final class Dot extends NonPVSuper {
 class Dot {
   0xCAFEBABE;
   0; // minor version
-  66; // version
+  67; // version
   [18] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A

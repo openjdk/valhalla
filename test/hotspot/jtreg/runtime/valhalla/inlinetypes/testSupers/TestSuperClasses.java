@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,16 @@
  *
  */
 /*
+ * @ignore Fix JDK-8328419
  * @test
  * @bug 8243204
  * @summary test that the JVM detects illegal super classes for value object
  *           and primitive value types.
+ * @enablePreview
  * @compile NotAbstract.java HasNonStaticFields.java CtorHasArgs.java CtorIsNotEmpty.java
  * @compile HasSynchMethod.java ValidSuper.java
  * @compile InlineClassWithBadSupers.jcod
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -verify TestSuperClasses
+ * @run main/othervm -verify TestSuperClasses
  */
 
 public class TestSuperClasses {

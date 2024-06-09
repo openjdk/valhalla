@@ -57,7 +57,6 @@ class RecordComponent;
 //      The embedded nonstatic oop-map blocks are short pairs (offset, length)
 //      indicating where oops are located in instances of this klass.
 //    [EMBEDDED implementor of the interface] only exist for interface
-//    [EMBEDDED inline_type_field_klasses] only if has_inline_fields() == true
 //    [EMBEDDED InlineKlassFixedBlock] only if is an InlineKlass instance
 
 
@@ -148,7 +147,8 @@ class InlineKlassFixedBlock {
   ArrayKlass** _null_free_inline_array_klasses;
   int _alignment;
   int _first_field_offset;
-  int _exact_size_in_bytes;
+  int _payload_size_in_bytes;
+  int _internal_null_marker_offset; // -1 if none
 
   friend class InlineKlass;
 };
@@ -167,7 +167,7 @@ class InstanceKlass: public Klass {
   InstanceKlass(const ClassFileParser& parser, KlassKind kind = Kind, ReferenceType reference_type = REF_NONE);
 
  public:
-  InstanceKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+  InstanceKlass();
 
   // See "The Java Virtual Machine Specification" section 2.16.2-5 for a detailed description
   // of the class loading & initialization procedure, and the use of the states.
@@ -298,7 +298,8 @@ class InstanceKlass: public Klass {
   Array<u1>*          _fieldinfo_stream;
   Array<FieldStatus>* _fields_status;
 
-  const Klass**   _inline_type_field_klasses; // For "inline class" fields, null if none present
+  Array<InlineKlass*>* _inline_type_field_klasses; // For "inline class" fields, null if none present
+  Array<int>* _null_marker_offsets; // for flat fields with a null marker
   Array<u2>* _preload_classes;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
@@ -377,12 +378,6 @@ class InstanceKlass: public Klass {
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
-  bool carries_value_modifier() const { return _misc_flags.carries_value_modifier(); }
-  void set_carries_value_modifier()   { _misc_flags.set_carries_value_modifier(true); }
-
-  bool carries_identity_modifier() const  { return _misc_flags.carries_identity_modifier(); }
-  void set_carries_identity_modifier()    { _misc_flags.set_carries_identity_modifier(true); }
-
   bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
   void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
@@ -444,14 +439,16 @@ class InstanceKlass: public Klass {
   FieldInfo field(int index) const;
 
  public:
-  int     field_offset      (int index) const { return field(index).offset(); }
-  int     field_access_flags(int index) const { return field(index).access_flags().as_int(); }
+  int field_offset      (int index) const { return field(index).offset(); }
+  int field_access_flags(int index) const { return field(index).access_flags().as_int(); }
   FieldInfo::FieldFlags field_flags(int index) const { return field(index).field_flags(); }
   FieldStatus field_status(int index)   const { return fields_status()->at(index); }
   inline Symbol* field_name        (int index) const;
   inline Symbol* field_signature   (int index) const;
-  bool    field_is_flat(int index) const { return field_flags(index).is_flat(); }
-  bool    field_is_null_free_inline_type(int index) const;
+  bool field_is_flat(int index) const { return field_flags(index).is_flat(); }
+  bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
+  bool field_is_null_free_inline_type(int index) const;
+  bool is_class_in_preload_attribute(Symbol* name) const;
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -941,6 +938,7 @@ public:
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
   static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
+  static ByteSize null_marker_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _null_marker_offsets)); }
   static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
 
   // subclass/subinterface checks
@@ -1001,13 +999,12 @@ public:
   static int size(int vtable_length, int itable_length,
                   int nonstatic_oop_map_size,
                   bool is_interface,
-                  int java_fields, bool is_inline_type) {
+                  bool is_inline_type) {
     return align_metadata_size(header_size() +
            vtable_length +
            itable_length +
            nonstatic_oop_map_size +
            (is_interface ? (int)sizeof(Klass*)/wordSize : 0) +
-           (java_fields * (int)sizeof(Klass*)/wordSize) +
            (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0));
   }
 
@@ -1015,7 +1012,6 @@ public:
                                                itable_length(),
                                                nonstatic_oop_map_size(),
                                                is_interface(),
-                                               has_inline_type_fields() ? java_fields_count() : 0,
                                                is_inline_klass());
   }
 
@@ -1030,10 +1026,15 @@ public:
 
   inline InstanceKlass* volatile* adr_implementor() const;
 
-  inline address adr_inline_type_field_klasses() const;
-  inline Klass* get_inline_type_field_klass(int idx) const;
-  inline Klass* get_inline_type_field_klass_or_null(int idx) const;
-  inline void set_inline_type_field_klass(int idx, Klass* k);
+  Array<InlineKlass*>* inline_type_field_klasses_array() const { return _inline_type_field_klasses; }
+  void set_inline_type_field_klasses_array(Array<InlineKlass*>* array) { _inline_type_field_klasses = array; }
+
+  Array<int>* null_marker_offsets_array() const { return _null_marker_offsets; }
+  void set_null_marker_offsets_array(Array<int>* array) { _null_marker_offsets = array; }
+
+  inline InlineKlass* get_inline_type_field_klass(int idx) const;
+  inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;
+  inline void set_inline_type_field_klass(int idx, InlineKlass* k);
   inline void reset_inline_type_field_klass(int idx);
 
   // Use this to return the size of an instance in heap words:
@@ -1161,6 +1162,8 @@ public:
   bool idnum_can_increment() const      { return has_been_redefined(); }
   inline jmethodID* methods_jmethod_ids_acquire() const;
   inline void release_set_methods_jmethod_ids(jmethodID* jmeths);
+  // This nulls out jmethodIDs for all methods in 'klass'
+  static void clear_jmethod_ids(InstanceKlass* klass);
 
   // Lock during initialization
 public:

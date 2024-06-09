@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,8 @@
  * @test
  * @library /test/lib
  * @summary Serialize and deserialize value objects
- * @run testng/othervm  SimpleValueGraphs
+ * @enablePreview
+ * @run testng/othervm SimpleValueGraphs
  */
 
 import java.lang.StackOverflowError;
@@ -259,7 +260,7 @@ public class SimpleValueGraphs implements Serializable {
         Tree left();
         Tree right();
     }
-    static identity class TreeI implements Tree, Serializable {
+    static class TreeI implements Tree, Serializable {
 
         private static final long serialVersionUID = 2L;
         private TreeI left;
@@ -373,7 +374,7 @@ public class SimpleValueGraphs implements Serializable {
     // Exception trying to serialize
     // Exception trying to deserialize
 
-    static identity class IdentExt implements Externalizable {
+    static class IdentExt implements Externalizable {
         public void writeExternal(ObjectOutput is) {
 
         }

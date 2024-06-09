@@ -312,6 +312,7 @@ public interface Opcodes {
     int V20 = 0 << 16 | 64;
     int V21 = 0 << 16 | 65;
     int V22 = 0 << 16 | 66;
+    int V23 = 0 << 16 | 67;
 
     /**
       * Version flag indicating that the class is using 'preview' features.
@@ -338,16 +339,13 @@ public interface Opcodes {
     int ACC_OPEN = 0x0020; // module
     int ACC_TRANSITIVE = 0x0020; // module requires
     int ACC_VOLATILE = 0x0040; // field
-    int ACC_VALUE = 0x0040; // class
     int ACC_BRIDGE = 0x0040; // method
     int ACC_STATIC_PHASE = 0x0040; // module requires
     int ACC_VARARGS = 0x0080; // method
     int ACC_TRANSIENT = 0x0080; // field
     int ACC_NATIVE = 0x0100; // method
-    int ACC_INLINE = 0x0100; // inline class
     int ACC_INTERFACE = 0x0200; // class
     int ACC_ABSTRACT = 0x0400; // class, method
-    int ACC_PRIMITIVE = 0x0800; // class
     int ACC_STRICT = 0x0800; // method
     int ACC_SYNTHETIC = 0x1000; // class, field, method, parameter, module *
     int ACC_ANNOTATION = 0x2000; // class
@@ -590,7 +588,4 @@ public interface Opcodes {
     int MULTIANEWARRAY = 197; // visitMultiANewArrayInsn
     int IFNULL = 198; // visitJumpInsn
     int IFNONNULL = 199; // -
-    int DEFAULT = 203; // visitTypeInsn
-    int WITHFIELD = 204; // visitFieldInsn
 }
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -328,16 +328,16 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
     info_for_exception = state_for(x);
   }
 
-  CodeStub* throw_imse_stub =
+  CodeStub* throw_ie_stub =
       x->maybe_inlinetype() ?
-      new SimpleExceptionStub(Runtime1::throw_illegal_monitor_state_exception_id, LIR_OprFact::illegalOpr, state_for(x)) :
+      new SimpleExceptionStub(Runtime1::throw_identity_exception_id, LIR_OprFact::illegalOpr, state_for(x)) :
       nullptr;
 
   // this CodeEmitInfo must not have the xhandlers because here the
   // object is already locked (xhandlers expect object to be unlocked)
   CodeEmitInfo* info = state_for(x, x->state(), true);
   monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
-                x->monitor_no(), info_for_exception, info, throw_imse_stub);
+                x->monitor_no(), info_for_exception, info, throw_ie_stub);
 }
 
 
@@ -844,18 +844,12 @@ void LIRGenerator::do_LibmIntrinsic(Intrinsic* x) {
       }
       break;
     case vmIntrinsics::_dlog:
-      if (StubRoutines::dlog() != nullptr) {
-        __ call_runtime_leaf(StubRoutines::dlog(), getThreadTemp(), result_reg, cc->args());
-      } else {
-        __ call_runtime_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dlog), getThreadTemp(), result_reg, cc->args());
-      }
+      // Math.log intrinsic is not implemented on AArch64 (see JDK-8210858),
+      // but we can still call the shared runtime.
+      __ call_runtime_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dlog), getThreadTemp(), result_reg, cc->args());
       break;
     case vmIntrinsics::_dlog10:
-      if (StubRoutines::dlog10() != nullptr) {
-        __ call_runtime_leaf(StubRoutines::dlog10(), getThreadTemp(), result_reg, cc->args());
-      } else {
-        __ call_runtime_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dlog10), getThreadTemp(), result_reg, cc->args());
-      }
+      __ call_runtime_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dlog10), getThreadTemp(), result_reg, cc->args());
       break;
     case vmIntrinsics::_dpow:
       if (StubRoutines::dpow() != nullptr) {
@@ -1136,7 +1130,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
     tty->print_cr("   ###class not loaded at new bci %d", x->printable_bci());
   }
 #endif
-  CodeEmitInfo* info = state_for(x, x->state());
+  CodeEmitInfo* info = state_for(x, x->needs_state_before() ? x->state_before() : x->state());
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), x->is_unresolved(),
                /* allow_inline */ false,
@@ -1147,23 +1141,6 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
                FrameMap::r3_metadata_opr, info);
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
-}
-
-void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
-  // Mapping to do_NewInstance (same code) but use state_before for reexecution.
-  CodeEmitInfo* info = state_for(x, x->state_before());
-  x->set_to_object_type();
-  LIR_Opr reg = result_register_for(x->type());
-  new_instance(reg, x->klass(), false,
-               /* allow_inline */ true,
-               FrameMap::r10_oop_opr,
-               FrameMap::r11_oop_opr,
-               FrameMap::r4_oop_opr,
-               LIR_OprFact::illegalOpr,
-               FrameMap::r3_metadata_opr, info);
-  LIR_Opr result = rlock_result(x);
-  __ move(reg, result);
-
 }
 
 void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {

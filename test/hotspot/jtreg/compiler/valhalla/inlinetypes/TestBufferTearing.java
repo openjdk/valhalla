@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,38 +30,41 @@ import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 import jdk.internal.misc.Unsafe;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 /**
  * @test TestBufferTearing
  * @key randomness
- * @summary Detect tearing on inline type buffer writes due to missing barriers.
+ * @summary Detect tearing on value class buffer writes due to missing barriers.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @modules java.base/jdk.internal.misc java.base/jdk.internal.value
- * @compile -XDenablePrimitiveClasses TestBufferTearing.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
- *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
- *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
- *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
- *                   -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
  */
 
-primitive class MyValue {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue {
     int x;
     int y;
 
@@ -99,19 +102,20 @@ primitive class MyValue {
 }
 
 public class TestBufferTearing {
-
+    @NullRestricted
     static MyValue vtField1;
+    @NullRestricted
     MyValue vtField2;
-    MyValue[] vtField3 = new MyValue[1];
+    MyValue[] vtField3 = (MyValue[])ValueClass.newNullRestrictedArray(MyValue.class, 1);
 
     static final MethodHandle incrementAndCheck_mh;
 
     static {
         try {
-            Class<?> clazz = PrimitiveClass.asValueType(MyValue.class);
+            Class<?> clazz = MyValue.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt = MethodType.methodType(PrimitiveClass.asValueType(MyValue.class));
+            MethodType mt = MethodType.methodType(MyValue.class);
             incrementAndCheck_mh = lookup.findVirtual(clazz, "incrementAndCheck", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
@@ -148,8 +152,8 @@ public class TestBufferTearing {
     }
 
     public static void main(String[] args) throws Exception {
-        // Create threads that concurrently update some inline type (array) fields
-        // and check the fields of the inline types for consistency to detect tearing.
+        // Create threads that concurrently update some value class (array) fields
+        // and check the fields of the value classes for consistency to detect tearing.
         TestBufferTearing test = new TestBufferTearing();
         Thread runner = null;
         for (int i = 0; i < 10; ++i) {

@@ -205,6 +205,7 @@ public class ClassReader {
       * @param classFileOffset the offset in byteBuffer of the first byte of the ClassFile to be read.
       * @param classFileLength the length in bytes of the ClassFile to be read.
       */
+    @SuppressWarnings("this-escape")
     public ClassReader(
             final byte[] classFileBuffer,
             final int classFileOffset,
@@ -226,7 +227,7 @@ public class ClassReader {
         this.b = classFileBuffer;
         // Check the class' major_version. This field is after the magic and minor_version fields, which
         // use 4 and 2 bytes respectively.
-        if (checkClassVersion && readShort(classFileOffset + 6) > Opcodes.V22) {
+        if (checkClassVersion && readShort(classFileOffset + 6) > Opcodes.V23) {
             throw new IllegalArgumentException(
                     "Unsupported class file major version " + readShort(classFileOffset + 6));
         }
@@ -407,7 +408,7 @@ public class ClassReader {
     }
 
     /**
-      * Returns the internal of name of the super class (see {@link Type#getInternalName()}). For
+      * Returns the internal name of the super class (see {@link Type#getInternalName()}). For
       * interfaces, the super class is {@link Object}.
       *
       * @return the internal name of the super class, or {@literal null} for {@link Object} class.
@@ -1854,8 +1855,6 @@ public class ClassReader {
                 case Opcodes.PUTSTATIC:
                 case Opcodes.GETFIELD:
                 case Opcodes.PUTFIELD:
-                case Opcodes.DEFAULT:
-                case Opcodes.WITHFIELD:
                 case Opcodes.INVOKEVIRTUAL:
                 case Opcodes.INVOKESPECIAL:
                 case Opcodes.INVOKESTATIC:
@@ -2084,6 +2083,7 @@ public class ClassReader {
         currentOffset = bytecodeStartOffset;
         while (currentOffset < bytecodeEndOffset) {
             final int currentBytecodeOffset = currentOffset - bytecodeStartOffset;
+            readBytecodeInstructionOffset(currentBytecodeOffset);
 
             // Visit the label and the line number(s) for this bytecode offset, if any.
             Label currentLabel = labels[currentBytecodeOffset];
@@ -2468,19 +2468,18 @@ public class ClassReader {
                 case Opcodes.INVOKESPECIAL:
                 case Opcodes.INVOKESTATIC:
                 case Opcodes.INVOKEINTERFACE:
-                case Opcodes.WITHFIELD:
                     {
                         int cpInfoOffset = cpInfoOffsets[readUnsignedShort(currentOffset + 1)];
                         int nameAndTypeCpInfoOffset = cpInfoOffsets[readUnsignedShort(cpInfoOffset + 2)];
                         String owner = readClass(cpInfoOffset, charBuffer);
                         String name = readUTF8(nameAndTypeCpInfoOffset, charBuffer);
                         String descriptor = readUTF8(nameAndTypeCpInfoOffset + 2, charBuffer);
-                        if (opcode >= Opcodes.INVOKEVIRTUAL && opcode <= Opcodes.INVOKEINTERFACE) {
+                        if (opcode < Opcodes.INVOKEVIRTUAL) {
+                            methodVisitor.visitFieldInsn(opcode, owner, name, descriptor);
+                        } else {
                             boolean isInterface =
                                     classBuffer[cpInfoOffset - 1] == Symbol.CONSTANT_INTERFACE_METHODREF_TAG;
                             methodVisitor.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
-                        } else {
-                            methodVisitor.visitFieldInsn(opcode, owner, name, descriptor);
                         }
                         if (opcode == Opcodes.INVOKEINTERFACE) {
                             currentOffset += 5;
@@ -2515,7 +2514,6 @@ public class ClassReader {
                 case Opcodes.ANEWARRAY:
                 case Opcodes.CHECKCAST:
                 case Opcodes.INSTANCEOF:
-                case Opcodes.DEFAULT:
                     methodVisitor.visitTypeInsn(opcode, readClass(currentOffset + 1, charBuffer));
                     currentOffset += 3;
                     break;
@@ -2699,6 +2697,20 @@ public class ClassReader {
 
         // Visit the max stack and max locals values.
         methodVisitor.visitMaxs(maxStack, maxLocals);
+    }
+
+    /**
+      * Handles the bytecode offset of the next instruction to be visited in {@link
+      * #accept(ClassVisitor,int)}. This method is called just before the instruction and before its
+      * associated label and stack map frame, if any. The default implementation of this method does
+      * nothing. Subclasses can override this method to store the argument in a mutable field, for
+      * instance, so that {@link MethodVisitor} instances can get the bytecode offset of each visited
+      * instruction (if so, the usual concurrency issues related to mutable data should be addressed).
+      *
+      * @param bytecodeOffset the bytecode offset of the next instruction to be visited.
+      */
+    protected void readBytecodeInstructionOffset(final int bytecodeOffset) {
+        // Do nothing by default.
     }
 
     /**
@@ -3267,8 +3279,7 @@ public class ClassReader {
                     while (methodDescriptor.charAt(currentMethodDescritorOffset) == '[') {
                         ++currentMethodDescritorOffset;
                     }
-                    char descType = methodDescriptor.charAt(currentMethodDescritorOffset);
-                    if (descType == 'L' || descType == 'Q') {
+                    if (methodDescriptor.charAt(currentMethodDescritorOffset) == 'L') {
                         ++currentMethodDescritorOffset;
                         while (methodDescriptor.charAt(currentMethodDescritorOffset) != ';') {
                             ++currentMethodDescritorOffset;
@@ -3887,4 +3898,3 @@ public class ClassReader {
         }
     }
 }
-

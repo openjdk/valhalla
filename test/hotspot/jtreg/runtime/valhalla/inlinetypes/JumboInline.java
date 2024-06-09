@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,33 +52,33 @@ public value class JumboInline {
     public JumboInline(long l0Val, long l1Val) {
         l0 = l0Val;
         l1 = l1Val;
-        l2 = l0+l1;
-        l3 = l1+l2;
-        l4 = l2+l3;
-        l5 = l3+l4;
-        l6 = l4+l5;
-        l7 = l5+l6;
-        l8 = l6+l7;
-        l9 = l7+l8;
-        l10 = l8+l9;
-        l11 = l9+l10;
-        l12 = l10+l11;
-        l13 = l11+l12;
-        l14 = l12+l13;
-        l15 = l13+l14;
-        l16 = l14+l15;
-        l17 = l15+l16;
-        l18 = l16+l17;
-        l19 = l17+l18;
+        l2 = l0Val+1;
+        l3 = l1Val+2;
+        l4 = l0Val+3;
+        l5 = l1Val+4;
+        l6 = l0Val+5;
+        l7 = l1Val+6;
+        l8 = l0Val+7;
+        l9 = l1Val+8;
+        l10 = l0Val+9;
+        l11 = l1Val+10;
+        l12 = l0Val+11;
+        l13 = l1Val+12;
+        l14 = l0Val+13;
+        l15 = l1Val+14;
+        l16 = l0Val+15;
+        l17 = l1Val+16;
+        l18 = l0Val+17;
+        l19 = l1Val+18;
     }
 
     public boolean verify() {
-        return (l2 == (l0 + l1)  &&  l3 == (l1 + l2) && l5 == (l3 + l4)
-            && l6 == (l4 + l5) && l7 == (l5 + l6) && l8 == (l6 + l7)
-            && l9 == (l7 + l8) && l10 == (l8 + l9) && l11 == (l9 + l10)
-            && l12 == (l10 + l11) && l13 == (l11 + l12) && l14 == (l12 + l13)
-            && l15 == (l13 + l14) && l16 == (l14 + l15) && l17 == (l15 + l16)
-            && l18 == (l16 + l17) && l19 == (l17 + l18));
+        return (l2 == (l0 + 1)  &&  l3 == (l1 + 2) && l4 == (l0 + 3)
+            && l5 == (l1 + 4) && l6 == (l0 + 5) && l7 == (l1 + 6) && l8 == (l0 + 7)
+            && l9 == (l1 + 8) && l10 == (l0 + 9) && l11 == (l1 + 10)
+            && l12 == (l0 + 11) && l13 == (l1 + 12) && l14 == (l1 + 13)
+            && l15 == (l1 + 14) && l16 == (l0 + l15) && l17 == (l1 + 16)
+            && l18 == (l0 + 17) && l19 == (l1 + 18));
     }
 
     public boolean equals(Object o) {

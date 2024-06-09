@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
+import jdk.test.whitebox.WhiteBox;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -34,35 +35,43 @@ import java.lang.reflect.Method;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 /*
  * @test
  * @key randomness
- * @summary Test inline type calling convention optimizations
- * @modules java.base/jdk.internal.value
+ * @summary Test value class calling convention optimizations.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDenablePrimitiveClasses TestCallingConvention.java
- * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestCallingConvention
+ * @build jdk.test.whitebox.WhiteBox
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=450 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention
  */
 
 @ForceCompileClassInitializer
 public class TestCallingConvention {
+
+    private final static WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
     static {
         try {
             Class<?> clazz = TestCallingConvention.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt = MethodType.methodType(PrimitiveClass.asValueType(MyValue2.class), boolean.class);
+            MethodType mt = MethodType.methodType(MyValue2.class, boolean.class);
             test32_mh = lookup.findVirtual(clazz, "test32_interp", mt);
 
             mt = MethodType.methodType(Object.class, boolean.class);
             test33_mh = lookup.findVirtual(clazz, "test33_interp", mt);
 
             mt = MethodType.methodType(int.class);
-            test37_mh = lookup.findVirtual(PrimitiveClass.asValueType(Test37Value.class), "test", mt);
+            test37_mh = lookup.findVirtual(Test37Value.class, "test", mt);
 
             mt = MethodType.methodType(MyValue2.class);
             test54_mh = lookup.findVirtual(clazz, "test54_callee", mt);
@@ -300,7 +309,7 @@ public class TestCallingConvention {
     public long test13_interp(MyValue2 v, MyValue1[] va, boolean deopt) {
         if (deopt) {
             // uncommon trap
-            deoptimize("test13", PrimitiveClass.asValueType(MyValue2.class), MyValue1[].class, boolean.class, long.class);
+            deoptimize("test13", MyValue2.class, MyValue1[].class, boolean.class, long.class);
         }
         return v.hash() + va[0].hash() + va[1].hash();
     }
@@ -314,14 +323,14 @@ public class TestCallingConvention {
     @Run(test = "test13")
     public void test13_verifier(RunInfo info) {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue1[] va = new MyValue1[2];
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
         va[0] = MyValue1.createWithFieldsDontInline(rI, rL);
         va[1] = MyValue1.createWithFieldsDontInline(rI, rL);
         long result = test13(v, va, !info.isWarmUp(), rL);
         Asserts.assertEQ(result, v.hashInterpreted() + va[0].hash() + va[1].hash() + rL);
     }
 
-    // Test deoptimization at call return with inline type returned in registers
+    // Test deoptimization at call return with value object returned in registers
     @DontCompile
     public MyValue2 test14_interp(boolean deopt) {
         if (deopt) {
@@ -343,14 +352,18 @@ public class TestCallingConvention {
         Asserts.assertEQ(result.hash(), v.hash());
     }
 
-    // Return inline types in registers from interpreter -> compiled
+    // Return value objects in registers from interpreter -> compiled
+    @NullRestricted
     final MyValue3 test15_vt = MyValue3.create();
+
     @DontCompile
     public MyValue3 test15_interp() {
         return test15_vt;
     }
 
+    @NullRestricted
     MyValue3 test15_vt2;
+
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC, TRAP})
@@ -364,8 +377,10 @@ public class TestCallingConvention {
         test15_vt.verify(test15_vt2);
     }
 
-    // Return inline types in registers from compiled -> interpreter
+    // Return value objects in registers from compiled -> interpreter
+    @NullRestricted
     final MyValue3 test16_vt = MyValue3.create();
+
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC, STORE, TRAP})
@@ -379,14 +394,18 @@ public class TestCallingConvention {
         test16_vt.verify(vt);
     }
 
-    // Return inline types in registers from compiled -> compiled
+    // Return value objects in registers from compiled -> compiled
+    @NullRestricted
     final MyValue3 test17_vt = MyValue3.create();
+
     @DontInline
     public MyValue3 test17_comp() {
         return test17_vt;
     }
 
+    @NullRestricted
     MyValue3 test17_vt2;
+
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC, TRAP})
@@ -406,16 +425,20 @@ public class TestCallingConvention {
         test17_vt.verify(test17_vt2);
     }
 
-    // Same tests as above but with an inline type that cannot be returned in registers
+    // Same tests as above but with a value class that cannot be returned in registers
 
-    // Return inline types in registers from interpreter -> compiled
+    // Return value objects in registers from interpreter -> compiled
+    @NullRestricted
     final MyValue4 test18_vt = MyValue4.create();
+
     @DontCompile
     public MyValue4 test18_interp() {
         return test18_vt;
     }
 
+    @NullRestricted
     MyValue4 test18_vt2;
+
     @Test
     public void test18() {
         test18_vt2 = test18_interp();
@@ -427,8 +450,10 @@ public class TestCallingConvention {
         test18_vt.verify(test18_vt2);
     }
 
-    // Return inline types in registers from compiled -> interpreter
+    // Return value objects in registers from compiled -> interpreter
+    @NullRestricted
     final MyValue4 test19_vt = MyValue4.create();
+
     @Test
     public MyValue4 test19() {
         return test19_vt;
@@ -440,14 +465,18 @@ public class TestCallingConvention {
         test19_vt.verify(vt);
     }
 
-    // Return inline types in registers from compiled -> compiled
+    // Return value objects in registers from compiled -> compiled
+    @NullRestricted
     final MyValue4 test20_vt = MyValue4.create();
+
     @DontInline
     public MyValue4 test20_comp() {
         return test20_vt;
     }
 
+    @NullRestricted
     MyValue4 test20_vt2;
+
     @Test
     public void test20() {
         test20_vt2 = test20_comp();
@@ -465,7 +494,9 @@ public class TestCallingConvention {
     }
 
     // Test no result from inlined method for incremental inlining
+    @NullRestricted
     final MyValue3 test21_vt = MyValue3.create();
+
     public MyValue3 test21_inlined() {
         throw new RuntimeException();
     }
@@ -485,8 +516,8 @@ public class TestCallingConvention {
         test21_vt.verify(vt);
     }
 
-    // Test returning a non-flattened inline type as fields
-    MyValue3.ref test22_vt = MyValue3.create();
+    // Test returning a non-flattened value object as fields
+    MyValue3 test22_vt = MyValue3.create();
 
     @Test
     public MyValue3 test22() {
@@ -499,9 +530,12 @@ public class TestCallingConvention {
         test22_vt.verify(vt);
     }
 
-    // Test calling a method that has circular register/stack dependencies when unpacking inline type arguments
-    primitive class TestValue23 {
-        final double f1;
+    // Test calling a method that has circular register/stack dependencies when unpacking value class arguments
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class TestValue23 {
+        double f1;
+
         TestValue23(double val) {
             f1 = val;
         }
@@ -536,21 +570,21 @@ public class TestCallingConvention {
         Asserts.assertEQ(res2, res3);
     }
 
-    // Should not return a nullable inline type as fields
+    // Should not return a nullable value object as fields
     @Test
-    public MyValue2.ref test24() {
+    public MyValue2 test24() {
         return null;
     }
 
     @Run(test = "test24")
     public void test24_verifier() {
-        MyValue2.ref vt = test24();
+        MyValue2 vt = test24();
         Asserts.assertEQ(vt, null);
     }
 
     // Same as test24 but with control flow and inlining
     @ForceInline
-    public MyValue2.ref test26_callee(boolean b) {
+    public MyValue2 test26_callee(boolean b) {
         if (b) {
             return null;
         } else {
@@ -559,21 +593,23 @@ public class TestCallingConvention {
     }
 
     @Test
-    public MyValue2.ref test26(boolean b) {
+    public MyValue2 test26(boolean b) {
         return test26_callee(b);
     }
 
     @Run(test = "test26")
     public void test26_verifier() {
-        MyValue2.ref vt = test26(true);
+        MyValue2 vt = test26(true);
         Asserts.assertEQ(vt, null);
         vt = test26(false);
         Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
     }
 
     // Test calling convention with deep hierarchy of flattened fields
-    final primitive class Test27Value1 {
-        final Test27Value2 valueField;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test27Value1 {
+        Test27Value2 valueField;
 
         private Test27Value1(Test27Value2 val2) {
             valueField = val2;
@@ -585,8 +621,10 @@ public class TestCallingConvention {
         }
     }
 
-    final primitive class Test27Value2 {
-        final Test27Value3 valueField;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test27Value2 {
+        Test27Value3 valueField;
 
         private Test27Value2(Test27Value3 val3) {
             valueField = val3;
@@ -598,8 +636,10 @@ public class TestCallingConvention {
         }
     }
 
-    final primitive class Test27Value3 {
-        final int x;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test27Value3 {
+        int x;
 
         private Test27Value3(int x) {
             this.x = x;
@@ -625,7 +665,7 @@ public class TestCallingConvention {
         Asserts.assertEQ(result, 8*rI);
     }
 
-    static final MyValue1.ref test28Val = MyValue1.createWithFieldsDontInline(rI, rL);
+    static final MyValue1 test28Val = MyValue1.createWithFieldsDontInline(rI, rL);
 
     @Test
     public String test28() {
@@ -638,7 +678,8 @@ public class TestCallingConvention {
         String result = test28();
     }
 
-    // Test calling a method returning an inline type as fields via reflection
+    // Test calling a method returning a value object as fields via reflection
+    @NullRestricted
     MyValue3 test29_vt = MyValue3.create();
 
     @Test
@@ -661,11 +702,12 @@ public class TestCallingConvention {
 
     @Run(test = "test30")
     public void test30_verifier() throws Exception {
-        MyValue3[] array = new MyValue3[1];
+        MyValue3[] array = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
         MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test30", MyValue3[].class).invoke(this, (Object)array);
         array[0].verify(vt);
     }
 
+    @NullRestricted
     MyValue3 test31_vt;
 
     @Test
@@ -681,7 +723,7 @@ public class TestCallingConvention {
         test31_vt.verify(vt);
     }
 
-    // Test deoptimization at call return with inline type returned in registers.
+    // Test deoptimization at call return with value object returned in registers.
     // Same as test14, except the interpreted method is called via a MethodHandle.
     static MethodHandle test32_mh;
 
@@ -791,7 +833,8 @@ public class TestCallingConvention {
     }
 
     // Same as test31 but with GC in callee to verify that the
-    // pre-allocated buffer for the returned inline type remains valid.
+    // pre-allocated buffer for the returned value object remains valid.
+    @NullRestricted
     MyValue3 test36_vt;
 
     @Test
@@ -808,10 +851,12 @@ public class TestCallingConvention {
         test36_vt.verify(vt);
     }
 
-    // Test method resolution with scalarized inline type receiver at invokespecial
+    // Test method resolution with scalarized value object receiver at invokespecial
     static final MethodHandle test37_mh;
 
-    primitive class Test37Value {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test37Value {
         int x = rI;
 
         @DontInline
@@ -833,7 +878,7 @@ public class TestCallingConvention {
         Asserts.assertEQ(res, rI);
     }
 
-    // Test passing/returning an empty inline type
+    // Test passing/returning an empty value object
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public MyValueEmpty test38(MyValueEmpty vt) {
@@ -847,7 +892,9 @@ public class TestCallingConvention {
         Asserts.assertEQ(res, vt);
     }
 
-    static primitive class LargeValueWithOops {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class LargeValueWithOops {
         // Use all 6 int registers + 50/2 on stack = 29
         Object o1 = null;
         Object o2 = null;
@@ -880,7 +927,9 @@ public class TestCallingConvention {
         Object o29 = null;
     }
 
-    static primitive class LargeValueWithoutOops {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class LargeValueWithoutOops {
         // Use all 6 int registers + 50/2 on stack = 29
         int i1 = 0;
         int i2 = 0;
@@ -922,7 +971,7 @@ public class TestCallingConvention {
         double d8 = 0;
     }
 
-    // Test passing/returning a large inline type with oop fields
+    // Test passing/returning a large value object with oop fields
     @Test
     public static LargeValueWithOops test39(LargeValueWithOops vt) {
         return vt;
@@ -935,7 +984,7 @@ public class TestCallingConvention {
         Asserts.assertEQ(res, vt);
     }
 
-    // Test passing/returning a large inline type with only int/float fields
+    // Test passing/returning a large value object with only int/float fields
     @Test
     public static LargeValueWithoutOops test40(LargeValueWithoutOops vt) {
         return vt;
@@ -948,8 +997,8 @@ public class TestCallingConvention {
         Asserts.assertEQ(res, vt);
     }
 
-    // Test passing/returning an empty inline type together with non-empty
-    // inline types such that only some inline type arguments are scalarized.
+    // Test passing/returning an empty value object together with non-empty
+    // value objects such that only some value class arguments are scalarized.
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public MyValueEmpty test41(MyValue1 vt1, MyValueEmpty vt2, MyValue1 vt3) {
@@ -958,13 +1007,16 @@ public class TestCallingConvention {
 
     @Run(test = "test41")
     public void test41_verifier() {
-        MyValueEmpty res = test41(MyValue1.default, MyValueEmpty.default, MyValue1.default);
-        Asserts.assertEQ(res, MyValueEmpty.default);
+        MyValueEmpty res = test41(MyValue1.createDefaultInline(), new MyValueEmpty(), MyValue1.createDefaultInline());
+        Asserts.assertEQ(res, new MyValueEmpty());
     }
 
-    // More empty inline type tests with containers
+    // More empty value class tests with containers
 
-    static primitive class EmptyContainer {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EmptyContainer {
+        @NullRestricted
         private MyValueEmpty empty;
 
         @ForceInline
@@ -979,8 +1031,11 @@ public class TestCallingConvention {
         MyValueEmpty getNoInline() { return empty; }
     }
 
-    static primitive class MixedContainer {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MixedContainer {
         public int val;
+        @NullRestricted
         private EmptyContainer empty;
 
         @ForceInline
@@ -996,21 +1051,21 @@ public class TestCallingConvention {
         EmptyContainer getNoInline() { return empty; }
     }
 
-    // Empty inline type return
+    // Empty value object return
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public MyValueEmpty test42() {
-        EmptyContainer c = new EmptyContainer(MyValueEmpty.default);
+        EmptyContainer c = new EmptyContainer(new MyValueEmpty());
         return c.getInline();
     }
 
     @Run(test = "test42")
     public void test42_verifier() {
         MyValueEmpty empty = test42();
-        Asserts.assertEquals(empty, MyValueEmpty.default);
+        Asserts.assertEquals(empty, new MyValueEmpty());
     }
 
-    // Empty inline type container return
+    // Empty value class container return
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public EmptyContainer test43(EmptyContainer c) {
@@ -1019,15 +1074,16 @@ public class TestCallingConvention {
 
     @Run(test = "test43")
     public void test43_verifier() {
-        EmptyContainer c = test43(EmptyContainer. default);
-        Asserts.assertEquals(c, EmptyContainer.default);
+        EmptyContainer empty = new EmptyContainer(new MyValueEmpty());
+        EmptyContainer c = test43(empty);
+        Asserts.assertEquals(c, empty);
     }
 
-    // Empty inline type container (mixed) return
+    // Empty value class container (mixed) return
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public MixedContainer test44() {
-        MixedContainer c = new MixedContainer(rI, EmptyContainer.default);
+        MixedContainer c = new MixedContainer(rI, new EmptyContainer(new MyValueEmpty()));
         c = new MixedContainer(rI, c.getInline());
         return c;
     }
@@ -1035,10 +1091,10 @@ public class TestCallingConvention {
     @Run(test = "test44")
     public void test44_verifier() {
         MixedContainer c = test44();
-        Asserts.assertEquals(c, new MixedContainer(rI, EmptyContainer.default));
+        Asserts.assertEquals(c, new MixedContainer(rI, new EmptyContainer(new MyValueEmpty())));
     }
 
-    // Empty inline type container argument
+    // Empty value class container argument
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public EmptyContainer test45(EmptyContainer c) {
@@ -1047,13 +1103,14 @@ public class TestCallingConvention {
 
     @Run(test = "test45")
     public void test45_verifier() {
-        EmptyContainer empty = test45(EmptyContainer.default);
-        Asserts.assertEquals(empty, EmptyContainer.default);
+        EmptyContainer empty = new EmptyContainer(new MyValueEmpty());
+        EmptyContainer c = test45(empty);
+        Asserts.assertEquals(c, empty);
     }
 
-    // Empty inline type container and mixed container arguments
+    // Empty value class container and mixed container arguments
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC, STORE, TRAP})
     public MyValueEmpty test46(EmptyContainer c1, MixedContainer c2, MyValueEmpty empty) {
         c2 = new MixedContainer(c2.val, c1);
         return c2.getNoInline().getNoInline();
@@ -1061,8 +1118,8 @@ public class TestCallingConvention {
 
     @Run(test = "test46")
     public void test46_verifier() {
-        MyValueEmpty empty = test46(EmptyContainer.default, MixedContainer.default, MyValueEmpty.default);
-        Asserts.assertEquals(empty, MyValueEmpty.default);
+        MyValueEmpty empty = test46(new EmptyContainer(new MyValueEmpty()), new MixedContainer(0, new EmptyContainer(new MyValueEmpty())), new MyValueEmpty());
+        Asserts.assertEquals(empty, new MyValueEmpty());
     }
 
     // No receiver and only empty argument
@@ -1074,8 +1131,8 @@ public class TestCallingConvention {
 
     @Run(test = "test47")
     public void test47_verifier() {
-        MyValueEmpty empty = test47(MyValueEmpty.default);
-        Asserts.assertEquals(empty, MyValueEmpty.default);
+        MyValueEmpty empty = test47(new MyValueEmpty());
+        Asserts.assertEquals(empty,new MyValueEmpty());
     }
 
     // No receiver and only empty container argument
@@ -1087,11 +1144,11 @@ public class TestCallingConvention {
 
     @Run(test = "test48")
     public void test48_verifier() {
-        MyValueEmpty empty = test48(EmptyContainer.default);
-        Asserts.assertEquals(empty, MyValueEmpty.default);
+        MyValueEmpty empty = test48(new EmptyContainer(new MyValueEmpty()));
+        Asserts.assertEquals(empty, new MyValueEmpty());
     }
 
-    // Test conditional inline type return with incremental inlining
+    // Test conditional value class return with incremental inlining
     public MyValue3 test49_inlined1(boolean b) {
         if (b) {
             return MyValue3.create();
@@ -1116,7 +1173,9 @@ public class TestCallingConvention {
     }
 
     // Variant of test49 with result verification (triggered different failure mode)
+    @NullRestricted
     final MyValue3 test50_vt = MyValue3.create();
+    @NullRestricted
     final MyValue3 test50_vt2 = test50_vt;
 
     public MyValue3 test50_inlined1(boolean b) {
@@ -1205,7 +1264,7 @@ public class TestCallingConvention {
     static MethodHandle test54_mh;
 
     @DontInline
-    public MyValue2.ref test54_callee() {
+    public MyValue2 test54_callee() {
         return MyValue2.createWithFieldsInline(rI, rD);
     }
 
@@ -1215,7 +1274,7 @@ public class TestCallingConvention {
     public long test54(Method m, boolean b1, boolean b2) throws Throwable {
         MyInterface obj = MyValue2.createWithFieldsInline(rI, rD);
         if (b1) {
-            obj = (MyValue2.ref)test54_mh.invokeExact(this);
+            obj = (MyValue2)test54_mh.invokeExact(this);
         }
         if (b2) {
             // Uncommon trap
@@ -1237,7 +1296,7 @@ public class TestCallingConvention {
     }
 
     @DontInline
-    public MyValue2.ref test55_callee() {
+    public MyValue2 test55_callee() {
         return MyValue2.createWithFieldsInline(rI, rD);
     }
 
@@ -1255,14 +1314,14 @@ public class TestCallingConvention {
     static MethodHandle test56_mh;
 
     @DontInline
-    public MyValue2.ref test56_callee(boolean b) {
+    public MyValue2 test56_callee(boolean b) {
         return b ? MyValue2.createWithFieldsInline(rI, rD) : null;
     }
 
     // Test that scalarization of nullable return works properly for method handle calls
     @Test
-    public MyValue2.ref test56(boolean b) throws Throwable {
-        return (MyValue2.ref)test56_mh.invokeExact(this, b);
+    public MyValue2 test56(boolean b) throws Throwable {
+        return (MyValue2)test56_mh.invokeExact(this, b);
     }
 
     @Run(test = "test56")
@@ -1273,5 +1332,18 @@ public class TestCallingConvention {
         if (!info.isWarmUp()) {
             Asserts.assertEQ(test56(false), null);
         }
+    }
+
+    static long expectedFlatArrayElementMaxSize = WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize");
+
+    // Test value class return from native method
+    @Test
+    public long test57() {
+        return WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize");
+    }
+
+    @Run(test = "test57")
+    public void test57_verifier(RunInfo info) throws Throwable {
+        Asserts.assertEQ(test57(), expectedFlatArrayElementMaxSize);
     }
 }

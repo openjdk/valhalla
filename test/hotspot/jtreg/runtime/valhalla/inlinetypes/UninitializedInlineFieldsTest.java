@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,9 @@ import jdk.test.lib.Asserts;
  * @summary Uninitialized inline fields test
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile Point.java JumboInline.java UninitializedInlineFieldsTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.UninitializedInlineFieldsTest
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.UninitializedInlineFieldsTest
  */
 public class UninitializedInlineFieldsTest {
     static Point nonFlattenableStaticPoint;

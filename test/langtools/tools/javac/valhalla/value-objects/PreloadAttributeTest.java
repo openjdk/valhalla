@@ -26,6 +26,7 @@
  * @bug 8280164
  * @summary Check emission of Preload attribute
  * @modules jdk.jdeps/com.sun.tools.classfile
+ * @enablePreview
  * @run main PreloadAttributeTest
  */
 

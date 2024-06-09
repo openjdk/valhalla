@@ -602,14 +602,14 @@ public class Pretty extends JCTree.Visitor {
     public void visitMethodDef(JCMethodDecl tree) {
         try {
             // when producing source output, omit anonymous constructors
-            if (tree.isInitOrVNew() &&
+            if (tree.name == tree.name.table.names.init &&
                     enclClassName == null &&
                     sourceOutput) return;
             println(); align();
             printDocComment(tree);
             printExpr(tree.mods);
             printTypeParameters(tree.typarams);
-            if (tree.isInitOrVNew()) {
+            if (tree.name == tree.name.table.names.init) {
                 print(enclClassName != null ? enclClassName : tree.name);
             } else {
                 printExpr(tree.restype);
@@ -749,15 +749,6 @@ public class Pretty extends JCTree.Visitor {
         }
     }
 
-    public void visitDefaultValue(JCDefaultValue tree) {
-        try {
-            printExpr(tree.clazz, TreeInfo.postfixPrec);
-            print(".default");
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     public void visitDoLoop(JCDoWhileLoop tree) {
         try {
             print("do ");
@@ -789,18 +780,6 @@ public class Pretty extends JCTree.Visitor {
             }
             print(' ');
             printStat(tree.body);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    public void visitWithField(JCWithField tree) {
-        try {
-            print("__WithField(");
-            printExpr(tree.field);
-            print(", ");
-            printExpr(tree.value);
-            print(")");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -1501,9 +1480,7 @@ public class Pretty extends JCTree.Visitor {
         try {
             JCExpression processor = tree.processor;
             print("[");
-            if (processor != null) {
-                printExpr(processor);
-            }
+            printExpr(processor);
             print("]");
             print("\"" + tree.fragments.stream().collect(Collectors.joining("\\{}")) + "\"");
             print("(");

@@ -89,7 +89,7 @@ static bool is_init_with_ea(ciMethod* callee_method,
   if (callee_method->is_object_constructor()) {
     return true; // constructor
   }
-  if (caller_method->is_object_constructor_or_class_initializer() &&
+  if ((caller_method->is_object_constructor() || caller_method->is_class_initializer()) &&
       caller_method != C->method() &&
       caller_method->holder()->is_subclass_of(callee_method->holder())) {
     return true; // super constructor is called from inlined constructor
@@ -508,7 +508,7 @@ bool InlineTree::pass_initial_checks(ciMethod* caller_method, int caller_bci, ci
     Bytecodes::Code call_bc = iter.cur_bc();
     // An invokedynamic instruction does not have a klass.
     if (call_bc != Bytecodes::_invokedynamic) {
-      int index = iter.get_index_u2_cpcache();
+      int index = iter.get_index_u2();
       if (!caller_method->is_klass_loaded(index, call_bc, true)) {
         return false;
       }

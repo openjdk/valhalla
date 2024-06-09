@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,14 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public primitive class Q64int implements Int64, ByInt {
+public value class Q64int implements Int64, ByInt {
 
     public final Q32int v0;
     public final Q32int v1;
+
+    public Q64int() {
+        this(0);
+    }
 
     public Q64int(long v) {
         this((int) (v >>> 32), (int) v);

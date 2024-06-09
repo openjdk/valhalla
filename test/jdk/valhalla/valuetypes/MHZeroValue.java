@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,9 @@
  * @test
  * @summary Test MethodHandles::zero, MethodHandles::empty and MethodHandles::constant
  *          on value classes.
- * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 MHZeroValue
- * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=0 MHZeroValue
+ * @enablePreview
+ * @run junit/othervm -XX:InlineFieldMaxFlatSize=128 MHZeroValue
+ * @run junit/othervm -XX:InlineFieldMaxFlatSize=0 MHZeroValue
  */
 
 import java.lang.invoke.MethodHandles;

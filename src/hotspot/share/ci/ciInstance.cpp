@@ -40,7 +40,7 @@
 
 // ------------------------------------------------------------------
 // ciObject::java_mirror_type
-ciType* ciInstance::java_mirror_type(bool* is_val_mirror) {
+ciType* ciInstance::java_mirror_type(bool* is_null_free_array) {
   VM_ENTRY_MARK;
   oop m = get_oop();
   // Return null if it is not java.lang.Class.
@@ -53,8 +53,8 @@ ciType* ciInstance::java_mirror_type(bool* is_val_mirror) {
   } else {
     Klass* k = java_lang_Class::as_Klass(m);
     assert(k != nullptr, "");
-    if (is_val_mirror != nullptr) {
-      *is_val_mirror = java_lang_Class::is_secondary_mirror(m);
+    if (is_null_free_array != nullptr && (k->is_flatArray_klass() || (k->is_objArray_klass() && k->is_null_free_array_klass()))) {
+      *is_null_free_array = true;
     }
     return CURRENT_THREAD_ENV->get_klass(k);
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,21 +47,21 @@ public class InlineArrayHashImplicit {
 
     public static final int SIZE = 128;
 
-    public static primitive class Val1  {
+    public static value class Val1  {
         public final int f0;
         public Val1(int f0) {
             this.f0 = f0;
         }
     }
 
-    public static primitive class Val2  {
+    public static value class Val2  {
         public final int f0;
         public Val2(int f0) {
             this.f0 = f0;
         }
     }
 
-    public static primitive class Val3  {
+    public static value class Val3  {
         public final int f0;
         public Val3(int f0) {
             this.f0 = f0;
@@ -75,7 +75,7 @@ public class InlineArrayHashImplicit {
 
     @State(Scope.Thread)
     public static abstract class Ref1State {
-        public Val1.ref[] arr;
+        public Val1[] arr;
     }
 
     @State(Scope.Thread)
@@ -116,7 +116,7 @@ public class InlineArrayHashImplicit {
     public static class Ref1_as_Ref extends Ref1State {
         @Setup
         public void setup() {
-            arr = new Val1.ref[SIZE];
+            arr = new Val1[SIZE];
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = new Val1(i);
             }
@@ -126,7 +126,7 @@ public class InlineArrayHashImplicit {
     public static class Ref1_as_Obj extends ObjState {
         @Setup
         public void setup() {
-            arr = new Val1.ref[SIZE];
+            arr = new Val1[SIZE];
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = new Val1(i);
             }
@@ -156,7 +156,7 @@ public class InlineArrayHashImplicit {
     public static class Ref2_as_Obj extends ObjState {
         @Setup
         public void setup() {
-            arr = new Val2.ref[SIZE];
+            arr = new Val2[SIZE];
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = new Val2(i);
             }
@@ -186,7 +186,7 @@ public class InlineArrayHashImplicit {
     public static class Ref3_as_Obj extends ObjState {
         @Setup
         public void setup() {
-            arr = new Val3.ref[SIZE];
+            arr = new Val3[SIZE];
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = new Val3(i);
             }
@@ -214,7 +214,7 @@ public class InlineArrayHashImplicit {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int reduceRef(Val1.ref[] arr) {
+    public int reduceRef(Val1[] arr) {
         int r = 0;
         for (int i = 0; i < arr.length; i++) {
             r += arr[i].hashCode();

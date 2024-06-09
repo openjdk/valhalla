@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
 // Copyright (c) 2014, 2021, Red Hat, Inc. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
@@ -2378,7 +2378,7 @@ int Matcher::min_vector_size(const BasicType bt) {
   return MIN2(size, max_size);
 }
 
-int Matcher::superword_max_vector_size(const BasicType bt) {
+int Matcher::max_vector_size_auto_vectorization(const BasicType bt) {
   return Matcher::max_vector_size(bt);
 }
 
@@ -2588,7 +2588,7 @@ bool is_valid_sve_arith_imm_pattern(Node* n, Node* m) {
     return false;
   }
 
-  if (UseSVE == 0 || !VectorNode::is_invariant_vector(m)) {
+  if (UseSVE == 0 || m->Opcode() != Op_Replicate) {
     return false;
   }
 
@@ -3753,25 +3753,23 @@ encode %{
       __ call_Unimplemented();
     }
     if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic()) {
-      if (!_method->signature()->returns_null_free_inline_type()) {
-        // The last return value is not set by the callee but used to pass IsInit information to compiled code.
-        // Search for the corresponding projection, get the register and emit code that initialized it.
-        uint con = (tf()->range_cc()->cnt() - 1);
-        for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-          ProjNode* proj = fast_out(i)->as_Proj();
-          if (proj->_con == con) {
-            // Set IsInit if r0 is non-null (a non-null value is returned buffered or scalarized)
-            OptoReg::Name optoReg = ra_->get_reg_first(proj);
-            VMReg reg = OptoReg::as_VMReg(optoReg, ra_->_framesize, OptoReg::reg2stack(ra_->_matcher._new_SP));
-            Register toReg = reg->is_reg() ? reg->as_Register() : rscratch1;
-            __ cmp(r0, zr);
-            __ cset(toReg, Assembler::NE);
-            if (reg->is_stack()) {
-              int st_off = reg->reg2stack() * VMRegImpl::stack_slot_size;
-              __ str(toReg, Address(sp, st_off));
-            }
-            break;
+      // The last return value is not set by the callee but used to pass IsInit information to compiled code.
+      // Search for the corresponding projection, get the register and emit code that initialized it.
+      uint con = (tf()->range_cc()->cnt() - 1);
+      for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+        ProjNode* proj = fast_out(i)->as_Proj();
+        if (proj->_con == con) {
+          // Set IsInit if r0 is non-null (a non-null value is returned buffered or scalarized)
+          OptoReg::Name optoReg = ra_->get_reg_first(proj);
+          VMReg reg = OptoReg::as_VMReg(optoReg, ra_->_framesize, OptoReg::reg2stack(ra_->_matcher._new_SP));
+          Register toReg = reg->is_reg() ? reg->as_Register() : rscratch1;
+          __ cmp(r0, zr);
+          __ cset(toReg, Assembler::NE);
+          if (reg->is_stack()) {
+            int st_off = reg->reg2stack() * VMRegImpl::stack_slot_size;
+            __ str(toReg, Address(sp, st_off));
           }
+          break;
         }
       }
       if (return_value_is_used()) {
@@ -4697,7 +4695,7 @@ operand immP()
   interface(CONST_INTER);
 %}
 
-// nullptr Pointer Immediate
+// Null Pointer Immediate
 operand immP0()
 %{
   predicate(n->get_ptr() == 0);
@@ -4829,7 +4827,7 @@ operand immN()
   interface(CONST_INTER);
 %}
 
-// Narrow nullptr Pointer Immediate
+// Narrow Null Pointer Immediate
 operand immN0()
 %{
   predicate(n->get_narrowcon() == 0);
@@ -7253,7 +7251,7 @@ instruct loadConP0(iRegPNoSp dst, immP0 con)
   match(Set dst con);
 
   ins_cost(INSN_COST);
-  format %{ "mov  $dst, $con\t# nullptr ptr" %}
+  format %{ "mov  $dst, $con\t# null pointer" %}
 
   ins_encode(aarch64_enc_mov_p0(dst, con));
 
@@ -7267,7 +7265,7 @@ instruct loadConP1(iRegPNoSp dst, immP_1 con)
   match(Set dst con);
 
   ins_cost(INSN_COST);
-  format %{ "mov  $dst, $con\t# nullptr ptr" %}
+  format %{ "mov  $dst, $con\t# null pointer" %}
 
   ins_encode(aarch64_enc_mov_p1(dst, con));
 
@@ -7309,7 +7307,7 @@ instruct loadConN0(iRegNNoSp dst, immN0 con)
   match(Set dst con);
 
   ins_cost(INSN_COST);
-  format %{ "mov  $dst, $con\t# compressed nullptr ptr" %}
+  format %{ "mov  $dst, $con\t# compressed null pointer" %}
 
   ins_encode(aarch64_enc_mov_n0(dst, con));
 
@@ -8272,6 +8270,24 @@ instruct popCountL_mem(iRegINoSp dst, memory8 mem, vRegD tmp) %{
 %}
 
 // ============================================================================
+// VerifyVectorAlignment Instruction
+
+instruct verify_vector_alignment(iRegP addr, immL_positive_bitmaskI mask, rFlagsReg cr) %{
+  match(Set addr (VerifyVectorAlignment addr mask));
+  effect(KILL cr);
+  format %{ "verify_vector_alignment $addr $mask \t! verify alignment" %}
+  ins_encode %{
+    Label Lskip;
+    // check if masked bits of addr are zero
+    __ tst($addr$$Register, $mask$$constant);
+    __ br(Assembler::EQ, Lskip);
+    __ stop("verify_vector_alignment found a misaligned vector memory access");
+    __ bind(Lskip);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// ============================================================================
 // MemBar Instruction
 
 instruct load_fence() %{
@@ -8305,7 +8321,7 @@ instruct membar_acquire() %{
   ins_cost(VOLATILE_REF_COST);
 
   format %{ "membar_acquire\n\t"
-            "dmb ish" %}
+            "dmb ishld" %}
 
   ins_encode %{
     __ block_comment("membar_acquire");
@@ -8359,11 +8375,12 @@ instruct membar_release() %{
   ins_cost(VOLATILE_REF_COST);
 
   format %{ "membar_release\n\t"
-            "dmb ish" %}
+            "dmb ishst\n\tdmb ishld" %}
 
   ins_encode %{
     __ block_comment("membar_release");
-    __ membar(Assembler::LoadStore|Assembler::StoreStore);
+    __ membar(Assembler::StoreStore);
+    __ membar(Assembler::LoadStore);
   %}
   ins_pipe(pipe_serial);
 %}
@@ -17172,23 +17189,7 @@ instruct string_equalsL(iRegP_R1 str1, iRegP_R3 str2, iRegI_R4 cnt,
   ins_encode %{
     // Count is in 8-bit bytes; non-Compact chars are 16 bits.
     __ string_equals($str1$$Register, $str2$$Register,
-                     $result$$Register, $cnt$$Register, 1);
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-instruct string_equalsU(iRegP_R1 str1, iRegP_R3 str2, iRegI_R4 cnt,
-                        iRegI_R0 result, rFlagsReg cr)
-%{
-  predicate(((StrEqualsNode*)n)->encoding() == StrIntrinsicNode::UU);
-  match(Set result (StrEquals (Binary str1 str2) cnt));
-  effect(USE_KILL str1, USE_KILL str2, USE_KILL cnt, KILL cr);
-
-  format %{ "String Equals $str1,$str2,$cnt -> $result" %}
-  ins_encode %{
-    // Count is in 8-bit bytes; non-Compact chars are 16 bits.
-    __ string_equals($str1$$Register, $str2$$Register,
-                     $result$$Register, $cnt$$Register, 2);
+                     $result$$Register, $cnt$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}

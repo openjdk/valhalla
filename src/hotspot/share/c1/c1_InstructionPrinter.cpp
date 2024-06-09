@@ -501,11 +501,6 @@ void InstructionPrinter::do_NewTypeArray(NewTypeArray* x) {
   output()->put(']');
 }
 
-void InstructionPrinter::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
-  output()->print("new inline type instance ");
-  print_klass(x->klass());
-}
-
 void InstructionPrinter::do_NewObjectArray(NewObjectArray* x) {
   output()->print("new object array [");
   print_value(x->length());
@@ -523,12 +518,6 @@ void InstructionPrinter::do_NewMultiArray(NewMultiArray* x) {
   }
   output()->print("] ");
   print_klass(x->klass());
-}
-
-void InstructionPrinter::do_Deoptimize(Deoptimize* x) {
-  output()->print("deoptimize [unloaded=");
-  print_klass(x->klass());
-  output()->print("] ");
 }
 
 void InstructionPrinter::do_MonitorEnter(MonitorEnter* x) {

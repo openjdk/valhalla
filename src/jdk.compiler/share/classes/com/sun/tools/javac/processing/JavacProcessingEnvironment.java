@@ -56,7 +56,6 @@ import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.ClassType;
-import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Check;
@@ -1269,9 +1268,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // we're specifically expecting Abort here, but if any Throwable
                 // comes by, we should flush all deferred diagnostics, rather than
                 // drop them on the ground.
-                deferredDiagnosticHandler.reportDeferredDiagnostics();
-                log.popDiagnosticHandler(deferredDiagnosticHandler);
-                compiler.setDeferredDiagnosticHandler(null);
+                compiler.reportDeferredDiagnosticAndClearHandler();
                 throw t;
             } finally {
                 if (!taskListener.isEmpty())
@@ -1341,7 +1338,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         Kinds.Kind symKind = cs.kind;
                         cs.reset();
                         if (symKind == ERR) {
-                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs, List.nil(), Flavor.X_Typeof_X);
+                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs, List.nil());
                         }
                         if (cs.isCompleted()) {
                             cs.completer = initialCompleter;
@@ -1644,7 +1641,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         originalAnnos.forEach(a -> visitAnnotation(a));
                     }
                     // we should empty the list of permitted subclasses for next round
-                    node.sym.permitted = List.nil();
+                    node.sym.clearPermittedSubclasses();
                 }
                 node.sym = null;
             }
