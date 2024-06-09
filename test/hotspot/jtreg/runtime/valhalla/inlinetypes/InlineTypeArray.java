@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,10 +41,11 @@ import static jdk.test.lib.Asserts.*;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
- * @compile --source 22 --enable-preview InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=-1 --enable-preview runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:+EnableValhalla -XX:FlatArrayElementMaxSize=0 --enable-preview runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:+EnableValhalla -XX:+UnlockDiagnosticVMOptions --enable-preview -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
+ * @enablePreview
+ * @compile --source 23 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1 runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:FlatArrayElementMaxSize=0 runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {
     public static void main(String[] args) {
@@ -336,6 +337,7 @@ public class InlineTypeArray {
         MyInt[] myInts = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 2);
         myInts[0] = (MyInt) MyInt.MAX;
         myInts[1] = (MyInt) MyInt.MIN;
+
         // Sanity sort another copy
         MyInt[] copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
         MyInt[] expected = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 3);

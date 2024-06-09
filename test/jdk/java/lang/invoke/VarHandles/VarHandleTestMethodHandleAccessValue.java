@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,11 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodHandleAccessValue.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=2000 VarHandleTestMethodHandleAccessValue
+ * @enablePreview
+ * @modules java.base/jdk.internal.vm.annotation
+ * @comment Set CompileThresholdScaling to 0.1 so that the warmup loop sets to 2000 iterations
+ *          to hit compilation thresholds
+ * @run testng/othervm -Diters=2000 -XX:CompileThresholdScaling=0.1 VarHandleTestMethodHandleAccessValue
  */
 
 import org.testng.annotations.BeforeClass;
@@ -43,13 +46,11 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessValue extends VarHandleBaseTest {
-    static final Class<?> type = Value.class;
+    static final Value static_final_v = Value.getInstance(10);
 
-    static final Value static_final_v = Value.getInstance(Point.getInstance(1,1));
+    static Value static_v;
 
-    static Value static_v = Value.getInstance(Point.getInstance(1,1));
-
-    final Value final_v = Value.getInstance(Point.getInstance(1,1));
+    final Value final_v = Value.getInstance(10);
 
     Value v;
 
@@ -66,16 +67,16 @@ public class VarHandleTestMethodHandleAccessValue extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessValue.class, "final_v", type);
+                VarHandleTestMethodHandleAccessValue.class, "final_v", Value.class);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessValue.class, "v", type);
+                VarHandleTestMethodHandleAccessValue.class, "v", Value.class);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessValue.class, "static_final_v", type);
+            VarHandleTestMethodHandleAccessValue.class, "static_final_v", Value.class);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessValue.class, "static_v", type);
+            VarHandleTestMethodHandleAccessValue.class, "static_v", Value.class);
 
         vhArray = MethodHandles.arrayElementVarHandle(Value[].class);
     }
@@ -127,174 +128,174 @@ public class VarHandleTestMethodHandleAccessValue extends VarHandleBaseTest {
     static void testInstanceField(VarHandleTestMethodHandleAccessValue recv, Handles hs) throws Throwable {
         // Plain
         {
-            hs.get(TestAccessMode.SET).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)));
+            hs.get(TestAccessMode.SET).invokeExact(recv, Value.getInstance(10));
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "set Value value");
+            assertEquals(x, Value.getInstance(10), "set Value value");
         }
 
 
         // Volatile
         {
-            hs.get(TestAccessMode.SET_VOLATILE).invokeExact(recv, Value.getInstance(Point.getInstance(2,2)));
+            hs.get(TestAccessMode.SET_VOLATILE).invokeExact(recv, Value.getInstance(20));
             Value x = (Value) hs.get(TestAccessMode.GET_VOLATILE).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "setVolatile Value value");
+            assertEquals(x, Value.getInstance(20), "setVolatile Value value");
         }
 
         // Lazy
         {
-            hs.get(TestAccessMode.SET_RELEASE).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)));
+            hs.get(TestAccessMode.SET_RELEASE).invokeExact(recv, Value.getInstance(10));
             Value x = (Value) hs.get(TestAccessMode.GET_ACQUIRE).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "setRelease Value value");
+            assertEquals(x, Value.getInstance(10), "setRelease Value value");
         }
 
         // Opaque
         {
-            hs.get(TestAccessMode.SET_OPAQUE).invokeExact(recv, Value.getInstance(Point.getInstance(2,2)));
+            hs.get(TestAccessMode.SET_OPAQUE).invokeExact(recv, Value.getInstance(20));
             Value x = (Value) hs.get(TestAccessMode.GET_OPAQUE).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "setOpaque Value value");
+            assertEquals(x, Value.getInstance(20), "setOpaque Value value");
         }
 
-        hs.get(TestAccessMode.SET).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)));
+        hs.get(TestAccessMode.SET).invokeExact(recv, Value.getInstance(10));
 
         // Compare
         {
-            boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+            boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(recv, Value.getInstance(10), Value.getInstance(20));
             assertEquals(r, true, "success compareAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success compareAndSet Value value");
+            assertEquals(x, Value.getInstance(20), "success compareAndSet Value value");
         }
 
         {
-            boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
+            boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(recv, Value.getInstance(10), Value.getInstance(30));
             assertEquals(r, false, "failing compareAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing compareAndSet Value value");
+            assertEquals(x, Value.getInstance(20), "failing compareAndSet Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(recv, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
-            assertEquals(r, Value.getInstance(Point.getInstance(2,2)), "success compareAndExchange Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(recv, Value.getInstance(20), Value.getInstance(10));
+            assertEquals(r, Value.getInstance(20), "success compareAndExchange Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success compareAndExchange Value value");
+            assertEquals(x, Value.getInstance(10), "success compareAndExchange Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(recv, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
-            assertEquals(r, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchange Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(recv, Value.getInstance(20), Value.getInstance(30));
+            assertEquals(r, Value.getInstance(10), "failing compareAndExchange Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchange Value value");
+            assertEquals(x, Value.getInstance(10), "failing compareAndExchange Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
-            assertEquals(r, Value.getInstance(Point.getInstance(1,1)), "success compareAndExchangeAcquire Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(recv, Value.getInstance(10), Value.getInstance(20));
+            assertEquals(r, Value.getInstance(10), "success compareAndExchangeAcquire Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success compareAndExchangeAcquire Value value");
+            assertEquals(x, Value.getInstance(20), "success compareAndExchangeAcquire Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
-            assertEquals(r, Value.getInstance(Point.getInstance(2,2)), "failing compareAndExchangeAcquire Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(recv, Value.getInstance(10), Value.getInstance(30));
+            assertEquals(r, Value.getInstance(20), "failing compareAndExchangeAcquire Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing compareAndExchangeAcquire Value value");
+            assertEquals(x, Value.getInstance(20), "failing compareAndExchangeAcquire Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(recv, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
-            assertEquals(r, Value.getInstance(Point.getInstance(2,2)), "success compareAndExchangeRelease Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(recv, Value.getInstance(20), Value.getInstance(10));
+            assertEquals(r, Value.getInstance(20), "success compareAndExchangeRelease Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success compareAndExchangeRelease Value value");
+            assertEquals(x, Value.getInstance(10), "success compareAndExchangeRelease Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(recv, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
-            assertEquals(r, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchangeRelease Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(recv, Value.getInstance(20), Value.getInstance(30));
+            assertEquals(r, Value.getInstance(10), "failing compareAndExchangeRelease Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchangeRelease Value value");
+            assertEquals(x, Value.getInstance(10), "failing compareAndExchangeRelease Value value");
         }
 
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(recv, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+                success = (boolean) mh.invokeExact(recv, Value.getInstance(10), Value.getInstance(20));
                 if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success weakCompareAndSetPlain Value value");
+            assertEquals(x, Value.getInstance(20), "success weakCompareAndSetPlain Value value");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
+            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(recv, Value.getInstance(10), Value.getInstance(30));
             assertEquals(success, false, "failing weakCompareAndSetPlain Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing weakCompareAndSetPlain Value value");
+            assertEquals(x, Value.getInstance(20), "failing weakCompareAndSetPlain Value value");
         }
 
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(recv, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
+                success = (boolean) mh.invokeExact(recv, Value.getInstance(20), Value.getInstance(10));
                 if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success weakCompareAndSetAcquire Value");
+            assertEquals(x, Value.getInstance(10), "success weakCompareAndSetAcquire Value");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(recv, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
+            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(recv, Value.getInstance(20), Value.getInstance(30));
             assertEquals(success, false, "failing weakCompareAndSetAcquire Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing weakCompareAndSetAcquire Value value");
+            assertEquals(x, Value.getInstance(10), "failing weakCompareAndSetAcquire Value value");
         }
 
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(recv, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+                success = (boolean) mh.invokeExact(recv, Value.getInstance(10), Value.getInstance(20));
                 if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success weakCompareAndSetRelease Value");
+            assertEquals(x, Value.getInstance(20), "success weakCompareAndSetRelease Value");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
+            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(recv, Value.getInstance(10), Value.getInstance(30));
             assertEquals(success, false, "failing weakCompareAndSetRelease Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing weakCompareAndSetRelease Value value");
+            assertEquals(x, Value.getInstance(20), "failing weakCompareAndSetRelease Value value");
         }
 
         {
             boolean success = false;
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(recv, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
+                success = (boolean) mh.invokeExact(recv, Value.getInstance(20), Value.getInstance(10));
                 if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success weakCompareAndSet Value");
+            assertEquals(x, Value.getInstance(10), "success weakCompareAndSet Value");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(recv, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
+            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(recv, Value.getInstance(20), Value.getInstance(30));
             assertEquals(success, false, "failing weakCompareAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing weakCompareAndSet Value value");
+            assertEquals(x, Value.getInstance(10), "failing weakCompareAndSet Value value");
         }
 
         // Compare set and get
         {
-            Value o = (Value) hs.get(TestAccessMode.GET_AND_SET).invokeExact(recv, Value.getInstance(Point.getInstance(2,2)));
-            assertEquals(o, Value.getInstance(Point.getInstance(1,1)), "getAndSet Value");
+            Value o = (Value) hs.get(TestAccessMode.GET_AND_SET).invokeExact(recv, Value.getInstance(20));
+            assertEquals(o, Value.getInstance(10), "getAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "getAndSet Value value");
+            assertEquals(x, Value.getInstance(20), "getAndSet Value value");
         }
 
 
@@ -304,13 +305,13 @@ public class VarHandleTestMethodHandleAccessValue extends VarHandleBaseTest {
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_ADD)) {
             checkUOE(am, () -> {
-                Value r = (Value) hs.get(am).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)));
+                Value r = (Value) hs.get(am).invokeExact(recv, Value.getInstance(10));
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_BITWISE)) {
             checkUOE(am, () -> {
-                Value r = (Value) hs.get(am).invokeExact(recv, Value.getInstance(Point.getInstance(1,1)));
+                Value r = (Value) hs.get(am).invokeExact(recv, Value.getInstance(10));
             });
         }
     }
@@ -319,197 +320,197 @@ public class VarHandleTestMethodHandleAccessValue extends VarHandleBaseTest {
     static void testStaticField(Handles hs) throws Throwable {
         // Plain
         {
-            hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(Point.getInstance(1,1)));
+            hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(10));
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "set Value value");
+            assertEquals(x, Value.getInstance(10), "set Value value");
         }
 
 
         // Volatile
         {
-            hs.get(TestAccessMode.SET_VOLATILE).invokeExact(Value.getInstance(Point.getInstance(2,2)));
+            hs.get(TestAccessMode.SET_VOLATILE).invokeExact(Value.getInstance(20));
             Value x = (Value) hs.get(TestAccessMode.GET_VOLATILE).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "setVolatile Value value");
+            assertEquals(x, Value.getInstance(20), "setVolatile Value value");
         }
 
         // Lazy
         {
-            hs.get(TestAccessMode.SET_RELEASE).invokeExact(Value.getInstance(Point.getInstance(1,1)));
+            hs.get(TestAccessMode.SET_RELEASE).invokeExact(Value.getInstance(10));
             Value x = (Value) hs.get(TestAccessMode.GET_ACQUIRE).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "setRelease Value value");
+            assertEquals(x, Value.getInstance(10), "setRelease Value value");
         }
 
         // Opaque
         {
-            hs.get(TestAccessMode.SET_OPAQUE).invokeExact(Value.getInstance(Point.getInstance(2,2)));
+            hs.get(TestAccessMode.SET_OPAQUE).invokeExact(Value.getInstance(20));
             Value x = (Value) hs.get(TestAccessMode.GET_OPAQUE).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "setOpaque Value value");
+            assertEquals(x, Value.getInstance(20), "setOpaque Value value");
         }
 
-        hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(Point.getInstance(1,1)));
+        hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(10));
 
         // Compare
         {
-            boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+            boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(Value.getInstance(10), Value.getInstance(20));
             assertEquals(r, true, "success compareAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success compareAndSet Value value");
+            assertEquals(x, Value.getInstance(20), "success compareAndSet Value value");
         }
 
         {
-            boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
+            boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(Value.getInstance(10), Value.getInstance(30));
             assertEquals(r, false, "failing compareAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing compareAndSet Value value");
+            assertEquals(x, Value.getInstance(20), "failing compareAndSet Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
-            assertEquals(r, Value.getInstance(Point.getInstance(2,2)), "success compareAndExchange Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(Value.getInstance(20), Value.getInstance(10));
+            assertEquals(r, Value.getInstance(20), "success compareAndExchange Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success compareAndExchange Value value");
+            assertEquals(x, Value.getInstance(10), "success compareAndExchange Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
-            assertEquals(r, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchange Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(Value.getInstance(20), Value.getInstance(30));
+            assertEquals(r, Value.getInstance(10), "failing compareAndExchange Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchange Value value");
+            assertEquals(x, Value.getInstance(10), "failing compareAndExchange Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
-            assertEquals(r, Value.getInstance(Point.getInstance(1,1)), "success compareAndExchangeAcquire Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(Value.getInstance(10), Value.getInstance(20));
+            assertEquals(r, Value.getInstance(10), "success compareAndExchangeAcquire Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success compareAndExchangeAcquire Value value");
+            assertEquals(x, Value.getInstance(20), "success compareAndExchangeAcquire Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
-            assertEquals(r, Value.getInstance(Point.getInstance(2,2)), "failing compareAndExchangeAcquire Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(Value.getInstance(10), Value.getInstance(30));
+            assertEquals(r, Value.getInstance(20), "failing compareAndExchangeAcquire Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing compareAndExchangeAcquire Value value");
+            assertEquals(x, Value.getInstance(20), "failing compareAndExchangeAcquire Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
-            assertEquals(r, Value.getInstance(Point.getInstance(2,2)), "success compareAndExchangeRelease Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(Value.getInstance(20), Value.getInstance(10));
+            assertEquals(r, Value.getInstance(20), "success compareAndExchangeRelease Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success compareAndExchangeRelease Value value");
+            assertEquals(x, Value.getInstance(10), "success compareAndExchangeRelease Value value");
         }
 
         {
-            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
-            assertEquals(r, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchangeRelease Value");
+            Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(Value.getInstance(20), Value.getInstance(30));
+            assertEquals(r, Value.getInstance(10), "failing compareAndExchangeRelease Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchangeRelease Value value");
+            assertEquals(x, Value.getInstance(10), "failing compareAndExchangeRelease Value value");
         }
 
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+                success = (boolean) mh.invokeExact(Value.getInstance(10), Value.getInstance(20));
                 if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success weakCompareAndSetPlain Value value");
+            assertEquals(x, Value.getInstance(20), "success weakCompareAndSetPlain Value value");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
+            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(Value.getInstance(10), Value.getInstance(30));
             assertEquals(success, false, "failing weakCompareAndSetPlain Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing weakCompareAndSetPlain Value value");
+            assertEquals(x, Value.getInstance(20), "failing weakCompareAndSetPlain Value value");
         }
 
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
+                success = (boolean) mh.invokeExact(Value.getInstance(20), Value.getInstance(10));
                 if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success weakCompareAndSetAcquire Value");
+            assertEquals(x, Value.getInstance(10), "success weakCompareAndSetAcquire Value");
         }
 
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
-            boolean success = (boolean) mh.invokeExact(Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
+            boolean success = (boolean) mh.invokeExact(Value.getInstance(20), Value.getInstance(30));
             assertEquals(success, false, "failing weakCompareAndSetAcquire Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing weakCompareAndSetAcquire Value value");
+            assertEquals(x, Value.getInstance(10), "failing weakCompareAndSetAcquire Value value");
         }
 
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+                success = (boolean) mh.invokeExact(Value.getInstance(10), Value.getInstance(20));
                 if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success weakCompareAndSetRelease Value");
+            assertEquals(x, Value.getInstance(20), "success weakCompareAndSetRelease Value");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
+            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(Value.getInstance(10), Value.getInstance(30));
             assertEquals(success, false, "failing weakCompareAndSetRelease Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing weakCompareAndSetRelease Value value");
+            assertEquals(x, Value.getInstance(20), "failing weakCompareAndSetRelease Value value");
         }
 
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
+                success = (boolean) mh.invokeExact(Value.getInstance(20), Value.getInstance(10));
                 if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success weakCompareAndSet Value");
+            assertEquals(x, Value.getInstance(10), "success weakCompareAndSet Value");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
+            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(Value.getInstance(20), Value.getInstance(30));
             assertEquals(success, false, "failing weakCompareAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing weakCompareAndSetRe Value value");
+            assertEquals(x, Value.getInstance(10), "failing weakCompareAndSetRe Value value");
         }
 
         // Compare set and get
         {
-            hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(Point.getInstance(1,1)));
+            hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(10));
 
-            Value o = (Value) hs.get(TestAccessMode.GET_AND_SET).invokeExact(Value.getInstance(Point.getInstance(2,2)));
-            assertEquals(o, Value.getInstance(Point.getInstance(1,1)), "getAndSet Value");
+            Value o = (Value) hs.get(TestAccessMode.GET_AND_SET).invokeExact(Value.getInstance(20));
+            assertEquals(o, Value.getInstance(10), "getAndSet Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "getAndSet Value value");
+            assertEquals(x, Value.getInstance(20), "getAndSet Value value");
         }
 
         // Compare set and get
         {
-            hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(Point.getInstance(1,1)));
+            hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(10));
 
-            Value o = (Value) hs.get(TestAccessMode.GET_AND_SET_ACQUIRE).invokeExact(Value.getInstance(Point.getInstance(2,2)));
-            assertEquals(o, Value.getInstance(Point.getInstance(1,1)), "getAndSetAcquire Value");
+            Value o = (Value) hs.get(TestAccessMode.GET_AND_SET_ACQUIRE).invokeExact(Value.getInstance(20));
+            assertEquals(o, Value.getInstance(10), "getAndSetAcquire Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "getAndSetAcquire Value value");
+            assertEquals(x, Value.getInstance(20), "getAndSetAcquire Value value");
         }
 
         // Compare set and get
         {
-            hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(Point.getInstance(1,1)));
+            hs.get(TestAccessMode.SET).invokeExact(Value.getInstance(10));
 
-            Value o = (Value) hs.get(TestAccessMode.GET_AND_SET_RELEASE).invokeExact(Value.getInstance(Point.getInstance(2,2)));
-            assertEquals(o, Value.getInstance(Point.getInstance(1,1)), "getAndSetRelease Value");
+            Value o = (Value) hs.get(TestAccessMode.GET_AND_SET_RELEASE).invokeExact(Value.getInstance(20));
+            assertEquals(o, Value.getInstance(10), "getAndSetRelease Value");
             Value x = (Value) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "getAndSetRelease Value value");
+            assertEquals(x, Value.getInstance(20), "getAndSetRelease Value value");
         }
 
 
@@ -519,13 +520,13 @@ public class VarHandleTestMethodHandleAccessValue extends VarHandleBaseTest {
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_ADD)) {
             checkUOE(am, () -> {
-                Value r = (Value) hs.get(am).invokeExact(Value.getInstance(Point.getInstance(1,1)));
+                Value r = (Value) hs.get(am).invokeExact(Value.getInstance(10));
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_BITWISE)) {
             checkUOE(am, () -> {
-                Value r = (Value) hs.get(am).invokeExact(Value.getInstance(Point.getInstance(1,1)));
+                Value r = (Value) hs.get(am).invokeExact(Value.getInstance(10));
             });
         }
     }
@@ -537,194 +538,194 @@ public class VarHandleTestMethodHandleAccessValue extends VarHandleBaseTest {
         for (int i = 0; i < array.length; i++) {
             // Plain
             {
-                hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)));
+                hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(10));
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "get Value value");
+                assertEquals(x, Value.getInstance(10), "get Value value");
             }
 
 
             // Volatile
             {
-                hs.get(TestAccessMode.SET_VOLATILE).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)));
+                hs.get(TestAccessMode.SET_VOLATILE).invokeExact(array, i, Value.getInstance(20));
                 Value x = (Value) hs.get(TestAccessMode.GET_VOLATILE).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "setVolatile Value value");
+                assertEquals(x, Value.getInstance(20), "setVolatile Value value");
             }
 
             // Lazy
             {
-                hs.get(TestAccessMode.SET_RELEASE).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)));
+                hs.get(TestAccessMode.SET_RELEASE).invokeExact(array, i, Value.getInstance(10));
                 Value x = (Value) hs.get(TestAccessMode.GET_ACQUIRE).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "setRelease Value value");
+                assertEquals(x, Value.getInstance(10), "setRelease Value value");
             }
 
             // Opaque
             {
-                hs.get(TestAccessMode.SET_OPAQUE).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)));
+                hs.get(TestAccessMode.SET_OPAQUE).invokeExact(array, i, Value.getInstance(20));
                 Value x = (Value) hs.get(TestAccessMode.GET_OPAQUE).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "setOpaque Value value");
+                assertEquals(x, Value.getInstance(20), "setOpaque Value value");
             }
 
-            hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)));
+            hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(10));
 
             // Compare
             {
-                boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+                boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(array, i, Value.getInstance(10), Value.getInstance(20));
                 assertEquals(r, true, "success compareAndSet Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success compareAndSet Value value");
+                assertEquals(x, Value.getInstance(20), "success compareAndSet Value value");
             }
 
             {
-                boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
+                boolean r = (boolean) hs.get(TestAccessMode.COMPARE_AND_SET).invokeExact(array, i, Value.getInstance(10), Value.getInstance(30));
                 assertEquals(r, false, "failing compareAndSet Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing compareAndSet Value value");
+                assertEquals(x, Value.getInstance(20), "failing compareAndSet Value value");
             }
 
             {
-                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
-                assertEquals(r, Value.getInstance(Point.getInstance(2,2)), "success compareAndExchange Value");
+                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(array, i, Value.getInstance(20), Value.getInstance(10));
+                assertEquals(r, Value.getInstance(20), "success compareAndExchange Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success compareAndExchange Value value");
+                assertEquals(x, Value.getInstance(10), "success compareAndExchange Value value");
             }
 
             {
-                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
-                assertEquals(r, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchange Value");
+                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE).invokeExact(array, i, Value.getInstance(20), Value.getInstance(30));
+                assertEquals(r, Value.getInstance(10), "failing compareAndExchange Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchange Value value");
+                assertEquals(x, Value.getInstance(10), "failing compareAndExchange Value value");
             }
 
             {
-                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
-                assertEquals(r, Value.getInstance(Point.getInstance(1,1)), "success compareAndExchangeAcquire Value");
+                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(array, i, Value.getInstance(10), Value.getInstance(20));
+                assertEquals(r, Value.getInstance(10), "success compareAndExchangeAcquire Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success compareAndExchangeAcquire Value value");
+                assertEquals(x, Value.getInstance(20), "success compareAndExchangeAcquire Value value");
             }
 
             {
-                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
-                assertEquals(r, Value.getInstance(Point.getInstance(2,2)), "failing compareAndExchangeAcquire Value");
+                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_ACQUIRE).invokeExact(array, i, Value.getInstance(10), Value.getInstance(30));
+                assertEquals(r, Value.getInstance(20), "failing compareAndExchangeAcquire Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing compareAndExchangeAcquire Value value");
+                assertEquals(x, Value.getInstance(20), "failing compareAndExchangeAcquire Value value");
             }
 
             {
-                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
-                assertEquals(r, Value.getInstance(Point.getInstance(2,2)), "success compareAndExchangeRelease Value");
+                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(array, i, Value.getInstance(20), Value.getInstance(10));
+                assertEquals(r, Value.getInstance(20), "success compareAndExchangeRelease Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success compareAndExchangeRelease Value value");
+                assertEquals(x, Value.getInstance(10), "success compareAndExchangeRelease Value value");
             }
 
             {
-                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
-                assertEquals(r, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchangeRelease Value");
+                Value r = (Value) hs.get(TestAccessMode.COMPARE_AND_EXCHANGE_RELEASE).invokeExact(array, i, Value.getInstance(20), Value.getInstance(30));
+                assertEquals(r, Value.getInstance(10), "failing compareAndExchangeRelease Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing compareAndExchangeRelease Value value");
+                assertEquals(x, Value.getInstance(10), "failing compareAndExchangeRelease Value value");
             }
 
             {
                 MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) mh.invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+                    success = (boolean) mh.invokeExact(array, i, Value.getInstance(10), Value.getInstance(20));
                     if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetPlain Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success weakCompareAndSetPlain Value value");
+                assertEquals(x, Value.getInstance(20), "success weakCompareAndSetPlain Value value");
             }
 
             {
-                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
+                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(array, i, Value.getInstance(10), Value.getInstance(30));
                 assertEquals(success, false, "failing weakCompareAndSetPlain Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing weakCompareAndSetPlain Value value");
+                assertEquals(x, Value.getInstance(20), "failing weakCompareAndSetPlain Value value");
             }
 
             {
                 MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) mh.invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
+                    success = (boolean) mh.invokeExact(array, i, Value.getInstance(20), Value.getInstance(10));
                     if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetAcquire Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success weakCompareAndSetAcquire Value");
+                assertEquals(x, Value.getInstance(10), "success weakCompareAndSetAcquire Value");
             }
 
             {
-                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
+                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, Value.getInstance(20), Value.getInstance(30));
                 assertEquals(success, false, "failing weakCompareAndSetAcquire Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing weakCompareAndSetAcquire Value value");
+                assertEquals(x, Value.getInstance(10), "failing weakCompareAndSetAcquire Value value");
             }
 
             {
                 MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) mh.invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+                    success = (boolean) mh.invokeExact(array, i, Value.getInstance(10), Value.getInstance(20));
                     if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetRelease Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "success weakCompareAndSetRelease Value");
+                assertEquals(x, Value.getInstance(20), "success weakCompareAndSetRelease Value");
             }
 
             {
-                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(3,3)));
+                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, Value.getInstance(10), Value.getInstance(30));
                 assertEquals(success, false, "failing weakCompareAndSetAcquire Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "failing weakCompareAndSetAcquire Value value");
+                assertEquals(x, Value.getInstance(20), "failing weakCompareAndSetAcquire Value value");
             }
 
             {
                 MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) mh.invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
+                    success = (boolean) mh.invokeExact(array, i, Value.getInstance(20), Value.getInstance(10));
                     if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSet Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "success weakCompareAndSet Value");
+                assertEquals(x, Value.getInstance(10), "success weakCompareAndSet Value");
             }
 
             {
-                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(3,3)));
+                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(array, i, Value.getInstance(20), Value.getInstance(30));
                 assertEquals(success, false, "failing weakCompareAndSet Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(1,1)), "failing weakCompareAndSet Value value");
+                assertEquals(x, Value.getInstance(10), "failing weakCompareAndSet Value value");
             }
 
             // Compare set and get
             {
-                hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)));
+                hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(10));
 
-                Value o = (Value) hs.get(TestAccessMode.GET_AND_SET).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)));
-                assertEquals(o, Value.getInstance(Point.getInstance(1,1)), "getAndSet Value");
+                Value o = (Value) hs.get(TestAccessMode.GET_AND_SET).invokeExact(array, i, Value.getInstance(20));
+                assertEquals(o, Value.getInstance(10), "getAndSet Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "getAndSet Value value");
+                assertEquals(x, Value.getInstance(20), "getAndSet Value value");
             }
 
             {
-                hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)));
+                hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(10));
 
-                Value o = (Value) hs.get(TestAccessMode.GET_AND_SET_ACQUIRE).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)));
-                assertEquals(o, Value.getInstance(Point.getInstance(1,1)), "getAndSetAcquire Value");
+                Value o = (Value) hs.get(TestAccessMode.GET_AND_SET_ACQUIRE).invokeExact(array, i, Value.getInstance(20));
+                assertEquals(o, Value.getInstance(10), "getAndSetAcquire Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "getAndSetAcquire Value value");
+                assertEquals(x, Value.getInstance(20), "getAndSetAcquire Value value");
             }
 
             {
-                hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)));
+                hs.get(TestAccessMode.SET).invokeExact(array, i, Value.getInstance(10));
 
-                Value o = (Value) hs.get(TestAccessMode.GET_AND_SET_RELEASE).invokeExact(array, i, Value.getInstance(Point.getInstance(2,2)));
-                assertEquals(o, Value.getInstance(Point.getInstance(1,1)), "getAndSetRelease Value");
+                Value o = (Value) hs.get(TestAccessMode.GET_AND_SET_RELEASE).invokeExact(array, i, Value.getInstance(20));
+                assertEquals(o, Value.getInstance(10), "getAndSetRelease Value");
                 Value x = (Value) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Value.getInstance(Point.getInstance(2,2)), "getAndSetRelease Value value");
+                assertEquals(x, Value.getInstance(20), "getAndSetRelease Value value");
             }
 
 
@@ -738,13 +739,13 @@ public class VarHandleTestMethodHandleAccessValue extends VarHandleBaseTest {
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_ADD)) {
             checkUOE(am, () -> {
-                Value o = (Value) hs.get(am).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)));
+                Value o = (Value) hs.get(am).invokeExact(array, i, Value.getInstance(10));
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_BITWISE)) {
             checkUOE(am, () -> {
-                Value o = (Value) hs.get(am).invokeExact(array, i, Value.getInstance(Point.getInstance(1,1)));
+                Value o = (Value) hs.get(am).invokeExact(array, i, Value.getInstance(10));
             });
         }
     }
@@ -763,25 +764,25 @@ public class VarHandleTestMethodHandleAccessValue extends VarHandleBaseTest {
 
             for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
                 checkAIOOBE(am, () -> {
-                    hs.get(am).invokeExact(array, ci, Value.getInstance(Point.getInstance(1,1)));
+                    hs.get(am).invokeExact(array, ci, Value.getInstance(10));
                 });
             }
 
             for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
                 checkAIOOBE(am, () -> {
-                    boolean r = (boolean) hs.get(am).invokeExact(array, ci, Value.getInstance(Point.getInstance(1,1)), Value.getInstance(Point.getInstance(2,2)));
+                    boolean r = (boolean) hs.get(am).invokeExact(array, ci, Value.getInstance(10), Value.getInstance(20));
                 });
             }
 
             for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
                 checkAIOOBE(am, () -> {
-                    Value r = (Value) hs.get(am).invokeExact(array, ci, Value.getInstance(Point.getInstance(2,2)), Value.getInstance(Point.getInstance(1,1)));
+                    Value r = (Value) hs.get(am).invokeExact(array, ci, Value.getInstance(20), Value.getInstance(10));
                 });
             }
 
             for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
                 checkAIOOBE(am, () -> {
-                    Value o = (Value) hs.get(am).invokeExact(array, ci, Value.getInstance(Point.getInstance(1,1)));
+                    Value o = (Value) hs.get(am).invokeExact(array, ci, Value.getInstance(10));
                 });
             }
 

@@ -60,7 +60,6 @@ public enum Modifier {
      * @since 1.8
      */
      DEFAULT,
-
     /** The modifier {@code static} */          STATIC,
 
     /**
@@ -80,22 +79,10 @@ public enum Modifier {
     },
 
     /**
-     * The modifier {@code primitive}
-     * @since 18
-     */
-    PRIMITIVE,
-
-    /**
      * The modifier {@code value}
      * @since 18
      */
     VALUE,
-
-    /**
-     * The modifier {@code identity}
-     * @since 18
-     */
-    IDENTITY,
 
     /** The modifier {@code final} */           FINAL,
     /** The modifier {@code transient} */       TRANSIENT,

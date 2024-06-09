@@ -35,7 +35,6 @@ import java.util.stream.Collectors;
 
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.annotation.Stable;
-import jdk.internal.value.PrimitiveClass;
 import sun.reflect.annotation.AnnotationParser;
 import sun.reflect.annotation.AnnotationSupport;
 import sun.reflect.annotation.TypeAnnotationParser;
@@ -792,13 +791,5 @@ public abstract sealed class Executable extends AccessibleObject
                 getDeclaringClass(),
                 getGenericExceptionTypes(),
                 TypeAnnotation.TypeAnnotationTarget.THROWS);
-    }
-
-    String getDeclaringClassTypeName() {
-        Class<?> c = getDeclaringClass();
-        if (PrimitiveClass.isPrimitiveClass(c)) {
-            c = PrimitiveClass.asValueType(c);
-        }
-        return c.getTypeName();
     }
 }

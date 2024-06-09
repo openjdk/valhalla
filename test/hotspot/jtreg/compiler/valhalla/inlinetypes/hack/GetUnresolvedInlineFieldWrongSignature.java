@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,43 +65,21 @@ class TestUnloadedInlineTypeField {
         MyValue15 v;
     }
 
-    static primitive class MyValue16 {
+    static value class MyValue16 {
         int foo = 42;
     }
 
-    static primitive class MyValue17 {
+    static value class MyValue17 {
         int foo = 42;
     }
 }
 
 class GetUnresolvedInlineFieldWrongSignature {
-    static int test3(Object holder) {
-        if (holder != null) {
-            // Don't use MyValue3Holder in the signature, it might trigger class loading
-            return ((TestUnloadedInlineTypeField.MyValue3Holder)holder).v.foo + 3;
-        } else {
-            return 0;
-        }
-    }
-
-    static void test10(Object holder) {
-        if (holder != null) {
-            // Don't use MyValue10Holder in the signature, it might trigger class loading
-            ((TestUnloadedInlineTypeField.MyValue10Holder)holder).v1 = ((TestUnloadedInlineTypeField.MyValue10Holder)holder).v2;
-        }
-    }
 
     static void test13(Object holder) {
         if (holder != null) {
             // Don't use MyValue13Holder in the signature, it might trigger class loading
             ((TestUnloadedInlineTypeField.MyValue13Holder)holder).v = new TestUnloadedInlineTypeField.MyValue13();
-        }
-    }
-
-    static void test14(Object holder) {
-        if (holder != null) {
-            // Don't use MyValue14Holder in the signature, it might trigger class loading
-            ((TestUnloadedInlineTypeField.MyValue14Holder)holder).v = null;
         }
     }
 
@@ -114,7 +92,7 @@ class GetUnresolvedInlineFieldWrongSignature {
 
     static Object test16(boolean warmup) {
         if (!warmup) {
-            return TestUnloadedInlineTypeField.MyValue16.default;
+            return new TestUnloadedInlineTypeField.MyValue16();
         } else {
             return null;
         }
@@ -122,7 +100,7 @@ class GetUnresolvedInlineFieldWrongSignature {
 
     static Object test17(boolean warmup) {
         if (!warmup) {
-            return TestUnloadedInlineTypeField.MyValue17.default;
+            return new TestUnloadedInlineTypeField.MyValue17();
         } else {
             return null;
         }

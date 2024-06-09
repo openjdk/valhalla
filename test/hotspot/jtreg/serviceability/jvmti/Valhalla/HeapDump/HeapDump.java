@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,14 @@
  */
 
 /**
+ * @ignore Fix JDK-8328468
  * @test
  * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @requires vm.jvmti
- * @compile -XDenablePrimitiveClasses HeapDump.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses HeapDump
+ * @enablePreview
+ * @compile HeapDump.java
+ * @run main/othervm HeapDump
  */
 
 import java.io.File;
@@ -161,7 +163,7 @@ public class HeapDump {
             theApp = new HeapDumpTarg();
 
             // -XX:+PrintInlineLayout is debug-only arg
-            LingeredApp.startApp(theApp, "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses"/*, "-XX:+PrintInlineLayout"*/);
+            LingeredApp.startApp(theApp, "--enable-preview"/*, "-XX:+PrintInlineLayout"*/);
 
             // jcmd <pid> GC.heap_dump
             JDKToolLauncher launcher = JDKToolLauncher

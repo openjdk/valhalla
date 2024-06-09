@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ import org.openjdk.jmh.annotations.CompilerControl;
 public class Inline64longSetRef extends StatesQ64long {
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public static Q64long.ref get(int i) {
+    public static Q64long get(int i) {
         return new Q64long(i);
     }
 
@@ -56,7 +56,7 @@ public class Inline64longSetRef extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_set0(Val_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = get(i);
         }
@@ -74,7 +74,7 @@ public class Inline64longSetRef extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_set0(Ref_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = get(i);
         }

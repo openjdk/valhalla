@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ public class IdentityOpt extends StatesROpt {
     public void Def_to_Ref_as_Ref_fill(Ref_as_Ref st) {
         ROpt<Int32>[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = ROpt<Int32>.default;
+            arr[i] = ROpt.of();
         }
     }
 
@@ -84,7 +84,7 @@ public class IdentityOpt extends StatesROpt {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Ref_arrayfill(Ref_as_Ref st) {
-        Arrays.fill(st.arr, ROpt<Int32>.default);
+        Arrays.fill(st.arr, ROpt.of()  );
     }
 
     @Benchmark

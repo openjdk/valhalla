@@ -158,7 +158,7 @@ public class TestSuperclass {
 
     class JavaSource extends SimpleJavaFileObject {
         static final String template =
-                  "identity #CK Test#GK #EK { }\n"
+                  "#CK Test#GK #EK { }\n"
                 + "#SK\n";
         final String source;
 

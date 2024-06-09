@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
  * @compile VarArgsArray.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.VarArgsArray
+ * @run main/othervm runtime.valhalla.inlinetypes.VarArgsArray
  */
 
 @ImplicitlyConstructible

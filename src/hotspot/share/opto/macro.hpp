@@ -109,7 +109,6 @@ private:
   void mark_eliminated_locking_nodes(AbstractLockNode *alock);
   bool eliminate_locking_node(AbstractLockNode *alock);
   void expand_lock_node(LockNode *lock);
-  void inline_type_guard(Node** ctrl, LockNode* lock);
   void expand_unlock_node(UnlockNode *unlock);
   void expand_mh_intrinsic_return(CallStaticJavaNode* call);
 
@@ -132,9 +131,9 @@ private:
 
   // More helper methods for array copy
   Node* generate_nonpositive_guard(Node** ctrl, Node* index, bool never_negative);
-  Node* array_lh_test(Node* array, jint mask);
-  Node* generate_flat_array_guard(Node** ctrl, Node* array, RegionNode* region);
-  Node* generate_null_free_array_guard(Node** ctrl, Node* array, RegionNode* region);
+  Node* mark_word_test(Node** ctrl, Node* obj, MergeMemNode* mem, uintptr_t mask_val, RegionNode* region);
+  Node* generate_flat_array_guard(Node** ctrl, Node* array, MergeMemNode* mem, RegionNode* region);
+  Node* generate_null_free_array_guard(Node** ctrl, Node* array, MergeMemNode* mem, RegionNode* region);
 
   void finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type);
   Node* generate_arraycopy(ArrayCopyNode *ac,

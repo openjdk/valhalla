@@ -52,9 +52,11 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * @since 20.00
  */
 
-// Currently Float16 is a primitive class but in future will be aligned with
+// Currently Float16 is a value based class but in future will be aligned with
 // Enhanced Primitive Boxes described by JEP-402 (https://openjdk.org/jeps/402)
-public primitive class Float16 extends Number {
+@jdk.internal.MigratedValueClass
+@jdk.internal.ValueBased
+public final class Float16 extends Number {
     private final short value;
 
    /**
@@ -177,4 +179,6 @@ public primitive class Float16 extends Number {
      * @since 20
      */
     public short float16ToRawShortBits() { return value; }
+
+    private static final long serialVersionUID = 16; // Not needed for a primitive class?
 }

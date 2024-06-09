@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@ import org.openjdk.jmh.annotations.CompilerControl;
 public class Inline128int extends StatesQ128int {
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public static Q128int.ref getRef(int i) {
+    public static Q128int getRef(int i) {
         return new Q128int(i);
     }
 
@@ -71,7 +71,7 @@ public class Inline128int extends StatesQ128int {
     public void Def_to_Val_set(ValState st) {
         ValWrapper[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i].f = Q128int.default;
+            arr[i].f = new Q128int()  ;
         }
     }
 
@@ -107,7 +107,7 @@ public class Inline128int extends StatesQ128int {
     public void Def_to_Ref_set(RefState st) {
         RefWrapper[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i].f = Q128int.default;
+            arr[i].f = new Q128int()  ;
         }
     }
 

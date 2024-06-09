@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,15 +21,15 @@
  * questions.
  */
 
-final primitive class SimpleInlineType {
-    final int x;
+value class SimpleInlineType {
+    int x;
 
     private SimpleInlineType() {
         x = 0;
     }
 
     static SimpleInlineType create() {
-        return SimpleInlineType.default;
+        return new SimpleInlineType();
     }
 }
 

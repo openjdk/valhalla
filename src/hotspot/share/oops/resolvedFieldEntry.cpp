@@ -54,7 +54,7 @@ bool ResolvedFieldEntry::is_valid() const {
     as_BasicType((TosState)tos_state()) != T_ILLEGAL &&
     _flags < (1 << (max_flag_shift + 1)) &&
     (get_code() == 0 || get_code() == Bytecodes::_getstatic || get_code() == Bytecodes::_getfield) &&
-    (put_code() == 0 || put_code() == Bytecodes::_putstatic || put_code() == Bytecodes::_putfield || put_code() == Bytecodes::_withfield);
+    (put_code() == 0 || put_code() == Bytecodes::_putstatic || put_code() == Bytecodes::_putfield);
 }
 
 void ResolvedFieldEntry::remove_unshareable_info() {

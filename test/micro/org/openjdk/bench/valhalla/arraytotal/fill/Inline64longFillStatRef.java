@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import java.util.Arrays;
 public class Inline64longFillStatRef extends StatesQ64long {
 
     public static class StaticField {
-        static Q64long.ref f = new Q64long(42);
+        static Q64long f = new Q64long(42);
     }
 
     @Benchmark
@@ -57,7 +57,7 @@ public class Inline64longFillStatRef extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_fillstat0(Val_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = StaticField.f;
         }
@@ -75,7 +75,7 @@ public class Inline64longFillStatRef extends StatesQ64long {
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Ref_as_Ref_fillstat0(Ref_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
             arr[i] = StaticField.f;
         }

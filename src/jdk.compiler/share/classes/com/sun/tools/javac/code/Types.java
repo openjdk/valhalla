@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -91,7 +92,6 @@ public class Types {
     final Symtab syms;
     final JavacMessages messages;
     final Names names;
-    final boolean allowPrimitiveClasses;
     final Check chk;
     final Enter enter;
     JCDiagnostic.Factory diags;
@@ -119,9 +119,12 @@ public class Types {
         capturedName = names.fromString("<captured wildcard>");
         messages = JavacMessages.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
-        noWarnings = new Warner(null);
-        Options options = Options.instance(context);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
+        noWarnings = new Warner(null) {
+            @Override
+            public String toString() {
+                return "NO_WARNINGS";
+            }
+        };
     }
     // </editor-fold>
 
@@ -270,7 +273,7 @@ public class Types {
                     formals = formals.tail;
                 }
                 if (outer1 == outer && !changed) return t;
-                else return new ClassType(outer1, typarams1.toList(), t.tsym, t.getMetadata(), t.getFlavor()) {
+                else return new ClassType(outer1, typarams1.toList(), t.tsym, t.getMetadata()) {
                     @Override
                     protected boolean needsStripping() {
                         return true;
@@ -601,17 +604,6 @@ public class Types {
         if (t.hasTag(ERROR)) {
             return true;
         }
-
-        if (allowPrimitiveClasses) {
-            boolean tValue = t.isPrimitiveClass();
-            boolean sValue = s.isPrimitiveClass();
-            if (tValue != sValue) {
-                return tValue ?
-                        isSubtype(t.referenceProjection(), s) :
-                        !t.hasTag(BOT) && isSubtype(t, s.referenceProjection());
-            }
-        }
-
         boolean tPrimitive = t.isPrimitive();
         boolean sPrimitive = s.isPrimitive();
         if (tPrimitive == sPrimitive) {
@@ -774,12 +766,10 @@ public class Types {
                 //t must define a suitable non-generic method
                 throw failure("not.a.functional.intf.1", origin,
                             diags.fragment(Fragments.NoAbstracts(Kinds.kindName(origin), origin)));
-            }
-            FunctionDescriptor descRes;
-            if (abstracts.size() == 1) {
-                descRes = new FunctionDescriptor(abstracts.first());
+            } else if (abstracts.size() == 1) {
+                return new FunctionDescriptor(abstracts.first());
             } else { // size > 1
-                descRes = mergeDescriptors(origin, abstracts.toList());
+                FunctionDescriptor descRes = mergeDescriptors(origin, abstracts.toList());
                 if (descRes == null) {
                     //we can get here if the functional interface is ill-formed
                     ListBuffer<JCDiagnostic> descriptors = new ListBuffer<>();
@@ -798,18 +788,8 @@ public class Types {
                             new JCDiagnostic.MultilineDiagnostic(msg, descriptors.toList());
                     throw failure(incompatibleDescriptors);
                 }
+                return descRes;
             }
-            // an interface must be neither an identity interface nor a value interface to be functional.
-            List<Type> allInterfaces = closure(origin.type);
-            for (Type iface : allInterfaces) {
-                if (iface.isValueInterface()) {
-                    throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.ValueInterfaceNonfunctional));
-                }
-                if (iface.isIdentityInterface()) {
-                    throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.IdentityInterfaceNonfunctional));
-                }
-            }
-            return descRes;
         }
 
         /**
@@ -978,7 +958,7 @@ public class Types {
         private Predicate<Symbol> bridgeFilter = new Predicate<Symbol>() {
             public boolean test(Symbol t) {
                 return t.kind == MTH &&
-                        !names.isInitOrVNew(t.name) &&
+                        t.name != names.init &&
                         t.name != names.clinit &&
                         (t.flags() & SYNTHETIC) == 0;
             }
@@ -1049,19 +1029,7 @@ public class Types {
                 if (((ArrayType)t).elemtype.isPrimitive()) {
                     return isSameType(elemtype(t), elemtype(s));
                 } else {
-                    // if T.ref <: S, then T[] <: S[]
-                    Type es = elemtype(s);
-                    Type et = elemtype(t);
-                    if (allowPrimitiveClasses) {
-                        if (et.isPrimitiveClass()) {
-                            et = et.referenceProjection();
-                            if (es.isPrimitiveClass())
-                                es = es.referenceProjection();  // V <: V, surely
-                        }
-                    }
-                    if (!isSubtypeUncheckedInternal(et, es, false, warn))
-                        return false;
-                    return true;
+                    return isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
                 }
             } else if (isSubtype(t, s, capture)) {
                 return true;
@@ -1158,7 +1126,7 @@ public class Types {
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
                      return
-                         s.hasTag(BOT) || (s.hasTag(CLASS) && (!allowPrimitiveClasses || !s.isPrimitiveClass())) ||
+                         s.hasTag(BOT) || s.hasTag(CLASS) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
@@ -1225,7 +1193,6 @@ public class Types {
                 // If t is an intersection, sup might not be a class type
                 if (!sup.hasTag(CLASS)) return isSubtypeNoCapture(sup, s);
                 return sup.tsym == s.tsym
-                    && (t.tsym != s.tsym || t.isReferenceProjection() == s.isReferenceProjection())
                      // Check type variable containment
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
@@ -1237,17 +1204,8 @@ public class Types {
                 if (s.hasTag(ARRAY)) {
                     if (t.elemtype.isPrimitive())
                         return isSameType(t.elemtype, elemtype(s));
-                    else {
-                        // if T.ref <: S, then T[] <: S[]
-                        Type es = elemtype(s);
-                        Type et = elemtype(t);
-                        if (allowPrimitiveClasses && et.isPrimitiveClass()) {
-                            et = et.referenceProjection();
-                            if (es.isPrimitiveClass())
-                                es = es.referenceProjection();  // V <: V, surely
-                        }
-                        return isSubtypeNoCapture(et, es);
-                    }
+                    else
+                        return isSubtypeNoCapture(t.elemtype, elemtype(s));
                 }
 
                 if (s.hasTag(CLASS)) {
@@ -1467,18 +1425,9 @@ public class Types {
                     return tMap.isEmpty();
                 }
                 return t.tsym == s.tsym
-                    && t.isReferenceProjection() == s.isReferenceProjection()
-                    && visit(getEnclosingType(t), getEnclosingType(s))
+                    && visit(t.getEnclosingType(), s.getEnclosingType())
                     && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
             }
-                // where
-                private Type getEnclosingType(Type t) {
-                    Type et = t.getEnclosingType();
-                    if (et.isReferenceProjection()) {
-                        et = et.valueProjection();
-                    }
-                    return et;
-                }
 
             @Override
             public Boolean visitArrayType(ArrayType t, Type s) {
@@ -1638,15 +1587,6 @@ public class Types {
                     return containedBy(s, t);
                 else {
 //                    debugContainsType(t, s);
-
-                    // -----------------------------------  Unspecified behavior ----------------
-
-                    /* If a primitive class V implements an interface I, then does "? extends I" contain V?
-                       It seems widening must be applied here to answer yes to compile some common code
-                       patterns.
-                    */
-
-                    // ---------------------------------------------------------------------------
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
                         || ((t.isExtendsBound() || isSubtypeNoCapture(wildLowerBound(t), wildLowerBound(s))) &&
@@ -1730,37 +1670,49 @@ public class Types {
                 && (t.tsym.isSealed() || s.tsym.isSealed())) {
             return (t.isCompound() || s.isCompound()) ?
                     true :
-                    !areDisjoint((ClassSymbol)t.tsym, (ClassSymbol)s.tsym);
+                    !(new DisjointChecker().areDisjoint((ClassSymbol)t.tsym, (ClassSymbol)s.tsym));
         }
         return result;
     }
     // where
-        private boolean areDisjoint(ClassSymbol ts, ClassSymbol ss) {
-            if (isSubtype(erasure(ts.type.referenceProjectionOrSelf()), erasure(ss.type))) {
-                return false;
-            }
-            // if both are classes or both are interfaces, shortcut
-            if (ts.isInterface() == ss.isInterface() && isSubtype(erasure(ss.type), erasure(ts.type))) {
-                return false;
-            }
-            if (ts.isInterface() && !ss.isInterface()) {
-                /* so ts is interface but ss is a class
-                 * an interface is disjoint from a class if the class is disjoint form the interface
+        class DisjointChecker {
+            Set<Pair<ClassSymbol, ClassSymbol>> pairsSeen = new HashSet<>();
+            private boolean areDisjoint(ClassSymbol ts, ClassSymbol ss) {
+                Pair<ClassSymbol, ClassSymbol> newPair = new Pair<>(ts, ss);
+                /* if we are seeing the same pair again then there is an issue with the sealed hierarchy
+                 * bail out, a detailed error will be reported downstream
                  */
-                return areDisjoint(ss, ts);
+                if (!pairsSeen.add(newPair))
+                    return false;
+                if (isSubtype(erasure(ts.type), erasure(ss.type))) {
+                    return false;
+                }
+                if (isSubtype(erasure(ts.type), erasure(ss.type))) {
+                    return false;
+                }
+                // if both are classes or both are interfaces, shortcut
+                if (ts.isInterface() == ss.isInterface() && isSubtype(erasure(ss.type), erasure(ts.type))) {
+                    return false;
+                }
+                if (ts.isInterface() && !ss.isInterface()) {
+                    /* so ts is interface but ss is a class
+                     * an interface is disjoint from a class if the class is disjoint form the interface
+                     */
+                    return areDisjoint(ss, ts);
+                }
+                // a final class that is not subtype of ss is disjoint
+                if (!ts.isInterface() && ts.isFinal()) {
+                    return true;
+                }
+                // if at least one is sealed
+                if (ts.isSealed() || ss.isSealed()) {
+                    // permitted subtypes have to be disjoint with the other symbol
+                    ClassSymbol sealedOne = ts.isSealed() ? ts : ss;
+                    ClassSymbol other = sealedOne == ts ? ss : ts;
+                    return sealedOne.getPermittedSubclasses().stream().allMatch(type -> areDisjoint((ClassSymbol)type.tsym, other));
+                }
+                return false;
             }
-            // a final class that is not subtype of ss is disjoint
-            if (!ts.isInterface() && ts.isFinal()) {
-                return true;
-            }
-            // if at least one is sealed
-            if (ts.isSealed() || ss.isSealed()) {
-                // permitted subtypes have to be disjoint with the other symbol
-                ClassSymbol sealedOne = ts.isSealed() ? ts : ss;
-                ClassSymbol other = sealedOne == ts ? ss : ts;
-                return sealedOne.permitted.stream().allMatch(sym -> areDisjoint((ClassSymbol)sym, other));
-            }
-            return false;
         }
 
         private TypeRelation isCastable = new TypeRelation() {
@@ -1791,7 +1743,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || (s.hasTag(BOT) && (!allowPrimitiveClasses || !t.isPrimitiveClass())))
+                if (s.hasTag(ERROR) || s.hasTag(BOT))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
@@ -1810,16 +1762,6 @@ public class Types {
                 }
 
                 if (s.hasTag(CLASS) || s.hasTag(ARRAY)) {
-                    if (allowPrimitiveClasses) {
-                        if (t.isPrimitiveClass()) {
-                            // (s) Value ? == (s) Value.ref
-                            t = t.referenceProjection();
-                        }
-                        if (s.isPrimitiveClass()) {
-                            // (Value) t ? == (Value.ref) t
-                            s = s.referenceProjection();
-                        }
-                    }
                     boolean upcast;
                     if ((upcast = isSubtype(erasure(t), erasure(s)))
                         || isSubtype(erasure(s), erasure(t))) {
@@ -2196,10 +2138,18 @@ public class Types {
      * @return the ArrayType for the given component
      */
     public ArrayType makeArrayType(Type t) {
+        return makeArrayType(t, 1);
+    }
+
+    public ArrayType makeArrayType(Type t, int dimensions) {
         if (t.hasTag(VOID) || t.hasTag(PACKAGE)) {
             Assert.error("Type t must not be a VOID or PACKAGE type, " + t.toString());
         }
-        return new ArrayType(t, syms.arrayClass);
+        ArrayType result = new ArrayType(t, syms.arrayClass);
+        for (int i = 1; i < dimensions; i++) {
+            result = new ArrayType(result, syms.arrayClass);
+        }
+        return result;
     }
     // </editor-fold>
 
@@ -2213,35 +2163,6 @@ public class Types {
      * this method could yield surprising answers when invoked on arrays. For example when
      * invoked with t being byte [] and sym being t.sym itself, asSuper would answer null.
      *
-     * Further caveats in Valhalla: There are two "hazards" we need to watch out for when using
-     * this method.
-     *
-     * 1. Since Foo.ref and Foo.val share the same symbol, that of Foo.class, a call to
-     *    asSuper(Foo.ref.type, Foo.val.type.tsym) would return non-null. This MAY NOT BE correct
-     *    depending on the call site. Foo.val is NOT a super type of Foo.ref either in the language
-     *    model or in the VM's world view. An example of such an hazardous call used to exist in
-     *    Gen.visitTypeCast. When we emit code for  (Foo) Foo.ref.instance a check for whether we
-     *    really need the cast cannot/shouldn't be gated on
-     *
-     *        asSuper(tree.expr.type, tree.clazz.type.tsym) == null)
-     *
-     *    but use !types.isSubtype(tree.expr.type, tree.clazz.type) which operates in terms of
-     *    types. When we operate in terms of symbols, there is a loss of type information leading
-     *    to a hazard. Whether a call to asSuper should be transformed into a isSubtype call is
-     *    tricky. isSubtype returns just a boolean while asSuper returns richer information which
-     *    may be required at the call site. Also where the concerned symbol corresponds to a
-     *    generic class, an asSuper call cannot be conveniently rewritten as an isSubtype call
-     *    (see that asSuper(ArrayList<String>.type, List<T>.tsym) != null while
-     *    isSubType(ArrayList<String>.type, List<T>.type) is false;) So care needs to be exercised.
-     *
-     * 2. Given a primitive class Foo, a call to asSuper(Foo.type, SuperclassOfFoo.tsym) and/or
-     *    a call to asSuper(Foo.type, SuperinterfaceOfFoo.tsym) would answer null. In many places
-     *    that is NOT what we want. An example of such a hazardous call used to occur in
-     *    Attr.visitForeachLoop when checking to make sure the for loop's control variable of a type
-     *    that implements Iterable: viz: types.asSuper(exprType, syms.iterableType.tsym);
-     *    These hazardous calls should be rewritten as
-     *    types.asSuper(exprType.referenceProjectionOrSelf(), syms.iterableType.tsym); instead.
-     *
      * @param t a type
      * @param sym a symbol
      */
@@ -2254,12 +2175,6 @@ public class Types {
          * (j.u.List<capture#160 of ? extends c.s.s.d.DocTree>, Iterable) =>
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
-
-        if (allowPrimitiveClasses && t.isPrimitiveClass()) {
-            // No man may be an island, but the bell tolls for a value.
-            return t.tsym == sym ? t : null;
-        }
-
         if (sym.type == syms.objectType) { //optimization
             return syms.objectType;
         }
@@ -2390,18 +2305,9 @@ public class Types {
      * @param sym a symbol
      */
     public Type memberType(Type t, Symbol sym) {
-
-        if ((sym.flags() & STATIC) != 0)
-            return sym.type;
-
-        /* If any primitive class types are involved, switch over to the reference universe,
-           where the hierarchy is navigable. V and V.ref have identical membership
-           with no bridging needs.
-        */
-        if (allowPrimitiveClasses && t.isPrimitiveClass())
-            t = t.referenceProjection();
-
-        return memberType.visit(t, sym);
+        return (sym.flags() & STATIC) != 0
+            ? sym.type
+            : memberType.visit(t, sym);
         }
     // where
         private SimpleVisitor<Type,Symbol> memberType = new SimpleVisitor<Type,Symbol>() {
@@ -2517,20 +2423,26 @@ public class Types {
     }
     // where
         private TypeMapping<Boolean> erasure = new StructuralTypeMapping<Boolean>() {
+            @SuppressWarnings("fallthrough")
             private Type combineMetadata(final Type s,
                                          final Type t) {
                 if (t.getMetadata().nonEmpty()) {
-                    switch (s.getKind()) {
-                        case OTHER:
-                        case UNION:
-                        case INTERSECTION:
-                        case PACKAGE:
-                        case EXECUTABLE:
-                        case NONE:
-                        case VOID:
-                        case ERROR:
+                    switch (s.getTag()) {
+                        case CLASS:
+                            if (s instanceof UnionClassType ||
+                                s instanceof IntersectionClassType) {
+                                return s;
+                            }
+                            //fall-through
+                        case BYTE, CHAR, SHORT, LONG, FLOAT, INT, DOUBLE, BOOLEAN,
+                             ARRAY, MODULE, TYPEVAR, WILDCARD, BOT:
+                            return s.dropMetadata(Annotations.class);
+                        case VOID, METHOD, PACKAGE, FORALL, DEFERRED,
+                             NONE, ERROR, UNKNOWN, UNDETVAR, UNINITIALIZED_THIS,
+                             UNINITIALIZED_OBJECT:
                             return s;
-                        default: return s.dropMetadata(Annotations.class);
+                        default:
+                            throw new AssertionError(s.getTag().name());
                     }
                 } else {
                     return s;
@@ -2554,26 +2466,15 @@ public class Types {
 
             @Override
             public Type visitClassType(ClassType t, Boolean recurse) {
-                // erasure(projection(primitive)) = projection(erasure(primitive))
-                Type erased = eraseClassType(t, recurse);
-                if (erased.hasTag(CLASS) && t.flavor != erased.getFlavor()) {
-                    erased = new ClassType(erased.getEnclosingType(),
-                            List.nil(), erased.tsym,
-                            erased.getMetadata(), t.flavor);
+                Type erased = t.tsym.erasure(Types.this);
+                if (recurse) {
+                    erased = new ErasedClassType(erased.getEnclosingType(),erased.tsym,
+                            t.dropMetadata(Annotations.class).getMetadata());
+                    return erased;
+                } else {
+                    return combineMetadata(erased, t);
                 }
-                return erased;
             }
-                // where
-                private Type eraseClassType(ClassType t, Boolean recurse) {
-                    Type erased = t.tsym.erasure(Types.this);
-                    if (recurse) {
-                        erased = new ErasedClassType(erased.getEnclosingType(), erased.tsym,
-                                                     t.dropMetadata(Annotations.class).getMetadata());
-                        return erased;
-                    } else {
-                        return combineMetadata(erased, t);
-                    }
-                }
 
             @Override
             public Type visitTypeVar(TypeVar t, Boolean recurse) {
@@ -2893,7 +2794,7 @@ public class Types {
                 Type outer1 = classBound(t.getEnclosingType());
                 if (outer1 != t.getEnclosingType())
                     return new ClassType(outer1, t.getTypeArguments(), t.tsym,
-                                         t.getMetadata(), t.getFlavor());
+                                         t.getMetadata());
                 else
                     return t;
             }
@@ -4014,7 +3915,7 @@ public class Types {
             // There is no spec detailing how type annotations are to
             // be inherited.  So set it to noAnnotations for now
             return new ClassType(class1.getEnclosingType(), merged.toList(),
-                                 class1.tsym, List.nil(), class1.getFlavor());
+                                 class1.tsym, List.nil());
         }
 
     /**
@@ -4574,7 +4475,7 @@ public class Types {
 
         if (captured)
             return new ClassType(cls.getEnclosingType(), S, cls.tsym,
-                                 cls.getMetadata(), cls.getFlavor());
+                                 cls.getMetadata());
         else
             return t;
     }
@@ -5149,6 +5050,52 @@ public class Types {
     }
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="Unconditionality">
+    /** Check unconditionality between any combination of reference or primitive types.
+     *
+     *  Rules:
+     *    an identity conversion
+     *    a widening reference conversion
+     *    a widening primitive conversion (delegates to `checkUnconditionallyExactPrimitives`)
+     *    a boxing conversion
+     *    a boxing conversion followed by a widening reference conversion
+     *
+     *  @param source     Source primitive or reference type
+     *  @param target     Target primitive or reference type
+     */
+    public boolean isUnconditionallyExact(Type source, Type target) {
+        if (isSameType(source, target)) {
+            return true;
+        }
+
+        return target.isPrimitive()
+                ? isUnconditionallyExactPrimitives(source, target)
+                : isSubtype(boxedTypeOrType(erasure(source)), target);
+    }
+
+    /** Check unconditionality between primitive types.
+     *
+     *  - widening from one integral type to another,
+     *  - widening from one floating point type to another,
+     *  - widening from byte, short, or char to a floating point type,
+     *  - widening from int to double.
+     *
+     *  @param selectorType     Type of selector
+     *  @param targetType       Target type
+     */
+    public boolean isUnconditionallyExactPrimitives(Type selectorType, Type targetType) {
+        if (isSameType(selectorType, targetType)) {
+            return true;
+        }
+
+        return (selectorType.isPrimitive() && targetType.isPrimitive()) &&
+                ((selectorType.hasTag(BYTE) && !targetType.hasTag(CHAR)) ||
+                 (selectorType.hasTag(SHORT) && (selectorType.getTag().isStrictSubRangeOf(targetType.getTag()))) ||
+                 (selectorType.hasTag(CHAR)  && (selectorType.getTag().isStrictSubRangeOf(targetType.getTag())))  ||
+                 (selectorType.hasTag(INT)   && (targetType.hasTag(DOUBLE) || targetType.hasTag(LONG))) ||
+                 (selectorType.hasTag(FLOAT) && (selectorType.getTag().isStrictSubRangeOf(targetType.getTag()))));
+    }
+    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Annotation support">
 
@@ -5248,10 +5195,7 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    if (types.allowPrimitiveClasses && type.isPrimitiveClass())
-                        append('Q');
-                    else
-                        append('L');
+                    append('L');
                     assembleClassSig(type);
                     append(';');
                     break;

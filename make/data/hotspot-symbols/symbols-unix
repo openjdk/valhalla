@@ -158,6 +158,7 @@ JVM_IsHiddenClass
 JVM_IsIdentityClass
 JVM_IsImplicitlyConstructibleClass
 JVM_IsInterface
+JVM_IsNullRestrictedArray
 JVM_IsPreviewEnabled
 JVM_IsValhallaEnabled
 JVM_IsContinuationsSupported
@@ -207,7 +208,6 @@ JVM_SetStackWalkContinuation
 JVM_SetThreadPriority
 JVM_SleepNanos
 JVM_StartThread
-JVM_SupportsCX8
 JVM_TotalMemory
 JVM_UnloadLibrary
 JVM_WaitForReferencePendingList
@@ -228,6 +228,7 @@ JVM_VirtualThreadEnd
 JVM_VirtualThreadMount
 JVM_VirtualThreadUnmount
 JVM_VirtualThreadHideFrames
+JVM_VirtualThreadDisableSuspend
 
 # Scoped values
 JVM_EnsureMaterializedForStackWalk_func

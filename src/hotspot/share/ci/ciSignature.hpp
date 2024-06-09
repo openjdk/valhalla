@@ -58,8 +58,6 @@ public:
 
   ciType*   return_type() const                  { return _return_type; }
   ciType*   type_at(int index) const             { return _types.at(index)->unwrap(); }
-  bool      returns_null_free_inline_type() const;
-  bool      is_null_free_at(int index) const;
 
   int       size() const                         { return _size; }
   int       count() const                        { return _types.length(); }

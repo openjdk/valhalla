@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public primitive class Q128byte implements Int128, ByByte {
+public value class Q128byte implements Int128, ByByte {
 
     public final Q64byte v0;
     public final Q64byte v1;

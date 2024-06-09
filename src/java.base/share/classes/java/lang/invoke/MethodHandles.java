@@ -26,7 +26,6 @@
 package java.lang.invoke;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.org.objectweb.asm.ClassReader;
@@ -36,7 +35,6 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.util.ClassFileDumper;
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import sun.invoke.util.ValueConversions;
 import sun.invoke.util.VerifyAccess;
@@ -707,8 +705,8 @@ public class MethodHandles {
      * (See the Java Virtual Machine Specification, section {@jvms 4.10.1.9}.)
      * <p>
      * The JVM represents constructors and static initializer blocks as internal methods
-     * with special names ({@value ConstantDescs#INIT_NAME},
-     * {@value ConstantDescs#VNEW_NAME} and {@value ConstantDescs#CLASS_INIT_NAME}).
+     * with special names ({@value ConstantDescs#INIT_NAME} and {@value
+     * ConstantDescs#CLASS_INIT_NAME}).
      * The internal syntax of invocation instructions allows them to refer to such internal
      * methods as if they were normal methods, but the JVM bytecode verifier rejects them.
      * A lookup of such an internal method will produce a {@code NoSuchMethodException}.
@@ -1628,7 +1626,6 @@ public class MethodHandles {
         }
 
         private Lookup(Class<?> lookupClass, Class<?> prevLookupClass, int allowedModes) {
-            assert PrimitiveClass.isPrimaryType(lookupClass);
             assert prevLookupClass == null || ((allowedModes & MODULE) == 0
                     && prevLookupClass.getModule() != lookupClass.getModule());
             assert !lookupClass.isArray() && !lookupClass.isPrimitive();
@@ -1844,7 +1841,7 @@ public class MethodHandles {
          *                           <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
          * @throws NullPointerException if {@code bytes} is {@code null}
          * @since 9
-         * @see Lookup#privateLookupIn
+         * @see MethodHandles#privateLookupIn
          * @see Lookup#dropLookupMode
          * @see ClassLoader#defineClass(String,byte[],int,int,ProtectionDomain)
          */
@@ -3521,19 +3518,10 @@ return mh1;
          */
         public MethodHandle unreflectConstructor(Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructor() || ctor.isStaticValueFactoryMethod());
+            assert(ctor.isConstructor());
             @SuppressWarnings("deprecation")
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
-            Class<?> defc = c.getDeclaringClass();
-            if (ctor.isObjectConstructor()) {
-                assert(ctor.getMethodType().returnType() == void.class);
-                return lookup.getDirectConstructorNoSecurityManager(defc, ctor);
-            } else {
-                // static init factory is a static method
-                assert(ctor.isMethod() && ctor.getMethodType().returnType() == defc && ctor.getReferenceKind() == REF_invokeStatic) : ctor.toString();
-                assert(!MethodHandleNatives.isCallerSensitive(ctor));  // must not be caller-sensitive
-                return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), defc, ctor, lookup);
-            }
+            return lookup.getDirectConstructorNoSecurityManager(ctor.getDeclaringClass(), ctor);
         }
 
         /*
@@ -3544,7 +3532,7 @@ return mh1;
          */
         /* package-private */ MethodHandle serializableConstructor(Class<?> decl, Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructor() && constructorInSuperclass(decl, c));
+            assert(ctor.isConstructor() && constructorInSuperclass(decl, c));
             checkAccess(REF_newInvokeSpecial, decl, ctor);
             assert(!MethodHandleNatives.isCallerSensitive(ctor));  // maybeBindCaller not relevant here
             return DirectMethodHandle.makeAllocator(decl, ctor).setVarargs(ctor);
@@ -3805,10 +3793,9 @@ return mh1;
             }
             Objects.requireNonNull(type);
             // implicit null-check of name
-            if (isIllegalMethodName(refKind, name)) {
+            if (name.startsWith("<") && refKind != REF_newInvokeSpecial) {
                 return null;
             }
-
             return IMPL_NAMES.resolveOrNull(refKind, new MemberName(refc, name, type, refKind), lookupClassOrNull(), allowedModes);
         }
 
@@ -3828,23 +3815,10 @@ return mh1;
             return caller == null || VerifyAccess.isClassAccessible(type, caller, prevLookupClass, allowedModes);
         }
 
-        /*
-         * "<init>" can only be invoked via invokespecial
-         * "<vnew>" factory can only invoked via invokestatic
-         */
-        boolean isIllegalMethodName(byte refKind, String name) {
-            if (name.startsWith("<")) {
-                return MemberName.VALUE_FACTORY_NAME.equals(name) ? refKind != REF_invokeStatic
-                                                                  : refKind != REF_newInvokeSpecial;
-            }
-            return false;
-        }
-
         /** Check name for an illegal leading "&lt;" character. */
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
-            if (isIllegalMethodName(refKind, name)) {
-                throw new NoSuchMethodException("illegal method name: " + name + " " + refKind);
-            }
+            if (name.startsWith("<") && refKind != REF_newInvokeSpecial)
+                throw new NoSuchMethodException("illegal method name: "+name);
         }
 
         /**
@@ -3948,7 +3922,7 @@ return mh1;
 
             // Step 3:
             Class<?> defc = m.getDeclaringClass();
-            if (!fullPrivilegeLookup && PrimitiveClass.asPrimaryType(defc) != PrimitiveClass.asPrimaryType(refc)) {
+            if (!fullPrivilegeLookup && defc != refc) {
                 ReflectUtil.checkPackageAccess(defc);
             }
         }
@@ -3956,7 +3930,7 @@ return mh1;
         void checkMethod(byte refKind, Class<?> refc, MemberName m) throws IllegalAccessException {
             boolean wantStatic = (refKind == REF_invokeStatic);
             String message;
-            if (m.isObjectConstructor())
+            if (m.isConstructor())
                 message = "expected a method, not a constructor";
             else if (!m.isMethod())
                 message = "expected a method";
@@ -4035,12 +4009,12 @@ return mh1;
             int mods = m.getModifiers();
             // check the class first:
             boolean classOK = (Modifier.isPublic(defc.getModifiers()) &&
-                               (PrimitiveClass.asPrimaryType(defc) == PrimitiveClass.asPrimaryType(refc) ||
+                               (defc == refc ||
                                 Modifier.isPublic(refc.getModifiers())));
             if (!classOK && (allowedModes & PACKAGE) != 0) {
                 // ignore previous lookup class to check if default package access
                 classOK = (VerifyAccess.isClassAccessible(defc, lookupClass(), null, FULL_POWER_MODES) &&
-                           (PrimitiveClass.asPrimaryType(defc) == PrimitiveClass.asPrimaryType(refc) ||
+                           (defc == refc ||
                             VerifyAccess.isClassAccessible(refc, lookupClass(), null, FULL_POWER_MODES)));
             }
             if (!classOK)
@@ -4265,7 +4239,7 @@ return mh1;
         /** Common code for all constructors; do not call directly except from immediately above. */
         private MethodHandle getDirectConstructorCommon(Class<?> refc, MemberName ctor,
                                                   boolean checkSecurity) throws IllegalAccessException {
-            assert(ctor.isObjectConstructor());
+            assert(ctor.isConstructor());
             checkAccess(REF_newInvokeSpecial, refc, ctor);
             // Optionally check with the security manager; this isn't needed for unreflect* calls.
             if (checkSecurity)
@@ -5171,7 +5145,7 @@ assert((int)twice.invokeExact(21) == 42);
                 return zero(w, type);
             return insertArguments(identity(type), 0, value);
         } else {
-            if (!PrimitiveClass.isPrimitiveValueType(type) && value == null)
+            if (value == null)
                 return zero(Wrapper.OBJECT, type);
             return identity(type).bindTo(value);
         }
@@ -5216,15 +5190,7 @@ assert((int)twice.invokeExact(21) == 42);
      */
     public static MethodHandle zero(Class<?> type) {
         Objects.requireNonNull(type);
-        if (type.isPrimitive()) {
-            return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (PrimitiveClass.isPrimitiveValueType(type)) {
-            // singleton default value
-            Object value = ValueClass.zeroInstance(type);
-            return identity(type).bindTo(value);
-        } else {
-            return zero(Wrapper.OBJECT, type);
-        }
+        return type.isPrimitive() ?  zero(Wrapper.forPrimitiveType(type), type) : zero(Wrapper.OBJECT, type);
     }
 
     private static MethodHandle identityOrVoid(Class<?> type) {
@@ -5254,7 +5220,7 @@ assert((int)twice.invokeExact(21) == 42);
 
     private static final MethodHandle[] IDENTITY_MHS = new MethodHandle[Wrapper.COUNT];
     private static MethodHandle makeIdentity(Class<?> ptype) {
-        MethodType mtype = MethodType.methodType(ptype, ptype);
+        MethodType mtype = methodType(ptype, ptype);
         LambdaForm lform = LambdaForm.identityForm(BasicType.basicType(ptype));
         return MethodHandleImpl.makeIntrinsic(mtype, lform, Intrinsic.IDENTITY);
     }

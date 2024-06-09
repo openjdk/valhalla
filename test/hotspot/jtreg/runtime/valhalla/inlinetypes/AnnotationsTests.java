@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
+ * @enablePreview
  * @compile AnnotationsTests.java
- * @run main/othervm -XX:+EnableValhalla AnnotationsTests
+ * @run main/othervm AnnotationsTests
  */
 
 
@@ -177,9 +178,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         try {
             GoodClass5 vc = new GoodClass5();
             Field f0 = vc.getClass().getDeclaredField("f0");
-            Asserts.assertFalse(UNSAFE.isFlattened(f0), "Unexpected flat field");
+            Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
             Field f1 = vc.getClass().getDeclaredField("f1");
-            Asserts.assertTrue(UNSAFE.isFlattened(f1), "Flat field expected, but field is not flat");
+            Asserts.assertTrue(UNSAFE.isFlatField(f1), "Flat field expected, but field is not flat");
         } catch (IncompatibleClassChangeError e) {
             exception = e;
             System.out.println("Received " + e);

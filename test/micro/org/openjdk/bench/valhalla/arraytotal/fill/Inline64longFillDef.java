@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Val_as_Val_fill0(Val_as_Val st) {
         Q64long[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -45,16 +45,16 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Val_as_Val_fill1(Val_as_Val st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Val_as_Ref_fill0(Val_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -63,16 +63,16 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Val_as_Ref_fill1(Val_as_Ref st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Ref_fill0(Ref_as_Ref st) {
-        Q64long.ref[] arr = st.arr;
+        Q64long[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -81,7 +81,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Ref_as_Ref_fill1(Ref_as_Ref st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
@@ -90,7 +90,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Val_as_Int_fill0(Val_as_Int st) {
         Int64[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -99,7 +99,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Val_as_Int_fill1(Val_as_Int st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
@@ -108,7 +108,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Ref_as_Int_fill0(Ref_as_Int st) {
         Int64[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -117,7 +117,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Ref_as_Int_fill1(Ref_as_Int st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
@@ -126,7 +126,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Int_as_Int_fill0(Int_as_Int st) {
         Int64[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -135,7 +135,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Int_as_Int_fill1(Int_as_Int st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
@@ -144,7 +144,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Val_as_Obj_fill0(Val_as_Obj st) {
         Object[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -153,7 +153,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Val_as_Obj_fill1(Val_as_Obj st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
@@ -162,7 +162,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Ref_as_Obj_fill0(Ref_as_Obj st) {
         Object[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -171,7 +171,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Ref_as_Obj_fill1(Ref_as_Obj st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
@@ -180,7 +180,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Int_as_Obj_fill0(Int_as_Obj st) {
         Object[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -189,7 +189,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Int_as_Obj_fill1(Int_as_Obj st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
@@ -198,7 +198,7 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Obj_as_Obj_fill0(Obj_as_Obj st) {
         Object[] arr = st.arr;
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = Q64long.default;
+            arr[i] = new Q64long()  ;
         }
     }
 
@@ -207,68 +207,68 @@ public class Inline64longFillDef extends StatesQ64long {
     public void Def_to_Obj_as_Obj_fill1(Obj_as_Obj st) {
         int len = st.arr.length;
         for (int i = 0; i < len; i++) {
-            st.arr[i] = Q64long.default;
+            st.arr[i] = new Q64long()  ;
         }
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Val_as_Val_arrayfill(Val_as_Val st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Val_as_Ref_arrayfill(Val_as_Ref st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Ref_arrayfill(Ref_as_Ref st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Val_as_Int_arrayfill(Val_as_Int st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Int_arrayfill(Ref_as_Int st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Int_as_Int_arrayfill(Int_as_Int st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Val_as_Obj_arrayfill(Val_as_Obj st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Ref_as_Obj_arrayfill(Ref_as_Obj st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Int_as_Obj_arrayfill(Int_as_Obj st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Def_to_Obj_as_Obj_arrayfill(Obj_as_Obj st) {
-        Arrays.fill(st.arr, Q64long.default);
+        Arrays.fill(st.arr, new Q64long()  );
     }
 
 }

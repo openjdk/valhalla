@@ -71,6 +71,7 @@ import static java.lang.String.UTF16;
  * @author  Joseph D. Darcy
  * @since 1.0
  */
+@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
 public final class Integer extends Number
         implements Comparable<Integer>, Constable, ConstantDesc {
@@ -562,7 +563,7 @@ public final class Integer extends Number
 
         int len = s.length();
         if (len == 0) {
-            throw new NumberFormatException("");
+            throw NumberFormatException.forInputString("", radix);
         }
         int digit = ~0xFF;
         int i = 0;
@@ -637,7 +638,7 @@ public final class Integer extends Number
          * and by not updating i anywhere else.
          */
         if (beginIndex == endIndex) {
-            throw new NumberFormatException("");
+            throw NumberFormatException.forInputString("", radix);
         }
         int digit = ~0xFF;
         int i = beginIndex;
@@ -827,7 +828,7 @@ public final class Integer extends Number
          * and by not updating i anywhere else.
          */
         if (beginIndex == endIndex) {
-            throw new NumberFormatException("");
+            throw NumberFormatException.forInputString("", radix);
         }
         int i = beginIndex;
         char firstChar = s.charAt(i++);

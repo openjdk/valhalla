@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,7 +92,7 @@ void Parse::array_load(BasicType bt) {
     bt = T_OBJECT;
   } else if (!ary_t->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
-    assert(UseFlatArray && is_reference_type(bt) && elemptr->can_be_inline_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
+    assert(UseFlatArray && is_reference_type(bt) && elemptr->can_be_inline_type() && !ary_t->is_not_null_free() &&
            (!elemptr->is_inlinetypeptr() || elemptr->inline_klass()->flat_in_array()), "array can't be flat");
     IdealKit ideal(this);
     IdealVariable res(ideal);
@@ -314,7 +314,7 @@ void Parse::array_store(BasicType bt) {
       return;
     } else if (!ary_t->is_not_null_free()) {
       // Array is not flat but may be null free
-      assert(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact(), "array can't be null-free");
+      assert(elemtype->is_oopptr()->can_be_inline_type(), "array can't be null-free");
       ary = inline_array_null_guard(ary, cast_val, 3, true);
     }
   }
@@ -497,7 +497,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     }
     if (!null_free_array) {
       { // Deoptimize if null-free array
-        BuildCutout unless(this, null_free_array_test(load_object_klass(ary), /* null_free = */ false), PROB_MAX);
+        BuildCutout unless(this, null_free_array_test(ary, /* null_free = */ false), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
       assert(!stopped(), "null-free array should have been caught earlier");
@@ -1689,21 +1689,6 @@ bool Parse::seems_never_taken(float prob) const {
   return prob < PROB_MIN;
 }
 
-// True if the comparison seems to be the kind that will not change its
-// statistics from true to false.  See comments in adjust_map_after_if.
-// This question is only asked along paths which are already
-// classified as untaken (by seems_never_taken), so really,
-// if a path is never taken, its controlling comparison is
-// already acting in a stable fashion.  If the comparison
-// seems stable, we will put an expensive uncommon trap
-// on the untaken path.
-bool Parse::seems_stable_comparison() const {
-  if (C->too_many_traps(method(), bci(), Deoptimization::Reason_unstable_if)) {
-    return false;
-  }
-  return true;
-}
-
 //-------------------------------repush_if_args--------------------------------
 // Push arguments of an "if" bytecode back onto the stack by adjusting _sp.
 inline int Parse::repush_if_args() {
@@ -1792,7 +1777,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
 }
 
 //------------------------------------do_if------------------------------------
-void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_taken) {
+void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken) {
   int target_bci = iter().get_dest();
 
   Block* branch_block = successor_for_bci(target_bci);
@@ -1881,7 +1866,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
         branch_block->next_path_num();
       }
     } else {
-      adjust_map_after_if(taken_btest, c, prob, branch_block);
+      adjust_map_after_if(taken_btest, c, prob, branch_block, can_trap);
       if (!stopped()) {
         if (new_path) {
           // Merge by using a new path
@@ -1906,7 +1891,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
       next_block->next_path_num();
     }
   } else {
-    adjust_map_after_if(untaken_btest, c, untaken_prob, next_block);
+    adjust_map_after_if(untaken_btest, c, untaken_prob, next_block, can_trap);
   }
 }
 
@@ -2109,10 +2094,20 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     do_if(btest, cmp);
     return;
   }
+
+  // Don't add traps to unstable if branches because additional checks are required to
+  // decide if the operands are equal/substitutable and we therefore shouldn't prune
+  // branches for one if based on the profiling of the acmp branches.
+  // Also, OptimizeUnstableIf would set an incorrect re-rexecution state because it
+  // assumes that there is a 1-1 mapping between the if and the acmp branches and that
+  // hitting a trap means that we will take the corresponding acmp branch on re-execution.
+  const bool can_trap = true;
+
   Node* eq_region = nullptr;
   if (btest == BoolTest::eq) {
-    do_if(btest, cmp, true);
+    do_if(btest, cmp, !can_trap, true);
     if (stopped()) {
+      // Pointers are equal, operands must be equal
       return;
     }
   } else {
@@ -2121,7 +2116,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     eq_region = new RegionNode(3);
     {
       PreserveJVMState pjvms(this);
-      do_if(btest, cmp, false, &is_not_equal);
+      // Pointers are not equal, but more checks are needed to determine if the operands are (not) substitutable
+      do_if(btest, cmp, !can_trap, false, &is_not_equal);
       if (!stopped()) {
         eq_region->init_req(1, control());
       }
@@ -2261,18 +2257,19 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   dec_sp(2);
 
   // Test the return value of ValueObjectMethods::isSubstitutable()
+  // This is the last check, do_if can emit traps now.
   Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
   Node* ctl = C->top();
   if (btest == BoolTest::eq) {
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp);
+    do_if(btest, subst_cmp, can_trap);
     if (!stopped()) {
       ctl = control();
     }
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, false, &ctl);
+    do_if(btest, subst_cmp, can_trap, false, &ctl);
     if (!stopped()) {
       eq_region->init_req(2, control());
       eq_io_phi->init_req(2, i_o());
@@ -2307,7 +2304,8 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
   if (!UseInterpreter) {
     return false;
   }
-  return (seems_never_taken(prob) && seems_stable_comparison());
+  return seems_never_taken(prob) &&
+         !C->too_many_traps(method(), bci(), Deoptimization::Reason_unstable_if);
 }
 
 void Parse::maybe_add_predicate_after_if(Block* path) {
@@ -2328,7 +2326,7 @@ void Parse::maybe_add_predicate_after_if(Block* path) {
 // branch, seeing how it constrains a tested value, and then
 // deciding if it's worth our while to encode this constraint
 // as graph nodes in the current abstract interpretation map.
-void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path) {
+void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path, bool can_trap) {
   if (!c->is_Cmp()) {
     maybe_add_predicate_after_if(path);
     return;
@@ -2340,7 +2338,7 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block
 
   bool is_fallthrough = (path == successor_for_bci(iter().next_bci()));
 
-  if (path_is_suitable_for_uncommon_trap(prob)) {
+  if (can_trap && path_is_suitable_for_uncommon_trap(prob)) {
     repush_if_args();
     Node* call = uncommon_trap(Deoptimization::Reason_unstable_if,
                   Deoptimization::Action_reinterpret,
@@ -2468,10 +2466,10 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
       const Type* tboth = tcon->join_speculative(tval);
       if (tboth == tval)  break;        // Nothing to gain.
       if (tcon->isa_int()) {
-        ccast = new CastIINode(val, tboth);
+        ccast = new CastIINode(control(), val, tboth);
       } else if (tcon == TypePtr::NULL_PTR) {
         // Cast to null, but keep the pointer identity temporarily live.
-        ccast = new CastPPNode(val, tboth);
+        ccast = new CastPPNode(control(), val, tboth);
       } else {
         const TypeF* tf = tcon->isa_float_constant();
         const TypeD* td = tcon->isa_double_constant();
@@ -2502,7 +2500,6 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
     assert(tcc != tval && tcc->higher_equal(tval), "must improve");
     // Delay transform() call to allow recovery of pre-cast value
     // at the control merge.
-    ccast->set_req(0, control());
     _gvn.set_type_bottom(ccast);
     record_for_igvn(ccast);
     cast = ccast;
@@ -3491,12 +3488,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_new:
     do_new();
     break;
-  case Bytecodes::_aconst_init:
-    do_aconst_init();
-    break;
-  case Bytecodes::_withfield:
-    do_withfield();
-    break;
 
   case Bytecodes::_jsr:
   case Bytecodes::_jsr_w:
@@ -3531,7 +3522,8 @@ void Parse::do_one_bytecode() {
   }
 
 #ifndef PRODUCT
-  constexpr int perBytecode = 5;
+  if (failing()) { return; }
+  constexpr int perBytecode = 6;
   if (C->should_print_igv(perBytecode)) {
     IdealGraphPrinter* printer = C->igv_printer();
     char buffer[256];

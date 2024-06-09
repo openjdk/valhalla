@@ -84,14 +84,6 @@ class Bytecode: public StackObj {
       return Bytes::get_Java_u2(p);
     }
   }
-  int get_index_u1_cpcache(Bytecodes::Code bc) const {
-    assert_same_format_as(bc); assert_index_size(1, bc);
-    return *(u1*)addr_at(1) + ConstantPool::CPCACHE_INDEX_TAG;
-  }
-  int get_index_u2_cpcache(Bytecodes::Code bc) const {
-    assert_same_format_as(bc); assert_index_size(2, bc); assert_native_index(bc);
-    return Bytes::get_native_u2(addr_at(1)) + ConstantPool::CPCACHE_INDEX_TAG;
-  }
   int get_index_u4(Bytecodes::Code bc) const {
     assert_same_format_as(bc); assert_index_size(4, bc);
     assert(can_use_native_byte_order(bc), "");
@@ -188,8 +180,8 @@ class Bytecode_member_ref: public Bytecode {
   const Method* method() const                 { return _method; }
   ConstantPool* constants() const              { return _method->constants(); }
   ConstantPoolCache* cpcache() const           { return _method->constants()->cache(); }
-  ConstantPoolCacheEntry* cpcache_entry() const;
   ResolvedIndyEntry* resolved_indy_entry() const;
+  ResolvedMethodEntry* resolved_method_entry() const;
 
  public:
   int          index() const;                    // cache index (loaded from instruction)
@@ -256,7 +248,6 @@ class Bytecode_field: public Bytecode_member_ref {
   bool is_putfield() const                       { return java_code() == Bytecodes::_putfield; }
   bool is_getstatic() const                      { return java_code() == Bytecodes::_getstatic; }
   bool is_putstatic() const                      { return java_code() == Bytecodes::_putstatic; }
-  bool is_withfield() const                      { return java_code() == Bytecodes::_withfield; }
 
   bool is_getter() const                         { return is_getfield()  || is_getstatic(); }
   bool is_static() const                         { return is_getstatic() || is_putstatic(); }
@@ -264,8 +255,7 @@ class Bytecode_field: public Bytecode_member_ref {
   bool is_valid() const                          { return is_getfield()   ||
                                                           is_putfield()   ||
                                                           is_getstatic()  ||
-                                                          is_putstatic()  ||
-                                                          is_withfield(); }
+                                                          is_putstatic(); }
   void verify() const;
 };
 
@@ -296,15 +286,6 @@ class Bytecode_new: public Bytecode {
 
   // Returns index
   u2 index() const   { return get_index_u2(Bytecodes::_new); };
-};
-
-class Bytecode_aconst_init: public Bytecode {
- public:
-  Bytecode_aconst_init(Method* method, address bcp): Bytecode(method, bcp) { verify(); }
-  void verify() const { assert(java_code() == Bytecodes::_aconst_init, "check aconst_init"); }
-
-  // Returns index
-  long index() const   { return get_index_u2(Bytecodes::_aconst_init); };
 };
 
 class Bytecode_multianewarray: public Bytecode {

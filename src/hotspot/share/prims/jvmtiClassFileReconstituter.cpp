@@ -86,7 +86,7 @@ void JvmtiClassFileReconstituter::write_field_infos() {
     // JVMSpec|         attribute_info attributes[attributes_count];
     // JVMSpec|   }
 
-    write_u2(access_flags.get_flags() & JVM_RECOGNIZED_FIELD_MODIFIERS);
+    write_u2(access_flags.get_flags());
     write_u2(name_index);
     write_u2(signature_index);
     u2 attr_count = 0;
@@ -917,7 +917,7 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   copy_cpool_bytes(writeable_address(cpool_size()));
 
   // JVMSpec|           u2 access_flags;
-  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_IDENTITY));
+  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS));
   // JVMSpec|           u2 this_class;
   // JVMSpec|           u2 super_class;
   write_u2(class_symbol_to_cpool_index(ik()->name()));
@@ -1027,8 +1027,7 @@ void JvmtiClassFileReconstituter::copy_bytecodes(const methodHandle& mh,
       case Bytecodes::_getstatic       :  // fall through
       case Bytecodes::_putstatic       :  // fall through
       case Bytecodes::_getfield        :  // fall through
-      case Bytecodes::_putfield        :  // fall through
-      case Bytecodes::_withfield       : {// fall through
+      case Bytecodes::_putfield        : {
         int field_index = Bytes::get_native_u2(bcp+1);
         u2 pool_index = mh->constants()->resolved_field_entry_at(field_index)->constant_pool_index();
         assert(pool_index < mh->constants()->length(), "sanity check");
@@ -1047,15 +1046,13 @@ void JvmtiClassFileReconstituter::copy_bytecodes(const methodHandle& mh,
 
         int cpci = Bytes::get_native_u2(bcp+1);
         bool is_invokedynamic = (code == Bytecodes::_invokedynamic);
-        ConstantPoolCacheEntry* entry;
         int pool_index;
         if (is_invokedynamic) {
           cpci = Bytes::get_native_u4(bcp+1);
           pool_index = mh->constants()->resolved_indy_entry_at(mh->constants()->decode_invokedynamic_index(cpci))->constant_pool_index();
         } else {
-        // cache cannot be pre-fetched since some classes won't have it yet
-          entry = mh->constants()->cache()->entry_at(cpci);
-          pool_index = entry->constant_pool_index();
+          // cache cannot be pre-fetched since some classes won't have it yet
+          pool_index = mh->constants()->resolved_method_entry_at(cpci)->constant_pool_index();
         }
         assert(pool_index < mh->constants()->length(), "sanity check");
         Bytes::put_Java_u2((address)(p+1), (u2)pool_index);     // java byte ordering

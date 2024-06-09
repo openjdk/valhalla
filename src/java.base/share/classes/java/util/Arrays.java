@@ -26,6 +26,7 @@
 package java.util;
 
 import jdk.internal.util.ArraysSupport;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.io.Serializable;
@@ -3507,10 +3508,13 @@ public final class Arrays {
      */
     @IntrinsicCandidate
     public static <T,U> T[] copyOf(U[] original, int newLength, Class<? extends T[]> newType) {
+        Class<?> componentType = newType.getComponentType();
         @SuppressWarnings("unchecked")
         T[] copy = ((Object)newType == (Object)Object[].class)
             ? (T[]) new Object[newLength]
-            : (T[]) Array.newInstance(newType.getComponentType(), newLength);
+            : (original.getClass() == newType && componentType.isValue() && ValueClass.isNullRestrictedArray(original)
+                    ? (T[]) ValueClass.newNullRestrictedArray(newType.getComponentType(), newLength)
+                    : (T[]) Array.newInstance(componentType, newLength));
         System.arraycopy(original, 0, copy, 0,
                          Math.min(original.length, newLength));
         return copy;
@@ -3806,10 +3810,13 @@ public final class Arrays {
         if (newLength < 0) {
             throw new IllegalArgumentException(from + " > " + to);
         }
+        Class<?> componentType = newType.getComponentType();
         @SuppressWarnings("unchecked")
         T[] copy = ((Object)newType == (Object)Object[].class)
             ? (T[]) new Object[newLength]
-            : (T[]) Array.newInstance(newType.getComponentType(), newLength);
+            : (original.getClass() == newType && componentType.isValue() && ValueClass.isNullRestrictedArray(original)
+                    ? (T[]) ValueClass.newNullRestrictedArray(componentType, newLength)
+                    : (T[]) Array.newInstance(componentType, newLength));
         System.arraycopy(original, from, copy, 0,
                          Math.min(original.length - from, newLength));
         return copy;

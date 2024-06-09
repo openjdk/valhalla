@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,12 @@
  */
 
 /*
+ * @ignore Fix JDK-8328438
  * @test
  * @summary Test basic verifier assignability of inline types.
- * @compile -XDenablePrimitiveClasses VTAssignability.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:remote VTAssignability
+ * @enablePreview
+ * @compile VTAssignability.java
+ * @run main/othervm -Xverify:remote VTAssignability
  */
 
 // Test that an inline type is assignable to itself, to java.lang.Object,
