@@ -51,6 +51,16 @@ import static java.lang.Float.floatToFloat16;
  * <p>This is a <a href="https://openjdk.org/jeps/401">primitive value class</a> and its objects are
  * identity-less non-nullable value objects.
  *
+ * @apiNote
+ * The methods in this class generally have analogous methods in
+ * either {@link Float}/{@link Double} or {@link Math}/{@link
+ * StrictMath}. Unless otherwise specified, the handling of special
+ * floating-point values such as {@linkplain #isNaN(Float16) NaN}
+ * values, {@linkplain #isInfinite(Float16) infinities}, and signed
+ * zeros of methods in this class is wholly analogous to the handling
+ * of equivalent cases by methods in {@code Float}, {@code Double},
+ * {@code Math}, etc.
+ *
  * @author Jatin Bhateja
  * @since 20.00
  */
@@ -59,10 +69,11 @@ import static java.lang.Float.floatToFloat16;
 // Enhanced Primitive Boxes described by JEP-402 (https://openjdk.org/jeps/402)
 @jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Float16 extends Number {
-    // implements Comparable<Float16>
+public final class Float16
+    extends Number
+    implements Comparable<Float16> {
     private final short value;
-    private static final long serialVersionUID = 16; // Not needed for a primitive class?
+    private static final long serialVersionUID = 16; // Not needed for a value class?
 
     /**
      * A constant holding the positive infinity of type
@@ -160,6 +171,9 @@ public final class Float16 extends Number {
      *
      * @param   f16   the {@code Float16} to be converted.
      * @return a hex string representation of the argument.
+     *
+     * @see Float#toHexString(float)
+     * @see Double#toHexString(double)
      */
     public static String toHexString(Float16 f16) {
         float f = f16.floatValue();
@@ -326,7 +340,6 @@ public final class Float16 extends Number {
      * @return  the binary16 encoded {@code short} value represented by this object
      *          converted to type {@code short}
      * @jls 5.1.3 Narrowing Primitive Conversion
-     * @since 1.1
      */
     @Override
     public short shortValue() {
@@ -411,6 +424,9 @@ public final class Float16 extends Number {
      *
      * @param   f16   a {@code Float16} floating-point number.
      * @return the bits that represent the floating-point number.
+     *
+     * @see Float#floatToRawIntBits(float)
+     * @see Double#doubleToRawLongBits(double)
      */
     public static short float16ToRawShortBits(Float16 f16) {
         return f16.value;
@@ -422,6 +438,9 @@ public final class Float16 extends Number {
      * @param   bits   any {@code short} integer.
      * @return  the {@code Float16} floating-point value with the same
      *          bit pattern.
+     *
+     * @see Float#intBitsToFloat(int)
+     * @see Double#longBitsToDouble(long)
      */
     public static Float16 shortBitsToFloat16(short bits) {
         return new Float16(bits);
@@ -460,7 +479,7 @@ public final class Float16 extends Number {
      *
      * @jls 15.20.1 Numerical Comparison Operators {@code <}, {@code <=}, {@code >}, and {@code >=}
      */
-    // @Override
+    @Override
     public int compareTo(Float16 anotherFloat16) {
         return Float16.compare(this, anotherFloat16);
     }
@@ -532,6 +551,8 @@ public final class Float16 extends Number {
      * @param addend the first operand
      * @param augend the second operand
      * @return the sum of the operands
+     *
+     * @jls 15.18.2 Additive Operators ({@code +} and {@code -}) for Numeric Types
      */
     // @IntrinsicCandidate
     public static Float16 add(Float16 addend, Float16 augend) {
@@ -549,6 +570,8 @@ public final class Float16 extends Number {
      * @param minuend the first operand
      * @param  subtrahend the second operand
      * @return the difference of the operands
+     *
+     * @jls 15.18.2 Additive Operators (+ and -) for Numeric Types
      */
     // @IntrinsicCandidate
     public static Float16 subtract(Float16 minuend, Float16 subtrahend) {
@@ -566,6 +589,8 @@ public final class Float16 extends Number {
      * @param multiplier the first operand
      * @param multiplicand the second operand
      * @return the product of the operands
+     *
+     * @jls 15.17.1 Multiplication Operator {@code *}
      */
     // @IntrinsicCandidate
     public static Float16 multiply(Float16 multiplier, Float16 multiplicand) {
@@ -584,6 +609,8 @@ public final class Float16 extends Number {
      * @param dividend the first operand
      * @param divisor the second operand
      * @return the quotient of the operands
+     *
+     * @jls 15.17.2 Division Operator {@code /}
      */
     // @IntrinsicCandidate
     public static Float16 divide(Float16 dividend, Float16 divisor) {
@@ -600,6 +627,9 @@ public final class Float16 extends Number {
      * IEEE 754.
      *
      * @param radicand the argument to have its square root taken
+     *
+     * @see Math#sqrt(float)
+     * @see Math#sqrt(double)
      */
     // @IntrinsicCandidate
     public static Float16 sqrt(Float16 radicand) {
@@ -628,6 +658,9 @@ public final class Float16 extends Number {
      * @return (<i>a</i>&nbsp;&times;&nbsp;<i>b</i>&nbsp;+&nbsp;<i>c</i>)
      * computed, as if with unlimited range and precision, and rounded
      * once to the nearest {@code Float16} value
+     *
+     * @see Math#fma(float, float, float)
+     * @see Math#fma(double, double, double)
      */
     // @IntrinsicCandidate
     public static Float16 fma(Float16 a, Float16 b, Float16 c) {
@@ -646,7 +679,8 @@ public final class Float16 extends Number {
         // in double and then doing a single rounding of that value to
         // Float16 will implement this operation.
 
-        return valueOf( ( ((double)a.floatValue()) * (double)b.floatValue() )  +
+        return valueOf( ( ((double)a.floatValue()) * (double)b.floatValue() )
+                        +
                         ((double)c.floatValue()) );
     }
 
@@ -662,12 +696,49 @@ public final class Float16 extends Number {
         return shortBitsToFloat16((short)(f16.value ^ (short)0x0000_8000));
     }
 
+    /**
+     * {@return the absolute value of the argument}
+     * @param f16 the argument whose absolute value is to be determined
+     *
+     * @see Math#abs(float)
+     * @see Math#abs(double)
+     */
+    // @IntrinsicCandidate
+    public static Float16 abs(Float16 f16) {
+        // Zero out sign bit. Per IEE 754-2019 section 5.5.1, abs is a
+        // bit-level operation and not a logical operation.
+        return shortBitsToFloat16((short)(f16.value & (short)0x0000_7FFF));
+    }
+
+    /**
+     * Returns the unbiased exponent used in the representation of a
+     * {@code Float16}.
+     *
+     * @param f16 a {@code Floa16t} value
+     * @return the unbiased exponent of the argument
+     *
+     * @see Math#getExponent(float)
+     * @see Math#getExponent(double)
+     */
+    public static int getExponent(Float16 f16) {
+        return getExponent0(f16.value);
+    }
+
+    /**
+     * From the bitwise representation of a float16, mask out exponent
+     * bits, shift to the right and then subtract out float16's bias
+     * adjust, 15, to get true exponent value.
+     */
+    /*package*/ static int getExponent0(short bits) {
+        // package private to be usable in java.lang.Float.
+        int bin16ExpBits     = 0x0000_7c00 & bits;     // Five exponent bits.
+        return (bin16ExpBits >> (PRECISION - 1)) - 15;
+    }
+
     // To be considered:
-    // abs // bit-level per section 5.5.1
     // copysign
     // scalb
     // nextUp / nextDown
-    // getExponent
     // IEEEremainder
     // signum
     // ulp
