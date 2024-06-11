@@ -172,10 +172,10 @@ bool InstanceKlass::field_is_null_free_inline_type(int index) const {
   return field(index).field_flags().is_null_free_inline_type();
 }
 
-bool InstanceKlass::is_class_in_preload_attribute(Symbol* name) const {
-  if (_preload_classes == nullptr) return false;
-  for (int i = 0; i < _preload_classes->length(); i++) {
-        Symbol* class_name = _constants->klass_at_noresolve(_preload_classes->at(i));
+bool InstanceKlass::is_class_in_loadable_descriptors_attribute(Symbol* name) const {
+  if (_loadable_descriptors == nullptr) return false;
+  for (int i = 0; i < _loadable_descriptors->length(); i++) {
+        Symbol* class_name = _constants->klass_at_noresolve(_loadable_descriptors->at(i));
         if (class_name == name) return true;
   }
   return false;
@@ -568,7 +568,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
   _init_thread(nullptr),
   _inline_type_field_klasses(nullptr),
   _null_marker_offsets(nullptr),
-  _preload_classes(nullptr),
+  _loadable_descriptors(nullptr),
   _adr_inlineklass_fixed_block(nullptr)
 {
   set_vtable_length(parser.vtable_size());
@@ -761,10 +761,10 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_permitted_subclasses(nullptr);
 
-  if (preload_classes() != nullptr &&
-      preload_classes() != Universe::the_empty_short_array() &&
-      !preload_classes()->is_shared()) {
-    MetadataFactory::free_array<jushort>(loader_data, preload_classes());
+  if (loadable_descriptors() != nullptr &&
+      loadable_descriptors() != Universe::the_empty_short_array() &&
+      !loadable_descriptors()->is_shared()) {
+    MetadataFactory::free_array<jushort>(loader_data, loadable_descriptors());
   }
 
   // We should deallocate the Annotations instance if it's not in shared spaces.
@@ -1011,13 +1011,13 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     }
 
     // Aggressively preloading all classes from the Preload attribute
-    if (preload_classes() != nullptr) {
+    if (loadable_descriptors() != nullptr) {
       HandleMark hm(THREAD);
-      for (int i = 0; i < preload_classes()->length(); i++) {
-        if (constants()->tag_at(preload_classes()->at(i)).is_klass()) continue;
-        Symbol* class_name = constants()->klass_at_noresolve(preload_classes()->at(i));
+      for (int i = 0; i < loadable_descriptors()->length(); i++) {
+        Symbol* sig = constants()->symbol_at(loadable_descriptors()->at(i));
+        TempNewSymbol class_name = Signature::strip_envelope(sig);
         if (class_name == name()) continue;
-        log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the Preload attribute", class_name->as_C_string(), name()->as_C_string());
+        log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the LoadableDescriptors attribute", sig->as_C_string(), name()->as_C_string());
         oop loader = class_loader();
         oop protection_domain = this->protection_domain();
         Klass* klass = SystemDictionary::resolve_or_null(class_name,
@@ -1026,13 +1026,13 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           CLEAR_PENDING_EXCEPTION;
         }
         if (klass != nullptr) {
-          log_info(class, preload)("Preloading of class %s during linking of class %s (cause: Preload attribute) succeeded", class_name->as_C_string(), name()->as_C_string());
+          log_info(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) succeeded", class_name->as_C_string(), name()->as_C_string());
           if (!klass->is_inline_klass()) {
             // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-              log_warning(class, preload)("Preloading class %s during linking of class %s (cause: Preload attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
+              log_warning(class, preload)("Preloading class %s during linking of class %s (cause: LoadableDescriptors attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
           }
         } else {
-          log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: Preload attribute) failed", class_name->as_C_string(), name()->as_C_string());
+          log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) failed", class_name->as_C_string(), name()->as_C_string());
         }
       }
     }
@@ -2836,7 +2836,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 
   it->push(&_nest_members);
   it->push(&_permitted_subclasses);
-  it->push(&_preload_classes);
+  it->push(&_loadable_descriptors);
   it->push(&_record_components);
 
   it->push(&_inline_type_field_klasses, MetaspaceClosure::_writable);
@@ -3950,7 +3950,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     st->print(BULLET"record components:     "); record_components()->print_value_on(st);     st->cr();
   }
   st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
-  st->print(BULLET"preload classes:     "); preload_classes()->print_value_on(st); st->cr();
+  st->print(BULLET"preload classes:     "); loadable_descriptors()->print_value_on(st); st->cr();
   if (java_mirror() != nullptr) {
     st->print(BULLET"java mirror:       ");
     java_mirror()->print_value_on(st);

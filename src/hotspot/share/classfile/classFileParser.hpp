@@ -132,7 +132,7 @@ class ClassFileParser {
   Array<u2>* _nest_members;
   u2 _nest_host;
   Array<u2>* _permitted_subclasses;
-  Array<u2>* _preload_classes;
+  Array<u2>* _loadable_descriptors;
   Array<RecordComponent*>* _record_components;
   Array<InstanceKlass*>* _local_interfaces;
   GrowableArray<u2>* _local_interface_indexes;
@@ -356,7 +356,7 @@ class ClassFileParser {
                                                     const u1* const permitted_subclasses_attribute_start,
                                                     TRAPS);
 
-  u2 parse_classfile_preload_attribute(const ClassFileStream* const cfs,
+  u2 parse_classfile_loadable_descriptors_attribute(const ClassFileStream* const cfs,
                                                     const u1* const preload_attribute_start,
                                                     TRAPS);
 
@@ -493,6 +493,8 @@ class ClassFileParser {
   void verify_legal_field_name(const Symbol* name, TRAPS) const;
   void verify_legal_method_name(const Symbol* name, TRAPS) const;
 
+  bool legal_field_signature(const Symbol* signature, TRAPS) const;
+
   void verify_legal_field_signature(const Symbol* fieldname,
                                     const Symbol* signature,
                                     TRAPS) const;
@@ -617,7 +619,7 @@ class ClassFileParser {
 
   bool is_internal() const { return INTERNAL == _pub_level; }
 
-  bool is_class_in_preload_attribute(Symbol *klass);
+  bool is_class_in_loadable_descriptors_attribute(Symbol *klass);
 
   static bool verify_unqualified_name(const char* name, unsigned int length, int type);
 
