@@ -24,16 +24,16 @@
 /*
  * @test
  * @bug 8280164
- * @summary Check emission of Preload attribute
+ * @summary Check emission of LoadableDescriptors attribute
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @enablePreview
- * @run main PreloadAttributeTest
+ * @run main LoadableDescriptorsAttributeTest
  */
 
 import com.sun.tools.classfile.*;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_Utf8_info;
 
-public class PreloadAttributeTest {
+public class LoadableDescriptorsAttributeTest {
 
     final value class V1 {}
     final value class V2 {}
@@ -46,7 +46,7 @@ public class PreloadAttributeTest {
     final value class V9 {}
 
     static final value class X {
-        final V1 [] v1 = null; // field descriptor, encoding array type - no preload.
+        final V1 [] v1 = null; // field descriptor, encoding array type - no LoadableDescriptors.
         V2 foo() {  // method descriptor encoding value type, to be preloaded
             return null;
         }
@@ -68,43 +68,43 @@ public class PreloadAttributeTest {
             return null;
         }
     }
-    // So we expect ONLY V2, V3 V5, V7 to be in Preload list
+    // So we expect ONLY V2, V3 V5, V7 to be in LoadableDescriptors list
 
     public static void main(String[] args) throws Exception {
-        ClassFile cls = ClassFile.read(PreloadAttributeTest.class.getResourceAsStream("PreloadAttributeTest$X.class"));
+        ClassFile cls = ClassFile.read(LoadableDescriptorsAttributeTest.class.getResourceAsStream("LoadableDescriptorsAttributeTest$X.class"));
 
         if (cls == null) {
             throw new AssertionError("Could not locate the class files");
         }
 
-        /* Check emission of Preload attribute */
-        Preload_attribute preloads = (Preload_attribute) cls.attributes.get(Attribute.Preload);
-        if (preloads == null) {
-            throw new AssertionError("Missing Preload attribute!");
+        /* Check emission of LoadableDescriptors attribute */
+        LoadableDescriptors_attribute descriptors = (LoadableDescriptors_attribute) cls.attributes.get(Attribute.LoadableDescriptors);
+        if (descriptors == null) {
+            throw new AssertionError("Missing LoadableDescriptors attribute!");
         }
-        if (preloads.number_of_classes != 4) {
-            throw new AssertionError("Incorrect number of Preload classes");
+        if (descriptors.number_of_descriptors != 4) {
+            throw new AssertionError("Incorrect number of loadable descriptors");
         }
 
         int mask = 0x56;
-        for (int i = 0; i < preloads.number_of_classes; i++) {
-            CONSTANT_Class_info clsInfo = cls.constant_pool.getClassInfo(
-                                  preloads.value_class_info_index[i]);
-            switch (clsInfo.getName()) {
-                case "PreloadAttributeTest$V2":
+        for (int i = 0; i < descriptors.number_of_descriptors; i++) {
+            CONSTANT_Utf8_info clsInfo = cls.constant_pool.getUTF8Info(
+                                  descriptors.descriptor_info_index[i]);
+            switch (clsInfo.value) {
+                case "LLoadableDescriptorsAttributeTest$V2;":
                     mask &= ~2; break;
-                case "PreloadAttributeTest$V3":
+                case "LLoadableDescriptorsAttributeTest$V3;":
                     mask &= ~4; break;
-                case "PreloadAttributeTest$V5":
+                case "LLoadableDescriptorsAttributeTest$V5;":
                     mask &= ~16; break;
-                case "PreloadAttributeTest$V7" :
+                case "LLoadableDescriptorsAttributeTest$V7;" :
                     mask &= ~64; break;
                 default:
-                    throw new AssertionError("Unexpected Preload class entry!");
+                    throw new AssertionError("Unexpected LoadableDescriptors entry!");
             }
         }
         if (mask != 0) {
-          throw new AssertionError("Some Preload class entries are missing!");
+          throw new AssertionError("Some LoadableDescriptors entries are missing!");
         }
     }
 }

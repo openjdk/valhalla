@@ -24,6 +24,7 @@
  */
 package java.lang.classfile.attribute;
 
+import java.lang.classfile.constantpool.Utf8Entry;
 import java.lang.constant.ClassDesc;
 import java.util.Arrays;
 import java.util.List;
@@ -43,44 +44,28 @@ import jdk.internal.javac.PreviewFeature;
  *  deletion without notice.</b>
  */
 @PreviewFeature(feature = PreviewFeature.Feature.CLASSFILE_API)
-public sealed interface PreloadAttribute
-        extends Attribute<PreloadAttribute>, ClassElement
-        permits BoundAttribute.BoundPreloadAttribute, UnboundAttribute.UnboundPreloadAttribute {
+public sealed interface LoadableDescriptorsAttribute
+        extends Attribute<LoadableDescriptorsAttribute>, ClassElement
+        permits BoundAttribute.BoundLoadableDescriptorsAttribute, UnboundAttribute.UnboundLoadableDescriptorsAttribute {
 
     /**
-     * {@return the list of preload classes}
+     * {@return the list of loadable descriptors}
      */
-    List<ClassEntry> preloads();
+    List<Utf8Entry> loadableDescriptors();
 
     /**
-     * {@return a {@code Preload} attribute}
-     * @param preloads the preload classes
+     * {@return a {@code LoadableDescriptors} attribute}
+     * @param loadableDescriptors the loadable descriptors
      */
-    static PreloadAttribute of(List<ClassEntry> preloads) {
-        return new UnboundAttribute.UnboundPreloadAttribute(preloads);
+    static LoadableDescriptorsAttribute of(List<Utf8Entry> loadableDescriptors) {
+        return new UnboundAttribute.UnboundLoadableDescriptorsAttribute(loadableDescriptors);
     }
 
     /**
-     * {@return a {@code Preload} attribute}
-     * @param preloads the preload classes
+     * {@return a {@code LoadableDescriptors} attribute}
+     * @param loadableDescriptors the loadable descriptors
      */
-    static PreloadAttribute of(ClassEntry... preloads) {
-        return of(List.of(preloads));
-    }
-
-    /**
-     * {@return a {@code Preload} attribute}
-     * @param preloads the preload classes
-     */
-    static PreloadAttribute ofSymbols(List<ClassDesc> preloads) {
-        return of(Util.entryList(preloads));
-    }
-
-    /**
-     * {@return a {@code Preload} attribute}
-     * @param preloads the preload classes
-     */
-    static PreloadAttribute ofSymbols(ClassDesc... preloads) {
-        return ofSymbols(Arrays.asList(preloads));
+    static LoadableDescriptorsAttribute of(Utf8Entry... loadableDescriptors) {
+        return of(List.of(loadableDescriptors));
     }
 }

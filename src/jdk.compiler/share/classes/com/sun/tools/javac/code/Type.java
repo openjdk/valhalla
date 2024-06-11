@@ -240,7 +240,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     }
 
     // Does this type need to be preloaded in the context of the referring class ??
-    public boolean requiresPreload(Symbol referringClass) {
+    public boolean requiresLoadableDescriptors(Symbol referringClass) {
         if (this.tsym == referringClass)
             return false; // pointless
         return this.isValueClass();

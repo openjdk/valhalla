@@ -455,10 +455,10 @@ final class ProxyGenerator extends ClassWriter {
      * class file generation process.
      *
      * If a proxy interface references any value classes, the value classes
-     * are listed in the preload attribute of the interface class.  The
+     * are listed in the loadable descriptors attribute of the interface class.  The
      * classes that are referenced by the proxy interface have already
      * been loaded before the proxy class.  Hence the proxy class is
-     * generated with no preload attributes as it essentially has no effect.
+     * generated with no loadable descriptors attributes as it essentially has no effect.
      */
     private byte[] generateClassFile() {
         visit(CLASSFILE_VERSION, accessFlags, dotToSlash(className), null,
