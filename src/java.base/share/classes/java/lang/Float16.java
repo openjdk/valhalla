@@ -75,6 +75,18 @@ public final class Float16
     private final short value;
     private static final long serialVersionUID = 16; // Not needed for a value class?
 
+   /**
+    * Returns a {@code Float16} instance wrapping IEEE 754 binary16
+    * encoded {@code short} value.
+    *
+    * @param  bits a short value.
+    */
+    private Float16 (short bits ) {
+        this.value = bits;
+    }
+
+    // Do *not* define any public constructors
+
     /**
      * A constant holding the positive infinity of type
      * {@code Float16}.
@@ -86,37 +98,32 @@ public final class Float16
      * A constant holding the negative infinity of type
      * {@code Float16}.
      */
-    public static final Float16 NEGATIVE_INFINITY =
-        shortBitsToFloat16(floatToFloat16(Float.NEGATIVE_INFINITY));
+    public static final Float16 NEGATIVE_INFINITY = valueOf(Float.NEGATIVE_INFINITY);
 
     /**
      * A constant holding a Not-a-Number (NaN) value of type
      * {@code Float16}.
      */
-    public static final Float16 NaN =
-        shortBitsToFloat16(floatToFloat16(Float.NaN));
+    public static final Float16 NaN = valueOf(Float.NaN);
 
     /**
      * A constant holding the largest positive finite value of type
      * {@code Float16},
-     * (2-2<sup>-10</sup>)&middot;2<sup>15</sup>.
+     * (2-2<sup>-10</sup>)&middot;2<sup>15</sup>, equal to 65504.0.
      */
-    public static final Float16 MAX_VALUE =
-        shortBitsToFloat16(floatToFloat16(0x1.ffcp15f));
+    public static final Float16 MAX_VALUE = valueOf(0x1.ffcp15f);
 
     /**
      * A constant holding the smallest positive normal value of type
      * {@code Float16}, 2<sup>-14</sup>.
      */
-    public static final Float16 MIN_NORMAL =
-        shortBitsToFloat16(floatToFloat16(0x1.0p-14f));
+    public static final Float16 MIN_NORMAL = valueOf(0x1.0p-14f);
 
     /**
      * A constant holding the smallest positive nonzero value of type
      * {@code Float16}, 2<sup>-24</sup>.
      */
-    public static final Float16 MIN_VALUE =
-        shortBitsToFloat16(floatToFloat16(0x1.0p-24f));
+    public static final Float16 MIN_VALUE = valueOf(0x1.0p-24f);
 
     /**
      * The number of bits used to represent a {@code Float16} value,
@@ -195,17 +202,6 @@ public final class Float16
     // -----------------------
 
    /**
-    * Returns a {@code Float16} instance wrapping IEEE 754 binary16
-    * encoded {@code short} value.
-    *
-    * @param  value a short value.
-    * @since  20
-    */
-    private Float16 (short value ) {
-        this.value = value;
-    }
-
-   /**
     * {@return the value of a {@code short} converted to {@code Float16}}
     *
     * @param  value a short value.
@@ -217,13 +213,93 @@ public final class Float16
 
 
    /**
+    * {@return a {@code Float16} value rounded from the {@code float} argument}
+    *
+    * @param  f a {@code float}
+    */
+    public static Float16 valueOf(float f) {
+        return new Float16(Float.floatToFloat16(f));
+    }
+
+   /**
     * {@return a {@code Float16} value rounded from the {@code double} argument}
     *
     * @param  d a {@code double}
     */
     public static Float16 valueOf(double d) {
-        // Adapt logic from float to float16 conversion.
-        throw new UnsupportedOperationException("TBD");
+        long doppel = Double.doubleToRawLongBits(d);
+
+        short sign_bit = (short)((doppel & 0x8000_0000_0000_0000L) >> 48);
+
+        if (Double.isNaN(d)) {
+            // Have existing float code handle any attempts to
+            // preserve NaN bits.
+            return valueOf((float)d);
+        }
+
+        double abs_d = Math.abs(d);
+
+        // The overflow threshold is binary16 MAX_VALUE + 1/2 ulp
+        if (abs_d >= (0x1.ffcp15 + 0x0.002p15) ) {
+             // correctly signed infinity
+            return new Float16((short)(sign_bit | 0x7c00));
+        }
+
+        // Smallest magnitude nonzero representable binary16 value
+        // is equal to 0x1.0p-24; half-way and smaller rounds to zero.
+        if (abs_d <= 0x1.0p-24d * 0.5d) { // Covers double zeros and subnormals.
+            return new Float16(sign_bit); // Positive or negative zero
+        }
+
+        // Dealing with finite values in exponent range of binary16
+        // (when rounding is done, could still round up)
+        int exp = Math.getExponent(d);
+        assert -25 <= exp && exp <= 15;
+
+        // For binary16 subnormals, beside forcing exp to -15, retain
+        // the difference expdelta = E_min - exp.  This is the excess
+        // shift value, in addition to 42, to be used in the
+        // computations below.  Further the (hidden) msb with value 1
+        // in d must be involved as well.
+        int expdelta = 0;
+        long msb = 0x0000_0000_0000_0000L;
+        if (exp < -14) {
+            expdelta = -14 - exp; // FIXME?
+            exp = -15;
+            msb = 0x0010_0000_0000_0000L; // should be 0x0020_... ?
+        }
+        long f_signif_bits = doppel & 0x000f_ffff_ffff_ffffL | msb;
+
+        // Significand bits as if using rounding to zero (truncation).
+        short signif_bits = (short)(f_signif_bits >> (42 + expdelta));
+
+        // For round to nearest even, determining whether or not to
+        // round up (in magnitude) is a function of the least
+        // significant bit (LSB), the next bit position (the round
+        // position), and the sticky bit (whether there are any
+        // nonzero bits in the exact result to the right of the round
+        // digit). An increment occurs in three cases:
+        //
+        // LSB  Round Sticky
+        // 0    1     1
+        // 1    1     0
+        // 1    1     1
+        // See "Computer Arithmetic Algorithms," Koren, Table 4.9
+
+        long lsb    = f_signif_bits & (1L << 42 + expdelta);
+        long round  = f_signif_bits & (1L << 41 + expdelta);
+        long sticky = f_signif_bits & ((1L << 41 + expdelta) - 1);
+
+        if (round != 0 && ((lsb | sticky) != 0 )) {
+            signif_bits++;
+        }
+
+        // No bits set in significand beyond the *first* exponent bit,
+        // not just the significand; quantity is added to the exponent
+        // to implement a carry out from rounding the significand.
+        assert (0xf800 & signif_bits) == 0x0;
+
+        return new Float16((short)(sign_bit | ( ((exp + 15) << 10) + signif_bits ) ));
     }
 
     //    /**
@@ -233,12 +309,11 @@ public final class Float16
     //     * in IEEE 754.
     //     */
     //    public static Float16 valueOf(long ell) // Is this needed for correctness?
-    //    public static Float16 valueOf(float f)
     //    public static Float16 valueOf(BigDecimal bd)
 
 
     /**
-     * Returns a new {@code Float16} initialized to the value
+     * Returns a {@code Float16} equal to the value
      * represented by the specified {@code String}.
      *
      * @param  s the string to be parsed.
@@ -246,7 +321,7 @@ public final class Float16
      *         argument.
      * @throws NullPointerException  if the string is null
      * @throws NumberFormatException if the string does not contain a
-     *               parsable {@code float}.
+     *               parsable {@code Float16}.
      * @see    java.lang.Float#valueOf(String)
      */
     public static Float16 parseFloat(String s) throws NumberFormatException {
@@ -303,12 +378,9 @@ public final class Float16
         return Float.isFinite(f16.floatValue());
      }
 
-    // Do not define any public constructors
-
     // Skipping for now
     // public boolean isNaN()
     // public boolean isInfinite() {
-
 
     /**
      * Returns the value of this {@code Float16} as a {@code byte} after
@@ -320,7 +392,7 @@ public final class Float16
      */
     @Override
     public byte byteValue() {
-        return (byte)float16ToFloat(value);
+        return (byte)floatValue();
     }
 
     /**
@@ -343,16 +415,16 @@ public final class Float16
      */
     @Override
     public short shortValue() {
-        return (short)float16ToFloat(value);
+        return (short)floatValue();
     }
 
     /**
      * Returns the value of this {@code Float16} as an {@code int} after
-     * a widening primitive conversion.
+     * a narrowing primitive conversion.
      *
      * @return  the binary16 encoded {@code short} value represented by this object
      *          converted to type {@code int}
-     * @jls 5.1.3 Widening Primitive Conversion
+     * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
     public int intValue() {
@@ -361,11 +433,11 @@ public final class Float16
 
     /**
      * Returns value of this {@code Float16} as a {@code long} after a
-     * widening conversion.
+     * narrowing primitive conversion.
      *
      * @return  the binary16 encoded {@code short} value represented by this object
      *          converted to type {@code long}
-     * @jls 5.1.3 Widening Primitive Conversion
+     * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
     public long longValue() {
@@ -377,6 +449,7 @@ public final class Float16
      *
      * @return the binary16 encoded {@code short} value represented by this object
      *         converted to type {@code float}
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     @Override
     public float floatValue() {
@@ -411,7 +484,6 @@ public final class Float16
      * @param a the first operand
      * @param b the second operand
      * @return the sum of {@code a} and {@code b}
-     * @since 20
      */
     @IntrinsicCandidate
     public static Float16 sum(Float16 a, Float16 b) {
@@ -433,7 +505,8 @@ public final class Float16
     }
 
     /**
-     * Returns the {@code Float16} value corresponding to a given
+     * Returns the {@code Float16} value corresponding to a given bit
+     * representation.
      *
      * @param   bits   any {@code short} integer.
      * @return  the {@code Float16} floating-point value with the same
@@ -445,7 +518,6 @@ public final class Float16
     public static Float16 shortBitsToFloat16(short bits) {
         return new Float16(bits);
     }
-
 
     /**
      * Compares two {@code Float16} objects numerically.
@@ -538,9 +610,7 @@ public final class Float16
     // public Optional<Float16> describeConstable()
     // public Float16 resolveConstantDesc(MethodHandles.Lookup lookup)
 
-    // To add:
-
-    // Add comment explaining 2p + 2 property and implementation
+    // TODO: add comment explaining 2p + 2 property and implementation.
 
     /**
      * Adds two {@code Float16} values together as per the + operator semantics.
@@ -598,7 +668,6 @@ public final class Float16
                                                 *
                                                 float16ToFloat(multiplicand.value) ));
     }
-
 
     /**
      * Divides two {@code Float16} values as per the / operator semantics.
@@ -735,11 +804,46 @@ public final class Float16
         return (bin16ExpBits >> (PRECISION - 1)) - 15;
     }
 
+    /**
+     * Returns the size of an ulp of the argument.  An ulp, unit in
+     * the last place, of a {@code Float16} value is the positive
+     * distance between this floating-point value and the {@code
+     * double} value next larger in magnitude.  Note that for non-NaN
+     * <i>x</i>, <code>ulp(-<i>x</i>) == ulp(<i>x</i>)</code>.
+     *
+     * <p>Special Cases:
+     * <ul>
+     * <li> If the argument is NaN, then the result is NaN.
+     * <li> If the argument is positive or negative infinity, then the
+     * result is positive infinity.
+     * <li> If the argument is positive or negative zero, then the result is
+     * {@code Float16.MIN_VALUE}.
+     * <li> If the argument is &plusmn;{@code Float16.MAX_VALUE}, then
+     * the result is equal to 2<sup>5</sup>, 32.0.
+     * </ul>
+     *
+     * @param f16 the floating-point value whose ulp is to be returned
+     * @return the size of an ulp of the argument
+     */
+    public static Float16 ulp(Float16 f16) {
+        int exp = getExponent(f16);
+
+        return switch(exp) {
+        case Float16.MAX_EXPONENT + 1 -> abs(f16);          // NaN or infinity
+        case Float16.MIN_EXPONENT - 1 -> Float16.MIN_VALUE; // zero or subnormal
+        default -> {
+            assert exp <= Float16.MAX_EXPONENT && exp >= Float16.MIN_EXPONENT;
+            // ulp(x) is usually 2^(SIGNIFICAND_WIDTH-1)*(2^ilogb(x))
+            // Let float -> float16 conversion handle encoding issues.
+            yield valueOf(Math.scalb(1.0f, exp - (PRECISION - 1)));
+        }
+        };
+    }
+
     // To be considered:
     // copysign
     // scalb
     // nextUp / nextDown
     // IEEEremainder
     // signum
-    // ulp
 }
