@@ -524,7 +524,7 @@ int CallDynamicJavaDirectNode::compute_padding(int current_offset) const
 }
 
 // This could be in MacroAssembler but it's fairly C2 specific
-void emit_cmpfp_fixup(MacroAssembler& _masm) {
+static void emit_cmpfp_fixup(MacroAssembler& _masm) {
   Label exit;
   __ jccb(Assembler::noParity, exit);
   __ pushf();
@@ -544,7 +544,7 @@ void emit_cmpfp_fixup(MacroAssembler& _masm) {
   __ bind(exit);
 }
 
-void emit_cmpfp3(MacroAssembler& _masm, Register dst) {
+static void emit_cmpfp3(MacroAssembler& _masm, Register dst) {
   Label done;
   __ movl(dst, -1);
   __ jcc(Assembler::parity, done);
@@ -563,10 +563,10 @@ void emit_cmpfp3(MacroAssembler& _masm, Register dst) {
 // je            #
 // |-jz -> a | b # a & b
 // |    -> a     #
-void emit_fp_min_max(MacroAssembler& _masm, XMMRegister dst,
-                     XMMRegister a, XMMRegister b,
-                     XMMRegister xmmt, Register rt,
-                     bool min, bool single) {
+static void emit_fp_min_max(MacroAssembler& _masm, XMMRegister dst,
+                            XMMRegister a, XMMRegister b,
+                            XMMRegister xmmt, Register rt,
+                            bool min, bool single) {
 
   Label nan, zero, below, above, done;
 
