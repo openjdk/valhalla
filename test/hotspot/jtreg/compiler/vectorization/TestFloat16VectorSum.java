@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@
 package compiler.vectorization;
 import compiler.lib.ir_framework.*;
 import java.util.Random;
-
+import static java.lang.Float16.*;
 
 public class TestFloat16VectorSum {
     private Float16[] input;
@@ -50,7 +50,7 @@ public class TestFloat16VectorSum {
         output = new Float16[LEN];
         rng = new Random(42);
         for (int i = 0; i < LEN; ++i) {
-            input[i] = Float16.valueOf(Float.floatToFloat16(rng.nextFloat()));
+            input[i] = shortBitsToFloat16(Float.floatToFloat16(rng.nextFloat()));
         }
     }
 
@@ -67,8 +67,10 @@ public class TestFloat16VectorSum {
     public void checkResult() {
         for (int i = 0; i < LEN; ++i) {
             Float16 expected = Float16.sum(input[i], input[i]);
-            if (output[i].float16ToRawShortBits() != expected.float16ToRawShortBits()) {
-                throw new RuntimeException("Invalid result: output[" + i + "] = " + output[i].float16ToRawShortBits() + " != " + expected.float16ToRawShortBits());
+            if (float16ToRawShortBits(output[i]) != float16ToRawShortBits(expected)) {
+                throw new RuntimeException("Invalid result: output[" + i + "] = " +
+                                           float16ToRawShortBits(output[i]) + " != " +
+                                           float16ToRawShortBits(expected));
             }
         }
     }
