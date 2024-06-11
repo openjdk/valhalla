@@ -300,7 +300,7 @@ class InstanceKlass: public Klass {
 
   Array<InlineKlass*>* _inline_type_field_klasses; // For "inline class" fields, null if none present
   Array<int>* _null_marker_offsets; // for flat fields with a null marker
-  Array<u2>* _preload_classes;
+  Array<u2>* _loadable_descriptors;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
   // embedded Java vtable follows here
@@ -448,7 +448,7 @@ class InstanceKlass: public Klass {
   bool field_is_flat(int index) const { return field_flags(index).is_flat(); }
   bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
   bool field_is_null_free_inline_type(int index) const;
-  bool is_class_in_preload_attribute(Symbol* name) const;
+  bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -460,8 +460,8 @@ class InstanceKlass: public Klass {
   Array<FieldStatus>* fields_status() const {return _fields_status; }
   void set_fields_status(Array<FieldStatus>* array) { _fields_status = array; }
 
-  Array<u2>* preload_classes() const { return _preload_classes; }
-  void set_preload_classes(Array<u2>* c) { _preload_classes = c; }
+  Array<u2>* loadable_descripptors() const { return _loadable_descriptors; }
+  void set_loadable_descriptors(Array<u2>* c) { _loadable_descriptors = c; }
 
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }

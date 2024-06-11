@@ -1158,7 +1158,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
         }
       } else if (Signature::has_envelope(sig)) {
         TempNewSymbol name = Signature::strip_envelope(sig);
-        if (name != ik->name() && ik->is_class_in_preload_attribute(name)) {
+        if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(name)) {
           Klass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
             class_loader, protection_domain, false, THREAD);
           if (HAS_PENDING_EXCEPTION) {

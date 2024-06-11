@@ -110,7 +110,7 @@ bool MetaspaceShared::_use_optimized_module_handling = true;
 // These regions are aligned with MetaspaceShared::core_region_alignment().
 //
 // These 2 regions are populated in the following steps:
-// [0] All classes are loaded in MetaspaceShared::preload_classes(). All metadata are
+// [0] All classes are loaded in MetaspaceShared::loadable_descripptors(). All metadata are
 //     temporarily allocated outside of the shared regions.
 // [1] We enter a safepoint and allocate a buffer for the rw/ro regions.
 // [2] C++ vtables are copied into the rw region.
@@ -727,7 +727,7 @@ void MetaspaceShared::get_default_classlist(char* default_classlist, const size_
   }
 }
 
-void MetaspaceShared::preload_classes(TRAPS) {
+void MetaspaceShared::loadable_descripptors(TRAPS) {
   char default_classlist[JVM_MAXPATHLEN];
   const char* classlist_path;
 
@@ -764,7 +764,7 @@ void MetaspaceShared::preload_classes(TRAPS) {
 }
 
 void MetaspaceShared::preload_and_dump_impl(TRAPS) {
-  preload_classes(CHECK);
+  loadable_descripptors(CHECK);
 
   if (SharedArchiveConfigFile) {
     log_info(cds)("Reading extra data from %s ...", SharedArchiveConfigFile);
