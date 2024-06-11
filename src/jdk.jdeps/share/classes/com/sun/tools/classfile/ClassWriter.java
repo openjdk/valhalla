@@ -755,9 +755,9 @@ public class ClassWriter {
         }
 
         @Override
-        public Void visitPreload(Preload_attribute attr, ClassOutputStream out) {
-            out.writeShort(attr.value_class_info_index.length);
-            for (int index: attr.value_class_info_index)
+        public Void visitLoadableDescriptors(LoadableDescriptors_attribute attr, ClassOutputStream out) {
+            out.writeShort(attr.descriptor_info_index.length);
+            for (int index: attr.descriptor_info_index)
                 out.writeShort(index);
             return null;
         }

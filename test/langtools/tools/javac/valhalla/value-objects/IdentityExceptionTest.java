@@ -24,21 +24,21 @@
 /*
  * @test
  * @bug 8329400
- * @summary test to check that IllegalMonitorStateException is thrown for value objects
+ * @summary test to check that IdentityException is thrown for value objects
  * @enablePreview
- * @run main IllegalMonitorStateExceptionTest
+ * @run main IdentityExceptionTest
  */
 
-public value class IllegalMonitorStateExceptionTest {
+public value class IdentityExceptionTest {
     void m(Object o) {
         synchronized (o) {}
     }
 
     public static void main(String[] args) throws Exception {
-        IllegalMonitorStateExceptionTest v = new IllegalMonitorStateExceptionTest();
+        IdentityExceptionTest v = new IdentityExceptionTest();
         try {
             v.m(v);
-            throw new AssertionError("should have failed with IllegalMonitorStateExceptionTest");
+            throw new AssertionError("should have failed with IdentityException");
         } catch (IdentityException e) {
             // as expected
         }

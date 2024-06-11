@@ -52,6 +52,7 @@ import java.lang.classfile.attribute.InnerClassInfo;
 import java.lang.classfile.attribute.InnerClassesAttribute;
 import java.lang.classfile.attribute.LineNumberInfo;
 import java.lang.classfile.attribute.LineNumberTableAttribute;
+import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.lang.classfile.attribute.LocalVariableInfo;
 import java.lang.classfile.attribute.LocalVariableTableAttribute;
 import java.lang.classfile.attribute.LocalVariableTypeInfo;
@@ -72,7 +73,6 @@ import java.lang.classfile.attribute.ModuleTargetAttribute;
 import java.lang.classfile.attribute.NestHostAttribute;
 import java.lang.classfile.attribute.NestMembersAttribute;
 import java.lang.classfile.attribute.PermittedSubclassesAttribute;
-import java.lang.classfile.attribute.PreloadAttribute;
 import java.lang.classfile.attribute.RecordAttribute;
 import java.lang.classfile.attribute.RecordComponentInfo;
 import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
@@ -430,19 +430,19 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
         }
     }
 
-    public static final class UnboundPreloadAttribute
-            extends UnboundAttribute<PreloadAttribute>
-            implements PreloadAttribute {
-        private final List<ClassEntry> preloads;
+    public static final class UnboundLoadableDescriptorsAttribute
+            extends UnboundAttribute<LoadableDescriptorsAttribute>
+            implements LoadableDescriptorsAttribute {
+        private final List<Utf8Entry> loadableDescriptors;
 
-        public UnboundPreloadAttribute(List<ClassEntry> preloads) {
-            super(Attributes.PRELOAD);
-            this.preloads = List.copyOf(preloads);
+        public UnboundLoadableDescriptorsAttribute(List<Utf8Entry> loadableDescriptors) {
+            super(Attributes.LOADABLE_DESCRIPTORS);
+            this.loadableDescriptors = List.copyOf(loadableDescriptors);
         }
 
         @Override
-        public List<ClassEntry> preloads() {
-            return preloads;
+        public List<Utf8Entry> loadableDescriptors() {
+            return loadableDescriptors;
         }
     }
 

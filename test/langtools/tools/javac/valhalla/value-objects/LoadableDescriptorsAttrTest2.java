@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8331461
- * @summary [lworld] javac is generating a class file with the Preload attribute but with minor version '0'
+ * @summary [lworld] javac is generating a class file with the LoadableDescriptors attribute but with minor version '0'
  * @library /tools/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.code
@@ -34,7 +34,7 @@
  *      jdk.compiler/com.sun.tools.javac.main
  *      jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
- * @run main PreloadAttrTest2
+ * @run main LoadableDescriptorsAttrTest2
  */
 
 import java.nio.file.Path;
@@ -49,10 +49,10 @@ import toolbox.ToolBox;
 import toolbox.JavacTask;
 import toolbox.Task;
 
-public class PreloadAttrTest2 extends TestRunner {
+public class LoadableDescriptorsAttrTest2 extends TestRunner {
     ToolBox tb = new ToolBox();
 
-    public PreloadAttrTest2() {
+    public LoadableDescriptorsAttrTest2() {
         super(System.err);
     }
 
@@ -65,7 +65,7 @@ public class PreloadAttrTest2 extends TestRunner {
     }
 
     public static void main(String... args) throws Exception {
-        new PreloadAttrTest2().runTests();
+        new LoadableDescriptorsAttrTest2().runTests();
     }
 
     @Test
@@ -92,7 +92,7 @@ public class PreloadAttrTest2 extends TestRunner {
         Path classFilePath = classes.resolve("Ident.class");
         ClassFile classFile = ClassFile.read(classFilePath.toFile());
         Assert.check(classFile.minor_version == 65535);
-        Assert.check(classFile.attributes.get("Preload") != null);
+        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
 
         // now with the value class in the classpath
         new toolbox.JavacTask(tb)
@@ -105,6 +105,6 @@ public class PreloadAttrTest2 extends TestRunner {
         classFilePath = classes.resolve("Ident.class");
         classFile = ClassFile.read(classFilePath.toFile());
         Assert.check(classFile.minor_version == 65535);
-        Assert.check(classFile.attributes.get("Preload") != null);
+        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
     }
 }
