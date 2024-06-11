@@ -761,10 +761,10 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_permitted_subclasses(nullptr);
 
-  if (loadable_descripptors() != nullptr &&
-      loadable_descripptors() != Universe::the_empty_short_array() &&
-      !loadable_descripptors()->is_shared()) {
-    MetadataFactory::free_array<jushort>(loader_data, loadable_descripptors());
+  if (loadable_descriptors() != nullptr &&
+      loadable_descriptors() != Universe::the_empty_short_array() &&
+      !loadable_descriptors()->is_shared()) {
+    MetadataFactory::free_array<jushort>(loader_data, loadable_descriptors());
   }
 
   // We should deallocate the Annotations instance if it's not in shared spaces.
@@ -1011,11 +1011,11 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     }
 
     // Aggressively preloading all classes from the Preload attribute
-    if (loadable_descripptors() != nullptr) {
+    if (loadable_descriptors() != nullptr) {
       HandleMark hm(THREAD);
-      for (int i = 0; i < loadable_descripptors()->length(); i++) {
-        Symbol* sig = constants()->symbol_at(loadable_descripptors()->at(i));
-        Symbol* class_name = Signature::strip_envelope(sig);  // TempSymbol?
+      for (int i = 0; i < loadable_descriptors()->length(); i++) {
+        Symbol* sig = constants()->symbol_at(loadable_descriptors()->at(i));
+        TempNewSymbol class_name = Signature::strip_envelope(sig);
         if (class_name == name()) continue;
         log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the LoadableDescriptors attribute", sig->as_C_string(), name()->as_C_string());
         oop loader = class_loader();
@@ -3950,7 +3950,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     st->print(BULLET"record components:     "); record_components()->print_value_on(st);     st->cr();
   }
   st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
-  st->print(BULLET"preload classes:     "); loadable_descripptors()->print_value_on(st); st->cr();
+  st->print(BULLET"preload classes:     "); loadable_descriptors()->print_value_on(st); st->cr();
   if (java_mirror() != nullptr) {
     st->print(BULLET"java mirror:       ");
     java_mirror()->print_value_on(st);

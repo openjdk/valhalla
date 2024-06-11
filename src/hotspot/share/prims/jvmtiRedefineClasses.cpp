@@ -929,8 +929,8 @@ static jvmtiError check_preload_attribute(InstanceKlass* the_class,
   // Check whether the class Preload attribute has been changed.
   return check_attribute_arrays("Preload",
                                 the_class, scratch_class,
-                                the_class->loadable_descripptors(),
-                                scratch_class->loadable_descripptors());
+                                the_class->loadable_descriptors(),
+                                scratch_class->loadable_descriptors());
 }
 
 static bool can_add_or_delete(Method* m) {
@@ -2103,11 +2103,11 @@ bool VM_RedefineClasses::rewrite_cp_refs_in_permitted_subclasses_attribute(
 bool VM_RedefineClasses::rewrite_cp_refs_in_preload_attribute(
        InstanceKlass* scratch_class) {
 
-  Array<u2>* loadable_descripptors = scratch_class->loadable_descripptors();
-  assert(loadable_descripptors != nullptr, "unexpected null loadable_descripptors");
-  for (int i = 0; i < loadable_descripptors->length(); i++) {
-    u2 cp_index = loadable_descripptors->at(i);
-    loadable_descripptors->at_put(i, find_new_index(cp_index));
+  Array<u2>* loadable_descriptors = scratch_class->loadable_descriptors();
+  assert(loadable_descriptors != nullptr, "unexpected null loadable_descriptors");
+  for (int i = 0; i < loadable_descriptors->length(); i++) {
+    u2 cp_index = loadable_descriptors->at(i);
+    loadable_descriptors->at_put(i, find_new_index(cp_index));
   }
   return true;
 }

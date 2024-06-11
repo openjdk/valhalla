@@ -3394,6 +3394,7 @@ u2 ClassFileParser::parse_classfile_loadable_descriptors_attribute(const ClassFi
           vmSymbols::java_lang_ClassFormatError(),
           "Descriptor from LoadableDescriptors attribute at index \"%d\" in class %s has illegal signature \"%s\"",
           descriptor_index, _class_name->as_C_string(), descriptor->as_C_string());
+        return 0;
       }
       loadable_descriptors->at_put(index++, descriptor_index);
     }

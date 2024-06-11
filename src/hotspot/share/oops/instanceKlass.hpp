@@ -460,7 +460,7 @@ class InstanceKlass: public Klass {
   Array<FieldStatus>* fields_status() const {return _fields_status; }
   void set_fields_status(Array<FieldStatus>* array) { _fields_status = array; }
 
-  Array<u2>* loadable_descripptors() const { return _loadable_descriptors; }
+  Array<u2>* loadable_descriptors() const { return _loadable_descriptors; }
   void set_loadable_descriptors(Array<u2>* c) { _loadable_descriptors = c; }
 
   // inner classes
