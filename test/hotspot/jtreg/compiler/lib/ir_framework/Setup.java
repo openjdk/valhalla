@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,25 +19,27 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_OOPS_COMPILEDICHOLDER_INLINE_HPP
-#define SHARE_OOPS_COMPILEDICHOLDER_INLINE_HPP
+package compiler.lib.ir_framework;
 
-#include "oops/compiledICHolder.hpp"
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
-#include "oops/klass.inline.hpp"
-
-inline bool CompiledICHolder::is_loader_alive() {
-  Klass* k = _is_metadata_method ? ((Method*)_holder_metadata)->method_holder() : (Klass*)_holder_metadata;
-  if (!k->is_loader_alive()) {
-    return false;
-  }
-  if (!_holder_klass->is_loader_alive()) {
-    return false;
-  }
-  return true;
+/**
+ * This annotation is used to identify Setup methods. These can be used to compute arbitrary arguments for a test
+ * method (see {@link Test}), as well as to set field values. A test method can use a setup method, by specifying
+ * it in a {@link Arguments} annotation. A setup method can optionally take a {@link SetupInfo} as an argument. The
+ * arguments for the test methods are returned as a new object array.
+ *
+ * Examples on how to use test methods can be found in {@link ir_framework.examples.SetupExample} and also as part of the
+ * internal testing in the package {@link ir_framework.tests}.
+ *
+ * @see Arguments
+ * @see Setup
+ * @see SetupInfo
+ * @see Test
+ */
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Setup {
 }
-
-#endif // SHARE_OOPS_COMPILEDICHOLDER_INLINE_HPP

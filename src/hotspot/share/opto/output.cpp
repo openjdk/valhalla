@@ -553,8 +553,8 @@ void PhaseOutput::shorten_branches(uint* blk_starts) {
           }
 
           if (mcall->is_MachCallJava() && mcall->as_MachCallJava()->_method) {
-            stub_size  += CompiledStaticCall::to_interp_stub_size();
-            reloc_size += CompiledStaticCall::reloc_to_interp_stub();
+            stub_size  += CompiledDirectCall::to_interp_stub_size();
+            reloc_size += CompiledDirectCall::reloc_to_interp_stub();
           }
         } else if (mach->is_MachSafePoint()) {
           // If call/safepoint are adjacent, account for possible
@@ -3514,6 +3514,13 @@ void PhaseOutput::install_code(ciMethod*         target,
       _code_offsets.set_value(CodeOffsets::Verified_Entry, 0);
       _code_offsets.set_value(CodeOffsets::OSR_Entry, _first_block_size);
     } else {
+      if (!target->is_static()) {
+        // The UEP of an nmethod ensures that the VEP is padded. However, the padding of the UEP is placed
+        // before the inline cache check, so we don't have to execute any nop instructions when dispatching
+        // through the UEP, yet we can ensure that the VEP is aligned appropriately.
+        // TODO 8325106 Check this
+        // _code_offsets.set_value(CodeOffsets::Entry, _first_block_size - MacroAssembler::ic_check_size());
+      }
       _code_offsets.set_value(CodeOffsets::Verified_Entry, _first_block_size);
       if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry) == -1) {
         _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, _first_block_size);
