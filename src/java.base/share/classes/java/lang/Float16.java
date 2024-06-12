@@ -612,8 +612,8 @@ public final class Float16
      * @param b the second operand
      * @return the greater of {@code a} and {@code b}
      * @see java.util.function.BinaryOperator
-     * @see Math.max(float, float)
-     * @see Math.max(double, double)
+     * @see Math#max(float, float)
+     * @see Math#max(double, double)
      */
     public static Float16 max(Float16 a, Float16 b) {
         return shortBitsToFloat16(floatToFloat16(Math.max(a.floatValue(),
@@ -631,8 +631,8 @@ public final class Float16
      * @param b the second operand
      * @return the smaller of {@code a} and {@code b}
      * @see java.util.function.BinaryOperator
-     * @see Math.min(float, float)
-     * @see Math.min(double, double)
+     * @see Math#min(float, float)
+     * @see Math#min(double, double)
      */
     public static Float16 min(Float16 a, Float16 b) {
         return shortBitsToFloat16(floatToFloat16(Math.min(a.floatValue(),
