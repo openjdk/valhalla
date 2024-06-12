@@ -88,28 +88,28 @@ public final class Float16
     // Do *not* define any public constructors
 
     /**
-     * A constant holding the positive infinity of type
-     * {@code Float16}.
+     * A constant holding the positive infinity of type {@code
+     * Float16}.
      */
     public static final Float16 POSITIVE_INFINITY =
         shortBitsToFloat16(floatToFloat16(Float.POSITIVE_INFINITY));
 
     /**
-     * A constant holding the negative infinity of type
-     * {@code Float16}.
+     * A constant holding the negative infinity of type {@code
+     * Float16}.
      */
     public static final Float16 NEGATIVE_INFINITY = valueOf(Float.NEGATIVE_INFINITY);
 
     /**
-     * A constant holding a Not-a-Number (NaN) value of type
-     * {@code Float16}.
+     * A constant holding a Not-a-Number (NaN) value of type {@code
+     * Float16}.
      */
     public static final Float16 NaN = valueOf(Float.NaN);
 
     /**
      * A constant holding the largest positive finite value of type
      * {@code Float16},
-     * (2-2<sup>-10</sup>)&middot;2<sup>15</sup>, equal to 65504.0.
+     * (2-2<sup>-10</sup>)&middot;2<sup>15</sup>, numerically equal to 65504.0.
      */
     public static final Float16 MAX_VALUE = valueOf(0x1.ffcp15f);
 
@@ -171,8 +171,8 @@ public final class Float16
     }
 
     /**
-     * Returns a hexadecimal string representation of the
-     * {@code Float16} argument.
+     * Returns a hexadecimal string representation of the {@code
+     * Float16} argument.
      *
      * TODO: elaborate on more detailed behavior
      *
@@ -202,18 +202,46 @@ public final class Float16
     // -----------------------
 
    /**
-    * {@return the value of a {@code short} converted to {@code Float16}}
+    * {@return the value of an {@code int} converted to {@code
+    * Float16}}
     *
-    * @param  value a short value.
+    * @param  value an {@code int} value.
+    *
+    * @apiNote
+    * This method corresponds to the convertFromInt operation defined
+    * in IEEE 754.
     */
-    public static Float16 valueOf(short value) {
-        // The conversion of a short to a float is numerically exact.
-        return shortBitsToFloat16(floatToFloat16((float)value));
+    public static Float16 valueOf(int value) {
+        // int -> double conversion is exact
+        return valueOf((double)value);
     }
 
+   /**
+    * {@return the value of a {@code long} converted to {@code Float16}}
+    *
+    * @apiNote
+    * This method corresponds to the convertFromInt operation defined
+    * in IEEE 754.
+    *
+    * @param  value a {@code long} value.
+    */
+    public static Float16 valueOf(long value) {
+        if (value < -65_504) {
+            return Float16.NEGATIVE_INFINITY;
+        } else {
+            if (value > 65_504L) {
+                return Float16.NEGATIVE_INFINITY;
+            }
+            // Remaining range of long, the integers in approx. +/-
+            // 2^16, all fit in a float so the correct conversion can
+            // be done via an intermediate float conversion.
+            return valueOf((float)value);
+        }
+    }
 
    /**
-    * {@return a {@code Float16} value rounded from the {@code float} argument}
+    * {@return a {@code Float16} value rounded from the {@code float}
+    * argument}
     *
     * @param  f a {@code float}
     */
@@ -222,7 +250,8 @@ public final class Float16
     }
 
    /**
-    * {@return a {@code Float16} value rounded from the {@code double} argument}
+    * {@return a {@code Float16} value rounded from the {@code double}
+    * argument}
     *
     * @param  d a {@code double}
     */
@@ -302,19 +331,11 @@ public final class Float16
         return new Float16((short)(sign_bit | ( ((exp + 15) << 10) + signif_bits ) ));
     }
 
-    //    /**
-    //     * ...
-    //     * @apiNote
-    //     * This method corresponds to the convertFromInt operation defined
-    //     * in IEEE 754.
-    //     */
-    //    public static Float16 valueOf(long ell) // Is this needed for correctness?
-    //    public static Float16 valueOf(BigDecimal bd)
-
-
     /**
-     * Returns a {@code Float16} equal to the value
-     * represented by the specified {@code String}.
+     * Returns a {@code Float16} equal to the value represented by the
+     * specified {@code String}.
+     *
+     * TODO: add note about rounding, etc.
      *
      * @param  s the string to be parsed.
      * @return the {@code Float16} value represented by the string
@@ -324,10 +345,18 @@ public final class Float16
      *               parsable {@code Float16}.
      * @see    java.lang.Float#valueOf(String)
      */
-    public static Float16 parseFloat(String s) throws NumberFormatException {
+    public static Float16 valueOf(String s) throws NumberFormatException {
         // TOOD: adjust precision of parsing if needed
         return shortBitsToFloat16(floatToFloat16(Float.parseFloat(s)));
     }
+
+    //    /**
+    //     * ...
+    //     * @see BigDecimal#floatValue()
+    //     * @see BigDecimal#doubleValue()
+    //     */
+    //    public static Float16 valueOf(BigDecimal bd)
+
 
     /**
      * Returns {@code true} if the specified number is a
@@ -583,6 +612,8 @@ public final class Float16
      * @param b the second operand
      * @return the greater of {@code a} and {@code b}
      * @see java.util.function.BinaryOperator
+     * @see Math.max(float, float)
+     * @see Math.max(double, double)
      */
     public static Float16 max(Float16 a, Float16 b) {
         return shortBitsToFloat16(floatToFloat16(Math.max(a.floatValue(),
@@ -600,6 +631,8 @@ public final class Float16
      * @param b the second operand
      * @return the smaller of {@code a} and {@code b}
      * @see java.util.function.BinaryOperator
+     * @see Math.min(float, float)
+     * @see Math.min(double, double)
      */
     public static Float16 min(Float16 a, Float16 b) {
         return shortBitsToFloat16(floatToFloat16(Math.min(a.floatValue(),
@@ -610,10 +643,37 @@ public final class Float16
     // public Optional<Float16> describeConstable()
     // public Float16 resolveConstantDesc(MethodHandles.Lookup lookup)
 
-    // TODO: add comment explaining 2p + 2 property and implementation.
+    /*
+     * Note: for the basic arithmetic operations {+, -, *, /} and
+     * square root, among binary interchange formats (binary16,
+     * binary32 a.k.a. float, binary64 a.k.a double, etc.) the "2p + 2"
+     * property holds. That is, if one format has p bits of precision,
+     * if the next larger format has at least 2p + 2 bits of
+     * precision, arithmetic on the smaller format can be implemented by:
+     *
+     * 1) converting each argument to the wider format
+     * 2) performing the operation in the wider format
+     * 3) converting the result from 2) to the narrower format
+     *
+     * For example, this property hold between the formats used for the
+     * float and double types. Therefore, the following is a valid
+     * implementation of a float addition:
+     *
+     * float add(float addend, float augend) {
+     *     return (float)((double)addend + (double)augend);
+     * }
+     *
+     * The same property holds between the float16 format and
+     * float. Therefore, the software implementations of Float16 {+,
+     * -, *, /} and square root below use the technique of widening
+     * the Float16 arguments to float, performing the operation in
+     * float arithmetic, and then rounding the float result to
+     * Float16.
+     */
 
     /**
-     * Adds two {@code Float16} values together as per the + operator semantics.
+     * Adds two {@code Float16} values together as per the {@code +}
+     * operator semantics.
      *
      * @apiNote This method corresponds to the addition operation
      * defined in IEEE 754.
@@ -631,8 +691,9 @@ public final class Float16
                                                  augend.floatValue() ));
     }
 
-/**
-     * Subtracts two {@code Float16} values as per the - operator semantics.
+    /**
+     * Subtracts two {@code Float16} values as per the {@code +}
+     * operator semantics.
      *
      * @apiNote This method corresponds to the subtraction operation
      * defined in IEEE 754.
@@ -651,7 +712,8 @@ public final class Float16
     }
 
     /**
-     * Multiplies two {@code Float16} values as per the * operator semantics.
+     * Multiplies two {@code Float16} values as per the {@code *}
+     * operator semantics.
      *
      * @apiNote This method corresponds to the multiplication
      * operation defined in IEEE 754.
@@ -670,7 +732,8 @@ public final class Float16
     }
 
     /**
-     * Divides two {@code Float16} values as per the / operator semantics.
+     * Divides two {@code Float16} values as per the {@code /}
+     * operator semantics.
      *
      * @apiNote This method corresponds to the division
      * operation defined in IEEE 754.
@@ -741,7 +804,21 @@ public final class Float16
         //
         // convertToDouble(a)*convertToDouble(b) + convertToDouble(c)
         //
-        // will be an exact double value. The number of significand
+        // will be an exact double value.
+        //
+        // Note: the above conclusion is *incorrect*. The exponent of
+        // the product of a*b can be so large that Float16.MIN_VALUE
+        // cannot be held in a single double.
+        //
+        // However, Float16 values with the smallest and largest
+        // exponents can be held in a single double with precision to
+        // spare. Therefore, all the hard rounding cases should be
+        // covered, but some more analysis is needed to verify the
+        // correctness of that approach.
+        //
+        // Case analysis is needed with c is large compared to a*b.
+        //
+        // The number of significand
         // bits in double, 53, is greater than the, maximum difference
         // in exponent values between bit positions of minimum and
         // maximum magnitude for Float16. Therefore, performing a*b+c
