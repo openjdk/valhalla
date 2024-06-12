@@ -36,28 +36,37 @@ public class IllegalFieldModifiers {
 
   public static void runTest(String test_name, String message) throws Exception {
       System.out.println("Testing: " + test_name);
+      boolean gotException = false;
       try {
           Class newClass = Class.forName(test_name);
       } catch (java.lang.ClassFormatError e) {
+          gotException = true;
           if (!e.getMessage().contains(message)) {
               throw new RuntimeException( "Wrong ClassFormatError: " + e.getMessage());
           }
+      }
+      if (!gotException) {
+        throw new RuntimeException("Missing ClassFormatError in test " + test_name);
       }
   }
 
   public static void main(String[] args) throws Exception {
 
     // Test that ACC_FINAL with ACC_VOLATILE is illegal.
-    runTest("FinalAndVolatile", "Illegal field modifiers in class FinalAndVolatile");
+    runTest("FinalAndVolatile", "Illegal field modifiers (fields cannot be final and volatile) in class FinalAndVolatile: 0x850");
 
     // Test that ACC_STATIC with ACC_STRICT is illegal.
-    runTest("StrictAndStatic", "Illegal field modifiers in class StrictAndStatic");
+    runTest("StrictAndStatic", "Illegal field modifiers (field cannot be strict and static) in class StrictAndStatic: 0x808");
 
     // Test that ACC_STRICT without ACC_FINAL is illegal.
-    runTest("StrictNotFinal", "Illegal field modifiers in class StrictNotFinal");
+    runTest("StrictNotFinal", "Illegal field modifiers (strict field must be final) in class StrictNotFinal: 0x800");
 
-    // Test that a value class cannot have field without ACC_STATIC or ACC_STRICT
-    runTest("NotStaticNotStrict", "Illegal field modifiers in class NotStaticNotStrict");
+    // Test that a concrete value class cannot have field without ACC_STATIC or ACC_STRICT
+    runTest("NotStaticNotStrict", "Illegal field modifiers (value class fields must be either strict or static) in class NotStaticNotStrict: 0x10");
+
+    // Test that an abstract value class cannot have field without ACC_STATIC or ACC_STRICT
+    runTest("NotStaticNotStrictInAbstract", "Illegal field modifiers (value class fields must be either strict or static) in class NotStaticNotStrictInAbstract: 0x10");
+
   }
 
 }
