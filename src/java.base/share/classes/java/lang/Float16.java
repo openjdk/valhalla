@@ -162,7 +162,7 @@ public final class Float16
      *
      * TODO: elaborate on more detailed behavior
      *
-     * @param   f16   the {@code float} to be converted.
+     * @param   f16   the {@code Float16} to be converted.
      * @return a string representation of the argument.
      */
     public static String toString(Float16 f16) {
@@ -399,7 +399,7 @@ public final class Float16
      * This method corresponds to the isFinite operation defined in
      * IEEE 754.
      *
-     * @param f16 the {@code float} value to be tested
+     * @param f16 the {@code Float16} value to be tested
      * @return {@code true} if the argument is a finite
      * floating-point value, {@code false} otherwise.
      */
@@ -602,7 +602,7 @@ public final class Float16
     }
 
     /**
-     * Returns the greater of two {@code Floa16t} values.
+     * Returns the larger of two {@code Float16} values.
      *
      * @apiNote
      * This method corresponds to the maximum operation defined in
@@ -621,7 +621,7 @@ public final class Float16
     }
 
     /**
-     * Returns the smaller of two {@code float} values.
+     * Returns the smaller of two {@code Float16} values.
      *
      * @apiNote
      * This method corresponds to the minimum operation defined in
@@ -765,13 +765,12 @@ public final class Float16
      */
     // @IntrinsicCandidate
     public static Float16 sqrt(Float16 radicand) {
-        // Rounding path of sqrt(Float16 -> float -> double) -> float
-        // -> Float16 is fine for preserving the correct final
-        // value. The sequence of conversions Float16 -> float ->
-        // double preserves the exact numerical value. Each of the
-        // double -> float and float -> Float16 conversions benefits
-        // from the 2p+2 property of IEEE 754 arithmetic.
-        return shortBitsToFloat16(floatToFloat16((float)Math.sqrt(radicand.floatValue())));
+        // Rounding path of sqrt(Float16 -> double) -> Float16 is fine
+        // for preserving the correct final value. The conversion
+        // Float16 -> double preserves the exact numerical value. The
+        // of the double -> Float16 conversion also benefits from the
+        // 2p+2 property of IEEE 754 arithmetic.
+        return valueOf(Math.sqrt(radicand.doubleValue());
     }
 
     /**
