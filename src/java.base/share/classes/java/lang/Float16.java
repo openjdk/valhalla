@@ -770,7 +770,7 @@ public final class Float16
         // Float16 -> double preserves the exact numerical value. The
         // of the double -> Float16 conversion also benefits from the
         // 2p+2 property of IEEE 754 arithmetic.
-        return valueOf(Math.sqrt(radicand.doubleValue());
+        return valueOf(Math.sqrt(radicand.doubleValue()));
     }
 
     /**
