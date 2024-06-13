@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,7 +70,7 @@ public class BasicFloat16ArithTests {
         checkFloat16(NEGATIVE_INFINITY,  Float.NEGATIVE_INFINITY,  "-infinity");
         checkFloat16(NaN,                Float.NaN,            "NaN");
     }
-    
+
     private static void checkInt(int value, int expected, String message) {
         if (value != expected) {
             throwRE(String.format("Didn't get expected value for %s;%nexpected %d, got %d",
