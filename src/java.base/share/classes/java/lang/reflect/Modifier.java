@@ -390,7 +390,7 @@ public class Modifier {
     /**
      * The {@code int} value representing the {@code strictfp}
      * modifier.
-     * @see AccessFlag#STRICT
+     * @see AccessFlag#STRICT and AccessFlag#STRICT_FIELD
      */
     public static final int STRICT           = 0x00000800;
 
@@ -463,7 +463,7 @@ public class Modifier {
     private static final int FIELD_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.STATIC         | Modifier.FINAL        | Modifier.TRANSIENT |
-        Modifier.VOLATILE;
+        Modifier.VOLATILE       | Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to a method or constructor parameter.
