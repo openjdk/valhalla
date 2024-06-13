@@ -117,7 +117,7 @@ public class StaticInvocableTest {
     public static byte[] dumpClass(String pkg) {
         return ClassFile.of().build(ClassDesc.of(pkg.replace('/', '.'), "MyClass"), clb -> {
             clb.withSuperclass(CD_Object);
-            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.SUPER);
+            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
             clb.withMethodBody(INIT_NAME, MTD_void, 0, cob -> {
                 cob.aload(0);
                 cob.invokespecial(CD_Object, INIT_NAME, MTD_void);

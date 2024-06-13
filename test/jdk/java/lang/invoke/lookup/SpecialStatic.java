@@ -120,7 +120,7 @@ public class SpecialStatic {
     public static byte[] dumpT1() {
         return ClassFile.of().build(CD_T1, clb -> {
             clb.withSuperclass(CD_Object);
-            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.SUPER);
+            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
             clb.withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob -> {
                 cob.aload(0);
                 cob.invokespecial(CD_Object, INIT_NAME, MTD_void);
@@ -136,7 +136,7 @@ public class SpecialStatic {
     public static byte[] dumpT2() {
         return ClassFile.of().build(CD_T2, clb -> {
             clb.withSuperclass(CD_T1);
-            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.SUPER);
+            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
             clb.withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob -> {
                 cob.aload(0);
                 cob.invokespecial(CD_T1, INIT_NAME, MTD_void);
@@ -152,7 +152,7 @@ public class SpecialStatic {
     public static byte[] dumpT3() {
         return ClassFile.of().build(CD_T3, clb -> {
             clb.withSuperclass(CD_T2);
-            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.SUPER);
+            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
             clb.withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob -> {
                 cob.aload(0);
                 cob.invokespecial(CD_T2, INIT_NAME, MTD_void);
