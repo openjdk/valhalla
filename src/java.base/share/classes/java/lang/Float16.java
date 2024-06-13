@@ -692,7 +692,7 @@ public final class Float16
     }
 
     /**
-     * Subtracts two {@code Float16} values as per the {@code +}
+     * Subtracts two {@code Float16} values as per the {@code -}
      * operator semantics.
      *
      * @apiNote This method corresponds to the subtraction operation
