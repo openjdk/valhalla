@@ -27,6 +27,7 @@
  * @summary Add lambda tests
  *  Add parser support for method references
  *  temporarily workaround combo tests are causing time out in several platforms
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

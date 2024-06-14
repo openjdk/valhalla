@@ -24,6 +24,7 @@
 /*
  * @test 6403456
  * @summary -Werror should work with annotation processing
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules java.compiler
  *          jdk.compiler

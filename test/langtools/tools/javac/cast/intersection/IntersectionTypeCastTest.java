@@ -26,6 +26,7 @@
  * @bug 8002099 8006694 8129962
  * @summary Add support for intersection types in cast expression
  *  temporarily workaround combo tests are causing time out in several platforms
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file
