@@ -4310,25 +4310,6 @@ void OopMapBlocksBuilder::print_value_on(outputStream* st) const {
   print_on(st);
 }
 
-void ClassFileParser::throwInlineTypeLimitation(THREAD_AND_LOCATION_DECL,
-                                                const char* msg,
-                                                const Symbol* name,
-                                                const Symbol* sig) const {
-
-  ResourceMark rm(THREAD);
-  if (name == nullptr || sig == nullptr) {
-    Exceptions::fthrow(THREAD_AND_LOCATION_ARGS,
-        vmSymbols::java_lang_ClassFormatError(),
-        "class: %s - %s", _class_name->as_C_string(), msg);
-  }
-  else {
-    Exceptions::fthrow(THREAD_AND_LOCATION_ARGS,
-        vmSymbols::java_lang_ClassFormatError(),
-        "\"%s\" sig: \"%s\" class: %s - %s", name->as_C_string(), sig->as_C_string(),
-        _class_name->as_C_string(), msg);
-  }
-}
-
 void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   assert(ik != nullptr, "invariant");
 
@@ -4363,11 +4344,6 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   // Check if this klass supports the java.lang.Cloneable interface
   if (vmClasses::Cloneable_klass_loaded()) {
     if (ik->is_subtype_of(vmClasses::Cloneable_klass())) {
-      if (ik->is_inline_klass()) {
-        JavaThread *THREAD = JavaThread::current();
-        throwInlineTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support Cloneable");
-        return;
-      }
       ik->set_is_cloneable();
     }
   }
