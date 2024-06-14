@@ -109,7 +109,6 @@ private:
   void mark_eliminated_locking_nodes(AbstractLockNode *alock);
   bool eliminate_locking_node(AbstractLockNode *alock);
   void expand_lock_node(LockNode *lock);
-  void inline_type_guard(Node** ctrl, LockNode* lock);
   void expand_unlock_node(UnlockNode *unlock);
   void expand_mh_intrinsic_return(CallStaticJavaNode* call);
 

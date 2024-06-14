@@ -21,9 +21,6 @@
  * questions.
  */
 
-// TODO 8325106 Investigate why this suddenly started to throw java.lang.OutOfMemoryError without -Xmx200m
-// and -XX:-UseCompressedOops -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=0 -Xmx20m -Xmn1m -XX:G1HeapRegionSize=1m -XX:-ReduceInitialCardMarks
-
 /**
  * @test
  * @summary Verify that certain array accesses do not trigger deoptimization.
@@ -31,10 +28,12 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xmx200m TestArrayAccessDeopt
+ * @run main TestArrayAccessDeopt
  */
 
 import java.io.File;
+import java.util.Objects;
+
 import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
@@ -73,7 +72,7 @@ public class TestArrayAccessDeopt {
     }
 
     public static void test6(MyValue1[] va, Object vt) {
-        va[0] = (MyValue1)vt;
+        va[0] = (MyValue1)Objects.requireNonNull(vt);
     }
 
     public static void test7(MyValue1[] va, MyValue1 vt) {
@@ -85,7 +84,7 @@ public class TestArrayAccessDeopt {
     }
 
     public static void test9(MyValue1[] va, MyValue1 vt) {
-        va[0] = (MyValue1)vt;
+        va[0] = Objects.requireNonNull(vt);
     }
 
     public static void test10(Object[] va) {
@@ -104,7 +103,7 @@ public class TestArrayAccessDeopt {
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "TestArrayAccessDeopt", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJava(arg);
             String output = oa.getOutput();
-            oa.shouldNotContain("Uncommon trap occurred");
+            oa.shouldNotContain("UNCOMMON TRAP");
         } else {
             MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
             MyValue1[] vaB = new MyValue1[1];

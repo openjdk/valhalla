@@ -184,7 +184,7 @@ class SerializeClosure;
   template(tag_inner_classes,                         "InnerClasses")                             \
   template(tag_nest_members,                          "NestMembers")                              \
   template(tag_nest_host,                             "NestHost")                                 \
-  template(tag_preload,                               "Preload")                                  \
+  template(tag_loadable_descriptors,                  "LoadableDescriptors")                      \
   template(tag_constant_value,                        "ConstantValue")                            \
   template(tag_code,                                  "Code")                                     \
   template(tag_exceptions,                            "Exceptions")                               \
@@ -220,6 +220,7 @@ class SerializeClosure;
   template(java_lang_IllegalArgumentException,        "java/lang/IllegalArgumentException")       \
   template(java_lang_IllegalStateException,           "java/lang/IllegalStateException")          \
   template(java_lang_IllegalMonitorStateException,    "java/lang/IllegalMonitorStateException")   \
+  template(java_lang_IdentityException,               "java/lang/IdentityException")              \
   template(java_lang_IllegalThreadStateException,     "java/lang/IllegalThreadStateException")    \
   template(java_lang_IndexOutOfBoundsException,       "java/lang/IndexOutOfBoundsException")      \
   template(java_lang_InstantiationException,          "java/lang/InstantiationException")         \

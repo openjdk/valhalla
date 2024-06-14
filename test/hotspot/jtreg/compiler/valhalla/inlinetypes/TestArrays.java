@@ -2340,14 +2340,16 @@ public class TestArrays {
         }
     }
 
+    static final MyValue1[] nullFreeArray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+
     // Test propagation of not null-free/flat information
     @Test
     @IR(failOn = CHECKCAST_ARRAY)
     public MyValue1[] test95(Object[] array) {
         array[0] = null;
         // Always throws a ClassCastException because we just successfully
-        // stored null and therefore the array can't be an value class array.
-        return (MyValue1[])array;
+        // stored null and therefore the array can't be a null-free value class array.
+        return nullFreeArray.getClass().cast(array);
     }
 
     @Run(test = "test95")
@@ -2374,8 +2376,8 @@ public class TestArrays {
     public boolean test96(Object[] array) {
         array[0] = null;
         // Always throws a ClassCastException because we just successfully
-        // stored null and therefore the array can't be an value class array.
-        MyValue1[] casted = (MyValue1[])array;
+        // stored null and therefore the array can't be a null-free value class array.
+        MyValue1[] casted = nullFreeArray.getClass().cast(array);
         return casted != null;
     }
 
@@ -2507,8 +2509,7 @@ public class TestArrays {
 
     // Test that CHECKCAST_ARRAY matching works as expected
     @Test
-    // TODO 8325106 This fails to detect the "movq    R10, precise [compiler/valhalla/inlinetypes/MyValue1" shape, also affects mainline
-    // @IR(counts = { IRNode.CHECKCAST_ARRAY, "= 1" })
+    @IR(counts = { CHECKCAST_ARRAY, "= 1" })
     public boolean test101(Object[] array) {
         return array instanceof MyValue1[];
     }
@@ -2517,8 +2518,37 @@ public class TestArrays {
     public void test101_verifier() {
         MyValue1[] array1 = new MyValue1[1];
         NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
+        MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         Asserts.assertTrue(test101(array1));
         Asserts.assertFalse(test101(array2));
+        Asserts.assertTrue(test101(array3));
+    }
+
+    // Test that CHECKCAST_ARRAY matching works as expected with null-free arrays
+    @Test
+    @IR(counts = { CHECKCAST_ARRAY, "= 1" })
+    public Object test101NullFree(Object[] array) {
+        return nullFreeArray.getClass().cast(array);
+    }
+
+    @Run(test = "test101NullFree")
+    public void test101NullFree_verifier() {
+        MyValue1[] array1 = new MyValue1[1];
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
+        MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        try {
+            test101NullFree(array1);
+            throw new RuntimeException("Should throw ClassCastException");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        try {
+            test101NullFree(array2);
+            throw new RuntimeException("Should throw ClassCastException");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        test101NullFree(array3);
     }
 
     static final MyValue2[] val_src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
@@ -3089,8 +3119,7 @@ public class TestArrays {
 
     // Empty value class array access
     @Test
-    // TODO 8325106 Shouldn't profiling determine that the array is null restricted?
-    //@IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
+    @IR(failOn = {ALLOC, ALLOCA, LOAD})
     public MyValueEmpty test130(MyValueEmpty[] array) {
         array[0] = new MyValueEmpty();
         return array[1];
@@ -3113,8 +3142,7 @@ public class TestArrays {
 
     // Empty value class container array access
     @Test
-    // TODO 8325106 Shouldn't profiling determine that the array is null restricted?
-    //@IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
+    @IR(failOn = {ALLOC, ALLOCA, LOAD})
     public MyValueEmpty test131(EmptyContainer[] array) {
         array[0] = new EmptyContainer();
         return array[1].empty;

@@ -1110,8 +1110,7 @@ public class TestCallingConvention {
 
     // Empty value class container and mixed container arguments
     @Test
-// TODO 8325106
-//    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC, STORE, TRAP})
     public MyValueEmpty test46(EmptyContainer c1, MixedContainer c2, MyValueEmpty empty) {
         c2 = new MixedContainer(c2.val, c1);
         return c2.getNoInline().getNoInline();

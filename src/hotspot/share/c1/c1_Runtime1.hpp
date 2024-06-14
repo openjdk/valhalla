@@ -51,7 +51,7 @@ class StubAssembler;
   stub(fast_new_instance_init_check) \
   stub(new_type_array)               \
   stub(new_object_array)             \
-  stub(new_flat_array)               \
+  stub(new_null_free_array)          \
   stub(new_multi_array)              \
   stub(load_flat_array)              \
   stub(store_flat_array)             \
@@ -65,6 +65,7 @@ class StubAssembler;
   stub(throw_class_cast_exception)   \
   stub(throw_incompatible_class_change_error)   \
   stub(throw_illegal_monitor_state_exception)   \
+  stub(throw_identity_exception)     \
   stub(slow_subtype_check)           \
   stub(monitorenter)                 \
   stub(monitorenter_nofpu)             /* optimized version that does not preserve fpu registers */ \
@@ -107,7 +108,7 @@ class Runtime1: public AllStatic {
   static uint _arraycopy_checkcast_attempt_cnt;
   static uint _new_type_array_slowcase_cnt;
   static uint _new_object_array_slowcase_cnt;
-  static uint _new_flat_array_slowcase_cnt;
+  static uint _new_null_free_array_slowcase_cnt;
   static uint _new_instance_slowcase_cnt;
   static uint _new_multi_array_slowcase_cnt;
   static uint _load_flat_array_slowcase_cnt;
@@ -125,6 +126,7 @@ class Runtime1: public AllStatic {
   static uint _throw_class_cast_exception_count;
   static uint _throw_incompatible_class_change_error_count;
   static uint _throw_illegal_monitor_state_exception_count;
+  static uint _throw_identity_exception_count;
   static uint _throw_count;
 #endif
 
@@ -152,7 +154,7 @@ class Runtime1: public AllStatic {
   static void new_instance_no_inline(JavaThread* current, Klass* klass);
   static void new_type_array  (JavaThread* current, Klass* klass, jint length);
   static void new_object_array(JavaThread* current, Klass* klass, jint length);
-  static void new_flat_array (JavaThread* current, Klass* klass, jint length);
+  static void new_null_free_array(JavaThread* current, Klass* klass, jint length);
   static void new_multi_array (JavaThread* current, Klass* klass, int rank, jint* dims);
   static void load_flat_array(JavaThread* current, flatArrayOopDesc* array, int index);
   static void store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value);
@@ -173,6 +175,7 @@ class Runtime1: public AllStatic {
   static void throw_class_cast_exception(JavaThread* current, oopDesc* object);
   static void throw_incompatible_class_change_error(JavaThread* current);
   static void throw_illegal_monitor_state_exception(JavaThread* current);
+  static void throw_identity_exception(JavaThread* current);
   static void throw_array_store_exception(JavaThread* current, oopDesc* object);
 
   static void monitorenter(JavaThread* current, oopDesc* obj, BasicObjectLock* lock);

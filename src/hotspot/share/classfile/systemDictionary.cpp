@@ -215,13 +215,13 @@ void SystemDictionary::set_platform_loader(ClassLoaderData *cld) {
 // ----------------------------------------------------------------------------
 // Parallel class loading check
 
-bool is_parallelCapable(Handle class_loader) {
+static bool is_parallelCapable(Handle class_loader) {
   if (class_loader.is_null()) return true;
   return java_lang_ClassLoader::parallelCapable(class_loader());
 }
 // ----------------------------------------------------------------------------
 // ParallelDefineClass flag does not apply to bootclass loader
-bool is_parallelDefine(Handle class_loader) {
+static bool is_parallelDefine(Handle class_loader) {
    if (class_loader.is_null()) return false;
    if (AllowParallelDefineClass && java_lang_ClassLoader::parallelCapable(class_loader())) {
      return true;
@@ -283,7 +283,7 @@ Symbol* SystemDictionary::class_name_symbol(const char* name, Symbol* exception,
 
 #ifdef ASSERT
 // Used to verify that class loading succeeded in adding k to the dictionary.
-void verify_dictionary_entry(Symbol* class_name, InstanceKlass* k) {
+static void verify_dictionary_entry(Symbol* class_name, InstanceKlass* k) {
   MutexLocker mu(SystemDictionary_lock);
   ClassLoaderData* loader_data = k->class_loader_data();
   Dictionary* dictionary = loader_data->dictionary();
@@ -1158,7 +1158,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
         }
       } else if (Signature::has_envelope(sig)) {
         TempNewSymbol name = Signature::strip_envelope(sig);
-        if (name != ik->name() && ik->is_class_in_preload_attribute(name)) {
+        if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(name)) {
           Klass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
             class_loader, protection_domain, false, THREAD);
           if (HAS_PENDING_EXCEPTION) {

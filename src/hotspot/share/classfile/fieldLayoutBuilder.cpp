@@ -779,7 +779,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
  */
 void FieldLayoutBuilder::inline_class_field_sorting() {
   assert(_is_inline_type || _is_abstract_value, "Should only be used for inline classes");
-  int alignment = 1;
+  int alignment = -1;
   for (GrowableArrayIterator<FieldInfo> it = _field_info->begin(); it != _field_info->end(); ++it) {
     FieldGroup* group = nullptr;
     FieldInfo fieldinfo = *it;

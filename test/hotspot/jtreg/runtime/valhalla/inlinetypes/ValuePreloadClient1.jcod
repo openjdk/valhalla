@@ -69,9 +69,8 @@
     Utf8 "([Ljava/lang/String;)V"; // #28
     Utf8 "SourceFile"; // #29
     Utf8 "ValuePreloadClient1.java"; // #30
-    Utf8 "Preload"; // #31
-    class #33; // #32
-    Utf8 "PreloadValue1"; // #33
+    Utf8 "LoadableDescriptors"; // #31
+    Utf8 "LPreloadValue1;"; // #32
   } // Constant Pool
 
   0x0021; // access
@@ -148,8 +147,8 @@
       #30;
     } // end SourceFile
     ;
-    Attr(#31) { // Preload
+    Attr(#31) { // LoadableDescriptors
       0x00010020;
-    } // end Preload
+    } // end LoadableDescriptors
   } // Attributes
 } // end class ValuePreloadClient1

@@ -158,7 +158,8 @@ void PhaseMacroExpand::eliminate_gc_barrier(Node* p2x) {
 // Search for a memory operation for the specified memory slice.
 static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_mem, Node *alloc, PhaseGVN *phase) {
   Node *orig_mem = mem;
-  Node *alloc_mem = alloc->in(TypeFunc::Memory);
+  Node *alloc_mem = alloc->as_Allocate()->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
+  assert(alloc_mem != nullptr, "Allocation without a memory projection.");
   const TypeOopPtr *tinst = phase->C->get_adr_type(alias_idx)->isa_oopptr();
   while (true) {
     if (mem == alloc_mem || mem == start_mem ) {
@@ -370,7 +371,8 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
     return nullptr; // Give up: phi tree too deep
   }
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
-  Node *alloc_mem = alloc->in(TypeFunc::Memory);
+  Node *alloc_mem = alloc->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
+  assert(alloc_mem != nullptr, "Allocation without a memory projection.");
 
   uint length = mem->req();
   GrowableArray <Node *> values(length, length, nullptr);
@@ -466,7 +468,8 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   int alias_idx = C->get_alias_index(adr_t);
   int offset = adr_t->flat_offset();
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
-  Node *alloc_mem = alloc->in(TypeFunc::Memory);
+  Node *alloc_mem = alloc->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
+  assert(alloc_mem != nullptr, "Allocation without a memory projection.");
   VectorSet visited;
 
   bool done = sfpt_mem == alloc_mem;
@@ -2267,49 +2270,6 @@ void PhaseMacroExpand::mark_eliminated_locking_nodes(AbstractLockNode *alock) {
   }
 }
 
-void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
-  Node* obj = lock->obj_node();
-  const TypePtr* obj_type = _igvn.type(obj)->make_ptr();
-  if (!obj_type->can_be_inline_type()) {
-    return;
-  }
-  Node* mark = make_load(*ctrl, lock->memory(), obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
-  Node* value_mask = _igvn.MakeConX(markWord::inline_type_pattern);
-  Node* is_value = _igvn.transform(new AndXNode(mark, value_mask));
-  Node* cmp = _igvn.transform(new CmpXNode(is_value, value_mask));
-  Node* bol = _igvn.transform(new BoolNode(cmp, BoolTest::eq));
-  Node* unc_ctrl = generate_slow_guard(ctrl, bol, nullptr);
-
-  int trap_request = Deoptimization::make_trap_request(Deoptimization::Reason_class_check, Deoptimization::Action_none);
-  address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
-  const TypePtr* no_memory_effects = nullptr;
-  CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap",
-                                         no_memory_effects);
-  unc->init_req(TypeFunc::Control, unc_ctrl);
-  unc->init_req(TypeFunc::I_O, lock->i_o());
-  unc->init_req(TypeFunc::Memory, lock->memory());
-  unc->init_req(TypeFunc::FramePtr,  lock->in(TypeFunc::FramePtr));
-  unc->init_req(TypeFunc::ReturnAdr, lock->in(TypeFunc::ReturnAdr));
-  unc->init_req(TypeFunc::Parms+0, _igvn.intcon(trap_request));
-  unc->set_cnt(PROB_UNLIKELY_MAG(4));
-  unc->copy_call_debug_info(&_igvn, lock);
-
-  assert(unc->peek_monitor_box() == lock->box_node(), "wrong monitor");
-  assert((obj_type->is_inlinetypeptr() && unc->peek_monitor_obj()->is_SafePointScalarObject()) ||
-         (obj->is_InlineType() && obj->in(1) == unc->peek_monitor_obj()) ||
-         (obj == unc->peek_monitor_obj()), "wrong monitor");
-
-  // pop monitor and push obj back on stack: we trap before the monitorenter
-  unc->pop_monitor();
-  unc->grow_stack(unc->jvms(), 1);
-  unc->set_stack(unc->jvms(), unc->jvms()->stk_size()-1, obj);
-  _igvn.register_new_node_with_optimizer(unc);
-
-  unc_ctrl = _igvn.transform(new ProjNode(unc, TypeFunc::Control));
-  Node* halt = _igvn.transform(new HaltNode(unc_ctrl, lock->in(TypeFunc::FramePtr), "monitor enter on inline type"));
-  _igvn.add_input_to(C->root(), halt);
-}
-
 // we have determined that this lock/unlock can be eliminated, we simply
 // eliminate the node without expanding it.
 //
@@ -2356,9 +2316,6 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
   // The input to a Lock is merged memory, so extract its RawMem input
   // (unless the MergeMem has been optimized away.)
   if (alock->is_Lock()) {
-    // Deoptimize and re-execute if object is an inline type
-    inline_type_guard(&ctrl, alock->as_Lock());
-
     // Search for MemBarAcquireLock node and delete it also.
     MemBarNode* membar = fallthroughproj->unique_ctrl_out()->as_MemBar();
     assert(membar != nullptr && membar->Opcode() == Op_MemBarAcquireLock, "");
@@ -2418,9 +2375,6 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
   // Optimize test; set region slot 2
   slow_path = opt_bits_test(ctrl, region, 2, flock, 0, 0);
   mem_phi->init_req(2, mem);
-
-  // Deoptimize and re-execute if object is an inline type
-  inline_type_guard(&slow_path, lock);
 
   // Make slow path call
   CallNode *call = make_slow_call((CallNode *) lock, OptoRuntime::complete_monitor_enter_Type(),

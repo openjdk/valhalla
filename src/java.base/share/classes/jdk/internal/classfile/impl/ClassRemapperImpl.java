@@ -52,11 +52,11 @@ import java.lang.classfile.attribute.EnclosingMethodAttribute;
 import java.lang.classfile.attribute.ExceptionsAttribute;
 import java.lang.classfile.attribute.InnerClassInfo;
 import java.lang.classfile.attribute.InnerClassesAttribute;
+import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.lang.classfile.attribute.ModuleAttribute;
 import java.lang.classfile.attribute.ModuleProvideInfo;
 import java.lang.classfile.attribute.NestHostAttribute;
 import java.lang.classfile.attribute.NestMembersAttribute;
-import java.lang.classfile.attribute.PreloadAttribute;
 import java.lang.classfile.attribute.PermittedSubclassesAttribute;
 import java.lang.classfile.attribute.RecordAttribute;
 import java.lang.classfile.attribute.RecordComponentInfo;
@@ -143,10 +143,8 @@ public record ClassRemapperImpl(Function<ClassDesc, ClassDesc> mapFunction) impl
                 clb.with(PermittedSubclassesAttribute.ofSymbols(
                         psa.permittedSubclasses().stream().map(ps ->
                                 map(ps.asSymbol())).toList()));
-            case PreloadAttribute pa ->
-                clb.with(PreloadAttribute.ofSymbols(
-                        pa.preloads().stream().map(pc ->
-                                map(pc.asSymbol())).toList()));
+            case LoadableDescriptorsAttribute pa ->
+                clb.with(LoadableDescriptorsAttribute.of(pa.loadableDescriptors()));
             case RuntimeVisibleAnnotationsAttribute aa ->
                 clb.with(RuntimeVisibleAnnotationsAttribute.of(
                         mapAnnotations(aa.annotations())));

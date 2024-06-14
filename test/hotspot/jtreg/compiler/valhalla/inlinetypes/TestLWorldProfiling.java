@@ -134,11 +134,11 @@ public class TestLWorldProfiling {
         static final long TypeProfileLevel = (Long) WhiteBox.getWhiteBox().getVMFlag("TypeProfileLevel");
     }
 
-    static abstract class NonValueAbstract {
+    static abstract value class ValueAbstract {
 
     }
 
-    static class NonValueClass1 extends NonValueAbstract {
+    static class NonValueClass1 extends ValueAbstract {
         int x;
 
         public NonValueClass1(int x) {
@@ -146,7 +146,7 @@ public class TestLWorldProfiling {
         }
     }
 
-    static class NonValueClass2 extends NonValueAbstract {
+    static class NonValueClass2 extends ValueAbstract {
         int x;
 
         public NonValueClass2(int x) {
@@ -261,20 +261,19 @@ public class TestLWorldProfiling {
     }
 
     @ForceInline
-    public void test6_helper(NonValueAbstract[] arg) {
+    public void test6_helper(ValueAbstract[] arg) {
         if (arg instanceof NonValueClass1[]) {
             test6_no_inline();
         }
     }
 
     @Test
-    // TODO 8325106 double-check rule modifications done by 8325660
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
         counts = {CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 3", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
-    public Object test6(NonValueAbstract[] array) {
-        NonValueAbstract v = array[0];
+        counts = {CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
+    public Object test6(ValueAbstract[] array) {
+        ValueAbstract v = array[0];
         test6_helper(array);
         return v;
     }
@@ -295,20 +294,19 @@ public class TestLWorldProfiling {
     }
 
     @ForceInline
-    public void test7_helper(Object arg) {
+    public void test7_helper(ValueAbstract arg) {
         if (arg instanceof NonValueClass1) {
             test7_no_inline();
         }
     }
 
     @Test
-    // TODO 8325106 double-check rule modifications done by 8325660
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
-        counts = {CALL, "= 3", CLASS_CHECK_TRAP, "= 0", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
+        counts = {CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 3", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
-    public Object test7(NonValueAbstract[] array) {
-        NonValueAbstract v = array[0];
+        counts = {CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
+    public Object test7(ValueAbstract[] array) {
+        ValueAbstract v = array[0];
         test7_helper(v);
         return v;
     }
@@ -478,9 +476,7 @@ public class TestLWorldProfiling {
     private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
 
     @Test
-// TODO 8325106
-//    @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
-    @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
+    @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
         counts = {NULL_CHECK_TRAP, "= 2"},
         failOn = {STORE_UNKNOWN_INLINE})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},

@@ -124,7 +124,7 @@ uint Runtime1::_arraycopy_checkcast_cnt = 0;
 uint Runtime1::_arraycopy_checkcast_attempt_cnt = 0;
 uint Runtime1::_new_type_array_slowcase_cnt = 0;
 uint Runtime1::_new_object_array_slowcase_cnt = 0;
-uint Runtime1::_new_flat_array_slowcase_cnt = 0;
+uint Runtime1::_new_null_free_array_slowcase_cnt = 0;
 uint Runtime1::_new_instance_slowcase_cnt = 0;
 uint Runtime1::_new_multi_array_slowcase_cnt = 0;
 uint Runtime1::_load_flat_array_slowcase_cnt = 0;
@@ -142,6 +142,7 @@ uint Runtime1::_throw_null_pointer_exception_count = 0;
 uint Runtime1::_throw_class_cast_exception_count = 0;
 uint Runtime1::_throw_incompatible_class_change_error_count = 0;
 uint Runtime1::_throw_illegal_monitor_state_exception_count = 0;
+uint Runtime1::_throw_identity_exception_count = 0;
 uint Runtime1::_throw_count = 0;
 
 static uint _byte_arraycopy_stub_cnt = 0;
@@ -428,8 +429,8 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* current, Klass* array_kla
 JRT_END
 
 
-JRT_ENTRY(void, Runtime1::new_flat_array(JavaThread* current, Klass* array_klass, jint length))
-  NOT_PRODUCT(_new_flat_array_slowcase_cnt++;)
+JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_klass, jint length))
+  NOT_PRODUCT(_new_null_free_array_slowcase_cnt++;)
 
   // Note: no handle for klass needed since they are not used
   //       anymore after new_objArray() and no GC can happen before.
@@ -883,6 +884,12 @@ JRT_ENTRY(void, Runtime1::throw_illegal_monitor_state_exception(JavaThread* curr
   NOT_PRODUCT(_throw_illegal_monitor_state_exception_count++;)
   ResourceMark rm(current);
   SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_IllegalMonitorStateException());
+JRT_END
+
+JRT_ENTRY(void, Runtime1::throw_identity_exception(JavaThread* current))
+  NOT_PRODUCT(_throw_identity_exception_count++;)
+  ResourceMark rm(current);
+  SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_IdentityException());
 JRT_END
 
 JRT_BLOCK_ENTRY(void, Runtime1::monitorenter(JavaThread* current, oopDesc* obj, BasicObjectLock* lock))
@@ -1689,7 +1696,7 @@ void Runtime1::print_statistics() {
 
   tty->print_cr(" _new_type_array_slowcase_cnt:    %u", _new_type_array_slowcase_cnt);
   tty->print_cr(" _new_object_array_slowcase_cnt:  %u", _new_object_array_slowcase_cnt);
-  tty->print_cr(" _new_flat_array_slowcase_cnt:    %u", _new_flat_array_slowcase_cnt);
+  tty->print_cr(" _new_null_free_array_slowcase_cnt: %u", _new_null_free_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %u", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %u", _new_multi_array_slowcase_cnt);
   tty->print_cr(" _load_flat_array_slowcase_cnt:   %u", _load_flat_array_slowcase_cnt);
@@ -1709,6 +1716,7 @@ void Runtime1::print_statistics() {
   tty->print_cr(" _throw_class_cast_exception_count:             %u:", _throw_class_cast_exception_count);
   tty->print_cr(" _throw_incompatible_class_change_error_count:  %u:", _throw_incompatible_class_change_error_count);
   tty->print_cr(" _throw_illegal_monitor_state_exception_count:  %u:", _throw_illegal_monitor_state_exception_count);
+  tty->print_cr(" _throw_identity_exception_count:               %u:", _throw_identity_exception_count);
   tty->print_cr(" _throw_count:                                  %u:", _throw_count);
 
   SharedRuntime::print_ic_miss_histogram();
