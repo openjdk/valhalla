@@ -39,17 +39,21 @@ import static java.lang.Float.float16ToFloat;
 import static java.lang.Float.floatToFloat16;
 
 /**
- * The {@code Float16} is a primitive value class holding 16-bit data in IEEE 754 binary16 format
- * {@code Float16} contains a single field whose type is {@code short}.
+ * The {@code Float16} is a primitive value class holding 16-bit data
+ * in IEEE 754 binary16 format.
  *
- * Binary16 Format:
- *   S EEEEE  MMMMMMMMMM
- *   Sign        - 1 bit
- *   Exponent    - 5 bits
- *   Significand - 10 bits
+ * <p>Binary16 Format:<br>
+ *   S EEEEE  MMMMMMMMMM<br>
+ *   Sign        - 1 bit<br>
+ *   Exponent    - 5 bits<br>
+ *   Significand - 10 bits (does not include the <i>implicit bit</i> inferred from the exponent, see {@link #PRECISION})<br>
  *
  * <p>This is a <a href="https://openjdk.org/jeps/401">primitive value class</a> and its objects are
  * identity-less non-nullable value objects.
+ *
+ * <p>Unless otherwise specified, the methods in this class use a
+ * <em>rounding policy</em> (JLS {@jls 15.4}) of {@linkplain
+ * java.math.RoundingMode#HALF_EVEN round to nearest}.
  *
  * @apiNote
  * The methods in this class generally have analogous methods in
@@ -75,6 +79,14 @@ public final class Float16
     private final short value;
     private static final long serialVersionUID = 16; // Not needed for a value class?
 
+    // Functionality for future consideration:
+    // float16ToShortBits that normalizes NaNs
+    // copysign
+    // scalb
+    // nextUp / nextDown
+    // IEEEremainder / remainder operator remainder
+    // signum
+
    /**
     * Returns a {@code Float16} instance wrapping IEEE 754 binary16
     * encoded {@code short} value.
@@ -91,8 +103,7 @@ public final class Float16
      * A constant holding the positive infinity of type {@code
      * Float16}.
      */
-    public static final Float16 POSITIVE_INFINITY =
-        shortBitsToFloat16(floatToFloat16(Float.POSITIVE_INFINITY));
+    public static final Float16 POSITIVE_INFINITY = valueOf(Float.POSITIVE_INFINITY);
 
     /**
      * A constant holding the negative infinity of type {@code
@@ -157,13 +168,19 @@ public final class Float16
     public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
-     * Returns a string representation of the {@code float16}
-     * argument. All characters mentioned below are ASCII characters.
+     * Returns a string representation of the {@code Float16}
+     * argument.
      *
-     * TODO: elaborate on more detailed behavior
+     * @implSpec
+     * The current implementation acts as this {@code Float16} were
+     * {@linkplain #floatValue() converted} to {@code float} and then
+     * the string for that {@code float} returned. This behavior is
+     * expected to change to accommodate the precision of {@code
+     * Float16}.
      *
      * @param   f16   the {@code Float16} to be converted.
      * @return a string representation of the argument.
+     * @see java.lang.Float#toString(float)
      */
     public static String toString(Float16 f16) {
         // FIXME -- update for Float16 precision
@@ -174,7 +191,9 @@ public final class Float16
      * Returns a hexadecimal string representation of the {@code
      * Float16} argument.
      *
-     * TODO: elaborate on more detailed behavior
+     * The behavior of this class is analogous to {@link
+     * Float#toHexString(float)} except that an exponent value of
+     * {@code "p14"} is used for subnormal {@code Float16} values.
      *
      * @param   f16   the {@code Float16} to be converted.
      * @return a hex string representation of the argument.
@@ -184,7 +203,7 @@ public final class Float16
      */
     public static String toHexString(Float16 f16) {
         float f = f16.floatValue();
-        if (Math.abs(f) < float16ToFloat(Float16.MIN_NORMAL.value)
+        if (Math.abs(f) < float16ToFloat(MIN_NORMAL.value)
             &&  f != 0.0f ) {// Float16 subnormal
             // Adjust exponent to create subnormal double, then
             // replace subnormal double exponent with subnormal Float16
@@ -192,7 +211,7 @@ public final class Float16
             String s = Double.toHexString(Math.scalb((double)f,
                                                      /* -1022+14 */
                                                      Double.MIN_EXPONENT-
-                                                     Float16.MIN_EXPONENT));
+                                                     MIN_EXPONENT));
             return s.replaceFirst("p-1022$", "p-14");
         } else {// double string will be the same as Float16 string
             return Double.toHexString(f);
@@ -226,11 +245,11 @@ public final class Float16
     * @param  value a {@code long} value.
     */
     public static Float16 valueOf(long value) {
-        if (value < -65_504) {
-            return Float16.NEGATIVE_INFINITY;
+        if (value < -65_504L) {
+            return NEGATIVE_INFINITY;
         } else {
             if (value > 65_504L) {
-                return Float16.NEGATIVE_INFINITY;
+                return NEGATIVE_INFINITY;
             }
             // Remaining range of long, the integers in approx. +/-
             // 2^16, all fit in a float so the correct conversion can
@@ -241,7 +260,11 @@ public final class Float16
 
    /**
     * {@return a {@code Float16} value rounded from the {@code float}
-    * argument}
+    * argument using the round to nearest rounding policy}
+    *
+    * @apiNote
+    * This method corresponds to the convertFormat operation defined
+    * in IEEE 754.
     *
     * @param  f a {@code float}
     */
@@ -251,7 +274,11 @@ public final class Float16
 
    /**
     * {@return a {@code Float16} value rounded from the {@code double}
-    * argument}
+    * argument using the round to nearest rounding policy}
+    *
+    * @apiNote
+    * This method corresponds to the convertFormat operation defined
+    * in IEEE 754.
     *
     * @param  d a {@code double}
     */
@@ -332,10 +359,15 @@ public final class Float16
     }
 
     /**
-     * Returns a {@code Float16} equal to the value represented by the
-     * specified {@code String}.
+     * Returns a {@code Float16} holding the floating-point value
+     * represented by the argument string.
      *
-     * TODO: add note about rounding, etc.
+     * @implSpec
+     * The current implementation acts as if the string were
+     * {@linkplain Double#parseDouble(String) parsed} as a {@code
+     * double} and then {@linkplain #valueOf(double) converted} to
+     * {@code Float16}. This behavior is expected to change to
+     * accommodate the precision of {@code Float16}.
      *
      * @param  s the string to be parsed.
      * @return the {@code Float16} value represented by the string
@@ -347,7 +379,7 @@ public final class Float16
      */
     public static Float16 valueOf(String s) throws NumberFormatException {
         // TOOD: adjust precision of parsing if needed
-        return shortBitsToFloat16(floatToFloat16(Float.parseFloat(s)));
+        return valueOf(Double.parseDouble(s));
     }
 
     //    /**
@@ -369,6 +401,9 @@ public final class Float16
      * @param   f16   the value to be tested.
      * @return  {@code true} if the argument is NaN;
      *          {@code false} otherwise.
+     *
+     * @see Float#isNaN(float)
+     * @see Double#isNaN(double)
      */
     public static boolean isNaN(Float16 f16) {
         return Float.isNaN(f16.floatValue());
@@ -385,6 +420,9 @@ public final class Float16
      * @param   f16   the value to be tested.
      * @return  {@code true} if the argument is positive infinity or
      *          negative infinity; {@code false} otherwise.
+     *
+     * @see Float#isInfinite(float)
+     * @see Double#isInfinite(double)
      */
     public static boolean isInfinite(Float16 f16) {
         return Float.isInfinite(f16.floatValue());
@@ -402,6 +440,9 @@ public final class Float16
      * @param f16 the {@code Float16} value to be tested
      * @return {@code true} if the argument is a finite
      * floating-point value, {@code false} otherwise.
+     *
+     * @see Float#isFinite(float)
+     * @see Double#isFinite(double)
      */
     public static boolean isFinite(Float16 f16) {
         return Float.isFinite(f16.floatValue());
@@ -412,11 +453,9 @@ public final class Float16
     // public boolean isInfinite() {
 
     /**
-     * Returns the value of this {@code Float16} as a {@code byte} after
-     * a narrowing primitive conversion.
+     * {@return the value of this {@code Float16} as a {@code byte} after
+     * a narrowing primitive conversion}
      *
-     * @return  the binary16 encoded {@code short} value represented by this object
-     *          converted to type {@code byte}
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
@@ -427,19 +466,17 @@ public final class Float16
     /**
      * {@return a string representation of this {@code Float16}}
      *
-     * @see java.lang.Float#toString(float)
+     * @implSpec
+     * This method returns the result of {@code Float16.toString(this)}.
      */
     public String toString() {
-        // Is this idiomatic?
-        return Float16.toString(this);
+        return toString(this);
     }
 
     /**
-     * Returns the value of this {@code Float16} as a {@code short}
-     * after a narrowing primitive conversion.
+     * {@return the value of this {@code Float16} as a {@code short}
+     * after a narrowing primitive conversion}
      *
-     * @return  the binary16 encoded {@code short} value represented by this object
-     *          converted to type {@code short}
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
@@ -448,11 +485,9 @@ public final class Float16
     }
 
     /**
-     * Returns the value of this {@code Float16} as an {@code int} after
-     * a narrowing primitive conversion.
+     * {@return the value of this {@code Float16} as an {@code int} after
+     * a narrowing primitive conversion}
      *
-     * @return  the binary16 encoded {@code short} value represented by this object
-     *          converted to type {@code int}
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
@@ -461,11 +496,9 @@ public final class Float16
     }
 
     /**
-     * Returns value of this {@code Float16} as a {@code long} after a
-     * narrowing primitive conversion.
+     * {@return value of this {@code Float16} as a {@code long} after a
+     * narrowing primitive conversion}
      *
-     * @return  the binary16 encoded {@code short} value represented by this object
-     *          converted to type {@code long}
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
@@ -474,10 +507,13 @@ public final class Float16
     }
 
     /**
-     * Returns the {@code float} value of this {@code Float16} object.
+     * {@return the value of this {@code Float16} as a {@code float}
+     * after a widening primitive conversion}
      *
-     * @return the binary16 encoded {@code short} value represented by this object
-     *         converted to type {@code float}
+     * @apiNote
+     * This method corresponds to the convertFormat operation defined
+     * in IEEE 754.
+     *
      * @jls 5.1.2 Widening Primitive Conversion
      */
     @Override
@@ -486,15 +522,13 @@ public final class Float16
     }
 
     /**
-     * Returns the value of this {@code Float16} as a {@code double}
-     * after a widening primitive conversion.
+     * {@return the value of this {@code Float16} as a {@code double}
+     * after a widening primitive conversion}
      *
      * @apiNote
      * This method corresponds to the convertFormat operation defined
      * in IEEE 754.
      *
-     * @return the binary16 encoded {@code short} value represented by this
-     *         object converted to type {@code double}
      * @jls 5.1.2 Widening Primitive Conversion
      */
     @Override
@@ -508,7 +542,11 @@ public final class Float16
     // public boolean equals(Object obj)
 
     /**
-     * Adds two {@code Float16} values together as per the + operator semantics.
+     * Adds two {@code Float16} values together as per the {@code +}
+     * operator semantics.
+     *
+     * @implSpec
+     * This method is operationally equivalent to {@link #add(Float16, Float16)}.
      *
      * @param a the first operand
      * @param b the second operand
@@ -554,19 +592,19 @@ public final class Float16
      * This method imposes a total order on {@code Float16} objects
      * with two differences compared to the incomplete order defined by
      * the Java language numerical comparison operators ({@code <, <=,
-     * ==, >=, >}) on {@code double} values.
+     * ==, >=, >}) on {@code float} and {@code double} values.
      *
      * <ul><li> A NaN is <em>unordered</em> with respect to other
      *          values and unequal to itself under the comparison
      *          operators.  This method chooses to define {@code
-     *          Double.NaN} to be equal to itself and greater than all
-     *          other {@code double} values (including {@code
-     *          Double.POSITIVE_INFINITY}).
+     *          Float16.NaN} to be equal to itself and greater than all
+     *          other {@code Float16} values (including {@code
+     *          Float16.POSITIVE_INFINITY}).
      *
      *      <li> Positive zero and negative zero compare equal
      *      numerically, but are distinct and distinguishable values.
-     *      This method chooses to define positive zero ({@code +0.0d}),
-     *      to be greater than negative zero ({@code -0.0d}).
+     *      This method chooses to define positive zero
+     *      to be greater than negative zero.
      * </ul>
      *
      * @param   anotherFloat16   the {@code Float16} to be compared.
@@ -578,11 +616,13 @@ public final class Float16
      *          {@code Float16} is numerically greater than
      *          {@code anotherFloat16}.
      *
+     * @see Float#compareTo(Float)
+     * @see Double#compareTo(Double)
      * @jls 15.20.1 Numerical Comparison Operators {@code <}, {@code <=}, {@code >}, and {@code >=}
      */
     @Override
     public int compareTo(Float16 anotherFloat16) {
-        return Float16.compare(this, anotherFloat16);
+        return compare(this, anotherFloat16);
     }
 
     /**
@@ -596,6 +636,9 @@ public final class Float16
      *          {@code f2}; and a value greater than {@code 0}
      *          if {@code f1} is numerically greater than
      *          {@code f2}.
+     *
+     * @see Float#compare(float, float)
+     * @see Double#compare(double, double)
      */
     public static int compare(Float16 f1, Float16 f2) {
         return Float.compare(f1.floatValue(), f2.floatValue());
@@ -673,7 +716,12 @@ public final class Float16
 
     /**
      * Adds two {@code Float16} values together as per the {@code +}
-     * operator semantics.
+     * operator semantics using the round to nearest rounding policy.
+     *
+     * The handling of signed zeros, NaNs, infinities, and other
+     * special cases by this method is the same as for the handling of
+     * those cases by the built-in {@code +} operator for
+     * floating-point addition (JLS {@jls 15.18.2}).
      *
      * @apiNote This method corresponds to the addition operation
      * defined in IEEE 754.
@@ -682,18 +730,21 @@ public final class Float16
      * @param augend the second operand
      * @return the sum of the operands
      *
-     * @jls 15.18.2 Additive Operators ({@code +} and {@code -}) for Numeric Types
+     * @jls 15.4 Floating-point Expressions
      */
     // @IntrinsicCandidate
     public static Float16 add(Float16 addend, Float16 augend) {
-        return shortBitsToFloat16(floatToFloat16(addend.floatValue()
-                                                 +
-                                                 augend.floatValue() ));
+        return valueOf(addend.floatValue() + augend.floatValue());
     }
 
     /**
      * Subtracts two {@code Float16} values as per the {@code -}
-     * operator semantics.
+     * operator semantics using the round to nearest rounding policy.
+     *
+     * The handling of signed zeros, NaNs, infinities, and other
+     * special cases by this method is the same as for the handling of
+     * those cases by the built-in {@code -} operator for
+     * floating-point subtraction (JLS {@jls 15.18.2}).
      *
      * @apiNote This method corresponds to the subtraction operation
      * defined in IEEE 754.
@@ -702,18 +753,21 @@ public final class Float16
      * @param  subtrahend the second operand
      * @return the difference of the operands
      *
-     * @jls 15.18.2 Additive Operators (+ and -) for Numeric Types
+     * @jls 15.4 Floating-point Expressions
      */
     // @IntrinsicCandidate
     public static Float16 subtract(Float16 minuend, Float16 subtrahend) {
-        return shortBitsToFloat16(floatToFloat16(minuend.floatValue()
-                                                 -
-                                                 subtrahend.floatValue() ));
+        return valueOf(minuend.floatValue() - subtrahend.floatValue());
     }
 
     /**
      * Multiplies two {@code Float16} values as per the {@code *}
-     * operator semantics.
+     * operator semantics using the round to nearest rounding policy.
+     *
+     * The handling of signed zeros, NaNs, and infinities, other
+     * special cases by this method is the same as for the handling of
+     * those cases by the built-in {@code *} operator for
+     * floating-point multiplication (JLS {@jls 15.17.1}).
      *
      * @apiNote This method corresponds to the multiplication
      * operation defined in IEEE 754.
@@ -722,18 +776,21 @@ public final class Float16
      * @param multiplicand the second operand
      * @return the product of the operands
      *
-     * @jls 15.17.1 Multiplication Operator {@code *}
+     * @jls 15.4 Floating-point Expressions
      */
     // @IntrinsicCandidate
     public static Float16 multiply(Float16 multiplier, Float16 multiplicand) {
-       return shortBitsToFloat16(floatToFloat16(float16ToFloat(multiplier.value)
-                                                *
-                                                float16ToFloat(multiplicand.value) ));
+        return valueOf(multiplier.floatValue() * multiplicand.floatValue());
     }
 
     /**
      * Divides two {@code Float16} values as per the {@code /}
-     * operator semantics.
+     * operator semantics using the round to nearest rounding policy.
+     *
+     * The handling of signed zeros, NaNs, and infinities, other
+     * special cases by this method is the same as for the handling of
+     * those cases by the built-in {@code /} operator for
+     * floating-point division (JLS {@jls 15.17.2}).
      *
      * @apiNote This method corresponds to the division
      * operation defined in IEEE 754.
@@ -742,17 +799,20 @@ public final class Float16
      * @param divisor the second operand
      * @return the quotient of the operands
      *
-     * @jls 15.17.2 Division Operator {@code /}
+     * @jls 15.4 Floating-point Expressions
      */
     // @IntrinsicCandidate
     public static Float16 divide(Float16 dividend, Float16 divisor) {
-       return shortBitsToFloat16(floatToFloat16(float16ToFloat(dividend.value)
-                                                /
-                                                float16ToFloat(divisor.value) ));
+        return valueOf(dividend.floatValue() / divisor.floatValue());
     }
 
     /**
-     * {@return the square root of the operand}
+     * {@return the square root of the operand} The square root is
+     * computed using the round to nearest rounding policy.
+     *
+     * The handling of zeros, NaN, infinities, and negative arguments
+     * by this method is analogous to the handling of those cases by
+     * {@link Math#sqrt(double)}.
      *
      * @apiNote
      * This method corresponds to the squareRoot operation defined in
@@ -778,6 +838,10 @@ public final class Float16
      * returns the exact product of the first two arguments summed
      * with the third argument and then rounded once to the nearest
      * {@code Float16}.
+     *
+     * The handling of zeros, NaN, infinities, and other special cases
+     * by this method is analogous to the handling of those cases by
+     * {@link Math#fma(float, float, float)}.
      *
      * @apiNote This method corresponds to the fusedMultiplyAdd
      * operation defined in IEEE 754.
@@ -824,25 +888,45 @@ public final class Float16
         // in double and then doing a single rounding of that value to
         // Float16 will implement this operation.
 
-        return valueOf( ( ((double)a.floatValue()) * (double)b.floatValue() )
-                        +
-                        ((double)c.floatValue()) );
+        return valueOf( (a.doubleValue() * b.doubleValue()) +  c.doubleValue());
     }
 
     /**
-     * {@return the negation root of the argument}
+     * {@return the negation of the argument}
+     *
+     * Special cases:
+     * <ul>
+     * <li> If the argument is zero, the result is a zero with the
+     * opposite sign as the argument.
+     * <li> If the argument is infinite, the result is an infinity
+     * with the opposite sign as the argument.
+     * <li> If the argument is a NaN, the result is a NaN.
+     * </ul>
+     *
+     * @apiNote
+     * This method corresponds to the negate operation defined in IEEE
+     * 754.
+     *
      * @param f16 the value to be negated
+     * @jls 15.15.4 Unary Minus Operator {@code -}
      */
     // @IntrinsicCandidate
     public static Float16 negate(Float16 f16) {
-        // Negate sign bit only. Per IEE 754-2019 section 5.5.1,
+        // Negate sign bit only. Per IEEE 754-2019 section 5.5.1,
         // negate is a bit-level operation and not a logical
-        // operation.
+        // operation. Therefore, in this case do _not_ use the float
+        // unary minus as an implementation as that is not guaranteed
+        // to flip the sign bit of a NaN.
         return shortBitsToFloat16((short)(f16.value ^ (short)0x0000_8000));
     }
 
     /**
      * {@return the absolute value of the argument}
+     *
+     * The handling of zeros, NaN, and infinities by this method is
+     * analogous to the handling of those cases by {@link
+     * Math#abs(float)}.
+     *
      * @param f16 the argument whose absolute value is to be determined
      *
      * @see Math#abs(float)
@@ -859,7 +943,18 @@ public final class Float16
      * Returns the unbiased exponent used in the representation of a
      * {@code Float16}.
      *
-     * @param f16 a {@code Floa16t} value
+     * <ul>
+     * <li>If the argument is NaN or infinite, then the result is
+     * {@link Float16#MAX_EXPONENT} + 1.
+     * <li>If the argument is zero or subnormal, then the result is
+     * {@link Float16#MIN_EXPONENT} - 1.
+     * </ul>
+     *
+     * @apiNote
+     * This method is analogous to the logB operation defined in IEEE
+     * 754, but returns a different value on subnormal arguments.
+     *
+     * @param f16 a {@code Float16} value
      * @return the unbiased exponent of the argument
      *
      * @see Math#getExponent(float)
@@ -884,7 +979,7 @@ public final class Float16
      * Returns the size of an ulp of the argument.  An ulp, unit in
      * the last place, of a {@code Float16} value is the positive
      * distance between this floating-point value and the {@code
-     * double} value next larger in magnitude.  Note that for non-NaN
+     * Float16} value next larger in magnitude.  Note that for non-NaN
      * <i>x</i>, <code>ulp(-<i>x</i>) == ulp(<i>x</i>)</code>.
      *
      * <p>Special Cases:
@@ -905,21 +1000,14 @@ public final class Float16
         int exp = getExponent(f16);
 
         return switch(exp) {
-        case Float16.MAX_EXPONENT + 1 -> abs(f16);          // NaN or infinity
-        case Float16.MIN_EXPONENT - 1 -> Float16.MIN_VALUE; // zero or subnormal
+        case MAX_EXPONENT + 1 -> abs(f16);          // NaN or infinity
+        case MIN_EXPONENT - 1 -> Float16.MIN_VALUE; // zero or subnormal
         default -> {
-            assert exp <= Float16.MAX_EXPONENT && exp >= Float16.MIN_EXPONENT;
+            assert exp <= MAX_EXPONENT && exp >= MIN_EXPONENT;
             // ulp(x) is usually 2^(SIGNIFICAND_WIDTH-1)*(2^ilogb(x))
             // Let float -> float16 conversion handle encoding issues.
             yield valueOf(Math.scalb(1.0f, exp - (PRECISION - 1)));
         }
         };
     }
-
-    // To be considered:
-    // copysign
-    // scalb
-    // nextUp / nextDown
-    // IEEEremainder
-    // signum
 }

@@ -39,6 +39,8 @@ public class BasicFloat16ArithTests {
         checkMinMax();
         checkArith();
         checkSqrt();
+        checkGetExponent();
+        checkUlp();
     }
 
     /*
@@ -295,6 +297,71 @@ public class BasicFloat16ArithTests {
             }
         }
 
+        return;
+    }
+
+    private static void checkGetExponent() {
+        float[][] testCases = {
+            {Float.POSITIVE_INFINITY, MAX_EXPONENT + 1},
+            {Float.POSITIVE_INFINITY, MAX_EXPONENT + 1},
+            {Float.NaN,               MAX_EXPONENT + 1},
+
+            {-0.0f,      MIN_EXPONENT - 1},
+            {+0.0f,      MIN_EXPONENT - 1},
+            {0x1.0p-24f, MIN_EXPONENT - 1}, // Float16.MIN_VALUE
+            {0x1.0p-14f, MIN_EXPONENT},     // Float16.MIN_NORMAL
+            {1.0f,       0},
+            {2.0f,       1},
+            {4.0f,       2},
+
+            {0x1.ffcp14f,  MAX_EXPONENT - 1},  // Float16.MAX_VALUE * 0.5
+            {0x1.ffcp15f,  MAX_EXPONENT},      // Float16.MAX_VALUE
+        };
+
+        for(var testCase : testCases) {
+            float arg =      testCase[0];
+            float expected = testCase[1];
+            // Exponents are in-range for Float16
+            Float16 result =  valueOf(getExponent(valueOf(arg)));
+
+            if (Float.compare(expected, result.floatValue()) != 0) {
+                checkFloat16(result, expected, "getExponent(" + arg + ")");
+            }
+        }
+        return;
+    }
+
+    private static void checkUlp() {
+        float[][] testCases = {
+            {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY},
+            {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY},
+            {Float.NaN,               Float.NaN},
+
+            // Zeros, subnormals, and MIN_VALUE all have MIN_VALUE as an ulp.
+            {-0.0f,      0x1.0p-24f},
+            {+0.0f,      0x1.0p-24f},
+            {0x1.0p-24f, 0x1.0p-24f},
+            {0x1.0p-14f, 0x1.0p-24f},
+
+            // ulp is 10 bits away
+            {0x1.0p0f,       0x0.004p0f}, // 1.0f
+            {0x1.0p1f,       0x0.004p1f}, // 2.0f
+            {0x1.0p2f,       0x0.004p2f}, // 4.0f
+
+            {0x1.ffcp14f,  0x0.004p14f},  // Test Float16.MAX_VALUE * 0.5
+            {0x1.ffcp15f,  0x0.004p15f},  // Test Float16.MAX_VALUE
+        };
+
+        for(var testCase : testCases) {
+            float arg =      testCase[0];
+            float expected = testCase[1];
+            // Exponents are in-range for Float16
+            Float16 result =  ulp(valueOf(arg));
+
+            if (Float.compare(expected, result.floatValue()) != 0) {
+                checkFloat16(result, expected, "ulp(" + arg + ")");
+            }
+        }
         return;
     }
 
