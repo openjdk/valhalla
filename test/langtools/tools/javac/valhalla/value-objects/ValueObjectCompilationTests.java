@@ -75,18 +75,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     @Test
-    void testAbstractValueClassConstraints() {
-        assertFail("compiler.err.mod.not.allowed.here",
-                """
-                abstract value class V {
-                    synchronized void foo() {
-                     // Error, abstract value class may not declare a synchronized instance method.
-                    }
-                }
-                """);
-    }
-
-    @Test
     void testValueModifierConstraints() {
         assertFail("compiler.err.illegal.combination.of.modifiers",
                 """
@@ -132,6 +120,15 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         assertOK(
                 """
                 value record Point(int x, int y) {}
+                """);
+        assertOK(
+                """
+                value class V extends Object {}
+                """);
+        assertFail("compiler.err.value.type.has.identity.super.type",
+                """
+                abstract class A {}
+                value class V extends A {}
                 """);
     }
 
@@ -203,7 +200,33 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """);
         assertFail("compiler.err.cant.assign.val.to.var",
                 """
+                abstract value class Point {
+                    int x = 10;
+                    int y;
+                    Point (int x, int y) {
+                        this.x = x; // Error, final field 'x' is already assigned to.
+                        this.y = y; // OK.
+                    }
+                }
+                """);
+        assertFail("compiler.err.cant.assign.val.to.var",
+                """
                 value class Point {
+                    int x;
+                    int y;
+                    Point (int x, int y) {
+                        this.x = x;
+                        this.y = y;
+                    }
+
+                    void foo(Point p) {
+                        this.y = p.y; // Error, y is final and can't be written outside of ctor.
+                    }
+                }
+                """);
+        assertFail("compiler.err.cant.assign.val.to.var",
+                """
+                abstract value class Point {
                     int x;
                     int y;
                     Point (int x, int y) {
@@ -229,6 +252,20 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """);
         assertFail("compiler.err.mod.not.allowed.here",
                 """
+                abstract value class V {
+                    synchronized void foo() {
+                     // Error, abstract value class may not declare a synchronized instance method.
+                    }
+                }
+                """);
+        assertOK(
+                """
+                abstract value class V {
+                    static synchronized void foo() {} // OK static
+                }
+                """);
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
                 value class V {
                     synchronized void foo() {}
                 }
@@ -236,7 +273,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         assertOK(
                 """
                 value class V {
-                    synchronized static void soo() {}
+                    synchronized static void soo() {} // OK static
                 }
                 """);
         assertFail("compiler.err.type.found.req",
