@@ -33,6 +33,7 @@ import java.util.stream.Stream;
  * @test
  * @bug 8176534
  * @summary Missing check against target-type during applicability inference
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

@@ -26,6 +26,7 @@
  * @bug 8217381
  * @summary Check error are convenient when AP generates a source file and
  *          an error in the same round
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler
  * @build JavacTestingAbstractProcessor GenerateAndError

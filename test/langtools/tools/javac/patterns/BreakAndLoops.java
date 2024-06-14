@@ -25,13 +25,13 @@
  * @test
  * @bug 8234922
  * @summary Verify proper scope of binding related to loops and breaks.
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.file
  *      jdk.compiler/com.sun.tools.javac.main
  *      jdk.compiler/com.sun.tools.javac.util
- * @enablePreview
  * @build toolbox.ToolBox toolbox.JavacTask
  * @build combo.ComboTestHelper
  * @compile BreakAndLoops.java

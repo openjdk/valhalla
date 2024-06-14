@@ -25,6 +25,7 @@
  * @test
  * @bug 8276836
  * @summary Check that switch expression with no value does not crash the compiler.
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      java.base/jdk.internal
