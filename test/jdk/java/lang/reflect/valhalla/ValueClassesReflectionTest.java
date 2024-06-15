@@ -35,6 +35,7 @@ import java.lang.constant.ClassDesc;
 import java.lang.reflect.*;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.testng.annotations.*;
 import static org.testng.Assert.*;
 
@@ -52,6 +53,8 @@ public class ValueClassesReflectionTest {
     }
     value record ValueRecord(int i, String s) {}
 
+    class Inner {}
+
     @DataProvider(name = "valueClasses")
     public Object[][] valueClassesData() {
         return List.of(
@@ -65,11 +68,14 @@ public class ValueClassesReflectionTest {
     public void testValueClasses(Class<?> cls) {
         assertTrue(cls.isValue());
         assertTrue(!cls.isIdentity());
+        Set<AccessFlag> accessFlagSet = cls.accessFlags();
+        assertTrue(!accessFlagSet.contains(AccessFlag.IDENTITY));
     }
 
     @DataProvider(name = "notValueClasses")
     public Object[][] notSealedClassesData() {
         return List.of(
+                Inner.class,
                 Object.class,
                 Void.class, Void[].class,
                 byte[].class, Byte[].class,
