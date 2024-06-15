@@ -724,18 +724,28 @@ public enum AccessFlag {
                                        SYNTHETIC, ANNOTATION,
                                        ENUM, AccessFlag.MODULE)),
                           entry(Location.FIELD,
-                                Set.of(PUBLIC, PRIVATE, PROTECTED,
-                                       STATIC, FINAL, VOLATILE,
-                                       TRANSIENT, SYNTHETIC, ENUM, STRICT_FIELD)),
+                                PreviewFeatures.isEnabled() ?
+                                        // STRICT_FIELD should be included only if preview is enabled
+                                        Set.of(PUBLIC, PRIVATE, PROTECTED,
+                                            STATIC, FINAL, VOLATILE,
+                                            TRANSIENT, SYNTHETIC, ENUM, STRICT_FIELD) :
+                                        Set.of(PUBLIC, PRIVATE, PROTECTED,
+                                                STATIC, FINAL, VOLATILE,
+                                                TRANSIENT, SYNTHETIC, ENUM)),
                           entry(Location.METHOD,
                                 Set.of(PUBLIC, PRIVATE, PROTECTED,
                                        STATIC, FINAL, SYNCHRONIZED,
                                        BRIDGE, VARARGS, NATIVE,
                                        ABSTRACT, STRICT, SYNTHETIC)),
                           entry(Location.INNER_CLASS,
-                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY,
-                                       STATIC, FINAL, INTERFACE, ABSTRACT,
-                                       SYNTHETIC, ANNOTATION, ENUM)),
+                                  PreviewFeatures.isEnabled() ?
+                                          // IDENTITY should be included only if preview is enabled
+                                          Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY,
+                                                  STATIC, FINAL, INTERFACE, ABSTRACT,
+                                                  SYNTHETIC, ANNOTATION, ENUM) :
+                                          Set.of(PUBLIC, PRIVATE, PROTECTED,
+                                                  STATIC, FINAL, INTERFACE, ABSTRACT,
+                                                  SYNTHETIC, ANNOTATION, ENUM)),
                           entry(Location.METHOD_PARAMETER,
                                 Set.of(FINAL, SYNTHETIC, MANDATED)),
                           entry(Location.MODULE,

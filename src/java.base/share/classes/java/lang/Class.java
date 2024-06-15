@@ -1542,9 +1542,6 @@ public final class Class<T> implements java.io.Serializable,
             // Ignore unspecified (0x0800) access flag for current version
             accessFlags &= ~0x0800;
         }
-        if (!PreviewFeatures.isEnabled() && location == AccessFlag.Location.INNER_CLASS) {
-            accessFlags &= ~Modifier.IDENTITY; // drop ACC_IDENTITY bit in inner class if not in preview
-        }
         return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
     }
 
