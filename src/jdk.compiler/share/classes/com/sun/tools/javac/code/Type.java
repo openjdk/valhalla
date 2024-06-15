@@ -243,7 +243,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     public boolean requiresLoadableDescriptors(Symbol referringClass) {
         if (this.tsym == referringClass)
             return false; // pointless
-        return this.isValueClass();
+        return this.isValueClass() && this.isFinal();
     }
 
     /**

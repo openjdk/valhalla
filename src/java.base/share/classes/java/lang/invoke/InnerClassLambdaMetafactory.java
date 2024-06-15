@@ -35,6 +35,7 @@ import sun.security.action.GetBooleanAction;
 
 import java.io.Serializable;
 import java.lang.constant.ConstantDescs;
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -356,14 +357,16 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             generateSerializationHostileMethods();
 
         // generate LoadableDescriptors attribute if it references any value class
-        LoadableDescriptorsAttributeBuilder builder = new LoadableDescriptorsAttributeBuilder(targetClass);
-        builder.add(factoryType)
-               .add(interfaceMethodType)
-               .add(implMethodType)
-               .add(dynamicMethodType)
-               .add(altMethods);
-        if (!builder.isEmpty())
-            cw.visitAttribute(builder.build());
+        if (PreviewFeatures.isEnabled()) {
+            LoadableDescriptorsAttributeBuilder builder = new LoadableDescriptorsAttributeBuilder(targetClass);
+            builder.add(factoryType)
+                    .add(interfaceMethodType)
+                    .add(implMethodType)
+                    .add(dynamicMethodType)
+                    .add(altMethods);
+            if (!builder.isEmpty())
+                cw.visitAttribute(builder.build());
+        }
 
         cw.visitEnd();
 
@@ -615,7 +618,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         }
 
         boolean requiresLoadableDescriptors(Class<?> cls) {
-            return cls.isValue();
+            return cls.isValue() && cls.accessFlags().contains(AccessFlag.FINAL);
         }
 
         boolean isEmpty() {

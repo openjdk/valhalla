@@ -1115,7 +1115,7 @@ public class Gen extends JCTree.Visitor {
         checkDimension(tree.pos(), v.type);
         Type localType = v.erasure(types);
         if (localType.requiresLoadableDescriptors(env.enclClass.sym)) {
-            poolWriter.enterLoadableDescriptorsClass((ClassSymbol) localType.tsym);
+            poolWriter.enterLoadableDescriptorsClass(localType.tsym);
         }
     }
 
