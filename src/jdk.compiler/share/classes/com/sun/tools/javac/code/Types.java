@@ -1687,9 +1687,6 @@ public class Types {
                 if (isSubtype(erasure(ts.type), erasure(ss.type))) {
                     return false;
                 }
-                if (isSubtype(erasure(ts.type), erasure(ss.type))) {
-                    return false;
-                }
                 // if both are classes or both are interfaces, shortcut
                 if (ts.isInterface() == ss.isInterface() && isSubtype(erasure(ss.type), erasure(ts.type))) {
                     return false;
