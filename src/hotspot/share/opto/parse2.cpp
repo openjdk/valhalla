@@ -450,7 +450,7 @@ Node* Parse::create_speculative_inline_type_array_checks(Node* array, const Type
     array = cast_to_profiled_array_type(array);
   }
 
-  // Even though the type does not tell us whether we have an inline type or not, we can still check the profile data
+  // Even though the type does not tell us whether we have an inline type array or not, we can still check the profile data
   // whether we have a non-null-free or non-flat array. Since non-null-free implies non-flat, we check this first.
   // Speculating on a non-null-free array doesn't help aaload but could be profitable for a subsequent aastore.
   if (!array_type->is_null_free() && !array_type->is_not_null_free()) {
@@ -552,7 +552,7 @@ Node* Parse::speculate_non_null_free_array(Node* const array, const TypeAryPtr*&
 }
 
 // Speculate that the array is non-flat. We emit a trap when this turns out to be wrong. On the fast path, we add a
-// CheckCastPP to use the non-flat type..
+// CheckCastPP to use the non-flat type.
 Node* Parse::speculate_non_flat_array(Node* const array, const TypeAryPtr* const array_type) {
   bool flat_array = true;
   Deoptimization::DeoptReason reason = Deoptimization::Reason_none;

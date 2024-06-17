@@ -67,7 +67,7 @@ public class TestSpeculateArrayAccess {
             // - If-Speculative-Array-Type hoisted and CastII and LoadN ends up before loop
             //
             // Running with -XX:+StressGCM: We could execute the LoadN before entering the loop.
-            // This crashes when iFld = -1 becauase we then access an out-of-bounds element.
+            // This crashes when iFld = -1 because we then access an out-of-bounds element.
             Object o = oA[(int)i*iFld];
             o.toString(); // Use the object with its speculated type.
         }
