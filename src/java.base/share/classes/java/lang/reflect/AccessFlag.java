@@ -738,12 +738,7 @@ public enum AccessFlag {
                                        BRIDGE, VARARGS, NATIVE,
                                        ABSTRACT, STRICT, SYNTHETIC)),
                           entry(Location.INNER_CLASS,
-                                  PreviewFeatures.isEnabled() ?
-                                          // IDENTITY should be included only if preview is enabled
-                                          Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY,
-                                                  STATIC, FINAL, INTERFACE, ABSTRACT,
-                                                  SYNTHETIC, ANNOTATION, ENUM) :
-                                          Set.of(PUBLIC, PRIVATE, PROTECTED,
+                                          Set.of(PUBLIC, PRIVATE, PROTECTED, (PreviewFeatures.isEnabled() ? IDENTITY : SUPER),
                                                   STATIC, FINAL, INTERFACE, ABSTRACT,
                                                   SYNTHETIC, ANNOTATION, ENUM)),
                           entry(Location.METHOD_PARAMETER,
