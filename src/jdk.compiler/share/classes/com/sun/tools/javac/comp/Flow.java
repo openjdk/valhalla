@@ -2382,7 +2382,7 @@ public class Flow {
                         clearPendingExits(false);
                     });
 
-                    // verify all static final fields got initailized
+                    // verify all static final fields got initialized
                     for (int i = firstadr; i < nextadr; i++) {
                         JCVariableDecl vardecl = vardecls[i];
                         VarSymbol var = vardecl.sym;

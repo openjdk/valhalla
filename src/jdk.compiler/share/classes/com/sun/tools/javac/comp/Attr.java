@@ -1346,8 +1346,7 @@ public class Attr extends JCTree.Visitor {
                 return true;
             }
         }
-        // isValueObject is not included in Object yet so we need a work around
-        return name == names.isValueObject;
+        return false;
     }
 
     Fragment canInferLocalVarType(JCVariableDecl tree) {
