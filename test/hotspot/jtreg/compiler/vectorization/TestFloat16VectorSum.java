@@ -26,7 +26,7 @@
 * @summary Test vectorization of Float16.sum operation.
 * @requires vm.compiler2.enabled
 * @library /test/lib /
-* @compile -XDenablePrimitiveClasses TestFloat16VectorSum.java
+* @compile  TestFloat16VectorSum.java
 * @run driver compiler.vectorization.TestFloat16VectorSum
 */
 

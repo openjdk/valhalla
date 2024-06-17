@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,11 @@
 import static java.lang.Float16.*;
 
 public class BasicFloat16ArithTests {
+    private static float InfinityF = Float.POSITIVE_INFINITY;
+    private static float NaNf = Float.NaN;
+
+    private static final float MAX_VAL_FP16 = 0x1.ffcp15f;
+
     public static void main(String... args) {
         checkConstants();
         checkNegate();
@@ -41,6 +46,7 @@ public class BasicFloat16ArithTests {
         checkSqrt();
         checkGetExponent();
         checkUlp();
+        FusedMultiplyAddTests.main();
     }
 
     /*
@@ -68,9 +74,9 @@ public class BasicFloat16ArithTests {
         checkFloat16(MIN_NORMAL, 0x1.0p-14f, "Float16.MIN_NORMAL");
         checkFloat16(MAX_VALUE,  65504.0f,  "Float16.MAX_VALUE");
 
-        checkFloat16(POSITIVE_INFINITY,  Float.POSITIVE_INFINITY,  "+infinity");
-        checkFloat16(NEGATIVE_INFINITY,  Float.NEGATIVE_INFINITY,  "-infinity");
-        checkFloat16(NaN,                Float.NaN,            "NaN");
+        checkFloat16(POSITIVE_INFINITY,   InfinityF,  "+infinity");
+        checkFloat16(NEGATIVE_INFINITY,  -InfinityF,  "-infinity");
+        checkFloat16(NaN,                 NaNf,            "NaN");
     }
 
     private static void checkInt(int value, int expected, String message) {
@@ -96,10 +102,10 @@ public class BasicFloat16ArithTests {
             {-1.0f,   1.0f},
             { 1.0f,  -1.0f},
 
-            {Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY},
-            {Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY},
+            {InfinityF, -InfinityF},
+            {-InfinityF, InfinityF},
 
-            {Float.NaN, Float.NaN},
+            {NaNf,       NaNf},
         };
 
         for(var testCase : testCases) {
@@ -123,10 +129,10 @@ public class BasicFloat16ArithTests {
             {-1.0f,   1.0f},
             { 1.0f,   1.0f},
 
-            {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY},
-            {Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY},
+            { InfinityF, InfinityF},
+            {-InfinityF, InfinityF},
 
-            {Float.NaN, Float.NaN},
+            {NaNf,       NaNf},
         };
 
         for(var testCase : testCases) {
@@ -148,8 +154,8 @@ public class BasicFloat16ArithTests {
         }
 
         float[] testCases = {
-            Float.NEGATIVE_INFINITY,
-            Float.POSITIVE_INFINITY,
+            -InfinityF,
+            InfinityF,
             -0.0f,
             +0.0f,
              1.0f,
@@ -168,8 +174,8 @@ public class BasicFloat16ArithTests {
 
     private static void checkFiniteness() {
         float[] infinities = {
-            Float.NEGATIVE_INFINITY,
-            Float.POSITIVE_INFINITY,
+            -InfinityF,
+             InfinityF,
         };
 
         for(var infinity : infinities) {
@@ -281,10 +287,10 @@ public class BasicFloat16ArithTests {
             {4.0f,   2.0f},
             {9.0f,   3.0f},
 
-            {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY},
-            {Float.NEGATIVE_INFINITY, Float.NaN},
+            { InfinityF, InfinityF},
+            {-InfinityF, NaNf},
 
-            {Float.NaN, Float.NaN},
+            {NaNf,       NaNf},
         };
 
         for(var testCase : testCases) {
@@ -302,9 +308,9 @@ public class BasicFloat16ArithTests {
 
     private static void checkGetExponent() {
         float[][] testCases = {
-            {Float.POSITIVE_INFINITY, MAX_EXPONENT + 1},
-            {Float.POSITIVE_INFINITY, MAX_EXPONENT + 1},
-            {Float.NaN,               MAX_EXPONENT + 1},
+            {InfinityF, MAX_EXPONENT + 1},
+            {InfinityF, MAX_EXPONENT + 1},
+            {NaNf,      MAX_EXPONENT + 1},
 
             {-0.0f,      MIN_EXPONENT - 1},
             {+0.0f,      MIN_EXPONENT - 1},
@@ -314,8 +320,8 @@ public class BasicFloat16ArithTests {
             {2.0f,       1},
             {4.0f,       2},
 
-            {0x1.ffcp14f,  MAX_EXPONENT - 1},  // Float16.MAX_VALUE * 0.5
-            {0x1.ffcp15f,  MAX_EXPONENT},      // Float16.MAX_VALUE
+            {MAX_VAL_FP16*0.5f, MAX_EXPONENT - 1},
+            {MAX_VAL_FP16,      MAX_EXPONENT},
         };
 
         for(var testCase : testCases) {
@@ -333,9 +339,9 @@ public class BasicFloat16ArithTests {
 
     private static void checkUlp() {
         float[][] testCases = {
-            {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY},
-            {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY},
-            {Float.NaN,               Float.NaN},
+            {InfinityF, InfinityF},
+            {InfinityF, InfinityF},
+            {NaNf,      NaNf},
 
             // Zeros, subnormals, and MIN_VALUE all have MIN_VALUE as an ulp.
             {-0.0f,      0x1.0p-24f},
@@ -348,8 +354,8 @@ public class BasicFloat16ArithTests {
             {0x1.0p1f,       0x0.004p1f}, // 2.0f
             {0x1.0p2f,       0x0.004p2f}, // 4.0f
 
-            {0x1.ffcp14f,  0x0.004p14f},  // Test Float16.MAX_VALUE * 0.5
-            {0x1.ffcp15f,  0x0.004p15f},  // Test Float16.MAX_VALUE
+            {MAX_VAL_FP16*0.5f, 0x0.004p14f},
+            {MAX_VAL_FP16,      0x0.004p15f},
         };
 
         for(var testCase : testCases) {
@@ -367,5 +373,167 @@ public class BasicFloat16ArithTests {
 
     private static void throwRE(String message) {
         throw new RuntimeException(message);
+    }
+
+    class FusedMultiplyAddTests {
+        public static void main(String... args) {
+            testNonFinite();
+            testZeroes();
+            testSimple();
+        }
+
+        private static void testNonFinite() {
+            float [][] testCases = {
+                {1.0f,       InfinityF,  2.0f,
+                 InfinityF,
+                },
+
+                {1.0f,       2.0f,       InfinityF,
+                 InfinityF,
+                },
+
+                {InfinityF,  1.0f,       InfinityF,
+                 InfinityF,
+                },
+
+                {0x1.ffcp14f, 2.0f,     -InfinityF,
+                 -InfinityF},
+
+                {InfinityF,  1.0f,      -InfinityF,
+                 NaNf,
+                },
+
+                {-InfinityF, 1.0f,       InfinityF,
+                 NaNf,
+                },
+
+                {1.0f,       NaNf,       2.0f,
+                 NaNf,
+                },
+
+                {1.0f,       2.0f,       NaNf,
+                 NaNf,
+                },
+
+                {InfinityF,  2.0f,       NaNf,
+                 NaNf,
+                },
+
+                {NaNf,       2.0f,       InfinityF,
+                 NaNf,
+                },
+            };
+
+            for (float[] testCase: testCases) {
+                testFusedMacCase(testCase[0], testCase[1], testCase[2], testCase[3]);
+            }
+        }
+
+        private static void testZeroes() {
+            float [][] testCases = {
+                {+0.0f, +0.0f, +0.0f,
+                 +0.0f,
+                },
+
+                {-0.0f, +0.0f, +0.0f,
+                 +0.0f,
+                },
+
+                {+0.0f, +0.0f, -0.0f,
+                 +0.0f,
+                },
+
+                {+0.0f, +0.0f, -0.0f,
+                 +0.0f,
+                },
+
+                {-0.0f, +0.0f, -0.0f,
+                 -0.0f,
+                },
+
+                {-0.0f, -0.0f, -0.0f,
+                 +0.0f,
+                },
+
+                {-1.0f, +0.0f, -0.0f,
+                 -0.0f,
+                },
+
+                {-1.0f, +0.0f, +0.0f,
+                 +0.0f,
+                },
+
+                {-2.0f, +0.0f, -0.0f,
+                 -0.0f,
+                },
+            };
+
+            for (float[] testCase: testCases) {
+                testFusedMacCase(testCase[0], testCase[1], testCase[2], testCase[3]);
+            }
+        }
+
+        private static void testSimple() {
+            final float ulpOneFp16 = ulp(valueOf(1.0f)).floatValue();
+
+            float [][] testCases = {
+                {1.0f, 2.0f, 3.0f,
+                 5.0f,},
+
+                {1.0f, 2.0f, -2.0f,
+                 0.0f,},
+
+                {5.0f, 5.0f, -25.0f,
+                 0.0f,},
+
+                {0.5f*MAX_VAL_FP16, 2.0f, -0.5f*MAX_VAL_FP16,
+                 0.5f*MAX_VAL_FP16},
+
+                {MAX_VAL_FP16, 2.0f, -MAX_VAL_FP16,
+                 MAX_VAL_FP16},
+
+                {MAX_VAL_FP16, 2.0f, 1.0f,
+                 InfinityF},
+
+                {(1.0f + ulpOneFp16),
+                 (1.0f + ulpOneFp16),
+                 -1.0f - 2.0f*ulpOneFp16,
+                 ulpOneFp16 * ulpOneFp16},
+
+//                 // Double-rounding if done in double precision
+//                 {0x1.fffffep23f, 0x1.000004p28f, 0x1.fep5f, 0x1.000002p52f}
+            };
+
+            for (float[] testCase: testCases) {
+                testFusedMacCase(testCase[0], testCase[1], testCase[2], testCase[3]);
+            }
+        }
+
+        private static void testFusedMacCase(float input1, float input2, float input3, float expected) {
+            Float16 a = valueOf(input1);
+            Float16 b = valueOf(input2);
+            Float16 c = valueOf(input3);
+            Float16 d = valueOf(expected);
+
+            test("Float16.fma(float)", a, b, c, Float16.fma(a, b, c), d);
+
+            // Permute first two inputs
+            test("Float16.fma(float)", b, a, c, Float16.fma(b, a, c), d);
+            return;
+        }
+    }
+
+    private static void test(String testName,
+                           Float16 input1, Float16 input2, Float16 input3,
+                           Float16 result, Float16 expected) {
+        if (Float16.compare(expected, result ) != 0) {
+            System.err.println("Failure for "  + testName + ":\n" +
+                               "\tFor inputs " + input1   + "\t(" + toHexString(input1) + ") and "
+                                               + input2   + "\t(" + toHexString(input2) + ") and"
+                                               + input3   + "\t(" + toHexString(input3) + ")\n"  +
+                               "\texpected  "  + expected + "\t(" + toHexString(expected) + ")\n" +
+                               "\tgot       "  + result   + "\t(" + toHexString(result) + ").");
+            throw new RuntimeException();
+        }
     }
 }
