@@ -217,7 +217,7 @@ public enum Target {
     /** Does the target VM support value classes
      */
     public boolean hasValueClasses() {
-        return compareTo(JDK1_19) >= 0;
+        return compareTo(JDK1_23) >= 0;
     }
 
     /** Is the ACC_STRICT bit redundant and obsolete
