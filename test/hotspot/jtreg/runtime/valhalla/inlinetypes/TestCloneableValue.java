@@ -48,7 +48,7 @@
 
       @Override
       public Object clone() throws CloneNotSupportedException {
-        return super.clone(); // deleguate to Object's method performing a shallow copy
+        return super.clone(); // delegate to Object's method performing a shallow copy
       }
      }
 
