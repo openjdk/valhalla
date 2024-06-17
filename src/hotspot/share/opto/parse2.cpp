@@ -436,13 +436,14 @@ void Parse::create_range_check(Node* idx, Node* ary, const TypeInt* sizetype) {
 }
 
 // For inline type arrays, we can use the profiling information for array accesses to speculate on the type, flatness,
-// and null-freeness. This avoids runtime checks and leads to a much simpler graph shape. We emit traps if the profiling
-// information turns out to be wrong at runtime.
+// and null-freeness. We can either prepare the speculative type for later uses or emit explicit speculative checks with
+// traps now. In the latter case, the speculative type guarantees can avoid additional runtime checks later (e.g.
+// non-null-free implies non-flat which allows us to remove flatness checks). This makes the graph simpler.
 Node* Parse::create_speculative_inline_type_array_checks(Node* array, const TypeAryPtr* array_type,
                                                          const Type*& element_type) {
   if (!array_type->is_flat() && !array_type->is_not_flat()) {
-    // For array accesses, it can be useful to speculate on flatness such that we can fix the data layout. We only want
-    // to do that when we know nothing about flatness since it requires a trap when profiling turns out to be wrong.
+    // For arrays that might be flat, speculate that the array has the exact type reported in the profile data such that
+    // we can rely on a fixed memory layout (i.e. either a flat layout or not).
     array = cast_to_speculative_array_type(array, array_type, element_type);
   } else if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
     // Array is known to be either flat or not flat. If possible, update the speculative type by using the profile data
