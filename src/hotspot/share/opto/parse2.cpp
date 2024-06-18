@@ -102,8 +102,14 @@ void Parse::array_load(BasicType bt) {
       assert(ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
       sync_kit(ideal);
       const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-      Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
-                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+      DecoratorSet decorator_set = IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD;
+      if (needs_range_check(ary_t->size(), idx)) {
+        // We've emitted a RangeCheck but now insert an additional check between the range check and the actual load.
+        // We cannot pin the load to two separate nodes. Instead, we pin it conservatively here such that it cannot
+        // possibly float above the range check at any point.
+        decorator_set |= C2_UNKNOWN_CONTROL_LOAD;
+      }
+      Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt, decorator_set);
       if (elemptr->is_inlinetypeptr()) {
         assert(elemptr->maybe_null(), "null free array should be handled above");
         ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
@@ -351,17 +357,6 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     }
   }
 
-  // Check for big class initializers with all constant offsets
-  // feeding into a known-size array.
-  const TypeInt* idxtype = _gvn.type(idx)->is_int();
-  // See if the highest idx value is less than the lowest array bound,
-  // and if the idx value cannot be negative:
-  bool need_range_check = true;
-  if (idxtype->_hi < sizetype->_lo && idxtype->_lo >= 0) {
-    need_range_check = false;
-    if (C->log() != nullptr)   C->log()->elem("observe that='!need_range_check'");
-  }
-
   if (!arytype->is_loaded()) {
     // Only fails for some -Xcomp runs
     // The class is unloaded.  We have to run this bytecode in the interpreter.
@@ -375,8 +370,10 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
 
   ary = create_speculative_inline_type_array_checks(ary, arytype, elemtype);
 
-  if (need_range_check) {
+  if (needs_range_check(sizetype, idx)) {
     create_range_check(idx, ary, sizetype);
+  } else if (C->log() != nullptr) {
+    C->log()->elem("observe that='!need_range_check'");
   }
 
   // Check for always knowing you are throwing a range-check exception
@@ -388,6 +385,13 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   assert(ptr != top(), "top should go hand-in-hand with stopped");
 
   return ptr;
+}
+
+// Check if we need a range check for an array access. This is the case if the index is either negative or if it could
+// be greater or equal the smallest possible array size (i.e. out-of-bounds).
+bool Parse::needs_range_check(const TypeInt* size_type, const Node* index) const {
+  const TypeInt* index_type = _gvn.type(index)->is_int();
+  return index_type->_hi >= size_type->_lo || index_type->_lo < 0;
 }
 
 void Parse::create_range_check(Node* idx, Node* ary, const TypeInt* sizetype) {
