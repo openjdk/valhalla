@@ -437,7 +437,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   }
   InstanceKlass* ik = InstanceKlass::cast(klass);
   if (!ik->is_implicitly_constructible()) {
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not i mplicitly constructible");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
   }
   oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
