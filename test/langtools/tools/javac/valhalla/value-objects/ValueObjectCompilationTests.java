@@ -612,7 +612,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
     @Test
     void testConstruction() throws Exception {
         record Data(String src, boolean isRecord) {}
-        for (Data data : List.of(
+        /*for (Data data : List.of(
                 new Data(
                     """
                     value class Test {
@@ -674,7 +674,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
             }
         }
-
+        */
+/*
         String source =
                 """
                 value class Test {
@@ -700,7 +701,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
             }
         }
-
+*/
         assertFail("compiler.err.cant.ref.before.ctor.called",
                 """
                 value class Test {

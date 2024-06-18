@@ -580,11 +580,11 @@ public class Gen extends JCTree.Visitor {
         }
     }
 
-    class InitializerVisitor extends TreeScanner {
+    public static class InitializerVisitor extends TreeScanner {
         JCMethodDecl md;
         Set<JCExpression> exprSet;
 
-        InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
+        public InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
             this.md = md;
             this.exprSet = exprSet;
         }

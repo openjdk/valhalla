@@ -1506,6 +1506,7 @@ public class JavaCompiler {
             Set<Env<AttrContext>> dependencies = new LinkedHashSet<>();
             protected boolean hasLambdas;
             protected boolean hasPatterns;
+            protected boolean hasValueClasses;
             @Override
             public void visitClassDef(JCClassDecl node) {
                 Type st = types.supertype(node.sym.type);
@@ -1517,8 +1518,10 @@ public class JavaCompiler {
                         if (dependencies.add(stEnv)) {
                             boolean prevHasLambdas = hasLambdas;
                             boolean prevHasPatterns = hasPatterns;
+                            boolean prevHasValueClasses = hasValueClasses;
                             try {
                                 scan(stEnv.tree);
+                                hasValueClasses = node.sym.isValueClass();
                             } finally {
                                 /*
                                  * ignore any updates to hasLambdas and hasPatterns
@@ -1529,6 +1532,7 @@ public class JavaCompiler {
                                  */
                                 hasLambdas = prevHasLambdas;
                                 hasPatterns = prevHasPatterns;
+                                hasValueClasses = prevHasValueClasses;
                             }
                         }
                         envForSuperTypeFound = true;
@@ -1634,6 +1638,13 @@ public class JavaCompiler {
                 env.tree = LambdaToMethod.instance(context).translateTopLevelClass(env, env.tree, localMake);
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
+
+            if (shouldStop(CompileState.VALUEINITIALIZERS))
+                return;
+//            if (scanner.hasValueClasses) {
+            env.tree = ValueInitializers.instance(context).translateTopLevelClass(env, env.tree, localMake);
+//            }
+            compileStates.put(env, CompileState.VALUEINITIALIZERS);
 
             if (shouldStop(CompileState.LOWER))
                 return;
