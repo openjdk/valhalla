@@ -1005,7 +1005,16 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                         err_msg("class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
                         klass->external_name()), false);
           }
-          // the inline_type_field_klass_array is not updated because of CDS (see verifications in SystemDictionary::load_shared_class())
+          // the inline_type_field_klasses_array might have been loaded with CDS, so update only if not already set and check consistency
+          if (inline_type_field_klasses_array()->at(fs.index()) == nullptr) {
+            set_inline_type_field_klass(fs.index(), InlineKlass::cast(ik));
+          }
+          assert(get_inline_type_field_klass(fs.index()) == ik, "Must match");
+        } else {
+          if (inline_type_field_klasses_array()->at(fs.index()) == nullptr) {
+            set_inline_type_field_klass(fs.index(), InlineKlass::cast(this));
+          }
+          assert(get_inline_type_field_klass(fs.index()) == this, "Must match");
         }
       }
     }
@@ -1383,23 +1392,14 @@ void InstanceKlass::initialize_impl(TRAPS) {
   if (EnableValhalla) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (fs.is_null_free_inline_type()) {
-        Klass* klass = get_inline_type_field_klass_or_null(fs.index());
-        if (fs.access_flags().is_static() && klass == nullptr) {
-          klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
-              Handle(THREAD, class_loader()),
-              Handle(THREAD, protection_domain()),
-              true, THREAD);
-          assert(klass->is_inline_klass(), "Must be");
-          set_inline_type_field_klass(fs.index(), InlineKlass::cast(klass));
-        }
 
-        if (!HAS_PENDING_EXCEPTION) {
-          assert(klass != nullptr, "Must  be");
-          InstanceKlass::cast(klass)->initialize(THREAD);
-          if (fs.access_flags().is_static()) {
-            if (java_mirror()->obj_field(fs.offset()) == nullptr) {
-              java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
-            }
+        // inline type field klass array entries must have alreadyt been filed at load time or link time
+        Klass* klass = get_inline_type_field_klass(fs.index());
+
+        InstanceKlass::cast(klass)->initialize(THREAD);
+        if (fs.access_flags().is_static()) {
+          if (java_mirror()->obj_field(fs.offset()) == nullptr) {
+            java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
           }
         }
 

@@ -30,9 +30,9 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "runtime/registerMap.hpp"
-//#include "oops/oop.inline.hpp"
 
-// An InlineKlass is a specialized InstanceKlass for inline types.
+// An InlineKlass is a specialized InstanceKlass for concrete value classes
+// (abstract value classes are represented by InstanceKlass)
 
 
 class InlineKlass: public InstanceKlass {

@@ -1010,10 +1010,6 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
       Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
       assert(element_klass != nullptr, "Must have an element klass");
       oop comp_oop = element_klass->java_mirror();
-      if (element_klass->is_inline_klass()) {
-        InlineKlass* ik = InlineKlass::cast(element_klass);
-        comp_oop = ik->java_mirror();
-      }
       if (is_scratch) {
         comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
       } else {
@@ -1102,12 +1098,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
 // latter may contain dumptime-specific information that cannot be archived
 // (e.g., ClassLoaderData*, or static fields that are modified by Java code execution).
 void java_lang_Class::create_scratch_mirror(Klass* k, TRAPS) {
-  // Inline classes encapsulate two mirror objects, a value mirror (primitive value mirror)
-  // and a reference mirror (primitive class mirror), skip over scratch mirror allocation
-  // for inline classes, they will not be part of shared archive and will be created while
-  // restoring unshared fileds. Refer Klass::restore_unshareable_info() for more details.
-  if (k->is_inline_klass() ||
-      (k->class_loader() != nullptr &&
+  if ((k->class_loader() != nullptr &&
        k->class_loader() != SystemDictionary::java_platform_loader() &&
        k->class_loader() != SystemDictionary::java_system_loader())) {
     // We only archive the mirrors of classes loaded by the built-in loaders
