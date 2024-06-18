@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,79 +132,12 @@ bool VerificationType::is_reference_assignable_from(
     VerificationType comp_this = get_component(context);
     VerificationType comp_from = from.get_component(context);
 
-/*
-    // This code implements non-covariance between inline type arrays and both
-    // arrays of objects and arrays of interface types.  If covariance is
-    // supported for inline type arrays then this code should be removed.
-    if (comp_from.is_inline_type() && !comp_this.is_null() && comp_this.is_reference()) {
-      // An array of inline types is not assignable to an array of java.lang.Objects.
-      if (comp_this.name() == vmSymbols::java_lang_Object()) {
-        return false;
-      }
-
-      // Need to load 'comp_this' to see if it is an interface.
-      InstanceKlass* klass = context->current_class();
-      {
-        HandleMark hm(THREAD);
-        Klass* comp_this_class = SystemDictionary::resolve_or_fail(
-            comp_this.name(), Handle(THREAD, klass->class_loader()),
-            Handle(THREAD, klass->protection_domain()), true, CHECK_false);
-        klass->class_loader_data()->record_dependency(comp_this_class);
-        if (log_is_enabled(Debug, class, resolve)) {
-          Verifier::trace_class_resolution(comp_this_class, klass);
-        }
-        // An array of inline types is not assignable to an array of interface types.
-        if (comp_this_class->is_interface()) {
-          return false;
-        }
-      }
-    }
-*/
     if (!comp_this.is_bogus() && !comp_from.is_bogus()) {
       return comp_this.is_component_assignable_from(comp_from, context,
                                                     from_field_is_protected, THREAD);
     }
   }
   return false;
-}
-
-bool VerificationType::is_inline_type_assignable_from(const VerificationType& from) const {
-  // Check that 'from' is not null, is an inline type, and is the same inline type.
-  assert(is_inline_type(), "called with a non-inline type");
-  assert(!is_null(), "inline type is not null");
-  return (!from.is_null() && from.is_inline_type() && name() == from.name());
-}
-
-bool VerificationType::is_ref_assignable_from_inline_type(const VerificationType& from, ClassVerifier* context, TRAPS) const {
-  assert(!from.is_null(), "Inline type should not be null");
-  if (!is_null() && (name()->is_same_fundamental_type(from.name()) ||
-      name() == vmSymbols::java_lang_Object())) {
-    return true;
-  }
-
-  // Need to load 'this' to see if it is an interface or supertype.
-  InstanceKlass* klass = context->current_class();
-  {
-    HandleMark hm(THREAD);
-    Klass* this_class = SystemDictionary::resolve_or_fail(
-        name(), Handle(THREAD, klass->class_loader()),
-        Handle(THREAD, klass->protection_domain()), true, CHECK_false);
-    klass->class_loader_data()->record_dependency(this_class);
-    if (log_is_enabled(Debug, class, resolve)) {
-      Verifier::trace_class_resolution(this_class, klass);
-    }
-    if (this_class->is_interface()) {
-      return true;
-    } else {
-      Klass* from_class = SystemDictionary::resolve_or_fail(
-        from.name(), Handle(THREAD, klass->class_loader()),
-        Handle(THREAD, klass->protection_domain()), true, CHECK_false);
-      if (log_is_enabled(Debug, class, resolve)) {
-        Verifier::trace_class_resolution(from_class, klass);
-      }
-      return from_class->is_subclass_of(this_class);
-    }
-  }
 }
 
 VerificationType VerificationType::get_component(ClassVerifier *context) const {
@@ -253,8 +186,6 @@ void VerificationType::print_on(outputStream* st) const {
     case Double_2nd:       st->print("double_2nd"); break;
     case Null:             st->print("null"); break;
     case ReferenceQuery:   st->print("reference type"); break;
-    case InlineTypeQuery:  st->print("inline type"); break;
-    case NonScalarQuery:   st->print("reference or inline type"); break;
     case Category1Query:   st->print("category1 type"); break;
     case Category2Query:   st->print("category2 type"); break;
     case Category2_2ndQuery: st->print("category2_2nd type"); break;

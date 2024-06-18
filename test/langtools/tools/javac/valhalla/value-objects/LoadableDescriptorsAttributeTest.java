@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8280164
+ * @bug 8280164 8334313
  * @summary Check emission of LoadableDescriptors attribute
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @enablePreview
@@ -35,15 +35,16 @@ import com.sun.tools.classfile.ConstantPool.CONSTANT_Utf8_info;
 
 public class LoadableDescriptorsAttributeTest {
 
-    final value class V1 {}
-    final value class V2 {}
-    final value class V3 {}
-    final value class V4 {}
-    final value class V5 {}
-    final value class V6 {}
-    final value class V7 {}
-    final value class V8 {}
-    final value class V9 {}
+    value class V1 {}
+    value class V2 {}
+    value class V3 {}
+    value class V4 {}
+    value class V5 {}
+    value class V6 {}
+    value class V7 {}
+    value class V8 {}
+    value class V9 {}
+    abstract value class V10 {}
 
     static final value class X {
         final V1 [] v1 = null; // field descriptor, encoding array type - no LoadableDescriptors.
@@ -67,6 +68,7 @@ public class LoadableDescriptorsAttributeTest {
         V8 [] goo(V9 [] v9) { // neither V8 nor V9 call for preload being array component types
             return null;
         }
+        V10 v10 = null; // abstract shouldn't be in the loadable descriptors attr
     }
     // So we expect ONLY V2, V3 V5, V7 to be in LoadableDescriptors list
 

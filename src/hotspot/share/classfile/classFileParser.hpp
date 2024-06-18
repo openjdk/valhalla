@@ -478,11 +478,6 @@ class ClassFileParser {
                              const Symbol* sig,
                              TRAPS) const;
 
-  void throwInlineTypeLimitation(THREAD_AND_LOCATION_DECL,
-                                 const char* msg,
-                                 const Symbol* name = nullptr,
-                                 const Symbol* sig  = nullptr) const;
-
   void verify_constantvalue(const ConstantPool* const cp,
                             int constantvalue_index,
                             int signature_index,

@@ -25,6 +25,7 @@
  * @test
  * @bug 8269146 8290709
  * @summary Check compilation outcomes for various combinations of case label element.
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api

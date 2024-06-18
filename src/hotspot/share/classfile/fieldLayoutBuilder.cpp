@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1190,32 +1190,34 @@ void FieldLayoutBuilder::epilogue() {
 
   if (PrintFieldLayout || (PrintInlineLayout && _has_flattening_information)) {
     ResourceMark rm;
-    ttyLocker ttl;
+    stringStream st;
     if (first_layout_print) {
-      tty->print_cr("Field layout log format: @offset size/alignment [name] [signature] [comment]");
-      tty->print_cr("Heap oop size = %d", heapOopSize);
+      st.print_cr("Field layout log format: @offset size/alignment [name] [signature] [comment]");
+      st.print_cr("Heap oop size = %d", heapOopSize);
       first_layout_print = false;
     }
     if (_super_klass != nullptr) {
-      tty->print_cr("Layout of class %s@%p extends %s@%p", _classname->as_C_string(),
+      st.print_cr("Layout of class %s@%p extends %s@%p", _classname->as_C_string(),
                     _loader_data, _super_klass->name()->as_C_string(), _super_klass->class_loader_data());
     } else {
-      tty->print_cr("Layout of class %s@%p", _classname->as_C_string(), _loader_data);
+      st.print_cr("Layout of class %s@%p", _classname->as_C_string(), _loader_data);
     }
-    tty->print_cr("Instance fields:");
-    _layout->print(tty, false, _super_klass, _inline_type_field_klasses);
-    tty->print_cr("Static fields:");
-    _static_layout->print(tty, true, nullptr, _inline_type_field_klasses);
-    tty->print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
+    st.print_cr("Instance fields:");
+    _layout->print(&st, false, _super_klass, _inline_type_field_klasses);
+    st.print_cr("Static fields:");
+    _static_layout->print(&st, true, nullptr, _inline_type_field_klasses);
+    st.print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
     if (_is_inline_type) {
-      tty->print_cr("First field offset = %d", _first_field_offset);
-      tty->print_cr("Alignment = %d bytes", _alignment);
-      tty->print_cr("Exact size = %d bytes", _payload_size_in_bytes);
+      st.print_cr("First field offset = %d", _first_field_offset);
+      st.print_cr("Alignment = %d bytes", _alignment);
+      st.print_cr("Exact size = %d bytes", _payload_size_in_bytes);
       if (_internal_null_marker_offset != -1) {
-        tty->print_cr("Null marker offset = %d", _internal_null_marker_offset);
+        st.print_cr("Null marker offset = %d", _internal_null_marker_offset);
       }
     }
-    tty->print_cr("---");
+    st.print_cr("---");
+    // Print output all together.
+    tty->print_raw(st.as_string());
   }
 }
 

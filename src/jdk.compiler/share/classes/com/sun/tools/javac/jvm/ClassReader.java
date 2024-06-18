@@ -575,7 +575,6 @@ public class ClassReader {
             throw badClassFile("bad.class.signature", quoteBadSignature());
         sigp++;
         Type outer = Type.noType;
-        Name name;
         int startSbp = sbp;
 
         while (true) {

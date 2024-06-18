@@ -1355,9 +1355,6 @@ public class Check {
             if ((flags & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS) {
                 implicit |= FINAL;
             }
-
-            // TYPs can't be declared synchronized
-            mask &= ~SYNCHRONIZED;
             break;
         default:
             throw new AssertionError();
@@ -1389,10 +1386,6 @@ public class Check {
                                FINAL | NATIVE | SYNCHRONIZED)
                  &&
                  checkDisjoint(pos, flags,
-                        INTERFACE,
-                        VALUE_CLASS)
-                 &&
-                 checkDisjoint(pos, flags,
                                PUBLIC,
                                PRIVATE | PROTECTED)
                  &&
@@ -1400,7 +1393,7 @@ public class Check {
                                PRIVATE,
                                PUBLIC | PROTECTED)
                  &&
-                 checkDisjoint(pos, (flags | implicit), // complain against volatile & implcitly final entities too.
+                 checkDisjoint(pos, flags,
                                FINAL,
                                VOLATILE)
                  &&

@@ -26,8 +26,8 @@
  * @bug 8238358
  * @summary Lambda back-end should generate invokespecial for method handles referring to
  *          private instance methods when compiling with --release 14
- * @library /tools/javac/lib
  * @enablePreview
+ * @library /tools/javac/lib
  * @modules java.base/jdk.internal.classfile.impl
  *          jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

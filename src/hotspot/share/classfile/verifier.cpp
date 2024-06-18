@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -598,19 +598,10 @@ void ErrorContext::stackmap_details(outputStream* ss, const Method* method) cons
 
 // Methods in ClassVerifier
 
-VerificationType reference_or_inline_type(InstanceKlass* klass) {
-  // if (klass->is_inline_klass()) {
-  //   return VerificationType::inline_type(klass->name());
-  // } else {
-  //   return VerificationType::reference_type(klass->name());
-  // }  // LW401 CR required: verifier update/cleanup
-  return VerificationType::reference_type(klass->name());
-}
-
 ClassVerifier::ClassVerifier(JavaThread* current, InstanceKlass* klass)
     : _thread(current), _previous_symbol(nullptr), _symbols(nullptr), _exception_type(nullptr),
       _message(nullptr), _klass(klass) {
-  _this_type = reference_or_inline_type(klass);
+  _this_type = VerificationType::reference_type(klass->name());
 }
 
 ClassVerifier::~ClassVerifier() {
@@ -633,6 +624,11 @@ TypeOrigin ClassVerifier::ref_ctx(const char* sig) {
   return TypeOrigin::implicit(vt);
 }
 
+static bool supports_strict_fields(InstanceKlass* klass) {
+  int ver = klass->major_version();
+  return ver > Verifier::VALUE_TYPES_MAJOR_VERSION ||
+         (ver == Verifier::VALUE_TYPES_MAJOR_VERSION && klass->minor_version() == Verifier::JAVA_PREVIEW_MINOR_VERSION);
+}
 
 void ClassVerifier::verify_class(TRAPS) {
   log_info(verification)("Verifying class %s with new format", _klass->external_name());
@@ -1054,7 +1050,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::integer_type(), CHECK_VERIFY(this));
           atype = current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
-          if (!atype.is_nonscalar_array()) {
+          if (!atype.is_reference_array()) {
             verify_error(ErrorContext::bad_type(bci,
                 current_frame.stack_top_ctx(),
                 TypeOrigin::implicit(VerificationType::reference_check())),
@@ -1232,7 +1228,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           atype = current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
           // more type-checking is done at runtime
-          if (!atype.is_nonscalar_array()) {
+          if (!atype.is_reference_array()) {
             verify_error(ErrorContext::bad_type(bci,
                 current_frame.stack_top_ctx(),
                 TypeOrigin::implicit(VerificationType::reference_check())),
@@ -1632,12 +1628,12 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_if_acmpeq :
         case Bytecodes::_if_acmpne :
           current_frame.pop_stack(
-            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+            VerificationType::reference_check(), CHECK_VERIFY(this));
           // fall through
         case Bytecodes::_ifnull :
         case Bytecodes::_ifnonnull :
           current_frame.pop_stack(
-            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+            VerificationType::reference_check(), CHECK_VERIFY(this));
           target = bcs.dest();
           stackmap_table.check_jump_target
             (&current_frame, target, CHECK_VERIFY(this));
@@ -1688,7 +1684,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           no_control_flow = true; break;
         case Bytecodes::_areturn :
           type = current_frame.pop_stack(
-            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+            VerificationType::reference_check(), CHECK_VERIFY(this));
           verify_return_value(return_type, type, bci,
                               &current_frame, CHECK_VERIFY(this));
           no_control_flow = true; break;
@@ -1787,7 +1783,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_monitorenter :
         case Bytecodes::_monitorexit : {
           VerificationType ref = current_frame.pop_stack(
-            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+            VerificationType::reference_check(), CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
         case Bytecodes::_multianewarray :
@@ -2394,13 +2390,23 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       }
       stack_object_type = current_frame->pop_stack(CHECK_VERIFY(this));
 
-      // The JVMS 2nd edition allows field initialization before the superclass
+      // Field initialization is allowed before the superclass
       // initializer, if the field is defined within the current class.
       fieldDescriptor fd;
-      if (stack_object_type == VerificationType::uninitialized_this_type() &&
-          target_class_type.equals(current_type()) &&
-          _klass->find_local_field(field_name, field_sig, &fd)) {
-        stack_object_type = current_type();
+      bool is_local_field = _klass->find_local_field(field_name, field_sig, &fd) &&
+                            target_class_type.equals(current_type());
+      if (stack_object_type == VerificationType::uninitialized_this_type()) {
+        if (is_local_field) {
+          // Set the type to the current type so the is_assignable check passes.
+          stack_object_type = current_type();
+        }
+      } else if (supports_strict_fields(_klass)) {
+        // `strict` fields are not writable, but only local fields produce verification errors
+        if (is_local_field && fd.access_flags().is_strict()) {
+          verify_error(ErrorContext::bad_code(bci),
+                       "Illegal use of putfield on a strict field");
+          return;
+        }
       }
       is_assignable = target_class_type.is_assignable_from(
         stack_object_type, this, false, CHECK_VERIFY(this));
@@ -3105,7 +3111,7 @@ void ClassVerifier::verify_dload(int index, StackMapFrame* current_frame, TRAPS)
 
 void ClassVerifier::verify_aload(int index, StackMapFrame* current_frame, TRAPS) {
   VerificationType type = current_frame->get_local(
-    index, VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+    index, VerificationType::reference_check(), CHECK_VERIFY(this));
   current_frame->push_stack(type, CHECK_VERIFY(this));
 }
 
@@ -3142,7 +3148,7 @@ void ClassVerifier::verify_dstore(int index, StackMapFrame* current_frame, TRAPS
 
 void ClassVerifier::verify_astore(int index, StackMapFrame* current_frame, TRAPS) {
   VerificationType type = current_frame->pop_stack(
-    VerificationType::nonscalar_check(), CHECK_VERIFY(this));
+    VerificationType::reference_check(), CHECK_VERIFY(this));
   current_frame->set_local(index, type, CHECK_VERIFY(this));
 }
 

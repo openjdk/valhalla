@@ -4310,25 +4310,6 @@ void OopMapBlocksBuilder::print_value_on(outputStream* st) const {
   print_on(st);
 }
 
-void ClassFileParser::throwInlineTypeLimitation(THREAD_AND_LOCATION_DECL,
-                                                const char* msg,
-                                                const Symbol* name,
-                                                const Symbol* sig) const {
-
-  ResourceMark rm(THREAD);
-  if (name == nullptr || sig == nullptr) {
-    Exceptions::fthrow(THREAD_AND_LOCATION_ARGS,
-        vmSymbols::java_lang_ClassFormatError(),
-        "class: %s - %s", _class_name->as_C_string(), msg);
-  }
-  else {
-    Exceptions::fthrow(THREAD_AND_LOCATION_ARGS,
-        vmSymbols::java_lang_ClassFormatError(),
-        "\"%s\" sig: \"%s\" class: %s - %s", name->as_C_string(), sig->as_C_string(),
-        _class_name->as_C_string(), msg);
-  }
-}
-
 void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   assert(ik != nullptr, "invariant");
 
@@ -4363,11 +4344,6 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   // Check if this klass supports the java.lang.Cloneable interface
   if (vmClasses::Cloneable_klass_loaded()) {
     if (ik->is_subtype_of(vmClasses::Cloneable_klass())) {
-      if (ik->is_inline_klass()) {
-        JavaThread *THREAD = JavaThread::current();
-        throwInlineTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support Cloneable");
-        return;
-      }
       ik->set_is_cloneable();
     }
   }
@@ -4409,7 +4385,7 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 61.65535 and later
+  // Inline types are only supported by class file version 67.65535 and later
   return _major_version > JAVA_23_VERSION ||
          (_major_version == JAVA_23_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
@@ -4741,7 +4717,6 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
     if (!valid_value_class) {
       class_note = " (a value class must be final or else abstract)";
     }
-    if (!is_identity)  class_note = " (a value class)";
     if (name == nullptr) { // Not an inner class
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
@@ -4841,7 +4816,6 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
 
   const bool is_interface = class_access_flags.is_interface();
-  const bool is_abstract = class_access_flags.is_abstract();
   const bool is_identity_class = class_access_flags.is_identity_class();
 
   bool is_illegal = false;
