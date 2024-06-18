@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 package compiler.vectorization;
 import compiler.lib.ir_framework.*;
 import java.util.Random;
+import static java.lang.Float16.*;
 
 public class TestFP16ScalarAdd {
     private static final int count = 1024;
@@ -57,21 +58,21 @@ public class TestFP16ScalarAdd {
     @Test
     @IR(applyIfCPUFeature = {"avx512_fp16", "true"}, counts = {IRNode.ADD_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"})
     public void test1() {
-        Float16 res = Float16.valueOf((short)0);
+        Float16 res = shortBitsToFloat16((short)0);
         for (int i = 0; i < count; i++) {
-            res = Float16.sum(res, Float16.valueOf(src[i]));
-            dst[i] = res.float16ToRawShortBits();
+            res = Float16.sum(res, shortBitsToFloat16(src[i]));
+            dst[i] = float16ToRawShortBits(res);
         }
     }
 
     @Test
     @IR(applyIfCPUFeature = {"avx512_fp16", "true"}, failOn = {IRNode.ADD_HF, IRNode.REINTERPRET_S2HF, IRNode.REINTERPRET_HF2S})
     public void test2() {
-        Float16 hf0 = Float16.valueOf((short)0);
-        Float16 hf1 = Float16.valueOf((short)15360);
-        Float16 hf2 = Float16.valueOf((short)16384);
-        Float16 hf3 = Float16.valueOf((short)16896);
-        Float16 hf4 = Float16.valueOf((short)17408);
-        res = Float16.sum(Float16.sum(Float16.sum(Float16.sum(hf0, hf1), hf2), hf3), hf4).float16ToRawShortBits();
+        Float16 hf0 = shortBitsToFloat16((short)0);
+        Float16 hf1 = shortBitsToFloat16((short)15360);
+        Float16 hf2 = shortBitsToFloat16((short)16384);
+        Float16 hf3 = shortBitsToFloat16((short)16896);
+        Float16 hf4 = shortBitsToFloat16((short)17408);
+        res = float16ToRawShortBits(Float16.sum(Float16.sum(Float16.sum(Float16.sum(hf0, hf1), hf2), hf3), hf4));
     }
 }
