@@ -5348,6 +5348,12 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
     if (stopped())  return true;
 
     const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
+    if (obj_type->is_inlinetypeptr()) {
+      // If the object to clone is an inline type, we can simply return it (i.e. a nop) since inline types have
+      // no identity.
+      set_result(obj);
+      return true;
+    }
 
     // If we are going to clone an instance, we need its exact type to
     // know the number and types of fields to convert the clone to
