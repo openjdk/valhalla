@@ -230,8 +230,6 @@ class java_lang_Class : AllStatic {
   static int _class_loader_offset;
   static int _module_offset;
   static int _component_mirror_offset;
-  static int _primary_mirror_offset;
-  static int _secondary_mirror_offset;
 
   static int _name_offset;
   static int _source_file_offset;
@@ -246,8 +244,6 @@ class java_lang_Class : AllStatic {
   static void set_protection_domain(oop java_class, oop protection_domain);
   static void set_class_loader(oop java_class, oop class_loader);
   static void set_component_mirror(oop java_class, oop comp_mirror);
-  static void set_primary_mirror(oop java_class, oop comp_mirror);
-  static void set_secondary_mirror(oop java_class, oop comp_mirror);
 
   static void initialize_mirror_fields(Klass* k, Handle mirror, Handle protection_domain,
                                        Handle classData, TRAPS);
@@ -263,7 +259,6 @@ class java_lang_Class : AllStatic {
                             Handle protection_domain, Handle classData, TRAPS);
   static void fixup_mirror(Klass* k, TRAPS);
   static oop  create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS);
-  static oop  create_secondary_mirror(Klass* k, Handle mirror, TRAPS);
 
   // Archiving
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
@@ -294,8 +289,7 @@ class java_lang_Class : AllStatic {
   static int klass_offset()                { CHECK_INIT(_klass_offset); }
   static int array_klass_offset()          { CHECK_INIT(_array_klass_offset); }
   static int component_mirror_offset()     { CHECK_INIT(_component_mirror_offset); }
-  static int primary_mirror_offset()       { CHECK_INIT(_primary_mirror_offset); }
-  static int secondary_mirror_offset()     { CHECK_INIT(_secondary_mirror_offset); }
+
   // Support for classRedefinedCount field
   static int classRedefinedCount(oop the_class_mirror);
   static void set_classRedefinedCount(oop the_class_mirror, int value);
@@ -303,10 +297,6 @@ class java_lang_Class : AllStatic {
   // Support for embedded per-class oops
   static oop  protection_domain(oop java_class);
   static oop  component_mirror(oop java_class);
-  static oop  primary_mirror(oop java_class);
-  static oop  secondary_mirror(oop java_class);
-  static bool is_primary_mirror(oop java_class);
-  static bool is_secondary_mirror(oop java_class);
 
   static objArrayOop  signers(oop java_class);
   static void set_signers(oop java_class, objArrayOop signers);
@@ -536,15 +526,16 @@ class java_lang_VirtualThread : AllStatic {
   enum {
     NEW           = 0,
     STARTED       = 1,
-    RUNNABLE      = 2,
-    RUNNING       = 3,
-    PARKING       = 4,
-    PARKED        = 5,
-    PINNED        = 6,
-    TIMED_PARKING = 7,
-    TIMED_PARKED  = 8,
-    TIMED_PINNED  = 9,
+    RUNNING       = 2,
+    PARKING       = 3,
+    PARKED        = 4,
+    PINNED        = 5,
+    TIMED_PARKING = 6,
+    TIMED_PARKED  = 7,
+    TIMED_PINNED  = 8,
+    UNPARKED      = 9,
     YIELDING      = 10,
+    YIELDED       = 11,
     TERMINATED    = 99,
 
     // additional state bits

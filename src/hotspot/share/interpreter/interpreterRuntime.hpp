@@ -61,11 +61,11 @@ class InterpreterRuntime: AllStatic {
   static void    anewarray     (JavaThread* threcurrentad, ConstantPool* pool, int index, jint size);
   static void    multianewarray(JavaThread* current, jint* first_size_address);
   static void    register_finalizer(JavaThread* current, oopDesc* obj);
-  static void    aconst_init  (JavaThread* current, ConstantPool* pool, int index);
-  static int     withfield     (JavaThread* current, ResolvedFieldEntry* entry, uintptr_t ptr);
   static void    uninitialized_static_inline_type_field(JavaThread* current, oopDesc* mirror, ResolvedFieldEntry* entry);
   static void    write_heap_copy (JavaThread* current, oopDesc* value, int offset, oopDesc* rcv);
   static void    read_flat_field(JavaThread* current, oopDesc* value, int index, Klass* field_holder);
+  static void    read_nullable_flat_field(JavaThread* current, oopDesc* object, ResolvedFieldEntry* entry);
+  static void    write_nullable_flat_field(JavaThread* current, oopDesc* object, oopDesc* value, ResolvedFieldEntry* entry);
 
   static void value_array_load(JavaThread* current, arrayOopDesc* array, int index);
   static void value_array_store(JavaThread* current, void* val, arrayOopDesc* array, int index);
@@ -119,6 +119,7 @@ class InterpreterRuntime: AllStatic {
 
   static void    throw_illegal_monitor_state_exception(JavaThread* current);
   static void    new_illegal_monitor_state_exception(JavaThread* current);
+  static void    throw_identity_exception(JavaThread* current);
 
   // Breakpoints
   static void _breakpoint(JavaThread* current, Method* method, address bcp);

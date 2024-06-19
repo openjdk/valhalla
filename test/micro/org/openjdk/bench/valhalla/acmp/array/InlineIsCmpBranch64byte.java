@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,7 +73,7 @@ public class InlineIsCmpBranch64byte extends StatesQ64byte {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    private static int cmp_Ref(Q64byte.ref[] objects1, Q64byte.ref[] objects2) {
+    private static int cmp_Ref(Q64byte[] objects1, Q64byte[] objects2) {
         int s = 0;
         for (int i = 0; i < SIZE; i++) {
             if (objects1[i] == objects2[i]) {

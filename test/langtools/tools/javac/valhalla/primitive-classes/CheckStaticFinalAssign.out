@@ -1,2 +1,0 @@
-CheckStaticFinalAssign.java:15:9: compiler.err.cant.assign.val.to.var: static final, x
-1 error

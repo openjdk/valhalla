@@ -132,7 +132,8 @@ Node *SubTypeCheckNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
   // Verify that optimizing the subtype check to a simple code pattern
   // when possible would not constant fold better
-  assert(verify(phase), "missing Value() optimization");
+  // TODO 8325106
+  // assert(verify(phase), "missing Value() optimization");
 
   return nullptr;
 }

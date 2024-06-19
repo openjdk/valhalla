@@ -1019,7 +1019,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
     case new_instance_id:
-    case new_instance_no_inline_id:
     case fast_new_instance_id:
     case fast_new_instance_init_check_id:
       {
@@ -1028,8 +1027,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         if (id == new_instance_id) {
           __ set_info("new_instance", dont_gc_arguments);
-        } else if (id == new_instance_no_inline_id) {
-          __ set_info("new_instance_no_inline", dont_gc_arguments);
         } else if (id == fast_new_instance_id) {
           __ set_info("fast new_instance", dont_gc_arguments);
         } else {
@@ -1040,11 +1037,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         __ enter();
         OopMap* map = save_live_registers(sasm, 2);
         int call_offset;
-        if (id == new_instance_no_inline_id) {
-          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance_no_inline), klass);
-        } else {
-          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
-        }
+        call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
         restore_live_registers_except_rax(sasm);
@@ -1077,7 +1070,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
     case new_type_array_id:
     case new_object_array_id:
-    case new_flat_array_id:
+    case new_null_free_array_id:
       {
         Register length   = rbx; // Incoming
         Register klass    = rdx; // Incoming
@@ -1088,7 +1081,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         } else if (id == new_object_array_id) {
           __ set_info("new_object_array", dont_gc_arguments);
         } else {
-          __ set_info("new_flat_array", dont_gc_arguments);
+          __ set_info("new_null_free_array", dont_gc_arguments);
         }
 
 #ifdef ASSERT
@@ -1111,8 +1104,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
             __ jcc(Assembler::equal, ok);
             __ stop("assert(is an object or inline type array klass)");
             break;
-          case new_flat_array_id:
-            // new "[QVT;"
+          case new_null_free_array_id:
             __ cmpl(t0, Klass::_lh_array_tag_vt_value);  // the array can be a flat array.
             __ jcc(Assembler::equal, ok);
             __ cmpl(t0, Klass::_lh_array_tag_obj_value); // the array cannot be a flat array (due to InlineArrayElementMaxFlatSize, etc)
@@ -1134,8 +1126,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         } else if (id == new_object_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_object_array), klass, length);
         } else {
-          assert(id == new_flat_array_id, "must be");
-          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_flat_array), klass, length);
+          assert(id == new_null_free_array_id, "must be");
+          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_null_free_array), klass, length);
         }
 
         oop_maps = new OopMapSet();
@@ -1353,6 +1345,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
     case throw_illegal_monitor_state_exception_id:
       { StubFrame f(sasm, "throw_illegal_monitor_state_exception", dont_gc_arguments);
         oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_illegal_monitor_state_exception), false);
+      }
+      break;
+
+    case throw_identity_exception_id:
+      { StubFrame f(sasm, "throw_identity_exception", dont_gc_arguments);
+        oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_identity_exception), false);
       }
       break;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ public class Inline64int extends AckermannBase {
                 + ack_value(new Q64int(X3), new Q64int(Y3)).longValue();
     }
 
-    private static Q64int.ref ack_ref(Q64int.ref x, Q64int.ref y) {
+    private static Q64int ack_ref(Q64int x, Q64int y) {
         return x.longValue() == 0 ?
                 new Q64int(y.longValue() + 1) :
                 (y.longValue() == 0 ?

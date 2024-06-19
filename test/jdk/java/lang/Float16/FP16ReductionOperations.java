@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,36 +25,38 @@
  * @test
  * @bug     8308363
  * @summary Test FP16 reduction operations.
- * @compile -XDenablePrimitiveClasses FP16ReductionOperations.java
- * @run main/othervm -XX:+EnablePrimitiveClasses -XX:-TieredCompilation -Xbatch FP16ReductionOperations
+ * @compile FP16ReductionOperations.java
+ * @run main/othervm -XX:-TieredCompilation -Xbatch FP16ReductionOperations
  */
 
 import java.util.Random;
+
+import static java.lang.Float16.*;
 
 public class FP16ReductionOperations {
 
     public static Random r = new Random(1024);
 
     public static short test_reduction_add_constants() {
-        Float16 hf0 = Float16.valueOf((short)0);
-        Float16 hf1 = Float16.valueOf((short)15360);
-        Float16 hf2 = Float16.valueOf((short)16384);
-        Float16 hf3 = Float16.valueOf((short)16896);
-        Float16 hf4 = Float16.valueOf((short)17408);
-        return Float16.sum(Float16.sum(Float16.sum(Float16.sum(hf0, hf1), hf2), hf3), hf4).float16ToRawShortBits();
+        Float16 hf0 = shortBitsToFloat16((short)0);
+        Float16 hf1 = shortBitsToFloat16((short)15360);
+        Float16 hf2 = shortBitsToFloat16((short)16384);
+        Float16 hf3 = shortBitsToFloat16((short)16896);
+        Float16 hf4 = shortBitsToFloat16((short)17408);
+        return float16ToRawShortBits(Float16.sum(Float16.sum(Float16.sum(Float16.sum(hf0, hf1), hf2), hf3), hf4));
     }
 
     public static short expected_reduction_add_constants() {
-        Float16 hf0 = Float16.valueOf((short)0);
-        Float16 hf1 = Float16.valueOf((short)15360);
-        Float16 hf2 = Float16.valueOf((short)16384);
-        Float16 hf3 = Float16.valueOf((short)16896);
-        Float16 hf4 = Float16.valueOf((short)17408);
-        return Float.floatToFloat16(Float.float16ToFloat(hf0.float16ToRawShortBits()) +
-                                    Float.float16ToFloat(hf1.float16ToRawShortBits()) +
-                                    Float.float16ToFloat(hf2.float16ToRawShortBits()) +
-                                    Float.float16ToFloat(hf3.float16ToRawShortBits()) +
-                                    Float.float16ToFloat(hf4.float16ToRawShortBits()));
+        Float16 hf0 = shortBitsToFloat16((short)0);
+        Float16 hf1 = shortBitsToFloat16((short)15360);
+        Float16 hf2 = shortBitsToFloat16((short)16384);
+        Float16 hf3 = shortBitsToFloat16((short)16896);
+        Float16 hf4 = shortBitsToFloat16((short)17408);
+        return Float.floatToFloat16(Float.float16ToFloat(float16ToRawShortBits(hf0)) +
+                                    Float.float16ToFloat(float16ToRawShortBits(hf1)) +
+                                    Float.float16ToFloat(float16ToRawShortBits(hf2)) +
+                                    Float.float16ToFloat(float16ToRawShortBits(hf3)) +
+                                    Float.float16ToFloat(float16ToRawShortBits(hf4)));
     }
 
     public static boolean compare(short actual, short expected) {
@@ -77,11 +79,11 @@ public class FP16ReductionOperations {
     }
 
     public static short test_reduction_add(short [] arr) {
-        Float16 res = Float16.valueOf((short)0);
+        Float16 res = shortBitsToFloat16((short)0);
         for (int i = 0; i < arr.length; i++) {
-            res = Float16.sum(res, Float16.valueOf(arr[i]));
+            res = Float16.sum(res, shortBitsToFloat16(arr[i]));
         }
-        return res.float16ToRawShortBits();
+        return float16ToRawShortBits(res);
     }
 
     public static short expected_reduction_add(short [] arr) {

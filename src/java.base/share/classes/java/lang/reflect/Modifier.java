@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import jdk.internal.javac.PreviewFeature;
+
 import java.util.StringJoiner;
 
 /**
@@ -37,8 +39,15 @@ import java.util.StringJoiner;
  * {@jvms 4.1}, {@jvms 4.4}, {@jvms 4.5}, and {@jvms 4.7} of
  * <cite>The Java Virtual Machine Specification</cite>.
  *
- * @see Class#accessFlags()
- * @see Member#accessFlags()
+ * @apiNote
+ * Not all modifiers that are syntactic Java language modifiers are
+ * represented in this class, only those modifiers that <em>also</em>
+ * have a corresponding JVM {@linkplain AccessFlag access flag} are
+ * included. In particular the {@code default} method modifier (JLS
+ * {@jls 9.4.3}) and the {@code sealed} and {@code non-sealed} class
+ * (JLS {@jls 8.1.1.2}) and interface (JLS {@jls 9.1.1.4}) modifiers
+ * are <em>not</em> represented in this class.
+ *
  * @see Class#getModifiers()
  * @see Member#getModifiers()
  *
@@ -138,7 +147,10 @@ public class Modifier {
      * @param   mod a set of modifiers
      * @return {@code true} if {@code mod} includes the
      * {@code identity} modifier; {@code false} otherwise.
+     *
+     * @since Valhalla
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public static boolean isIdentity(int mod) {
         return (mod & IDENTITY) != 0;
     }
@@ -153,21 +165,6 @@ public class Modifier {
      */
     public static boolean isVolatile(int mod) {
         return (mod & VOLATILE) != 0;
-    }
-
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code value} modifier, {@code false} otherwise.
-     *
-     * @apiNote {@code isValue} should only be called with the modifiers
-     * of a {@linkplain Class#getModifiers() class}.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code value} modifier; {@code false} otherwise.
-     */
-    public static boolean isValue(int mod) {
-        return (mod & VALUE) != 0;
     }
 
     /**
@@ -244,6 +241,7 @@ public class Modifier {
      * public protected private abstract static final transient
      * volatile synchronized native strictfp
      * interface } </blockquote>
+     *
      * The {@code interface} modifier discussed in this class is
      * not a true modifier in the Java language and it appears after
      * all other modifiers listed by this method.  This method may
@@ -256,6 +254,22 @@ public class Modifier {
      * such as a constructor or method, first AND the argument of
      * {@code toString} with the appropriate mask from a method like
      * {@link #constructorModifiers} or {@link #methodModifiers}.
+     *
+     * @apiNote
+     * To make a high-fidelity representation of the Java source
+     * modifiers of a class or member, source-level modifiers that do
+     * <em>not</em> have a constant in this class should be included
+     * and appear in an order consistent with the full recommended
+     * ordering for that kind of declaration as given in <cite>The
+     * Java Language Specification</cite>. For example, for a
+     * {@linkplain Method#toGenericString() method} the "{@link
+     * Method#isDefault() default}" modifier is ordered immediately
+     * before "{@code static}" (JLS {@jls 9.4}). For a {@linkplain
+     * Class#toGenericString() class object}, the "{@link
+     * Class#isSealed() sealed}" or {@code "non-sealed"} modifier is
+     * ordered immediately after "{@code final}" for a class (JLS
+     * {@jls 8.1.1}) and immediately after "{@code static}" for an
+     * interface (JLS {@jls 9.1.1}).
      *
      * @param   mod a set of modifiers
      * @return  a string representation of the set of modifiers
@@ -332,15 +346,11 @@ public class Modifier {
     /**
      * The {@code int} value representing the {@code ACC_IDENTITY}
      * modifier.
+     *
+     * @since Valhalla
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public static final int IDENTITY         = 0x00000020;
-
-    /**
-     * The {@code int} value representing the {@code value}
-     * modifier.
-     * @see AccessFlag#VALUE
-     */
-    public static final int VALUE            = 0x00000040;
 
     /**
      * The {@code int} value representing the {@code volatile}
@@ -419,8 +429,7 @@ public class Modifier {
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.IDENTITY       | Modifier.VALUE        |
-        Modifier.STRICT;
+        Modifier.IDENTITY       | Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to an interface.

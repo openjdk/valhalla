@@ -26,7 +26,6 @@
 package java.lang.reflect;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.FieldAccessor;
 import jdk.internal.reflect.Reflection;
@@ -132,7 +131,6 @@ class Field extends AccessibleObject implements Member {
           String signature,
           byte[] annotations)
     {
-        assert PrimitiveClass.isPrimaryType(declaringClass);
         this.clazz = declaringClass;
         this.name = name;
         this.type = type;
@@ -228,9 +226,7 @@ class Field extends AccessibleObject implements Member {
     public Set<AccessFlag> accessFlags() {
         int major = SharedSecrets.getJavaLangAccess().classFileFormatVersion(getDeclaringClass()) & 0xffff;
         var cffv = ClassFileFormatVersion.fromMajor(major);
-        return AccessFlag.maskToAccessFlags(getModifiers(),
-                AccessFlag.Location.FIELD,
-                cffv);
+        return AccessFlag.maskToAccessFlags(getModifiers(), AccessFlag.Location.FIELD, cffv);
     }
 
     /**
@@ -354,21 +350,13 @@ class Field extends AccessibleObject implements Member {
         int mod = getModifiers();
         return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
             + getType().getTypeName() + " "
-            + getDeclaringClassTypeName() + "."
+            + getDeclaringClass().getTypeName() + "."
             + getName());
     }
 
     @Override
     String toShortString() {
-        return "field " + getDeclaringClassTypeName() + "." + getName();
-    }
-
-    String getDeclaringClassTypeName() {
-        Class<?> c = getDeclaringClass();
-        if (PrimitiveClass.isPrimitiveClass(c)) {
-            c = PrimitiveClass.asValueType(c);
-        }
-        return c.getTypeName();
+        return "field " + getDeclaringClass().getTypeName() + "." + getName();
     }
 
     /**
@@ -396,7 +384,7 @@ class Field extends AccessibleObject implements Member {
         Type fieldType = getGenericType();
         return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
             + fieldType.getTypeName() + " "
-            + getDeclaringClassTypeName() + "."
+            + getDeclaringClass().getTypeName() + "."
             + getName());
     }
 

@@ -424,17 +424,17 @@ class MonitorAccessStub: public CodeStub {
 class MonitorEnterStub: public MonitorAccessStub {
  private:
   CodeEmitInfo* _info;
-  CodeStub* _throw_imse_stub;
+  CodeStub* _throw_ie_stub;
   LIR_Opr _scratch_reg;
 
  public:
   MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info,
-                   CodeStub* throw_imse_stub = nullptr, LIR_Opr scratch_reg = LIR_OprFact::illegalOpr)
+                   CodeStub* throw_ie_stub = nullptr, LIR_Opr scratch_reg = LIR_OprFact::illegalOpr)
     : MonitorAccessStub(obj_reg, lock_reg) {
     _info = new CodeEmitInfo(info);
     _scratch_reg = scratch_reg;
-    _throw_imse_stub = throw_imse_stub;
-    if (_throw_imse_stub != nullptr) {
+    _throw_ie_stub = throw_ie_stub;
+    if (_throw_ie_stub != nullptr) {
       assert(_scratch_reg != LIR_OprFact::illegalOpr, "must be");
     }
     FrameMap* f = Compilation::current()->frame_map();

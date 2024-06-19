@@ -942,24 +942,8 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         }
         break;
       case Bytecodes::_new:
-      case Bytecodes::_aconst_init:
         state.apush(allocated_obj);
         break;
-      case Bytecodes::_withfield: {
-        bool will_link;
-        ciField* field = s.get_field(will_link);
-        BasicType field_type = field->type()->basic_type();
-        if (field_type == T_OBJECT || field_type == T_ARRAY) {
-          set_global_escape(state.apop());
-        } else if (type2size[field_type] == 1) {
-          state.spop();
-        } else {
-          state.lpop();
-        }
-        set_method_escape(state.apop());
-        state.apush(allocated_obj);
-        break;
-      }
       case Bytecodes::_newarray:
       case Bytecodes::_anewarray:
         state.spop();

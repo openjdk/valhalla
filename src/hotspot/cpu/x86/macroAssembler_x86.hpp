@@ -123,6 +123,7 @@ class MacroAssembler: public Assembler {
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
   void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
+  void test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker);
 
   // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
@@ -134,8 +135,6 @@ class MacroAssembler: public Assembler {
   // Check array klass layout helper for flat or null-free arrays...
   void test_flat_array_layout(Register lh, Label& is_flat_array);
   void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
-  void test_null_free_array_layout(Register lh, Label& is_null_free_array);
-  void test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array);
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
@@ -145,8 +144,8 @@ class MacroAssembler: public Assembler {
         op == 0xE9 /* jmp */ ||
         op == 0xEB /* short jmp */ ||
         (op & 0xF0) == 0x70 /* short jcc */ ||
-        op == 0x0F && (branch[1] & 0xF0) == 0x80 /* jcc */ ||
-        op == 0xC7 && branch[1] == 0xF8 /* xbegin */,
+        (op == 0x0F && (branch[1] & 0xF0) == 0x80) /* jcc */ ||
+        (op == 0xC7 && branch[1] == 0xF8) /* xbegin */,
         "Invalid opcode at patch point");
 
     if (op == 0xEB || (op & 0xF0) == 0x70) {
@@ -415,7 +414,6 @@ class MacroAssembler: public Assembler {
   // get data payload ptr a flat value array at index, kills rcx and index
   void data_for_value_array_index(Register array, Register array_klass,
                                   Register index, Register data);
-
 
   void load_heap_oop(Register dst, Address src, Register tmp1 = noreg,
                      Register thread_tmp = noreg, DecoratorSet decorators = 0);
@@ -937,6 +935,7 @@ public:
 
   void testptr(Register src, int32_t imm32) {  LP64_ONLY(testq(src, imm32)) NOT_LP64(testl(src, imm32)); }
   void testptr(Register src1, Address src2) { LP64_ONLY(testq(src1, src2)) NOT_LP64(testl(src1, src2)); }
+  void testptr(Address src, int32_t imm32) {  LP64_ONLY(testq(src, imm32)) NOT_LP64(testl(src, imm32)); }
   void testptr(Register src1, Register src2);
 
   void xorptr(Register dst, Register src) { LP64_ONLY(xorq(dst, src)) NOT_LP64(xorl(dst, src)); }
@@ -1171,6 +1170,10 @@ public:
 
   using Assembler::vbroadcastss;
   void vbroadcastss(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch = noreg);
+
+  // Vector float blend
+  void vblendvps(XMMRegister dst, XMMRegister nds, XMMRegister src, XMMRegister mask, int vector_len, bool compute_mask = true, XMMRegister scratch = xnoreg);
+  void vblendvpd(XMMRegister dst, XMMRegister nds, XMMRegister src, XMMRegister mask, int vector_len, bool compute_mask = true, XMMRegister scratch = xnoreg);
 
   void divsd(XMMRegister dst, XMMRegister    src) { Assembler::divsd(dst, src); }
   void divsd(XMMRegister dst, Address        src) { Assembler::divsd(dst, src); }
@@ -1854,6 +1857,9 @@ public:
 
   using Assembler::evporq;
   void evporq(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len, Register rscratch = noreg);
+
+  using Assembler::vpshufb;
+  void vpshufb(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len, Register rscratch = noreg);
 
   using Assembler::vpternlogq;
   void vpternlogq(XMMRegister dst, int imm8, XMMRegister src2, AddressLiteral src3, int vector_len, Register rscratch = noreg);

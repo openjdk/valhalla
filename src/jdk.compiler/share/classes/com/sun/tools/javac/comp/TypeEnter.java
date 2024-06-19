@@ -34,13 +34,11 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Scope.ImportFilter;
-import com.sun.tools.javac.code.Scope.ImportScope;
 import com.sun.tools.javac.code.Scope.NamedImportScope;
 import com.sun.tools.javac.code.Scope.StarImportScope;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
-import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.parser.Parser;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.tree.*;
@@ -59,7 +57,6 @@ import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.ERROR;
-import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 
 import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
@@ -572,7 +569,6 @@ public class TypeEnter implements Completer {
             Env<AttrContext> localEnv = outer.dup(tree, outer.info.dup(baseScope));
             localEnv.baseClause = true;
             localEnv.outer = outer;
-            localEnv.info.isSelfCall = false;
             return localEnv;
         }
 
@@ -922,7 +918,7 @@ public class TypeEnter implements Completer {
                             !supClass.isPermittedExplicit &&
                             supClassEnv != null &&
                             supClassEnv.toplevel == baseEnv.toplevel) {
-                            supClass.permitted = supClass.permitted.append(sym);
+                            supClass.addPermittedSubclass(sym, tree.pos);
                         }
                     }
                 }
@@ -935,7 +931,7 @@ public class TypeEnter implements Completer {
                     Type pt = attr.attribBase(permitted, baseEnv, false, false, false);
                     permittedSubtypeSymbols.append(pt.tsym);
                 }
-                sym.permitted = permittedSubtypeSymbols.toList();
+                sym.setPermittedSubclasses(permittedSubtypeSymbols.toList());
             }
         }
     }
@@ -1143,61 +1139,10 @@ public class TypeEnter implements Completer {
                 tree.sym.setAnnotationTypeMetadata(new AnnotationTypeMetadata(tree.sym, annotate.annotationTypeSourceCompleter()));
             }
 
-            if (tree.sym != syms.objectType.tsym && tree.sym != syms.recordType.tsym) {
-                if ((tree.sym.flags() & (ABSTRACT | INTERFACE | VALUE_CLASS)) == 0) {
-                    tree.sym.flags_field |= IDENTITY_TYPE;
-                }
-                if ((tree.sym.flags() & (ABSTRACT | IDENTITY_TYPE | INTERFACE)) == ABSTRACT) {
-                    if (abstractClassHasImplicitIdentity(tree)) {
-                        tree.sym.flags_field |= IDENTITY_TYPE;
-                    }
-                }
+            if ((tree.sym.flags() & (INTERFACE | VALUE_CLASS)) == 0) {
+                tree.sym.flags_field |= IDENTITY_TYPE;
             }
         }
-
-            // where
-            private boolean abstractClassHasImplicitIdentity(JCClassDecl tree) {
-
-                Type t = tree.sym.type;
-
-                if (t == null || t.tsym == null || t.tsym.kind == ERR)
-                    return false;
-
-                if ((t.tsym.flags() & HASINITBLOCK) != 0) {
-                    return true;
-                }
-
-                // No instance fields and no arged constructors both mean inner classes cannot be value class supers.
-                Type encl = t.getEnclosingType();
-                if (encl != null && encl.hasTag(CLASS)) {
-                    return true;
-                }
-                for (Symbol s : t.tsym.members().getSymbols(NON_RECURSIVE)) {
-                    switch (s.kind) {
-                        case VAR:
-                            if ((s.flags() & STATIC) == 0) {
-                                return true;
-                            }
-                            break;
-                        case MTH:
-                            if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
-                                return true;
-                            } else if (s.isInitOrVNew()) {
-                                MethodSymbol m = (MethodSymbol)s;
-                                if (m.getParameters().size() > 0
-                                        || m.getTypeParameters().size() > 0
-                                        || m.type.getThrownTypes().nonEmpty()
-                                        || (m.flags() & EMPTYNOARGCONSTR) == 0
-                                        || (Check.protection(m.flags()) > Check.protection(m.owner.flags()))) {
-                                    return true;
-                                }
-                            }
-                            break;
-                    }
-                }
-                return false;
-            }
-
 
         private void addAccessor(JCVariableDecl tree, Env<AttrContext> env) {
             MethodSymbol implSym = lookupMethod(env.enclClass.sym, tree.sym.name, List.nil());
@@ -1392,8 +1337,7 @@ public class TypeEnter implements Completer {
                 } else {
                     flags = (owner().flags() & AccessFlags) | GENERATEDCONSTR;
                 }
-                Name constructorName = owner().isConcreteValueClass() ? names.vnew : names.init;
-                constructorSymbol = new MethodSymbol(flags, constructorName,
+                constructorSymbol = new MethodSymbol(flags, names.init,
                     constructorType(), owner());
             }
             return constructorSymbol;

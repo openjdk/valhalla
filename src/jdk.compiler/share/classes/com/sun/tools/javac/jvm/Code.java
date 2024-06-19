@@ -32,10 +32,24 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
 import java.util.function.ToIntBiFunction;
+import java.util.function.ToIntFunction;
 
 import static com.sun.tools.javac.code.TypeTag.BOT;
+import static com.sun.tools.javac.code.TypeTag.DOUBLE;
 import static com.sun.tools.javac.code.TypeTag.INT;
+import static com.sun.tools.javac.code.TypeTag.LONG;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Class;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Double;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Fieldref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Float;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Integer;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_InterfaceMethodref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Long;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodHandle;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodType;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Methodref;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_String;
 import static com.sun.tools.javac.jvm.UninitializedType.*;
 import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableFrame;
 import java.util.Arrays;
@@ -182,7 +196,6 @@ public class Code {
     final MethodSymbol meth;
 
     private int letExprStackPos = 0;
-    private boolean allowPrimitiveClasses;
 
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
@@ -196,8 +209,7 @@ public class Code {
                 CRTable crt,
                 Symtab syms,
                 Types types,
-                PoolWriter poolWriter,
-                boolean allowPrimitiveClasses) {
+                PoolWriter poolWriter) {
         this.meth = meth;
         this.fatcode = fatcode;
         this.lineMap = lineMap;
@@ -219,7 +231,6 @@ public class Code {
         }
         state = new State();
         lvar = new LocalVar[20];
-        this.allowPrimitiveClasses = allowPrimitiveClasses;
     }
 
 
@@ -390,23 +401,14 @@ public class Code {
 
     /** Emit a ldc (or ldc_w) instruction, taking into account operand size
     */
-    public void emitLdc(LoadableConstant constant, int od) {
-        if (od <= 255) {
-            emitop1(ldc1, od, constant);
-        }
-        else {
-            emitop2(ldc2, od, constant);
-        }
-    }
-
-    /** Emit a ldc (or ldc_w) instruction, taking into account operand size
-     */
     public void emitLdc(LoadableConstant constant) {
         int od = poolWriter.putConstant(constant);
-        if (od <= 255) {
+        Type constantType = types.constantType(constant);
+        if (constantType.hasTag(LONG) || constantType.hasTag(DOUBLE)) {
+            emitop2(ldc2w, od, constant);
+        } else if (od <= 255) {
             emitop1(ldc1, od, constant);
-        }
-        else {
+        } else {
             emitop2(ldc2, od, constant);
         }
     }
@@ -463,7 +465,7 @@ public class Code {
         if (!alive) return;
         emit2(poolWriter.putMember(member));
         state.pop(argsize);
-        if (member.isInitOrVNew())
+        if (member.isConstructor())
             state.markInitialized((UninitializedType)state.peek());
         state.pop(1);
         state.push(mtype.getReturnType());
@@ -1022,12 +1024,7 @@ public class Code {
             break;
         case new_: {
             Type t = (Type)data;
-            state.push(uninitializedObject(t.tsym.erasure(types), cp - 3));
-            break;
-        }
-        case aconst_init: {
-            Type t = (Type)data;
-            state.push(t.tsym.erasure(types));
+            state.push(uninitializedObject(t.tsym.erasure(types), cp-3));
             break;
         }
         case sipush:
@@ -1056,9 +1053,6 @@ public class Code {
         case goto_:
             markDead();
             break;
-        case withfield:
-            state.pop(((Symbol)data).erasure(types));
-            break;
         case putfield:
             state.pop(((Symbol)data).erasure(types));
             state.pop(1); // object ref
@@ -1069,18 +1063,16 @@ public class Code {
             break;
         case checkcast: {
             state.pop(1); // object ref
-            Type t = types.erasure(data instanceof  ConstantPoolQType ? ((ConstantPoolQType)data).type: (Type)data);
+            Type t = types.erasure((Type)data);
             state.push(t);
             break; }
+        case ldc2:
         case ldc2w:
             state.push(types.constantType((LoadableConstant)data));
             break;
         case instanceof_:
             state.pop(1);
             state.push(syms.intType);
-            break;
-        case ldc2:
-            state.push(types.constantType((LoadableConstant)data));
             break;
         case jsr:
             break;
@@ -1385,7 +1377,7 @@ public class Code {
         if (!meth.isStatic()) {
             Type thisType = meth.owner.type;
             frame.locals = new Type[len+1];
-            if (meth.isInitOrVNew() && thisType != syms.objectType) {
+            if (meth.isConstructor() && thisType != syms.objectType) {
                 frame.locals[count++] = UninitializedType.uninitializedThis(thisType);
             } else {
                 frame.locals[count++] = types.erasure(thisType);
@@ -1783,12 +1775,8 @@ public class Code {
             case ARRAY:
                 int width = width(t);
                 Type old = stack[stacksize-width];
-                if (!allowPrimitiveClasses) {
-                    Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)));
-                } else {
-                    Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)) ||
-                            (old.isPrimitiveClass() != t.isPrimitiveClass() && types.isConvertible(types.erasure(old), types.erasure(t))));
-                }
+                Assert.check(types.isSubtype(types.erasure(old),
+                                       types.erasure(t)));
                 stack[stacksize-width] = t;
                 break;
             default:
@@ -2464,8 +2452,6 @@ public class Code {
             mnem[goto_w] = "goto_w";
             mnem[jsr_w] = "jsr_w";
             mnem[breakpoint] = "breakpoint";
-            mnem[aconst_init] = "aconst_init";
-            mnem[withfield] = "withfield";
         }
     }
 }

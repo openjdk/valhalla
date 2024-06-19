@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2021, 2024, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,54 +23,56 @@
 
 package compiler.valhalla.inlinetypes;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
 /*
  * @test BlackholeTest
  * @summary Check that blackholes work with inline types
- * @compile -XDenablePrimitiveClasses BlackholeTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
- *      -Xbatch
- *      -XX:+UnlockExperimentalVMOptions
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm
+ *      -Xbatch -XX:+UnlockExperimentalVMOptions
  *      -XX:CompileCommand=blackhole,compiler/valhalla/inlinetypes/BlackholeTest.blackhole
  *      compiler.valhalla.inlinetypes.BlackholeTest
  */
 
 public class BlackholeTest {
-    static primitive class MyValue {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue {
         int x = 0;
     }
 
+    @NullRestricted
     static MyValue v;
+    @NullRestricted
     static volatile MyValue vv;
 
     public static void main(String[] args) {
         for (int c = 0; c < 5; c++) {
             testNew();
-            testDefault();
             testField();
             testVolatileField();
         }
     }
 
     private static void testNew() {
-        for (int c = 0; c < 100000; c++) {
+        for (int c = 0; c < 100_000; c++) {
             blackhole(new MyValue());
         }
     }
 
-    private static void testDefault() {
-        for (int c = 0; c < 100000; c++) {
-            blackhole(MyValue.default);
-        }
-    }
-
     private static void testField() {
-        for (int c = 0; c < 100000; c++) {
+        for (int c = 0; c < 100_000; c++) {
             blackhole(v);
         }
     }
 
     private static void testVolatileField() {
-        for (int c = 0; c < 100000; c++) {
+        for (int c = 0; c < 100_000; c++) {
             blackhole(vv);
         }
     }

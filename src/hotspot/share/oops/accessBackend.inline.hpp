@@ -215,44 +215,6 @@ RawAccessBarrier<decorators>::atomic_xchg_internal(void* addr, T new_value) {
                       new_value);
 }
 
-// For platforms that do not have native support for wide atomics,
-// we can emulate the atomicity using a lock. So here we check
-// whether that is necessary or not.
-
-template <DecoratorSet ds>
-template <DecoratorSet decorators, typename T>
-inline typename EnableIf<
-  AccessInternal::PossiblyLockedAccess<T>::value, T>::type
-RawAccessBarrier<ds>::atomic_xchg_maybe_locked(void* addr, T new_value) {
-  if (!AccessInternal::wide_atomic_needs_locking()) {
-    return atomic_xchg_internal<ds>(addr, new_value);
-  } else {
-    AccessInternal::AccessLocker access_lock;
-    volatile T* p = reinterpret_cast<volatile T*>(addr);
-    T old_val = RawAccess<>::load(p);
-    RawAccess<>::store(p, new_value);
-    return old_val;
-  }
-}
-
-template <DecoratorSet ds>
-template <DecoratorSet decorators, typename T>
-inline typename EnableIf<
-  AccessInternal::PossiblyLockedAccess<T>::value, T>::type
-RawAccessBarrier<ds>::atomic_cmpxchg_maybe_locked(void* addr, T compare_value, T new_value) {
-  if (!AccessInternal::wide_atomic_needs_locking()) {
-    return atomic_cmpxchg_internal<ds>(addr, compare_value, new_value);
-  } else {
-    AccessInternal::AccessLocker access_lock;
-    volatile T* p = reinterpret_cast<volatile T*>(addr);
-    T old_val = RawAccess<>::load(p);
-    if (old_val == compare_value) {
-      RawAccess<>::store(p, new_value);
-    }
-    return old_val;
-  }
-}
-
 class RawAccessBarrierArrayCopy: public AllStatic {
   template<typename T> struct IsHeapWordSized: public std::integral_constant<bool, sizeof(T) == HeapWordSize> { };
 public:
@@ -372,6 +334,6 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
 template <DecoratorSet decorators>
 inline void RawAccessBarrier<decorators>::value_copy(void* src, void* dst, InlineKlass* md) {
   assert(is_aligned(src, md->get_alignment()) && is_aligned(dst, md->get_alignment()), "Unalign value_copy");
-  AccessInternal::arraycopy_conjoint_atomic(src, dst, static_cast<size_t>(md->get_exact_size_in_bytes()));
+  AccessInternal::arraycopy_conjoint_atomic(src, dst, static_cast<size_t>(md->get_payload_size_in_bytes()));
 }
 #endif // SHARE_OOPS_ACCESSBACKEND_INLINE_HPP

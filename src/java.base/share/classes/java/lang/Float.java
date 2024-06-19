@@ -56,10 +56,16 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * <h2><a id=equivalenceRelation>Floating-point Equality, Equivalence,
  * and Comparison</a></h2>
  *
- * The class {@code java.lang.Double} has a <a
- * href="Double.html#equivalenceRelation">discussion of equality,
- * equivalence, and comparison of floating-point values</a> that is
+ * The class {@code java.lang.Double} has a {@linkplain
+ * Double##equivalenceRelation discussion of equality,
+ * equivalence, and comparison of floating-point values} that is
  * equally applicable to {@code float} values.
+ *
+ * <h2><a id=decimalToBinaryConversion>Decimal &harr; Binary Conversion Issues</a></h2>
+ *
+ * The {@linkplain Double##decimalToBinaryConversion discussion of binary to
+ * decimal conversion issues} in {@code java.lang.Double} is also
+ * applicable to {@code float} values.
  *
  * @see <a href="https://standards.ieee.org/ieee/754/6210/">
  *      <cite>IEEE Standard for Floating-Point Arithmetic</cite></a>
@@ -69,6 +75,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * @author  Joseph D. Darcy
  * @since 1.0
  */
+@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
 public final class Float extends Number
         implements Comparable<Float>, Constable, ConstantDesc {
@@ -515,6 +522,7 @@ public final class Float extends Number
      *          represented by the {@code String} argument.
      * @throws  NumberFormatException  if the string does not contain a
      *          parsable number.
+     * @see Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      */
     public static Float valueOf(String s) throws NumberFormatException {
         return new Float(parseFloat(s));
@@ -550,6 +558,7 @@ public final class Float extends Number
      * @throws NumberFormatException if the string does not contain a
      *               parsable {@code float}.
      * @see    java.lang.Float#valueOf(String)
+     * @see    Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      * @since 1.2
      */
     public static float parseFloat(String s) throws NumberFormatException {
@@ -1021,20 +1030,19 @@ public final class Float extends Number
          */
         int bin16arg = (int)floatBinary16;
         int bin16SignBit     = 0x8000 & bin16arg;
-        int bin16ExpBits     = 0x7c00 & bin16arg;
         int bin16SignifBits  = 0x03FF & bin16arg;
 
         // Shift left difference in the number of significand bits in
         // the float and binary16 formats
-        final int SIGNIF_SHIFT = (FloatConsts.SIGNIFICAND_WIDTH - 11);
+        final int SIGNIF_SHIFT = (Float.PRECISION - Float16.PRECISION);
 
         float sign = (bin16SignBit != 0) ? -1.0f : 1.0f;
 
-        // Extract binary16 exponent, remove its bias, add in the bias
+        // Get unbiased binary16 exponent, add in the bias
         // of a float exponent and shift to correct bit location
         // (significand width includes the implicit bit so shift one
         // less).
-        int bin16Exp = (bin16ExpBits >> 10) - 15;
+        int bin16Exp = Float16.getExponent0(floatBinary16);
         if (bin16Exp == -15) {
             // For subnormal binary16 values and 0, the numerical
             // value is 2^24 * the significand as an integer (no
@@ -1052,7 +1060,7 @@ public final class Float extends Number
         assert -15 < bin16Exp  && bin16Exp < 16;
 
         int floatExpBits = (bin16Exp + FloatConsts.EXP_BIAS)
-            << (FloatConsts.SIGNIFICAND_WIDTH - 1);
+            << (PRECISION - 1);
 
         // Compute and combine result sign, exponent, and significand bits.
         return Float.intBitsToFloat((bin16SignBit << 16) |

@@ -135,7 +135,6 @@ public class MethodSig {
                     p++;
                     break;
 
-                case 'Q':
                 case 'L':
                     int sep = desc.indexOf(';', p);
                     if (sep == -1 || sep >= end)

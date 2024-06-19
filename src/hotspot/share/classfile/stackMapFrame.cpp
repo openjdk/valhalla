@@ -101,7 +101,6 @@ VerificationType StackMapFrame::set_locals_from_arg(
   switch (ss.type()) {
     case T_OBJECT:
     case T_ARRAY:
-    case T_PRIMITIVE_OBJECT:
     {
       Symbol* sig = ss.as_symbol();
       if (!sig->is_permanent()) {
@@ -111,9 +110,6 @@ VerificationType StackMapFrame::set_locals_from_arg(
           verifier()->create_temporary_symbol(sig);
         assert(sig_copy == sig, "symbols don't match");
         sig = sig_copy;
-      }
-      if (ss.type() == T_PRIMITIVE_OBJECT) {
-        return VerificationType::inline_type(sig);
       }
       return VerificationType::reference_type(sig);
     }

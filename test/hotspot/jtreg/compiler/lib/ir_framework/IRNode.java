@@ -308,6 +308,11 @@ public class IRNode {
         optoOnly(ALLOC_ARRAY_OF, regex);
     }
 
+    public static final String OR = PREFIX + "OR" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(OR, "Or(I|L)");
+    }
+
     public static final String AND = PREFIX + "AND" + POSTFIX;
     static {
         beforeMatchingNameRegex(AND, "And(I|L)");
@@ -564,12 +569,12 @@ public class IRNode {
     // Does not work for VM builds without JVMCI like x86_32 (a rule containing this regex will be skipped without having JVMCI built).
     public static final String INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP = PREFIX + "INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP" + POSTFIX;
     static {
-        trapNodes(INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP,"intrinsic_or_type_checked_inlining");
+        trapNodes(INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "intrinsic_or_type_checked_inlining");
     }
 
     public static final String INTRINSIC_TRAP = PREFIX + "INTRINSIC_TRAP" + POSTFIX;
     static {
-        trapNodes(INTRINSIC_TRAP,"intrinsic");
+        trapNodes(INTRINSIC_TRAP, "intrinsic");
     }
 
     // Is only supported on riscv64.
@@ -942,6 +947,22 @@ public class IRNode {
         beforeMatchingNameRegex(MUL, "Mul(I|L|F|D)");
     }
 
+    public static final String MUL_ADD_S2I = PREFIX + "MUL_ADD_S2I" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(MUL_ADD_S2I, "MulAddS2I");
+    }
+
+    public static final String MUL_ADD_VS2VI = VECTOR_PREFIX + "MUL_ADD_VS2VI" + POSTFIX;
+    static {
+        vectorNode(MUL_ADD_VS2VI, "MulAddVS2VI", TYPE_INT);
+    }
+
+    // Can only be used if avx512_vnni is available.
+    public static final String MUL_ADD_VS2VI_VNNI = PREFIX + "MUL_ADD_VS2VI_VNNI" + POSTFIX;
+    static {
+        machOnly(MUL_ADD_VS2VI_VNNI, "vmuladdaddS2I_reg");
+    }
+
     public static final String MUL_D = PREFIX + "MUL_D" + POSTFIX;
     static {
         beforeMatchingNameRegex(MUL_D, "MulD");
@@ -1039,12 +1060,12 @@ public class IRNode {
 
     public static final String NULL_ASSERT_TRAP = PREFIX + "NULL_ASSERT_TRAP" + POSTFIX;
     static {
-        trapNodes(NULL_ASSERT_TRAP,"null_assert");
+        trapNodes(NULL_ASSERT_TRAP, "null_assert");
     }
 
     public static final String NULL_CHECK_TRAP = PREFIX + "NULL_CHECK_TRAP" + POSTFIX;
     static {
-        trapNodes(NULL_CHECK_TRAP,"null_check");
+        trapNodes(NULL_CHECK_TRAP, "null_check");
     }
 
     public static final String OR_VB = VECTOR_PREFIX + "OR_VB" + POSTFIX;
@@ -1128,12 +1149,12 @@ public class IRNode {
 
     public static final String PREDICATE_TRAP = PREFIX + "PREDICATE_TRAP" + POSTFIX;
     static {
-        trapNodes(PREDICATE_TRAP,"predicate");
+        trapNodes(PREDICATE_TRAP, "predicate");
     }
 
     public static final String RANGE_CHECK_TRAP = PREFIX + "RANGE_CHECK_TRAP" + POSTFIX;
     static {
-        trapNodes(RANGE_CHECK_TRAP,"range_check");
+        trapNodes(RANGE_CHECK_TRAP, "range_check");
     }
 
     public static final String REINTERPRET_S2HF = PREFIX + "REINTERPRET_S2HF" + POSTFIX;
@@ -1146,52 +1167,34 @@ public class IRNode {
         beforeMatchingNameRegex(REINTERPRET_HF2S, "ReinterpretHF2S");
     }
 
-    public static final String REPLICATE_B = PREFIX + "REPLICATE_B" + POSTFIX;
+    public static final String REPLICATE_B = VECTOR_PREFIX + "REPLICATE_B" + POSTFIX;
     static {
-        String regex = START + "ReplicateB" + MID + END;
-        IR_NODE_MAPPINGS.put(REPLICATE_B, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
-                                                                    CompilePhase.AFTER_CLOOPS,
-                                                                    CompilePhase.BEFORE_MATCHING));
+        vectorNode(REPLICATE_B, "Replicate", TYPE_BYTE);
     }
 
-    public static final String REPLICATE_S = PREFIX + "REPLICATE_S" + POSTFIX;
+    public static final String REPLICATE_S = VECTOR_PREFIX + "REPLICATE_S" + POSTFIX;
     static {
-        String regex = START + "ReplicateS" + MID + END;
-        IR_NODE_MAPPINGS.put(REPLICATE_S, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
-                                                                    CompilePhase.AFTER_CLOOPS,
-                                                                    CompilePhase.BEFORE_MATCHING));
+        vectorNode(REPLICATE_S, "Replicate", TYPE_SHORT);
     }
 
-    public static final String REPLICATE_I = PREFIX + "REPLICATE_I" + POSTFIX;
+    public static final String REPLICATE_I = VECTOR_PREFIX + "REPLICATE_I" + POSTFIX;
     static {
-        String regex = START + "ReplicateI" + MID + END;
-        IR_NODE_MAPPINGS.put(REPLICATE_I, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
-                                                                    CompilePhase.AFTER_CLOOPS,
-                                                                    CompilePhase.BEFORE_MATCHING));
+        vectorNode(REPLICATE_I, "Replicate", TYPE_INT);
     }
 
-    public static final String REPLICATE_L = PREFIX + "REPLICATE_L" + POSTFIX;
+    public static final String REPLICATE_L = VECTOR_PREFIX + "REPLICATE_L" + POSTFIX;
     static {
-        String regex = START + "ReplicateL" + MID + END;
-        IR_NODE_MAPPINGS.put(REPLICATE_L, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
-                                                                    CompilePhase.AFTER_CLOOPS,
-                                                                    CompilePhase.BEFORE_MATCHING));
+        vectorNode(REPLICATE_L, "Replicate", TYPE_LONG);
     }
 
-    public static final String REPLICATE_F = PREFIX + "REPLICATE_F" + POSTFIX;
+    public static final String REPLICATE_F = VECTOR_PREFIX + "REPLICATE_F" + POSTFIX;
     static {
-        String regex = START + "ReplicateF" + MID + END;
-        IR_NODE_MAPPINGS.put(REPLICATE_F, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
-                                                                    CompilePhase.AFTER_CLOOPS,
-                                                                    CompilePhase.BEFORE_MATCHING));
+        vectorNode(REPLICATE_F, "Replicate", TYPE_FLOAT);
     }
 
-    public static final String REPLICATE_D = PREFIX + "REPLICATE_D" + POSTFIX;
+    public static final String REPLICATE_D = VECTOR_PREFIX + "REPLICATE_D" + POSTFIX;
     static {
-        String regex = START + "ReplicateD" + MID + END;
-        IR_NODE_MAPPINGS.put(REPLICATE_D, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
-                                                                    CompilePhase.AFTER_CLOOPS,
-                                                                    CompilePhase.BEFORE_MATCHING));
+        vectorNode(REPLICATE_D, "Replicate", TYPE_DOUBLE);
     }
 
     public static final String REVERSE_BYTES_VB = VECTOR_PREFIX + "REVERSE_BYTES_VB" + POSTFIX;
@@ -1513,7 +1516,7 @@ public class IRNode {
 
     public static final String TRAP = PREFIX + "TRAP" + POSTFIX;
     static {
-        trapNodes(TRAP,"reason");
+        trapNodes(TRAP, "reason");
     }
 
     public static final String UDIV_I = PREFIX + "UDIV_I" + POSTFIX;
@@ -1548,12 +1551,17 @@ public class IRNode {
 
     public static final String UNHANDLED_TRAP = PREFIX + "UNHANDLED_TRAP" + POSTFIX;
     static {
-        trapNodes(UNHANDLED_TRAP,"unhandled");
+        trapNodes(UNHANDLED_TRAP, "unhandled");
     }
 
     public static final String UNSTABLE_IF_TRAP = PREFIX + "UNSTABLE_IF_TRAP" + POSTFIX;
     static {
-        trapNodes(UNSTABLE_IF_TRAP,"unstable_if");
+        trapNodes(UNSTABLE_IF_TRAP, "unstable_if");
+    }
+
+    public static final String UNREACHED_TRAP = PREFIX + "UNREACHED_TRAP" + POSTFIX;
+    static {
+        trapNodes(UNREACHED_TRAP, "unreached");
     }
 
     public static final String URSHIFT = PREFIX + "URSHIFT" + POSTFIX;
@@ -1961,26 +1969,6 @@ public class IRNode {
         machOnlyNameRegex(VMASK_CMP_ZERO_D_NEON, "vmaskcmp_zeroD_neon");
     }
 
-    public static final String VMASK_CMP_IMM_B_SVE = PREFIX + "VMASK_CMP_IMM_B_SVE" + POSTFIX;
-    static {
-        machOnlyNameRegex(VMASK_CMP_IMM_B_SVE, "vmaskcmp_immB_sve");
-    }
-
-    public static final String VMASK_CMPU_IMM_B_SVE = PREFIX + "VMASK_CMPU_IMM_B_SVE" + POSTFIX;
-    static {
-        machOnlyNameRegex(VMASK_CMPU_IMM_B_SVE, "vmaskcmpU_immB_sve");
-    }
-
-    public static final String VMASK_CMP_IMM_S_SVE = PREFIX + "VMASK_CMP_IMM_S_SVE" + POSTFIX;
-    static {
-        machOnlyNameRegex(VMASK_CMP_IMM_S_SVE, "vmaskcmp_immS_sve");
-    }
-
-    public static final String VMASK_CMPU_IMM_S_SVE = PREFIX + "VMASK_CMPU_IMM_S_SVE" + POSTFIX;
-    static {
-        machOnlyNameRegex(VMASK_CMPU_IMM_S_SVE, "vmaskcmpU_immS_sve");
-    }
-
     public static final String VMASK_CMP_IMM_I_SVE = PREFIX + "VMASK_CMP_IMM_I_SVE" + POSTFIX;
     static {
         machOnlyNameRegex(VMASK_CMP_IMM_I_SVE, "vmaskcmp_immI_sve");
@@ -2280,7 +2268,7 @@ public class IRNode {
      */
     private static void fromMacroToBeforeMatching(String irNodePlaceholder, String regex) {
         IR_NODE_MAPPINGS.put(irNodePlaceholder, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
-                                                                          CompilePhase.MACRO_EXPANSION,
+                                                                          CompilePhase.AFTER_MACRO_EXPANSION,
                                                                           CompilePhase.BEFORE_MATCHING));
     }
 

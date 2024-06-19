@@ -40,14 +40,17 @@ private:
   Value            _obj;
   ciInstanceKlass* _holder;
   int              _offset;
-public:
-  DelayedFieldAccess(Value obj, ciInstanceKlass* holder, int offset)
-  : _obj(obj), _holder(holder) , _offset(offset) { }
+  ValueStack*      _state_before;
 
-  Value obj() const               { return _obj; }
+public:
+  DelayedFieldAccess(Value obj, ciInstanceKlass* holder, int offset, ValueStack* state_before)
+  : _obj(obj), _holder(holder) , _offset(offset), _state_before(state_before) { }
+
+  Value obj() const { return _obj; }
   ciInstanceKlass* holder() const { return _holder; }
-  int offset() const              { return _offset; }
-  void inc_offset(int offset)     { _offset += offset; }
+  int offset() const { return _offset; }
+  void inc_offset(int offset) { _offset += offset; }
+  ValueStack* state_before() const { return _state_before; }
 };
 
 class GraphBuilder {
@@ -294,8 +297,6 @@ class GraphBuilder {
   Value round_fp(Value fp_value);
 
   // inline types
-  void default_value(int klass_index);
-  void withfield(int field_index);
   void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* encloding_field = nullptr);
 
   // stack/code manipulation helpers
@@ -390,19 +391,6 @@ class GraphBuilder {
 
   // JSR 292 support
   bool try_method_handle_inline(ciMethod* callee, bool ignore_return);
-
-  // Inline type support
-  void update_larval_state(Value v) {
-    if (v != nullptr && v->as_NewInlineTypeInstance() != nullptr) {
-      v->as_NewInlineTypeInstance()->set_not_larva_anymore();
-    }
-  }
-  void update_larva_stack_count(Value v) {
-    if (v != nullptr && v->as_NewInlineTypeInstance() != nullptr &&
-        v->as_NewInlineTypeInstance()->in_larval_state()) {
-      v->as_NewInlineTypeInstance()->decrement_on_stack_count();
-    }
-  }
 
   // helpers
   void inline_bailout(const char* msg);

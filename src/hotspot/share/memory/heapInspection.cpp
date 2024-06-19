@@ -33,14 +33,14 @@
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "nmt/memTracker.hpp"
 #include "oops/fieldInfo.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
-#include "runtime/reflectionUtils.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
-#include "services/memTracker.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stack.inline.hpp"
@@ -576,7 +576,7 @@ static void print_flat_field(outputStream* st, int level, int offset, InstanceKl
   assert(klass->is_inline_klass(), "Only inline types can be flat");
   InlineKlass* vklass = InlineKlass::cast(klass);
   GrowableArray<FieldDesc>* fields = new (mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
-  for (FieldStream fd(klass, false, false); !fd.eos(); fd.next()) {
+  for (AllFieldStream fd(klass); !fd.done(); fd.next()) {
     if (!fd.access_flags().is_static()) {
       fields->append(FieldDesc(fd.field_descriptor()));
     }
@@ -619,7 +619,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
         klass->class_loader_data()->loader_name());
     ResourceMark rm;
     GrowableArray<FieldDesc>* fields = new (mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
-    for (FieldStream fd(ik, false, false); !fd.eos(); fd.next()) {
+    for (AllFieldStream fd(ik); !fd.done(); fd.next()) {
       if (!fd.access_flags().is_static()) {
         fields->append(FieldDesc(fd.field_descriptor()));
       }

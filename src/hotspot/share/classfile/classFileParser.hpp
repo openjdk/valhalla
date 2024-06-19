@@ -74,9 +74,10 @@ class FieldLayoutInfo : public ResourceObj {
   int _instance_size;
   int _nonstatic_field_size;
   int _static_field_size;
-  bool  _has_nonstatic_fields;
-  bool  _is_naturally_atomic;
+  bool _has_nonstatic_fields;
+  bool _is_naturally_atomic;
   bool _has_inline_fields;
+  bool _has_null_marker_offsets;
 };
 
 // Parser for for .class files
@@ -148,6 +149,7 @@ class ClassFileParser {
   FieldAllocationCount* _fac;
   FieldLayoutInfo* _field_info;
   Array<InlineKlass*>* _inline_type_field_klasses;
+  Array<int>* _null_marker_offsets;
   GrowableArray<FieldInfo>* _temp_field_info;
   const intArray* _method_ordering;
   GrowableArray<Method*>* _all_mirandas;
@@ -163,7 +165,8 @@ class ClassFileParser {
 
   int _alignment;
   int _first_field_offset;
-  int _exact_size_in_bytes;
+  int _payload_size_in_bytes;
+  int _internal_null_marker_offset;
 
   Handle _protection_domain;
   AccessFlags _access_flags;
@@ -204,13 +207,12 @@ class ClassFileParser {
   bool _has_contended_fields;
 
   bool _has_inline_type_fields;
+  bool _has_null_marker_offsets;
   bool _has_nonstatic_fields;
   bool _is_empty_inline_type;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _is_implicitly_constructible;
-  bool _carries_value_modifier;      // Has ACC_VALUE mddifier or one of its super types has
-  bool _carries_identity_modifier;   // Has ACC_IDENTITY modifier or one of its super types has
   bool _has_loosely_consistent_annotation;
   bool _has_implicitly_constructible_annotation;
 
@@ -219,8 +221,6 @@ class ClassFileParser {
   bool _has_empty_finalizer;
   bool _has_vanilla_constructor;
   int _max_bootstrap_specifier_index;  // detects BSS values
-
-  bool is_jdk_internal_class(const Symbol* class_name) const;
 
   bool is_jdk_internal_class_sig(const char* sig) const;
 
@@ -600,16 +600,10 @@ class ClassFileParser {
 
   bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
-  bool is_inline_type() const { return _access_flags.is_value_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
-  bool is_value_class() const { return _access_flags.is_value_class(); }
+  bool is_inline_type() const { return !_access_flags.is_identity_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
   bool is_abstract_class() const { return _access_flags.is_abstract(); }
   bool is_identity_class() const { return _access_flags.is_identity_class(); }
-  bool is_value_capable_class() const;
   bool has_inline_fields() const { return _has_inline_type_fields; }
-  bool carries_identity_modifier() const { return _carries_identity_modifier; }
-  void set_carries_identity_modifier() { _carries_identity_modifier = true; }
-  bool carries_value_modifier() const { return _carries_value_modifier; }
-  void set_carries_value_modifier() { _carries_value_modifier = true; }
 
   u2 java_fields_count() const { return _java_fields_count; }
 

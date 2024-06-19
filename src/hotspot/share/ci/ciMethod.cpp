@@ -1024,16 +1024,6 @@ bool ciMethod::is_object_constructor() const {
 }
 
 // ------------------------------------------------------------------
-// ciMethod::is_static_vnew_factory
-//
-bool ciMethod::is_static_vnew_factory() const {
-   return (name() == ciSymbols::inline_factory_name()
-           && !signature()->return_type()->is_void());
-   // Note:  We can't test is_static, because that would
-   // require the method to be loaded.  Sometimes it isn't.
-}
-
-// ------------------------------------------------------------------
 // ciMethod::has_member_arg
 //
 // Return true if the method is a linker intrinsic like _linkToVirtual.
@@ -1298,7 +1288,6 @@ bool ciMethod::has_jsrs       () const {         FETCH_FLAG_FROM_VM(has_jsrs);  
 bool ciMethod::is_getter      () const {         FETCH_FLAG_FROM_VM(is_getter); }
 bool ciMethod::is_setter      () const {         FETCH_FLAG_FROM_VM(is_setter); }
 bool ciMethod::is_accessor    () const {         FETCH_FLAG_FROM_VM(is_accessor); }
-bool ciMethod::is_object_constructor_or_class_initializer() const { FETCH_FLAG_FROM_VM(is_object_constructor_or_class_initializer); }
 bool ciMethod::is_empty       () const {         FETCH_FLAG_FROM_VM(is_empty_method); }
 
 bool ciMethod::is_boxing_method() const {

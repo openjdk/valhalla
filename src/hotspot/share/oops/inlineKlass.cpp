@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/cdsConfig.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -55,6 +56,10 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   set_prototype_header(markWord::inline_type_prototype());
   assert(is_inline_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
+}
+
+InlineKlass::InlineKlass() {
+  assert(CDSConfig::is_dumping_archive() || UseSharedSpaces, "only for CDS");
 }
 
 void InlineKlass::init_fixed_block() {
@@ -141,6 +146,11 @@ void InlineKlass::write_flat_field(oop obj, int offset, oop value, TRAPS) {
   if (value == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
+  write_non_null_flat_field(obj, offset, value);
+}
+
+void InlineKlass::write_non_null_flat_field(oop obj, int offset, oop value) {
+  assert(value != nullptr, "");
   if (!is_empty_inline_type()) {
     inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
   }
@@ -153,7 +163,7 @@ bool InlineKlass::flat_array() {
     return false;
   }
   // Too big
-  int elem_bytes = get_exact_size_in_bytes();
+  int elem_bytes = get_payload_size_in_bytes();
   if ((FlatArrayElementMaxSize >= 0) && (elem_bytes > FlatArrayElementMaxSize)) {
     return false;
   }
@@ -186,7 +196,7 @@ Klass* InlineKlass::value_array_klass(int n, TRAPS) {
         if (flat_array()) {
           k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
         } else {
-          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, true, CHECK_NULL);
+          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
 
         }
         // use 'release' to pair with lock-free load
@@ -242,15 +252,13 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
+    // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
       Klass* vk = get_inline_type_field_klass(fs.index());
       count += InlineKlass::cast(vk)->collect_fields(sig, offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
-      if (bt == T_PRIMITIVE_OBJECT) {
-        bt = T_OBJECT;
-      }
       SigEntry::add_entry(sig, bt, fs.signature(), offset);
       count += type2size[bt];
     }
@@ -543,7 +551,7 @@ void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle 
     value_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
   }
   if (vmSymbols::java_lang_Float16() == name()) {
-    EnablePrimitiveClasses = true;
+    Arguments::set_enable_preview();
   }
 }
 

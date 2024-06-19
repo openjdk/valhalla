@@ -52,7 +52,6 @@ import com.sun.tools.javac.code.Type.JCPrimitiveType;
 import com.sun.tools.javac.code.Type.JCVoidType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.UnknownType;
-import com.sun.tools.javac.code.Type.WildcardType;
 import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.comp.Modules;
 import com.sun.tools.javac.jvm.Target;
@@ -66,7 +65,6 @@ import com.sun.tools.javac.util.JavacMessages;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
-import com.sun.tools.javac.util.Options;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
@@ -94,8 +92,6 @@ public class Symtab {
             instance = new Symtab(context);
         return instance;
     }
-
-    private final boolean allowPrimitiveClasses;
 
     /** Builtin types.
      */
@@ -167,6 +163,7 @@ public class Symtab {
      */
     public final Type objectType;
     public final Type objectMethodsType;
+    public final Type exactConversionsSupportType;
     public final Type objectsType;
     public final Type classType;
     public final Type classLoaderType;
@@ -229,8 +226,6 @@ public class Symtab {
     public final Type recordType;
     public final Type switchBootstrapsType;
     public final Type constantBootstrapsType;
-    public final Type valueBasedType;
-    public final Type valueBasedInternalType;
     public final Type classDescType;
     public final Type enumDescType;
 
@@ -250,6 +245,13 @@ public class Symtab {
     public final Type templateRuntimeType;
     public final Type processorType;
     public final Type linkageType;
+
+    // valhalla
+    public final Type valueBasedType;
+    public final Type valueBasedInternalType;
+    public final Type migratedValueClassType;
+    public final Type migratedValueClassInternalType;
+    public final Type strictType;
 
     /** The symbol representing the length field of an array.
      */
@@ -292,17 +294,8 @@ public class Symtab {
         return classFields.computeIfAbsent(
             new UniqueType(type, types), k -> {
                 Type arg = null;
-                if (type.getTag() == ARRAY || type.getTag() == CLASS) {
-                    /* Temporary treatment for primitive class: Given a primitive class V that implements
-                       I1, I2, ... In, V.class is typed to be Class<? extends Object & I1 & I2 .. & In>
-                    */
-                    if (allowPrimitiveClasses && type.isPrimitiveClass()) {
-                        List<Type> bounds = List.of(objectType).appendList(((ClassSymbol) type.tsym).getInterfaces());
-                        arg = new WildcardType(bounds.size() > 1 ? types.makeIntersectionType(bounds) : objectType, BoundKind.EXTENDS, boundClass);
-                    } else {
-                        arg = types.erasure(type);
-                    }
-                }
+                if (type.getTag() == ARRAY || type.getTag() == CLASS)
+                    arg = types.erasure(type);
                 else if (type.isPrimitiveOrVoid())
                     arg = types.boxedClass(type).type;
                 else
@@ -558,6 +551,7 @@ public class Symtab {
         // Enter predefined classes. All are assumed to be in the java.base module.
         objectType = enterClass("java.lang.Object");
         objectMethodsType = enterClass("java.lang.runtime.ObjectMethods");
+        exactConversionsSupportType = enterClass("java.lang.runtime.ExactConversionsSupport");
         objectsType = enterClass("java.util.Objects");
         classType = enterClass("java.lang.Class");
         stringType = enterClass("java.lang.String");
@@ -631,6 +625,9 @@ public class Symtab {
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
+        strictType = enterSyntheticAnnotation("jdk.internal.vm.annotation.Strict");
+        migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
+        migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         classDescType = enterClass("java.lang.constant.ClassDesc");
         enumDescType = enterClass("java.lang.Enum$EnumDesc");
         // For serialization lint checking
@@ -692,8 +689,7 @@ public class Symtab {
 
         if (java_base != noModule)
             java_base.completer = moduleCompleter::complete; //bootstrap issues
-        Options options = Options.instance(context);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
+
     }
 
     /** Define a new class given its name and owner.

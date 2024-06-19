@@ -553,8 +553,6 @@ const int max_method_code_size = 64*K - 1;  // JVM spec, 2nd ed. section 4.8.1 (
 
 //----------------------------------------------------------------------------------------------------
 // old CDS options
-extern bool DumpSharedSpaces;
-extern bool DynamicDumpSharedSpaces;
 extern bool RequireSharedSpaces;
 extern "C" {
 // Make sure UseSharedSpaces is accessible to the serviceability agent.
@@ -604,9 +602,14 @@ const bool support_IRIW_for_not_multiple_copy_atomic_cpu = false;
 const bool support_IRIW_for_not_multiple_copy_atomic_cpu = PPC64_ONLY(true) NOT_PPC64(false);
 #endif
 
-// The expected size in bytes of a cache line, used to pad data structures.
+// The expected size in bytes of a cache line.
 #ifndef DEFAULT_CACHE_LINE_SIZE
-  #define DEFAULT_CACHE_LINE_SIZE 64
+#error "Platform should define DEFAULT_CACHE_LINE_SIZE"
+#endif
+
+// The default padding size for data structures to avoid false sharing.
+#ifndef DEFAULT_PADDING_SIZE
+#error "Platform should define DEFAULT_PADDING_SIZE"
 #endif
 
 
@@ -711,7 +714,7 @@ enum BasicType : u1 {
   // types in their own right.
   T_OBJECT      = 12,
   T_ARRAY       = 13,
-  T_PRIMITIVE_OBJECT = 14,
+  T_PRIMITIVE_OBJECT = 14, // Not a true BasicType, only use in headers of flat arrays
   T_VOID        = 15,
   T_ADDRESS     = 16,
   T_NARROWOOP   = 17,
@@ -762,6 +765,7 @@ inline bool is_double_word_type(BasicType t) {
 }
 
 inline bool is_reference_type(BasicType t, bool include_narrow_oop = false) {
+  // TODO 8325106 Remove the last occurences of T_PRIMITIVE_OBJECT
   return (t == T_OBJECT || t == T_ARRAY || t == T_PRIMITIVE_OBJECT || (include_narrow_oop && t == T_NARROWOOP));
 }
 
@@ -965,7 +969,6 @@ inline TosState as_TosState(BasicType type) {
     case T_FLOAT  : return ftos;
     case T_DOUBLE : return dtos;
     case T_VOID   : return vtos;
-    case T_PRIMITIVE_OBJECT: // fall through
     case T_ARRAY  :   // fall through
     case T_OBJECT : return atos;
     default       : return ilgl;
@@ -1339,7 +1342,7 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 
 // TEMP!!!!
 // This should be removed after LW2 arrays are implemented (JDK-8220790).
-// It's an alias to (EnablePrimitiveClasses && (FlatArrayElementMaxSize != 0)),
+// It's an alias to (EnableValhalla && (FlatArrayElementMaxSize != 0)),
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
 #define UseFlatArray (EnableValhalla && (FlatArrayElementMaxSize != 0))
@@ -1355,5 +1358,9 @@ template<typename K> int primitive_compare(const K& k0, const K& k1) {
 // Converts any type T to a reference type.
 template<typename T>
 std::add_rvalue_reference_t<T> declval() noexcept;
+
+// Quickly test to make sure IEEE-754 subnormal numbers are correctly
+// handled.
+bool IEEE_subnormal_handling_OK();
 
 #endif // SHARE_UTILITIES_GLOBALDEFINITIONS_HPP

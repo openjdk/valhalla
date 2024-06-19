@@ -162,7 +162,6 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_PRIMITIVE_OBJECT:
       if (is_flat()) { // only some inline types can be flat
         assert(is_null_free_inline_type(), "Only null free inline type fields can be flat");
         // Print fields of flat fields (recursively)

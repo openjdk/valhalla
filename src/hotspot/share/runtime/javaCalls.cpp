@@ -164,7 +164,6 @@ static BasicType runtime_type_from(JavaValue* result) {
 #ifdef _LP64
     case T_ARRAY    : // fall through
     case T_OBJECT   : return T_OBJECT;
-    case T_PRIMITIVE_OBJECT: return T_PRIMITIVE_OBJECT;
 #endif
     default:
       ShouldNotReachHere();
@@ -292,19 +291,6 @@ void JavaCalls::call_static(JavaValue* result, Klass* klass, Symbol* name, Symbo
 
 Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, JavaCallArguments* args, TRAPS) {
   klass->initialize(CHECK_NH); // Quick no-op if already initialized.
-
-  // Special case for factory methods
-  if (EnableValhalla && !constructor_signature->is_void_method_signature()) {
-    guarantee(klass->is_inline_klass(), "inline classes must use factory methods");
-    JavaValue factory_result(T_OBJECT);
-    JavaCalls::call_static(&factory_result, klass,
-                           vmSymbols::inline_factory_name(),
-                           constructor_signature, args, CHECK_NH);
-    return Handle(THREAD, factory_result.get_oop());
-  }
-
-  // main branch of code creates a non-inline object:
-  assert(!klass->is_inline_klass(), "classic constructors are only for non-inline classes");
   Handle obj = klass->allocate_instance_handle(CHECK_NH);
   JavaValue void_result(T_VOID);
   args->set_receiver(obj); // inserts <obj> as the first argument.
@@ -407,7 +393,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   }
 
   jobject value_buffer = nullptr;
-  if (InlineTypeReturnedAsFields && (result->get_type() == T_PRIMITIVE_OBJECT || result->get_type() == T_OBJECT)) {
+  if (InlineTypeReturnedAsFields && (result->get_type() == T_OBJECT)) {
     // Pre allocate a buffered inline type in case the result is returned
     // flattened by compiled code
     InlineKlass* vk = method->returns_inline_type(thread);
@@ -605,7 +591,6 @@ class SignatureChekker : public SignatureIterator {
       check_double_word(); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_PRIMITIVE_OBJECT:
       check_reference(); break;
     default:
       ShouldNotReachHere();

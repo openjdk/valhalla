@@ -40,7 +40,7 @@ class ConstantUtils {
     static final Constable[] EMPTY_CONSTABLE = new Constable[0];
     static final int MAX_ARRAY_TYPE_DESC_DIMENSIONS = 255;
 
-    private static final Set<String> pointyNames = Set.of(ConstantDescs.INIT_NAME, ConstantDescs.VNEW_NAME, ConstantDescs.CLASS_INIT_NAME);
+    private static final Set<String> pointyNames = Set.of(ConstantDescs.INIT_NAME, ConstantDescs.CLASS_INIT_NAME);
 
     /**
      * Validates the correctness of a binary class name. In particular checks for the presence of
@@ -226,7 +226,6 @@ class ConstantUtils {
     private static final char JVM_SIGNATURE_BYTE = 'B';
     private static final char JVM_SIGNATURE_CHAR = 'C';
     private static final char JVM_SIGNATURE_CLASS = 'L';
-    private static final char JVM_SIGNATURE_VALUE_TYPE = 'Q';
     private static final char JVM_SIGNATURE_ENDCLASS = ';';
     private static final char JVM_SIGNATURE_ENUM = 'E';
     private static final char JVM_SIGNATURE_FLOAT = 'F';
@@ -266,7 +265,6 @@ class ConstantUtils {
                 case JVM_SIGNATURE_DOUBLE:
                     return index - start + 1;
                 case JVM_SIGNATURE_CLASS:
-                case JVM_SIGNATURE_VALUE_TYPE:
                     // state variable for detection of illegal states, such as:
                     // empty unqualified name, '//', leading '/', or trailing '/'
                     boolean legal = false;
@@ -306,82 +304,4 @@ class ConstantUtils {
         }
         return 0;
     }
-
-    static boolean verifyUnqualifiedClassName(String name) {
-        for (int index = 0; index < name.length(); index++) {
-            char ch = name.charAt(index);
-            if (ch < 128) {
-                if (ch == '.' || ch == ';' || ch == '[' ) {
-                    return false;   // do not permit '.', ';', or '['
-                }
-                if (ch == '/') {
-                    // check for '//' or leading or trailing '/' which are not legal
-                    // unqualified name must not be empty
-                    if (index == 0 || index + 1 >= name.length() || name.charAt(index + 1) == '/') {
-                        return false;
-                    }
-                }
-            } else {
-                index ++;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Returns the basic type of the given descriptor.  If {@code verifyClassName}
-     * is true, then this method will validate that the characters at [start, end)
-     * within the given string describe a valid field type descriptor.
-     *
-     * @return the character represents the basic type that the descriptor string
-     * references
-     * @throws IllegalArgumentException if the descriptor string is not valid
-     */
-    static char basicType(String descriptor, int start, int end, boolean verifyClassName) {
-        int arrayDim = 0;
-        int index = start;
-        while (index < end) {
-            char c = descriptor.charAt(index);
-            switch (c) {
-                case JVM_SIGNATURE_VOID:
-                case JVM_SIGNATURE_BOOLEAN:
-                case JVM_SIGNATURE_BYTE:
-                case JVM_SIGNATURE_CHAR:
-                case JVM_SIGNATURE_SHORT:
-                case JVM_SIGNATURE_INT:
-                case JVM_SIGNATURE_FLOAT:
-                case JVM_SIGNATURE_LONG:
-                case JVM_SIGNATURE_DOUBLE:
-                    return c;
-                case JVM_SIGNATURE_CLASS:
-                case JVM_SIGNATURE_VALUE_TYPE:
-                    index++;
-                    int indexOfSemi = descriptor.indexOf(';', index);
-                    if (indexOfSemi != -1) {
-                        if (verifyClassName) {
-                            String unqualifiedName = descriptor.substring(index, indexOfSemi);
-                            boolean legal = verifyUnqualifiedClassName(unqualifiedName);
-                            if (!legal) {
-                                throw new IllegalArgumentException(String.format("not a valid type descriptor: %s", descriptor));
-                            }
-                        }
-                        return c;
-                    }
-                    throw new IllegalArgumentException(String.format("not a valid type descriptor: %s", descriptor));
-                case JVM_SIGNATURE_ARRAY:
-                    arrayDim++;
-                    if (arrayDim > MAX_ARRAY_TYPE_DESC_DIMENSIONS) {
-                        throw new IllegalArgumentException(String.format("Cannot create an array type descriptor with more than %d dimensions",
-                                ConstantUtils.MAX_ARRAY_TYPE_DESC_DIMENSIONS));
-                    }
-                    // The rest of what's there better be a legal descriptor
-                    index++;
-                    break;
-                default:
-                    throw new IllegalArgumentException(String.format("not a valid type descriptor: %s", descriptor));
-            }
-        }
-        throw new IllegalArgumentException(String.format("not a valid type descriptor: %s", descriptor));
-    }
-
 }

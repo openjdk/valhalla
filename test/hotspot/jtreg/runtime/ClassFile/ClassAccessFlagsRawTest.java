@@ -23,12 +23,14 @@
  */
 
 /**
+ * @ignore Fix 8328162
  * @test
  * @bug 8291360 8293448
  * @summary Test getting a class's raw access flags using java.lang.Class API
  * @modules java.base/java.lang:open
+ * @enablePreview
  * @compile classAccessFlagsRaw.jcod
- * @run main/othervm -XX:-EnableValhalla ClassAccessFlagsRawTest
+ * @run main/othervm ClassAccessFlagsRawTest
  */
 
 import java.lang.reflect.*;
@@ -51,8 +53,9 @@ public class ClassAccessFlagsRawTest {
         m = cl.getDeclaredMethod("getClassAccessFlagsRaw", new Class[0]);
         m.setAccessible(true);
 
-        testIt("SUPERset", 0x21);  // ACC_SUPER 0x20 + ACC_PUBLIC 0x1
-        testIt("SUPERnotset", Modifier.PUBLIC);
+        testIt("SUPERset", Modifier.PUBLIC | Modifier.IDENTITY);
+        // Because of the repurposing of ACC_SUPER into ACC_IDENTITY by JEP 401, the VM now fixes missing ACC_IDENTITY flags in old class files
+        testIt("SUPERnotset", Modifier.PUBLIC | Modifier.IDENTITY);
 
         // test primitive array.  should return ACC_ABSTRACT | ACC_FINAL | ACC_PUBLIC.
         int flags = (int)m.invoke((new int[3]).getClass());
@@ -63,14 +66,16 @@ public class ClassAccessFlagsRawTest {
 
         // test object array.  should return flags of component.
         flags = (int)m.invoke((new SUPERnotset[2]).getClass());
-        if (flags != Modifier.PUBLIC) {
+        // Because of the repurposing of ACC_SUPER into ACC_IDENTITY by JEP 401, the VM now fixes missing ACC_IDENTITY flags in old class files
+        if (flags != (Modifier.PUBLIC | Modifier.IDENTITY)) {
             throw new RuntimeException(
                 "expected 0x1, got 0x" + Integer.toHexString(flags) + " for object array");
         }
 
         // test multi-dimensional object array.  should return flags of component.
         flags = (int)m.invoke((new SUPERnotset[4][2]).getClass());
-        if (flags != Modifier.PUBLIC) {
+        // Because of the repurposing of ACC_SUPER into ACC_IDENTITY by JEP 401, the VM now fixes missing ACC_IDENTITY flags in old class files
+        if (flags != (Modifier.PUBLIC | Modifier.IDENTITY)) {
             throw new RuntimeException(
                 "expected 0x1, got 0x" + Integer.toHexString(flags) + " for object array");
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ public class Inline32 extends SizeBase {
     }
 
     public static abstract class RefState extends SizeState {
-        public Q32int.ref[] arr;
+        public Q32int[] arr;
         void fill() {
             int[] a = Utils.makeRandomRing(arr.length);
             for (int i = 0; i < a.length; i++) {
@@ -74,7 +74,7 @@ public class Inline32 extends SizeBase {
     public static class Ref_as_Ref extends RefState {
         @Setup
         public void setup() {
-            arr = new Q32int.ref[size];
+            arr = new Q32int[size];
             fill();
         }
     }
@@ -100,7 +100,7 @@ public class Inline32 extends SizeBase {
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int Ref_as_Ref_walk(Ref_as_Ref s) {
         int steps = 0;
-        Q32int.ref[] values = s.arr;
+        Q32int[] values = s.arr;
         for (int i = values[0].intValue(); i != 0; i = values[i].intValue()) steps++;
         return steps;
     }

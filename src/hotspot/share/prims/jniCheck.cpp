@@ -256,8 +256,7 @@ checkStaticFieldID(JavaThread* thr, jfieldID fid, jclass cls, int ftype)
   if (!id->find_local_field(&fd))
     ReportJNIFatalError(thr, fatal_static_field_not_found);
   if ((fd.field_type() != ftype) &&
-      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT) &&
-      !(fd.field_type() == T_PRIMITIVE_OBJECT && ftype == T_OBJECT)) {
+      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT))  {
     ReportJNIFatalError(thr, fatal_static_field_mismatch);
   }
 }
@@ -294,8 +293,7 @@ checkInstanceFieldID(JavaThread* thr, jfieldID fid, jobject obj, int ftype)
     ReportJNIFatalError(thr, fatal_instance_field_not_found);
 
   if ((fd.field_type() != ftype) &&
-      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT) &&
-      !(fd.field_type() == T_PRIMITIVE_OBJECT && ftype == T_OBJECT)) {
+      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT)) {
     ReportJNIFatalError(thr, fatal_instance_field_mismatch);
   }
 }
@@ -468,7 +466,7 @@ void jniCheck::validate_class_descriptor(JavaThread* thr, const char* name) {
   size_t len = strlen(name);
 
   if (len >= 2 &&
-      (name[0] == JVM_SIGNATURE_CLASS || name[0] == JVM_SIGNATURE_PRIMITIVE_OBJECT) && // 'L' or 'Q'
+      name[0] == JVM_SIGNATURE_CLASS &&            // 'L'
       name[len-1] == JVM_SIGNATURE_ENDCLASS ) {    // ';'
     char msg[JVM_MAXPATHLEN];
     jio_snprintf(msg, JVM_MAXPATHLEN, "%s%s%s",

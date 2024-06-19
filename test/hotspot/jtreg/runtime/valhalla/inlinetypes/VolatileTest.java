@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,9 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
+ * @enablePreview
  * @compile VolatileTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.VolatileTest
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.VolatileTest
  */
 
 import jdk.internal.misc.Unsafe;
@@ -69,7 +70,7 @@ public class VolatileTest {
             e.printStackTrace();
             return;
         }
-        Asserts.assertTrue(U.isFlattened(f0), "mv0 should be flattened");
-        Asserts.assertFalse(U.isFlattened(f1), "mv1 should not be flattened");
+        Asserts.assertTrue(U.isFlatField(f0), "mv0 should be flattened");
+        Asserts.assertFalse(U.isFlatField(f1), "mv1 should not be flattened");
     }
 }

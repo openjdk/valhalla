@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,11 @@
 
 /**
  * @test
- * @requires vm.gc != "Z"
  * @bug 8233415
- * @summary Verify that TLAB allocated buffer initialization when returning an inline type works properly with oops.
+ * @summary Verify that TLAB allocated buffer initialization when returning a value object works properly with oops.
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses TestStressReturnBuffering.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
- *                   -XX:CompileCommand=exclude,compiler.valhalla.inlinetypes.TestStressReturnBuffering::caller -Xmx4m
+ * @enablePreview
+ * @run main/othervm -XX:CompileCommand=exclude,compiler.valhalla.inlinetypes.TestStressReturnBuffering::caller -Xmx4m
  *                   compiler.valhalla.inlinetypes.TestStressReturnBuffering
  */
 
@@ -37,7 +35,7 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-primitive class MyValue {
+value class MyValue {
     public Integer o1;
     public Integer o2;
     public Integer o3;
