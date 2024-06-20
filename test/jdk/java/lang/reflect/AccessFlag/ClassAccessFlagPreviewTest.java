@@ -171,7 +171,7 @@ public final class ClassAccessFlagPreviewTest {
             Set<AccessFlag> expected = new HashSet<>(4);
             expected.add(AccessFlag.ABSTRACT);
             expected.add(AccessFlag.FINAL);
-//            expected.add(AccessFlag.IDENTITY);  // NYI Pending: JDK-8294866
+            expected.add(AccessFlag.IDENTITY);  // NYI Pending: JDK-8294866
             if (accessLevel != null)
                 expected.add(accessLevel);
             if (!expected.equals(arrayClass.accessFlags())) {
