@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8266670 8291734 8296743
+ * @bug 8266670 8291734 8296743 8294866
  * @summary Test expected AccessFlag's on classes.
  * @modules java.base/jdk.internal.misc
  * @enablePreview
@@ -171,7 +171,7 @@ public final class ClassAccessFlagPreviewTest {
             Set<AccessFlag> expected = new HashSet<>(4);
             expected.add(AccessFlag.ABSTRACT);
             expected.add(AccessFlag.FINAL);
-            expected.add(AccessFlag.IDENTITY);  // NYI Pending: JDK-8294866
+            expected.add(AccessFlag.IDENTITY);
             if (accessLevel != null)
                 expected.add(accessLevel);
             if (!expected.equals(arrayClass.accessFlags())) {
