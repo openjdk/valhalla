@@ -23,10 +23,10 @@
 
 /*
  * @test
- * @bug     8308363
+ * @bug 8308363
  * @summary Initial compiler support for Float16.add operation.
  * @compile FP16ScalarOperations.java
- * @run main/othervm -XX:-TieredCompilation -Xbatch FP16ScalarOperations
+ * @run main/othervm --enable-preview -XX:-TieredCompilation -Xbatch FP16ScalarOperations
  */
 
 import java.util.Random;

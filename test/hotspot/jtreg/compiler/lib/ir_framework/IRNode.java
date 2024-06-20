@@ -2167,16 +2167,6 @@ public class IRNode {
         machOnlyNameRegex(X86_TESTL_REG, "testL_reg");
     }
 
-    public static final String CONVF2HFANDS2HF = PREFIX + "CONVF2HFANDS2HF" + POSTFIX;
-    static {
-        machOnlyNameRegex(CONVF2HFANDS2HF, "convF2HFAndS2HF");
-    }
-
-    public static final String REINTERPRETHF2SANDHF2F = PREFIX + "REINTERPRETHF2SANDHF2F" + POSTFIX;
-    static {
-        machOnlyNameRegex(REINTERPRETHF2SANDHF2F, "reinterpretHF2SAndHF2F");
-    }
-
     /*
      * Utility methods to set up IR_NODE_MAPPINGS.
      */
