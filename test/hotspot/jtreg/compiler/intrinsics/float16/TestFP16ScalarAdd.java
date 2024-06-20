@@ -23,15 +23,13 @@
 
 /**
 * @test
-* @bug     8308363
+* @bug 8308363
 * @summary Validate compiler IR for FP16 scalar operations.
 * @requires vm.compiler2.enabled
 * @library /test/lib /
-* @enablePreview
-* @run driver compiler.vectorization.TestFP16ScalarAdd
+* @run driver TestFP16ScalarAdd
 */
 
-package compiler.vectorization;
 import compiler.lib.ir_framework.*;
 import java.util.Random;
 import static java.lang.Float16.*;
@@ -57,6 +55,7 @@ public class TestFP16ScalarAdd {
 
     @Test
     @IR(applyIfCPUFeature = {"avx512_fp16", "true"}, counts = {IRNode.ADD_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"})
+    @IR(applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"}, counts = {IRNode.ADD_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"})
     public void test1() {
         Float16 res = shortBitsToFloat16((short)0);
         for (int i = 0; i < count; i++) {
@@ -67,6 +66,7 @@ public class TestFP16ScalarAdd {
 
     @Test
     @IR(applyIfCPUFeature = {"avx512_fp16", "true"}, failOn = {IRNode.ADD_HF, IRNode.REINTERPRET_S2HF, IRNode.REINTERPRET_HF2S})
+    @IR(applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"}, failOn = {IRNode.ADD_HF, IRNode.REINTERPRET_S2HF, IRNode.REINTERPRET_HF2S})
     public void test2() {
         Float16 hf0 = shortBitsToFloat16((short)0);
         Float16 hf1 = shortBitsToFloat16((short)15360);

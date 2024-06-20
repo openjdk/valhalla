@@ -42,7 +42,7 @@ public class TestFloat16VectorSum {
     private Random rng;
 
     public static void main(String args[]) {
-        TestFramework.run(TestFloat16VectorSum.class);
+        new TestFramework(TestFloat16VectorSum.class).addFlags("--enable-preview").start();
     }
 
     public TestFloat16VectorSum() {
@@ -56,7 +56,8 @@ public class TestFloat16VectorSum {
 
     @Test
     @Warmup(10000)
-    @IR(applyIfCPUFeature = {"avx512_fp16" , "true"}, counts = {IRNode.ADD_VHF, " >= 1"})
+    @IR(applyIfCPUFeatureOr = {"avx512_fp16" , "true", "sve", "true"}, counts = {IRNode.ADD_VHF, " >= 1"})
+    @IR(applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"}, counts = {IRNode.ADD_VHF, " >= 1"})
     public void vectorSumFloat16() {
         for (int i = 0; i < LEN; ++i) {
             output[i] = Float16.sum(input[i], input[i]);
@@ -75,4 +76,3 @@ public class TestFloat16VectorSum {
         }
     }
 }
-

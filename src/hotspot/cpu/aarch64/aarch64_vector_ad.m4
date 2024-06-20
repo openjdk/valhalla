@@ -1,6 +1,6 @@
 //
 // Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
-// Copyright (c) 2020, 2023, Arm Limited. All rights reserved.
+// Copyright (c) 2020, 2024, Arm Limited. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -217,6 +217,14 @@ source %{
           return false;
         }
         break;
+      case Op_AddVHF:
+        // FEAT_FP16 is enabled if both "fphp" and "asimdhp" features are supported.
+        // Only the Neon instructions need this check. SVE supports half-precision floats
+        // by default.
+        if (UseSVE > 0 || (VM_Version::supports_fphp() && VM_Version::supports_asimdhp())) {
+          break;
+        }
+        return false;
       default:
         break;
     }
@@ -499,20 +507,22 @@ dnl
 // ------------------------------ Vector add -----------------------------------
 
 // vector add
-BINARY_OP(vaddB, AddVB, addv, sve_add,  B)
-BINARY_OP(vaddS, AddVS, addv, sve_add,  H)
-BINARY_OP(vaddI, AddVI, addv, sve_add,  S)
-BINARY_OP(vaddL, AddVL, addv, sve_add,  D)
-BINARY_OP(vaddF, AddVF, fadd, sve_fadd, S)
-BINARY_OP(vaddD, AddVD, fadd, sve_fadd, D)
+BINARY_OP(vaddB,  AddVB,  addv, sve_add,  B)
+BINARY_OP(vaddS,  AddVS,  addv, sve_add,  H)
+BINARY_OP(vaddI,  AddVI,  addv, sve_add,  S)
+BINARY_OP(vaddL,  AddVL,  addv, sve_add,  D)
+BINARY_OP(vaddHF, AddVHF, fadd, sve_fadd, H)
+BINARY_OP(vaddF,  AddVF,  fadd, sve_fadd, S)
+BINARY_OP(vaddD,  AddVD,  fadd, sve_fadd, D)
 
 // vector add - predicated
-BINARY_OP_PREDICATE(vaddB, AddVB, sve_add,  B)
-BINARY_OP_PREDICATE(vaddS, AddVS, sve_add,  H)
-BINARY_OP_PREDICATE(vaddI, AddVI, sve_add,  S)
-BINARY_OP_PREDICATE(vaddL, AddVL, sve_add,  D)
-BINARY_OP_PREDICATE(vaddF, AddVF, sve_fadd, S)
-BINARY_OP_PREDICATE(vaddD, AddVD, sve_fadd, D)
+BINARY_OP_PREDICATE(vaddB,  AddVB,  sve_add,  B)
+BINARY_OP_PREDICATE(vaddS,  AddVS,  sve_add,  H)
+BINARY_OP_PREDICATE(vaddI,  AddVI,  sve_add,  S)
+BINARY_OP_PREDICATE(vaddL,  AddVL,  sve_add,  D)
+BINARY_OP_PREDICATE(vaddHF, AddVHF, sve_fadd, H)
+BINARY_OP_PREDICATE(vaddF,  AddVF,  sve_fadd, S)
+BINARY_OP_PREDICATE(vaddD,  AddVD,  sve_fadd, D)
 
 // vector add reg imm (unpredicated)
 VADD_IMM(B, immBAddSubV, B)
