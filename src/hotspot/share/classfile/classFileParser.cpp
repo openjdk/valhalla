@@ -820,7 +820,7 @@ using NameSigHashtable = ResourceHashtable<NameSigHash, int,
 static void check_identity_and_value_modifiers(ClassFileParser* current, const InstanceKlass* super_type, TRAPS) {
   assert(super_type != nullptr,"Method doesn't support null super type");
   if (super_type->access_flags().is_identity_class() && !current->access_flags().is_identity_class()
-      && super_type->super() != nullptr /* Super is not j.l.Object */) {
+      && super_type->name() != vmSymbols::java_lang_Object()) {
       THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
                 err_msg("Value type %s has an identity type as supertype",
                 current->class_name()->as_klass_external_name()));
@@ -4895,7 +4895,6 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
   const bool is_initializer  = (name == vmSymbols::object_initializer_name());
   // LW401 CR required: removal of value factories support
   const bool is_interface    = class_access_flags.is_interface();
-  const bool is_value_class  = !class_access_flags.is_identity_class();
   const bool is_identity_class = class_access_flags.is_identity_class();
   const bool is_abstract_class = class_access_flags.is_abstract();
 
@@ -4958,20 +4957,12 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
 
   if (is_illegal) {
     ResourceMark rm(THREAD);
-    if (is_value_class && is_initializer) {
-      Exceptions::fthrow(
-        THREAD_AND_LOCATION,
-        vmSymbols::java_lang_ClassFormatError(),
-        "Method <init> is not allowed in value class %s",
-        _class_name->as_C_string());
-    } else {
-      Exceptions::fthrow(
-        THREAD_AND_LOCATION,
-        vmSymbols::java_lang_ClassFormatError(),
-        "Method %s in class %s%s has illegal modifiers: 0x%X",
-        name->as_C_string(), _class_name->as_C_string(),
-        class_note, flags);
-    }
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_ClassFormatError(),
+      "Method %s in class %s%s has illegal modifiers: 0x%X",
+      name->as_C_string(), _class_name->as_C_string(),
+      class_note, flags);
     return;
   }
 }
@@ -6389,12 +6380,12 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   // Determining is the class allows tearing or not (default is not)
   // Test might need extensions when field inheritance is added for value classes
   if (EnableValhalla && !_access_flags.is_identity_class()) {
-    if (_super_klass != nullptr  // not j.l.Object
-              && _parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
-              && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
+    if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
+        && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
       _must_be_atomic = false;
     }
-    if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible)) {
+    if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible)
+        && (_super_klass == vmClasses::Object_klass() || _super_klass->is_implicitly_constructible())) {
       _is_implicitly_constructible = true;
     }
     // Apply VM options override
@@ -6566,7 +6557,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _field_info = new FieldLayoutInfo();
   FieldLayoutBuilder lb(class_name(), loader_data(), super_klass(), _cp, /*_fields*/ _temp_field_info,
       _parsed_annotations->is_contended(), is_inline_type(),
-      access_flags().is_abstract() && !access_flags().is_identity_class(),
+      access_flags().is_abstract() && !access_flags().is_identity_class() && !access_flags().is_interface(),
       _field_info, _inline_type_field_klasses);
   lb.build_layout();
   if (is_inline_type()) {
