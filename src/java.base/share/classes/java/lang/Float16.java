@@ -80,12 +80,13 @@ public final class Float16
     private static final long serialVersionUID = 16; // Not needed for a value class?
 
     // Functionality for future consideration:
-    // float16ToShortBits that normalizes NaNs
+    // float16ToShortBits that normalizes NaNs, c.f. floatToIntBits vs floatToRawIntBits
     // copysign
     // scalb
     // nextUp / nextDown
     // IEEEremainder / remainder operator remainder
     // signum
+    // valueOf(BigDecimal) -- main implementation could be package private in BigDecimal
 
    /**
     * Returns a {@code Float16} instance wrapping IEEE 754 binary16
@@ -712,6 +713,19 @@ public final class Float16
      * the Float16 arguments to float, performing the operation in
      * float arithmetic, and then rounding the float result to
      * Float16.
+     *
+     * For discussion and derivation of this property see:
+     *
+     * "When Is Double Rounding Innocuous?" by Samuel Figueroa
+     * ACM SIGNUM Newsletter, Volume 30 Issue 3, pp 21-26
+     * https://dl.acm.org/doi/pdf/10.1145/221332.221334
+     *
+     * Figueroa's write-up refers to lecture notes by W. Kahan. Those
+     * lectures notes are assumed to be these ones by Kahan and
+     * others:
+     *
+     * https://www.arithmazium.org/classroom/lib/Lecture_08_notes_slides.pdf
+     * https://www.arithmazium.org/classroom/lib/Lecture_09_notes_slides.pdf
      */
 
     /**
@@ -859,37 +873,129 @@ public final class Float16
      */
     // @IntrinsicCandidate
     public static Float16 fma(Float16 a, Float16 b, Float16 c) {
-        // A simple scaling up to call a float or double fma doesn't
-        // always work as double-rounding can occur and the sticky bit
-        // information can be lost for rounding to a Float16 position.
-        //
-        // The quantity:
-        //
-        // convertToDouble(a)*convertToDouble(b) + convertToDouble(c)
-        //
-        // will be an exact double value.
-        //
-        // Note: the above conclusion is *incorrect*. The exponent of
-        // the product of a*b can be so large that Float16.MIN_VALUE
-        // cannot be held in a single double.
-        //
-        // However, Float16 values with the smallest and largest
-        // exponents can be held in a single double with precision to
-        // spare. Therefore, all the hard rounding cases should be
-        // covered, but some more analysis is needed to verify the
-        // correctness of that approach.
-        //
-        // Case analysis is needed with c is large compared to a*b.
-        //
-        // The number of significand
-        // bits in double, 53, is greater than the, maximum difference
-        // in exponent values between bit positions of minimum and
-        // maximum magnitude for Float16. Therefore, performing a*b+c
-        // in double and then doing a single rounding of that value to
-        // Float16 will implement this operation.
+        /*
+         * In-progress explanation and discussion of the
+         * implementation. Promoting the input arguments to
+         * float/double and calculating (exactProdct + c) in double
+         * and rounding that double to Float16 is correct for _at
+         * least_ most sets of arguments. It may be correct for all
+         * arguments, pending further analysis. If it not correct,
+         * other computations will be done in those cases.
+         *
+         * The 2sum algorithm can be used to extract the low-order
+         * value of a add/substract that were rounded away.
+         *
+         * -----
+         *
+         * When the numerical value of (a*b) + c is stored exactly in
+         * a double, after a single rounding to Float16, the answer is
+         * of necessity correct since the one double -> Float16
+         * conversion is the only source of numerical error.
+         *
+         * However, for some inputs, the intermediate product-sum will
+         * not be exact and additional analysis is needed -- and
+         * currently underway -- to verify no corrective computation
+         * is needed to return the proper answer.
+         *
+         * The following analysis will rely on the range of bit
+         * positions representable in the intermediate
+         * product-sum. For a Float16 value, the bit positions
+         * representable in the format range from 2^(-14), MIN_VALUE,
+         * to 2^15, the leading bit position of MAX_VALUE. Including
+         * the implicit bit, Float16 has 11 bits of precision.
+         *
+         * For the double format, there are 53 bits of precision
+         * (including the implicit bit), and the exponent range goes
+         * from -1022 to 1023.
+         *
+         * For the product a*b of Float16 inputs, the range of
+         * exponents for nonzero finite results goes from 2^(-28)
+         * (from MIN_VALUE squared) to 2^31 (from the exact value of
+         * MAX_VALUE squared). This full range of exponent positions,
+         * (31 -(-28) + 1 ) = 60 exceeds the precision of
+         * double. However, only the product a*b can exceed the
+         * exponent range of Float16. Therefore, there are three main
+         * cases to consider:
+         *
+         * 1) Large exponent product
+         *
+         * The magnitude of the overflow threshold for Float16 is:
+         *
+         * MAX_VALUE + 1/2 * ulp(MAX_VALUE) =  0x1.ffcp15 + 0x0.002p15 = 0x1.ffep15
+         *
+         * Therefore, any product greater than 0x1.ffep15 + MAX_VALUE
+         * = 0x1.ffdp16 will certainly overflow (under round to
+         * nearest) since adding in c = -MAX_VALUE will still be above
+         * the overflow threshold.
+         *
+         * With a precision of 53 bits and much large exponent range,
+         * even if the product has an exponent of 31, the smallest
+         * Float16 that could be added in has an exponent of -14,
+         * which only requires holding 31 -(-14) + 1 = 46 contiguous
+         * bit positions, which is within the precision of double.
+         *
+         * 2) Exponent of product is within the range of normal
+         * Float16 values
+         *
+         * The exact product has at most 22 contiguous bits in its
+         * logical significand. The third number being added in has
+         * at most 11 contiguous bits in its significand and the
+         * lowest bit position that could be set is
+         * 2^(-14). Therefore, when the product has the maximum
+         * in-range exponent, 2^15, a single double has enough
+         * precision to hold down to the smallest subnormal bit
+         * position, 15 - (-14) + 1 = 30 < 53. If the product was
+         * large and overflowed when the third operand was added, this
+         * would cause the exponent to increase to 16, which is within
+         * the range of double, so the product-sum is exact and will
+         * be correct when rounded to Float16.
+         *
+         * 3) Exponent of product is in the range of subnormal values or smaller.
+         *
+         * The smallest exponent possible in a product is 2^(-48). The
+         * precision of double can then hold other bit positions up to
+         * -48 + 53 -1 = 4.
+         *
+         * Further case analysis to-do.
+         */
 
-        return valueOf( (a.doubleValue() * b.doubleValue()) +  c.doubleValue());
+        // product is numerically exact
+        double product = (double)(a.floatValue() * b.floatValue());
+        double c_double = c.doubleValue();
+        // productSum exact in many cases, identify non-exact cases
+        // below for further computation.
+        double productSum = product + c_double;
+
+//         if (Double.isFinite(product) &&
+//             Double.isFinite(c_double) &&
+//             (product != 0.0) &&
+//             !exactSum(product, c_double, productSum) ) {
+//             int productExponent = Math.getExponent(product);
+//             assert productExponent <= -15;  // Might be off by one.
+//             assert Math.getExponent(c_double) >=
+//                 Math.getExponent(product) + 52 - 10 - 1: "exponent = " + Math.getExponent(c_double); // Might be off by a few
+//             System.out.println(String.format("Extra work? %a * %a + %a => product %a, rounded %a",
+//                                              a.floatValue(), b.floatValue(), c.floatValue(),
+//                                              product, productSum));
+//             // throw new UnsupportedOperationException("tbd");
+//         }
+        return valueOf(productSum);
     }
+
+//     private static boolean exactSum(double a, double b, double s) {
+//         // 2sum algorithm
+//         //
+//         // After the computation below, the exact sum of (a + b) is in
+//         // (s + t) where s contains all the high-order
+//         // bits. Therefore, if t is zero, the sum in s itself is
+//         // exact.
+//         double a_prime = s - b;
+//         double b_prime = s - a_prime;
+//         double delta_a = a - a_prime;
+//         double delta_b = b - b_prime;
+//         double t = delta_a + delta_b;
+//         return t == 0.0;
+//     }
 
     /**
      * {@return the negation of the argument}
