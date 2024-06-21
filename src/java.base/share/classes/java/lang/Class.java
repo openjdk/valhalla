@@ -1477,6 +1477,7 @@ public final class Class<T> implements java.io.Serializable,
      *      {@code true}
      * <li> its interface modifier is always {@code false}, even when
      *      the component type is an interface
+     * <li> its {@code identity} modifier is always true
      * </ul>
      * If this {@code Class} object represents a primitive type or
      * void, its {@code public}, {@code abstract}, and {@code final}
@@ -1514,6 +1515,7 @@ public final class Class<T> implements java.io.Serializable,
      * <li> its {@code ABSTRACT} and {@code FINAL} flags are present
      * <li> its {@code INTERFACE} flag is absent, even when the
      *      component type is an interface
+    * <li> its {@code identity} modifier is always true
      * </ul>
      * If this {@code Class} object represents a primitive type or
      * void, the flags are {@code PUBLIC}, {@code ABSTRACT}, and
@@ -1537,6 +1539,9 @@ public final class Class<T> implements java.io.Serializable,
             AccessFlag.Location.CLASS;
         int accessFlags = (location == AccessFlag.Location.CLASS) ?
                 getClassAccessFlagsRaw() : getModifiers();
+        if (isArray() && PreviewFeatures.isEnabled()) {
+            accessFlags |= Modifier.IDENTITY;
+        }
         var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
         if (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0) {
             // Ignore unspecified (0x0800) access flag for current version
