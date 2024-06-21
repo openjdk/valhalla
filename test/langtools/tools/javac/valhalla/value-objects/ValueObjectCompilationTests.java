@@ -881,6 +881,147 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         );
     }
 
+    @Test
+    void testSerializationWarnings() throws Exception {
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions(new String[] {"-Xlint:serial", "--enable-preview", "--source",
+                    Integer.toString(Runtime.version().feature())});
+            assertOK(
+                    """
+                    import java.io.*;
+                    abstract value class AVC implements Serializable {} 
+                    """);
+            assertOKWithWarning("compiler.warn.serializable.value.class.without.write.replace.1",
+                    """
+                    import java.io.*;
+                    value class VC implements Serializable {
+                        private static final long serialVersionUID = 0;
+                    }
+                    """);
+            assertOK(
+                    """
+                    import java.io.*;
+                    class C implements Serializable {
+                        private static final long serialVersionUID = 0;
+                    }
+                    """);
+            assertOK(
+                    """
+                    import java.io.*;
+                    abstract value class Super implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        protected Object writeReplace() throws ObjectStreamException {
+                            return null;
+                        }
+                    }
+                    value class ValueSerializable extends Super {
+                        private static final long serialVersionUID = 1;
+                    }
+                    """);
+            assertOK(
+                    """
+                    import java.io.*;
+                    abstract value class Super implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        Object writeReplace() throws ObjectStreamException {
+                            return null;
+                        }
+                    }
+                    value class ValueSerializable extends Super {
+                        private static final long serialVersionUID = 1;
+                    }
+                    """);
+            assertOK(
+                    """
+                    import java.io.*;
+                    abstract value class Super implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        public Object writeReplace() throws ObjectStreamException {
+                            return null;
+                        }
+                    }
+                    value class ValueSerializable extends Super {
+                        private static final long serialVersionUID = 1;
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.serializable.value.class.without.write.replace.1",
+                    """
+                    import java.io.*;
+                    abstract value class Super implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        private Object writeReplace() throws ObjectStreamException {
+                            return null;
+                        }
+                    }
+                    value class ValueSerializable extends Super {
+                        private static final long serialVersionUID = 1;
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.serializable.value.class.without.write.replace.2",
+                    """
+                    import java.io.*;
+                    abstract value class Super implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        private Object writeReplace() throws ObjectStreamException {
+                            return null;
+                        }
+                    }
+                    class ValueSerializable extends Super {
+                        private static final long serialVersionUID = 1;
+                    }
+                    """);
+            assertOK(
+                    """
+                    import java.io.*;
+                    abstract value class Super implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        Object writeReplace() throws ObjectStreamException {
+                            return null;
+                        }
+                    }
+                    class ValueSerializable extends Super {
+                        private static final long serialVersionUID = 1;
+                    }
+                    """);
+            assertOK(
+                    """
+                    import java.io.*;
+                    abstract value class Super implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        public Object writeReplace() throws ObjectStreamException {
+                            return null;
+                        }
+                    }
+                    class ValueSerializable extends Super {
+                        private static final long serialVersionUID = 1;
+                    }
+                    """);
+            assertOK(
+                    """
+                    import java.io.*;
+                    abstract value class Super implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        protected Object writeReplace() throws ObjectStreamException {
+                            return null;
+                        }
+                    }
+                    class ValueSerializable extends Super {
+                        private static final long serialVersionUID = 1;
+                    }
+                    """);
+            assertOK(
+                    """
+                    import java.io.*;
+                    value record ValueRecord() implements Serializable {
+                        private static final long serialVersionUID = 1;
+                    }
+                    """);
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
+
     private File findClassFileOrFail(File dir, String name) {
         for (final File fileEntry : dir.listFiles()) {
             if (fileEntry.getName().equals(name)) {
