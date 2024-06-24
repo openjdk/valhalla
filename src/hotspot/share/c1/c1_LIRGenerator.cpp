@@ -1341,20 +1341,27 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   // from the primitive class itself. See spec for Class.getModifiers that provides
   // the typed array klasses with similar modifiers as their component types.
 
-  Klass* univ_klass_obj = Universe::byteArrayKlassObj();
-  assert(univ_klass_obj->modifier_flags() == (JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC), "Sanity");
-  LIR_Opr prim_klass = LIR_OprFact::metadataConst(univ_klass_obj);
+  LabelObj* L_done = new LabelObj();
+  LabelObj* L_primitive = new LabelObj();
 
   LIR_Opr recv_klass = new_register(T_METADATA);
   __ move(new LIR_Address(receiver.result(), java_lang_Class::klass_offset(), T_ADDRESS), recv_klass, info);
 
   // Check if this is a Java mirror of primitive type, and select the appropriate klass.
-  LIR_Opr klass = new_register(T_METADATA);
   __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
-  __ cmove(lir_cond_equal, prim_klass, recv_klass, klass, T_ADDRESS);
+
+  __ branch(lir_cond_equal, L_primitive->label());
 
   // Get the answer.
-  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), result);
+  __ move(new LIR_Address(recv_klass, in_bytes(Klass::modifier_flags_offset()), T_INT), result);
+  __ branch(lir_cond_always, L_done->label());
+
+  __ branch_destination(L_primitive->label());
+
+  LIR_Opr modifiers = load_immediate(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC, T_INT);
+  __ move(modifiers, result);
+
+  __ branch_destination(L_done->label());
 }
 
 void LIRGenerator::do_getObjectSize(Intrinsic* x) {
