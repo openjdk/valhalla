@@ -1341,27 +1341,35 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   // from the primitive class itself. See spec for Class.getModifiers that provides
   // the typed array klasses with similar modifiers as their component types.
 
-  LabelObj* L_done = new LabelObj();
-  LabelObj* L_primitive = new LabelObj();
+  // Valhalla update: the code is now a bit convuloted because arrays and primitive
+  // classes don't have the same modifiers set anymore, but we cannot introduce
+  // branches in LIR generation (JDK-8211231). So, the first part of the code remains
+  // identical, using the byteArrayKlass object to avoid a NPE when accessing the
+  // modifiers. But then the code also prepares the correct modifiers set for
+  // primitive classes, and there's a second conditional move to put the right
+  // value into result.
+
+
+  Klass* univ_klass_obj = Universe::byteArrayKlassObj();
+  assert(univ_klass_obj->modifier_flags() == (JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC
+                                              | (Arguments::enable_preview() ? JVM_ACC_IDENTITY : 0)), "Sanity");
+  LIR_Opr prim_klass = LIR_OprFact::metadataConst(univ_klass_obj);
 
   LIR_Opr recv_klass = new_register(T_METADATA);
   __ move(new LIR_Address(receiver.result(), java_lang_Class::klass_offset(), T_ADDRESS), recv_klass, info);
 
   // Check if this is a Java mirror of primitive type, and select the appropriate klass.
+  LIR_Opr klass = new_register(T_METADATA);
   __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
+  __ cmove(lir_cond_equal, prim_klass, recv_klass, klass, T_ADDRESS);
+  LIR_Opr klass_modifiers = new_register(T_INT);
+  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), klass_modifiers);
 
-  __ branch(lir_cond_equal, L_primitive->label());
+  LIR_Opr prim_modifiers = load_immediate(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC, T_INT);
 
-  // Get the answer.
-  __ move(new LIR_Address(recv_klass, in_bytes(Klass::modifier_flags_offset()), T_INT), result);
-  __ branch(lir_cond_always, L_done->label());
+  __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
+  __ cmove(lir_cond_equal, prim_modifiers, klass_modifiers, result, T_INT);
 
-  __ branch_destination(L_primitive->label());
-
-  LIR_Opr modifiers = load_immediate(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC, T_INT);
-  __ move(modifiers, result);
-
-  __ branch_destination(L_done->label());
 }
 
 void LIRGenerator::do_getObjectSize(Intrinsic* x) {
