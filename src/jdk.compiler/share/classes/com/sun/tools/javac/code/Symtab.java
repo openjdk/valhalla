@@ -228,7 +228,6 @@ public class Symtab {
     public final Type constantBootstrapsType;
     public final Type classDescType;
     public final Type enumDescType;
-    public final Type numberType;
 
     // For serialization lint checking
     public final Type objectStreamFieldType;
@@ -629,7 +628,6 @@ public class Symtab {
         restrictedType = enterClass("jdk.internal.javac.Restricted");
         typeDescriptorType = enterClass("java.lang.invoke.TypeDescriptor");
         recordType = enterClass("java.lang.Record");
-        numberType = enterClass("java.lang.Number");
         switchBootstrapsType = enterClass("java.lang.runtime.SwitchBootstraps");
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
