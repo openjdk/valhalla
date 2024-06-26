@@ -252,7 +252,7 @@ public class Symtab {
     public final Type migratedValueClassType;
     public final Type migratedValueClassInternalType;
     public final Type strictType;
-    /** The symbol representing the final finalize method on Object */
+    /** The symbol representing the finalize method on Object */
     public final MethodSymbol objectFinalize;
 
     /** The symbol representing the length field of an array.
