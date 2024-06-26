@@ -5238,6 +5238,7 @@ public class Check {
                         sup.tsym == syms.objectType.tsym) {
                     return false;
                 }
+                // if it is a value super class it has to be abstract
                 if (sup.isValueClass()) {
                     return true;
                 }
