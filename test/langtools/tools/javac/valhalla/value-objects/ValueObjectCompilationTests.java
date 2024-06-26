@@ -890,7 +890,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             assertOK(
                     """
                     import java.io.*;
-                    abstract value class AVC implements Serializable {} 
+                    abstract value class AVC implements Serializable {}
                     """);
             assertOKWithWarning("compiler.warn.serializable.value.class.without.write.replace.1",
                     """
