@@ -339,7 +339,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
 
   CodeStub* throw_ie_stub = x->maybe_inlinetype() ?
       new SimpleExceptionStub(Runtime1::throw_identity_exception_id,
-                              LIR_OprFact::illegalOpr, state_for(x))
+                              obj.result(), state_for(x))
     : nullptr;
 
   // this CodeEmitInfo must not have the xhandlers because here the

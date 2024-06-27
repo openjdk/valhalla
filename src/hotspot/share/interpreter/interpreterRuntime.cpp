@@ -975,8 +975,20 @@ JRT_ENTRY(void, InterpreterRuntime::new_illegal_monitor_state_exception(JavaThre
   current->set_vm_result(exception());
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::throw_identity_exception(JavaThread* current))
-  THROW(vmSymbols::java_lang_IdentityException());
+JRT_ENTRY(void, InterpreterRuntime::throw_identity_exception(JavaThread* current, oopDesc* obj))
+  Klass* klass = cast_to_oop(obj)->klass();
+  ResourceMark rm(THREAD);
+  const char* desc = "Cannot synchronize on an instance of value class ";
+  const char* className = klass->external_name();
+  size_t msglen = strlen(desc) + strlen(className) + 1;
+  char* message = NEW_RESOURCE_ARRAY(char, msglen);
+  if (nullptr == message) {
+    // Out of memory: can't create detailed error message
+    THROW_MSG(vmSymbols::java_lang_IdentityException(), className);
+  } else {
+    jio_snprintf(message, msglen, "%s%s", desc, className);
+    THROW_MSG(vmSymbols::java_lang_IdentityException(), message);
+  }
 JRT_END
 
 //------------------------------------------------------------------------------------------------------------------------
