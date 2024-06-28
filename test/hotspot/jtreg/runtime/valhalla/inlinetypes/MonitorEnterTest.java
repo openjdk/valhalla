@@ -22,27 +22,27 @@
 */
 
 /**
-* @test TestCloneableValue
+* @test MonitorEnterTest
 * @library /test/lib
 * @enablePreview
-* @compile TestCloneableValue.java
-* @run main/othervm -XX:LockingMode=0 runtime.valhalla.inlinetypes.TestCloneableValue
+* @compile MonitorEnterTest.java
+* @run main/othervm -XX:LockingMode=0 runtime.valhalla.inlinetypes.MonitorEnterTest
 */
 
 /**
-* @test TestCloneableValue
+* @test MonitorEnterTest
 * @library /test/lib
 * @enablePreview
-* @compile TestCloneableValue.java
-* @run main/othervm -XX:LockingMode=1 runtime.valhalla.inlinetypes.TestCloneableValue
+* @compile MonitorEnterTest.java
+* @run main/othervm -XX:LockingMode=1 runtime.valhalla.inlinetypes.MonitorEnterTest
 */
 
 /**
-* @test TestCloneableValue
+* @test MonitorEnterTest
 * @library /test/lib
 * @enablePreview
-* @compile TestCloneableValue.java
-* @run main/othervm -XX:LockingMode=2 runtime.valhalla.inlinetypes.TestCloneableValue
+* @compile MonitorEnterTest.java
+* @run main/othervm -XX:LockingMode=2 runtime.valhalla.inlinetypes.MonitorEnterTest
 */
 
 package runtime.valhalla.inlinetypes;
@@ -54,10 +54,10 @@ public class MonitorEnterTest {
   static void monitorEnter(Object o, boolean expectSuccess, String message) {
       try {
           synchronized(o) {
-            Asserts.assertFalse(expectSuccess, "MonitorEnter should not have succeeded on an instance of " + o.getClass().getName());
+            Asserts.assertTrue(expectSuccess, "MonitorEnter should not have succeeded on an instance of " + o.getClass().getName());
           }
       } catch (IdentityException e) {
-          Asserts.assertTrue(expectSuccess, "Unexpected IdentityException with an instance of " + o.getClass().getName());
+          Asserts.assertFalse(expectSuccess, "Unexpected IdentityException with an instance of " + o.getClass().getName());
           if (message != null) {
               Asserts.assertEQ(e.getMessage(), message, "Exception message mismatch");
           }
@@ -70,9 +70,9 @@ public class MonitorEnterTest {
         // Attempts to lock the instance are repeated many time to ensure that the different paths
         // are used: interpreter, C1, and C2 (which deopt to the interpreter in this case)
         for (int i = 0; i <  20000; i++) {
-            monitorEnter(new Object(), true);
-            monitorEnter(new String(), true);
-            monitorEnter(new MyValue(), false, "Cannot synchronize on an instance of value class MonitorEnterTest$MyValue");
+            monitorEnter(new Object(), true, "");
+            monitorEnter(new String(), true, "");
+            monitorEnter(new MyValue(), false, "Cannot synchronize on an instance of value class runtime.valhalla.inlinetypes.MonitorEnterTest$MyValue");
             monitorEnter(Integer.valueOf(42), false, "Cannot synchronize on an instance of value class java.lang.Integer");
         }
     }
