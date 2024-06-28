@@ -52,28 +52,28 @@ import jdk.test.lib.Asserts;
 public class MonitorEnterTest {
 
   static void monitorEnter(Object o, boolean expectSuccess, String message) {
-    try {
-      synchronized(o) {
-        Asserts.assertFalse(expectSuccess, "MonitorEnter should not have succeeded on an instance of " + o.getClass().getName());
+      try {
+          synchronized(o) {
+            Asserts.assertFalse(expectSuccess, "MonitorEnter should not have succeeded on an instance of " + o.getClass().getName());
+          }
+      } catch (IdentityException e) {
+          Asserts.assertTrue(expectSuccess, "Unexpected IdentityException with an instance of " + o.getClass().getName());
+          if (message != null) {
+              Asserts.assertEQ(e.getMessage(), message, "Exception message mismatch");
+          }
       }
-    } catch (IdentityException e) {
-      Asserts.assertTrue(expectSuccess, "Unexpected IdentityException with an instance of " + o.getClass().getName());
-      if (message != null) {
-        Asserts.assertEQ(e.getMessage(), message, "Exception message mismatch");
-      }
-    }
   }
 
   static value class MyValue { }
 
-  public static void main(String[] args) {
-    // Attempts to lock the instance are repeated many time to ensure that the different paths
-    // are used: interpreter, C1, and C2 (which deopt to the interpreter in this case)
-    for (int i = 0; i <  20000; i++) {
-      monitorEnter(new Object(), true);
-      monitorEnter(new String(), true);
-      monitorEnter(new MyValue(), false, "Cannot synchronize on an instance of value class MonitorEnterTest$MyValue");
-      monitorEnter(Integer.valueOf(42), false, "Cannot synchronize on an instance of value class java.lang.Integer");
+    public static void main(String[] args) {
+        // Attempts to lock the instance are repeated many time to ensure that the different paths
+        // are used: interpreter, C1, and C2 (which deopt to the interpreter in this case)
+        for (int i = 0; i <  20000; i++) {
+            monitorEnter(new Object(), true);
+            monitorEnter(new String(), true);
+            monitorEnter(new MyValue(), false, "Cannot synchronize on an instance of value class MonitorEnterTest$MyValue");
+            monitorEnter(Integer.valueOf(42), false, "Cannot synchronize on an instance of value class java.lang.Integer");
+        }
     }
-  }
 }
