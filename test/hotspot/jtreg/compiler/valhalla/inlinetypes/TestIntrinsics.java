@@ -1672,4 +1672,33 @@ public class TestIntrinsics {
             }
         }
     }
+
+    static value class MyValueClonable implements Cloneable {
+        int x;
+
+        MyValueClonable(int x) {
+            this.x = x;
+        }
+
+        @Override
+        public Object clone() throws CloneNotSupportedException {
+            return super.clone();
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.ALLOC, "1"})
+    public Object testClone() throws CloneNotSupportedException {
+        MyValueClonable obj = new MyValueClonable(3);
+        return obj.clone();
+    }
+
+    @Run(test = "testClone")
+    public void testClone_verifier() {
+        try {
+            testClone();
+        } catch (Exception e) {
+            Asserts.fail("testClone() failed", e);
+        }
+    }
 }
