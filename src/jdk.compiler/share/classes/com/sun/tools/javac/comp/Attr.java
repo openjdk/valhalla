@@ -1318,10 +1318,19 @@ public class Attr extends JCTree.Visitor {
                     // declaration position to maximal possible value, effectively
                     // marking the variable as undefined.
                     initEnv.info.enclVar = v;
-                    attribExpr(tree.init, initEnv, v.type);
-                    if (tree.isImplicitlyTyped()) {
-                        //fixup local variable type
-                        v.type = chk.checkLocalVarType(tree, tree.init.type, tree.name);
+                    boolean previousCtorPrologue = initEnv.info.ctorPrologue;
+                    try {
+                        if (v.owner.kind == TYP && v.owner.isValueClass() && !v.isStatic()) {
+                            // strict instance initializer in a value class
+                            initEnv.info.ctorPrologue = true;
+                        }
+                        attribExpr(tree.init, initEnv, v.type);
+                        if (tree.isImplicitlyTyped()) {
+                            //fixup local variable type
+                            v.type = chk.checkLocalVarType(tree, tree.init.type, tree.name);
+                        }
+                    } finally {
+                        initEnv.info.ctorPrologue = previousCtorPrologue;
                     }
                 }
                 if (tree.isImplicitlyTyped()) {
