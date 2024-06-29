@@ -736,6 +736,14 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+        assertFail("compiler.err.cant.ref.before.ctor.called",
+                """
+                value class Test {
+                    Test t = null;
+                    Runnable r = () -> { System.err.println(t); };
+                }
+                """
+        );
     }
 
     @Test
