@@ -1972,6 +1972,21 @@ char* SharedRuntime::generate_class_cast_message(
   return message;
 }
 
+char* SharedRuntime::generate_identity_exception_message(JavaThread* current, Klass* klass) {
+  assert(klass->is_inline_klass(), "Must be a concrete value class");
+  const char* desc = "Cannot synchronize on an instance of value class ";
+  const char* className = klass->external_name();
+  size_t msglen = strlen(desc) + strlen(className) + 1;
+  char* message = NEW_RESOURCE_ARRAY(char, msglen);
+  if (nullptr == message) {
+    // Out of memory: can't create detailed error message
+    message = const_cast<char*>(klass->external_name());
+  } else {
+    jio_snprintf(message, msglen, "%s%s", desc, className);
+  }
+  return message;
+}
+
 JRT_LEAF(void, SharedRuntime::reguard_yellow_pages())
   (void) JavaThread::current()->stack_overflow_state()->reguard_stack();
 JRT_END
