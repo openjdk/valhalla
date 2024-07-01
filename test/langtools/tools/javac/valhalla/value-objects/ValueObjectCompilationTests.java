@@ -287,7 +287,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             this.x = x;
                             this.y = y;
                         }
-    
                         void foo(Point p) {
                             this.y = p.y; // Error, y is final and can't be written outside of ctor.
                         }
@@ -304,7 +303,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             this.x = x;
                             this.y = y;
                         }
-    
                         void foo(Point p) {
                             this.y = p.y; // Error, y is final and can't be written outside of ctor.
                         }
