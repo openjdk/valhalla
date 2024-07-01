@@ -4159,12 +4159,9 @@ public class Check {
                     break;
                 }
 
-                // valhalla is using this feature so commenting this code for now so that the
-                // build doesn't depend on preview code
-                // If super()/this() isn't first, require "statements before super()" feature
-                /*if (!firstStatement) {
+                // If super()/this() isn't first, require flexible constructors feature
+                if (!firstStatement)
                     preview.checkSourceLevel(apply.pos(), Feature.SUPER_INIT);
-                }*/
 
                 // We found a legitimate super()/this() call; remember it
                 initCall = methodName;
