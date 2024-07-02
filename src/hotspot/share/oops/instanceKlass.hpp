@@ -381,6 +381,9 @@ class InstanceKlass: public Klass {
   bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
   void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
+  bool has_null_restricted_array() const   { return _misc_flags.has_null_restricted_array(); }
+  void set_has_null_restricted_array()     { _misc_flags.set_has_null_restricted_array(true); }
+
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }
   void set_nonstatic_field_size(int size)  { _nonstatic_field_size = size; }

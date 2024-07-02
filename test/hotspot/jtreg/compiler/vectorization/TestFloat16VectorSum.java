@@ -25,6 +25,7 @@
 * @test
 * @summary Test vectorization of Float16.sum operation.
 * @requires vm.compiler2.enabled
+* @enablePreview
 * @library /test/lib /
 * @compile  TestFloat16VectorSum.java
 * @run driver compiler.vectorization.TestFloat16VectorSum
@@ -42,7 +43,7 @@ public class TestFloat16VectorSum {
     private Random rng;
 
     public static void main(String args[]) {
-        TestFramework.run(TestFloat16VectorSum.class);
+        TestFramework.runWithFlags("--enable-preview", "-XX:-TieredCompilation", "-Xbatch");
     }
 
     public TestFloat16VectorSum() {

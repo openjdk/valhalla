@@ -131,6 +131,8 @@ public:
   // Fetch Klass::access_flags.
   jint                   access_flags();
 
+  bool has_flat_layout() const;
+
   markWord prototype_header() const;
 
   // What kind of ciObject is this?

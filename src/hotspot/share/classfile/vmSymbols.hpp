@@ -275,6 +275,7 @@ class SerializeClosure;
   template(jdk_internal_vm_annotation_ImplicitlyConstructible_signature,     "Ljdk/internal/vm/annotation/ImplicitlyConstructible;") \
   template(jdk_internal_vm_annotation_LooselyConsistentValue_signature,      "Ljdk/internal/vm/annotation/LooselyConsistentValue;") \
   template(jdk_internal_vm_annotation_NullRestricted_signature,              "Ljdk/internal/vm/annotation/NullRestricted;") \
+  template(jdk_internal_vm_annotation_NullRestrictedArray_signature,         "Ljdk/internal/vm/annotation/NullRestrictedArray;") \
   template(jdk_internal_ValueBased_signature,                                "Ljdk/internal/ValueBased;") \
                                                                                                   \
   /* class symbols needed by intrinsics */                                                        \

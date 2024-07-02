@@ -258,3 +258,16 @@ const char* ciKlass::external_name() const {
     return get_Klass()->external_name();
   )
 }
+
+//-------------------------------------------------------------------
+// ciKlass::has_flat_layout
+//
+//
+bool ciKlass::has_flat_layout() const {
+  GUARDED_VM_ENTRY(
+  return is_loaded() && get_Klass()->is_instance_klass() &&
+         InstanceKlass::cast(get_Klass())->is_implicitly_constructible() &&
+         InstanceKlass::cast(get_Klass())->has_null_restricted_array() &&
+         !InstanceKlass::cast(get_Klass())->must_be_atomic();
+  )
+}

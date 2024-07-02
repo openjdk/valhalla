@@ -378,9 +378,13 @@ JRT_END
 
 
 JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool* pool, int index, jint size))
-  Klass*    klass = pool->klass_at(index, CHECK);
   arrayOop obj = nullptr;
-  if (klass->is_inline_klass() && InlineKlass::cast(klass)->is_implicitly_constructible()) {
+  Klass*    klass = pool->klass_at(index, CHECK);
+  bool has_flat_layout = klass->is_inline_klass() &&
+    InstanceKlass::cast(klass)->is_implicitly_constructible() &&
+    InstanceKlass::cast(klass)->has_null_restricted_array() &&
+    !InstanceKlass::cast(klass)->must_be_atomic();
+  if (has_flat_layout) {
     obj = oopFactory::new_valueArray(klass, size, CHECK);
   } else {
     obj = oopFactory::new_objArray(klass, size, CHECK);

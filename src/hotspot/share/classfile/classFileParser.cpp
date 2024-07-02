@@ -956,6 +956,7 @@ public:
     _jdk_internal_ImplicitlyConstructible,
     _jdk_internal_LooselyConsistentValue,
     _jdk_internal_NullRestricted,
+    _jdk_internal_NullRestrictedArray,
     _java_lang_Deprecated,
     _java_lang_Deprecated_for_removal,
     _annotation_LIMIT
@@ -2072,6 +2073,10 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
     case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_ImplicitlyConstructible_signature): {
       if (_location != _in_class)   break; // only allow for classes
       return _jdk_internal_ImplicitlyConstructible;
+    }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_NullRestrictedArray_signature): {
+      if (_location != _in_class)   break; // only allow for classes
+      return _jdk_internal_NullRestrictedArray;
     }
     case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_LooselyConsistentValue_signature): {
       if (_location != _in_class)   break; // only allow for classes
@@ -5628,6 +5633,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (_is_implicitly_constructible) {
     ik->set_is_implicitly_constructible();
   }
+  if (_has_null_restricted_array) {
+    ik->set_has_null_restricted_array();
+  }
   if (_is_hidden) {
     ik->set_is_hidden();
   }
@@ -5904,6 +5912,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _is_naturally_atomic(false),
   _must_be_atomic(true),
   _is_implicitly_constructible(false),
+  _has_null_restricted_array(false),
   _has_loosely_consistent_annotation(false),
   _has_implicitly_constructible_annotation(false),
   _has_finalizer(false),
@@ -6386,6 +6395,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible)) {
       _is_implicitly_constructible = true;
+    }
+    if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_NullRestrictedArray)) {
+      _has_null_restricted_array = true;
+    }
+    // Implicit constructibility and null restriction are sufficient to guarantee atomic updates to value based boxed primitives.
+    if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ValueBased) && _has_null_restricted_array && _is_implicitly_constructible) {
+      _must_be_atomic = false;
     }
     // Apply VM options override
     if (*ForceNonTearable != '\0') {
