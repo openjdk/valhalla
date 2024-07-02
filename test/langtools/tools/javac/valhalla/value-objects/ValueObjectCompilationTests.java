@@ -1141,6 +1141,22 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         private static final long serialVersionUID = 1;
                     }
                     """);
+            assertOK(
+                    // Number is a special case, no warning for identity classes extending it
+                    """
+                    class NumberSubClass extends Number {
+                        private static final long serialVersionUID = 0L;
+                        @Override
+                        public double doubleValue() { return 0; }
+                        @Override
+                        public int intValue() { return 0; }
+                        @Override
+                        public long longValue() { return 0; }
+                        @Override
+                        public float floatValue() { return 0; }
+                    }
+                    """
+            );
         } finally {
             setCompileOptions(previousOptions);
         }

@@ -254,6 +254,7 @@ public class Symtab {
     public final Type strictType;
     /** The symbol representing the finalize method on Object */
     public final MethodSymbol objectFinalize;
+    public final Type numberType;
 
     /** The symbol representing the length field of an array.
      */
@@ -661,6 +662,8 @@ public class Symtab {
         templateRuntimeType = enterClass("java.lang.runtime.TemplateRuntime");
         processorType = enterClass("java.lang.StringTemplate$Processor");
         linkageType = enterClass("java.lang.StringTemplate$Processor$Linkage");
+
+        numberType = enterClass("java.lang.Number");
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a
