@@ -5202,7 +5202,7 @@ public class Check {
                 });
             }
             if (!hasWriteReplace[0] &&
-                    (c.isValueClass() || hasAbstractValueSuperClass(c)) &&
+                    (c.isValueClass() || hasAbstractValueSuperClass(c, Set.of(syms.numberType.tsym))) &&
                     !c.isAbstract() && !c.isRecord() &&
                     types.unboxedType(c.type) == Type.noType) {
                 // we need to check if the class is inheriting an appropriate writeReplace method
@@ -5228,7 +5228,7 @@ public class Check {
             return type.isPrimitive() || rs.isSerializable(type);
         }
 
-        private boolean hasAbstractValueSuperClass(Symbol c) {
+        private boolean hasAbstractValueSuperClass(Symbol c, Set<Symbol> excluding) {
             while (c.getKind() == ElementKind.CLASS) {
                 Type sup = ((ClassSymbol)c).getSuperclass();
                 if (!sup.hasTag(CLASS) || sup.isErroneous() ||
@@ -5236,7 +5236,7 @@ public class Check {
                     return false;
                 }
                 // if it is a value super class it has to be abstract
-                if (sup.isValueClass()) {
+                if (sup.isValueClass() && !excluding.contains(sup.tsym)) {
                     return true;
                 }
                 c = sup.tsym;
