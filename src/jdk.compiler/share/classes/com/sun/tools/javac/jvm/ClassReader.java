@@ -3174,7 +3174,7 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags)) || (majorVersion < V66.major && (flags & INTERFACE) == 0)) {
+        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags)) || (majorVersion < V67.major && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
         } else if (needsValueFlag(c, flags)) {
             flags |= VALUE_CLASS;
@@ -3186,8 +3186,8 @@ public class ClassReader {
     private boolean needsValueFlag(Symbol c, long flags) {
         boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         if (allowValueClasses) {
-            if (previewClassFile && majorVersion >= V66.major && (flags & INTERFACE) == 0 ||
-                    majorVersion >= V66.major && isMigratedValueClass(flags)) {
+            if (previewClassFile && majorVersion >= V67.major && (flags & INTERFACE) == 0 ||
+                    majorVersion >= V67.major && isMigratedValueClass(flags)) {
                 return true;
             }
         }

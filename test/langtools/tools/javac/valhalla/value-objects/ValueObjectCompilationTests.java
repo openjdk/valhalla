@@ -447,58 +447,65 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         }
                     }
                     """
+            ),
+            new TestData(
+                    "compiler.err.type.found.req", // --enable-preview -source"
+                    """
+                    import java.time.*;
+                    class V {
+                        final Duration val = Duration.ZERO;
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """,
+                    false // cant do local as there is an import statement
+            ),
+            new TestData(
+                    "compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class", // empty options
+                    """
+                    class V {
+                        final Integer val = Integer.valueOf(42);
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """,
+                    new String[] {}
+            ),
+            new TestData(
+                    "compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class", // --source
+                    """
+                    class V {
+                        final Integer val = Integer.valueOf(42);
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """,
+                    new String[] {"--source", Integer.toString(Runtime.version().feature())}
+            ),
+            new TestData(
+                    "compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class", // --source
+                    """
+                    class V {
+                        final Integer val = Integer.valueOf(42);
+                        void test() {
+                            synchronized (val) { // warn
+                            }
+                        }
+                    }
+                    """,
+                    new String[] {"--source", Integer.toString(Runtime.version().feature())}
             )
     );
 
     @Test
     void testSemanticsViolations() {
         testHelper(semanticsViolations);
-        testHelper(
-                List.of(
-                        new TestData(
-                                "compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class", // empty options
-                                """
-                                class V {
-                                    final Integer val = Integer.valueOf(42);
-                                    void test() {
-                                        synchronized (val) { // warn
-                                        }
-                                    }
-                                }
-                                """,
-                                new String[] {}
-                        ),
-                        new TestData(
-                                "compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class", // --source
-                                """
-                                class V {
-                                    final Integer val = Integer.valueOf(42);
-                                    void test() {
-                                        synchronized (val) { // warn
-                                        }
-                                    }
-                                }
-                                """,
-                                new String[] {"--source", Integer.toString(Runtime.version().feature())}
-                        ),
-                        new TestData(
-                                "compiler.err.type.found.req", // --enable-preview --source
-                                """
-                                class V {
-                                    final Integer val = Integer.valueOf(42);
-                                    void test() {
-                                        synchronized (val) { // warn
-                                        }
-                                    }
-                                }
-                                """,
-                                new String[] {"--enable-preview", "--source", Integer.toString(Runtime.version().feature())}
-                        )
-                        /* we should add tests for --release and --release --enable-preview once the stubs used for the latest
-                         * release have been updated, right now they are the same as those for 22
-                         */
-                )
-        );
     }
 
     private static final List<TestData> sealedClassesData = List.of(
