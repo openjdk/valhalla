@@ -42,7 +42,7 @@ public class TestFloat16VectorSum {
     private Random rng;
 
     public static void main(String args[]) {
-        TestFramework.run(TestFloat16VectorSum.class);
+        TestFramework.runWithFlags("--enable-preview", "-XX:-TieredCompilation", "-Xbatch");
     }
 
     public TestFloat16VectorSum() {

@@ -107,7 +107,8 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free) {
     return ciTypeArrayKlass::make(element_type->basic_type());
   } else {
     ciKlass* klass = element_type->as_klass();
-    if (null_free && klass->is_loaded()) {
+    bool value_based_flat_layout = klass->has_flat_layout();
+    if ((null_free || value_based_flat_layout) && klass->is_loaded()) {
       GUARDED_VM_ENTRY(
         EXCEPTION_CONTEXT;
         Klass* ak = InlineKlass::cast(klass->get_Klass())->value_array_klass(THREAD);

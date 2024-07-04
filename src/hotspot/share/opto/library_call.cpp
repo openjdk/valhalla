@@ -5065,7 +5065,9 @@ bool LibraryCallKit::inline_fp16_operations(vmIntrinsics::ID id) {
   Node* result = nullptr;
   Node* val1 = argument(0);  // receiver
   Node* val2 = argument(1);  // argument
-  assert(val1->is_InlineType() && val2->is_InlineType(), "");
+  if (!val1->is_InlineType() || !val2->is_InlineType()) {
+    return false;
+  }
 
   Node* fld1 = _gvn.transform(new ReinterpretS2HFNode(val1->as_InlineType()->field_value(0)));
   Node* fld2 = _gvn.transform(new ReinterpretS2HFNode(val2->as_InlineType()->field_value(0)));
