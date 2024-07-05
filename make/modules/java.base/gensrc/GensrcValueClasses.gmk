@@ -53,6 +53,11 @@ java.base-VALUE_CLASS-REPLACEMENTS := \
     java/time/YearMonth.java \
     java/time/Year.java \
     java/time/Period.java \
+    java/time/chrono/ChronoLocalDateImpl \
+    java/time/chrono/MinguoDate \
+    java/time/chrono/HijrahDate \
+    java/time/chrono/JapaneseDate \
+    java/time/chrono/ThaiBuddhistDate \
     #
 
 java.base-VALUE-CLASS-FILES := \
