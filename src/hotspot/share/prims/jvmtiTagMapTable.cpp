@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,6 +64,23 @@ oop JvmtiTagMapKey::object_no_keepalive() const {
   return _wh.peek();
 }
 
+unsigned JvmtiTagMapKey::get_hash(const JvmtiTagMapKey& entry) {
+  oop obj = entry._obj;
+  assert(obj != nullptr, "must lookup obj to hash");
+  if (obj->is_inline_type()) {
+    // For inline types, use the klass as a hash code and let the equals match the obj.
+    // It might have a long bucket but sobeit.
+    return (unsigned)((int64_t)obj->klass() >> 3);
+  } else {
+    return (unsigned)obj->identity_hash();
+  }
+}
+
+// Inline types don't use hash for this table.
+static inline bool fast_no_hash_check(oop obj) {
+  return (obj->fast_no_hash_check() && !obj->is_inline_type());
+}
+
 static const int INITIAL_TABLE_SIZE = 1007;
 static const int MAX_TABLE_SIZE     = 0x3fffffff;
 
@@ -94,8 +111,8 @@ jlong JvmtiTagMapTable::find(oop obj) {
     return 0;
   }
 
-  if (obj->fast_no_hash_check()) {
-    // Objects in the table all have a hashcode.
+  if (fast_no_hash_check(obj)) {
+    // Objects in the table all have a hashcode, unless inlined types.
     return 0;
   }
 
@@ -107,7 +124,7 @@ jlong JvmtiTagMapTable::find(oop obj) {
 void JvmtiTagMapTable::add(oop obj, jlong tag) {
   JvmtiTagMapKey new_entry(obj);
   bool is_added;
-  if (obj->fast_no_hash_check()) {
+  if (fast_no_hash_check(obj)) {
     // Can't be in the table so add it fast.
     is_added = _table.put_when_absent(new_entry, tag);
   } else {
