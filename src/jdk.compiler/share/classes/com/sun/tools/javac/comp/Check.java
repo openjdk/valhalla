@@ -2671,15 +2671,12 @@ public class Check {
         }
         checkCompatibleConcretes(pos, c);
 
-        boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
-        Type identitySuper = null, valueSuper = null;
+        Type identitySuper = null;
         for (Type t : types.closure(c)) {
             if (t != c) {
-                if ((t.tsym.flags() & IDENTITY_TYPE) != 0 && (t.tsym.flags() & VALUE_BASED) == 0)
+                if (t.isIdentityClass() && (t.tsym.flags() & VALUE_BASED) == 0)
                     identitySuper = t;
-                else if ((t.tsym.flags() & VALUE_CLASS) != 0)
-                    valueSuper = t;
-                if (cIsValue && identitySuper != null && identitySuper.tsym != syms.objectType.tsym) { // Object is special
+                if (c.isValueClass() && identitySuper != null && identitySuper.tsym != syms.objectType.tsym) { // Object is special
                     log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));
                     break;
                 }

@@ -1021,11 +1021,17 @@ public class ClassWriter extends ClassFile {
         for (Type t : mtype.getParameterTypes()) {
             if (t.requiresLoadableDescriptors(m.owner)) {
                 poolWriter.enterLoadableDescriptorsClass(t.tsym);
+                if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
+                    preview.markUsesPreview(null);
+                }
             }
         }
         Type returnType = mtype.getReturnType();
         if (returnType.requiresLoadableDescriptors(m.owner)) {
             poolWriter.enterLoadableDescriptorsClass(returnType.tsym);
+            if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
+                preview.markUsesPreview(null);
+            }
         }
         int acountIdx = beginAttrs();
         int acount = 0;
