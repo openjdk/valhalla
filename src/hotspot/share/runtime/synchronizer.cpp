@@ -306,6 +306,21 @@ jlong ObjectSynchronizer::_last_async_deflation_time_ns = 0;
 static uintx _no_progress_cnt = 0;
 static bool _no_progress_skip_increment = false;
 
+#define CHECK_THROW_NOSYNC_IE(obj) \
+  if (obj->klass()->is_inline_klass()) { \
+    ResourceMark rm(THREAD); \
+    const char* desc = "Cannot synchronize on an instance of value class "; \
+    const char* className = obj->klass()->external_name(); \
+    size_t msglen = strlen(desc) + strlen(className) + 1; \
+    char* message = NEW_RESOURCE_ARRAY(char, msglen); \
+    if (nullptr == message) { \
+      THROW_MSG(vmSymbols::java_lang_IdentityException(), className); \
+    } else { \
+      jio_snprintf(message, msglen, "%s%s", desc, className); \
+      THROW_MSG(vmSymbols::java_lang_IdentityException(), message); \
+    } \
+  }
+
 #define CHECK_THROW_NOSYNC_IMSE(obj)  \
   if (EnableValhalla && (obj)->mark().is_inline_type()) {  \
     JavaThread* THREAD = current;           \
@@ -540,8 +555,10 @@ void ObjectSynchronizer::enter_for(Handle obj, BasicLock* lock, JavaThread* lock
   // the locking_thread with respect to the current thread. Currently only used when
   // deoptimizing and re-locking locks. See Deoptimization::relock_objects
   assert(locking_thread == Thread::current() || locking_thread->is_obj_deopt_suspend(), "must be");
-  JavaThread* current = locking_thread;
-  CHECK_THROW_NOSYNC_IMSE(obj);
+  if (obj->klass()->is_inline_klass()) {
+    // JITed code should never have locked an instance of a value class
+    ShouldNotReachHere();
+  }
   if (!enter_fast_impl(obj, lock, locking_thread)) {
     // Inflated ObjectMonitor::enter_for is required
 
@@ -560,7 +577,8 @@ void ObjectSynchronizer::enter_for(Handle obj, BasicLock* lock, JavaThread* lock
 
 void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, JavaThread* current) {
   assert(current == Thread::current(), "must be");
-  CHECK_THROW_NOSYNC_IMSE(obj);
+  JavaThread* THREAD = current;
+  CHECK_THROW_NOSYNC_IE(obj);
   if (!enter_fast_impl(obj, lock, current)) {
     // Inflated ObjectMonitor::enter is required
 
@@ -764,10 +782,12 @@ void ObjectSynchronizer::exit(oop object, BasicLock* lock, JavaThread* current) 
 // JNI locks on java objects
 // NOTE: must use heavy weight monitor to handle jni monitor enter
 void ObjectSynchronizer::jni_enter(Handle obj, JavaThread* current) {
+  JavaThread* THREAD = current;
   if (obj->klass()->is_value_based()) {
     handle_sync_on_value_based_class(obj, current);
   }
-  CHECK_THROW_NOSYNC_IMSE(obj);
+
+  CHECK_THROW_NOSYNC_IE(obj);
 
   // the current locking is from JNI instead of Java code
   current->set_current_pending_monitor_is_from_java(false);
