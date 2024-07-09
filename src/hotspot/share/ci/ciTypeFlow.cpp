@@ -324,8 +324,6 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // But when (obj/flat)Array meets (obj/flat)Array, we look carefully at element types.
     if ((k1->is_obj_array_klass() || k1->is_flat_array_klass()) &&
         (k2->is_obj_array_klass() || k2->is_flat_array_klass())) {
-      bool null_free = k1->as_array_klass()->is_elem_null_free() &&
-                       k2->as_array_klass()->is_elem_null_free();
       ciType* elem1 = k1->as_array_klass()->element_klass();
       ciType* elem2 = k2->as_array_klass()->element_klass();
       ciType* elem = elem1;
@@ -334,14 +332,12 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
       }
       // Do an easy shortcut if one type is a super of the other.
       if (elem == elem1 && !elem->is_inlinetype()) {
-        assert(k1 == ciArrayKlass::make(elem, null_free), "shortcut is OK");
+        assert(k1 == ciArrayKlass::make(elem), "shortcut is OK");
         return k1;
       } else if (elem == elem2 && !elem->is_inlinetype()) {
-        assert(k2 == ciArrayKlass::make(elem, null_free), "shortcut is OK");
+        assert(k2 == ciArrayKlass::make(elem), "shortcut is OK");
         return k2;
       } else {
-        // TODO 8325106 Remove
-        assert(!null_free, "should be dead");
         return ciArrayKlass::make(elem);
       }
     } else {
@@ -606,6 +602,7 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
   } else {
     if (array_klass->is_elem_null_free()) {
       // TODO 8325106 Is this dead?
+      assert(false, "STILL LIVE?");
       push(outer()->mark_as_null_free(element_klass));
     } else {
       push_object(element_klass);
@@ -636,6 +633,7 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
     }
     if (klass->is_inlinetype() && type->is_null_free()) {
       // TODO 8325106 Is this dead?
+      assert(false, "STILL LIVE?");
       push(outer()->mark_as_null_free(klass));
     } else {
       push_object(klass);

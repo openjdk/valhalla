@@ -254,15 +254,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     // TODO 8325106 Assert that we only do this in the constructor and align with checks in ::do_call
     //if (_method->is_object_constructor() && _method->holder()->is_inlinetype()) {
     assert(obj->as_InlineType()->is_larval(), "must be larval");
-
-    // TODO 8325106 Assert that holder is null-free
-    /*
-    int holder_depth = field->type()->size();
-    null_check(peek(holder_depth));
-    if (stopped()) {
-      return;
-    }
-    */
+    assert(!_gvn.type(obj)->maybe_null(), "should never be null");
 
     if (field->is_null_free()) {
       PreserveReexecuteState preexecs(this);

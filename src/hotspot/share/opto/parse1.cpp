@@ -179,7 +179,8 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
     // TypeFlow asserted a specific object type.  Value must have that type.
     Node* bad_type_ctrl = nullptr;
     if (tp->is_inlinetypeptr() && !tp->maybe_null()) {
-      // TODO 8325106 Dead code?
+      // TODO 8325106 Is this dead?
+      assert(false, "STILL LIVE?");
       // Check inline types for null here to prevent checkcast from adding an
       // exception state before the bytecode entry (use 'bad_type_ctrl' instead).
       l = null_check_oop(l, &bad_type_ctrl);

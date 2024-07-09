@@ -4366,11 +4366,10 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
-  // TODO 8325106 Fix comment
   // Inline type array variants:
-  // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue")
-  // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue")
-  // - null-free, flat     : MyValue.val[] (ciFlatArrayKlass "[QMyValue")
+  // - null-ok:         ciObjArrayKlass  with is_elem_null_free() = false
+  // - null-free:       ciObjArrayKlass  with is_elem_null_free() = true
+  // - null-free, flat: ciFlatArrayKlass with is_elem_null_free() = true
   // Check if array is a null-free, non-flat inline type array
   // that needs to be initialized with the default inline type.
   Node* default_value = nullptr;

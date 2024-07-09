@@ -245,8 +245,7 @@ Node *MemNode::optimize_memory_chain(Node *mchain, const TypePtr *t_adr, Node *l
       // clone the Phi with our address type
       result = mphi->split_out_instance(t_adr, igvn);
     } else {
-      // TODO 8325106
-      // assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
+      assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
     }
   }
   return result;
@@ -2130,8 +2129,8 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
             tkls->offset() == in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())) {
           assert(base->Opcode() == Op_LoadP, "must load an oop from klass");
           assert(Opcode() == Op_LoadI, "must load an int from fixed block");
-          // TODO 8325106 remove?
-          assert(false, "NOT DEAD");
+          // TODO 8325106 Is this dead?
+          assert(false, "STILL LIVE?");
           return TypeInt::make(tkls->exact_klass()->as_inline_klass()->default_value_offset());
         }
       }
