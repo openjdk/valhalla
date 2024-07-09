@@ -70,7 +70,7 @@ $(eval $(call SetupTextFileProcessing, JAVA_BASE_VALUECLASS_REPLACEMENTS, \
     REPLACEMENTS := \
         public final class => public final value class ; \
         public abstract class => public abstract value class ; \
-        abstract class ChronoLocalDateImpl => abstract value class ChronoLocalDateImpl \
+        abstract class ChronoLocalDateImpl => abstract value class ChronoLocalDateImpl, \
 ))
 
 TARGETS += $(JAVA_BASE_VALUECLASS_REPLACEMENTS)
