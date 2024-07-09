@@ -625,8 +625,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
-      // TODO 8325106 Shouldn't we use replace_in_map here?
-      set_local(i, cast);
+      replace_in_map(parm, cast);
     }
   }
 

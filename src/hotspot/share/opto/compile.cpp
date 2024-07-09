@@ -4984,10 +4984,8 @@ Compile::SubTypeCheckResult Compile::static_subtype_check(const TypeKlassPtr* su
     int ignored;
     superelem = superk->is_aryklassptr()->base_element_type(ignored);
 
-    // TODO 8325106 Fix comment
-    // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-    // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
-    // the klass for [LMyValue. Perform a full test.
+    // Do not fold the subtype check to an array klass pointer comparison for null-able inline type arrays
+    // because null-free [LMyValue <: null-able [LMyValue but the klasses are different. Perform a full test.
     if (!superk->is_aryklassptr()->is_null_free() && superk->is_aryklassptr()->elem()->isa_instklassptr() &&
         superk->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->is_inlinetype()) {
       return SSC_full_test;

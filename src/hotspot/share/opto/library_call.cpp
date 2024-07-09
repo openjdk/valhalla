@@ -4827,6 +4827,8 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   PhiNode*    result_mem = new PhiNode(result_reg, Type::MEMORY, TypePtr::BOTTOM);
   Node* obj = argument(0);
 
+  // Don't intrinsify hashcode on inline types for now.
+  // The "is locked" runtime check below also serves as inline type check and goes to the slow path.
   if (gvn().type(obj)->is_inlinetypeptr()) {
     return false;
   }
@@ -5264,7 +5266,6 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 
 #undef XTOP
 
-// TODO 8325106 Remove this and corresponding tests. Flatness is not a property of the Class anymore with JEP 401.
 //----------------------inline_unsafe_isFlatArray------------------------
 // public native boolean Unsafe.isFlatArray(Class<?> arrayClass);
 // This intrinsic exploits assumptions made by the native implementation

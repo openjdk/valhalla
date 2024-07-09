@@ -2122,7 +2122,6 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     } else {
       // Check for a load of the default value offset from the InlineKlassFixedBlock:
       // LoadI(LoadP(inline_klass, adr_inlineklass_fixed_block_offset), default_value_offset_offset)
-      // TODO 8325106 remove?
       intptr_t offset = 0;
       Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
       if (base != nullptr && base->is_Load() && offset == in_bytes(InlineKlass::default_value_offset_offset())) {
@@ -2131,6 +2130,8 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
             tkls->offset() == in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())) {
           assert(base->Opcode() == Op_LoadP, "must load an oop from klass");
           assert(Opcode() == Op_LoadI, "must load an int from fixed block");
+          // TODO 8325106 remove?
+          assert(false, "NOT DEAD");
           return TypeInt::make(tkls->exact_klass()->as_inline_klass()->default_value_offset());
         }
       }
