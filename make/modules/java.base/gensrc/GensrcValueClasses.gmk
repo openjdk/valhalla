@@ -53,11 +53,11 @@ java.base-VALUE_CLASS-REPLACEMENTS := \
     java/time/YearMonth.java \
     java/time/Year.java \
     java/time/Period.java \
-    java/time/chrono/ChronoLocalDateImpl \
-    java/time/chrono/MinguoDate \
-    java/time/chrono/HijrahDate \
-    java/time/chrono/JapaneseDate \
-    java/time/chrono/ThaiBuddhistDate \
+    java/time/chrono/ChronoLocalDateImpl.java \
+    java/time/chrono/MinguoDate.java \
+    java/time/chrono/HijrahDate.java \
+    java/time/chrono/JapaneseDate.java \
+    java/time/chrono/ThaiBuddhistDate.java \
     #
 
 java.base-VALUE-CLASS-FILES := \
@@ -69,7 +69,8 @@ $(eval $(call SetupTextFileProcessing, JAVA_BASE_VALUECLASS_REPLACEMENTS, \
     OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/gensrc-valueclasses/java.base/, \
     REPLACEMENTS := \
         public final class => public final value class ; \
-        public abstract class => public abstract value class, \
+        public abstract class => public abstract value class ; \
+        abstract class ChronoLocalDateImpl => abstract value class ChronoLocalDateImpl \
 ))
 
 TARGETS += $(JAVA_BASE_VALUECLASS_REPLACEMENTS)
