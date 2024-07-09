@@ -37,9 +37,9 @@ public class LoadableDescriptors_attribute extends Attribute {
     LoadableDescriptors_attribute(ClassReader cr, int name_index, int length) throws IOException {
         super(name_index, length);
         number_of_descriptors = cr.readUnsignedShort();
-        descriptor_info_index = new int[number_of_descriptors];
+        descriptors = new int[number_of_descriptors];
         for (int i = 0; i < number_of_descriptors; i++)
-            descriptor_info_index[i] = cr.readUnsignedShort();
+            descriptors[i] = cr.readUnsignedShort();
     }
 
     public <R, D> R accept(Visitor<R, D> visitor, D data) {
@@ -47,5 +47,5 @@ public class LoadableDescriptors_attribute extends Attribute {
     }
 
     public final int number_of_descriptors;
-    public final int descriptor_info_index[];
+    public final int descriptors[];
 }
