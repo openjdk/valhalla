@@ -69,7 +69,7 @@ unsigned JvmtiTagMapKey::get_hash(const JvmtiTagMapKey& entry) {
   assert(obj != nullptr, "must lookup obj to hash");
   if (obj->is_inline_type()) {
     // For inline types, use the klass as a hash code and let the equals match the obj.
-    // It might have a long bucket but sobeit.
+    // It might have a long bucket but TBD to improve this if a customer situation arises.
     return (unsigned)((int64_t)obj->klass() >> 3);
   } else {
     return (unsigned)obj->identity_hash();
