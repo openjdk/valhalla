@@ -2280,15 +2280,18 @@ public class ObjectInputStream
                 handles.setObject(passHandle, obj);
         } else if (desc.isExternalizable()) {
             if (desc.isValue()) {
-                throw new NotSerializableException("Externalizable not valid for value class "
+                throw new InvalidClassException("Externalizable not valid for value class "
                         + cl.getName());
             }
             if (!unshared)
                 handles.setObject(passHandle, obj);
             readExternalData((Externalizable) obj, desc);
         } else if (desc.isValue()) {
+            if (obj == null) {
+                throw new InvalidClassException("Serializable not valid for value class "
+                        + cl.getName());
+            }
             // For value objects, read the fields and finish the buffer before publishing the ref
-            assert obj != null : "obj == null: " + desc;
             readSerialData(obj, desc);
             obj = desc.finishValue(obj);
             if (!unshared)
