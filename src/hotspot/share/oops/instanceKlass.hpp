@@ -370,8 +370,7 @@ class InstanceKlass: public Klass {
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 
-  // Query if this class implements jl.NonTearable or was
-  // mentioned in the JVM option ForceNonTearable.
+  // Query if this class is mentioned in the JVM option ForceNonTearable.
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
   // It inherits from supers along with NonTearable.
