@@ -561,7 +561,6 @@ void ObjectSynchronizer::enter_for(Handle obj, BasicLock* lock, JavaThread* lock
 
 void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, JavaThread* current) {
   assert(current == Thread::current(), "must be");
-  JavaThread* THREAD = current;
   assert(!EnableValhalla || !obj->klass()->is_inline_klass(), "This method should never be called on an instance of an inline class");
   if (!enter_fast_impl(obj, lock, current)) {
     // Inflated ObjectMonitor::enter is required
