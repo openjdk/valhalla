@@ -324,6 +324,7 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
         Node* in = n->in(i);
         if (in->is_Phi() && !visited.test_set(in->_idx)) {
           worklist.push(in);
+          // TODO 8325106
         // TestNullableArrays.test123 fails when enabling this, probably we should make sure that we don't load from a just allocated object
         //} else if (!(in->is_Con() || in->is_Parm() || in->is_Load() || (in->isa_DecodeN() && in->in(1)->is_Load()))) {
         } else if (!(in->is_Con() || in->is_Parm())) {
@@ -537,13 +538,6 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
     return this;
   }
 
-  // TODO 8325106
-  /*
-  if (inline_klass()->is_initialized() && inline_klass()->is_empty()) {
-    assert(false, "Should not buffer empty inline klass");
-  }
-  */
-
   // Check if inline type is already buffered
   Node* not_buffered_ctl = kit->top();
   Node* not_null_oop = kit->null_check_oop(get_oop(), &not_buffered_ctl, /* never_see_null = */ false, safe_for_replace);
@@ -579,36 +573,34 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   PhiNode* io  = PhiNode::make(region, kit->i_o(), Type::ABIO);
   PhiNode* mem = PhiNode::make(region, kit->merged_memory(), Type::MEMORY, TypePtr::BOTTOM);
 
-  int bci = kit->bci();
-  bool reexecute = kit->jvms()->should_reexecute();
   if (!kit->stopped()) {
     assert(!is_allocated(&kit->gvn()), "already buffered");
-
-    // Allocate and initialize buffer
     PreserveJVMState pjvms(kit);
-    // Propagate re-execution state and bci
-    kit->set_bci(bci);
-    kit->jvms()->set_bci(bci);
-    kit->jvms()->set_should_reexecute(reexecute);
-
-    kit->kill_dead_locals();
     ciInlineKlass* vk = inline_klass();
-    Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-    Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true, this);
-    // No need to initialize a larval buffer, we make sure that the oop can not escape
-    if (!is_larval()) {
-      // Larval will be initialized later
-      store(kit, alloc_oop, alloc_oop, vk);
+    if (vk->is_initialized() && (vk->is_empty() || (is_default(&kit->gvn()) && !is_larval(&kit->gvn()) && !is_larval()))) {
+      // Don't buffer an empty or default inline type, use the default oop instead
+      oop->init_req(3, default_oop(kit->gvn(), vk));
+    } else {
+      // Allocate and initialize buffer, re-execute on deoptimization.
+      kit->jvms()->set_bci(kit->bci());
+      kit->jvms()->set_should_reexecute(true);
+      kit->kill_dead_locals();
+      Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
+      Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true, this);
+      // No need to initialize a larval buffer, we make sure that the oop can not escape
+      if (!is_larval()) {
+        // Larval will be initialized later
+        store(kit, alloc_oop, alloc_oop, vk);
 
-      // Do not let stores that initialize this buffer be reordered with a subsequent
-      // store that would make this buffer accessible by other threads.
-      AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
-      assert(alloc != nullptr, "must have an allocation node");
-      kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+        // Do not let stores that initialize this buffer be reordered with a subsequent
+        // store that would make this buffer accessible by other threads.
+        AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
+        assert(alloc != nullptr, "must have an allocation node");
+        kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+      }
+      oop->init_req(3, alloc_oop);
     }
-
     region->init_req(3, kit->control());
-    oop   ->init_req(3, alloc_oop);
     io    ->init_req(3, kit->i_o());
     mem   ->init_req(3, kit->merged_memory());
   }
@@ -730,9 +722,8 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
   const Type* tinit = phase->type(get_is_init());
-  if (!is_larval(phase) && !is_larval() &&
-      (tinit->isa_int() && tinit->is_int()->is_con(1)) &&
-      (is_default(phase) || inline_klass()->is_empty()) &&
+  if ((tinit->isa_int() && tinit->is_int()->is_con(1)) &&
+      ((is_default(phase) && !is_larval(phase) && !is_larval()) || inline_klass()->is_empty()) &&
       inline_klass()->is_initialized() &&
       (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
     // Use the pre-allocated oop for null-free default or empty inline types
