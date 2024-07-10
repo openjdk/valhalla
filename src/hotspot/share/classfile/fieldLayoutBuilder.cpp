@@ -1016,7 +1016,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     if (_is_abstract_value && _has_nonstatic_fields) {
       _alignment = type2aelembytes(BasicType::T_LONG);
     }
-    assert(_layout->start()->next_block()->kind() == LayoutRawBlock::EMPTY, "Unexpected");
+    assert(_layout->start()->next_block()->kind() == LayoutRawBlock::EMPTY || !UseCompressedClassPointers, "Unexpected");
     LayoutRawBlock* first_empty = _layout->start()->next_block();
     if (first_empty->offset() % _alignment != 0) {
       LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, _alignment - (first_empty->offset() % _alignment));
