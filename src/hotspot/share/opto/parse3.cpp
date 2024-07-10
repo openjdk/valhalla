@@ -292,8 +292,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       assert(new_vt->as_InlineType()->is_allocated(&gvn()), "must be buffered");
       // We need to store to the buffer
       // TODO 8325106 looks like G1BarrierSetC2::g1_can_remove_pre_barrier is not strong enough to remove the pre barrier
-      // TODO is it really guaranteed that the preval is null?
-      new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, C2_TIGHTLY_COUPLED_ALLOC | IN_HEAP | MO_UNORDERED, field->offset_in_bytes());
+      new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, field->offset_in_bytes());
 
       // Preserve allocation ptr to create precedent edge to it in membar
       // generated on exit from constructor.
@@ -323,7 +322,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
     inc_sp(1);
-    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset);
+    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset, IN_HEAP | MO_UNORDERED);
     dec_sp(1);
   } else {
     // Store the value.

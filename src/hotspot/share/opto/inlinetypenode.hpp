@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OPTO_INLINETYPENODE_HPP
 #define SHARE_VM_OPTO_INLINETYPENODE_HPP
 
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "opto/connode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/node.hpp"
@@ -134,9 +135,9 @@ public:
   void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);
 
   // Store the inline type as a flat (headerless) representation
-  void store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = nullptr, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
+  void store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const;
   // Store the field values to memory
-  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED, int offset = -1) const;
+  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, int offset = -1, DecoratorSet decorators = C2_TIGHTLY_COUPLED_ALLOC | IN_HEAP | MO_UNORDERED) const;
   // Initialize the inline type by loading its field values from memory
   void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, GrowableArray<ciType*>& visited, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Make sure that inline type is fully scalarized

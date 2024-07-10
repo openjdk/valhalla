@@ -505,10 +505,10 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     holder = inline_klass();
   }
   holder_offset -= inline_klass()->first_field_offset();
-  store(kit, base, ptr, holder, holder_offset, decorators);
+  store(kit, base, ptr, holder, holder_offset, -1, decorators);
 }
 
-void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators, int offsetOnly) const {
+void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, int offsetOnly, DecoratorSet decorators) const {
   // Write field values to memory
   for (uint i = 0; i < field_count(); ++i) {
     if (offsetOnly != -1 && offsetOnly != field_offset(i)) continue;
@@ -598,7 +598,6 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
     // No need to initialize a larval buffer, we make sure that the oop can not escape
     if (!is_larval()) {
       // Larval will be initialized later
-      // TODO 8325106 should this use C2_TIGHTLY_COUPLED_ALLOC?
       store(kit, alloc_oop, alloc_oop, vk);
 
       // Do not let stores that initialize this buffer be reordered with a subsequent
