@@ -600,13 +600,7 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
          (Deoptimization::Reason_unloaded,
           Deoptimization::Action_reinterpret));
   } else {
-    if (array_klass->is_elem_null_free()) {
-      // TODO 8325106 Is this dead?
-      assert(false, "STILL LIVE?");
-      push(outer()->mark_as_null_free(element_klass));
-    } else {
-      push_object(element_klass);
-    }
+    push_object(element_klass);
   }
 }
 
@@ -631,13 +625,7 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
       // Useless cast, propagate more precise type of object
       klass = type->as_klass();
     }
-    if (klass->is_inlinetype() && type->is_null_free()) {
-      // TODO 8325106 Is this dead?
-      assert(false, "STILL LIVE?");
-      push(outer()->mark_as_null_free(klass));
-    } else {
-      push_object(klass);
-    }
+    push_object(klass);
   }
 }
 

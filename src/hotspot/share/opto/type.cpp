@@ -2588,9 +2588,7 @@ bool TypeAry::ary_must_be_exact() const {
     tinst = _elem->isa_instptr();
   if (tinst) {
     if (tinst->instance_klass()->is_final()) {
-      // Even though MyValue is final, [LMyValue is only exact if the array
-      // is null-free due to null-free [LMyValue <: null-able [LMyValue.
-      // TODO 8325106 What about null-free array
+      // Even though MyValue is final, [LMyValue is not exact because null-free [LMyValue is a subtype.
       if (tinst->is_inlinetypeptr() && (tinst->ptr() == TypePtr::BotPTR || tinst->ptr() == TypePtr::TopPTR)) {
         return false;
       }
@@ -3676,21 +3674,14 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
           ciField* field = nullptr;
           if (const_oop() != nullptr) {
             ciInstanceKlass* k = const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
-            if (k->is_inlinetype() && this->offset() == k->as_inline_klass()->default_value_offset()) {
-              // Special hidden field that contains the oop of the default inline type
-              // TODO 8325106 Is this dead?
-              assert(false, "STILL LIVE?");
-             _is_ptr_to_narrowoop = UseCompressedOops;
-            } else {
-              field = k->get_field_by_offset(this->offset(), true);
-              if (field != nullptr) {
-                BasicType basic_elem_type = field->layout_type();
-                _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(basic_elem_type);
-              } else {
-                // unsafe access
-                _is_ptr_to_narrowoop = UseCompressedOops;
-              }
-            }
+            field = k->get_field_by_offset(this->offset(), true);
+          }
+          if (field != nullptr) {
+            BasicType basic_elem_type = field->layout_type();
+            _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(basic_elem_type);
+          } else {
+            // unsafe access
+            _is_ptr_to_narrowoop = UseCompressedOops;
           }
         } else {
           // Instance fields which contains a compressed oop references.
@@ -3871,12 +3862,6 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
   } else if (klass->is_obj_array_klass()) {
     // Element is an object or inline type array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ false, try_for_exact, interface_handling);
-    bool null_free = klass->is_loaded() && klass->as_array_klass()->is_elem_null_free();
-    if (null_free) {
-      // TODO 8325106 Is this dead?
-      assert(false, "STILL LIVE?");
-      etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
-    }
     // Determine null-free/flat properties
     const TypeOopPtr* exact_etype = etype;
     if (etype->can_be_inline_type()) {
@@ -3885,9 +3870,8 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     }
     bool not_null_free = !exact_etype->can_be_inline_type();
     bool not_flat = !UseFlatArray || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
-    // Even though MyValue is final, [LMyValue is only exact if the array
-    // is null-free due to null-free [LMyValue <: null-able [LMyValue.
-    bool xk = etype->klass_is_exact() && (!etype->is_inlinetypeptr() || null_free);
+    // Even though MyValue is final, [LMyValue is not exact because null-free [LMyValue is a subtype.
+    bool xk = etype->klass_is_exact() && !etype->is_inlinetypeptr();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, not_flat, not_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
