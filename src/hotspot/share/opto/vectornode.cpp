@@ -592,7 +592,6 @@ bool VectorNode::is_float16_node(int opc) {
   case Op_AddHF:
   case Op_ConvF2HF:
   case Op_ReinterpretS2HF:
-  case Op_ReinterpretHF2S:
      return true;
   default:
      return false;
