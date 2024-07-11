@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Arm Limited. All rights reserved.
+ * Copyright (c) 2024, Arm Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 * @summary Test auto-vectorization for "dst (ConvHF2F (ReinterpretHF2S src))" sequence
 * @requires vm.compiler2.enabled
 * @library /test/lib /
-* @run driver compiler.vectorization.TestFP16VectorReinterpretConv
+* @run driver compiler.vectorization.TestFloat16VectorReinterpretConv
 */
 
 package compiler.vectorization;
@@ -34,7 +34,7 @@ import compiler.lib.ir_framework.*;
 import java.util.Random;
 import static java.lang.Float16.*;
 
-public class TestFP16VectorReinterpretConv {
+public class TestFloat16VectorReinterpretConv {
     private Float16[] fin;
     private float[] flout;
     private static final int LEN = 2048;
@@ -44,7 +44,7 @@ public class TestFP16VectorReinterpretConv {
         TestFramework.runWithFlags("--enable-preview", "-XX:-TieredCompilation", "-Xbatch");
     }
 
-    public TestFP16VectorReinterpretConv() {
+    public TestFloat16VectorReinterpretConv() {
         fin  = new Float16[LEN];
         flout = new float[LEN];
         rng = new Random(25);
@@ -62,16 +62,16 @@ public class TestFP16VectorReinterpretConv {
     @Test
     @Warmup(10000)
     @IR(counts = {IRNode.VECTOR_CAST_HF2F, " >= 1", IRNode.VECTOR_REINTERPRET, " >= 1"},
-        applyIfCPUFeatureOr = {"avx512_fp16" , "true", "sve", "true"})
+        applyIfCPUFeatureOr = {"avx512_fp16", "true", "sve", "true"})
     @IR(counts = {IRNode.VECTOR_CAST_HF2F, " >= 1", IRNode.VECTOR_REINTERPRET, " >= 1"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
-    public void test() {
+    public void testVect() {
         for (int i = 0; i < LEN; i++) {
             flout[i] = Float16.sum(fin[i], fin[i]).floatValue();
         }
-        checkResult();
     }
 
+    @Check(test="testVect")
     public void checkResult() {
         for (int i = 0; i < LEN; i++) {
             float expected = fin[i].floatValue() + fin[i].floatValue();
