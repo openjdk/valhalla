@@ -373,7 +373,7 @@ class InstanceKlass: public Klass {
   // Query if this class is mentioned in the JVM option ForceNonTearable.
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
-  // It inherits from supers along with NonTearable.
+  // It inherits from supers.
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
