@@ -3329,6 +3329,7 @@ int SuperWord::memory_alignment(MemNode* s, int iv_adjust) {
 //---------------------------container_type---------------------------
 // Smallest type containing range of values
 const Type* SuperWord::container_type(Node* n) {
+  int opc = n->Opcode();
   if (n->is_Mem()) {
     BasicType bt = n->as_Mem()->memory_type();
     if (n->is_Store() && (bt == T_CHAR)) {
@@ -3336,7 +3337,7 @@ const Type* SuperWord::container_type(Node* n) {
       // preceding arithmetic operation extends values to signed Int.
       bt = T_SHORT;
     }
-    if (n->Opcode() == Op_LoadUB) {
+    if (opc == Op_LoadUB) {
       // Adjust type for unsigned byte loads, it is important for right shifts.
       // T_BOOLEAN is used because there is no basic type representing type
       // TypeInt::UBYTE. Use of T_BOOLEAN for vectors is fine because only
@@ -3346,13 +3347,18 @@ const Type* SuperWord::container_type(Node* n) {
     return Type::get_const_basic_type(bt);
   }
   const Type* t = _igvn.type(n);
+
+  // First check if the node is a float16 node returning a "Short" type.
+  // If it is, then it needs to be checked before the next condition.
+  // Else it might return TypeInt::INT for float16 nodes instead of TypeInt::SHORT
+  // which could cause assertion errors in VectorCastNode::opcode().
+  if (opc == Op_ReinterpretHF2S || VectorNode::is_float16_node(opc)) {
+    return TypeInt::SHORT;
+  }
   if (t->basic_type() == T_INT) {
     // A narrow type of arithmetic operations will be determined by
     // propagating the type of memory operations.
     return TypeInt::INT;
-  }
-  if (VectorNode::is_float16_node(n->Opcode())) {
-    return TypeInt::SHORT;
   }
   return t;
 }

@@ -56,14 +56,17 @@ public class TestFloat16VectorSum {
 
     @Test
     @Warmup(10000)
-    @IR(applyIfCPUFeature = {"avx512_fp16" , "true"}, counts = {IRNode.ADD_VHF, " >= 1"})
+    @IR(counts = {IRNode.ADD_VHF, " >= 1"},
+        applyIfCPUFeatureOr = {"avx512_fp16", "true", "sve", "true"})
+    @IR(counts = {IRNode.ADD_VHF, " >= 1"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void vectorSumFloat16() {
         for (int i = 0; i < LEN; ++i) {
             output[i] = Float16.sum(input[i], input[i]);
         }
-        checkResult();
     }
 
+    @Check(test="vectorSumFloat16")
     public void checkResult() {
         for (int i = 0; i < LEN; ++i) {
             Float16 expected = Float16.sum(input[i], input[i]);
@@ -75,4 +78,3 @@ public class TestFloat16VectorSum {
         }
     }
 }
-

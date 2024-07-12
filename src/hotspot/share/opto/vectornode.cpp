@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -590,6 +590,7 @@ bool VectorNode::is_rotate_opcode(int opc) {
 bool VectorNode::is_float16_node(int opc) {
   switch (opc) {
   case Op_AddHF:
+  case Op_ConvF2HF:
   case Op_ReinterpretS2HF:
      return true;
   default:
