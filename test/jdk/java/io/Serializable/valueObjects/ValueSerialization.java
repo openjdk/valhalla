@@ -25,6 +25,7 @@
  * @test
  * @summary ValueSerialization support of value classes
  * @enablePreview
+ * @modules java.base/jdk.internal
  * @compile ValueSerialization.java
  * @run testng/othervm ValueSerialization
  */
@@ -90,6 +91,7 @@ public class ValueSerialization {
     }
 
     /** A Serializable value class Point */
+    @jdk.internal.MigratedValueClass
     static value class SerializablePoint implements Serializable {
         public int x;
         public int y;
@@ -99,6 +101,7 @@ public class ValueSerialization {
     }
 
     /** A Serializable value class Point */
+    @jdk.internal.MigratedValueClass
     static value class SerializablePrimitivePoint implements Serializable {
         public int x;
         public int y;
