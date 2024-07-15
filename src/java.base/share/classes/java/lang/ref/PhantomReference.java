@@ -33,7 +33,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * determines that their referents may otherwise be reclaimed.  Phantom
  * references are most often used to schedule post-mortem cleanup actions.
  * <p>
- * The referent must be an {@linkplain Objects#isIdentityObject(Object) identity object}.
+ * The referent must be an {@linkplain Objects#hasIdentity(Object) identity object}.
  *
  * <p> Suppose the garbage collector determines at a certain point in time
  * that an object is <a href="package-summary.html#reachability">
@@ -91,7 +91,7 @@ public non-sealed class PhantomReference<T> extends Reference<T> {
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
      * @throws IdentityException if the referent is not an
-     *         {@link java.util.Objects#isIdentityObject(Object) identity object}
+     *         {@link java.util.Objects#hasIdentity(Object) identity object}
      */
     public PhantomReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);

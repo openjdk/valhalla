@@ -134,12 +134,10 @@ public class ObjectMethods {
         Class<?> clazz = obj.getClass();
 
         if (clazz == Object.class) {
-            assertTrue(Objects.isIdentityObject(obj), "Objects.isIdentityObject()");
+            assertTrue(Objects.hasIdentity(obj), "Objects.hasIdentity()");
         } else {
-            assertEquals(identityClass, Objects.isIdentityObject(obj), "Objects.isIdentityObject()");
+            assertEquals(identityClass, Objects.hasIdentity(obj), "Objects.hasIdentity()");
         }
-
-        assertEquals(valueClass, Objects.isValueObject(obj), "Objects.isValueObject()");
 
         assertEquals(identityClass, clazz.isIdentity(), "Class.isIdentity()");
 
