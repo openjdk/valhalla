@@ -3854,19 +3854,19 @@ bool MatchNode::equivalent(FormDict &globals, MatchNode *mNode2) {
 // which could be swapped.
 void MatchNode::count_commutative_op(int& count) {
   static const char *commut_op_list[] = {
-    "AddI","AddL","AddF","AddD",
+    "AddI","AddL","AddHF","AddF","AddD",
     "AndI","AndL",
-    "MaxI","MinI","MaxF","MinF","MaxD","MinD",
-    "MulI","MulL","MulF","MulD",
+    "MaxI","MinI","MaxHF","MinHF","MaxF","MinF","MaxD","MinD",
+    "MulI","MulL","MulHF","MulF","MulD",
     "OrI","OrL",
     "XorI","XorL"
   };
 
   static const char *commut_vector_op_list[] = {
-    "AddVB", "AddVS", "AddVI", "AddVL", "AddVF", "AddVD",
-    "MulVB", "MulVS", "MulVI", "MulVL", "MulVF", "MulVD",
+    "AddVB", "AddVS", "AddVI", "AddVL", "AddVHF", "AddVF", "AddVD",
+    "MulVB", "MulVS", "MulVI", "MulVL", "MulVHF", "MulVF", "MulVD",
     "AndV", "OrV", "XorV",
-    "MaxV", "MinV"
+    "MaxVHF", "MinVHF", "MaxV", "MinV"
   };
 
   if (_lChild && _rChild && (_lChild->_lChild || _rChild->_lChild)) {
@@ -4093,6 +4093,7 @@ int MatchRule::is_expensive() const {
     const char  *opType = _rChild->_opType;
     if( strcmp(opType,"AtanD")==0 ||
         strcmp(opType,"DivD")==0 ||
+        strcmp(opType,"DivHF")==0 ||
         strcmp(opType,"DivF")==0 ||
         strcmp(opType,"DivI")==0 ||
         strcmp(opType,"Log10D")==0 ||
@@ -4233,14 +4234,14 @@ Form::DataType MatchRule::is_ideal_load() const {
 bool MatchRule::is_vector() const {
   static const char *vector_list[] = {
     "AddVB","AddVHF", "AddVS","AddVI","AddVL","AddVF","AddVD",
-    "SubVB","SubVS","SubVI","SubVL","SubVF","SubVD",
-    "MulVB","MulVS","MulVI","MulVL","MulVF","MulVD",
-    "DivVF","DivVD",
+    "SubVB","SubVS","SubVI","SubVL", "SubVHF", "SubVF","SubVD",
+    "MulVB","MulVS","MulVI","MulVL", "MulVHF", "MulVF","MulVD",
+    "DivVHF","DivVF","DivVD",
     "AbsVB","AbsVS","AbsVI","AbsVL","AbsVF","AbsVD",
     "NegVF","NegVD","NegVI","NegVL",
     "SqrtVD","SqrtVF",
     "AndV" ,"XorV" ,"OrV",
-    "MaxV", "MinV",
+    "MaxV", "MinV", "MinVHF", "MaxVHF",
     "CompressV", "ExpandV", "CompressM", "CompressBitsV", "ExpandBitsV",
     "AddReductionVI", "AddReductionVL",
     "AddReductionVF", "AddReductionVD",

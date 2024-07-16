@@ -60,6 +60,7 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     case T_INT:    return Op_SubVI;
     default:       return 0;
     }
+  case Op_SubHF: return (bt == T_SHORT ? Op_SubVHF : 0);
   case Op_SubL: return (bt == T_LONG   ? Op_SubVL : 0);
   case Op_SubF: return (bt == T_FLOAT  ? Op_SubVF : 0);
   case Op_SubD: return (bt == T_DOUBLE ? Op_SubVD : 0);
@@ -74,6 +75,8 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     default:       return 0;
     }
   case Op_MulL: return (bt == T_LONG ? Op_MulVL : 0);
+  case Op_MulHF:
+    return (bt == T_SHORT ? Op_MulVHF : 0);
   case Op_MulF:
     return (bt == T_FLOAT ? Op_MulVF : 0);
   case Op_MulD:
@@ -88,6 +91,8 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     return (bt == T_DOUBLE ? Op_VectorBlend : 0);
   case Op_Bool:
     return Op_VectorMaskCmp;
+  case Op_DivHF:
+    return (bt == T_SHORT ? Op_DivVHF : 0);
   case Op_DivF:
     return (bt == T_FLOAT ? Op_DivVF : 0);
   case Op_DivD:
@@ -114,6 +119,8 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     }
   case Op_MinL:
     return (bt == T_LONG ? Op_MinV : 0);
+  case Op_MinHF:
+    return (bt == T_SHORT ? Op_MinVHF : 0);
   case Op_MinF:
     return (bt == T_FLOAT ? Op_MinV : 0);
   case Op_MinD:
@@ -129,6 +136,8 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     }
   case Op_MaxL:
     return (bt == T_LONG ? Op_MaxV : 0);
+  case Op_MaxHF:
+    return (bt == T_SHORT ? Op_MaxVHF : 0);
   case Op_MaxF:
     return (bt == T_FLOAT ? Op_MaxV : 0);
   case Op_MaxD:
@@ -383,6 +392,10 @@ int VectorNode::scalar_opcode(int sopc, BasicType bt) {
           assert(false, "basic type not handled");
           return 0;
       }
+    case Op_MinVHF:
+      return Op_MinHF;
+    case Op_MaxVHF:
+      return Op_MaxHF;
     default:
       assert(false,
              "Vector node %s is not handled in VectorNode::scalar_opcode",
@@ -590,6 +603,11 @@ bool VectorNode::is_rotate_opcode(int opc) {
 bool VectorNode::is_float16_node(int opc) {
   switch (opc) {
   case Op_AddHF:
+  case Op_SubHF:
+  case Op_MulHF:
+  case Op_DivHF:
+  case Op_MinHF:
+  case Op_MaxHF:
   case Op_ConvF2HF:
   case Op_ReinterpretS2HF:
      return true;
@@ -652,9 +670,9 @@ void VectorNode::vector_operands(Node* n, uint* start, uint* end) {
     *end   = (n->is_Con() && Matcher::supports_vector_constant_rotates(n->get_int())) ? 2 : 3;
     break;
   case Op_AddI: case Op_AddHF: case Op_AddL: case Op_AddF: case Op_AddD:
-  case Op_SubI: case Op_SubL: case Op_SubF: case Op_SubD:
-  case Op_MulI: case Op_MulL: case Op_MulF: case Op_MulD:
-  case Op_DivF: case Op_DivD:
+  case Op_SubI: case Op_SubL: case Op_SubHF: case Op_SubF: case Op_SubD:
+  case Op_MulI: case Op_MulL: case Op_MulHF: case Op_MulF: case Op_MulD:
+  case Op_DivHF: case Op_DivF: case Op_DivD:
   case Op_AndI: case Op_AndL:
   case Op_OrI:  case Op_OrL:
   case Op_XorI: case Op_XorL:
@@ -708,33 +726,39 @@ VectorNode* VectorNode::make(int vopc, Node* n1, Node* n2, const TypeVect* vt, b
   }
 
   switch (vopc) {
-  case Op_AddVB: return new AddVBNode(n1, n2, vt);
+  case Op_AddVB:  return new AddVBNode(n1, n2, vt);
   case Op_AddVHF: return new AddVHFNode(n1, n2, vt);
-  case Op_AddVS: return new AddVSNode(n1, n2, vt);
-  case Op_AddVI: return new AddVINode(n1, n2, vt);
-  case Op_AddVL: return new AddVLNode(n1, n2, vt);
-  case Op_AddVF: return new AddVFNode(n1, n2, vt);
-  case Op_AddVD: return new AddVDNode(n1, n2, vt);
+  case Op_AddVS:  return new AddVSNode(n1, n2, vt);
+  case Op_AddVI:  return new AddVINode(n1, n2, vt);
+  case Op_AddVL:  return new AddVLNode(n1, n2, vt);
+  case Op_AddVF:  return new AddVFNode(n1, n2, vt);
+  case Op_AddVD:  return new AddVDNode(n1, n2, vt);
 
-  case Op_SubVB: return new SubVBNode(n1, n2, vt);
-  case Op_SubVS: return new SubVSNode(n1, n2, vt);
-  case Op_SubVI: return new SubVINode(n1, n2, vt);
-  case Op_SubVL: return new SubVLNode(n1, n2, vt);
-  case Op_SubVF: return new SubVFNode(n1, n2, vt);
-  case Op_SubVD: return new SubVDNode(n1, n2, vt);
+  case Op_SubVB:  return new SubVBNode(n1, n2, vt);
+  case Op_SubVS:  return new SubVSNode(n1, n2, vt);
+  case Op_SubVI:  return new SubVINode(n1, n2, vt);
+  case Op_SubVL:  return new SubVLNode(n1, n2, vt);
+  case Op_SubVHF: return new SubVHFNode(n1, n2, vt);
+  case Op_SubVF:  return new SubVFNode(n1, n2, vt);
+  case Op_SubVD:  return new SubVDNode(n1, n2, vt);
 
-  case Op_MulVB: return new MulVBNode(n1, n2, vt);
-  case Op_MulVS: return new MulVSNode(n1, n2, vt);
-  case Op_MulVI: return new MulVINode(n1, n2, vt);
-  case Op_MulVL: return new MulVLNode(n1, n2, vt);
-  case Op_MulVF: return new MulVFNode(n1, n2, vt);
-  case Op_MulVD: return new MulVDNode(n1, n2, vt);
+  case Op_MulVB:  return new MulVBNode(n1, n2, vt);
+  case Op_MulVS:  return new MulVSNode(n1, n2, vt);
+  case Op_MulVI:  return new MulVINode(n1, n2, vt);
+  case Op_MulVL:  return new MulVLNode(n1, n2, vt);
+  case Op_MulVHF: return new MulVHFNode(n1, n2, vt);
+  case Op_MulVF:  return new MulVFNode(n1, n2, vt);
+  case Op_MulVD:  return new MulVDNode(n1, n2, vt);
 
-  case Op_DivVF: return new DivVFNode(n1, n2, vt);
-  case Op_DivVD: return new DivVDNode(n1, n2, vt);
+  case Op_DivVHF: return new DivVHFNode(n1, n2, vt);
+  case Op_DivVF:  return new DivVFNode(n1, n2, vt);
+  case Op_DivVD:  return new DivVDNode(n1, n2, vt);
 
   case Op_MinV: return new MinVNode(n1, n2, vt);
   case Op_MaxV: return new MaxVNode(n1, n2, vt);
+
+  case Op_MinVHF: return new MinVHFNode(n1, n2, vt);
+  case Op_MaxVHF: return new MaxVHFNode(n1, n2, vt);
 
   case Op_AbsVF: return new AbsVFNode(n1, vt);
   case Op_AbsVD: return new AbsVDNode(n1, vt);

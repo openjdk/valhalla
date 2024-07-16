@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -6296,6 +6296,7 @@ void PhaseIdealLoop::build_loop_late_post_work(Node *n, bool pinned) {
     // state), Mods/Loads can float around.  So free them up.
     switch( n->Opcode() ) {
     case Op_DivI:
+    case Op_DivHF:
     case Op_DivF:
     case Op_DivD:
     case Op_ModI:

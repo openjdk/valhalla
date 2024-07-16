@@ -2315,7 +2315,12 @@ bool Matcher::match_rule_supported(int opcode) {
       }
     break;
     case Op_AddHF:
-      // Half-precision floating point add scalar operation requires FEAT_FP16
+    case Op_SubHF:
+    case Op_MulHF:
+    case Op_DivHF:
+    case Op_MinHF:
+    case Op_MaxHF:
+      // Half-precision floating point scalar operations require FEAT_FP16
       // to be available. FEAT_FP16 is enabled if both "fphp" and "asimdhp"
       // features are supported.
       if (!VM_Version::supports_fphp() || !VM_Version::supports_asimdhp()) {
@@ -14143,6 +14148,21 @@ instruct addD_reg_reg(vRegD dst, vRegD src1, vRegD src2) %{
   ins_pipe(fp_dop_reg_reg_d);
 %}
 
+instruct subHF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
+  match(Set dst (SubHF src1 src2));
+
+  ins_cost(INSN_COST * 5);
+  format %{ "fsubh   $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ fsubh(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(fp_dop_reg_reg_s);
+%}
+
 instruct subF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
   match(Set dst (SubF src1 src2));
 
@@ -14171,6 +14191,21 @@ instruct subD_reg_reg(vRegD dst, vRegD src1, vRegD src2) %{
   %}
 
   ins_pipe(fp_dop_reg_reg_d);
+%}
+
+instruct mulHF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
+  match(Set dst (MulHF src1 src2));
+
+  ins_cost(INSN_COST * 6);
+  format %{ "fmulh   $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ fmulh(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(fp_dop_reg_reg_s);
 %}
 
 instruct mulF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
@@ -14344,6 +14379,29 @@ instruct mnsubD_reg_reg(vRegD dst, vRegD src1, vRegD src2, vRegD src3, immD0 zer
   ins_pipe(pipe_class_default);
 %}
 
+// Math.max(HF)
+instruct maxHF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
+  match(Set dst (MaxHF src1 src2));
+  format %{ "fmaxh   $dst, $src1, $src2" %}
+  ins_encode %{
+    __ fmaxh(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+  ins_pipe(fp_dop_reg_reg_s);
+%}
+
+// Math.min(HF)
+instruct minHF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
+  match(Set dst (MinHF src1 src2));
+  format %{ "fminh   $dst, $src1, $src2" %}
+  ins_encode %{
+    __ fminh(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+  ins_pipe(fp_dop_reg_reg_s);
+%}
 
 // Math.max(FF)F
 instruct maxF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
@@ -14401,6 +14459,20 @@ instruct minD_reg_reg(vRegD dst, vRegD src1, vRegD src2) %{
   ins_pipe(fp_dop_reg_reg_d);
 %}
 
+instruct divHF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
+  match(Set dst (DivHF src1  src2));
+
+  ins_cost(INSN_COST * 18);
+  format %{ "fdivh   $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ fdivh(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(fp_div_s);
+%}
 
 instruct divF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
   match(Set dst (DivF src1  src2));

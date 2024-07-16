@@ -197,10 +197,20 @@ class methodHandle;
                                                                                                                         \
                                                                                                                         \
   /* Float16 intrinsics, similar to what we have in Math. */                                                            \
-  do_intrinsic(_sum_float16,              java_lang_Float16,      sum_name,           floa16_float16_signature,  F_S)   \
-   do_name(sum_name, "sum")                                                                                             \
-   do_signature(floa16_float16_signature, "(Ljava/lang/Float16;Ljava/lang/Float16;)Ljava/lang/Float16;")                \
-                                                                                                                        \
+  /* All names for Float16 binary operations */                                                                         \
+  do_name(add_name, "add")                                                                                              \
+  do_name(subtract_name, "subtract")                                                                                    \
+  do_name(multiply_name, "multiply")                                                                                    \
+  do_name(divide_name, "divide")                                                                                        \
+  /* Float16 signature for binary operations */                                                                         \
+  do_signature(floa16_float16_signature, "(Ljava/lang/Float16;Ljava/lang/Float16;)Ljava/lang/Float16;")                 \
+  /* Float16 intrinsics for binary operations */                                                                        \
+  do_intrinsic(_add_float16,              java_lang_Float16,      add_name,           floa16_float16_signature,  F_S)   \
+  do_intrinsic(_subtract_float16,         java_lang_Float16,      subtract_name,      floa16_float16_signature,  F_S)   \
+  do_intrinsic(_multiply_float16,         java_lang_Float16,      multiply_name,      floa16_float16_signature,  F_S)   \
+  do_intrinsic(_divide_float16,           java_lang_Float16,      divide_name,        floa16_float16_signature,  F_S)   \
+  do_intrinsic(_max_float16,              java_lang_Float16,      max_name,           floa16_float16_signature,  F_S)   \
+  do_intrinsic(_min_float16,              java_lang_Float16,      min_name,           floa16_float16_signature,  F_S)   \
   /* StrictMath intrinsics, similar to what we have in Math. */                                                         \
   do_intrinsic(_min_strict,               java_lang_StrictMath,   min_name,           int2_int_signature,        F_S)   \
   do_intrinsic(_max_strict,               java_lang_StrictMath,   max_name,           int2_int_signature,        F_S)   \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,14 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual const Type *bottom_type() const { return Type::FLOAT; }
   virtual uint ideal_reg() const { return Op_RegF; }
+};
+
+//------------------------------DivHFNode--------------------------------------
+// Half float division
+class DivHFNode : public DivFNode {
+public:
+  DivHFNode(Node* c, Node* dividend, Node* divisor) : DivFNode(c, dividend, divisor) {}
+  virtual int Opcode() const;
 };
 
 //------------------------------DivDNode---------------------------------------
