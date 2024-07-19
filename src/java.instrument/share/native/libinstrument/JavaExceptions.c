@@ -216,7 +216,7 @@ createThrowableFromJVMTIErrorCode(JNIEnv * jnienv, jvmtiError errorCode) {
 
         case JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED:
                 throwableClassName = "java/lang/UnsupportedOperationException";
-                message = "class redefinition failed: attempted to change the class NestHost, NestMembers, Record or PermittedSubclasses attribute";
+                message = "class redefinition failed: attempted to change the class NestHost, NestMembers, Record, or PermittedSubclasses attribute";
                 break;
 
         case JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_MODIFIERS_CHANGED:
