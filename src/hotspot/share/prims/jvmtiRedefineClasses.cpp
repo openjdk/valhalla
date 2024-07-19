@@ -762,7 +762,7 @@ static int symcmp(const void* a, const void* b) {
 // The caller must have an active ResourceMark.
 static jvmtiError check_attribute_arrays(const char* attr_name,
            InstanceKlass* the_class, InstanceKlass* scratch_class,
-           Array<u2>* the_array, Array<u2>* scr_array, bool is_klass = true) {
+           Array<u2>* the_array, Array<u2>* scr_array) {
   bool the_array_exists = the_array != Universe::the_empty_short_array();
   bool scr_array_exists = scr_array != Universe::the_empty_short_array();
 
@@ -790,13 +790,8 @@ static jvmtiError check_attribute_arrays(const char* attr_name,
     for (int i = 0; i < array_len; i++) {
       int the_cp_index = the_array->at(i);
       int scr_cp_index = scr_array->at(i);
-      if (is_klass) {
-        the_syms[i] = the_class->constants()->klass_name_at(the_cp_index);
-        scr_syms[i] = scratch_class->constants()->klass_name_at(scr_cp_index);
-      } else {
-        the_syms[i] = the_class->constants()->symbol_at(the_cp_index);
-        scr_syms[i] = scratch_class->constants()->symbol_at(scr_cp_index);
-      }
+      the_syms[i] = the_class->constants()->klass_name_at(the_cp_index);
+      scr_syms[i] = scratch_class->constants()->klass_name_at(scr_cp_index);
     }
 
     qsort(the_syms, array_len, sizeof(Symbol*), symcmp);
@@ -928,18 +923,6 @@ static jvmtiError check_permitted_subclasses_attribute(InstanceKlass* the_class,
                                 scratch_class->permitted_subclasses());
 }
 
-static jvmtiError check_loadable_descriptors_attribute(InstanceKlass* the_class,
-                                                       InstanceKlass* scratch_class) {
-  Thread* thread = Thread::current();
-  ResourceMark rm(thread);
-
-  // Check whether the class LoadableDescriptors attribute has been changed.
-  return check_attribute_arrays("LoadableDescriptors",
-                                the_class, scratch_class,
-                                the_class->loadable_descriptors(),
-                                scratch_class->loadable_descriptors(), /*is_klass*/ false);
-}
-
 static bool can_add_or_delete(Method* m) {
       // Compatibility mode
   return (AllowRedefinitionToAddDeleteMethods &&
@@ -1015,12 +998,6 @@ jvmtiError VM_RedefineClasses::compare_and_normalize_class_versions(
 
   // Check whether the PermittedSubclasses attribute has been changed.
   err = check_permitted_subclasses_attribute(the_class, scratch_class);
-  if (err != JVMTI_ERROR_NONE) {
-    return err;
-  }
-
-  // Check whether the Preload attribute has been changed.
-  err = check_loadable_descriptors_attribute(the_class, scratch_class);
   if (err != JVMTI_ERROR_NONE) {
     return err;
   }
