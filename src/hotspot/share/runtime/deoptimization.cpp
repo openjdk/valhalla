@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -402,7 +402,7 @@ static bool rematerialize_objects(JavaThread* thread, int exec_mode, CompiledMet
       }
       JRT_END
     }
-    if (TraceDeoptimization) {
+    if (TraceDeoptimization && objects != nullptr) {
       print_objects(deoptee_thread, objects, realloc_failures);
     }
   }
@@ -423,7 +423,8 @@ static void restore_eliminated_locks(JavaThread* thread, GrowableArray<compiledV
 #ifndef PRODUCT
   bool first = true;
 #endif // !PRODUCT
-  for (int i = 0; i < chunk->length(); i++) {
+  // Start locking from outermost/oldest frame
+  for (int i = (chunk->length() - 1); i >= 0; i--) {
     compiledVFrame* cvf = chunk->at(i);
     assert (cvf->scope() != nullptr,"expect only compiled java frames");
     GrowableArray<MonitorInfo*>* monitors = cvf->monitors();
@@ -1507,7 +1508,7 @@ public:
   ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false), _secondary_fields_count(0) { }
 };
 
-int compare(ReassignedField* left, ReassignedField* right) {
+static int compare(ReassignedField* left, ReassignedField* right) {
   return left->_offset - right->_offset;
 }
 
@@ -1571,7 +1572,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        field._secondary_fields_count = !is_multifield_scalarized && fs.is_multifield_base() ? bundle_size : 1;
+        field._secondary_fields_count = fs.is_multifield_base() && !is_multifield_scalarized ? bundle_size : 1;
         if (fs.is_null_free_inline_type()) {
           if (fs.is_flat()) {
             field._is_flat = true;
@@ -1611,85 +1612,82 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       }
     }
 
-    assert(secondary_fields_count <= sv->field_size(), "");
-    for (int j = 0; j < secondary_fields_count; j++) {
-      ScopeValue* scope_field = sv->field_at(svIndex);
-      StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
-      int sec_offset = offset + j * type2aelembytes(type);
-      switch (type) {
-        case T_OBJECT:
-        case T_ARRAY:
-          assert(value->type() == T_OBJECT, "Agreement.");
-          obj->obj_field_put(sec_offset, value->get_obj()());
-          break;
+    assert(secondary_fields_count == 1, "");
+    ScopeValue* scope_field = sv->field_at(svIndex);
+    StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
+    switch (type) {
+      case T_OBJECT:
+      case T_ARRAY:
+        assert(value->type() == T_OBJECT, "Agreement.");
+        obj->obj_field_put(offset, value->get_obj()());
+        break;
 
-        // Have to cast to INT (32 bits) pointer to avoid little/big-endian problem.
-        case T_INT: case T_FLOAT: { // 4 bytes.
-          assert(value->type() == T_INT, "Agreement.");
-          bool big_value = false;
-          if (i+1 < fields->length() && fields->at(i+1)._type == T_INT) {
-            if (scope_field->is_location()) {
-              Location::Type type = ((LocationValue*) scope_field)->location().type();
-              if (type == Location::dbl || type == Location::lng) {
-                big_value = true;
-              }
-            }
-            if (scope_field->is_constant_int()) {
-              ScopeValue* next_scope_field = sv->field_at(svIndex + 1);
-              if (next_scope_field->is_constant_long() || next_scope_field->is_constant_double()) {
-                big_value = true;
-              }
+      // Have to cast to INT (32 bits) pointer to avoid little/big-endian problem.
+      case T_INT: case T_FLOAT: { // 4 bytes.
+        assert(value->type() == T_INT, "Agreement.");
+        bool big_value = false;
+        if (i+1 < fields->length() && fields->at(i+1)._type == T_INT) {
+          if (scope_field->is_location()) {
+            Location::Type type = ((LocationValue*) scope_field)->location().type();
+            if (type == Location::dbl || type == Location::lng) {
+              big_value = true;
             }
           }
-
-          if (big_value) {
-            i++;
-            assert(i < fields->length(), "second T_INT field needed");
-            assert(fields->at(i)._type == T_INT, "T_INT field needed");
-          } else {
-            obj->int_field_put(sec_offset, value->get_jint());
-            break;
+          if (scope_field->is_constant_int()) {
+            ScopeValue* next_scope_field = sv->field_at(svIndex + 1);
+            if (next_scope_field->is_constant_long() || next_scope_field->is_constant_double()) {
+              big_value = true;
+            }
           }
         }
-        /* no break */
 
-        case T_LONG: case T_DOUBLE: {
-          assert(value->type() == T_INT, "Agreement.");
-          StackValue* low = StackValue::create_stack_value(fr, reg_map, sv->field_at(++svIndex));
-  #ifdef _LP64
-          jlong res = (jlong)low->get_intptr();
-  #else
-          jlong res = jlong_from((jint)value->get_int(), (jint)low->get_jint());
-  #endif
-          obj->long_field_put(sec_offset, res);
+        if (big_value) {
+          i++;
+          assert(i < fields->length(), "second T_INT field needed");
+          assert(fields->at(i)._type == T_INT, "T_INT field needed");
+        } else {
+          obj->int_field_put(offset, value->get_jint());
           break;
         }
-
-        case T_SHORT:
-          assert(value->type() == T_INT, "Agreement.");
-          obj->short_field_put(sec_offset, (jshort)value->get_jint());
-          break;
-
-        case T_CHAR:
-          assert(value->type() == T_INT, "Agreement.");
-          obj->char_field_put(sec_offset, (jchar)value->get_jint());
-          break;
-
-        case T_BYTE:
-          assert(value->type() == T_INT, "Agreement.");
-          obj->byte_field_put(sec_offset, (jbyte)value->get_jint());
-          break;
-
-        case T_BOOLEAN:
-          assert(value->type() == T_INT, "Agreement.");
-          obj->bool_field_put(sec_offset, (jboolean)value->get_jint());
-          break;
-
-        default:
-          ShouldNotReachHere();
       }
-      svIndex++;
+      /* no break */
+
+      case T_LONG: case T_DOUBLE: {
+        assert(value->type() == T_INT, "Agreement.");
+        StackValue* low = StackValue::create_stack_value(fr, reg_map, sv->field_at(++svIndex));
+#ifdef _LP64
+        jlong res = (jlong)low->get_intptr();
+#else
+        jlong res = jlong_from((jint)value->get_int(), (jint)low->get_jint());
+#endif
+        obj->long_field_put(offset, res);
+        break;
+      }
+
+      case T_SHORT:
+        assert(value->type() == T_INT, "Agreement.");
+        obj->short_field_put(offset, (jshort)value->get_jint());
+        break;
+
+      case T_CHAR:
+        assert(value->type() == T_INT, "Agreement.");
+        obj->char_field_put(offset, (jchar)value->get_jint());
+        break;
+
+      case T_BYTE:
+        assert(value->type() == T_INT, "Agreement.");
+        obj->byte_field_put(offset, (jbyte)value->get_jint());
+        break;
+
+      case T_BOOLEAN:
+        assert(value->type() == T_INT, "Agreement.");
+        obj->bool_field_put(offset, (jboolean)value->get_jint());
+        break;
+
+      default:
+        ShouldNotReachHere();
     }
+    svIndex++;
   }
   return svIndex;
 }
@@ -1745,6 +1743,10 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
       reassign_object_array_elements(fr, reg_map, sv, (objArrayOop) obj());
     }
   }
+  // These objects may escape when we return to Interpreter after deoptimization.
+  // We need barrier so that stores that initialize these objects can't be reordered
+  // with subsequent stores that make these objects accessible by other threads.
+  OrderAccess::storestore();
 }
 
 
@@ -1783,13 +1785,13 @@ bool Deoptimization::relock_objects(JavaThread* thread, GrowableArray<MonitorInf
           // We have lost information about the correct state of the lock stack.
           // Inflate the locks instead. Enter then inflate to avoid races with
           // deflation.
-          ObjectSynchronizer::enter(obj, nullptr, deoptee_thread);
+          ObjectSynchronizer::enter_for(obj, nullptr, deoptee_thread);
           assert(mon_info->owner()->is_locked(), "object must be locked now");
-          ObjectMonitor* mon = ObjectSynchronizer::inflate(deoptee_thread, obj(), ObjectSynchronizer::inflate_cause_vm_internal);
+          ObjectMonitor* mon = ObjectSynchronizer::inflate_for(deoptee_thread, obj(), ObjectSynchronizer::inflate_cause_vm_internal);
           assert(mon->owner() == deoptee_thread, "must be");
         } else {
           BasicLock* lock = mon_info->lock();
-          ObjectSynchronizer::enter(obj, lock, deoptee_thread);
+          ObjectSynchronizer::enter_for(obj, lock, deoptee_thread);
           assert(mon_info->owner()->is_locked(), "object must be locked now");
         }
       }
@@ -1862,7 +1864,8 @@ void Deoptimization::pop_frames_failed_reallocs(JavaThread* thread, vframeArray*
   for (int i = 0; i < array->frames(); i++) {
     MonitorChunk* monitors = array->element(i)->monitors();
     if (monitors != nullptr) {
-      for (int j = 0; j < monitors->number_of_monitors(); j++) {
+      // Unlock in reverse order starting from most nested monitor.
+      for (int j = (monitors->number_of_monitors() - 1); j >= 0; j--) {
         BasicObjectLock* src = monitors->at(j);
         if (src->obj() != nullptr) {
           ObjectSynchronizer::exit(src->obj(), src->lock(), thread);
@@ -1939,6 +1942,9 @@ address Deoptimization::deoptimize_for_missing_exception_handler(CompiledMethod*
   ScopeDesc* imm_scope = cvf->scope();
   MethodData* imm_mdo = get_method_data(thread, methodHandle(thread, imm_scope->method()), true);
   if (imm_mdo != nullptr) {
+    // Lock to read ProfileData, and ensure lock is not broken by a safepoint
+    MutexLocker ml(imm_mdo->extra_data_lock(), Mutex::_no_safepoint_check_flag);
+
     ProfileData* pdata = imm_mdo->allocate_bci_to_data(imm_scope->bci(), nullptr);
     if (pdata != nullptr && pdata->is_BitData()) {
       BitData* bit_data = (BitData*) pdata;
@@ -2244,7 +2250,14 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
     // Print a bunch of diagnostics, if requested.
     if (TraceDeoptimization || LogCompilation || is_receiver_constraint_failure) {
       ResourceMark rm;
+
+      // Lock to read ProfileData, and ensure lock is not broken by a safepoint
+      // We must do this already now, since we cannot acquire this lock while
+      // holding the tty lock (lock ordering by rank).
+      MutexLocker ml(trap_mdo->extra_data_lock(), Mutex::_no_safepoint_check_flag);
+
       ttyLocker ttyl;
+
       char buf[100];
       if (xtty != nullptr) {
         xtty->begin_head("uncommon_trap thread='" UINTX_FORMAT "' %s",
@@ -2279,6 +2292,9 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
         int dcnt = trap_mdo->trap_count(reason);
         if (dcnt != 0)
           xtty->print(" count='%d'", dcnt);
+
+        // We need to lock to read the ProfileData. But to keep the locks ordered, we need to
+        // lock extra_data_lock before the tty lock.
         ProfileData* pdata = trap_mdo->bci_to_data(trap_bci);
         int dos = (pdata == nullptr)? 0: pdata->trap_state();
         if (dos != 0) {
@@ -2454,12 +2470,18 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
     // to use the MDO to detect hot deoptimization points and control
     // aggressive optimization.
     bool inc_recompile_count = false;
+
+    // Lock to read ProfileData, and ensure lock is not broken by a safepoint
+    ConditionalMutexLocker ml((trap_mdo != nullptr) ? trap_mdo->extra_data_lock() : nullptr,
+                              (trap_mdo != nullptr),
+                              Mutex::_no_safepoint_check_flag);
     ProfileData* pdata = nullptr;
     if (ProfileTraps && CompilerConfig::is_c2_or_jvmci_compiler_enabled() && update_trap_state && trap_mdo != nullptr) {
       assert(trap_mdo == get_method_data(current, profiled_method, false), "sanity");
       uint this_trap_count = 0;
       bool maybe_prior_trap = false;
       bool maybe_prior_recompile = false;
+
       pdata = query_update_method_data(trap_mdo, trap_bci, reason, true,
 #if INCLUDE_JVMCI
                                    nm->is_compiled_by_jvmci() && nm->is_osr_method(),
@@ -2586,6 +2608,17 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
       nm->method()->set_not_compilable("give up compiling", CompLevel_full_optimization);
     }
 
+    if (ProfileExceptionHandlers && trap_mdo != nullptr) {
+      BitData* exception_handler_data = trap_mdo->exception_handler_bci_to_data_or_null(trap_bci);
+      if (exception_handler_data != nullptr) {
+        // uncommon trap at the start of an exception handler.
+        // C2 generates these for un-entered exception handlers.
+        // mark the handler as entered to avoid generating
+        // another uncommon trap the next time the handler is compiled
+        exception_handler_data->set_exception_handler_entered();
+      }
+    }
+
   } // Free marked resources
 
 }
@@ -2604,6 +2637,8 @@ Deoptimization::query_update_method_data(MethodData* trap_mdo,
                                          uint& ret_this_trap_count,
                                          bool& ret_maybe_prior_trap,
                                          bool& ret_maybe_prior_recompile) {
+  trap_mdo->check_extra_data_locked();
+
   bool maybe_prior_trap = false;
   bool maybe_prior_recompile = false;
   uint this_trap_count = 0;
@@ -2686,6 +2721,10 @@ Deoptimization::update_method_data_from_interpreter(MethodData* trap_mdo, int tr
   assert(!reason_is_speculate(reason), "reason speculate only used by compiler");
   // JVMCI uses the total counts to determine if deoptimizations are happening too frequently -> do not adjust total counts
   bool update_total_counts = true JVMCI_ONLY( && !UseJVMCICompiler);
+
+  // Lock to read ProfileData, and ensure lock is not broken by a safepoint
+  MutexLocker ml(trap_mdo->extra_data_lock(), Mutex::_no_safepoint_check_flag);
+
   query_update_method_data(trap_mdo, trap_bci,
                            (DeoptReason)reason,
                            update_total_counts,

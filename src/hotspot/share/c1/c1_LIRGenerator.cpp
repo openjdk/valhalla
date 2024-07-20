@@ -407,8 +407,20 @@ CodeEmitInfo* LIRGenerator::state_for(Instruction* x, ValueStack* state, bool ig
 
   ValueStack* s = state;
   for_each_state(s) {
-    if (s->kind() == ValueStack::EmptyExceptionState) {
-      assert(s->stack_size() == 0 && s->locals_size() == 0 && (s->locks_size() == 0 || s->locks_size() == 1), "state must be empty");
+    if (s->kind() == ValueStack::EmptyExceptionState ||
+        s->kind() == ValueStack::CallerEmptyExceptionState)
+    {
+#ifdef ASSERT
+      int index;
+      Value value;
+      for_each_stack_value(s, index, value) {
+        fatal("state must be empty");
+      }
+      for_each_local_value(s, index, value) {
+        fatal("state must be empty");
+      }
+#endif
+      assert(s->locks_size() == 0 || s->locks_size() == 1, "state must be empty");
       continue;
     }
 
@@ -613,13 +625,13 @@ void LIRGenerator::logic_op (Bytecodes::Code code, LIR_Opr result_op, LIR_Opr le
 
 
 void LIRGenerator::monitor_enter(LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no,
-                                 CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_imse_stub) {
+                                 CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_ie_stub) {
   if (!GenerateSynchronizationCode) return;
   // for slow path, use debug info for state after successful locking
-  CodeStub* slow_path = new MonitorEnterStub(object, lock, info, throw_imse_stub, scratch);
+  CodeStub* slow_path = new MonitorEnterStub(object, lock, info, throw_ie_stub, scratch);
   __ load_stack_address_monitor(monitor_no, lock);
   // for handling NullPointerException, use debug info representing just the lock stack before this monitorenter
-  __ lock_object(hdr, object, lock, scratch, slow_path, info_for_exception, throw_imse_stub);
+  __ lock_object(hdr, object, lock, scratch, slow_path, info_for_exception, throw_ie_stub);
 }
 
 
@@ -1329,8 +1341,18 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   // from the primitive class itself. See spec for Class.getModifiers that provides
   // the typed array klasses with similar modifiers as their component types.
 
+  // Valhalla update: the code is now a bit convuloted because arrays and primitive
+  // classes don't have the same modifiers set anymore, but we cannot introduce
+  // branches in LIR generation (JDK-8211231). So, the first part of the code remains
+  // identical, using the byteArrayKlass object to avoid a NPE when accessing the
+  // modifiers. But then the code also prepares the correct modifiers set for
+  // primitive classes, and there's a second conditional move to put the right
+  // value into result.
+
+
   Klass* univ_klass_obj = Universe::byteArrayKlassObj();
-  assert(univ_klass_obj->modifier_flags() == (JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC), "Sanity");
+  assert(univ_klass_obj->modifier_flags() == (JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC
+                                              | (Arguments::enable_preview() ? JVM_ACC_IDENTITY : 0)), "Sanity");
   LIR_Opr prim_klass = LIR_OprFact::metadataConst(univ_klass_obj);
 
   LIR_Opr recv_klass = new_register(T_METADATA);
@@ -1340,9 +1362,14 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   LIR_Opr klass = new_register(T_METADATA);
   __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
   __ cmove(lir_cond_equal, prim_klass, recv_klass, klass, T_ADDRESS);
+  LIR_Opr klass_modifiers = new_register(T_INT);
+  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), klass_modifiers);
 
-  // Get the answer.
-  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), result);
+  LIR_Opr prim_modifiers = load_immediate(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC, T_INT);
+
+  __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
+  __ cmove(lir_cond_equal, prim_modifiers, klass_modifiers, result, T_INT);
+
 }
 
 void LIRGenerator::do_getObjectSize(Intrinsic* x) {

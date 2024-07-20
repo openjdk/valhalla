@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1010,10 +1010,6 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
       Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
       assert(element_klass != nullptr, "Must have an element klass");
       oop comp_oop = element_klass->java_mirror();
-      if (element_klass->is_inline_klass()) {
-        InlineKlass* ik = InlineKlass::cast(element_klass);
-        comp_oop = ik->java_mirror();
-      }
       if (is_scratch) {
         comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
       } else {
@@ -1102,12 +1098,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
 // latter may contain dumptime-specific information that cannot be archived
 // (e.g., ClassLoaderData*, or static fields that are modified by Java code execution).
 void java_lang_Class::create_scratch_mirror(Klass* k, TRAPS) {
-  // Inline classes encapsulate two mirror objects, a value mirror (primitive value mirror)
-  // and a reference mirror (primitive class mirror), skip over scratch mirror allocation
-  // for inline classes, they will not be part of shared archive and will be created while
-  // restoring unshared fileds. Refer Klass::restore_unshareable_info() for more details.
-  if (k->is_inline_klass() ||
-      (k->class_loader() != nullptr &&
+  if ((k->class_loader() != nullptr &&
        k->class_loader() != SystemDictionary::java_platform_loader() &&
        k->class_loader() != SystemDictionary::java_system_loader())) {
     // We only archive the mirrors of classes loaded by the built-in loaders
@@ -1367,7 +1358,7 @@ const char* java_lang_Class::as_external_name(oop java_class) {
 
 Klass* java_lang_Class::array_klass_acquire(oop java_class) {
   Klass* k = ((Klass*)java_class->metadata_field_acquire(_array_klass_offset));
-  assert(k == nullptr || k->is_klass() && k->is_array_klass(), "should be array klass");
+  assert(k == nullptr || (k->is_klass() && k->is_array_klass()), "should be array klass");
   return k;
 }
 
@@ -2014,26 +2005,27 @@ int java_lang_VirtualThread::state(oop vthread) {
 JavaThreadStatus java_lang_VirtualThread::map_state_to_thread_status(int state) {
   JavaThreadStatus status = JavaThreadStatus::NEW;
   switch (state & ~SUSPENDED) {
-    case NEW :
+    case NEW:
       status = JavaThreadStatus::NEW;
       break;
-    case STARTED :
-    case RUNNABLE :
-    case RUNNING :
-    case PARKING :
+    case STARTED:
+    case RUNNING:
+    case PARKING:
     case TIMED_PARKING:
-    case YIELDING :
+    case UNPARKED:
+    case YIELDING:
+    case YIELDED:
       status = JavaThreadStatus::RUNNABLE;
       break;
-    case PARKED :
-    case PINNED :
+    case PARKED:
+    case PINNED:
       status = JavaThreadStatus::PARKED;
       break;
     case TIMED_PARKED:
     case TIMED_PINNED:
       status = JavaThreadStatus::PARKED_TIMED;
       break;
-    case TERMINATED :
+    case TERMINATED:
       status = JavaThreadStatus::TERMINATED;
       break;
     default:

@@ -49,11 +49,6 @@ class SharedRuntime: AllStatic {
   friend class VMStructs;
 
  private:
-  static bool resolve_sub_helper_internal(methodHandle callee_method, const frame& caller_frame,
-                                          CompiledMethod* caller_nm, bool is_virtual, bool is_optimized, bool& caller_is_c1,
-                                          Handle receiver, CallInfo& call_info, Bytecodes::Code invoke_code, TRAPS);
-  static methodHandle resolve_sub_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS);
-
   // Shared stub locations
 
   static RuntimeStub*        _wrong_method_blob;
@@ -324,6 +319,8 @@ class SharedRuntime: AllStatic {
   // in order to correctly free the result.
   //
   static char* generate_class_cast_message(Klass* caster_klass, Klass* target_klass, Symbol* target_klass_name = nullptr);
+
+  static char* generate_identity_exception_message(JavaThread* thr, Klass* klass);
 
   // Resolves a call site- may patch in the destination of the call into the
   // compiled code.

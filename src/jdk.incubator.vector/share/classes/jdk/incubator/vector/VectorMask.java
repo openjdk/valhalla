@@ -211,7 +211,7 @@ public abstract value class VectorMask<E> extends jdk.internal.vm.vector.VectorS
         offset = VectorIntrinsics.checkFromIndexSize(offset, laneCount, bits.length);
         return VectorSupport.load(
                 vsp.maskType(), vsp.elementType(), laneCount,
-                bits, (long) offset + Unsafe.ARRAY_BOOLEAN_BASE_OFFSET,
+                bits, (long) offset + Unsafe.ARRAY_BOOLEAN_BASE_OFFSET, false,
                 bits, offset, vsp,
                 (c, idx, s)
                   -> s.opm(n -> c[((int )idx) + n]));

@@ -2236,8 +2236,9 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(test80(), test80Result);
     }
 
-// TODO 8325106 Fails because they are not compilable with Scenario 3, probably we run out of nodes ...
+// TODO 8325632 Fails with -XX:+UnlockExperimentalVMOptions -XX:PerMethodSpecTrapLimit=0 -XX:PerMethodTrapLimit=0
 /*
+
     @ForceInline
     public Object test81_helper(Object obj, int i) {
         if ((i % 2) == 0) {
@@ -2377,12 +2378,9 @@ public class TestNullableInlineTypes {
         return obj;
     }
 
-// TODO 8325106 Fails because they are not compilable with Scenario 3, probably we run out of nodes ...
-/*
     // Same as test81 but with wrapper
     @Test
-    // TODO 8325106 Fails with Scenario 5
-    // @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test85() {
         Object val = new MyValue1Wrapper(null);
         for (int i = 0; i < 10; ++i) {
@@ -2408,7 +2406,6 @@ public class TestNullableInlineTypes {
         }
         Asserts.assertEquals(test85(), test85Result);
     }
-*/
 
     static final class ObjectWrapper {
         public Object obj;
@@ -2622,9 +2619,9 @@ public class TestNullableInlineTypes {
     // Test that calling convention optimization prevents buffering of arguments
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " = 2"}) // 1 MyValue2 allocation + 1 Integer allocation
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation
+        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     public MyValue1 test94(MyValue1 vt) {
         MyValue1 res = test94_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -2658,9 +2655,9 @@ public class TestNullableInlineTypes {
     // Same as test94 but with static methods to trigger simple adapter logic
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " = 2"}) // 1 MyValue2 allocation + 1 Integer allocation
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation
+        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     public static MyValue1 test95(MyValue1 vt) {
         MyValue1 res = test95_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -2696,7 +2693,7 @@ public class TestNullableInlineTypes {
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC_G})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " = 1"})
+        counts = {ALLOC_G, " <= 1"}) // No allocation required if the MyValue2 return is the default value
     public MyValue2 test96(int c, boolean b) {
         MyValue2 res = null;
         if (c == 1) {

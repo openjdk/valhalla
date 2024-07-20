@@ -358,10 +358,6 @@ public class JavaValueArray extends JavaLazyReadObject
                         result.append(val);
                         break;
                     }
-                    case 'Q': {
-                        InlinedJavaObject obj = (InlinedJavaObject)things[i];
-                        result.append(obj);
-                    }
                     default: {
                         throw new RuntimeException("unknown primitive type?");
                     }

@@ -25,6 +25,7 @@
  * @test
  * @bug 8204610
  * @summary Compiler confused by parenthesized "this" in final fields assignments
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

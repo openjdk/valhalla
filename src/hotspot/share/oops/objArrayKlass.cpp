@@ -382,6 +382,7 @@ void ObjArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 
 jint ObjArrayKlass::compute_modifier_flags() const {
   // The modifier for an objectArray is the same as its element
+  // With the addition of ACC_IDENTITY
   if (element_klass() == nullptr) {
     assert(Universe::is_bootstrapping(), "partial objArray only at startup");
     return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC;
@@ -389,8 +390,10 @@ jint ObjArrayKlass::compute_modifier_flags() const {
   // Return the flags of the bottom element type.
   jint element_flags = bottom_klass()->compute_modifier_flags();
 
+  int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
+
   return (element_flags & (JVM_ACC_PUBLIC | JVM_ACC_PRIVATE | JVM_ACC_PROTECTED))
-                        | (JVM_ACC_ABSTRACT | JVM_ACC_FINAL);
+                        | (identity_flag | JVM_ACC_ABSTRACT | JVM_ACC_FINAL);
 }
 
 ModuleEntry* ObjArrayKlass::module() const {

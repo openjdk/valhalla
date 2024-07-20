@@ -140,6 +140,7 @@ import java.util.Objects;
  * @param <D> the ChronoLocalDate of this date-time
  * @since 1.8
  */
+@jdk.internal.MigratedValueClass
 abstract class ChronoLocalDateImpl<D extends ChronoLocalDate>
         implements ChronoLocalDate, Temporal, TemporalAdjuster, Serializable {
 

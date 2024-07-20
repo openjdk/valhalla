@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,15 +51,15 @@
 #include "jfr/jfr.hpp"
 #endif
 
-void print_trace_type_profile(outputStream* out, int depth, ciKlass* prof_klass, int site_count, int receiver_count) {
+static void print_trace_type_profile(outputStream* out, int depth, ciKlass* prof_klass, int site_count, int receiver_count) {
   CompileTask::print_inline_indent(depth, out);
   out->print(" \\-> TypeProfile (%d/%d counts) = ", receiver_count, site_count);
   prof_klass->name()->print_symbol_on(out);
   out->cr();
 }
 
-void trace_type_profile(Compile* C, ciMethod* method, int depth, int bci, ciMethod* prof_method,
-                        ciKlass* prof_klass, int site_count, int receiver_count) {
+static void trace_type_profile(Compile* C, ciMethod* method, int depth, int bci, ciMethod* prof_method,
+                               ciKlass* prof_klass, int site_count, int receiver_count) {
   if (TraceTypeProfile || C->print_inlining()) {
     outputStream* out = tty;
     if (!C->print_inlining()) {
@@ -591,8 +591,7 @@ void Parse::do_call() {
 
     if (_caller->has_method()) {
       // Get receiver from the caller map and update it in the exit map now that we are done initializing it
-      SafePointNode* map = _caller->map();
-      Node* receiver_in_caller = map->argument(_caller, 0)->as_InlineType();
+      Node* receiver_in_caller = _caller->map()->argument(_caller, 0);
       assert(receiver_in_caller->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(), "Receiver type mismatch");
       _exits.map()->replace_edge(receiver_in_caller, clone, &_gvn);
     }
@@ -685,7 +684,6 @@ void Parse::do_call() {
 
   // save across call, for a subsequent cast_not_null.
   Node* receiver = has_receiver ? argument(0) : nullptr;
-  Node* receiver_in_caller = local(0);
 
   // The extra CheckCastPPs for speculative types mess with PhaseStringOpts
   if (receiver != nullptr && !call_does_dispatch && !cg->is_string_late_inline()) {
@@ -812,16 +810,16 @@ void Parse::do_call() {
       retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
       push_node(T_OBJECT, retnode);
     }
-  }
 
-  // Did we inline a value class constructor from another value class constructor?
-  if (cg->is_inline() && cg->method()->is_object_constructor() && cg->method()->holder()->is_inlinetype() &&
-      _method->is_object_constructor() && cg->method()->holder()->is_inlinetype() && receiver_in_caller == receiver) {
-    // Update the receiver in the exit map because the constructor call updated it.
-    // MethodLiveness::BasicBlock::compute_gen_kill_single ensures that the receiver in local(0) is live.
-    assert(local(0)->is_InlineType(), "Unexpected receiver");
-    assert(receiver->bottom_type()->inline_klass() == local(0)->bottom_type()->inline_klass(), "Receiver type mismatch");
-    _exits.map()->replace_edge(receiver, local(0), &_gvn);
+    // Did we inline a value class constructor from another value class constructor?
+    if (_caller->has_method() && cg->is_inline() && cg->method()->is_object_constructor() && cg->method()->holder()->is_inlinetype() &&
+        _method->is_object_constructor() && _method->holder()->is_inlinetype() && receiver == _caller->map()->argument(_caller, 0)) {
+      // Update the receiver in the exit map because the constructor call updated it.
+      // MethodLiveness::BasicBlock::compute_gen_kill_single ensures that the receiver in local(0) is still live.
+      assert(local(0)->is_InlineType(), "Unexpected receiver");
+      assert(receiver->bottom_type()->inline_klass() == local(0)->bottom_type()->inline_klass(), "Receiver type mismatch");
+      _exits.map()->replace_edge(receiver, local(0), &_gvn);
+    }
   }
 
   // Restart record of parsing work after possible inlining of call
@@ -978,7 +976,7 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
 
   // Get the exception oop klass from its header
   Node* ex_klass_node = nullptr;
-  if (has_ex_handler() && !ex_type->klass_is_exact()) {
+  if (has_exception_handler() && !ex_type->klass_is_exact()) {
     Node* p = basic_plus_adr( ex_node, ex_node, oopDesc::klass_offset_in_bytes());
     ex_klass_node = _gvn.transform(LoadKlassNode::make(_gvn, nullptr, immutable_memory(), p, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
 

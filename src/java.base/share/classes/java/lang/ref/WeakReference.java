@@ -33,7 +33,7 @@ import java.util.Objects;
  * made finalizable, finalized, and then reclaimed.  Weak references are most
  * often used to implement canonicalizing mappings.
  * <p>
- * The referent must be an {@linkplain Objects#isIdentityObject(Object) identity object}.
+ * The referent must be an {@linkplain Objects#hasIdentity(Object) identity object}.
  *
  * <p> Suppose that the garbage collector determines at a certain point in time
  * that an object is <a href="package-summary.html#reachability">weakly
@@ -58,7 +58,7 @@ public non-sealed class WeakReference<T> extends Reference<T> {
      *
      * @param referent object the new weak reference will refer to
      * @throws IdentityException if the referent is not an
-     *         {@link java.util.Objects#isIdentityObject(Object) identity object}
+     *         {@link java.util.Objects#hasIdentity(Object) identity object}
      */
     public WeakReference(T referent) {
         super(referent);
@@ -72,7 +72,7 @@ public non-sealed class WeakReference<T> extends Reference<T> {
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
      * @throws IdentityException if the referent is not an
-     *         {@link java.util.Objects#isIdentityObject(Object) identity object}
+     *         {@link java.util.Objects#hasIdentity(Object) identity object}
      */
     public WeakReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);

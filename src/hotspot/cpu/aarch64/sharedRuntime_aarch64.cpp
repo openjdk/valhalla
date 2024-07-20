@@ -31,7 +31,6 @@
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
 #include "code/debugInfoRec.hpp"
-#include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
@@ -40,7 +39,6 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_aarch64.hpp"
-#include "oops/compiledICHolder.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -311,7 +309,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
 
   uint int_args = 0;
   uint fp_args = 0;
-  uint stk_args = 0; // inc by 2 each time
+  uint stk_args = 0;
 
   for (int i = 0; i < total_args_passed; i++) {
     switch (sig_bt[i]) {
@@ -323,8 +321,9 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set1(INT_ArgReg[int_args++]->as_VMReg());
       } else {
+        stk_args = align_up(stk_args, 2);
         regs[i].set1(VMRegImpl::stack2reg(stk_args));
-        stk_args += 2;
+        stk_args += 1;
       }
       break;
     case T_VOID:
@@ -341,6 +340,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
+        stk_args = align_up(stk_args, 2);
         regs[i].set2(VMRegImpl::stack2reg(stk_args));
         stk_args += 2;
       }
@@ -349,8 +349,9 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
       if (fp_args < Argument::n_float_register_parameters_j) {
         regs[i].set1(FP_ArgReg[fp_args++]->as_VMReg());
       } else {
+        stk_args = align_up(stk_args, 2);
         regs[i].set1(VMRegImpl::stack2reg(stk_args));
-        stk_args += 2;
+        stk_args += 1;
       }
       break;
     case T_DOUBLE:
@@ -358,6 +359,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
       if (fp_args < Argument::n_float_register_parameters_j) {
         regs[i].set2(FP_ArgReg[fp_args++]->as_VMReg());
       } else {
+        stk_args = align_up(stk_args, 2);
         regs[i].set2(VMRegImpl::stack2reg(stk_args));
         stk_args += 2;
       }
@@ -368,7 +370,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     }
   }
 
-  return align_up(stk_args, 2);
+  return stk_args;
 }
 
 
@@ -982,42 +984,17 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
 }
 
 static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
+  Register data = rscratch2;
+  __ ic_check(1 /* end_alignment */);
+  __ ldr(rmethod, Address(data, CompiledICData::speculated_method_offset()));
 
-  Label ok;
-
-  Register holder = rscratch2;
-  Register receiver = j_rarg0;
-  Register tmp = r10;  // A call-clobbered register not used for arg passing
-
-  // -------------------------------------------------------------------------
-  // Generate a C2I adapter.  On entry we know rmethod holds the Method* during calls
-  // to the interpreter.  The args start out packed in the compiled layout.  They
-  // need to be unpacked into the interpreter layout.  This will almost always
-  // require some stack space.  We grow the current (compiled) stack, then repack
-  // the args.  We  finally end in a jump to the generic interpreter entry point.
-  // On exit from the interpreter, the interpreter will restore our SP (lest the
-  // compiled code, which relies solely on SP and not FP, get sick).
-
-  {
-    __ block_comment("c2i_unverified_entry {");
-    __ load_klass(rscratch1, receiver);
-    __ ldr(tmp, Address(holder, CompiledICHolder::holder_klass_offset()));
-    __ cmp(rscratch1, tmp);
-    __ ldr(rmethod, Address(holder, CompiledICHolder::holder_metadata_offset()));
-    __ br(Assembler::EQ, ok);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-
-    __ bind(ok);
-    // Method might have been compiled since the call site was patched to
-    // interpreted; if that is the case treat it as a miss so we can get
-    // the call site corrected.
-    __ ldr(rscratch1, Address(rmethod, in_bytes(Method::code_offset())));
-    __ cbz(rscratch1, skip_fixup);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-    __ block_comment("} c2i_unverified_entry");
-  }
+  // Method might have been compiled since the call site was patched to
+  // interpreted; if that is the case treat it as a miss so we can get
+  // the call site corrected.
+  __ ldr(rscratch1, Address(rmethod, in_bytes(Method::code_offset())));
+  __ cbz(rscratch1, skip_fixup);
+  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
 }
-
 
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
@@ -1034,6 +1011,15 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
 
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
+
+  // -------------------------------------------------------------------------
+  // Generate a C2I adapter.  On entry we know rmethod holds the Method* during calls
+  // to the interpreter.  The args start out packed in the compiled layout.  They
+  // need to be unpacked into the interpreter layout.  This will almost always
+  // require some stack space.  We grow the current (compiled) stack, then repack
+  // the args.  We  finally end in a jump to the generic interpreter entry point.
+  // On exit from the interpreter, the interpreter will restore our SP (lest the
+  // compiled code, which relies solely on SP and not FP, get sick).
 
   address c2i_unverified_entry        = __ pc();
   address c2i_unverified_inline_entry = __ pc();
@@ -1398,7 +1384,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ b(exit);
 
     CodeBuffer* cbuf = masm->code_section()->outer();
-    address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, tr_call);
+    address stub = CompiledDirectCall::emit_to_interp_stub(*cbuf, tr_call);
     if (stub == nullptr) {
       fatal("CodeCache is full at gen_continuation_enter");
     }
@@ -1463,7 +1449,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
   }
 
   CodeBuffer* cbuf = masm->code_section()->outer();
-  address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, tr_call);
+  address stub = CompiledDirectCall::emit_to_interp_stub(*cbuf, tr_call);
   if (stub == nullptr) {
     fatal("CodeCache is full at gen_continuation_enter");
   }
@@ -1671,6 +1657,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                               in_ByteSize(-1),
                                               oop_maps,
                                               exception_offset);
+    if (nm == nullptr) return nm;
     if (method->is_continuation_enter_intrinsic()) {
       ContinuationEntry::set_enter_code(nm, interpreted_entry_offset);
     } else if (method->is_continuation_yield_intrinsic()) {
@@ -1818,25 +1805,15 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // restoring them except rfp. rfp is the only callee save register
   // as far as the interpreter and the compiler(s) are concerned.
 
-
-  const Register ic_reg = rscratch2;
   const Register receiver = j_rarg0;
 
-  Label hit;
   Label exception_pending;
 
-  assert_different_registers(ic_reg, receiver, rscratch1);
+  assert_different_registers(receiver, rscratch1);
   __ verify_oop(receiver);
-  __ cmp_klass(receiver, ic_reg, rscratch1);
-  __ br(Assembler::EQ, hit);
-
-  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+  __ ic_check(8 /* end_alignment */);
 
   // Verified entry point must be aligned
-  __ align(8);
-
-  __ bind(hit);
-
   int vep_offset = ((intptr_t)__ pc()) - start;
 
   // If we have to make this method not-entrant we'll overwrite its
@@ -2125,6 +2102,9 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   intptr_t return_pc = (intptr_t) __ pc();
   oop_maps->add_gc_map(return_pc - start, map);
+
+  // Verify or restore cpu control state after JNI call
+  __ restore_cpu_control_state_after_jni(rscratch1, rscratch2);
 
   // Unpack native results.
   switch (ret_type) {

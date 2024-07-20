@@ -37,7 +37,7 @@ import compiler.vectorapi.reshape.utils.VectorReshapeHelper;
  * @requires vm.cpu.features ~= ".*sve.*"
  * @library /test/lib /
  * @enablePreview
- * @run main compiler.vectorapi.reshape.TestVectorCastSVE
+ * @run main/timeout=300 compiler.vectorapi.reshape.TestVectorCastSVE
  */
 public class TestVectorCastSVE {
     public static void main(String[] args) {

@@ -74,9 +74,10 @@ class FieldLayoutInfo : public ResourceObj {
   int _instance_size;
   int _nonstatic_field_size;
   int _static_field_size;
-  bool  _has_nonstatic_fields;
-  bool  _is_naturally_atomic;
+  bool _has_nonstatic_fields;
+  bool _is_naturally_atomic;
   bool _has_inline_fields;
+  bool _has_null_marker_offsets;
 };
 
 // Parser for for .class files
@@ -131,7 +132,7 @@ class ClassFileParser {
   Array<u2>* _nest_members;
   u2 _nest_host;
   Array<u2>* _permitted_subclasses;
-  Array<u2>* _preload_classes;
+  Array<u2>* _loadable_descriptors;
   Array<RecordComponent*>* _record_components;
   Array<InstanceKlass*>* _local_interfaces;
   GrowableArray<u2>* _local_interface_indexes;
@@ -148,6 +149,7 @@ class ClassFileParser {
   FieldAllocationCount* _fac;
   FieldLayoutInfo* _field_info;
   Array<InlineKlass*>* _inline_type_field_klasses;
+  Array<int>* _null_marker_offsets;
   GrowableArray<FieldInfo>* _temp_field_info;
   const intArray* _method_ordering;
   GrowableArray<Method*>* _all_mirandas;
@@ -164,7 +166,8 @@ class ClassFileParser {
 
   int _alignment;
   int _first_field_offset;
-  int _exact_size_in_bytes;
+  int _payload_size_in_bytes;
+  int _internal_null_marker_offset;
 
   Handle _protection_domain;
   AccessFlags _access_flags;
@@ -205,6 +208,7 @@ class ClassFileParser {
   bool _has_contended_fields;
 
   bool _has_inline_type_fields;
+  bool _has_null_marker_offsets;
   bool _has_nonstatic_fields;
   bool _is_empty_inline_type;
   bool _is_naturally_atomic;
@@ -353,7 +357,7 @@ class ClassFileParser {
                                                     const u1* const permitted_subclasses_attribute_start,
                                                     TRAPS);
 
-  u2 parse_classfile_preload_attribute(const ClassFileStream* const cfs,
+  u2 parse_classfile_loadable_descriptors_attribute(const ClassFileStream* const cfs,
                                                     const u1* const preload_attribute_start,
                                                     TRAPS);
 
@@ -475,11 +479,6 @@ class ClassFileParser {
                              const Symbol* sig,
                              TRAPS) const;
 
-  void throwInlineTypeLimitation(THREAD_AND_LOCATION_DECL,
-                                 const char* msg,
-                                 const Symbol* name = nullptr,
-                                 const Symbol* sig  = nullptr) const;
-
   void verify_constantvalue(const ConstantPool* const cp,
                             int constantvalue_index,
                             int signature_index,
@@ -489,6 +488,8 @@ class ClassFileParser {
   void verify_legal_class_name(const Symbol* name, TRAPS) const;
   void verify_legal_field_name(const Symbol* name, TRAPS) const;
   void verify_legal_method_name(const Symbol* name, TRAPS) const;
+
+  bool legal_field_signature(const Symbol* signature, TRAPS) const;
 
   void verify_legal_field_signature(const Symbol* fieldname,
                                     const Symbol* signature,
@@ -596,6 +597,7 @@ class ClassFileParser {
 
   bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
+  // Being an inline type means being a concrete value class
   bool is_inline_type() const { return !_access_flags.is_identity_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
   bool is_abstract_class() const { return _access_flags.is_abstract(); }
   bool is_identity_class() const { return _access_flags.is_identity_class(); }
@@ -616,7 +618,7 @@ class ClassFileParser {
 
   bool is_internal() const { return INTERNAL == _pub_level; }
 
-  bool is_class_in_preload_attribute(Symbol *klass);
+  bool is_class_in_loadable_descriptors_attribute(Symbol *klass);
 
   static bool verify_unqualified_name(const char* name, unsigned int length, int type);
 

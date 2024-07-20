@@ -249,7 +249,7 @@ class Bytecodes: AllStatic {
 
     // JVM bytecodes
     _fast_agetfield       = number_of_java_codes,
-    _fast_qgetfield       ,
+    _fast_vgetfield       ,
     _fast_bgetfield       ,
     _fast_cgetfield       ,
     _fast_dgetfield       ,
@@ -259,7 +259,7 @@ class Bytecodes: AllStatic {
     _fast_sgetfield       ,
 
     _fast_aputfield       ,
-    _fast_qputfield       ,
+    _fast_vputfield       ,
     _fast_bputfield       ,
     _fast_zputfield       ,
     _fast_cputfield       ,

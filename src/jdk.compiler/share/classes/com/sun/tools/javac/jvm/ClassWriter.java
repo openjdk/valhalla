@@ -835,7 +835,7 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
-            int flags = adjustFlags(inner.flags_field);
+            int flags = adjustFlags(inner, inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -852,13 +852,13 @@ public class ClassWriter extends ClassFile {
         endAttr(alenIdx);
     }
 
-     /** Write out "Preload" attribute by enumerating the value classes encountered in field/method descriptors during this compilation.
+     /** Write out "LoadableDescriptors" attribute by enumerating the value classes encountered in field/method descriptors during this compilation.
       */
-     void writePreloadAttribute() {
-        int alenIdx = writeAttr(names.Preload);
-        databuf.appendChar(poolWriter.preloadClasses.size());
-        for (ClassSymbol c : poolWriter.preloadClasses) {
-            databuf.appendChar(poolWriter.putClass(c));
+     void writeLoadableDescriptorsAttribute() {
+        int alenIdx = writeAttr(names.LoadableDescriptors);
+        databuf.appendChar(poolWriter.loadableDescriptors.size());
+        for (Symbol c : poolWriter.loadableDescriptors) {
+            databuf.appendChar(poolWriter.putDescriptor(c));
         }
         endAttr(alenIdx);
      }
@@ -933,11 +933,11 @@ public class ClassWriter extends ClassFile {
     /** Write "PermittedSubclasses" attribute.
      */
     int writePermittedSubclassesIfNeeded(ClassSymbol csym) {
-        if (csym.permitted.nonEmpty()) {
+        if (csym.getPermittedSubclasses().nonEmpty()) {
             int alenIdx = writeAttr(names.PermittedSubclasses);
-            databuf.appendChar(csym.permitted.size());
-            for (Symbol c : csym.permitted) {
-                databuf.appendChar(poolWriter.putClass((ClassSymbol) c));
+            databuf.appendChar(csym.getPermittedSubclasses().size());
+            for (Type t : csym.getPermittedSubclasses()) {
+                databuf.appendChar(poolWriter.putClass((ClassSymbol) t.tsym));
             }
             endAttr(alenIdx);
             return 1;
@@ -976,7 +976,7 @@ public class ClassWriter extends ClassFile {
     /** Write field symbol, entering all references into constant pool.
      */
     void writeField(VarSymbol v) {
-        int flags = adjustFlags(v.flags());
+        int flags = adjustFlags(v, v.flags());
         databuf.appendChar(flags);
         if (dumpFieldModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -986,8 +986,11 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.putName(v.name));
         databuf.appendChar(poolWriter.putDescriptor(v));
         Type fldType = v.erasure(types);
-        if (fldType.requiresPreload(v.owner)) {
-            poolWriter.enterPreloadClass((ClassSymbol) fldType.tsym);
+        if (fldType.requiresLoadableDescriptors(v.owner)) {
+            poolWriter.enterLoadableDescriptorsClass(fldType.tsym);
+            if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
+                preview.markUsesPreview(null);
+            }
         }
         int acountIdx = beginAttrs();
         int acount = 0;
@@ -1005,7 +1008,7 @@ public class ClassWriter extends ClassFile {
     /** Write method symbol, entering all references into constant pool.
      */
     void writeMethod(MethodSymbol m) {
-        int flags = adjustFlags(m.flags());
+        int flags = adjustFlags(m, m.flags());
         databuf.appendChar(flags);
         if (dumpMethodModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -1016,13 +1019,19 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.putDescriptor(m));
         MethodType mtype = (MethodType) m.externalType(types);
         for (Type t : mtype.getParameterTypes()) {
-            if (t.requiresPreload(m.owner)) {
-                poolWriter.enterPreloadClass((ClassSymbol) t.tsym);
+            if (t.requiresLoadableDescriptors(m.owner)) {
+                poolWriter.enterLoadableDescriptorsClass(t.tsym);
+                if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
+                    preview.markUsesPreview(null);
+                }
             }
         }
         Type returnType = mtype.getReturnType();
-        if (returnType.requiresPreload(m.owner)) {
-            poolWriter.enterPreloadClass((ClassSymbol) returnType.tsym);
+        if (returnType.requiresLoadableDescriptors(m.owner)) {
+            poolWriter.enterLoadableDescriptorsClass(returnType.tsym);
+            if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
+                preview.markUsesPreview(null);
+            }
         }
         int acountIdx = beginAttrs();
         int acount = 0;
@@ -1602,7 +1611,7 @@ public class ClassWriter extends ClassFile {
             flags = ACC_MODULE;
         } else {
             long originalFlags = c.flags();
-            flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
+            flags = adjustFlags(c, c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
             flags = flags & ClassFlags;
             flags |= (originalFlags & IDENTITY_TYPE) != 0 ? ACC_IDENTITY : flags;
@@ -1731,8 +1740,8 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
 
-        if (!poolWriter.preloadClasses.isEmpty()) {
-            writePreloadAttribute();
+        if (!poolWriter.loadableDescriptors.isEmpty()) {
+            writeLoadableDescriptorsAttribute();
             acount++;
         }
 
@@ -1766,7 +1775,7 @@ public class ClassWriter extends ClassFile {
         return i;
     }
 
-    int adjustFlags(final long flags) {
+    int adjustFlags(Symbol sym, final long flags) {
         int result = (int)flags;
 
         // Elide strictfp bit in class files
@@ -1782,8 +1791,10 @@ public class ClassWriter extends ClassFile {
         if ((flags & IDENTITY_TYPE) != 0) {
             result |= ACC_IDENTITY;
         }
-        if ((flags & STRICT) != 0) {
-            result |= ACC_STRICT;
+        if (sym.kind == VAR) {
+            if ((flags & STRICT) != 0) {
+                result |= ACC_STRICT;
+            }
         }
         return result;
     }

@@ -105,7 +105,9 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
       value = value->as_InlineType()->clone_with_phis(gvn, region, map);
     } else {
       t = Type::get_const_type(type);
+      ciField* field = inline_klass()->declared_nonstatic_field_at(i);
       if (vt->is_multifield_base(i) &&
+          !InlineTypeNode::is_multifield_scalarized(field) &&
           Matcher::vector_size_supported(type->basic_type(), vt->secondary_fields_count(i))) {
         t = TypeVect::make(t, vt->secondary_fields_count(i));
       }
@@ -142,7 +144,6 @@ bool InlineTypeNode::has_phi_inputs(Node* region) {
 
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
 InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform) {
-  assert(this->Opcode() == other->Opcode(), "");
   // Merge oop inputs
   PhiNode* phi = get_oop()->as_Phi();
   phi->set_req(pnum, other->get_oop());
@@ -302,6 +303,13 @@ bool InlineTypeNode::field_is_null_free(uint index) const {
 }
 
 void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
+  // Don't scalarize larvals in their own constructor call because the constructor will update them
+  if (is_larval() && sfpt->is_CallJava() && sfpt->as_CallJava()->method() != nullptr && sfpt->as_CallJava()->method()->is_object_constructor() &&
+      sfpt->as_CallJava()->method()->holder()->is_inlinetype() && sfpt->in(TypeFunc::Parms) == this) {
+    assert(is_allocated(igvn), "receiver must be allocated");
+    return;
+  }
+
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
   JVMState* jvms = sfpt->jvms();
@@ -310,7 +318,9 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   uint first_ind = (sfpt->req() - jvms->scloff());
   SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(type()->isa_instptr(),
                                                                   nullptr,
-                                                                  first_ind, nfields);
+                                                                  first_ind,
+                                                                  sfpt->jvms()->depth(),
+                                                                  nfields);
   sobj->init_req(0, igvn->C->root());
   // Nullable inline types have an IsInit field that needs
   // to be checked before using the field values.
@@ -355,13 +365,15 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
   bool use_oop = false;
   if (allow_oop && is_allocated(igvn) && oop->is_Phi()) {
     Unique_Node_List worklist;
+    VectorSet visited;
+    visited.set(oop->_idx);
     worklist.push(oop);
     use_oop = true;
     while (worklist.size() > 0 && use_oop) {
       Node* n = worklist.pop();
       for (uint i = 1; i < n->req(); i++) {
         Node* in = n->in(i);
-        if (in->is_Phi()) {
+        if (in->is_Phi() && !visited.test_set(in->_idx)) {
           worklist.push(in);
         // TestNullableArrays.test123 fails when enabling this, probably we should make sure that we don't load from a just allocated object
         //} else if (!(in->is_Con() || in->is_Parm() || in->is_Load() || (in->isa_DecodeN() && in->in(1)->is_Load()))) {
@@ -513,9 +525,9 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
         }
       } else {
         // Load field value from memory
-        BasicType bt = type2field[ft->basic_type()];
         const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
         Node* adr = kit->basic_plus_adr(base, ptr, offset);
+        BasicType bt = type2field[ft->basic_type()];
         assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
         const Type* val_type = Type::get_const_type(ft);
         ciField* field = inline_klass()->get_field_by_offset(field_offset(i), false);
@@ -588,6 +600,13 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
     // Already buffered
     return this;
   }
+
+  // TODO 8325106
+  /*
+  if (inline_klass()->is_initialized() && inline_klass()->is_empty()) {
+    assert(false, "Should not buffer empty inline klass");
+  }
+  */
 
   // Check if inline type is already buffered
   Node* not_buffered_ctl = kit->top();
@@ -786,6 +805,8 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     assert(is_allocated(phase), "should now be allocated");
     return this;
   }
+  // Skip oop forwarding for VectorBoxes, their oop is tied to unexpanded VBA, boxes may be sweeped
+  // out during unboxing-boxing expansions.
   if (oop->isa_InlineType() && !oop->isa_VectorBox() && !phase->type(oop)->maybe_null()) {
     InlineTypeNode* vtptr = oop->as_InlineType();
     set_oop(*phase, vtptr->get_oop());
@@ -872,9 +893,7 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
   // Create a new InlineTypeNode with default values
   Node* oop = vk->is_initialized() && !is_larval ? default_oop(gvn, vk) : gvn.zerocon(T_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
-  // TODO 8325106 we should be able to set buffered here for non-larvals, right?
-  //vt->set_is_buffered(gvn, vk->is_initialized());
-  vt->set_is_buffered(gvn, false);
+  vt->set_is_buffered(gvn, vk->is_initialized() && !is_larval);
   vt->set_is_init(gvn);
   vt->set_is_larval(is_larval);
   for (uint i = 0; i < vt->field_count(); ++i) {
@@ -906,23 +925,20 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
     return false; // May be null
   }
   for (uint i = 0; i < field_count(); ++i) {
-    ciType* ft = field_type(i);
     Node* value = field_value(i);
     if (field_is_null_free(i)) {
+      // Null-free value class field must have the default value
       if (!value->is_InlineType() || !value->as_InlineType()->is_default(gvn)) {
         return false;
       }
       continue;
     } else if (value->is_InlineType()) {
-      if (value->as_InlineType()->is_default(gvn)) {
+      // Nullable value class field must be null
+      const Type* tinit = gvn->type(value->as_InlineType()->get_is_init());
+      if (tinit->isa_int() && tinit->is_int()->is_con(0)) {
         continue;
-      } else {
-        const Type* tinit = gvn->type(value->as_InlineType()->get_is_init());
-        if (tinit->isa_int() && tinit->is_int()->is_con(0)) {
-          continue;
-        }
-        return false;
       }
+      return false;
     }
     if (!gvn->type(value)->is_zero_type() &&
         !VectorNode::is_all_zeros_vector(value)) {
@@ -951,7 +967,14 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
   InlineTypeNode* vt = nullptr;
 
   if (oop->isa_InlineType()) {
-    assert(!is_larval || oop->as_InlineType()->is_larval(), "must be larval");
+    // TODO 8325106 Re-enable assert and fix OSR code
+    // Issue triggers with TestValueConstruction.java and -XX:Tier0BackedgeNotifyFreqLog=0 -XX:Tier2BackedgeNotifyFreqLog=0 -XX:Tier3BackedgeNotifyFreqLog=0 -XX:Tier2BackEdgeThreshold=1 -XX:Tier3BackEdgeThreshold=1 -XX:Tier4BackEdgeThreshold=1 -Xbatch -XX:-TieredCompilation
+    // assert(!is_larval || oop->as_InlineType()->is_larval(), "must be larval");
+    if (is_larval && !oop->as_InlineType()->is_larval()) {
+      vt = oop->clone()->as_InlineType();
+      vt->set_is_larval(true);
+      return gvn.transform(vt)->as_InlineType();
+    }
     return oop->as_InlineType();
   } else if (gvn.type(oop)->maybe_null()) {
     // Add a null check because the oop may be null
@@ -1053,6 +1076,12 @@ Node* InlineTypeNode::make_larval(GraphKit* kit) const {
   Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, true);
   AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
   alloc->_larval = true;
+
+  // Set the larval bit in mark word of newly allocated value.
+  Node* mark_addr = kit->basic_plus_adr(alloc_oop, oopDesc::mark_offset_in_bytes());
+  Node* mark = kit->make_load(nullptr, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+  mark = kit->gvn().transform(new OrXNode(mark, kit->MakeConX(markWord::larval_bit_in_place)));
+  kit->store_to_memory(kit->control(), mark_addr, mark, TypeX_X->basic_type(), kit->gvn().type(mark_addr)->is_ptr(), MemNode::unordered);
 
   store(kit, alloc_oop, alloc_oop, vk);
   return alloc_oop;
@@ -1222,26 +1251,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       vt->initialize_fields(kit, multi, base_input, in, true, null_check_region, visited);
       parm = gvn.transform(vt);
     } else {
-      ciInlineKlass* ik = inline_klass();
-      ciField* field = ik->declared_nonstatic_field_at(i);
-      if (!InlineTypeNode::is_multifield_scalarized(field)) {
-        Node* not_null_oop =  NULL;
-        if (multi->is_Call()) {
-          if (in) {
-            not_null_oop = multi->as_Call()->in(base_input);
-          } else {
-            not_null_oop =  multi->as_Call()->proj_out(TypeFunc::Parms);
-          }
-          assert(not_null_oop->bottom_type()->isa_instptr(), "");
-          load(kit, not_null_oop, not_null_oop, ik, visited, /* holder_offset */ 0);
-          parm = field_value(i);
-        } else if (multi->is_Start()) {
-          assert(in, "return from start?");
-          parm = default_value(gvn, type, ik, i);
-        } else {
-          assert(false, "unhandled case");
-        }
-      } else if (multi->is_Start()) {
+      if (multi->is_Start()) {
         assert(in, "return from start?");
         parm = gvn.transform(new ParmNode(multi->as_Start(), base_input));
       } else if (in) {
@@ -1272,7 +1282,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
           visited.trunc_to(old_len);
         }
       }
-      base_input += (type->size() / type->bundle_size());
+      base_input += type->size();
     }
     assert(parm != nullptr, "should never be null");
     assert(field_value(i) == nullptr, "already set");
@@ -1294,6 +1304,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
 // Search for multiple allocations of this inline type and try to replace them by dominating allocations.
 // Equivalent InlineTypeNodes are merged by GVN, so we just need to search for AllocateNode users to find redundant allocations.
 void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
+  // TODO 8332886 Really needed? GVN is disabled anyway.
   if (is_larval()) {
     return;
   }

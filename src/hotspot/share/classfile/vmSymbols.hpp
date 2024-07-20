@@ -212,7 +212,9 @@ class SerializeClosure;
   template(jdk_internal_loader_BuiltinClassLoader,    "jdk/internal/loader/BuiltinClassLoader")   \
   template(jdk_internal_loader_ClassLoaders_AppClassLoader,      "jdk/internal/loader/ClassLoaders$AppClassLoader")      \
   template(jdk_internal_loader_ClassLoaders_PlatformClassLoader, "jdk/internal/loader/ClassLoaders$PlatformClassLoader") \
-                                                                                                  \
+  template(java_lang_Deprecated,                      "Ljava/lang/Deprecated;")                   \
+  template(since,                                     "since")                                    \
+  template(for_removal,                               "forRemoval")                               \
   /* Java runtime version access */                                                               \
   template(java_lang_VersionProps,                    "java/lang/VersionProps")                   \
   template(java_version_name,                         "java_version")                             \
@@ -232,7 +234,7 @@ class SerializeClosure;
   template(tag_inner_classes,                         "InnerClasses")                             \
   template(tag_nest_members,                          "NestMembers")                              \
   template(tag_nest_host,                             "NestHost")                                 \
-  template(tag_preload,                               "Preload")                                  \
+  template(tag_loadable_descriptors,                  "LoadableDescriptors")                      \
   template(tag_constant_value,                        "ConstantValue")                            \
   template(tag_code,                                  "Code")                                     \
   template(tag_exceptions,                            "Exceptions")                               \
@@ -268,6 +270,7 @@ class SerializeClosure;
   template(java_lang_IllegalArgumentException,        "java/lang/IllegalArgumentException")       \
   template(java_lang_IllegalStateException,           "java/lang/IllegalStateException")          \
   template(java_lang_IllegalMonitorStateException,    "java/lang/IllegalMonitorStateException")   \
+  template(java_lang_IdentityException,               "java/lang/IdentityException")              \
   template(java_lang_IllegalThreadStateException,     "java/lang/IllegalThreadStateException")    \
   template(java_lang_IndexOutOfBoundsException,       "java/lang/IndexOutOfBoundsException")      \
   template(java_lang_InstantiationException,          "java/lang/InstantiationException")         \
@@ -509,6 +512,7 @@ class SerializeClosure;
   template(notifyJvmtiMount_name,                     "notifyJvmtiMount")                         \
   template(notifyJvmtiUnmount_name,                   "notifyJvmtiUnmount")                       \
   template(notifyJvmtiHideFrames_name,                "notifyJvmtiHideFrames")                    \
+  template(notifyJvmtiDisableSuspend_name,            "notifyJvmtiDisableSuspend")                \
   template(doYield_name,                              "doYield")                                  \
   template(enter_name,                                "enter")                                    \
   template(enterSpecial_name,                         "enterSpecial")                             \

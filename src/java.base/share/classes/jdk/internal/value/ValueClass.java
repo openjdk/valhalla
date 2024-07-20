@@ -41,12 +41,12 @@ public class ValueClass {
     private static final JavaLangReflectAccess JLRA = SharedSecrets.getJavaLangReflectAccess();
 
     /**
-     * Returns true if the given {@code Class} object is implicitly constructible
+     * {@return true if the given {@code Class} object is implicitly constructible}
      */
     public static native boolean isImplicitlyConstructible(Class<?> cls);
 
     /**
-     * Returns the default value of the given value class type.
+     * {@return the default value of the given value class type}
      *
      * @throws IllegalArgumentException if {@code cls} is not a
      *         value class type or is not annotated with
@@ -64,7 +64,7 @@ public class ValueClass {
     }
 
     /**
-     * Returns {@code CheckedType} representing the type of the given field.
+     * {@return {@code CheckedType} representing the type of the given field}
      */
     public static CheckedType checkedType(Field f) {
         return JLRA.isNullRestrictedField(f) ? NullRestrictedCheckedType.of(f.getType())
@@ -72,7 +72,7 @@ public class ValueClass {
     }
 
     /**
-     * Returns {@code CheckedType} representing the component type of the given array.
+     * {@return {@code CheckedType} representing the component type of the given array}
      */
     public static CheckedType componentCheckedType(Object array) {
         Class<?> componentType = array.getClass().getComponentType();
@@ -119,5 +119,8 @@ public class ValueClass {
     public static native Object[] newNullRestrictedArray(Class<?> componentType,
                                                          int length);
 
+    /**
+     * {@return true if the given array is a null-restricted array}
+     */
     public static native boolean isNullRestrictedArray(Object array);
 }

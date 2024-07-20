@@ -252,6 +252,7 @@ public:
   bool is_final       () { return flags().is_final(); }
   bool is_interface   () { return flags().is_interface(); }
   bool is_abstract    () { return flags().is_abstract(); }
+  bool is_abstract_value_klass() { return is_abstract() && !flags().is_identity(); }
 
   ciMethod* find_method(ciSymbol* name, ciSymbol* signature);
   // Note:  To find a method from name and type strings, use ciSymbol::make,

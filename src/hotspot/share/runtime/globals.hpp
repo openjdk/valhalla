@@ -295,6 +295,9 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseInlineCaches, true,                                      \
           "Use Inline Caches for virtual calls ")                           \
                                                                             \
+  product(size_t, InlineCacheBufferSize, 10*K, EXPERIMENTAL,                \
+          "InlineCacheBuffer size")                                         \
+                                                                            \
   product(bool, InlineArrayCopy, true, DIAGNOSTIC,                          \
           "Inline arraycopy native that is known to be part of "            \
           "base library DLL")                                               \
@@ -543,10 +546,17 @@ const int ObjectAlignmentInBytes = 8;
           "thrown from JVM")                                                \
                                                                             \
   product(bool, HeapDumpBeforeFullGC, false, MANAGEABLE,                    \
-          "Dump heap to file before any major stop-the-world GC")           \
+          "Dump heap to file before any major stop-the-world GC "           \
+          "(also see FullGCHeapDumpLimit)")                                 \
                                                                             \
   product(bool, HeapDumpAfterFullGC, false, MANAGEABLE,                     \
-          "Dump heap to file after any major stop-the-world GC")            \
+          "Dump heap to file after any major stop-the-world GC "            \
+          "(also see FullGCHeapDumpLimit)")                                 \
+                                                                            \
+  product(uint, FullGCHeapDumpLimit, 0, MANAGEABLE,                         \
+          "Limit the number of heap dumps triggered by "                    \
+          "HeapDumpBeforeFullGC or HeapDumpAfterFullGC "                    \
+          "(0 means no limit)")                                             \
                                                                             \
   product(bool, HeapDumpOnOutOfMemoryError, false, MANAGEABLE,              \
           "Dump heap to file when java.lang.OutOfMemoryError is thrown "    \
@@ -667,8 +677,8 @@ const int ObjectAlignmentInBytes = 8;
           "Print JVM warnings to output stream")                            \
                                                                             \
   product(bool, RegisterFinalizersAtInit, true,                             \
-          "Register finalizable objects at end of Object.<init> or "        \
-          "after allocation")                                               \
+          "(Deprecated) Register finalizable objects at end of "            \
+          "Object.<init> or after allocation")                              \
                                                                             \
   develop(bool, RegisterReferences, true,                                   \
           "Tell whether the VM should register soft/weak/final/phantom "    \
@@ -732,6 +742,10 @@ const int ObjectAlignmentInBytes = 8;
           "The maximum number of monitors to deflate, unlink and delete "   \
           "at one time (minimum is 1024).")                                 \
           range(1024, max_jint)                                             \
+                                                                            \
+  product(intx, MonitorUnlinkBatch, 500, DIAGNOSTIC,                        \
+          "The maximum number of monitors to unlink in one batch. ")        \
+          range(1, max_jint)                                                \
                                                                             \
   product(int, MonitorUsedDeflationThreshold, 90, DIAGNOSTIC,               \
           "Percentage of used monitors before triggering deflation (0 is "  \
@@ -799,11 +813,11 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseXMMForArrayCopy, false,                                  \
           "Use SSE2 MOVQ instruction for Arraycopy")                        \
                                                                             \
-  notproduct(bool, PrintFieldLayout, false,                                 \
+  product(bool, PrintFieldLayout, false, DIAGNOSTIC,                        \
           "Print field layout for each class")                              \
                                                                             \
-  notproduct(bool, PrintInlineLayout, false,                                \
-          "Print field layout for each inline type")                        \
+  product(bool, PrintInlineLayout, false, DIAGNOSTIC,                       \
+          "Print field layout for each inline type or class with inline fields") \
                                                                             \
   notproduct(bool, PrintFlatArrayLayout, false,                             \
           "Print array layout for each inline type array")                  \
@@ -813,6 +827,9 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(intx, InlineFieldMaxFlatSize, 128,                                \
           "Max size for flattening inline type fields, <0 no limit")        \
+                                                                            \
+  develop(bool, EnableNullableFieldFlattening, false,                       \
+          "Allow the JVM to flatten some nullable fields")                  \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
@@ -853,6 +870,13 @@ const int ObjectAlignmentInBytes = 8;
           "JVM aborts, producing an error log and core/mini dump, on the "  \
           "first occurrence of an out-of-memory error thrown from JVM")     \
                                                                             \
+  product(intx, UserThreadWaitAttemptsAtExit, 30,                           \
+          "The number of times to wait for user threads to stop executing " \
+          "native code during JVM exit. Each wait lasts 10 milliseconds. "  \
+          "The maximum number of waits is 1000, to wait at most 10 "        \
+          "seconds.")                                                       \
+          range(0, 1000)                                                    \
+                                                                            \
   /* tracing */                                                             \
                                                                             \
   develop(bool, StressRewriter, false,                                      \
@@ -874,14 +898,8 @@ const int ObjectAlignmentInBytes = 8;
   develop(bool, TraceBytecodes, false,                                      \
           "Trace bytecode execution")                                       \
                                                                             \
-  develop(bool, TraceICs, false,                                            \
-          "Trace inline cache changes")                                     \
-                                                                            \
   notproduct(bool, TraceInvocationCounterOverflow, false,                   \
           "Trace method invocation counter overflow")                       \
-                                                                            \
-  develop(bool, TraceInlineCacheClearing, false,                            \
-          "Trace clearing of inline caches in nmethods")                    \
                                                                             \
   develop(bool, VerifyDependencies, trueInDebug,                            \
           "Exercise and verify the compilation dependency mechanism")       \
@@ -900,12 +918,6 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   develop(bool, TraceOopMapRewrites, false,                                 \
           "Trace rewriting of methods during oop map generation")           \
-                                                                            \
-  develop(bool, TraceICBuffer, false,                                       \
-          "Trace usage of IC buffer")                                       \
-                                                                            \
-  develop(bool, TraceCompiledIC, false,                                     \
-          "Trace changes of compiled IC")                                   \
                                                                             \
   develop(bool, FLSVerifyDictionary, false,                                 \
           "Do lots of (expensive) FLS dictionary verification")             \
@@ -1990,9 +2002,6 @@ const int ObjectAlignmentInBytes = 8;
   develop(bool, StressCallingConvention, false,                             \
           "Stress the scalarized calling convention.")                      \
                                                                             \
-  product(bool, UseArrayMarkWordCheck, NOT_LP64(false) LP64_ONLY(true),     \
-          "Use bits in the mark word to check for flat/null-free arrays")   \
-                                                                            \
   product(ccstrlist, ForceNonTearable, "", DIAGNOSTIC,                      \
           "List of inline classes which are forced to be atomic "           \
           "(whitespace and commas separate names, "                         \
@@ -2022,6 +2031,18 @@ const int ObjectAlignmentInBytes = 8;
           "more eagerly at the cost of higher overhead. A value of 0 "      \
           "(default) disables native heap trimming.")                       \
           range(0, UINT_MAX)                                                \
+                                                                            \
+  develop(bool, SimulateFullAddressSpace, false,                            \
+          "Simulates a very populated, fragmented address space; no "       \
+          "targeted reservations will succeed.")                            \
+                                                                            \
+  product(bool, ProfileExceptionHandlers, true,                             \
+          "Profile exception handlers")                                     \
+                                                                            \
+  product(bool, AlwaysRecordEvolDependencies, true, EXPERIMENTAL,           \
+                "Unconditionally record nmethod dependencies on class "     \
+                "rewriting/transformation independently of the JVMTI "      \
+                "can_{retransform/redefine}_classes capabilities.")         \
 
 // end of RUNTIME_FLAGS
 

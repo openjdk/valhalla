@@ -34,7 +34,7 @@
  * @compile test-classes/RewriteBytecodesInline.java test-classes/Util.java test-classes/Point.java test-classes/WithInlinedField.java RewriteBytecodesInlineTest.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run driver RewriteBytecodesInlineTest
+ * @run main/othervm RewriteBytecodesInlineTest
  */
 
 import java.io.File;

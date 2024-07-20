@@ -283,7 +283,9 @@ bool HeapShared::archive_object(oop obj) {
     // their identity_hash() as soon as we see them. This ensures that the
     // the identity_hash in the object header will have a predictable value,
     // making the archive reproducible.
-    obj->identity_hash();
+    if (!obj->klass()->is_inline_klass()) {
+      obj->identity_hash();
+    }
     CachedOopInfo info = make_cached_oop_info();
     archived_object_cache()->put(obj, info);
     mark_native_pointers(obj);

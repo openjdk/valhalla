@@ -181,9 +181,6 @@ class   MethodData;
 //      class Metadata
 class   Method;
 class   ConstantPool;
-//      class CHeapObj
-class   CompiledICHolder;
-
 
 // The klass hierarchy is separate from the oop hierarchy.
 

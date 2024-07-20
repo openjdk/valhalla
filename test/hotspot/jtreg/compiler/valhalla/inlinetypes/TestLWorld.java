@@ -1371,8 +1371,6 @@ public class TestLWorld {
     }
 
     // Test for bug in Escape Analysis
-    // TODO 8325106 Re-enable
-    /*
     @DontInline
     public void test41_dontinline(Object o) {
         Asserts.assertEQ(o, rI);
@@ -1391,7 +1389,6 @@ public class TestLWorld {
     public void test41_verifier() {
         test41();
     }
-    */
 
     // Test for bug in Escape Analysis
     private static final MyValue1 test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
@@ -1737,7 +1734,7 @@ public class TestLWorld {
         try {
             test56(testValue1);
             throw new RuntimeException("test56 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -1760,7 +1757,7 @@ public class TestLWorld {
         try {
             test57(testValue1);
             throw new RuntimeException("test57 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -1784,7 +1781,7 @@ public class TestLWorld {
         try {
             test58();
             throw new RuntimeException("test58 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -1806,7 +1803,7 @@ public class TestLWorld {
         try {
             test59(new Object(), true);
             throw new RuntimeException("test59 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -1825,18 +1822,18 @@ public class TestLWorld {
         try {
             test60(false);
             throw new RuntimeException("test60 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
         try {
             test60(true);
             throw new RuntimeException("test60 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
 
-    // Test catching the IllegalMonitorStateException in compiled code
+    // Test catching the IdentityException in compiled code
     @Test
     public void test61(Object vt) {
         boolean thrown = false;
@@ -1844,7 +1841,7 @@ public class TestLWorld {
             synchronized (vt) {
                 throw new RuntimeException("test61 failed: no exception thrown");
             }
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             thrown = true;
         }
         if (!thrown) {
@@ -1861,7 +1858,7 @@ public class TestLWorld {
     public void test62(Object o) {
         try {
             synchronized (o) { }
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
             return;
         }
@@ -1883,7 +1880,7 @@ public class TestLWorld {
     public void test63_verifier() {
         try {
             test63(testValue1);
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
             return;
         }
@@ -3310,9 +3307,8 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR})
-        // TODO 8326401
-        // counts = {PREDICATE_TRAP, "= 1"})
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test113_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3757,14 +3753,11 @@ public class TestLWorld {
     }
 
     @Test
-    // TODO 8325106
-    /*
     @IR(failOn = {LOAD},
         // LockNode keeps MyValue1 allocation alive up until macro expansion which in turn keeps MyValue2
         // alloc alive. Although the MyValue1 allocation is removed (unused), MyValue2 is expanded first
         // and therefore stays.
         counts = {ALLOC, "<= 1", STORE, "<= 1"})
-    */
     public void test130() {
         Object obj = test130_inlinee();
         synchronized (obj) {
@@ -3777,7 +3770,7 @@ public class TestLWorld {
         try {
             test130();
             throw new RuntimeException("test130 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -3802,7 +3795,7 @@ public class TestLWorld {
         try {
             test131();
             throw new RuntimeException("test131 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -3830,7 +3823,7 @@ public class TestLWorld {
         try {
             test132();
             throw new RuntimeException("test132 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -3852,7 +3845,7 @@ public class TestLWorld {
         try {
             test133(false);
             throw new RuntimeException("test133 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -3875,7 +3868,7 @@ public class TestLWorld {
         try {
             test134(true);
             throw new RuntimeException("test134 failed: no exception thrown");
-        } catch (IllegalMonitorStateException ex) {
+        } catch (IdentityException ex) {
             // Expected
         }
     }
@@ -4046,9 +4039,7 @@ public class TestLWorld {
 
     // Test merging of buffered default and non-default inline types
     @Test
-    // TODO 8325106 With incremental inlining, we already buffer the larval which can't use the default oop because it might be overridden.
-    @IR(applyIf = {"AlwaysIncrementalInline", "false"},
-        failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC_G})
     public Object test144(int i) {
         if (i == 0) {
             return MyValue1.createDefaultInline();
@@ -4129,11 +4120,8 @@ public class TestLWorld {
 
     // Test post-parse call devirtualization with inline type receiver
     @Test
-    // TODO 8325106
-    /*
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC})
-    */
     @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
         counts = {compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
     public long test150() {
@@ -4185,6 +4173,7 @@ public class TestLWorld {
         public int val();
     }
 
+    @ImplicitlyConstructible
     static abstract value class MyAbstract2 implements MyInterface2 {
 
     }
@@ -4372,5 +4361,30 @@ public class TestLWorld {
             // Expected
         }
         test160(null);
+    }
+
+    abstract value static class AbstractValueClassSingleSubclass {
+    }
+
+    value static class UniqueValueSubClass extends AbstractValueClassSingleSubclass {
+        int x = 34;
+    }
+
+    static AbstractValueClassSingleSubclass abstractValueClassSingleSubclass = new UniqueValueSubClass();
+
+    @Test
+    public void testUniqueConcreteValueSubKlass(boolean flag) {
+        // C2 should recognize that even though we do not know the exact layout of the underlying inline type of the
+        // abstract field abstractValueClassSingleSubclass (i.e. cannot scalarize), we only have a unique concrete sub
+        // class from which we know at compile time whether it can be scalarized or not. This unique sub class
+        // optimization was missing, resulting in a missing InlineTypeNode assertion failure.
+        doNothing(abstractValueClassSingleSubclass, flag ? 23 : 34);
+    }
+
+    void doNothing(Object a, int i) {}
+
+    @Run(test = "testUniqueConcreteValueSubKlass")
+    public void testUniqueConcreteValueSubKlass_verifier() {
+        testUniqueConcreteValueSubKlass(true);
     }
 }

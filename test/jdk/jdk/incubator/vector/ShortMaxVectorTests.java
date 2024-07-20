@@ -25,7 +25,7 @@
  * @test
  * @modules jdk.incubator.vector
  * @enablePreview
- * @run testng/othervm -ea -esa -Xbatch -XX:-TieredCompilation ShortMaxVectorTests
+ * @run testng/othervm/timeout=300 -ea -esa -Xbatch -XX:-TieredCompilation ShortMaxVectorTests
  */
 
 // -- This file was mechanically generated: Do not edit! -- //

@@ -555,14 +555,7 @@ public class TestUnloadedInlineTypeField {
         } else {
             // Make sure klass is resolved
             for (int i = 0; i < 10; ++i) {
-                MyValue13Holder holder = new MyValue13Holder();
-                try {
-                    test13(holder);
-// TODO 8325106
-//                    Asserts.fail("Should have thrown InstantiationError");
-                } catch (InstantiationError e) {
-                    // OK
-                }
+                test13(new MyValue13Holder());
             }
         }
     }
@@ -601,14 +594,7 @@ public class TestUnloadedInlineTypeField {
         } else {
             // Make sure klass is resolved
             for (int i = 0; i < 10; ++i) {
-                MyValue15Holder holder = new MyValue15Holder();
-                try {
-                    test15(holder);
-// TODO 8325106
-//                    Asserts.fail("Should have thrown InstantiationError");
-                } catch (InstantiationError e) {
-                    // OK
-                }
+                test15(new MyValue15Holder());
             }
         }
     }
@@ -639,13 +625,7 @@ public class TestUnloadedInlineTypeField {
         } else {
             // Make sure klass is resolved
             for (int i = 0; i < 10; ++i) {
-                try {
-                    test16(false);
-// TODO 8325106
-//                    Asserts.fail("Should have thrown IncompatibleClassChangeError");
-                } catch (IncompatibleClassChangeError e) {
-                    // OK
-                }
+                test16(false);
             }
         }
     }
@@ -672,13 +652,7 @@ public class TestUnloadedInlineTypeField {
         } else {
             // Make sure klass is resolved
             for (int i = 0; i < 10; ++i) {
-                try {
-                    test17(false);
-// TODO 8325106
-//                    Asserts.fail("Should have thrown IncompatibleClassChangeError");
-                } catch (IncompatibleClassChangeError e) {
-                    // OK
-                }
+                test17(false);
             }
         }
     }
@@ -1037,7 +1011,7 @@ public class TestUnloadedInlineTypeField {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue27 {
-        int foo = rI;
+        int foo = 42;
     }
 
     static class MyValue27Holder {
@@ -1057,7 +1031,7 @@ public class TestUnloadedInlineTypeField {
 
     @Run(test = "test27")
     public void test27_verifier() {
-        Asserts.assertEQ(test27(), 0);
+        Asserts.assertEQ(test27(), 42);
     }
 
     @ImplicitlyConstructible

@@ -53,13 +53,6 @@ jdk/jshell/UserInputTest.java                                                   
 jdk/jshell/ToolBasicTest.java                                                   8265357    macosx-aarch64
 jdk/jshell/HighlightUITest.java                                                 8284144    generic-all
 
-jdk/jshell/UserExecutionControlTest.java                                        8308779    generic-all
-jdk/jshell/ToolLocalSimpleTest.java                                             8308779    generic-all
-jdk/jshell/SimpleRegressionTest.java                                            8308779    generic-all
-jdk/jshell/ExecutionControlSpecTest.java                                        8308779    generic-all
-jdk/jshell/ExceptionMessageTest.java                                            8308779    generic-all
-jdk/jshell/ClassMembersTest.java                                                8308779    generic-all
-
 ###########################################################################
 #
 # javac
@@ -73,8 +66,6 @@ tools/javac/annotations/typeAnnotations/referenceinfos/Lambda.java              
 tools/javac/annotations/typeAnnotations/referenceinfos/NestedTypes.java         8057687    generic-all    emit correct byte code an attributes for type annotations
 tools/javac/warnings/suppress/TypeAnnotations.java                              8057683    generic-all    improve ordering of errors with type annotations
 tools/javac/modules/SourceInSymlinkTest.java                                    8180263    windows-all    fails when run on a subst drive
-tools/javac/lambda/bytecode/TestLambdaBytecodeTargetRelease14.java              8312534    linux-i586     fails with assert "g1ConcurrentMark.cpp: Overflow during reference processing"
-tools/javac/varargs/warning/Warn5.java                                          8312534    linux-i586     fails with assert "g1ConcurrentMark.cpp: Overflow during reference processing"
 
 ###########################################################################
 #

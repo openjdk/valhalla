@@ -107,7 +107,6 @@ class VtableStubs : AllStatic {
   static address     find_itable_stub(int itable_index, bool caller_is_c1) { return find_stub(false, itable_index, caller_is_c1); }
 
   static VtableStub* entry_point(address pc);                        // vtable stub entry point for a pc
-  static bool        is_icholder_entry(address pc);                  // is the blob containing pc (which must be a vtable blob) an icholder?
   static bool        contains(address pc);                           // is pc within any stub?
   static VtableStub* stub_containing(address pc);                    // stub containing pc or nullptr
   static void        initialize();

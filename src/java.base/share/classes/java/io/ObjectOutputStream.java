@@ -252,6 +252,7 @@ public class ObjectOutputStream
      * @see     ObjectOutputStream#putFields()
      * @see     ObjectInputStream#ObjectInputStream(InputStream)
      */
+    @SuppressWarnings("this-escape")
     public ObjectOutputStream(OutputStream out) throws IOException {
         verifySubclass();
         bout = new BlockDataOutputStream(out);
@@ -1197,6 +1198,9 @@ public class ObjectOutputStream
             } else if (obj instanceof Enum) {
                 writeEnum((Enum<?>) obj, desc, unshared);
             } else if (obj instanceof Serializable) {
+                if (cl.isValue() && !desc.isInstantiable()) {
+                    throw new NotSerializableException(cl.getName());
+                }
                 writeOrdinaryObject(obj, desc, unshared);
             } else {
                 if (extendedDebugInfo) {

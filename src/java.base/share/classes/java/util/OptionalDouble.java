@@ -56,6 +56,7 @@ import java.util.stream.DoubleStream;
  * @since 1.8
  */
 @jdk.internal.ValueBased
+@jdk.internal.MigratedValueClass
 public final class OptionalDouble {
     /**
      * Common instance for {@code empty()}.

@@ -25,6 +25,7 @@
  * @test
  * @bug 8242293 8246774
  * @summary allow for local interfaces and enums plus nested records, interfaces and enums
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

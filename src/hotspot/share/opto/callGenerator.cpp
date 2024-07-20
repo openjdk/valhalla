@@ -739,6 +739,9 @@ void CallGenerator::do_late_inline_helper() {
       C->print_inlining_update_delayed(this);
       return;
     }
+    if (C->print_inlining() && (is_mh_late_inline() || is_virtual_late_inline())) {
+      C->print_inlining_update_delayed(this);
+    }
 
     // Check if we are late inlining a method handle call that returns an inline type as fields.
     Node* buffer_oop = nullptr;
