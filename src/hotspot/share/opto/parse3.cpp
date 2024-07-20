@@ -310,7 +310,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     // Clone the inline type node and set the new field value
     InlineTypeNode* new_vt = obj->as_InlineType()->clone_if_required(&_gvn, _map);
     new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
-     
+
     // Tie initialization value to all the synthetic multifields.
     if (InlineTypeNode::is_multifield_scalarized(field)) {
       int fsize = type2aelembytes(field->type()->basic_type());
