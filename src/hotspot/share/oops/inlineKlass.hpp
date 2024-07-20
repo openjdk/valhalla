@@ -30,9 +30,9 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "runtime/registerMap.hpp"
-//#include "oops/oop.inline.hpp"
 
-// An InlineKlass is a specialized InstanceKlass for inline types.
+// An InlineKlass is a specialized InstanceKlass for concrete value classes
+// (abstract value classes are represented by InstanceKlass)
 
 
 class InlineKlass: public InstanceKlass {
@@ -99,9 +99,14 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _first_field_offset));
   }
 
-  address adr_exact_size_in_bytes() const {
+  address adr_payload_size_in_bytes() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _exact_size_in_bytes));
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _payload_size_in_bytes));
+  }
+
+  address adr_internal_null_marker_offset() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _internal_null_marker_offset));
   }
 
  public:
@@ -123,12 +128,25 @@ class InlineKlass: public InstanceKlass {
     *(int*)adr_first_field_offset() = offset;
   }
 
-  int get_exact_size_in_bytes() const {
-    return *(int*)adr_exact_size_in_bytes();
+  int get_payload_size_in_bytes() const {
+    return *(int*)adr_payload_size_in_bytes();
   }
 
-  void set_exact_size_in_bytes(int exact_size) {
-    *(int*)adr_exact_size_in_bytes() = exact_size;
+  void set_payload_size_in_bytes(int payload_size) {
+    *(int*)adr_payload_size_in_bytes() = payload_size;
+  }
+
+  void set_internal_null_marker_offset(int offset) {
+    *(int*)adr_internal_null_marker_offset() = offset;
+  }
+
+  bool has_internal_null_marker_offset() const {
+    return *(int*)adr_internal_null_marker_offset() != -1;
+  }
+
+  int get_internal_null_marker_offset() const {
+    assert(has_internal_null_marker_offset(), "Must not be call if value class has no internal null marker");
+    return *(int*)adr_internal_null_marker_offset();
   }
 
   int first_field_offset_old();
@@ -205,6 +223,7 @@ class InlineKlass: public InstanceKlass {
 
   oop read_flat_field(oop obj, int offset, TRAPS);
   void write_flat_field(oop obj, int offset, oop value, TRAPS);
+  void write_non_null_flat_field(oop obj, int offset, oop value);
 
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>
@@ -254,6 +273,10 @@ class InlineKlass: public InstanceKlass {
 
   static ByteSize first_field_offset_offset() {
     return byte_offset_of(InlineKlassFixedBlock, _first_field_offset);
+  }
+
+  static ByteSize internal_null_marker_offset_offset() {
+    return byte_offset_of(InlineKlassFixedBlock, _internal_null_marker_offset);
   }
 
   void set_default_value_offset(int offset) {

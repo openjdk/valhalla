@@ -175,7 +175,7 @@ oop FlatArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
 
 jint FlatArrayKlass::array_layout_helper(InlineKlass* vk) {
   BasicType etype = T_PRIMITIVE_OBJECT;
-  int esize = log2i_exact(round_up_power_of_2(vk->get_exact_size_in_bytes()));
+  int esize = log2i_exact(round_up_power_of_2(vk->get_payload_size_in_bytes()));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
 
   int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, true, hsize, etype, esize);
@@ -434,10 +434,13 @@ GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_sl
 
 jint FlatArrayKlass::compute_modifier_flags() const {
   // The modifier for an flatArray is the same as its element
+  // With the addition of ACC_IDENTITY
   jint element_flags = element_klass()->compute_modifier_flags();
 
+  int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
+
   return (element_flags & (JVM_ACC_PUBLIC | JVM_ACC_PRIVATE | JVM_ACC_PROTECTED))
-                        | (JVM_ACC_ABSTRACT | JVM_ACC_FINAL);
+                        | (identity_flag | JVM_ACC_ABSTRACT | JVM_ACC_FINAL);
 }
 
 void FlatArrayKlass::print_on(outputStream* st) const {

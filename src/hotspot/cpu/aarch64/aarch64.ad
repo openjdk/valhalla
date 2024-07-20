@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
 // Copyright (c) 2014, 2021, Red Hat, Inc. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
@@ -2209,14 +2209,14 @@ void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 {
   st->print_cr("# MachUEPNode");
   if (UseCompressedClassPointers) {
-    st->print_cr("\tldrw rscratch1, j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
-    if (CompressedKlassPointers::shift() != 0) {
-      st->print_cr("\tdecode_klass_not_null rscratch1, rscratch1");
-    }
+    st->print_cr("\tldrw rscratch1, [j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
+    st->print_cr("\tldrw r10, [rscratch2 + CompiledICData::speculated_klass_offset()]\t# compressed klass");
+    st->print_cr("\tcmpw rscratch1, r10");
   } else {
-   st->print_cr("\tldr rscratch1, j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
+    st->print_cr("\tldr rscratch1, [j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
+    st->print_cr("\tldr r10, [rscratch2 + CompiledICData::speculated_klass_offset()]\t# compressed klass");
+    st->print_cr("\tcmp rscratch1, r10");
   }
-  st->print_cr("\tcmp r0, rscratch1\t # Inline cache check");
   st->print_cr("\tbne, SharedRuntime::_ic_miss_stub");
 }
 #endif
@@ -2225,16 +2225,7 @@ void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
   // This is the unverified entry point.
   C2_MacroAssembler _masm(&cbuf);
-  Label skip;
-
-  // UseCompressedClassPointers logic are inside cmp_klass
-  __ cmp_klass(j_rarg0, rscratch2, rscratch1);
-
-  // TODO
-  // can we avoid this skip and still use a reloc?
-  __ br(Assembler::EQ, skip);
-  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-  __ bind(skip);
+  __ ic_check(InteriorEntryAlignment);
 }
 
 // REQUIRED EMIT CODE
@@ -2372,7 +2363,7 @@ int Matcher::min_vector_size(const BasicType bt) {
   return MIN2(size, max_size);
 }
 
-int Matcher::superword_max_vector_size(const BasicType bt) {
+int Matcher::max_vector_size_auto_vectorization(const BasicType bt) {
   return Matcher::max_vector_size(bt);
 }
 
@@ -2577,7 +2568,7 @@ Assembler::Condition to_assembler_cond(BoolTest::mask cond) {
 }
 
 // Binary src (Replicate con)
-bool is_valid_sve_arith_imm_pattern(Node* n, Node* m) {
+static bool is_valid_sve_arith_imm_pattern(Node* n, Node* m) {
   if (n == nullptr || m == nullptr) {
     return false;
   }
@@ -2618,7 +2609,7 @@ bool is_valid_sve_arith_imm_pattern(Node* n, Node* m) {
 
 // (XorV src (Replicate m1))
 // (XorVMask src (MaskAll m1))
-bool is_vector_bitwise_not_pattern(Node* n, Node* m) {
+static bool is_vector_bitwise_not_pattern(Node* n, Node* m) {
   if (n != nullptr && m != nullptr) {
     return (n->Opcode() == Op_XorV || n->Opcode() == Op_XorVMask) &&
            VectorNode::is_all_ones_vector(m);
@@ -3710,7 +3701,7 @@ encode %{
         cbuf.shared_stub_to_interp_for(_method, call - cbuf.insts_begin());
       } else {
         // Emit stub for static call
-        address stub = CompiledStaticCall::emit_to_interp_stub(cbuf, call);
+        address stub = CompiledDirectCall::emit_to_interp_stub(cbuf, call);
         if (stub == nullptr) {
           ciEnv::current()->record_failure("CodeCache is full");
           return;
@@ -4689,7 +4680,7 @@ operand immP()
   interface(CONST_INTER);
 %}
 
-// nullptr Pointer Immediate
+// Null Pointer Immediate
 operand immP0()
 %{
   predicate(n->get_ptr() == 0);
@@ -4821,7 +4812,7 @@ operand immN()
   interface(CONST_INTER);
 %}
 
-// Narrow nullptr Pointer Immediate
+// Narrow Null Pointer Immediate
 operand immN0()
 %{
   predicate(n->get_narrowcon() == 0);
@@ -7245,7 +7236,7 @@ instruct loadConP0(iRegPNoSp dst, immP0 con)
   match(Set dst con);
 
   ins_cost(INSN_COST);
-  format %{ "mov  $dst, $con\t# nullptr ptr" %}
+  format %{ "mov  $dst, $con\t# null pointer" %}
 
   ins_encode(aarch64_enc_mov_p0(dst, con));
 
@@ -7259,7 +7250,7 @@ instruct loadConP1(iRegPNoSp dst, immP_1 con)
   match(Set dst con);
 
   ins_cost(INSN_COST);
-  format %{ "mov  $dst, $con\t# nullptr ptr" %}
+  format %{ "mov  $dst, $con\t# null pointer" %}
 
   ins_encode(aarch64_enc_mov_p1(dst, con));
 
@@ -7301,7 +7292,7 @@ instruct loadConN0(iRegNNoSp dst, immN0 con)
   match(Set dst con);
 
   ins_cost(INSN_COST);
-  format %{ "mov  $dst, $con\t# compressed nullptr ptr" %}
+  format %{ "mov  $dst, $con\t# compressed null pointer" %}
 
   ins_encode(aarch64_enc_mov_n0(dst, con));
 
@@ -8261,6 +8252,24 @@ instruct popCountL_mem(iRegINoSp dst, memory8 mem, vRegD tmp) %{
   %}
 
   ins_pipe(pipe_class_default);
+%}
+
+// ============================================================================
+// VerifyVectorAlignment Instruction
+
+instruct verify_vector_alignment(iRegP addr, immL_positive_bitmaskI mask, rFlagsReg cr) %{
+  match(Set addr (VerifyVectorAlignment addr mask));
+  effect(KILL cr);
+  format %{ "verify_vector_alignment $addr $mask \t! verify alignment" %}
+  ins_encode %{
+    Label Lskip;
+    // check if masked bits of addr are zero
+    __ tst($addr$$Register, $mask$$constant);
+    __ br(Assembler::EQ, Lskip);
+    __ stop("verify_vector_alignment found a misaligned vector memory access");
+    __ bind(Lskip);
+  %}
+  ins_pipe(pipe_slow);
 %}
 
 // ============================================================================
@@ -17164,23 +17173,7 @@ instruct string_equalsL(iRegP_R1 str1, iRegP_R3 str2, iRegI_R4 cnt,
   ins_encode %{
     // Count is in 8-bit bytes; non-Compact chars are 16 bits.
     __ string_equals($str1$$Register, $str2$$Register,
-                     $result$$Register, $cnt$$Register, 1);
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-instruct string_equalsU(iRegP_R1 str1, iRegP_R3 str2, iRegI_R4 cnt,
-                        iRegI_R0 result, rFlagsReg cr)
-%{
-  predicate(((StrEqualsNode*)n)->encoding() == StrIntrinsicNode::UU);
-  match(Set result (StrEquals (Binary str1 str2) cnt));
-  effect(USE_KILL str1, USE_KILL str2, USE_KILL cnt, KILL cr);
-
-  format %{ "String Equals $str1,$str2,$cnt -> $result" %}
-  ins_encode %{
-    // Count is in 8-bit bytes; non-Compact chars are 16 bits.
-    __ string_equals($str1$$Register, $str2$$Register,
-                     $result$$Register, $cnt$$Register, 2);
+                     $result$$Register, $cnt$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}

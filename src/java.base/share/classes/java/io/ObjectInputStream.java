@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -397,6 +397,7 @@ public class ObjectInputStream
      * @see     ObjectInputStream#readFields()
      * @see     ObjectOutputStream#ObjectOutputStream(OutputStream)
      */
+    @SuppressWarnings("this-escape")
     public ObjectInputStream(InputStream in) throws IOException {
         verifySubclass();
         bin = new BlockDataInputStream(in);
@@ -1994,9 +1995,8 @@ public class ObjectInputStream
             resolveEx = ex;
         } catch (IllegalAccessError aie) {
             throw new InvalidClassException(aie.getMessage(), aie);
-        } catch (OutOfMemoryError memerr) {
-            throw new InvalidObjectException("Proxy interface limit exceeded: " +
-                                             Arrays.toString(ifaces), memerr);
+        } catch (OutOfMemoryError oome) {
+            throw genInvalidObjectException(oome, ifaces);
         }
 
         // Call filterCheck on the class before reading anything else
@@ -2008,9 +2008,8 @@ public class ObjectInputStream
             totalObjectRefs++;
             depth++;
             desc.initProxy(cl, resolveEx, readClassDesc(false));
-        } catch (OutOfMemoryError memerr) {
-            throw new InvalidObjectException("Proxy interface limit exceeded: " +
-                                             Arrays.toString(ifaces), memerr);
+        } catch (OutOfMemoryError oome) {
+            throw genInvalidObjectException(oome, ifaces);
         } finally {
             depth--;
         }
@@ -2018,6 +2017,14 @@ public class ObjectInputStream
         handles.finish(descHandle);
         passHandle = descHandle;
         return desc;
+    }
+
+    // Generate an InvalidObjectException for an OutOfMemoryError
+    // Use String.concat() to avoid string formatting invoke dynamic
+    private static InvalidObjectException genInvalidObjectException(OutOfMemoryError oome,
+                                                                    String[] ifaces) {
+        return new InvalidObjectException("Proxy interface limit exceeded: "
+                .concat(Arrays.toString(ifaces)), oome);
     }
 
     /**
@@ -2273,15 +2280,18 @@ public class ObjectInputStream
                 handles.setObject(passHandle, obj);
         } else if (desc.isExternalizable()) {
             if (desc.isValue()) {
-                throw new NotSerializableException("Externalizable not valid for value class "
+                throw new InvalidClassException("Externalizable not valid for value class "
                         + cl.getName());
             }
             if (!unshared)
                 handles.setObject(passHandle, obj);
             readExternalData((Externalizable) obj, desc);
         } else if (desc.isValue()) {
+            if (obj == null) {
+                throw new InvalidClassException("Serializable not valid for value class "
+                        + cl.getName());
+            }
             // For value objects, read the fields and finish the buffer before publishing the ref
-            assert obj != null : "obj == null: " + desc;
             readSerialData(obj, desc);
             obj = desc.finishValue(obj);
             if (!unshared)

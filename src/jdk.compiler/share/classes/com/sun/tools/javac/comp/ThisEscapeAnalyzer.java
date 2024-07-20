@@ -810,6 +810,10 @@ class ThisEscapeAnalyzer extends TreeScanner {
 
     @Override
     public void visitReference(JCMemberReference tree) {
+        if (tree.type.isErroneous()) {
+            //error recovery - ignore erroneous member references
+            return ;
+        }
 
         // Scan target expression and extract 'this' references, if any
         scan(tree.expr);

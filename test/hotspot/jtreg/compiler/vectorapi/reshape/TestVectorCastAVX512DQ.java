@@ -37,7 +37,7 @@ import compiler.vectorapi.reshape.utils.VectorReshapeHelper;
  * @requires vm.cpu.features ~= ".*avx512dq.*"
  * @library /test/lib /
  * @enablePreview
- * @run main compiler.vectorapi.reshape.TestVectorCastAVX512DQ
+ * @run main/timeout=300 compiler.vectorapi.reshape.TestVectorCastAVX512DQ
  */
 public class TestVectorCastAVX512DQ {
     public static void main(String[] args) {

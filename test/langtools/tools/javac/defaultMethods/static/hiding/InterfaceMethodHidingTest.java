@@ -26,6 +26,7 @@
  * @bug 8005166 8129962
  * @summary Add support for static interface methods
  *          Smoke test for static interface method hiding
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

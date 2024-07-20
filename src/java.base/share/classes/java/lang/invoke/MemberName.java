@@ -398,8 +398,6 @@ final class MemberName implements Member, Cloneable {
     }
     /** Utility method to query the modifier flags of this member. */
     public boolean isFinal() {
-        // all fields declared in a value type are effectively final
-        assert(!clazz.isValue() || !isField() || Modifier.isFinal(flags));
         return Modifier.isFinal(flags);
     }
     /** Utility method to query whether this member or its defining class is final. */
@@ -440,7 +438,7 @@ final class MemberName implements Member, Cloneable {
         return allFlagsSet(SYNTHETIC);
     }
 
-    /** Query whether this member is a flattened field */
+    /** Query whether this member is a flat field */
     public boolean isFlat() { return (flags & MN_FLAT_FIELD) == MN_FLAT_FIELD; }
 
     /** Query whether this member is a null-restricted field */

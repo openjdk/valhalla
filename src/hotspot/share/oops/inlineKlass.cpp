@@ -1,9 +1,5 @@
 /*
-<<<<<<< HEAD
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
-=======
  * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
->>>>>>> e01ec832189453cc302c7ca8915e69bb63a3d4b1
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -151,6 +147,11 @@ void InlineKlass::write_flat_field(oop obj, int offset, oop value, TRAPS) {
   if (value == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
+  write_non_null_flat_field(obj, offset, value);
+}
+
+void InlineKlass::write_non_null_flat_field(oop obj, int offset, oop value) {
+  assert(value != nullptr, "");
   if (!is_empty_inline_type()) {
     inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
   }
@@ -166,7 +167,7 @@ bool InlineKlass::flat_array() {
     return false;
   }
   // Too big
-  int elem_bytes = get_exact_size_in_bytes();
+  int elem_bytes = get_payload_size_in_bytes();
   if ((FlatArrayElementMaxSize >= 0) && (elem_bytes > FlatArrayElementMaxSize)) {
     return false;
   }

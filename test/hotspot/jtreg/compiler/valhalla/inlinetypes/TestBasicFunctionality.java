@@ -157,10 +157,10 @@ public class TestBasicFunctionality {
     // the interpreter via a call.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1"},
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2"},
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     public long test6() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -177,7 +177,6 @@ public class TestBasicFunctionality {
     // Create a value object in compiled code and pass it to
     // the interpreter by returning.
     @Test
-    // TODO 8325106 We are hitting 8314999 here and sometimes fail to detect two allocations although there are two.
     @IR(counts = {ALLOC, "<= 2"},
         failOn = {LOAD, TRAP})
     public MyValue1 test7(int x, long y) {
@@ -209,16 +208,16 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(test8(false), hash(rI + 1, rL + 1));
     }
 
+static MyValue1 tmp = null;
     // Merge value objects created from two branches
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC, "= 1", LOAD, "= 19",
                   STORE, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
         failOn = {TRAP})
-    // TODO 8325106
-    // @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-    //     counts = {ALLOC, "= 2", STORE, "= 19"},
-    //     failOn = {LOAD, TRAP})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        counts = {ALLOC, "= 2", STORE, "= 19"},
+        failOn = {LOAD, TRAP})
     public MyValue1 test9(boolean b, int localrI, long localrL) {
         MyValue1 v;
         if (b) {
@@ -227,6 +226,7 @@ public class TestBasicFunctionality {
             // some redundant null initializations to be optimized out
             // and matching to fail.
             v = MyValue1.createWithFieldsInline(localrI, localrL);
+            v.hashInterpreted();
         } else {
             // Value object is allocated by the callee
             v = MyValue1.createWithFieldsDontInline(rI + 1, rL + 1);
@@ -287,6 +287,8 @@ public class TestBasicFunctionality {
     }
 
     // Test loop with uncommon trap referencing a value object
+    // TODO 8315003 Re-enable
+    /*
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         counts = {SCOBJ, ">= 1", LOAD, "<= 12"}) // TODO 8227588 (loads should be removed)
@@ -317,6 +319,7 @@ public class TestBasicFunctionality {
         long result = test12(info.isWarmUp());
         Asserts.assertEQ(result, info.isWarmUp() ? rL + (1000 * rI) : ((Math.abs(rI) % 10) + 1) * hash());
     }
+    */
 
     // Test loop with uncommon trap referencing a value object
     @Test
@@ -372,10 +375,10 @@ public class TestBasicFunctionality {
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {LOAD, TRAP},
-        counts = {ALLOC, "= 1"})
+        counts = {ALLOC, "<= 1"}) // 1 MyValue2 allocation (if not the default value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {LOAD, TRAP},
-        counts = {ALLOC, "= 2"})
+        counts = {ALLOC, "<= 2"}) // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
     public long test15() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         return v.hashInterpreted();
@@ -422,10 +425,10 @@ public class TestBasicFunctionality {
     // debug info should include a reference to all its fields.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1"},
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2"},
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     public long test18() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -444,10 +447,10 @@ public class TestBasicFunctionality {
     // should only be allocated once.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1"},
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2"},
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     public long test19() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -471,10 +474,10 @@ public class TestBasicFunctionality {
     // correctly allocated.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1"},
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2"},
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
         failOn = LOAD)
     public long test20(boolean deopt, Method m) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -509,9 +512,9 @@ public class TestBasicFunctionality {
 
     // Test value class fields in objects
     @Test
-    // TODO 8325106 We already buffer the larval and we had to disable InlineTypeNode::remove_redundant_allocations for larvals
-//    @IR(counts = {ALLOC, "= 2"},
-//        failOn = TRAP)
+    // TODO 8332886 Re-enable this
+    // @IR(counts = {ALLOC, "= 2"},
+    //     failOn = TRAP)
     public long test21(int x, long y) {
         // Compute hash of value class fields
         long result = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
@@ -641,7 +644,7 @@ public class TestBasicFunctionality {
 
     // Check elimination of redundant value class allocations
     @Test
-    // TODO 8325106 With incremental inlining, we already buffer the larval and we had to disable InlineTypeNode::remove_redundant_allocations for larvals
+    // TODO 8332886 Remove the AlwaysIncrementalInline=false condition
     @IR(applyIf = {"AlwaysIncrementalInline", "false"},
         counts = {ALLOC, "= 1"})
     public MyValue3 test28(MyValue3[] va) {
@@ -886,8 +889,6 @@ public class TestBasicFunctionality {
         int y = 0;
     }
 
-// TODO 8325106: Re-enable once JDK-8327695 is fixed
-/*
     @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test37Value1 {
@@ -907,7 +908,6 @@ public class TestBasicFunctionality {
         Test37Value1 vt = new Test37Value1();
         Asserts.assertEQ(test37(vt), vt);
     }
-*/
 
     // Test elimination of value class allocations without a unique CheckCastPP
     @ImplicitlyConstructible

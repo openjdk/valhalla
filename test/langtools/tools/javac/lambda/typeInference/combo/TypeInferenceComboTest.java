@@ -28,6 +28,7 @@
  *  perform automated checks in type inference in lambda expressions
  *  in different contexts
  *  temporarily workaround combo tests are causing time out in several platforms
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

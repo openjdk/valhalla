@@ -154,7 +154,7 @@ abstract value class AbstractMask<E> extends VectorMask<E> {
         i = VectorIntrinsics.checkFromIndexSize(i, laneCount, bits.length);
         VectorSupport.store(
             vsp.maskType(), vsp.elementType(), laneCount,
-            bits, (long) i + Unsafe.ARRAY_BOOLEAN_BASE_OFFSET,
+            bits, (long) i + Unsafe.ARRAY_BOOLEAN_BASE_OFFSET, false,
             this, bits, i,
             (c, idx, s) -> s.stOpMF(c, (int) idx));
     }

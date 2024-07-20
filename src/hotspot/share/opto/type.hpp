@@ -1023,6 +1023,9 @@ protected:
   };
   template<class T> static TypePtr::MeetResult meet_instptr(PTR& ptr, const TypeInterfaces*& interfaces, const T* this_type,
                                                             const T* other_type, ciKlass*& res_klass, bool& res_xk, bool& res_flat_array);
+ private:
+  template<class T> static bool is_meet_subtype_of(const T* sub_type, const T* super_type);
+ protected:
 
   template<class T> static MeetResult meet_aryptr(PTR& ptr, const Type*& elem, const T* this_ary, const T* other_ary,
                                                   ciKlass*& res_klass, bool& res_xk, bool &res_flat, bool &res_not_flat, bool &res_not_null_free);
@@ -1093,7 +1096,7 @@ public:
 
   virtual bool can_be_inline_type() const { return false; }
   virtual bool flat_in_array()      const { return false; }
-  virtual bool not_flat_in_array()  const { return false; }
+  virtual bool not_flat_in_array()  const { return true; }
   virtual bool is_flat()            const { return false; }
   virtual bool is_not_flat()        const { return false; }
   virtual bool is_null_free()       const { return false; }
@@ -1394,7 +1397,7 @@ public:
   // If this is a java.lang.Class constant, return the type for it or null.
   // Pass to Type::get_const_type to turn it to a type, which will usually
   // be a TypeInstPtr, but may also be a TypeInt::INT for int.class, etc.
-  ciType* java_mirror_type() const;
+  ciType* java_mirror_type(bool* is_null_free_array = nullptr) const;
 
   virtual const TypeInstPtr* cast_to_ptr_type(PTR ptr) const;
 
@@ -1478,7 +1481,7 @@ class TypeAryPtr : public TypeOopPtr {
   Offset meet_field_offset(const Type::Offset offset) const;
   Offset dual_field_offset() const;
 
-  ciKlass* compute_klass(DEBUG_ONLY(bool verify = false)) const;
+  ciKlass* compute_klass() const;
 
   // A pointer to delay allocation to Type::Initialize_shared()
 

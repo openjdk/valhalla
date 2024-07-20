@@ -50,7 +50,6 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/javaThread.hpp"
 #include "runtime/reflection.hpp"
-#include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "utilities/formatBuffer.hpp"
@@ -888,7 +887,7 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   java_lang_reflect_Field::set_flags(rh(), flags);
 
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
-  int modifiers = fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS;
+  int modifiers = fd->access_flags().as_int();
   java_lang_reflect_Field::set_modifiers(rh(), modifiers);
   java_lang_reflect_Field::set_override(rh(), false);
   if (fd->has_generic_signature()) {

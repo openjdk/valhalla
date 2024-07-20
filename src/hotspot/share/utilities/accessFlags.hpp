@@ -66,6 +66,7 @@ class AccessFlags {
   bool is_protected   () const         { return (_flags & JVM_ACC_PROTECTED   ) != 0; }
   bool is_static      () const         { return (_flags & JVM_ACC_STATIC      ) != 0; }
   bool is_final       () const         { return (_flags & JVM_ACC_FINAL       ) != 0; }
+  bool is_strict      () const         { return (_flags & JVM_ACC_STRICT      ) != 0; }
   bool is_synchronized() const         { return (_flags & JVM_ACC_SYNCHRONIZED) != 0; }
   bool is_volatile    () const         { return (_flags & JVM_ACC_VOLATILE    ) != 0; }
   bool is_transient   () const         { return (_flags & JVM_ACC_TRANSIENT   ) != 0; }

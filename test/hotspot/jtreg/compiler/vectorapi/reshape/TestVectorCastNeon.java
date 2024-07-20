@@ -37,7 +37,7 @@ import compiler.vectorapi.reshape.utils.VectorReshapeHelper;
  * @requires vm.cpu.features ~= ".*asimd.*"
  * @library /test/lib /
  * @enablePreview
- * @run main compiler.vectorapi.reshape.TestVectorCastNeon
+ * @run main/timeout=300 compiler.vectorapi.reshape.TestVectorCastNeon
  */
 public class TestVectorCastNeon {
     public static void main(String[] args) {

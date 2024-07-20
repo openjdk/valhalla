@@ -86,13 +86,15 @@ class fieldDescriptor {
   bool is_stable()                const    { return field_flags().is_stable(); }
   bool is_volatile()              const    { return access_flags().is_volatile(); }
   bool is_transient()             const    { return access_flags().is_transient(); }
-  inline bool is_flat()        const;
-  inline bool is_null_free_inline_type()    const;
+  inline bool is_flat()           const;
+  inline bool is_null_free_inline_type() const;
   inline bool is_multifield()            const;
   inline bool is_multifield_base()       const;
   inline u2   multifield_base()          const;
   inline jbyte multifield_index()        const;
   inline int secondary_fields_count(int base_idx) const;
+  inline bool has_null_marker()   const;
+  inline bool has_internal_null_marker() const;
 
   bool is_synthetic()             const    { return access_flags().is_synthetic(); }
 

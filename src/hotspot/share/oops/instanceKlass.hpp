@@ -137,18 +137,20 @@ struct JvmtiCachedClassFileData;
 
 class SigEntry;
 
-class InlineKlassFixedBlock : public MetaspaceObj {
-   Array<SigEntry>** _extended_sig;
-   Array<VMRegPair>** _return_regs;
-   address* _pack_handler;
-   address* _pack_handler_jobject;
-   address* _unpack_handler;
-   int* _default_value_offset;
-   ArrayKlass** _null_free_inline_array_klasses;
-   int _alignment;
-   int _first_field_offset;
-   int _exact_size_in_bytes;
-   friend class InlineKlass;
+class InlineKlassFixedBlock {
+  Array<SigEntry>** _extended_sig;
+  Array<VMRegPair>** _return_regs;
+  address* _pack_handler;
+  address* _pack_handler_jobject;
+  address* _unpack_handler;
+  int* _default_value_offset;
+  ArrayKlass** _null_free_inline_array_klasses;
+  int _alignment;
+  int _first_field_offset;
+  int _payload_size_in_bytes;
+  int _internal_null_marker_offset; // -1 if none
+
+  friend class InlineKlass;
 };
 
 class InstanceKlass: public Klass {
@@ -300,8 +302,9 @@ class InstanceKlass: public Klass {
   Array<FieldStatus>* _fields_status;
 
   Array<InlineKlass*>* _inline_type_field_klasses; // For "inline class" fields, null if none present
-  Array<u2>* _preload_classes;
-  InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
+  Array<int>* _null_marker_offsets; // for flat fields with a null marker
+  Array<u2>* _loadable_descriptors;
+  const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
   // embedded Java vtable follows here
   // embedded Java itables follows here
@@ -370,11 +373,10 @@ class InstanceKlass: public Klass {
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 
-  // Query if this class implements jl.NonTearable or was
-  // mentioned in the JVM option ForceNonTearable.
+  // Query if this class is mentioned in the JVM option ForceNonTearable.
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
-  // It inherits from supers along with NonTearable.
+  // It inherits from supers.
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
@@ -447,8 +449,9 @@ class InstanceKlass: public Klass {
   inline Symbol* field_name        (int index) const;
   inline Symbol* field_signature   (int index) const;
   bool field_is_flat(int index) const { return field_flags(index).is_flat(); }
+  bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
   bool field_is_null_free_inline_type(int index) const;
-  bool is_class_in_preload_attribute(Symbol* name) const;
+  bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -471,8 +474,8 @@ class InstanceKlass: public Klass {
     _multifield_info = array;
   }
 
-  Array<u2>* preload_classes() const { return _preload_classes; }
-  void set_preload_classes(Array<u2>* c) { _preload_classes = c; }
+  Array<u2>* loadable_descriptors() const { return _loadable_descriptors; }
+  void set_loadable_descriptors(Array<u2>* c) { _loadable_descriptors = c; }
 
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }
@@ -949,6 +952,7 @@ public:
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
   static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
+  static ByteSize null_marker_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _null_marker_offsets)); }
   static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
 
   // subclass/subinterface checks
@@ -1038,6 +1042,9 @@ public:
 
   Array<InlineKlass*>* inline_type_field_klasses_array() const { return _inline_type_field_klasses; }
   void set_inline_type_field_klasses_array(Array<InlineKlass*>* array) { _inline_type_field_klasses = array; }
+
+  Array<int>* null_marker_offsets_array() const { return _null_marker_offsets; }
+  void set_null_marker_offsets_array(Array<int>* array) { _null_marker_offsets = array; }
 
   inline InlineKlass* get_inline_type_field_klass(int idx) const;
   inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;
@@ -1169,6 +1176,8 @@ public:
   bool idnum_can_increment() const      { return has_been_redefined(); }
   inline jmethodID* methods_jmethod_ids_acquire() const;
   inline void release_set_methods_jmethod_ids(jmethodID* jmeths);
+  // This nulls out jmethodIDs for all methods in 'klass'
+  static void clear_jmethod_ids(InstanceKlass* klass);
 
   // Lock during initialization
 public:

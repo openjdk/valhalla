@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/klassVtable.hpp"
+#include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/recordComponent.hpp"
 #include "prims/jvmtiImpl.hpp"
@@ -64,6 +65,7 @@
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/checkedCast.hpp"
 #include "utilities/events.hpp"
+#include "utilities/macros.hpp"
 
 Array<Method*>* VM_RedefineClasses::_old_methods = nullptr;
 Array<Method*>* VM_RedefineClasses::_new_methods = nullptr;
@@ -929,8 +931,8 @@ static jvmtiError check_preload_attribute(InstanceKlass* the_class,
   // Check whether the class Preload attribute has been changed.
   return check_attribute_arrays("Preload",
                                 the_class, scratch_class,
-                                the_class->preload_classes(),
-                                scratch_class->preload_classes());
+                                the_class->loadable_descriptors(),
+                                scratch_class->loadable_descriptors());
 }
 
 static bool can_add_or_delete(Method* m) {
@@ -1188,6 +1190,7 @@ jvmtiError VM_RedefineClasses::compare_and_normalize_class_versions(
           }
         }
       }
+      JFR_ONLY(k_new_method->copy_trace_flags(*k_old_method->trace_flags_addr());)
       log_trace(redefine, class, normalize)
         ("Method matched: new: %s [%d] == old: %s [%d]",
          k_new_method->name_and_sig_as_C_string(), ni, k_old_method->name_and_sig_as_C_string(), oi);
@@ -1840,6 +1843,12 @@ jvmtiError VM_RedefineClasses::merge_cp_and_rewrite(
     return JVMTI_ERROR_INTERNAL;
   }
 
+  // ensure merged constant pool size does not overflow u2
+  if (merge_cp_length > 0xFFFF) {
+    log_warning(redefine, class, constantpool)("Merged constant pool overflow: %d entries", merge_cp_length);
+    return JVMTI_ERROR_INTERNAL;
+  }
+
   // Set dynamic constants attribute from the original CP.
   if (old_cp->has_dynamic_constant()) {
     scratch_cp->set_has_dynamic_constant();
@@ -2103,11 +2112,11 @@ bool VM_RedefineClasses::rewrite_cp_refs_in_permitted_subclasses_attribute(
 bool VM_RedefineClasses::rewrite_cp_refs_in_preload_attribute(
        InstanceKlass* scratch_class) {
 
-  Array<u2>* preload_classes = scratch_class->preload_classes();
-  assert(preload_classes != nullptr, "unexpected null preload_classes");
-  for (int i = 0; i < preload_classes->length(); i++) {
-    u2 cp_index = preload_classes->at(i);
-    preload_classes->at_put(i, find_new_index(cp_index));
+  Array<u2>* loadable_descriptors = scratch_class->loadable_descriptors();
+  assert(loadable_descriptors != nullptr, "unexpected null loadable_descriptors");
+  for (int i = 0; i < loadable_descriptors->length(); i++) {
+    u2 cp_index = loadable_descriptors->at(i);
+    loadable_descriptors->at_put(i, find_new_index(cp_index));
   }
   return true;
 }
@@ -4096,21 +4105,22 @@ void VM_RedefineClasses::transfer_old_native_function_registrations(InstanceKlas
 // Deoptimize all compiled code that depends on the classes redefined.
 //
 // If the can_redefine_classes capability is obtained in the onload
-// phase then the compiler has recorded all dependencies from startup.
-// In that case we need only deoptimize and throw away all compiled code
-// that depends on the class.
+// phase or 'AlwaysRecordEvolDependencies' is true, then the compiler has
+// recorded all dependencies from startup. In that case we need only
+// deoptimize and throw away all compiled code that depends on the class.
 //
-// If can_redefine_classes is obtained sometime after the onload
-// phase then the dependency information may be incomplete. In that case
-// the first call to RedefineClasses causes all compiled code to be
-// thrown away. As can_redefine_classes has been obtained then
-// all future compilations will record dependencies so second and
-// subsequent calls to RedefineClasses need only throw away code
-// that depends on the class.
+// If can_redefine_classes is obtained sometime after the onload phase
+// (and 'AlwaysRecordEvolDependencies' is false) then the dependency
+// information may be incomplete. In that case the first call to
+// RedefineClasses causes all compiled code to be thrown away. As
+// can_redefine_classes has been obtained then all future compilations will
+// record dependencies so second and subsequent calls to RedefineClasses
+// need only throw away code that depends on the class.
 //
 
 void VM_RedefineClasses::flush_dependent_code() {
   assert(SafepointSynchronize::is_at_safepoint(), "sanity check");
+  assert(JvmtiExport::all_dependencies_are_recorded() || !AlwaysRecordEvolDependencies, "sanity check");
 
   DeoptimizationScope deopt_scope;
 

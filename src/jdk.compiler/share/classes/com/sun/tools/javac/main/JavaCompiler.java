@@ -987,10 +987,7 @@ public class JavaCompiler {
 
             // In case an Abort was thrown before processAnnotations could be called,
             // we could have deferred diagnostics that haven't been reported.
-            if (deferredDiagnosticHandler != null) {
-                deferredDiagnosticHandler.reportDeferredDiagnostics();
-                log.popDiagnosticHandler(deferredDiagnosticHandler);
-            }
+            reportDeferredDiagnosticAndClearHandler();
         } finally {
             if (verbose) {
                 elapsed_msec = elapsed(start_msec);
@@ -1145,18 +1142,21 @@ public class JavaCompiler {
         if (processors != null && processors.iterator().hasNext())
             explicitAnnotationProcessingRequested = true;
 
+        // Process annotations if processing is not disabled and there
+        // is at least one Processor available.
         if (options.isSet(PROC, "none")) {
             processAnnotations = false;
         } else if (procEnvImpl == null) {
             procEnvImpl = JavacProcessingEnvironment.instance(context);
             procEnvImpl.setProcessors(processors);
-
-            // Process annotations if processing is requested and there
-            // is at least one Processor available.
-            processAnnotations = procEnvImpl.atLeastOneProcessor() &&
-                explicitAnnotationProcessingRequested();
+            processAnnotations = procEnvImpl.atLeastOneProcessor();
 
             if (processAnnotations) {
+                if (!explicitAnnotationProcessingRequested() &&
+                    !optionsCheckingInitiallyDisabled) {
+                    log.note(Notes.ImplicitAnnotationProcessing);
+                }
+
                 options.put("parameters", "parameters");
                 reader.saveParameterNames = true;
                 keepComments = true;
@@ -1165,9 +1165,9 @@ public class JavaCompiler {
                     taskListener.started(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING));
                 deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
                 procEnvImpl.getFiler().setInitialState(initialFiles, initialClassNames);
+            } else { // free resources
+                procEnvImpl.close();
             }
-        } else { // free resources
-            procEnvImpl.close();
         }
     }
 
@@ -1194,8 +1194,7 @@ public class JavaCompiler {
             // or other errors during enter which cannot be fixed by running
             // any annotation processors.
             if (processAnnotations) {
-                deferredDiagnosticHandler.reportDeferredDiagnostics();
-                log.popDiagnosticHandler(deferredDiagnosticHandler);
+                reportDeferredDiagnosticAndClearHandler();
                 return ;
             }
         }
@@ -1231,8 +1230,7 @@ public class JavaCompiler {
                  // processing
                 if (!explicitAnnotationProcessingRequested()) {
                     log.error(Errors.ProcNoExplicitAnnotationProcessingRequested(classnames));
-                    deferredDiagnosticHandler.reportDeferredDiagnostics();
-                    log.popDiagnosticHandler(deferredDiagnosticHandler);
+                    reportDeferredDiagnosticAndClearHandler();
                     return ; // TODO: Will this halt compilation?
                 } else {
                     boolean errors = false;
@@ -1266,8 +1264,7 @@ public class JavaCompiler {
                         }
                     }
                     if (errors) {
-                        deferredDiagnosticHandler.reportDeferredDiagnostics();
-                        log.popDiagnosticHandler(deferredDiagnosticHandler);
+                        reportDeferredDiagnosticAndClearHandler();
                         return ;
                     }
                 }
@@ -1284,10 +1281,7 @@ public class JavaCompiler {
             }
         } catch (CompletionFailure ex) {
             log.error(Errors.CantAccess(ex.sym, ex.getDetailValue()));
-            if (deferredDiagnosticHandler != null) {
-                deferredDiagnosticHandler.reportDeferredDiagnostics();
-                log.popDiagnosticHandler(deferredDiagnosticHandler);
-            }
+            reportDeferredDiagnosticAndClearHandler();
         }
     }
 
@@ -1854,6 +1848,18 @@ public class JavaCompiler {
         } finally {
             log.popDiagnosticHandler(dh);
             log.useSource(prevSource);
+        }
+    }
+
+    public void reportDeferredDiagnosticAndClearHandler() {
+        if (deferredDiagnosticHandler != null) {
+            ToIntFunction<JCDiagnostic> diagValue =
+                    d -> d.isFlagSet(RECOVERABLE) ? 1 : 0;
+            Comparator<JCDiagnostic> compareDiags =
+                    (d1, d2) -> diagValue.applyAsInt(d1) - diagValue.applyAsInt(d2);
+            deferredDiagnosticHandler.reportDeferredDiagnostics(compareDiags);
+            log.popDiagnosticHandler(deferredDiagnosticHandler);
+            deferredDiagnosticHandler = null;
         }
     }
 

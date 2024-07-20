@@ -25,6 +25,7 @@
  * @test
  * @bug 8260593
  * @summary Verify that a temporary storage variable is or is not used as needed when pattern matching.
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api

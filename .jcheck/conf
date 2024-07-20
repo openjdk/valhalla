@@ -1,7 +1,7 @@
 [general]
 project=valhalla
 jbs=JDK
-version=22
+version=23
 
 [checks]
 error=author,committer,executable,symlink,whitespace
@@ -11,7 +11,7 @@ version=0
 domain=openjdk.org
 
 [checks "whitespace"]
-files=.*\.cpp|.*\.hpp|.*\.c|.*\.h|.*\.java|.*\.cc|.*\.hh|.*\.m|.*\.mm|.*\.md|.*\.gmk|.*\.m4|.*\.ac|Makefile
+files=.*\.cpp|.*\.hpp|.*\.c|.*\.h|.*\.java|.*\.cc|.*\.hh|.*\.m|.*\.mm|.*\.md|.*\.properties|.*\.gmk|.*\.m4|.*\.ac|Makefile
 ignore-tabs=.*\.gmk|Makefile
 
 [checks "committer"]

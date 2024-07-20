@@ -35,6 +35,7 @@ import sun.security.action.GetBooleanAction;
 
 import java.io.Serializable;
 import java.lang.constant.ConstantDescs;
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -355,15 +356,17 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         else if (accidentallySerializable)
             generateSerializationHostileMethods();
 
-        // generate Preload attribute if it references any value class
-        PreloadAttributeBuilder builder = new PreloadAttributeBuilder(targetClass);
-        builder.add(factoryType)
-               .add(interfaceMethodType)
-               .add(implMethodType)
-               .add(dynamicMethodType)
-               .add(altMethods);
-        if (!builder.isEmpty())
-            cw.visitAttribute(builder.build());
+        // generate LoadableDescriptors attribute if it references any value class
+        if (PreviewFeatures.isEnabled()) {
+            LoadableDescriptorsAttributeBuilder builder = new LoadableDescriptorsAttributeBuilder(targetClass);
+            builder.add(factoryType)
+                    .add(interfaceMethodType)
+                    .add(implMethodType)
+                    .add(dynamicMethodType)
+                    .add(altMethods);
+            if (!builder.isEmpty())
+                cw.visitAttribute(builder.build());
+        }
 
         cw.visitEnd();
 
@@ -580,54 +583,50 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     }
 
     /*
-     * Preload attribute builder
+     * LoadableDescriptors attribute builder
      */
-    static class PreloadAttributeBuilder {
-        private final Set<Class<?>> preloadClasses = new HashSet<>();
-        PreloadAttributeBuilder(Class<?> targetClass) {
-            if (requiresPreload(targetClass)) {
-                preloadClasses.add(targetClass);
+    static class LoadableDescriptorsAttributeBuilder {
+        private final Set<String> loadableDescriptors = new HashSet<>();
+        LoadableDescriptorsAttributeBuilder(Class<?> targetClass) {
+            if (requiresLoadableDescriptors(targetClass)) {
+                loadableDescriptors.add(Type.getDescriptor(targetClass));
             }
         }
 
         /*
          * Add the value types referenced in the given MethodType.
          */
-        PreloadAttributeBuilder add(MethodType mt) {
+        LoadableDescriptorsAttributeBuilder add(MethodType mt) {
             // parameter types
             for (Class<?> paramType : mt.ptypes()) {
-                if (requiresPreload(paramType)) {
-                    preloadClasses.add(paramType);
+                if (requiresLoadableDescriptors(paramType)) {
+                    loadableDescriptors.add(Type.getDescriptor(paramType));
                 }
             }
             // return type
-            if (requiresPreload(mt.returnType())) {
-                preloadClasses.add(mt.returnType());
+            if (requiresLoadableDescriptors(mt.returnType())) {
+                loadableDescriptors.add(Type.getDescriptor(mt.returnType()));
             }
             return this;
         }
 
-        PreloadAttributeBuilder add(MethodType... mtypes) {
+        LoadableDescriptorsAttributeBuilder add(MethodType... mtypes) {
             for (MethodType mt : mtypes) {
                 add(mt);
             }
             return this;
         }
 
-        boolean requiresPreload(Class<?> cls) {
-            Class<?> c = cls;
-            while (c.isArray()) {
-                c = c.getComponentType();
-            }
-            return c.isValue();
+        boolean requiresLoadableDescriptors(Class<?> cls) {
+            return cls.isValue() && cls.accessFlags().contains(AccessFlag.FINAL);
         }
 
         boolean isEmpty() {
-            return preloadClasses.isEmpty();
+            return loadableDescriptors.isEmpty();
         }
 
         Attribute build() {
-            return new Attribute("Preload") {
+            return new Attribute("LoadableDescriptors") {
                 @Override
                 protected ByteVector write(ClassWriter cw,
                                            byte[] code,
@@ -635,9 +634,9 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                                            int maxStack,
                                            int maxLocals) {
                     ByteVector attr = new ByteVector();
-                    attr.putShort(preloadClasses.size());
-                    for (Class<?> c : preloadClasses) {
-                        attr.putShort(cw.newClass(Type.getInternalName(c)));
+                    attr.putShort(loadableDescriptors.size());
+                    for (String s : loadableDescriptors) {
+                        attr.putShort(cw.newUTF8(s));
                     }
                     return attr;
                 }

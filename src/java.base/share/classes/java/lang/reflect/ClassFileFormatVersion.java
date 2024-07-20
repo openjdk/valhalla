@@ -321,7 +321,7 @@ public enum ClassFileFormatVersion {
      * {@return the latest class file format version}
      */
     public static ClassFileFormatVersion latest() {
-        return RELEASE_22;
+        return RELEASE_23;
     }
 
     /**

@@ -148,6 +148,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
 
   ciType* field_klass = field->type();
+  field_klass = improve_abstract_inline_type_klass(field_klass);
   int offset = field->offset_in_bytes();
   bool must_assert_null = false;
 
@@ -237,6 +238,23 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
 }
 
+// If the field klass is an abstract value klass (for which we do not know the layout, yet), it could have a unique
+// concrete sub klass for which we have a fixed layout. This allows us to use InlineTypeNodes instead.
+ciType* Parse::improve_abstract_inline_type_klass(ciType* field_klass) {
+  Dependencies* dependencies = C->dependencies();
+  if (UseUniqueSubclasses && dependencies != nullptr && field_klass->is_instance_klass()) {
+    ciInstanceKlass* instance_klass = field_klass->as_instance_klass();
+    if (instance_klass->is_loaded() && instance_klass->is_abstract_value_klass()) {
+      ciInstanceKlass* sub_klass = instance_klass->unique_concrete_subklass();
+      if (sub_klass != nullptr && sub_klass != field_klass) {
+        field_klass = sub_klass;
+        dependencies->assert_abstract_with_unique_concrete_subtype(instance_klass, sub_klass);
+      }
+    }
+  }
+  return field_klass;
+}
+
 void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   bool is_vol = field->is_volatile();
   int offset = field->offset_in_bytes();
@@ -246,7 +264,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   if (obj->is_InlineType()) {
     // TODO 8325106 Factor into own method
     // TODO 8325106 Assert that we only do this in the constructor and align with checks in ::do_call
-    //if (_method->is_object_constructor() && _method->holder()->is_inlinetype())
+    //if (_method->is_object_constructor() && _method->holder()->is_inlinetype()) {
     assert(obj->as_InlineType()->is_larval(), "must be larval");
 
     // TODO 8325106 Assert that holder is null-free
@@ -261,8 +279,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     if (field->is_null_free()) {
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      int nargs = 1 + field->type()->size();
-      inc_sp(nargs);
+      inc_sp(1);
       val = null_check(val);
       if (stopped()) {
         return;
@@ -276,32 +293,44 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       // Re-execute if buffering triggers deoptimization.
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      int nargs = 1 + field->type()->size();
-      inc_sp(nargs);
+      inc_sp(1);
       val = val->as_InlineType()->buffer(this);
     } else if (field->is_multifield_base()) {
-      assert(!InlineTypeNode::is_multifield_scalarized(field), "Sanity check");
-      // Only possible non-unsafe access to multifield base is within vector payload constructors
-      // for initializing entire bundle with a default value.
-      val = _gvn.transform(VectorNode::scalar2vector(val, field->secondary_fields_count(), Type::get_const_type(field->type()), false));
+      // Only possible direct non-unsafe access to multifield base is within vector payload constructors.
+      // At present the semantics of putfield are applicable to flat and non-flat (including primitive and reference)
+      // fields. Mutifield does not fit into any such pre-existing class of fields, in non-scalarized form its treated
+      // as a single bundle, while in scalrized form each sub-field has a seperate ciField and IR representation.
+      // Thus a direct non-unsafe update of base multifield should also reflect over synthetic fields.
+      if (!InlineTypeNode::is_multifield_scalarized(field)) {
+         val = _gvn.transform(VectorNode::scalar2vector(val, field->secondary_fields_count(), Type::get_const_type(field->type()), false));
+      }
     } else if (field->is_multifield()) {
       assert(false, "Illegal direct write access to mutifield through putfield bytecode");
     }
-
     // Clone the inline type node and set the new field value
-    InlineTypeNode* new_vt = obj->clone()->as_InlineType();
+    InlineTypeNode* new_vt = obj->as_InlineType()->clone_if_required(&_gvn, _map);
     new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
+
+    // Tie initialization value to all the synthetic multifields.
+    if (InlineTypeNode::is_multifield_scalarized(field)) {
+      int fsize = type2aelembytes(field->type()->basic_type());
+      for (int i = 1; i < field->secondary_fields_count(); i++) {
+        assert((uint)i < new_vt->field_count(), "");
+        int offset = field->offset_in_bytes() + i * fsize;
+        new_vt->set_field_value_by_offset(offset, val);
+      }
+    }
 
     {
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      int nargs = 1 + field->type()->size();
-      inc_sp(nargs);
+      inc_sp(1);
       new_vt = new_vt->adjust_scalarization_depth(this);
     }
 
-    // TODO 8325106 needed? I think so, because although we are incrementally inlining, we might not incrementally inline this very method
-    if ((!_caller->has_method() || C->inlining_incrementally()) && new_vt->is_allocated(&gvn())) {
+    // TODO 8325106 Double check and explain these checks
+    if ((!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor()) && new_vt->is_allocated(&gvn())) {
+      assert(new_vt->as_InlineType()->is_allocated(&gvn()), "must be buffered");
       // We need to store to the buffer
       // TODO 8325106 looks like G1BarrierSetC2::g1_can_remove_pre_barrier is not strong enough to remove the pre barrier
       // TODO is it really guaranteed that the preval is null?

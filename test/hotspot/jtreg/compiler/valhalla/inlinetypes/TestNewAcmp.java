@@ -1901,7 +1901,7 @@ public class TestNewAcmp {
                     continue;
                 }
 
-                OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
+                OutputAnalyzer oa = ProcessTools.executeTestJava(cmds);
                 String output = oa.getOutput();
                 oa.shouldHaveExitValue(0);
                 System.out.println(output);

@@ -2206,8 +2206,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       if (phi_type->isa_ptr()) {
         const Type* uin_type = phase->type(uin);
         if (!phi_type->isa_oopptr() && !uin_type->isa_oopptr()) {
-          cast = ConstraintCastNode::make_cast(Op_CastPP, r, uin, phi_type, ConstraintCastNode::StrongDependency,
-                                               extra_types);
+          cast = new CastPPNode(r, uin, phi_type, ConstraintCastNode::StrongDependency, extra_types);
         } else {
           // Use a CastPP for a cast to not null and a CheckCastPP for
           // a cast to a new klass (and both if both null-ness and
@@ -2217,8 +2216,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           // null, uin's type must be casted to not null
           if (phi_type->join(TypePtr::NOTNULL) == phi_type->remove_speculative() &&
               uin_type->join(TypePtr::NOTNULL) != uin_type->remove_speculative()) {
-            cast = ConstraintCastNode::make_cast(Op_CastPP, r, uin, TypePtr::NOTNULL,
-                                                 ConstraintCastNode::StrongDependency, extra_types);
+            cast = new CastPPNode(r, uin, TypePtr::NOTNULL, ConstraintCastNode::StrongDependency, extra_types);
           }
 
           // If the type of phi and uin, both casted to not null,
@@ -2230,12 +2228,10 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
               cast = phase->transform(cast);
               n = cast;
             }
-            cast = ConstraintCastNode::make_cast(Op_CheckCastPP, r, n, phi_type, ConstraintCastNode::StrongDependency,
-                                                 extra_types);
+            cast = new CheckCastPPNode(r, n, phi_type, ConstraintCastNode::StrongDependency, extra_types);
           }
           if (cast == nullptr) {
-            cast = ConstraintCastNode::make_cast(Op_CastPP, r, uin, phi_type, ConstraintCastNode::StrongDependency,
-                                                 extra_types);
+            cast = new CastPPNode(r, uin, phi_type, ConstraintCastNode::StrongDependency, extra_types);
           }
         }
       } else {
@@ -2677,7 +2673,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   // Phi (VB ... VB) => VB (Phi ...) (Phi ...)
   if (EnableVectorReboxing && can_reshape && progress == nullptr && type()->isa_oopptr()) {
-    progress = merge_through_phi(this, phase);
+    progress = merge_through_phi(this, phase->is_IterGVN());
   }
 
   return progress;              // Return any progress
@@ -2871,8 +2867,7 @@ Node* PhiNode::clone_through_phi(Node* root_phi, const Type* t, uint c, PhaseIte
   return new_phi;
 }
 
-Node* PhiNode::merge_through_phi(Node* root_phi, PhaseGVN *phase) {
-  PhaseIterGVN *igvn = phase->is_IterGVN();
+Node* PhiNode::merge_through_phi(Node* root_phi, PhaseIterGVN* igvn) {
   Node_Stack stack(1);
   VectorSet  visited;
 
@@ -2924,7 +2919,7 @@ Node* PhiNode::merge_through_phi(Node* root_phi, PhaseGVN *phase) {
   Node* new_vector_phi = clone_through_phi(new_payload_phi, vtype, InlineTypeNode::get_Values_idx(), igvn);
   Node* new_vbox_phi = clone_through_phi(root_phi, btype, InlineTypeNode::get_Oop_idx(), igvn);
 
-  return VectorBoxNode::make_box_node(*igvn, phase->C, new_vbox_phi, new_vector_phi, btype, vtype);
+  return VectorBoxNode::make_box_node(*igvn, igvn->C, new_vbox_phi, new_vector_phi, btype, vtype);
 }
 
 bool PhiNode::is_data_loop(RegionNode* r, Node* uin, const PhaseGVN* phase) {

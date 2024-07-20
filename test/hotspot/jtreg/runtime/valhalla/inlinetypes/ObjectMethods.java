@@ -30,7 +30,6 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @test ObjectMethods
  * @summary Check object methods implemented by the VM behave with value types
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @modules java.base/jdk.internal.classfile
  * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile ObjectMethods.java
@@ -62,8 +61,9 @@ public class ObjectMethods {
         //hashCode()/identityHashCode()
         checkHashCodes(val, sameVal.hashCode());
 
-        // clone()
+        // clone() - test the default implementation from j.l.Object
         checkNotCloneable(val);
+        checkCloneable(new MyCloneableInt(78));
 
         // synchronized
         checkSynchronized(val);
@@ -109,19 +109,34 @@ public class ObjectMethods {
         if (!sawCnse) {
             throw new RuntimeException("clone() did not fail");
         }
-        // Cloneable inline type checked by "BadInlineTypes" CFP tests
+    }
+
+    static void checkCloneable(MyCloneableInt val) {
+        boolean sawCnse = false;
+        MyCloneableInt val2 = null;
+        try {
+            val2 = (MyCloneableInt)val.attemptClone();
+        } catch (CloneNotSupportedException cnse) {
+            sawCnse = true;
+        }
+        if (sawCnse) {
+            throw new RuntimeException("clone() did fail");
+        }
+        if (val != val2) {
+            throw new RuntimeException("Cloned value is not identical to the original");
+        }
     }
 
     static void checkSynchronized(Object val) {
-        boolean sawImse = false;
+        boolean sawIe = false;
         try {
             synchronized (val) {
-                throw new IllegalStateException("Unreachable code, reached");
+                throw new IdentityException("Unreachable code, reached");
             }
-        } catch (IllegalMonitorStateException imse) {
-            sawImse = true;
+        } catch (IdentityException ie) {
+            sawIe = true;
         }
-        if (!sawImse) {
+        if (!sawIe) {
             throw new RuntimeException("monitorenter did not fail");
         }
         // synchronized method modifiers tested by "BadInlineTypes" CFP tests
@@ -130,7 +145,7 @@ public class ObjectMethods {
 
     // Check we haven't broken the mismatched monitor block check...
     static void checkMonitorExit(Object val) {
-        boolean sawImse = false;
+        boolean sawIe = false;
         try {
             InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
                                                 "mismatchedMonitorExit",
@@ -144,12 +159,12 @@ public class ObjectMethods {
             throw new IllegalStateException("Unreachable code, reached");
         } catch (Throwable t) {
             if (t instanceof IllegalMonitorStateException) {
-                sawImse = true;
+                sawIe = true;
             } else {
                 throw new RuntimeException(t);
             }
         }
-        if (!sawImse) {
+        if (!sawIe) {
             throw new RuntimeException("monitorexit did not fail");
         }
     }
@@ -217,6 +232,25 @@ public class ObjectMethods {
     static value class MyInt {
         int value;
         public MyInt(int v) { value = v; }
+        public Object attemptClone() throws CloneNotSupportedException {
+            try { // Check it is not possible to clone...
+                MethodHandles.Lookup lookup = MethodHandles.lookup();
+                MethodHandle mh = lookup.findVirtual(getClass(),
+                                                     "clone",
+                                                     MethodType.methodType(Object.class));
+                return mh.invokeExact(this);
+            } catch (Throwable t) {
+                if (t instanceof CloneNotSupportedException) {
+                    throw (CloneNotSupportedException) t;
+                }
+                throw new RuntimeException(t);
+            }
+        }
+    }
+
+    static value class MyCloneableInt implements Cloneable {
+        int value;
+        public MyCloneableInt(int v) { value = v; }
         public Object attemptClone() throws CloneNotSupportedException {
             try { // Check it is not possible to clone...
                 MethodHandles.Lookup lookup = MethodHandles.lookup();

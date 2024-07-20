@@ -47,7 +47,7 @@ public class TestValueClasses extends JavadocTester {
     private final ToolBox tb = new ToolBox();
 
     @Test
-    public void testValueClassModifiers(Path base) throws IOException {
+    public void testConcreteValueClass(Path base) throws IOException {
         Path src = base.resolve("src");
         tb.writeJavaFiles(src,
                 "package p; public value class ValueClass {}");
@@ -61,6 +61,42 @@ public class TestValueClasses extends JavadocTester {
         checkOutput("p/ValueClass.html", true,
                 """
                 <div class="type-signature"><span class="modifiers">public value final class </span><span class="element-name type-name-label">ValueClass</span>
+                """);
+    }
+
+    @Test
+    public void testAbstractValueClass(Path base) throws IOException {
+        Path src = base.resolve("src");
+        tb.writeJavaFiles(src,
+                "package p; public abstract value class ValueClass {}");
+
+        javadoc("-d", base.resolve("out").toString(),
+                "--enable-preview", "-source", String.valueOf(Runtime.version().feature()),
+                "-sourcepath", src.toString(),
+                "p");
+        checkExit(Exit.OK);
+
+        checkOutput("p/ValueClass.html", true,
+                """
+                <div class="type-signature"><span class="modifiers">public abstract value class </span><span class="element-name type-name-label">ValueClass</span>
+                """);
+    }
+
+    @Test
+    public void testValueRecord(Path base) throws IOException {
+        Path src = base.resolve("src");
+        tb.writeJavaFiles(src,
+                "package p; public value record ValueRecord() {}");
+
+        javadoc("-d", base.resolve("out").toString(),
+                "--enable-preview", "-source", String.valueOf(Runtime.version().feature()),
+                "-sourcepath", src.toString(),
+                "p");
+        checkExit(Exit.OK);
+
+        checkOutput("p/ValueRecord.html", true,
+                """
+                <div class="type-signature"><span class="modifiers">public value record </span><span class="element-name type-name-label">ValueRecord</span>()
                 """);
     }
 }

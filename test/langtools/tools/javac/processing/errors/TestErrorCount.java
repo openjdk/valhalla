@@ -25,6 +25,7 @@
  * @test
  * @bug 6988079
  * @summary Errors reported via Messager.printMessage(ERROR,"error message") are not tallied correctly
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules java.compiler
  *          jdk.compiler
