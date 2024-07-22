@@ -720,11 +720,12 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
 
   if (inline_type_field_klasses_array() != nullptr) {
     MetadataFactory::free_array<InlineKlass*>(loader_data, inline_type_field_klasses_array());
+    set_inline_type_field_klasses_array(nullptr);
   }
-  set_inline_type_field_klasses_array(nullptr);
 
   if (null_marker_offsets_array() != nullptr) {
     MetadataFactory::free_array<int>(loader_data, null_marker_offsets_array());
+    set_null_marker_offsets_array(nullptr);
   }
 
   // If a method from a redefined class is using this constant pool, don't
@@ -766,6 +767,7 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
       !loadable_descriptors()->is_shared()) {
     MetadataFactory::free_array<jushort>(loader_data, loadable_descriptors());
   }
+  set_loadable_descriptors(nullptr);
 
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != nullptr && !annotations()->is_shared()) {
