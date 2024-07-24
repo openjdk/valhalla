@@ -735,7 +735,7 @@ void InterpreterMacroAssembler::remove_activation(
       Label skip_stress;
       ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
       ldrw(rscratch1, Address(rscratch1, Method::flags_offset()));
-      tstw(rscratch1, ConstMethodFlags::has_scalarized_return_flag());
+      tstw(rscratch1, MethodFlags::has_scalarized_return_flag());
       br(Assembler::EQ, skip_stress);
       load_klass(r0, r0);
       orr(r0, r0, 1);

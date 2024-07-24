@@ -88,6 +88,8 @@ class MethodFlags {
   M_STATUS_DO(M_STATUS_GET_SET)
 #undef M_STATUS_GET_SET
 
+  static u4 has_scalarized_return_flag() { return _misc_has_scalarized_return; }
+
   int as_int() const { return _status; }
   void atomic_set_bits(u4 bits)   { Atomic::fetch_then_or(&_status, bits); }
   void atomic_clear_bits(u4 bits) { Atomic::fetch_then_and(&_status, ~bits); }
