@@ -1021,7 +1021,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
       }
     }
 
-    // Aggressively preloading all classes from the Preload attribute
+    // Aggressively preloading all classes from the LoadableDescriptors attribute
     if (loadable_descriptors() != nullptr) {
       HandleMark hm(THREAD);
       for (int i = 0; i < loadable_descriptors()->length(); i++) {
@@ -3952,7 +3952,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     st->print(BULLET"record components:     "); record_components()->print_value_on(st);     st->cr();
   }
   st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
-  st->print(BULLET"preload classes:     "); loadable_descriptors()->print_value_on(st); st->cr();
+  st->print(BULLET"loadable descriptors:     "); loadable_descriptors()->print_value_on(st); st->cr();
   if (java_mirror() != nullptr) {
     st->print(BULLET"java mirror:       ");
     java_mirror()->print_value_on(st);

@@ -1936,8 +1936,8 @@ bool VM_RedefineClasses::rewrite_cp_refs(InstanceKlass* scratch_class) {
     return false;
   }
 
-  // rewrite constant pool references in the Preload attribute:
-  if (!rewrite_cp_refs_in_preload_attribute(scratch_class)) {
+  // rewrite constant pool references in the LoadableDescriptors attribute:
+  if (!rewrite_cp_refs_in_loadable_descriptors_attribute(scratch_class)) {
     // propagate failure back to caller
     return false;
   }
@@ -2090,8 +2090,8 @@ bool VM_RedefineClasses::rewrite_cp_refs_in_permitted_subclasses_attribute(
   return true;
 }
 
-// Rewrite constant pool references in the Preload attribute.
-bool VM_RedefineClasses::rewrite_cp_refs_in_preload_attribute(
+// Rewrite constant pool references in the LoadableDescriptors attribute.
+bool VM_RedefineClasses::rewrite_cp_refs_in_loadable_descriptors_attribute(
        InstanceKlass* scratch_class) {
 
   Array<u2>* loadable_descriptors = scratch_class->loadable_descriptors();
