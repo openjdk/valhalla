@@ -494,6 +494,9 @@ java/lang/invoke/LFCaching/LFGarbageCollectedTest.java          8078602 generic-
 java/lang/invoke/lambda/LambdaFileEncodingSerialization.java    8249079 linux-all
 java/lang/invoke/RicochetTest.java                              8251969 generic-all
 
+java/lang/ModuleLayer/LayerControllerTest.java                  8337048 generic-all
+java/lang/ModuleLayer/BasicLayerTest.java                       8337048 generic-all
+
 ############################################################################
 
 # jdk_instrument
