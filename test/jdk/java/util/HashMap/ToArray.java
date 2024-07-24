@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,10 +34,22 @@ import java.util.stream.LongStream;
 
 /*
  * @test
+ * @bug 8336669
  * @summary HashMap.toArray() behavior tests
  * @author tvaleev
  */
 public class ToArray {
+    // An interned identity class holding an int (like non-Preview Integer)
+    record Int(int intValue) implements Comparable<Int> {
+        @Override
+        public int compareTo(Int o) {
+            if (!(o instanceof Int other)) {
+                throw new IllegalArgumentException("Incomparable type: " + o.getClass().getName());
+            }
+            return Integer.compare(intValue, other.intValue);
+        }
+    }
+
     public static void main(String[] args) {
         checkMap(false);
         checkMap(true);
