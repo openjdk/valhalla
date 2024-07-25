@@ -582,8 +582,6 @@ void Parse::do_call() {
   if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && stack(sp() - nargs)->is_InlineType()) {
     assert(method()->is_object_constructor() && (method()->holder()->is_inlinetype() || method()->holder()->is_abstract()), "Unexpected caller");
     InlineTypeNode* receiver = stack(sp() - nargs)->as_InlineType();
-    // TODO 8325106 re-enable the assert and add the same check for the receiver in the caller map
-    //assert(receiver->is_larval(), "must be larval");
     InlineTypeNode* clone = receiver->clone_if_required(&_gvn, _map);
     clone->set_is_larval(false);
     clone = _gvn.transform(clone)->as_InlineType();

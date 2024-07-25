@@ -2200,7 +2200,6 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     // Inline types are merged by merging their field values.
     // Create a cloned InlineTypeNode with phi inputs that
     // represents the merged inline type and update the map.
-    // TODO 8325106 Why can't we pass map here?
     vt = vt->clone_with_phis(&_gvn, region);
     map->set_req(idx, vt);
     return vt->get_oop()->as_Phi();

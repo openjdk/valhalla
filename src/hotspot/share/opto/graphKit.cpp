@@ -1486,8 +1486,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
-    // TODO 8325106 Can we avoid cloning?
-    Node* vt = obj->clone();
+    Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
     vt->as_InlineType()->set_is_init(_gvn);
     vt = _gvn.transform(vt);
     if (do_replace_in_map) {
