@@ -98,7 +98,7 @@ class RecordCompilationTests extends CompilationTestCase {
     private static String[] OPTIONS_WITH_AP = {"-processor", SimplestAP.class.getName()};
 
     private static final List<String> BAD_COMPONENT_NAMES = List.of(
-            "clone", "finalize", "getClass", "hashCode", "isValueObject",
+            "clone", "finalize", "getClass", "hashCode",
             "notify", "notifyAll", "toString", "wait");
 
     /* simplest annotation processor just to force a round of annotation processing for all tests

@@ -1113,10 +1113,6 @@ public class Gen extends JCTree.Visitor {
             code.newLocal(v);
         }
         checkDimension(tree.pos(), v.type);
-        Type localType = v.erasure(types);
-        if (localType.requiresLoadableDescriptors(env.enclClass.sym)) {
-            poolWriter.enterLoadableDescriptorsClass((ClassSymbol) localType.tsym);
-        }
     }
 
     public void visitSkip(JCSkip tree) {

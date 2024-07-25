@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,7 +19,14 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-interface NeutralInterface { }
+// key: compiler.warn.value.finalize
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// key: compiler.warn.has.been.deprecated.for.removal
+// options: --enable-preview  -source ${jdk.version}
+
+value class ValueWithFinalizeMethod {
+    protected void finalize() throws Throwable { }
+}

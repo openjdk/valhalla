@@ -319,6 +319,8 @@ class SharedRuntime: AllStatic {
   //
   static char* generate_class_cast_message(Klass* caster_klass, Klass* target_klass, Symbol* target_klass_name = nullptr);
 
+  static char* generate_identity_exception_message(JavaThread* thr, Klass* klass);
+
   // Resolves a call site- may patch in the destination of the call into the
   // compiled code.
   static methodHandle resolve_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS);

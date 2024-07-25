@@ -4173,6 +4173,7 @@ public class TestLWorld {
         public int val();
     }
 
+    @ImplicitlyConstructible
     static abstract value class MyAbstract2 implements MyInterface2 {
 
     }

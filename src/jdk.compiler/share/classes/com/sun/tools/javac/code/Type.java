@@ -243,7 +243,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     public boolean requiresLoadableDescriptors(Symbol referringClass) {
         if (this.tsym == referringClass)
             return false; // pointless
-        return this.isValueClass();
+        return this.isValueClass() && this.isFinal();
     }
 
     /**
@@ -1051,7 +1051,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         @Override
-        public ClassType cloneWithMetadata(List<TypeMetadata> md) {
+        protected ClassType cloneWithMetadata(List<TypeMetadata> md) {
             return new ClassType(outer_field, typarams_field, tsym, md) {
                 @Override
                 public Type baseType() { return ClassType.this.baseType(); }
@@ -2369,7 +2369,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         @Override
-        public ErrorType cloneWithMetadata(List<TypeMetadata> md) {
+        protected ErrorType cloneWithMetadata(List<TypeMetadata> md) {
             return new ErrorType(originalType, tsym, md) {
                 @Override
                 public Type baseType() { return ErrorType.this.baseType(); }

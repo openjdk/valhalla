@@ -886,10 +886,11 @@ JRT_ENTRY(void, Runtime1::throw_illegal_monitor_state_exception(JavaThread* curr
   SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_IllegalMonitorStateException());
 JRT_END
 
-JRT_ENTRY(void, Runtime1::throw_identity_exception(JavaThread* current))
+JRT_ENTRY(void, Runtime1::throw_identity_exception(JavaThread* current, oopDesc* object))
   NOT_PRODUCT(_throw_identity_exception_count++;)
   ResourceMark rm(current);
-  SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_IdentityException());
+  char* message = SharedRuntime::generate_identity_exception_message(current, object->klass());
+  SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_IdentityException(), message);
 JRT_END
 
 JRT_BLOCK_ENTRY(void, Runtime1::monitorenter(JavaThread* current, oopDesc* obj, BasicObjectLock* lock))

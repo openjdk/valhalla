@@ -51,6 +51,16 @@
  * @run main/othervm NullMarkersTest 2
  */
 
+/*
+ * @test id=NullMarker64NoCompressedOopsNoCompressedKlassPointers
+ * @requires vm.bits == 64
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
+ * @run main/othervm NullMarkersTest 3
+ */
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -275,7 +285,7 @@ public class NullMarkersTest {
     Asserts.assertTrue(fb1.hasNullMarker());
   }
 
-  static ProcessBuilder exec(String compressedOopsArg, String... args) throws Exception {
+  static ProcessBuilder exec(String compressedOopsArg, String compressedKlassPointersArg, String... args) throws Exception {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
     Collections.addAll(argsList, "-Xint");
@@ -283,6 +293,9 @@ public class NullMarkersTest {
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     if (compressedOopsArg != null) {
       Collections.addAll(argsList, compressedOopsArg);
+    }
+    if (compressedKlassPointersArg != null) {
+      Collections.addAll(argsList, compressedKlassPointersArg);
     }
     Collections.addAll(argsList, "-Xmx256m");
     Collections.addAll(argsList, "-XX:+EnableNullableFieldFlattening");
@@ -293,13 +306,20 @@ public class NullMarkersTest {
 
   public static void main(String[] args) throws Exception {
     String compressedOopsArg;
+    String compressedKlassPointersArg;
 
     switch(args[0]) {
       case "0": compressedOopsArg = null;
+                compressedKlassPointersArg = null;
                 break;
       case "1": compressedOopsArg = "-XX:+UseCompressedOops";
+                compressedKlassPointersArg =  "-XX:+UseCompressedClassPointers";
                 break;
       case "2": compressedOopsArg = "-XX:-UseCompressedOops";
+                compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+                break;
+      case "3": compressedOopsArg = "-XX:-UseCompressedOops";
+                compressedKlassPointersArg = "-XX:-UseCompressedClassPointers";
                 break;
       default: throw new RuntimeException("Unrecognized configuration");
     }
@@ -308,9 +328,12 @@ public class NullMarkersTest {
     NullMarkersTest fat = new NullMarkersTest();
 
     // Execute the test runner in charge of loading all test classes
-    ProcessBuilder pb = exec(compressedOopsArg, "NullMarkersTest$TestRunner");
+    ProcessBuilder pb = exec(compressedOopsArg, compressedKlassPointersArg, "NullMarkersTest$TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
+    if (out.getExitValue() != 0) {
+      out.outputTo(System.out);
+    }
     Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
     // Get and parse the test output

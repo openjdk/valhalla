@@ -437,7 +437,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   }
   InstanceKlass* ik = InstanceKlass::cast(klass);
   if (!ik->is_implicitly_constructible()) {
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not annotated with @ImplicitlyConstructible");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
   }
   oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
@@ -720,11 +720,16 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   // All arrays are considered to be cloneable (See JLS 20.1.5).
   // All j.l.r.Reference classes are considered non-cloneable.
   if (!klass->is_cloneable() ||
-       klass->is_inline_klass() ||
       (klass->is_instance_klass() &&
        InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
     ResourceMark rm(THREAD);
     THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
+  }
+
+  if (klass->is_inline_klass()) {
+    // Value instances have no identity, so return the current instance instead of allocating a new one
+    // Value classes cannot have finalizers, so the method can return immediately
+    return JNIHandles::make_local(THREAD, obj());
   }
 
   // Make shallow object copy

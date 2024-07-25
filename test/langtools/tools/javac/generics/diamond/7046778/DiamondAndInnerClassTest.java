@@ -26,6 +26,7 @@
  * @bug 7046778 8006694 8129962
  * @summary Project Coin: problem with diamond and member inner classes
  *  temporarily workaround combo tests are causing time out in several platforms
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

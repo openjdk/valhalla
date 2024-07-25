@@ -423,7 +423,7 @@ public class ClassWriter extends BasicWriter {
 
         if (options.verbose)
             writeList(String.format("flags: (0x%04x) ", flags.flagsMask()),
-                    flags.flags().stream().map(fl -> "ACC_" + fl.name()).toList(),
+                    flags.flags().stream().map(fl -> "ACC_" + fl.toString()).toList(),
                     "\n");
 
         if (options.showAllAttrs) {

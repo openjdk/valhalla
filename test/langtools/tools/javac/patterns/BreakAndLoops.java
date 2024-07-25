@@ -25,6 +25,7 @@
  * @test
  * @bug 8234922
  * @summary Verify proper scope of binding related to loops and breaks.
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api

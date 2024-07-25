@@ -720,11 +720,12 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
 
   if (inline_type_field_klasses_array() != nullptr) {
     MetadataFactory::free_array<InlineKlass*>(loader_data, inline_type_field_klasses_array());
+    set_inline_type_field_klasses_array(nullptr);
   }
-  set_inline_type_field_klasses_array(nullptr);
 
   if (null_marker_offsets_array() != nullptr) {
     MetadataFactory::free_array<int>(loader_data, null_marker_offsets_array());
+    set_null_marker_offsets_array(nullptr);
   }
 
   // If a method from a redefined class is using this constant pool, don't
@@ -766,6 +767,7 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
       !loadable_descriptors()->is_shared()) {
     MetadataFactory::free_array<jushort>(loader_data, loadable_descriptors());
   }
+  set_loadable_descriptors(nullptr);
 
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != nullptr && !annotations()->is_shared()) {
@@ -1005,12 +1007,21 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                         err_msg("class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
                         klass->external_name()), false);
           }
-          // the inline_type_field_klass_array is not updated because of CDS (see verifications in SystemDictionary::load_shared_class())
+          // the inline_type_field_klasses_array might have been loaded with CDS, so update only if not already set and check consistency
+          if (inline_type_field_klasses_array()->at(fs.index()) == nullptr) {
+            set_inline_type_field_klass(fs.index(), InlineKlass::cast(ik));
+          }
+          assert(get_inline_type_field_klass(fs.index()) == ik, "Must match");
+        } else {
+          if (inline_type_field_klasses_array()->at(fs.index()) == nullptr) {
+            set_inline_type_field_klass(fs.index(), InlineKlass::cast(this));
+          }
+          assert(get_inline_type_field_klass(fs.index()) == this, "Must match");
         }
       }
     }
 
-    // Aggressively preloading all classes from the Preload attribute
+    // Aggressively preloading all classes from the LoadableDescriptors attribute
     if (loadable_descriptors() != nullptr) {
       HandleMark hm(THREAD);
       for (int i = 0; i < loadable_descriptors()->length(); i++) {
@@ -1383,23 +1394,14 @@ void InstanceKlass::initialize_impl(TRAPS) {
   if (EnableValhalla) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (fs.is_null_free_inline_type()) {
-        Klass* klass = get_inline_type_field_klass_or_null(fs.index());
-        if (fs.access_flags().is_static() && klass == nullptr) {
-          klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
-              Handle(THREAD, class_loader()),
-              Handle(THREAD, protection_domain()),
-              true, THREAD);
-          assert(klass->is_inline_klass(), "Must be");
-          set_inline_type_field_klass(fs.index(), InlineKlass::cast(klass));
-        }
 
-        if (!HAS_PENDING_EXCEPTION) {
-          assert(klass != nullptr, "Must  be");
-          InstanceKlass::cast(klass)->initialize(THREAD);
-          if (fs.access_flags().is_static()) {
-            if (java_mirror()->obj_field(fs.offset()) == nullptr) {
-              java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
-            }
+        // inline type field klass array entries must have alreadyt been filed at load time or link time
+        Klass* klass = get_inline_type_field_klass(fs.index());
+
+        InstanceKlass::cast(klass)->initialize(THREAD);
+        if (fs.access_flags().is_static()) {
+          if (java_mirror()->obj_field(fs.offset()) == nullptr) {
+            java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
           }
         }
 
@@ -3950,7 +3952,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     st->print(BULLET"record components:     "); record_components()->print_value_on(st);     st->cr();
   }
   st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
-  st->print(BULLET"preload classes:     "); loadable_descriptors()->print_value_on(st); st->cr();
+  st->print(BULLET"loadable descriptors:     "); loadable_descriptors()->print_value_on(st); st->cr();
   if (java_mirror() != nullptr) {
     st->print(BULLET"java mirror:       ");
     java_mirror()->print_value_on(st);

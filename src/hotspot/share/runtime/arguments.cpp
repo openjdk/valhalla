@@ -1829,10 +1829,6 @@ bool Arguments::check_vm_args_consistency() {
     warning("InlineTypeReturnedAsFields is not supported on this platform");
   }
 
-  // Valhalla missing LM_LIGHTWEIGHT support just now
-  if (EnableValhalla && LockingMode != LM_LEGACY) {
-    FLAG_SET_CMDLINE(LockingMode, LM_LEGACY);
-  }
 #if !defined(X86) && !defined(AARCH64) && !defined(RISCV64) && !defined(ARM) && !defined(PPC64) && !defined(S390)
   if (LockingMode == LM_LIGHTWEIGHT) {
     FLAG_SET_CMDLINE(LockingMode, LM_LEGACY);
