@@ -89,10 +89,6 @@ class ConstMethodFlags {
   CM_FLAGS_DO(CM_FLAGS_GET_SET)
 #undef CM_FLAGS_GET_SET
 
-  static u4 has_scalarized_return_flag() {
-    return _misc_has_scalarized_return;
-  }
-
   int as_int() const { return _flags; }
   void print_on(outputStream* st) const;
 };
