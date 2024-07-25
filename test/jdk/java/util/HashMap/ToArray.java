@@ -43,10 +43,7 @@ public class ToArray {
     record Int(int intValue) implements Comparable<Int> {
         @Override
         public int compareTo(Int o) {
-            if (!(o instanceof Int other)) {
-                throw new IllegalArgumentException("Incomparable type: " + o.getClass().getName());
-            }
-            return Integer.compare(intValue, other.intValue);
+            return Integer.compare(intValue, o.intValue);
         }
     }
 

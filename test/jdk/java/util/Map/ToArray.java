@@ -43,7 +43,7 @@ public class ToArray {
     }
 
     private static void realMain(String[] args) throws Throwable {
-        Map<String, Long>[] maps = (Map<String, Long>[]) new Map[]{
+        Map<String, Long>[] maps = (Map<String, Long>[]) new Map<?,?>[]{
                     new HashMap<>(),
                     new Hashtable<>(),
                     new IdentityHashMap<>(),

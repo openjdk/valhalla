@@ -53,7 +53,7 @@ public class LockStep {
     // interned for IdentityHashMap
     // identity for WeakHashMap
     private record Int(int intValue) implements Comparable<Int> {
-        private static Map<Integer, Int> interned = new HashMap<>(100);
+        private static final Map<Integer, Int> interned = new HashMap<>(100);
 
         // Return a unique Ini for each int.
         static Int intern(int intValue) {
@@ -62,10 +62,7 @@ public class LockStep {
 
         @Override
         public int compareTo(Int o) {
-            if (!(o instanceof Int other)) {
-                throw new IllegalArgumentException("Incomparable type: " + o.getClass().getName());
-            }
-            return Integer.compare(intValue, other.intValue);
+            return Integer.compare(intValue, o.intValue);
         }
     }
 

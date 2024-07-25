@@ -47,10 +47,7 @@ public class Get {
     record Char(char c) implements Comparable<Char> {
         @Override
         public int compareTo(Char ch) {
-            if (!(ch instanceof Char other)) {
-                throw new IllegalArgumentException("Incomparable type: " + ch.getClass().getName());
-            }
-            return Character.compare(c, other.c);
+            return Character.compare(c, ch.c);
         }
     }
 
