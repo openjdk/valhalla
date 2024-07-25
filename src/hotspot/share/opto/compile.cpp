@@ -2021,7 +2021,9 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   // Delay this until all inlining is over to avoid getting inconsistent debug info.
   set_scalarize_in_safepoints(true);
   for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
-    _inline_type_nodes.at(i)->as_InlineType()->make_scalar_in_safepoints(&igvn);
+    InlineTypeNode* vt = _inline_type_nodes.at(i)->as_InlineType();
+    vt->make_scalar_in_safepoints(&igvn);
+    igvn.record_for_igvn(vt);
   }
   if (remove) {
     // Remove inline type nodes by replacing them with their oop input

@@ -277,7 +277,8 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   sobj->init_req(0, igvn->C->root());
   // Nullable inline types have an IsInit field that needs
   // to be checked before using the field values.
-  if (!igvn->type(get_is_init())->is_int()->is_con(1)) {
+  const TypeInt* tinit = igvn->type(get_is_init())->isa_int();
+  if (tinit != nullptr && tinit->is_con(1)) {
     sfpt->add_req(get_is_init());
   } else {
     sfpt->add_req(igvn->C->top());
@@ -831,8 +832,8 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
 }
 
 bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
-  const Type* tinit = gvn->type(get_is_init());
-  if (!tinit->isa_int() || !tinit->is_int()->is_con(1)) {
+  const TypeInt* tinit = gvn->type(get_is_init())->isa_int();
+  if (tinit == nullptr|| !tinit->is_con(1)) {
     return false; // May be null
   }
   for (uint i = 0; i < field_count(); ++i) {
@@ -845,8 +846,8 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
       continue;
     } else if (value->is_InlineType()) {
       // Nullable value class field must be null
-      const Type* tinit = gvn->type(value->as_InlineType()->get_is_init());
-      if (tinit->isa_int() && tinit->is_int()->is_con(0)) {
+      tinit = gvn->type(value->as_InlineType()->get_is_init())->isa_int();
+      if (tinit != nullptr && tinit->is_con(0)) {
         continue;
       }
       return false;
@@ -877,7 +878,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
   InlineTypeNode* vt = nullptr;
 
   if (oop->isa_InlineType()) {
-    // TODO 8325106 Re-enable assert and fix OSR code
+    // TODO 8335256 Re-enable assert and fix OSR code
     // Issue triggers with TestValueConstruction.java and -XX:Tier0BackedgeNotifyFreqLog=0 -XX:Tier2BackedgeNotifyFreqLog=0 -XX:Tier3BackedgeNotifyFreqLog=0 -XX:Tier2BackEdgeThreshold=1 -XX:Tier3BackEdgeThreshold=1 -XX:Tier4BackEdgeThreshold=1 -Xbatch -XX:-TieredCompilation
     // assert(!is_larval || oop->as_InlineType()->is_larval(), "must be larval");
     if (is_larval && !oop->as_InlineType()->is_larval()) {
