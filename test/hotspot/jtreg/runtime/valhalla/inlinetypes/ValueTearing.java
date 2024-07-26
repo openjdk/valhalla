@@ -29,18 +29,26 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+
+import javax.swing.LayoutFocusTraversalPolicy;
+
 import java.util.Optional;
 
 import jdk.internal.misc.Unsafe;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.whitebox.WhiteBox;
 import static jdk.test.lib.Asserts.*;
 
 /*
- * @ignore Fix JDK-8328353
  * @test ValueTearing
  * @summary Test tearing of inline fields and array elements
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile ValueTearing.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -86,9 +94,9 @@ public class ValueTearing {
             Field NTPB_field = NTPointBox.class.getDeclaredField("field");
             Field NTPB_array = NTPointBox.class.getDeclaredField("array");
             TFIELD_FLAT = UNSAFE.isFlatField(TPB_field);
-            TARRAY_FLAT = UNSAFE.isFlattenedArray(TPB_array.getType());
+            TARRAY_FLAT = UNSAFE.isFlatArray(TPB_array.getType());
             NTFIELD_FLAT = UNSAFE.isFlatField(NTPB_field);
-            NTARRAY_FLAT = UNSAFE.isFlattenedArray(NTPB_array.getType());
+            NTARRAY_FLAT = UNSAFE.isFlatArray(NTPB_array.getType());
         } catch (ReflectiveOperationException ex) {
             throw new AssertionError(ex);
         }
@@ -112,8 +120,10 @@ public class ValueTearing {
         }
     }
 
-    // A normally tearable inline value.
-    static primitive class TPoint {
+    // A tearable value.
+    @LooselyConsistentValue
+    @ImplicitlyConstructible
+    static value class TPoint {
         TPoint(long x, long y) { this.x = x; this.y = y; }
         final long x, y;
         public String toString() { return String.format("(%d,%d)", x, y); }
@@ -133,8 +143,9 @@ public class ValueTearing {
     }
 
     class TPointBox implements PointBox {
+        @NullRestricted
         TPoint field;
-        TPoint[] array = new TPoint[1];
+        TPoint[] array = (TPoint[])ValueClass.newNullRestrictedArray(TPoint.class, 1);
         // Step the points forward by incrementing their components
         // "simultaneously".  A racing thread will catch flaws in the
         // simultaneity.
@@ -174,19 +185,19 @@ public class ValueTearing {
         }
     }
 
-    // Add an indirection, as an extra test.
-    interface NT extends NonTearable { }
 
-    // A hardened, non-tearable version of TPoint.
-    static primitive class NTPoint implements NT {
+    // A non-tearable version of TPoint.
+    @ImplicitlyConstructible
+    static value class NTPoint {
         NTPoint(long x, long y) { this.x = x; this.y = y; }
         final long x, y;
         public String toString() { return String.format("(%d,%d)", x, y); }
     }
 
     class NTPointBox implements PointBox {
+        @NullRestricted
         NTPoint field;
-        NTPoint[] array = new NTPoint[1];
+        NTPoint[] array = (NTPoint[])ValueClass.newNullRestrictedArray(NTPoint.class, 1);
         // Step the points forward by incrementing their components
         // "simultaneously".  A racing thread will catch flaws in the
         // simultaneity.
@@ -235,7 +246,7 @@ public class ValueTearing {
                 done = true;
                 badPointObserved = ex.badPoint;
                 System.out.println(ex);
-                if (ALWAYS_ATOMIC || ex.badPoint instanceof NonTearable) {
+                if (ALWAYS_ATOMIC || !badPointObserved.getClass().isAnnotationPresent(LooselyConsistentValue.class)) {
                     throw ex;
                 }
             }

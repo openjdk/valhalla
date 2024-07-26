@@ -318,9 +318,11 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
 void InlineKlass::deallocate_contents(ClassLoaderData* loader_data) {
   if (extended_sig() != nullptr) {
     MetadataFactory::free_array<SigEntry>(loader_data, extended_sig());
+    *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
   }
   if (return_regs() != nullptr) {
     MetadataFactory::free_array<VMRegPair>(loader_data, return_regs());
+    *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
   }
   cleanup_blobs();
   InstanceKlass::deallocate_contents(loader_data);

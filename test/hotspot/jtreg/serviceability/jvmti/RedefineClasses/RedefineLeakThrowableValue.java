@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,22 +23,20 @@
 
 /*
  * @test
- * @bug 8308762
+ * @bug 8336829
  * @library /test/lib
- * @summary Test that redefinition of class containing Throwable refs does not leak constant pool
- * @requires vm.jvmti
- * @requires vm.flagless
+ * @summary Test that redefinition of a value class containing Throwable refs does not leak constant pool
+ * @enablePreview
  * @modules java.base/jdk.internal.misc
  * @modules java.instrument
  *          java.compiler
  * @run main RedefineClassHelper
- * @run main/othervm/timeout=6000 -javaagent:redefineagent.jar -XX:MetaspaceSize=23m -XX:MaxMetaspaceSize=23m RedefineLeakThrowable
+ * @run main/othervm/timeout=6000 --enable-preview -Xlog:class+load,gc+metaspace+freelist+oom:rt.log -javaagent:redefineagent.jar -XX:MetaspaceSize=23m -XX:MaxMetaspaceSize=23m RedefineLeakThrowableValue
  */
 
+import jdk.test.lib.compiler.InMemoryJavaCompiler;
 
-// MaxMetaspaceSize=23m allows InMemoryJavaCompiler to load even if CDS is off.
-
-class Tester {
+value class Tester {
     void test() {
         try {
             int i = 42;
@@ -48,10 +46,10 @@ class Tester {
     }
 }
 
-public class RedefineLeakThrowable {
+public class RedefineLeakThrowableValue {
 
     static final String NEW_TESTER =
-        "class Tester {" +
+        "value class Tester {" +
         "   void test() {" +
         "        try {" +
         "            int i = 42;" +
@@ -63,8 +61,13 @@ public class RedefineLeakThrowable {
 
 
     public static void main(String argv[]) throws Exception {
+        String java_version = System.getProperty("java.specification.version");
+        // Load InMemoryJavaCompiler outside the redefinition loop to prevent random lambdas that load and fill up metaspace.
+        byte[] bytecodes = InMemoryJavaCompiler.compile("Tester", NEW_TESTER,
+                                                        "-source", java_version, "--enable-preview",
+                                                        "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED");
         for (int i = 0; i < 700; i++) {
-            RedefineClassHelper.redefineClass(Tester.class, NEW_TESTER);
+            RedefineClassHelper.redefineClass(Tester.class, bytecodes);
         }
     }
 }

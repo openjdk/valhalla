@@ -212,5 +212,4 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       break;
     }
   }
-  st->cr();
 }

@@ -23,7 +23,6 @@
  */
 
 /**
- * @ignore Fix 8328162
  * @test
  * @bug 8291360 8293448
  * @summary Test getting a class's raw access flags using java.lang.Class API

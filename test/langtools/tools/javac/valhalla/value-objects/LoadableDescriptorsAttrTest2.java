@@ -69,7 +69,7 @@ public class LoadableDescriptorsAttrTest2 extends TestRunner {
     }
 
     @Test
-    public void testValueBased(Path base) throws Exception {
+    public void testLoadableDescField(Path base) throws Exception {
         Path src = base.resolve("src");
         tb.writeJavaFiles(src,
                 """
@@ -78,6 +78,88 @@ public class LoadableDescriptorsAttrTest2 extends TestRunner {
                 """
                 class Ident {
                     Val val;
+                }
+                """);
+        Path classes = base.resolve("classes");
+        tb.createDirectories(classes);
+
+        new toolbox.JavacTask(tb)
+                .options("--enable-preview", "-source", Integer.toString(Runtime.version().feature()))
+                .outdir(classes)
+                .files(findJavaFiles(src))
+                .run()
+                .writeAll();
+        Path classFilePath = classes.resolve("Ident.class");
+        ClassFile classFile = ClassFile.read(classFilePath.toFile());
+        Assert.check(classFile.minor_version == 65535);
+        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+
+        // now with the value class in the classpath
+        new toolbox.JavacTask(tb)
+                .options("--enable-preview", "-source", Integer.toString(Runtime.version().feature()), "-cp", classes.toString())
+                .outdir(classes)
+                .files(src.resolve("Ident.java"))
+                .run()
+                .writeAll();
+
+        classFilePath = classes.resolve("Ident.class");
+        classFile = ClassFile.read(classFilePath.toFile());
+        Assert.check(classFile.minor_version == 65535);
+        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+    }
+
+    @Test
+    public void testLoadableDescMethodArg(Path base) throws Exception {
+        Path src = base.resolve("src");
+        tb.writeJavaFiles(src,
+                """
+                value class Val {}
+                """,
+                """
+                class Ident {
+                    void m(Val val) {}
+                }
+                """);
+        Path classes = base.resolve("classes");
+        tb.createDirectories(classes);
+
+        new toolbox.JavacTask(tb)
+                .options("--enable-preview", "-source", Integer.toString(Runtime.version().feature()))
+                .outdir(classes)
+                .files(findJavaFiles(src))
+                .run()
+                .writeAll();
+        Path classFilePath = classes.resolve("Ident.class");
+        ClassFile classFile = ClassFile.read(classFilePath.toFile());
+        Assert.check(classFile.minor_version == 65535);
+        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+
+        // now with the value class in the classpath
+        new toolbox.JavacTask(tb)
+                .options("--enable-preview", "-source", Integer.toString(Runtime.version().feature()), "-cp", classes.toString())
+                .outdir(classes)
+                .files(src.resolve("Ident.java"))
+                .run()
+                .writeAll();
+
+        classFilePath = classes.resolve("Ident.class");
+        classFile = ClassFile.read(classFilePath.toFile());
+        Assert.check(classFile.minor_version == 65535);
+        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+    }
+
+    @Test
+    public void testLoadableDescReturnType(Path base) throws Exception {
+        Path src = base.resolve("src");
+        tb.writeJavaFiles(src,
+                """
+                value class Val {}
+                """,
+                """
+                class Ident {
+                    Val m() {
+                        return null;
+                    }
                 }
                 """);
         Path classes = base.resolve("classes");

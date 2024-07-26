@@ -357,7 +357,7 @@ class ClassFileParser {
                                                     TRAPS);
 
   u2 parse_classfile_loadable_descriptors_attribute(const ClassFileStream* const cfs,
-                                                    const u1* const preload_attribute_start,
+                                                    const u1* const loadable_descriptors_attribute_start,
                                                     TRAPS);
 
   u4 parse_classfile_record_attribute(const ClassFileStream* const cfs,

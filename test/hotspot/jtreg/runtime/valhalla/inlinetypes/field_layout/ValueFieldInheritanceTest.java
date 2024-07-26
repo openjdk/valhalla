@@ -51,6 +51,16 @@
  * @run main/othervm -Xint ValueFieldInheritanceTest 2
  */
 
+/*
+ * @test id=64bitsNoCompressedOopsNoCompressKlassPointers
+ * @requires vm.bits == 64
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
+ * @run main/othervm -Xint ValueFieldInheritanceTest 3
+ */
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -161,13 +171,16 @@ public class ValueFieldInheritanceTest {
     }
   }
 
-  static ProcessBuilder exec(String compressedOopsArg, String... args) throws Exception {
+  static ProcessBuilder exec(String compressedOopsArg, String compressedKlassPointersArg, String... args) throws Exception {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
     Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     if (compressedOopsArg != null) {
       Collections.addAll(argsList, compressedOopsArg);
+    }
+    if (compressedKlassPointersArg != null) {
+      Collections.addAll(argsList, compressedKlassPointersArg);
     }
     Collections.addAll(argsList, "-Xmx256m");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + ":.");
@@ -177,13 +190,20 @@ public class ValueFieldInheritanceTest {
 
   public static void main(String[] args) throws Exception {
     String compressedOopsArg;
+    String compressedKlassPointersArg;
 
     switch(args[0]) {
       case "0": compressedOopsArg = null;
+                compressedKlassPointersArg = null;
                 break;
       case "1": compressedOopsArg = "-XX:+UseCompressedOops";
+                compressedKlassPointersArg =  "-XX:+UseCompressedClassPointers";
                 break;
       case "2": compressedOopsArg = "-XX:-UseCompressedOops";
+                compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+                break;
+      case "3": compressedOopsArg = "-XX:-UseCompressedOops";
+                compressedKlassPointersArg = "-XX:-UseCompressedClassPointers";
                 break;
       default: throw new RuntimeException("Unrecognized configuration");
     }
@@ -192,7 +212,7 @@ public class ValueFieldInheritanceTest {
     // NullMarkersTest fat = new NullMarkersTest();
 
     // Execute the test runner in charge of loading all test classes
-    ProcessBuilder pb = exec(compressedOopsArg, "ValueFieldInheritanceTest$TestRunner");
+    ProcessBuilder pb = exec(compressedOopsArg, compressedKlassPointersArg, "ValueFieldInheritanceTest$TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
     if (out.getExitValue() != 0) {
