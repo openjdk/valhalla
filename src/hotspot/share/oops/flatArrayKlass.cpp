@@ -206,7 +206,7 @@ size_t FlatArrayKlass::oop_size(oop obj) const {
 jint FlatArrayKlass::max_elements() const {
   // Check the max number of heap words limit first (because of int32_t in oopDesc_oop_size() etc)
   size_t max_size = max_jint;
-  max_size -= arrayOopDesc::header_size(T_PRIMITIVE_OBJECT);
+  max_size -= (arrayOopDesc::base_offset_in_bytes(T_PRIMITIVE_OBJECT) >> LogHeapWordSize);
   max_size = align_down(max_size, MinObjAlignment);
   max_size <<= LogHeapWordSize;                                  // convert to max payload size in bytes
   max_size >>= layout_helper_log2_element_size(_layout_helper);  // divide by element size (in bytes) = max elements
