@@ -278,7 +278,7 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   // Nullable inline types have an IsInit field that needs
   // to be checked before using the field values.
   const TypeInt* tinit = igvn->type(get_is_init())->isa_int();
-  if (tinit != nullptr && tinit->is_con(1)) {
+  if (tinit != nullptr && !tinit->is_con(1)) {
     sfpt->add_req(get_is_init());
   } else {
     sfpt->add_req(igvn->C->top());
@@ -742,16 +742,13 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     }
     return this;
   }
-  // TODO 8325106 Re-evaluate this: We prefer a "loaded" oop because it's free. The existing oop might come from a buffering.
-  if (!is_larval(phase) && !is_larval()) {
-    // Save base oop if fields are loaded from memory and the inline
-    // type is not buffered (in this case we should not use the oop).
-    Node* base = is_loaded(phase);
-    if (base != nullptr && get_oop() != base && !phase->type(base)->maybe_null()) {
-      set_oop(*phase, base);
-      assert(is_allocated(phase), "should now be allocated");
-      return this;
-    }
+
+  // Use base oop if fields are loaded from memory
+  Node* base = is_loaded(phase);
+  if (base != nullptr && get_oop() != base && !phase->type(base)->maybe_null()) {
+    set_oop(*phase, base);
+    assert(is_allocated(phase), "should now be allocated");
+    return this;
   }
 
   if (can_reshape) {
@@ -833,7 +830,7 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
 
 bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
   const TypeInt* tinit = gvn->type(get_is_init())->isa_int();
-  if (tinit == nullptr|| !tinit->is_con(1)) {
+  if (tinit == nullptr || !tinit->is_con(1)) {
     return false; // May be null
   }
   for (uint i = 0; i < field_count(); ++i) {
@@ -1038,6 +1035,9 @@ bool InlineTypeNode::is_larval(PhaseGVN* gvn) const {
 }
 
 Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, int holder_offset) {
+  if (is_larval() || is_larval(phase)) {
+    return nullptr;
+  }
   if (vk == nullptr) {
     vk = inline_klass();
   }
