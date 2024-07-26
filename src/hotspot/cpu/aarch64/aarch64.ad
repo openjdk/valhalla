@@ -2171,12 +2171,7 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   C2_MacroAssembler _masm(&cbuf);
 
   if (!_verified) {
-    Label skip;
-    __ cmp_klass(j_rarg0, rscratch2, rscratch1);
-    __ br(Assembler::EQ, skip);
-      __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-    __ bind(skip);
-
+    __ ic_check(1);
   } else {
     // insert a nop at the start of the prolog so we can patch in a
     // branch if we need to invalidate the method later
@@ -16495,13 +16490,12 @@ instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl)
 
 instruct cmpFastLock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRegPNoSp tmp2, iRegPNoSp tmp3)
 %{
+  predicate(LockingMode != LM_LIGHTWEIGHT);
   match(Set cr (FastLock object box));
   effect(TEMP tmp, TEMP tmp2, TEMP tmp3);
 
-  // TODO
-  // identify correct cost
   ins_cost(5 * INSN_COST);
-  format %{ "fastlock $object,$box\t! kills $tmp,$tmp2" %}
+  format %{ "fastlock $object,$box\t! kills $tmp,$tmp2,$tmp3" %}
 
   ins_encode %{
     __ fast_lock($object$$Register, $box$$Register, $tmp$$Register, $tmp2$$Register, $tmp3$$Register);
@@ -16512,6 +16506,7 @@ instruct cmpFastLock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRegP
 
 instruct cmpFastUnlock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRegPNoSp tmp2)
 %{
+  predicate(LockingMode != LM_LIGHTWEIGHT);
   match(Set cr (FastUnlock object box));
   effect(TEMP tmp, TEMP tmp2);
 
@@ -16525,6 +16520,37 @@ instruct cmpFastUnlock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRe
   ins_pipe(pipe_serial);
 %}
 
+instruct cmpFastLockLightweight(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRegPNoSp tmp2)
+%{
+  predicate(LockingMode == LM_LIGHTWEIGHT);
+  match(Set cr (FastLock object box));
+  effect(TEMP tmp, TEMP tmp2);
+
+  ins_cost(5 * INSN_COST);
+  format %{ "fastlock $object,$box\t! kills $tmp,$tmp2" %}
+
+  ins_encode %{
+    __ fast_lock_lightweight($object$$Register, $box$$Register, $tmp$$Register, $tmp2$$Register);
+  %}
+
+  ins_pipe(pipe_serial);
+%}
+
+instruct cmpFastUnlockLightweight(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRegPNoSp tmp2)
+%{
+  predicate(LockingMode == LM_LIGHTWEIGHT);
+  match(Set cr (FastUnlock object box));
+  effect(TEMP tmp, TEMP tmp2);
+
+  ins_cost(5 * INSN_COST);
+  format %{ "fastunlock $object,$box\t! kills $tmp, $tmp2" %}
+
+  ins_encode %{
+    __ fast_unlock_lightweight($object$$Register, $box$$Register, $tmp$$Register, $tmp2$$Register);
+  %}
+
+  ins_pipe(pipe_serial);
+%}
 
 // ============================================================================
 // Safepoint Instructions
