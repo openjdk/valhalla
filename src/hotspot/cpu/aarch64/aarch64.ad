@@ -2171,12 +2171,7 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   C2_MacroAssembler _masm(&cbuf);
 
   if (!_verified) {
-    Label skip;
-    __ cmp_klass(j_rarg0, rscratch2, rscratch1);
-    __ br(Assembler::EQ, skip);
-      __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-    __ bind(skip);
-
+    __ ic_check(1);
   } else {
     // insert a nop at the start of the prolog so we can patch in a
     // branch if we need to invalidate the method later
