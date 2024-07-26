@@ -30,7 +30,6 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @test ObjectMethods
  * @summary Check object methods implemented by the VM behave with value types
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile ObjectMethods.java
  * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
