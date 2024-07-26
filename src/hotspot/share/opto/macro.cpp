@@ -690,12 +690,6 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
           NOT_PRODUCT(fail_eliminate = "null or TOP memory";)
           can_eliminate = false;
         } else if (!reduce_merge_precheck) {
-          if (res->is_Phi() && res->as_Phi()->can_be_inline_type()) {
-            // Can only eliminate allocation if the phi had been replaced by an InlineTypeNode before which did not happen.
-            // TODO 8325106 Why wasn't it replaced by an InlineTypeNode?
-            assert(false, "TRIGGER");
-            can_eliminate = false;
-          }
           safepoints->append_if_missing(sfpt);
         }
       } else if (use->is_InlineType() && use->as_InlineType()->get_oop() == res) {
