@@ -923,18 +923,6 @@ static jvmtiError check_permitted_subclasses_attribute(InstanceKlass* the_class,
                                 scratch_class->permitted_subclasses());
 }
 
-static jvmtiError check_preload_attribute(InstanceKlass* the_class,
-                                          InstanceKlass* scratch_class) {
-  Thread* thread = Thread::current();
-  ResourceMark rm(thread);
-
-  // Check whether the class Preload attribute has been changed.
-  return check_attribute_arrays("Preload",
-                                the_class, scratch_class,
-                                the_class->loadable_descriptors(),
-                                scratch_class->loadable_descriptors());
-}
-
 static bool can_add_or_delete(Method* m) {
       // Compatibility mode
   return (AllowRedefinitionToAddDeleteMethods &&
@@ -1010,12 +998,6 @@ jvmtiError VM_RedefineClasses::compare_and_normalize_class_versions(
 
   // Check whether the PermittedSubclasses attribute has been changed.
   err = check_permitted_subclasses_attribute(the_class, scratch_class);
-  if (err != JVMTI_ERROR_NONE) {
-    return err;
-  }
-
-  // Check whether the Preload attribute has been changed.
-  err = check_preload_attribute(the_class, scratch_class);
   if (err != JVMTI_ERROR_NONE) {
     return err;
   }
@@ -1954,8 +1936,8 @@ bool VM_RedefineClasses::rewrite_cp_refs(InstanceKlass* scratch_class) {
     return false;
   }
 
-  // rewrite constant pool references in the Preload attribute:
-  if (!rewrite_cp_refs_in_preload_attribute(scratch_class)) {
+  // rewrite constant pool references in the LoadableDescriptors attribute:
+  if (!rewrite_cp_refs_in_loadable_descriptors_attribute(scratch_class)) {
     // propagate failure back to caller
     return false;
   }
@@ -2108,8 +2090,8 @@ bool VM_RedefineClasses::rewrite_cp_refs_in_permitted_subclasses_attribute(
   return true;
 }
 
-// Rewrite constant pool references in the Preload attribute.
-bool VM_RedefineClasses::rewrite_cp_refs_in_preload_attribute(
+// Rewrite constant pool references in the LoadableDescriptors attribute.
+bool VM_RedefineClasses::rewrite_cp_refs_in_loadable_descriptors_attribute(
        InstanceKlass* scratch_class) {
 
   Array<u2>* loadable_descriptors = scratch_class->loadable_descriptors();

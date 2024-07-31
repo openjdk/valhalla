@@ -781,12 +781,6 @@ public:
   bool has_reserved_stack_access() const { return constMethod()->reserved_stack_access(); }
   void set_has_reserved_stack_access() { constMethod()->set_reserved_stack_access(); }
 
-  bool has_scalarized_args() const { return constMethod()->has_scalarized_args(); }
-  void set_has_scalarized_args() { constMethod()->set_has_scalarized_args(); }
-
-  bool has_scalarized_return() const { return constMethod()->has_scalarized_return(); }
-  void set_has_scalarized_return() { constMethod()->set_has_scalarized_return(); }
-
   bool is_scalarized_arg(int idx) const;
 
   bool c1_needs_stack_repair() const { return constMethod()->c1_needs_stack_repair(); }

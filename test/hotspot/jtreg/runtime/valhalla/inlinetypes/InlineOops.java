@@ -48,7 +48,6 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -65,7 +64,6 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -82,7 +80,6 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -99,7 +96,6 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -117,7 +113,6 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox

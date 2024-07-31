@@ -4065,7 +4065,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
             }
             if (EnableValhalla && tag == vmSymbols::tag_loadable_descriptors()) {
               if (parsed_loadable_descriptors_attribute) {
-                classfile_parse_error("Multiple Preload attributes in class file %s", CHECK);
+                classfile_parse_error("Multiple LoadableDescriptors attributes in class file %s", CHECK);
                 return;
               }
               parsed_loadable_descriptors_attribute = true;
@@ -6659,7 +6659,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         _inline_type_field_klasses->at_put(fieldinfo.index(), vk);
         log_info(class, preload)("Preloading of class %s during loading of class %s (cause: null-free non-static field) succeeded", s->as_C_string(), _class_name->as_C_string());
       } else if (Signature::has_envelope(sig)) {
-        // Preloading classes for nullable fields that are listed in the Preload attribute
+        // Preloading classes for nullable fields that are listed in the LoadableDescriptors attribute
         // Those classes would be required later for the flattening of nullable inline type fields
         TempNewSymbol name = Signature::strip_envelope(sig);
         if (name != _class_name && is_class_in_loadable_descriptors_attribute(sig)) {
@@ -6681,7 +6681,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
             log_warning(class, preload)("Preloading of class %s during loading of class %s (cause: field type in LoadableDescriptors attribute) failed : %s",
                                           name->as_C_string(), _class_name->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
           }
-          // Loads triggered by the preload attribute are speculative, failures must not impact loading of current class
+          // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not impact loading of current class
           if (HAS_PENDING_EXCEPTION) {
             CLEAR_PENDING_EXCEPTION;
           }
