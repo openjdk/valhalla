@@ -23,10 +23,10 @@
 
 /*
  * @test
- * @bug     8308363
+ * @bug 8308363
  * @summary Test FP16 reduction operations.
  * @compile FP16ReductionOperations.java
- * @run main/othervm -XX:-TieredCompilation -Xbatch FP16ReductionOperations
+ * @run main/othervm --enable-preview -XX:-TieredCompilation -Xbatch FP16ReductionOperations
  */
 
 import java.util.Random;

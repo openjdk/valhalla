@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -911,7 +911,7 @@ const Type* ReinterpretS2HFNode::Value(PhaseGVN* phase) const {
   // Convert FP16 constant value to Float constant value, this will allow
   // further constant folding to be done at float granularity by value routines
   // of FP16 IR nodes.
-  if (type->isa_int() && type->is_int()->is_con()) {
+  if ((type->isa_int() && type->is_int()->is_con()) && StubRoutines::hf2f_adr() != nullptr) {
      jshort hfval = type->is_int()->get_con();
      jfloat fval = StubRoutines::hf2f(hfval);
      return TypeF::make(fval);
@@ -930,7 +930,7 @@ Node* ReinterpretS2HFNode::Identity(PhaseGVN* phase) {
 const Type* ReinterpretHF2SNode::Value(PhaseGVN* phase) const {
   const Type* type = phase->type( in(1) );
   // Convert Float constant value to FP16 constant value.
-  if (type->isa_float_constant()) {
+  if (type->isa_float_constant() && StubRoutines::f2hf_adr() != nullptr) {
      jfloat fval = type->is_float_constant()->_f;
      jshort hfval = StubRoutines::f2hf(fval);
      return TypeInt::make(hfval);
