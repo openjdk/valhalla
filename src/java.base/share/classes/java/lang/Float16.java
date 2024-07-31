@@ -874,39 +874,64 @@ public final class Float16
     // @IntrinsicCandidate
     public static Float16 fma(Float16 a, Float16 b, Float16 c) {
         /*
-         * In-progress explanation and discussion of the
-         * implementation. Promoting the input arguments to
-         * float/double and calculating (exactProdct + c) in double
-         * and rounding that double to Float16 is correct for _at
-         * least_ most sets of arguments. It may be correct for all
-         * arguments, pending further analysis. If it not correct,
-         * other computations will be done in those cases.
+         * The double format has sufficient precision that a Float16
+         * fma can be computed by doing the arithmetic in double, with
+         * one rounding error for the sum, and then a second rounding
+         * error to round the product-sum to Float16. In pseudocode,
+         * this method is equivalent to the following code, assuming
+         * casting was defined between Float16 and double:
          *
-         * The 2sum algorithm can be used to extract the low-order
-         * value of a add/substract that were rounded away.
+         * double product = (double)a * (double)b;  // Always exact
+         * double productSum = product + (double)c;
+         * return (Float16)produdctSum;
          *
-         * -----
+         * (Note that a similar relationship does *not* hold between
+         * the double format and computing a float fma.)
          *
-         * When the numerical value of (a*b) + c is stored exactly in
-         * a double, after a single rounding to Float16, the answer is
-         * of necessity correct since the one double -> Float16
-         * conversion is the only source of numerical error.
+         * Below is a sketch of the proof that simple double
+         * arithmetic can be used to implement a correctly rounded
+         * Float16 fma.
+         *
+         * ----------------------
+         *
+         * As preliminaries, the handling of NaN and Infinity
+         * arguments falls out as a consequence of general operation
+         * of non-finite values by double * and +. Any NaN argument to
+         * fma will lead to a NaN result, infinities will propagate or
+         * get turned into NaN as appropriate, etc.
+         *
+         * One or more zero arguments are also handled correctly,
+         * including the propagation of the sign of zero if all three
+         * arguments are zero.
+         *
+         * The double format has 53 logical bits of precision and its
+         * exponent range goes from -1022 to 1023. The Float16 format
+         * has 11 bits of logical precision and its exponent range
+         * goes from -14 to 15. Therefore, the bit positions
+         * representable in the Float16 format range from the
+         * subnormal 2^(-24), MIN_VALUE, to 2^15, the leading bit
+         * position of MAX_VALUE.
+         *
+         * Consequently, a double can hold the exact sum of any two
+         * Float16 values as the maximum difference in exponents of
+         * Float16 values less than the precision width of double.
+         *
+         * In cases where the numerical value of (a * b) + c is
+         * computed exactly in a double, after a single rounding to
+         * Float16, the result is of necessity correct since the one
+         * double -> Float16 conversion is the only source of
+         * numerical error. The operation as implemented in those
+         * cases would be equivalent to rounding the infinitely precise
+         * value to the result format, etc.
          *
          * However, for some inputs, the intermediate product-sum will
-         * not be exact and additional analysis is needed -- and
-         * currently underway -- to verify no corrective computation
-         * is needed to return the proper answer.
+         * *not* be exact and additional analysis is needed to justify
+         * not having any corrective computation to compensate for
+         * intermediate rounding errors.
          *
          * The following analysis will rely on the range of bit
          * positions representable in the intermediate
-         * product-sum. For a Float16 value, the bit positions
-         * representable in the format range from 2^(-14), MIN_VALUE,
-         * to 2^15, the leading bit position of MAX_VALUE. Including
-         * the implicit bit, Float16 has 11 bits of precision.
-         *
-         * For the double format, there are 53 bits of precision
-         * (including the implicit bit), and the exponent range goes
-         * from -1022 to 1023.
+         * product-sum.
          *
          * For the product a*b of Float16 inputs, the range of
          * exponents for nonzero finite results goes from 2^(-28)
@@ -917,7 +942,7 @@ public final class Float16
          * exponent range of Float16. Therefore, there are three main
          * cases to consider:
          *
-         * 1) Large exponent product
+         * 1) Large exponent product, exponent > Float16.MAX_EXPONENT
          *
          * The magnitude of the overflow threshold for Float16 is:
          *
@@ -928,74 +953,109 @@ public final class Float16
          * nearest) since adding in c = -MAX_VALUE will still be above
          * the overflow threshold.
          *
-         * With a precision of 53 bits and much large exponent range,
-         * even if the product has an exponent of 31, the smallest
-         * Float16 that could be added in has an exponent of -14,
-         * which only requires holding 31 -(-14) + 1 = 46 contiguous
-         * bit positions, which is within the precision of double.
+         * If the exponent of the product is 15 or 16, the smallest
+         * subnormal Float16 is 2^-24 and the ~40 bit wide range bit
+         * positions would fit in a single double exactly.
          *
-         * 2) Exponent of product is within the range of normal
-         * Float16 values
+         * 2) Exponent of product is within the range of _normal_
+         * Float16 values; Float16.MIN_EXPONENT <=  exponent <= Float16.MAX_EXPONENT
          *
          * The exact product has at most 22 contiguous bits in its
          * logical significand. The third number being added in has
          * at most 11 contiguous bits in its significand and the
          * lowest bit position that could be set is
-         * 2^(-14). Therefore, when the product has the maximum
+         * 2^(-24). Therefore, when the product has the maximum
          * in-range exponent, 2^15, a single double has enough
          * precision to hold down to the smallest subnormal bit
-         * position, 15 - (-14) + 1 = 30 < 53. If the product was
+         * position, 15 - (-24) + 1 = 40 < 53. If the product was
          * large and overflowed when the third operand was added, this
          * would cause the exponent to increase to 16, which is within
          * the range of double, so the product-sum is exact and will
          * be correct when rounded to Float16.
          *
-         * 3) Exponent of product is in the range of subnormal values or smaller.
+         * 3) Exponent of product is in the range of subnormal values or smaller,
+         * exponent < Float16.MIN_EXPONENT
          *
-         * The smallest exponent possible in a product is 2^(-48). The
-         * precision of double can then hold other bit positions up to
-         * -48 + 53 -1 = 4.
+         * The smallest exponent possible in a product is 2^(-48).
+         * For moderately sized Float16 values added to the product,
+         * with a leading exponent of about 4, the sum will not be
+         * exact. Therefore, an analysis is needed to determine if the
+         * double-rounding is benign or would lead to a different
+         * final Float16 result. Double rounding an lead to a
+         * different result in two cases:
          *
-         * Further case analysis to-do.
+         * 1) The first rounding from the exact value to the extended
+         * precision (here `double`) happens to be directed _toward_ 0
+         * to a value exactly midway between two adjacent working
+         * precision (here `Float16`) values, followed by a second
+         * rounding from there which again happens to be directed
+         * _toward_ 0 to one of these values (the one with lesser
+         * magnitude).  A single rounding from the exact value to the
+         * working precision, in contrast, rounds to the value with
+         * larger magnitude.
+         *
+         * 2) Symmetrically, the first rounding to the extended
+         * precision happens to be directed _away_ from 0 to a value
+         * exactly midway between two adjacent working precision
+         * values, followed by a second rounding from there which
+         * again happens to be directed _away_ from 0 to one of these
+         * values (the one with larger magnitude).  However, a single
+         * rounding from the exact value to the working precision
+         * rounds to the value with lesser magnitude.
+         *
+         * If the double rounding occurs in other cases, it is
+         * innocuous, returning the same value as a single rounding to
+         * the final format. Therefore, it is sufficient to show that
+         * the first rounding to double does not occur at the midpoint
+         * of two adjacent Float16 values:
+         *
+         * 1) If a, b and c have the same sign, the sum a*b + c has a
+         * significand with a large gap of 20 or more 0s between the
+         * bits of the significand of c to the left (at most 11 bits)
+         * and those of the product a*b to the right (at most 22
+         * bits).  The rounding bit for the final working precision of
+         * `float16` is the leftmost 0 in the gap.
+         *
+         *   a) If rounding to `double` is directed toward 0, all the
+         *   0s in the gap are preserved, thus the `Float16` rounding
+         *   bit is unaffected and remains 0. This means that the
+         *   `double` value is _not_ the midpoint of two adjacent
+         *   `float16` values, so double rounding is harmless.
+         *
+         *   b) If rounding to `double` is directed away form 0, the
+         *   rightmost 0 in the gap might be replaced by a 1, but the
+         *   others are unaffected, including the `float16` rounding
+         *   bit. Again, this shows that the `double` value is _not_
+         *   the midpoint of two adjacent `float16` values, and double
+         *   rounding is innocuous.
+         *
+         * 2) If a, b and c have opposite signs, in the sum a*b + c
+         * the long gap of 0s above is replaced by a long gap of
+         * 1s. The `float16` rounding bit is the leftmost 1 in the
+         * gap, or the second leftmost 1 iff c is a power of 2. In
+         * both cases, the rounding bit is followed by at least
+         * another 1.
+         *
+         *   a) If rounding to `double` is directed toward 0, the
+         *   `float16` rounding bit and its follower are preserved and
+         *   both 1, so the `double` value is _not_ the midpoint of
+         *   two adjacent `float16` values, and double rounding is
+         *   harmless.
+         *
+         *   b) If rounding to `double` is directed away from 0, the
+         *   `float16` rounding bit and its follower are either
+         *   preserved (both 1), or both switch to 0. Either way, the
+         *   `double` value is again _not_ the midpoint of two
+         *   adjacent `float16` values, and double rounding is
+         *   harmless.
          */
 
-        // product is numerically exact
+        // product is numerically exact in float before the cast to
+        // double; not necessary to widen to double before the
+        // multiply.
         double product = (double)(a.floatValue() * b.floatValue());
-        double c_double = c.doubleValue();
-        // productSum exact in many cases, identify non-exact cases
-        // below for further computation.
-        double productSum = product + c_double;
-
-//         if (Double.isFinite(product) &&
-//             Double.isFinite(c_double) &&
-//             (product != 0.0) &&
-//             !exactSum(product, c_double, productSum) ) {
-//             int productExponent = Math.getExponent(product);
-//             assert productExponent <= -15;  // Might be off by one.
-//             assert Math.getExponent(c_double) >=
-//                 Math.getExponent(product) + 52 - 10 - 1: "exponent = " + Math.getExponent(c_double); // Might be off by a few
-//             System.out.println(String.format("Extra work? %a * %a + %a => product %a, rounded %a",
-//                                              a.floatValue(), b.floatValue(), c.floatValue(),
-//                                              product, productSum));
-//             // throw new UnsupportedOperationException("tbd");
-//         }
-        return valueOf(productSum);
+        return valueOf(product + c.doubleValue());
     }
-
-//     private static boolean exactSum(double a, double b, double s) {
-//         // 2sum algorithm
-//         //
-//         // After the computation below, the exact sum of (a + b) is in
-//         // (s + t) where s contains all the high-order
-//         // bits. Therefore, if t is zero, the sum in s itself is
-//         // exact.
-//         double a_prime = s - b;
-//         double b_prime = s - a_prime;
-//         double delta_a = a - a_prime;
-//         double delta_b = b - b_prime;
-//         double t = delta_a + delta_b;
-//         return t == 0.0;
-//     }
 
     /**
      * {@return the negation of the argument}

@@ -377,10 +377,29 @@ public class BasicFloat16ArithTests {
 
     class FusedMultiplyAddTests {
         public static void main(String... args) {
+            testZeroNanInfCombos();
             testNonFinite();
             testZeroes();
             testSimple();
             testRounding();
+        }
+
+        private static void testZeroNanInfCombos() {
+            float [] testInputs = {
+                Float.NaN,
+                -InfinityF,
+                +InfinityF,
+                -0.0f,
+                +0.0f,
+            };
+
+            for (float i : testInputs) {
+                for (float j : testInputs) {
+                    for (float k : testInputs) {
+                        testFusedMacCase(i, j, k, Math.fma(i, j, k));
+                    }
+                }
+            }
         }
 
         private static void testNonFinite() {
