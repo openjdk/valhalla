@@ -3691,4 +3691,3 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
   JRT_BLOCK_END;
 }
 JRT_END
-

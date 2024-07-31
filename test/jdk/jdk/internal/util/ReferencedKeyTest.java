@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8285932 8310913
+ * @bug 8285932 8310913 8336390
  * @summary Test features provided by the ReferencedKeyMap/ReferencedKeySet classes.
  * @modules java.base/jdk.internal.util
  * @compile --patch-module java.base=${test.src} ReferencedKeyTest.java
@@ -43,7 +43,11 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 public class ReferencedKeyTest {
-    static long BASE_KEY = 10_000_000L;
+    static String BASE_KEY = "BASEKEY-";
+
+    static String genKey(int i) {
+        return BASE_KEY + i;
+    }
 
     public static void main(String[] args) {
         mapTest(false, HashMap::new);
@@ -63,8 +67,8 @@ public class ReferencedKeyTest {
         }
     }
 
-    static void mapTest(boolean isSoft, Supplier<Map<ReferenceKey<Long>, String>> supplier) {
-        Map<Long, String> map = ReferencedKeyMap.create(isSoft, supplier);
+    static void mapTest(boolean isSoft, Supplier<Map<ReferenceKey<String>, String>> supplier) {
+        Map<String, String> map = ReferencedKeyMap.create(isSoft, supplier);
         populate(map);
         if (!isSoft) {
             if (!collect(() -> map.isEmpty())) {
@@ -75,8 +79,8 @@ public class ReferencedKeyTest {
         methods(map);
     }
 
-    static void setTest(boolean isSoft, Supplier<Map<ReferenceKey<Long>, ReferenceKey<Long>>> supplier) {
-        ReferencedKeySet<Long> set = ReferencedKeySet.create(isSoft, supplier);
+    static void setTest(boolean isSoft, Supplier<Map<ReferenceKey<String>, ReferenceKey<String>>> supplier) {
+        ReferencedKeySet<String> set = ReferencedKeySet.create(isSoft, supplier);
         populate(set);
         if (!isSoft) {
             if (!collect(() -> set.isEmpty())) {
@@ -87,41 +91,41 @@ public class ReferencedKeyTest {
         methods(set);
     }
 
-    static void methods(Map<Long, String> map) {
+    static void methods(Map<String, String> map) {
         assertTrue(map.size() == 26, "missing key");
-        assertTrue(map.containsKey(BASE_KEY + 'a' -'a'), "missing key");
-        assertTrue(map.get(BASE_KEY + 'b' -'a').equals("b"), "wrong key");
+        assertTrue(map.containsKey(genKey('a' -'a')), "missing key");
+        assertTrue(map.get(genKey('b' -'a')).equals("b"), "wrong key");
         assertTrue(map.containsValue("c"), "missing value");
-        map.remove(BASE_KEY + 'd' -'a');
-        assertTrue(map.get(BASE_KEY + 'd' -'a') == null, "not removed");
-        map.putAll(Map.of(1L, "A", 2L, "B"));
-        assertTrue(map.get(2L).equals("B"), "collection not added");
-        assertTrue(map.containsKey(1L), "key missing");
+        map.remove(genKey('d' -'a'));
+        assertTrue(map.get(genKey('d' -'a')) == null, "not removed");
+        map.putAll(Map.of(genKey(1), "A", genKey(2), "B"));
+        assertTrue(map.get(genKey(2)).equals("B"), "collection not added");
+        assertTrue(map.containsKey(genKey(1)), "key missing");
         assertTrue(map.containsValue("A"), "key missing");
-        assertTrue(map.entrySet().contains(Map.entry(1L, "A")), "key missing");
-        map.putIfAbsent(3L, "C");
-        assertTrue(map.get(3L).equals("C"), "key missing");
-        map.putIfAbsent(2L, "D");
-        assertTrue(map.get(2L).equals("B"), "key replaced");
-        map.remove(3L);
-        assertTrue(map.get(3L) == null, "key not removed");
-        map.replace(2L, "D");
-        assertTrue(map.get(2L).equals("D"), "key not replaced");
-        map.replace(2L, "B", "E");
-        assertTrue(map.get(2L).equals("D"), "key replaced");
+        assertTrue(map.entrySet().contains(Map.entry(genKey(1), "A")), "key missing");
+        map.putIfAbsent(genKey(3), "C");
+        assertTrue(map.get(genKey(3)).equals("C"), "key missing");
+        map.putIfAbsent(genKey(2), "D");
+        assertTrue(map.get(genKey(2)).equals("B"), "key replaced");
+        map.remove(genKey(3));
+        assertTrue(map.get(genKey(3)) == null, "key not removed");
+        map.replace(genKey(2), "D");
+        assertTrue(map.get(genKey(2)).equals("D"), "key not replaced");
+        map.replace(genKey(2), "B", "E");
+        assertTrue(map.get(genKey(2)).equals("D"), "key replaced");
     }
 
-    static void methods(ReferencedKeySet<Long> set) {
+    static void methods(ReferencedKeySet<String> set) {
         assertTrue(set.size() == 26, "missing key");
-        assertTrue(set.contains(BASE_KEY + 3), "missing key");
-        set.remove(BASE_KEY + 3);
-        assertTrue(!set.contains(BASE_KEY + 3), "not removed");
-        Long element1 = set.get(BASE_KEY + 2);
-        Long element2 = set.get(BASE_KEY + 3);
-        Long element3 = set.get(BASE_KEY + 4);
-        Long intern1 = set.intern(BASE_KEY + 2);
-        Long intern2 = set.intern(BASE_KEY + 3);
-        Long intern3 = set.intern(BASE_KEY + 4, e -> e);
+        assertTrue(set.contains(genKey(3)), "missing key");
+        set.remove(genKey(3));
+        assertTrue(!set.contains(genKey(3)), "not removed");
+        String element1 = set.get(genKey(2));
+        String element2 = set.get(genKey(3));
+        String element3 = set.get(genKey(4));
+        String intern1 = set.intern(genKey(2));
+        String intern2 = set.intern(genKey(3));
+        String intern3 = set.intern(genKey(4), e -> e);
         assertTrue(element1 != null, "missing key");
         assertTrue(element2 == null, "not removed");
         assertTrue(element1 == intern1, "intern failed"); // must be same object
@@ -158,17 +162,17 @@ public class ReferencedKeyTest {
         return booleanSupplier.getAsBoolean();
     }
 
-    static void populate(Map<Long, String> map) {
+    static void populate(Map<String, String> map) {
         for (int i = 0; i < 26; i++) {
-            Long key = BASE_KEY + i;
+            String key = genKey(i);
             String value = String.valueOf((char) ('a' + i));
             map.put(key, value);
         }
     }
 
-    static void populate(Set<Long> set) {
+    static void populate(Set<String> set) {
         for (int i = 0; i < 26; i++) {
-            Long value = BASE_KEY + i;
+            String value = genKey(i);
             set.add(value);
         }
     }

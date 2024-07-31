@@ -730,11 +730,12 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
 
   if (inline_type_field_klasses_array() != nullptr) {
     MetadataFactory::free_array<InlineKlass*>(loader_data, inline_type_field_klasses_array());
+    set_inline_type_field_klasses_array(nullptr);
   }
-  set_inline_type_field_klasses_array(nullptr);
 
   if (null_marker_offsets_array() != nullptr) {
     MetadataFactory::free_array<int>(loader_data, null_marker_offsets_array());
+    set_null_marker_offsets_array(nullptr);
   }
 
   // If a method from a redefined class is using this constant pool, don't
@@ -776,6 +777,7 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
       !loadable_descriptors()->is_shared()) {
     MetadataFactory::free_array<jushort>(loader_data, loadable_descriptors());
   }
+  set_loadable_descriptors(nullptr);
 
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != nullptr && !annotations()->is_shared()) {
@@ -1033,7 +1035,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
       }
     }
 
-    // Aggressively preloading all classes from the Preload attribute
+    // Aggressively preloading all classes from the LoadableDescriptors attribute
     if (loadable_descriptors() != nullptr) {
       HandleMark hm(THREAD);
       for (int i = 0; i < loadable_descriptors()->length(); i++) {
@@ -3968,7 +3970,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     st->print(BULLET"record components:     "); record_components()->print_value_on(st);     st->cr();
   }
   st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
-  st->print(BULLET"preload classes:     "); loadable_descriptors()->print_value_on(st); st->cr();
+  st->print(BULLET"loadable descriptors:     "); loadable_descriptors()->print_value_on(st); st->cr();
   if (java_mirror() != nullptr) {
     st->print(BULLET"java mirror:       ");
     java_mirror()->print_value_on(st);

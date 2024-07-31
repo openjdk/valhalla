@@ -1452,13 +1452,7 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   C2_MacroAssembler _masm(&cbuf);
   uint insts_size = cbuf.insts_size();
   if (!_verified) {
-    if (UseCompressedClassPointers) {
-      __ load_klass(rscratch1, j_rarg0, rscratch2);
-      __ cmpptr(rax, rscratch1);
-    } else {
-      __ cmpptr(rax, Address(j_rarg0, oopDesc::klass_offset_in_bytes()));
-    }
-    __ jump_cc(Assembler::notEqual, RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ ic_check(1);
   } else {
     // TODO 8284443 Avoid creation of temporary frame
     if (ra_->C->stub_function() == nullptr) {
