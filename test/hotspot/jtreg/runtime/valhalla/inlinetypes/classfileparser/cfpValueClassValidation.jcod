@@ -1145,3 +1145,114 @@ class SynchMethodInAbstractValue {
     } // end SourceFile
   } // Attributes
 } // end class SynchMethodInAbstractValue
+
+// Class to test invalid entries in LoadableDescriptors Attributes
+// Class generated from this source:
+// public class PrimitiveInLoadableDescriptors {
+// int i;
+// void foo(Integer i) { }
+// }
+
+class PrimitiveInLoadableDescriptors {
+  0xCAFEBABE;
+  65535; // minor version
+  67; // version
+  [] { // Constant Pool
+    ; // first element is empty
+    Method #2 #3; // #1
+    class #4; // #2
+    NameAndType #5 #6; // #3
+    Utf8 "java/lang/Object"; // #4
+    Utf8 "<init>"; // #5
+    Utf8 "()V"; // #6
+    class #8; // #7
+    Utf8 "PrimitiveInLoadableDescriptors"; // #8
+    Utf8 "i"; // #9
+    Utf8 "I"; // #10
+    Utf8 "Code"; // #11
+    Utf8 "LineNumberTable"; // #12
+    Utf8 "foo"; // #13
+    Utf8 "(Ljava/lang/Integer;)V"; // #14
+    Utf8 "SourceFile"; // #15
+    Utf8 "PrimitiveInLoadableDescriptors.java"; // #16
+    Utf8 "LoadableDescriptors"; // #17
+    Utf8 "I"; // #18                            // Modified from "Ljava/lang/Integer;" to "I"
+  } // Constant Pool
+
+  0x0021; // access
+  #7;// this_cpx
+  #2;// super_cpx
+
+  [] { // Interfaces
+  } // Interfaces
+
+  [] { // Fields
+    {  // field
+      0x0000; // access
+      #9; // name_index
+      #10; // descriptor_index
+      [] { // Attributes
+      } // Attributes
+    }
+  } // Fields
+
+  [] { // Methods
+    {  // method
+      0x0001; // access
+      #5; // name_index
+      #6; // descriptor_index
+      [] { // Attributes
+        Attr(#11) { // Code
+          1; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x2AB70001B1;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#12) { // LineNumberTable
+              [] { // line_number_table
+                0  1;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0000; // access
+      #13; // name_index
+      #14; // descriptor_index
+      [] { // Attributes
+        Attr(#11) { // Code
+          0; // max_stack
+          2; // max_locals
+          Bytes[]{
+            0xB1;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#12) { // LineNumberTable
+              [] { // line_number_table
+                0  3;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+  } // Methods
+
+  [] { // Attributes
+    Attr(#15) { // SourceFile
+      #16;
+    } // end SourceFile
+    ;
+    Attr(#17) { // LoadableDescriptors
+      0x00010012;
+    } // end LoadableDescriptors
+  } // Attributes
+} // end class PrimitiveInLoadableDescriptors
