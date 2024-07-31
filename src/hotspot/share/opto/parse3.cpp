@@ -328,34 +328,26 @@ void Parse::set_inline_type_field(Node* obj, ciField* field, Node* val) {
   assert(obj->as_InlineType()->is_larval(), "must be larval");
   assert(!_gvn.type(obj)->maybe_null(), "should never be null");
 
+  // Re-execute if buffering in below code triggers deoptimization.
+  PreserveReexecuteState preexecs(this);
+  jvms()->set_should_reexecute(true);
+  inc_sp(1);
+
   if (!val->is_InlineType() && field->type()->is_inlinetype()) {
     // Scalarize inline type field value
     val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
   } else if (val->is_InlineType() && !field->is_flat()) {
-    // TODO 8325106 Why do we need to buffer here when the field type is an inline type?
-    // Field value needs to be allocated because it can be merged with an oop.
-    // Re-execute if buffering triggers deoptimization.
-    PreserveReexecuteState preexecs(this);
-    jvms()->set_should_reexecute(true);
-    inc_sp(1);
+    // Field value needs to be allocated because it can be merged with a non-inline type.
     val = val->as_InlineType()->buffer(this);
   }
 
   // Clone the inline type node and set the new field value
   InlineTypeNode* new_vt = obj->as_InlineType()->clone_if_required(&_gvn, _map);
   new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
-  {
-    PreserveReexecuteState preexecs(this);
-    jvms()->set_should_reexecute(true);
-    inc_sp(1);
-    new_vt = new_vt->adjust_scalarization_depth(this);
-  }
+  new_vt = new_vt->adjust_scalarization_depth(this);
 
-  // TODO 8325106 Double check and explain these checks
-  if ((!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor()) && new_vt->is_allocated(&gvn())) {
-    assert(new_vt->as_InlineType()->is_allocated(&gvn()), "must be buffered");
-    // We need to store to the buffer
-    // TODO 8325106 looks like G1BarrierSetC2::g1_can_remove_pre_barrier is not strong enough to remove the pre barrier
+  // If the inline type is buffered and the caller might use the buffer, update it.
+  if (new_vt->is_allocated(&gvn()) && (!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor())) {
     new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, field->offset_in_bytes());
 
     // Preserve allocation ptr to create precedent edge to it in membar

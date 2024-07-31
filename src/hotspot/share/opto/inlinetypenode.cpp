@@ -309,9 +309,6 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
   // If the inline type has a constant or loaded oop, use the oop instead of scalarization
   // in the safepoint to avoid keeping field loads live just for the debug info.
   Node* oop = get_oop();
-  // TODO 8325106
-  // TestBasicFunctionality::test3 fails without this. Add more tests?
-  // Add proj nodes here? Recursive handling of phis required? We need a test that fails without.
   bool use_oop = false;
   if (allow_oop && is_allocated(igvn) && oop->is_Phi()) {
     Unique_Node_List worklist;
@@ -325,9 +322,6 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
         Node* in = n->in(i);
         if (in->is_Phi() && !visited.test_set(in->_idx)) {
           worklist.push(in);
-          // TODO 8325106
-        // TestNullableArrays.test123 fails when enabling this, probably we should make sure that we don't load from a just allocated object
-        //} else if (!(in->is_Con() || in->is_Parm() || in->is_Load() || (in->isa_DecodeN() && in->in(1)->is_Load()))) {
         } else if (!(in->is_Con() || in->is_Parm())) {
           use_oop = false;
           break;
@@ -377,7 +371,7 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
     vt->make_scalar_in_safepoints(igvn);
   }
   if (outcnt() == 0) {
-    igvn->_worklist.push(this);
+    igvn->record_for_igvn(this);
   }
 }
 
@@ -722,8 +716,8 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-  const Type* tinit = phase->type(get_is_init());
-  if ((tinit->isa_int() && tinit->is_int()->is_con(1)) &&
+  const TypeInt* tinit = phase->type(get_is_init())->isa_int();
+  if ((tinit != nullptr && tinit->is_con(1)) &&
       ((is_default(phase) && !is_larval(phase) && !is_larval()) || inline_klass()->is_empty()) &&
       inline_klass()->is_initialized() &&
       (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
@@ -1042,9 +1036,8 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
     vk = inline_klass();
   }
   if (field_count() == 0 && vk->is_initialized()) {
-    const Type* tinit = phase->type(in(IsInit));
-    // TODO 8325106
-    if (false && !is_larval() && tinit->isa_int() && tinit->is_int()->is_con(1)) {
+    const TypeInt* tinit = phase->type(get_is_init())->isa_int();
+    if (tinit != nullptr && tinit->is_con(1)) {
       assert(is_allocated(phase), "must be allocated");
       return get_oop();
     } else {
@@ -1243,8 +1236,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
       if (res == nullptr || !res->is_CheckCastPP()) {
         break; // No unique CheckCastPP
       }
-      // TODO 8325106
-      // assert((!is_default(igvn) || !inline_klass()->is_initialized()) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
+      assert((!is_default(igvn) || !inline_klass()->is_initialized()) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
       // Search for a dominating allocation of the same inline type
       Node* res_dom = res;
       for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {
