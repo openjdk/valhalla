@@ -172,18 +172,16 @@ define CreateCDSArchive
   JRE_TARGETS += $$($1_$2_$3_gen_cds_archive_jre)
 endef
 
-# TODO: add these to below when CDS & --enable-preview is well tested.
-#     $(eval $(call CreateCDSArchive,$v,,_valhalla))
-#     $(eval $(call CreateCDSArchive,$v,_nocoops,_valhalla))
-
 ifeq ($(BUILD_CDS_ARCHIVE), true)
   $(foreach v, $(JVM_VARIANTS), \
     $(eval $(call CreateCDSArchive,$v,,)) \
+    $(eval $(call CreateCDSArchive,$v,,_valhalla)) \
   )
 
   ifeq ($(call isTargetCpuBits, 64), true)
     $(foreach v, $(JVM_VARIANTS), \
       $(eval $(call CreateCDSArchive,$v,_nocoops,)) \
+      $(eval $(call CreateCDSArchive,$v,_nocoops,_valhalla)) \
     )
   endif
 endif
