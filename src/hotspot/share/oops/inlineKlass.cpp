@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/archiveUtils.hpp"
 #include "cds/cdsConfig.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
@@ -525,6 +526,10 @@ void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 void InlineKlass::remove_unshareable_info() {
   InstanceKlass::remove_unshareable_info();
 
+  // update it to point to the "buffered" copy of this class.
+  _adr_inlineklass_fixed_block = inlineklass_static_block();
+  ArchivePtrMarker::mark_pointer((address*)&_adr_inlineklass_fixed_block);
+
   *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
   *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
   *((address*)adr_pack_handler()) = nullptr;
@@ -544,10 +549,6 @@ void InlineKlass::remove_java_mirror() {
 }
 
 void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
-  // We are no longer bookkeeping pointer to fixed block during serialization, hence reinitializing
-  // fixed block address since its size was already accounted by InstanceKlass::size() and it will
-  // anyways be part of shared archive.
-  _adr_inlineklass_fixed_block = inlineklass_static_block();
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
   if (value_array_klasses() != nullptr) {
     value_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
