@@ -277,7 +277,8 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   sobj->init_req(0, igvn->C->root());
   // Nullable inline types have an IsInit field that needs
   // to be checked before using the field values.
-  if (!igvn->type(get_is_init())->is_int()->is_con(1)) {
+  const TypeInt* tinit = igvn->type(get_is_init())->isa_int();
+  if (tinit != nullptr && !tinit->is_con(1)) {
     sfpt->add_req(get_is_init());
   } else {
     sfpt->add_req(igvn->C->top());
@@ -308,9 +309,6 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
   // If the inline type has a constant or loaded oop, use the oop instead of scalarization
   // in the safepoint to avoid keeping field loads live just for the debug info.
   Node* oop = get_oop();
-  // TODO 8325106
-  // TestBasicFunctionality::test3 fails without this. Add more tests?
-  // Add proj nodes here? Recursive handling of phis required? We need a test that fails without.
   bool use_oop = false;
   if (allow_oop && is_allocated(igvn) && oop->is_Phi()) {
     Unique_Node_List worklist;
@@ -324,8 +322,6 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
         Node* in = n->in(i);
         if (in->is_Phi() && !visited.test_set(in->_idx)) {
           worklist.push(in);
-        // TestNullableArrays.test123 fails when enabling this, probably we should make sure that we don't load from a just allocated object
-        //} else if (!(in->is_Con() || in->is_Parm() || in->is_Load() || (in->isa_DecodeN() && in->in(1)->is_Load()))) {
         } else if (!(in->is_Con() || in->is_Parm())) {
           use_oop = false;
           break;
@@ -375,7 +371,7 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
     vt->make_scalar_in_safepoints(igvn);
   }
   if (outcnt() == 0) {
-    igvn->_worklist.push(this);
+    igvn->record_for_igvn(this);
   }
 }
 
@@ -505,10 +501,10 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     holder = inline_klass();
   }
   holder_offset -= inline_klass()->first_field_offset();
-  store(kit, base, ptr, holder, holder_offset, decorators);
+  store(kit, base, ptr, holder, holder_offset, -1, decorators);
 }
 
-void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators, int offsetOnly) const {
+void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, int offsetOnly, DecoratorSet decorators) const {
   // Write field values to memory
   for (uint i = 0; i < field_count(); ++i) {
     if (offsetOnly != -1 && offsetOnly != field_offset(i)) continue;
@@ -536,13 +532,6 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
     // Already buffered
     return this;
   }
-
-  // TODO 8325106
-  /*
-  if (inline_klass()->is_initialized() && inline_klass()->is_empty()) {
-    assert(false, "Should not buffer empty inline klass");
-  }
-  */
 
   // Check if inline type is already buffered
   Node* not_buffered_ctl = kit->top();
@@ -579,37 +568,34 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   PhiNode* io  = PhiNode::make(region, kit->i_o(), Type::ABIO);
   PhiNode* mem = PhiNode::make(region, kit->merged_memory(), Type::MEMORY, TypePtr::BOTTOM);
 
-  int bci = kit->bci();
-  bool reexecute = kit->jvms()->should_reexecute();
   if (!kit->stopped()) {
     assert(!is_allocated(&kit->gvn()), "already buffered");
-
-    // Allocate and initialize buffer
     PreserveJVMState pjvms(kit);
-    // Propagate re-execution state and bci
-    kit->set_bci(bci);
-    kit->jvms()->set_bci(bci);
-    kit->jvms()->set_should_reexecute(reexecute);
-
-    kit->kill_dead_locals();
     ciInlineKlass* vk = inline_klass();
-    Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-    Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true, this);
-    // No need to initialize a larval buffer, we make sure that the oop can not escape
-    if (!is_larval()) {
-      // Larval will be initialized later
-      // TODO 8325106 should this use C2_TIGHTLY_COUPLED_ALLOC?
-      store(kit, alloc_oop, alloc_oop, vk);
+    if (vk->is_initialized() && (vk->is_empty() || (is_default(&kit->gvn()) && !is_larval(&kit->gvn()) && !is_larval()))) {
+      // Don't buffer an empty or default inline type, use the default oop instead
+      oop->init_req(3, default_oop(kit->gvn(), vk));
+    } else {
+      // Allocate and initialize buffer, re-execute on deoptimization.
+      kit->jvms()->set_bci(kit->bci());
+      kit->jvms()->set_should_reexecute(true);
+      kit->kill_dead_locals();
+      Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
+      Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true, this);
+      // No need to initialize a larval buffer, we make sure that the oop can not escape
+      if (!is_larval()) {
+        // Larval will be initialized later
+        store(kit, alloc_oop, alloc_oop, vk);
 
-      // Do not let stores that initialize this buffer be reordered with a subsequent
-      // store that would make this buffer accessible by other threads.
-      AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
-      assert(alloc != nullptr, "must have an allocation node");
-      kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+        // Do not let stores that initialize this buffer be reordered with a subsequent
+        // store that would make this buffer accessible by other threads.
+        AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
+        assert(alloc != nullptr, "must have an allocation node");
+        kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+      }
+      oop->init_req(3, alloc_oop);
     }
-
     region->init_req(3, kit->control());
-    oop   ->init_req(3, alloc_oop);
     io    ->init_req(3, kit->i_o());
     mem   ->init_req(3, kit->merged_memory());
   }
@@ -730,10 +716,9 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-  const Type* tinit = phase->type(get_is_init());
-  if (!is_larval(phase) && !is_larval() &&
-      (tinit->isa_int() && tinit->is_int()->is_con(1)) &&
-      (is_default(phase) || inline_klass()->is_empty()) &&
+  const TypeInt* tinit = phase->type(get_is_init())->isa_int();
+  if ((tinit != nullptr && tinit->is_con(1)) &&
+      ((is_default(phase) && !is_larval(phase) && !is_larval()) || inline_klass()->is_empty()) &&
       inline_klass()->is_initialized() &&
       (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
     // Use the pre-allocated oop for null-free default or empty inline types
@@ -751,16 +736,13 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     }
     return this;
   }
-  // TODO 8325106 Re-evaluate this: We prefer a "loaded" oop because it's free. The existing oop might come from a buffering.
-  if (!is_larval(phase) && !is_larval()) {
-    // Save base oop if fields are loaded from memory and the inline
-    // type is not buffered (in this case we should not use the oop).
-    Node* base = is_loaded(phase);
-    if (base != nullptr && get_oop() != base && !phase->type(base)->maybe_null()) {
-      set_oop(*phase, base);
-      assert(is_allocated(phase), "should now be allocated");
-      return this;
-    }
+
+  // Use base oop if fields are loaded from memory
+  Node* base = is_loaded(phase);
+  if (base != nullptr && get_oop() != base && !phase->type(base)->maybe_null()) {
+    set_oop(*phase, base);
+    assert(is_allocated(phase), "should now be allocated");
+    return this;
   }
 
   if (can_reshape) {
@@ -841,8 +823,8 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
 }
 
 bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
-  const Type* tinit = gvn->type(get_is_init());
-  if (!tinit->isa_int() || !tinit->is_int()->is_con(1)) {
+  const TypeInt* tinit = gvn->type(get_is_init())->isa_int();
+  if (tinit == nullptr || !tinit->is_con(1)) {
     return false; // May be null
   }
   for (uint i = 0; i < field_count(); ++i) {
@@ -855,8 +837,8 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
       continue;
     } else if (value->is_InlineType()) {
       // Nullable value class field must be null
-      const Type* tinit = gvn->type(value->as_InlineType()->get_is_init());
-      if (tinit->isa_int() && tinit->is_int()->is_con(0)) {
+      tinit = gvn->type(value->as_InlineType()->get_is_init())->isa_int();
+      if (tinit != nullptr && tinit->is_con(0)) {
         continue;
       }
       return false;
@@ -887,7 +869,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
   InlineTypeNode* vt = nullptr;
 
   if (oop->isa_InlineType()) {
-    // TODO 8325106 Re-enable assert and fix OSR code
+    // TODO 8335256 Re-enable assert and fix OSR code
     // Issue triggers with TestValueConstruction.java and -XX:Tier0BackedgeNotifyFreqLog=0 -XX:Tier2BackedgeNotifyFreqLog=0 -XX:Tier3BackedgeNotifyFreqLog=0 -XX:Tier2BackEdgeThreshold=1 -XX:Tier3BackEdgeThreshold=1 -XX:Tier4BackEdgeThreshold=1 -Xbatch -XX:-TieredCompilation
     // assert(!is_larval || oop->as_InlineType()->is_larval(), "must be larval");
     if (is_larval && !oop->as_InlineType()->is_larval()) {
@@ -1047,13 +1029,15 @@ bool InlineTypeNode::is_larval(PhaseGVN* gvn) const {
 }
 
 Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, int holder_offset) {
+  if (is_larval() || is_larval(phase)) {
+    return nullptr;
+  }
   if (vk == nullptr) {
     vk = inline_klass();
   }
   if (field_count() == 0 && vk->is_initialized()) {
-    const Type* tinit = phase->type(in(IsInit));
-    // TODO 8325106
-    if (false && !is_larval() && tinit->isa_int() && tinit->is_int()->is_con(1)) {
+    const TypeInt* tinit = phase->type(get_is_init())->isa_int();
+    if (tinit != nullptr && tinit->is_con(1)) {
       assert(is_allocated(phase), "must be allocated");
       return get_oop();
     } else {
@@ -1252,8 +1236,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
       if (res == nullptr || !res->is_CheckCastPP()) {
         break; // No unique CheckCastPP
       }
-      // TODO 8325106
-      // assert((!is_default(igvn) || !inline_klass()->is_initialized()) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
+      assert((!is_default(igvn) || !inline_klass()->is_initialized()) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
       // Search for a dominating allocation of the same inline type
       Node* res_dom = res;
       for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {

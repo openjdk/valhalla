@@ -103,11 +103,6 @@ int ciInlineKlass::inline_arg_slots() {
   return slots;
 }
 
-// Offset of the default oop in the mirror
-int ciInlineKlass::default_value_offset() const {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->default_value_offset();)
-}
-
 ciInstance* ciInlineKlass::default_instance() const {
   GUARDED_VM_ENTRY(
     oop default_value = to_InlineKlass()->default_value();

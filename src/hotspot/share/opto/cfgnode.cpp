@@ -2072,7 +2072,7 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
     }
     while (casts.size() != 0) {
       // Push the cast(s) through the InlineTypeNode
-      // TODO 8325106 Can we avoid cloning?
+      // TODO 8302217 Can we avoid cloning? See InlineTypeNode::clone_if_required
       Node* cast = casts.pop()->clone();
       cast->set_req_X(1, n->as_InlineType()->get_oop(), phase);
       n = n->clone();

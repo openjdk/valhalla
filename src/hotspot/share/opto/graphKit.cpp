@@ -1486,8 +1486,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
-    // TODO 8325106 Can we avoid cloning?
-    Node* vt = obj->clone();
+    Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
     vt->as_InlineType()->set_is_init(_gvn);
     vt = _gvn.transform(vt);
     if (do_replace_in_map) {
@@ -3964,8 +3963,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     bool can_be_flat = false;
     const TypeAryPtr* ary_type = klass_t->as_instance_type()->isa_aryptr();
     if (UseFlatArray && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
-      // TODO 8325106 Fix comment
-      // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue. Don't constant fold.
+      // Don't constant fold if the runtime type might be a flat array but the static type is not.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
       can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flat_in_array());
     }
@@ -4367,11 +4365,10 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
-  // TODO 8325106 Fix comment
   // Inline type array variants:
-  // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue")
-  // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue")
-  // - null-free, flat     : MyValue.val[] (ciFlatArrayKlass "[QMyValue")
+  // - null-ok:         ciObjArrayKlass  with is_elem_null_free() = false
+  // - null-free:       ciObjArrayKlass  with is_elem_null_free() = true
+  // - null-free, flat: ciFlatArrayKlass with is_elem_null_free() = true
   // Check if array is a null-free, non-flat inline type array
   // that needs to be initialized with the default inline type.
   Node* default_value = nullptr;

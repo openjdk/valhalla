@@ -245,8 +245,7 @@ Node *MemNode::optimize_memory_chain(Node *mchain, const TypePtr *t_adr, Node *l
       // clone the Phi with our address type
       result = mphi->split_out_instance(t_adr, igvn);
     } else {
-      // TODO 8325106
-      // assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
+      assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
     }
   }
   return result;
@@ -2101,38 +2100,21 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
            Opcode() == Op_LoadKlass,
            "Field accesses must be precise");
     // For klass/static loads, we expect the _type to be precise
-  } else if (tp->base() == Type::RawPtr && !StressReflectiveCode) {
-    if (adr->is_Load() && off == 0) {
-      /* With mirrors being an indirect in the Klass*
-       * the VM is now using two loads. LoadKlass(LoadP(LoadP(Klass, mirror_offset), zero_offset))
-       * The LoadP from the Klass has a RawPtr type (see LibraryCallKit::load_mirror_from_klass).
-       *
-       * So check the type and klass of the node before the LoadP.
-       */
-      Node* adr2 = adr->in(MemNode::Address);
-      const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
-      if (tkls != nullptr) {
-        if (tkls->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
-          ciKlass* klass = tkls->exact_klass();
-          assert(adr->Opcode() == Op_LoadP, "must load an oop from _java_mirror");
-          assert(Opcode() == Op_LoadP, "must load an oop from _java_mirror");
-          return TypeInstPtr::make(klass->java_mirror());
-        }
-      }
-    } else {
-      // Check for a load of the default value offset from the InlineKlassFixedBlock:
-      // LoadI(LoadP(inline_klass, adr_inlineklass_fixed_block_offset), default_value_offset_offset)
-      // TODO 8325106 remove?
-      intptr_t offset = 0;
-      Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-      if (base != nullptr && base->is_Load() && offset == in_bytes(InlineKlass::default_value_offset_offset())) {
-        const TypeKlassPtr* tkls = phase->type(base->in(MemNode::Address))->isa_klassptr();
-        if (tkls != nullptr && tkls->is_loaded() && tkls->klass_is_exact() && tkls->exact_klass()->is_inlinetype() &&
-            tkls->offset() == in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())) {
-          assert(base->Opcode() == Op_LoadP, "must load an oop from klass");
-          assert(Opcode() == Op_LoadI, "must load an int from fixed block");
-          return TypeInt::make(tkls->exact_klass()->as_inline_klass()->default_value_offset());
-        }
+  } else if (tp->base() == Type::RawPtr && adr->is_Load() && off == 0) {
+    /* With mirrors being an indirect in the Klass*
+     * the VM is now using two loads. LoadKlass(LoadP(LoadP(Klass, mirror_offset), zero_offset))
+     * The LoadP from the Klass has a RawPtr type (see LibraryCallKit::load_mirror_from_klass).
+     *
+     * So check the type and klass of the node before the LoadP.
+     */
+    Node* adr2 = adr->in(MemNode::Address);
+    const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
+    if (tkls != nullptr && !StressReflectiveCode) {
+      if (tkls->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
+        ciKlass* klass = tkls->exact_klass();
+        assert(adr->Opcode() == Op_LoadP, "must load an oop from _java_mirror");
+        assert(Opcode() == Op_LoadP, "must load an oop from _java_mirror");
+        return TypeInstPtr::make(klass->java_mirror());
       }
     }
   }

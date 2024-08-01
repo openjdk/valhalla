@@ -2021,7 +2021,9 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   // Delay this until all inlining is over to avoid getting inconsistent debug info.
   set_scalarize_in_safepoints(true);
   for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
-    _inline_type_nodes.at(i)->as_InlineType()->make_scalar_in_safepoints(&igvn);
+    InlineTypeNode* vt = _inline_type_nodes.at(i)->as_InlineType();
+    vt->make_scalar_in_safepoints(&igvn);
+    igvn.record_for_igvn(vt);
   }
   if (remove) {
     // Remove inline type nodes by replacing them with their oop input
@@ -4984,10 +4986,8 @@ Compile::SubTypeCheckResult Compile::static_subtype_check(const TypeKlassPtr* su
     int ignored;
     superelem = superk->is_aryklassptr()->base_element_type(ignored);
 
-    // TODO 8325106 Fix comment
-    // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-    // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
-    // the klass for [LMyValue. Perform a full test.
+    // Do not fold the subtype check to an array klass pointer comparison for null-able inline type arrays
+    // because null-free [LMyValue <: null-able [LMyValue but the klasses are different. Perform a full test.
     if (!superk->is_aryklassptr()->is_null_free() && superk->is_aryklassptr()->elem()->isa_instklassptr() &&
         superk->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->is_inlinetype()) {
       return SSC_full_test;

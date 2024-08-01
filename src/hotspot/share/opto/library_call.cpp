@@ -4403,8 +4403,6 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
           array_klass_type = array_klass_type->cast_to_null_free();
           Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false);  // no arguments to push
-          AllocateArrayNode* alloc = AllocateArrayNode::Ideal_array_allocation(obj);
-          alloc->set_null_free();
           set_result(obj);
           assert(gvn().type(obj)->is_aryptr()->is_null_free(), "must be null-free");
           return true;
@@ -4827,6 +4825,8 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   PhiNode*    result_mem = new PhiNode(result_reg, Type::MEMORY, TypePtr::BOTTOM);
   Node* obj = argument(0);
 
+  // Don't intrinsify hashcode on inline types for now.
+  // The "is locked" runtime check below also serves as inline type check and goes to the slow path.
   if (gvn().type(obj)->is_inlinetypeptr()) {
     return false;
   }
@@ -5264,7 +5264,6 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
 
 #undef XTOP
 
-// TODO 8325106 Remove this and corresponding tests. Flatness is not a property of the Class anymore with JEP 401.
 //----------------------inline_unsafe_isFlatArray------------------------
 // public native boolean Unsafe.isFlatArray(Class<?> arrayClass);
 // This intrinsic exploits assumptions made by the native implementation
@@ -5591,12 +5590,12 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
     sfpt->init_req(i, alloc->in(i));
   }
   int adjustment = 1;
-  // TODO 8325106 why can't we check via the type of the const klass node?
-  if (alloc->is_null_free()) {
+  const TypeAryKlassPtr* ary_klass_ptr = alloc->in(AllocateNode::KlassNode)->bottom_type()->is_aryklassptr();
+  if (ary_klass_ptr->is_null_free()) {
     // A null-free, tightly coupled array allocation can only come from LibraryCallKit::inline_newNullRestrictedArray
     // which requires both the component type and the array length on stack for re-execution. Re-create and push
     // the component type.
-    ciArrayKlass* klass = alloc->in(AllocateNode::KlassNode)->bottom_type()->is_aryklassptr()->exact_klass()->as_array_klass();
+    ciArrayKlass* klass = ary_klass_ptr->exact_klass()->as_array_klass();
     ciInstance* instance = klass->component_mirror_instance();
     const TypeInstPtr* t_instance = TypeInstPtr::make(instance);
     sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp(), makecon(t_instance));

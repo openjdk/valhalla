@@ -179,7 +179,6 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
     // TypeFlow asserted a specific object type.  Value must have that type.
     Node* bad_type_ctrl = nullptr;
     if (tp->is_inlinetypeptr() && !tp->maybe_null()) {
-      // TODO 8325106 Dead code?
       // Check inline types for null here to prevent checkcast from adding an
       // exception state before the bytecode entry (use 'bad_type_ctrl' instead).
       l = null_check_oop(l, &bad_type_ctrl);
@@ -625,8 +624,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
-      // TODO 8325106 Shouldn't we use replace_in_map here?
-      set_local(i, cast);
+      replace_in_map(parm, cast);
     }
   }
 
@@ -2202,7 +2200,6 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     // Inline types are merged by merging their field values.
     // Create a cloned InlineTypeNode with phi inputs that
     // represents the merged inline type and update the map.
-    // TODO 8325106 Why can't we pass map here?
     vt = vt->clone_with_phis(&_gvn, region);
     map->set_req(idx, vt);
     return vt->get_oop()->as_Phi();

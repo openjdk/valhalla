@@ -1104,9 +1104,6 @@ public:
 // High-level array allocation
 //
 class AllocateArrayNode : public AllocateNode {
-private:
-  bool _null_free;
-
 public:
   AllocateArrayNode(Compile* C, const TypeFunc* atype, Node* ctrl, Node* mem, Node* abio, Node* size, Node* klass_node,
                     Node* initial_test, Node* count_val, Node* valid_length_test,
@@ -1119,7 +1116,6 @@ public:
     set_req(AllocateNode::ValidLengthTest, valid_length_test);
     init_req(AllocateNode::DefaultValue,  default_value);
     init_req(AllocateNode::RawDefaultValue, raw_default_value);
-    _null_free = false;
   }
   virtual uint size_of() const { return sizeof(*this); }
   virtual int Opcode() const;
@@ -1140,9 +1136,6 @@ public:
     return (allo == nullptr || !allo->is_AllocateArray())
            ? nullptr : allo->as_AllocateArray();
   }
-
-  void set_null_free() { _null_free = true; }
-  bool is_null_free() const { return _null_free; }
 };
 
 //------------------------------AbstractLockNode-----------------------------------

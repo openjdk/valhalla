@@ -82,7 +82,6 @@ public:
   bool can_be_returned_as_fields() const;
   bool is_empty();
   int inline_arg_slots();
-  int default_value_offset() const;
   ciInstance* default_instance() const;
   bool contains_oops() const;
   int oop_count() const;
