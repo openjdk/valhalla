@@ -46,6 +46,7 @@ public class BasicFloat16ArithTests {
         checkSqrt();
         checkGetExponent();
         checkUlp();
+        checkValueOfDouble();
         FusedMultiplyAddTests.main();
     }
 
@@ -373,6 +374,44 @@ public class BasicFloat16ArithTests {
 
     private static void throwRE(String message) {
         throw new RuntimeException(message);
+    }
+
+
+    private static void checkValueOfDouble() {
+        /*
+         * Check that double -> Float16 conversion rounds propertly
+         * around the widway point for each finite Float16 value.
+         */
+        for(int i = 0; i <= Short.MAX_VALUE; i++ ) {
+            // Start by just checking positive values...
+            boolean isEven = ((i & 0x1) == 0);
+
+            Float16 f16 = Float16.shortBitsToFloat16((short)i);
+
+            if (!isFinite(f16))
+                continue;
+
+            // System.out.println("\t" + toHexString(f16));
+
+            Float16 ulp = ulp(f16);
+            double halfWay = f16.doubleValue() + ulp.doubleValue() * 0.5;
+            // Under the round to nearest even rounding policy, the
+            // half-way case should round down to the starting value
+            // if the starting value is even; otherwise, it should round up.
+            float roundedBack = valueOf(halfWay).floatValue();
+
+            // While we're here, check negations
+            float roundedBackNeg = valueOf(-halfWay).floatValue();
+            String roundUpMsg   = "Didn't get half-way case rounding down";
+            String roundDownMsg = "Didn't get half-way case rounding up";
+            if (isEven) {
+                checkFloat16(f16,         roundedBack,    roundUpMsg);
+                checkFloat16(negate(f16), roundedBackNeg, roundUpMsg);
+            } else {
+                checkFloat16(add(f16, ulp), roundedBack,                roundDownMsg);
+                checkFloat16(subtract(negate(f16), ulp),roundedBackNeg, roundDownMsg);
+            }
+        }
     }
 
     class FusedMultiplyAddTests {
