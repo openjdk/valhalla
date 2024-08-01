@@ -395,6 +395,7 @@ public class BasicFloat16ArithTests {
 
             Float16 ulp = ulp(f16);
             double halfWay = f16.doubleValue() + ulp.doubleValue() * 0.5;
+
             // Under the round to nearest even rounding policy, the
             // half-way case should round down to the starting value
             // if the starting value is even; otherwise, it should round up.
@@ -405,12 +406,20 @@ public class BasicFloat16ArithTests {
             String roundUpMsg   = "Didn't get half-way case rounding down";
             String roundDownMsg = "Didn't get half-way case rounding up";
             if (isEven) {
-                checkFloat16(f16,         roundedBack,    roundUpMsg);
-                checkFloat16(negate(f16), roundedBackNeg, roundUpMsg);
+                checkFloat16(f16,         roundedBack,    roundDownMsg);
+                checkFloat16(negate(f16), roundedBackNeg, roundDownMsg);
             } else {
-                checkFloat16(add(f16, ulp), roundedBack,                roundDownMsg);
-                checkFloat16(subtract(negate(f16), ulp),roundedBackNeg, roundDownMsg);
+                checkFloat16(add(f16, ulp), roundedBack,                roundUpMsg);
+                checkFloat16(subtract(negate(f16), ulp),roundedBackNeg, roundUpMsg);
             }
+
+            // Should always round down
+            double halfWayNextDown = Math.nextDown(halfWay);
+            checkFloat16(f16, valueOf(halfWayNextDown).floatValue(), roundDownMsg);
+
+            // Should always round down up
+            double halfWayNextUp =   Math.nextUp(halfWay);
+            checkFloat16(add(f16, ulp), valueOf(halfWayNextUp).floatValue(),   roundUpMsg);
         }
     }
 
