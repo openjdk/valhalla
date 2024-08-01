@@ -415,7 +415,7 @@ public class BasicFloat16ArithTests {
 
             // Should always round down
             double halfWayNextDown = Math.nextDown(halfWay);
-            checkFloat16(f16, valueOf(halfWayNextDown).floatValue(), roundDownMsg);
+            checkFloat16(f16,           valueOf(halfWayNextDown).floatValue(), roundDownMsg);
 
             // Should always round down up
             double halfWayNextUp =   Math.nextUp(halfWay);
@@ -568,8 +568,6 @@ public class BasicFloat16ArithTests {
                  -1.0f - 2.0f*ulpOneFp16,
                  ulpOneFp16 * ulpOneFp16},
 
-//                 // Double-rounding if done in double precision
-//                 {0x1.fffffep23f, 0x1.000004p28f, 0x1.fep5f, 0x1.000002p52f}
             };
 
             for (float[] testCase: testCases) {
@@ -620,6 +618,14 @@ public class BasicFloat16ArithTests {
 
                 {0x1.0p-24f, 0x1.0p-24f, 0x1.0p14f,
                  0x1.0p14f},
+
+                // Check subnormal results, underflow to zero
+                {0x1.0p-24f, -0.5f, 0x1.0p-24f,
+                 0.0f},
+
+                // Check subnormal results, underflow to zero
+                {0x1.0p-24f, -0.5f, 0.0f,
+                 -0.0f},
             };
 
             for (float[] testCase: testCases) {
