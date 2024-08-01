@@ -1026,6 +1026,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
       HandleMark hm(THREAD);
       for (int i = 0; i < loadable_descriptors()->length(); i++) {
         Symbol* sig = constants()->symbol_at(loadable_descriptors()->at(i));
+        if (!Signature::has_envelope(sig)) continue;
         TempNewSymbol class_name = Signature::strip_envelope(sig);
         if (class_name == name()) continue;
         log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the LoadableDescriptors attribute", sig->as_C_string(), name()->as_C_string());
