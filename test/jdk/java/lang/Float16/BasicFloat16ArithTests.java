@@ -54,7 +54,7 @@ public class BasicFloat16ArithTests {
      * The software implementation of Float16 delegates to float or
      * double operations for most of the actual computation. This
      * regression test takes that into account as it generally only
-     * has limited tested to probe whether or not the proper
+     * has limited testing to probe whether or not the proper
      * functionality is being delegated to.
      *
      * To make the test easier to read, float literals that are exact
