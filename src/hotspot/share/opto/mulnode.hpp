@@ -153,6 +153,7 @@ public:
   int mul_opcode() const { return Op_MulHF; }
   int max_opcode() const { return Op_MaxHF; }
   int min_opcode() const { return Op_MinHF; }
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };
 
 //------------------------------MulDNode---------------------------------------
