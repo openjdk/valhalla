@@ -191,6 +191,16 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             ),
             new TestData(
                     """
+                    value class One extends Number {
+                        public int intValue() { return 0; }
+                        public long longValue() { return 0; }
+                        public float floatValue() { return 0; }
+                        public double doubleValue() { return 0; }
+                    }
+                    """
+            ),
+            new TestData(
+                    """
                     value class V extends Object {}
                     """
             ),
