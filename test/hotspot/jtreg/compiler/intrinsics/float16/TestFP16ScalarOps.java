@@ -124,6 +124,7 @@ public class TestFP16ScalarOps {
             dst[i] = float16ToRawShortBits(res);
         }
     }
+
     @Test
     @IR(counts = {IRNode.MIN_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})

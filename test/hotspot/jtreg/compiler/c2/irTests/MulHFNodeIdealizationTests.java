@@ -56,12 +56,12 @@ public class MulHFNodeIdealizationTests {
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"},
         failOn = {IRNode.MUL_HF})
     public void test1() {
-        dst = Float16.multiply(src, Float16.valueOf(2));
+        dst = Float16.multiply(src, Float16.valueOf(2.0f));
     }
 
     @Check(test="test1")
     public void checkTest1() {
-        Float16 expected = Float16.valueOf(src.floatValue() * (float) 2);
+        Float16 expected = Float16.valueOf(src.floatValue() * 2.0f);
         if (float16ToRawShortBits(expected) != float16ToRawShortBits(dst)) {
             throw new RuntimeException("Invalid result: dst = " + float16ToRawShortBits(dst) + " != " + float16ToRawShortBits(expected));
         }
