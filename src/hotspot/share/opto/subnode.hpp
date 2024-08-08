@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,7 +104,7 @@ public:
 
 // NOTE: SubFNode should be taken away and replaced by add and negate
 //------------------------------SubFNode---------------------------------------
-// Subtract 2 doubles
+// Subtract 2 floats
 class SubFNode : public SubFPNode {
 public:
   SubFNode( Node *in1, Node *in2 ) : SubFPNode(in1,in2) {}
@@ -114,6 +114,14 @@ public:
   const Type   *add_id() const { return TypeF::ZERO; }
   const Type   *bottom_type() const { return Type::FLOAT; }
   virtual uint  ideal_reg() const { return Op_RegF; }
+};
+
+//------------------------------SubHFNode--------------------------------------
+// Subtract 2 half floats
+class SubHFNode : public SubFNode {
+public:
+  SubHFNode(Node* in1, Node* in2) : SubFNode(in1, in2) {}
+  virtual int Opcode() const;
 };
 
 // NOTE: SubDNode should be taken away and replaced by add and negate

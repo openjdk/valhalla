@@ -542,22 +542,6 @@ public final class Float16
     // public boolean equals(Object obj)
 
     /**
-     * Adds two {@code Float16} values together as per the {@code +}
-     * operator semantics.
-     *
-     * @implSpec
-     * This method is operationally equivalent to {@link #add(Float16, Float16)}.
-     *
-     * @param a the first operand
-     * @param b the second operand
-     * @return the sum of {@code a} and {@code b}
-     */
-    @IntrinsicCandidate
-    public static Float16 sum(Float16 a, Float16 b) {
-        return add(a, b);
-    }
-
-    /**
      * Returns a representation of the specified floating-point value
      * according to the IEEE 754 floating-point binary16 bit layout.
      *
@@ -658,6 +642,7 @@ public final class Float16
      * @see Math#max(float, float)
      * @see Math#max(double, double)
      */
+    @IntrinsicCandidate
     public static Float16 max(Float16 a, Float16 b) {
         return shortBitsToFloat16(floatToFloat16(Math.max(a.floatValue(),
                                                           b.floatValue() )));
@@ -677,6 +662,7 @@ public final class Float16
      * @see Math#min(float, float)
      * @see Math#min(double, double)
      */
+    @IntrinsicCandidate
     public static Float16 min(Float16 a, Float16 b) {
         return shortBitsToFloat16(floatToFloat16(Math.min(a.floatValue(),
                                                           b.floatValue()) ));
@@ -732,7 +718,7 @@ public final class Float16
      *
      * @jls 15.4 Floating-point Expressions
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 add(Float16 addend, Float16 augend) {
         return valueOf(addend.floatValue() + augend.floatValue());
     }
@@ -755,7 +741,7 @@ public final class Float16
      *
      * @jls 15.4 Floating-point Expressions
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 subtract(Float16 minuend, Float16 subtrahend) {
         return valueOf(minuend.floatValue() - subtrahend.floatValue());
     }
@@ -778,7 +764,7 @@ public final class Float16
      *
      * @jls 15.4 Floating-point Expressions
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 multiply(Float16 multiplier, Float16 multiplicand) {
         return valueOf(multiplier.floatValue() * multiplicand.floatValue());
     }
@@ -801,7 +787,7 @@ public final class Float16
      *
      * @jls 15.4 Floating-point Expressions
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 divide(Float16 dividend, Float16 divisor) {
         return valueOf(dividend.floatValue() / divisor.floatValue());
     }

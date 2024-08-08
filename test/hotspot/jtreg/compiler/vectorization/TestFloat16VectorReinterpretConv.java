@@ -23,6 +23,7 @@
 
 /**
 * @test
+* @bug 8330021
 * @summary Test auto-vectorization for "dst (ConvHF2F (ReinterpretHF2S src))" sequence
 * @requires vm.compiler2.enabled
 * @library /test/lib /
@@ -67,7 +68,7 @@ public class TestFloat16VectorReinterpretConv {
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testVect() {
         for (int i = 0; i < LEN; i++) {
-            flout[i] = Float16.sum(fin[i], fin[i]).floatValue();
+            flout[i] = Float16.add(fin[i], fin[i]).floatValue();
         }
     }
 

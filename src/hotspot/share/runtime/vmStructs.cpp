@@ -1430,6 +1430,8 @@
   declare_c2_type(MinLNode, MaxNode)                                      \
   declare_c2_type(MaxFNode, MaxNode)                                      \
   declare_c2_type(MinFNode, MaxNode)                                      \
+  declare_c2_type(MaxHFNode, MaxFNode)                                    \
+  declare_c2_type(MinHFNode, MinFNode)                                    \
   declare_c2_type(MaxDNode, MaxNode)                                      \
   declare_c2_type(MinDNode, MaxNode)                                      \
   declare_c2_type(StartNode, MultiNode)                                   \
@@ -1533,6 +1535,7 @@
   declare_c2_type(DivLNode, Node)                                         \
   declare_c2_type(DivFNode, Node)                                         \
   declare_c2_type(DivDNode, Node)                                         \
+  declare_c2_type(DivHFNode, DivFNode)                                    \
   declare_c2_type(UDivINode, Node)                                        \
   declare_c2_type(UDivLNode, Node)                                        \
   declare_c2_type(ModINode, Node)                                         \
@@ -1629,6 +1632,7 @@
   declare_c2_type(MulLNode, MulNode)                                      \
   declare_c2_type(MulFNode, MulNode)                                      \
   declare_c2_type(MulDNode, MulNode)                                      \
+  declare_c2_type(MulHFNode, MulFNode)                                    \
   declare_c2_type(MulHiLNode, Node)                                       \
   declare_c2_type(UMulHiLNode, Node)                                      \
   declare_c2_type(AndINode, MulINode)                                     \
@@ -1650,6 +1654,7 @@
   declare_c2_type(SubFPNode, SubNode)                                     \
   declare_c2_type(SubFNode, SubFPNode)                                    \
   declare_c2_type(SubDNode, SubFPNode)                                    \
+  declare_c2_type(SubHFNode, SubFNode)                                    \
   declare_c2_type(CmpNode, SubNode)                                       \
   declare_c2_type(CmpINode, CmpNode)                                      \
   declare_c2_type(CmpUNode, CmpNode)                                      \
@@ -1703,6 +1708,7 @@
   declare_c2_type(SubVSNode, VectorNode)                                  \
   declare_c2_type(SubVINode, VectorNode)                                  \
   declare_c2_type(SubVLNode, VectorNode)                                  \
+  declare_c2_type(SubVHFNode, VectorNode)                                 \
   declare_c2_type(SubVFNode, VectorNode)                                  \
   declare_c2_type(SubVDNode, VectorNode)                                  \
   declare_c2_type(MulVBNode, VectorNode)                                  \
@@ -1711,6 +1717,7 @@
   declare_c2_type(MulReductionVLNode, ReductionNode)                      \
   declare_c2_type(MulVINode, VectorNode)                                  \
   declare_c2_type(MulReductionVINode, ReductionNode)                      \
+  declare_c2_type(MulVHFNode, VectorNode)                                 \
   declare_c2_type(MulVFNode, VectorNode)                                  \
   declare_c2_type(MulReductionVFNode, ReductionNode)                      \
   declare_c2_type(MulVDNode, VectorNode)                                  \
@@ -1727,6 +1734,7 @@
   declare_c2_type(CompressBitsVNode, VectorNode)                          \
   declare_c2_type(ExpandBitsVNode, VectorNode)                            \
   declare_c2_type(MulReductionVDNode, ReductionNode)                      \
+  declare_c2_type(DivVHFNode, VectorNode)                                 \
   declare_c2_type(DivVFNode, VectorNode)                                  \
   declare_c2_type(DivVDNode, VectorNode)                                  \
   declare_c2_type(PopCountVINode, VectorNode)                             \
@@ -1753,6 +1761,8 @@
   declare_c2_type(XorReductionVNode, ReductionNode)                       \
   declare_c2_type(MaxVNode, VectorNode)                                   \
   declare_c2_type(MinVNode, VectorNode)                                   \
+  declare_c2_type(MaxVHFNode, VectorNode)                                 \
+  declare_c2_type(MinVHFNode, VectorNode)                                 \
   declare_c2_type(LoadVectorNode, LoadNode)                               \
   declare_c2_type(StoreVectorNode, StoreNode)                             \
   declare_c2_type(ReplicateNode, VectorNode)                              \

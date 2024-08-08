@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Arm Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +24,8 @@
 
 /*
  * @test
- * @bug 8308363
- * @summary Initial compiler support for Float16.add operation.
+ * @bug 8308363 8336406
+ * @summary Verify binary FP16 scalar operations
  * @compile FP16ScalarOperations.java
  * @run main/othervm --enable-preview -XX:-TieredCompilation -Xbatch FP16ScalarOperations
  */
@@ -37,25 +38,40 @@ public class FP16ScalarOperations {
 
     public static Random r = new Random(1024);
 
-    public static short actual_value(char oper, short val1, short val2) {
+    public static short actual_value(String oper, short val1, short val2) {
         Float16 obj1 = shortBitsToFloat16(val1);
         Float16 obj2 = shortBitsToFloat16(val2);
-        switch ((int)oper) {
-            case '+' : return float16ToRawShortBits(Float16.sum(obj1, obj2));
-            default  : throw new AssertionError("Unsupported Operation!");
+        switch (oper) {
+            case "+"   : return float16ToRawShortBits(Float16.add(obj1, obj2));
+            case "-"   : return float16ToRawShortBits(Float16.subtract(obj1, obj2));
+            case "*"   : return float16ToRawShortBits(Float16.multiply(obj1, obj2));
+            case "/"   : return float16ToRawShortBits(Float16.divide(obj1, obj2));
+            case "min" : return float16ToRawShortBits(Float16.min(obj1, obj2));
+            case "max" : return float16ToRawShortBits(Float16.max(obj1, obj2));
+            default    : throw new AssertionError("Unsupported Operation!");
         }
     }
 
-    public static void test_add(short [] arr1, short arr2[]) {
+    public static void test_operations(short [] arr1, short arr2[]) {
         for (int i = 0; i < arr1.length; i++) {
-            validate('+', arr1[i], arr2[i]);
+            validate("+", arr1[i], arr2[i]);
+            validate("-", arr1[i], arr2[i]);
+            validate("*", arr1[i], arr2[i]);
+            validate("/", arr1[i], arr2[i]);
+            validate("min", arr1[i], arr2[i]);
+            validate("max", arr1[i], arr2[i]);
         }
     }
 
-    public static short expected_value(char oper, short input1, short input2) {
-        switch((int)oper) {
-            case '+' : return Float.floatToFloat16(Float.float16ToFloat(input1) + Float.float16ToFloat(input2));
-            default  : throw new AssertionError("Unsupported Operation!");
+    public static short expected_value(String oper, short input1, short input2) {
+        switch(oper) {
+            case "+"   : return Float.floatToFloat16(Float.float16ToFloat(input1) + Float.float16ToFloat(input2));
+            case "-"   : return Float.floatToFloat16(Float.float16ToFloat(input1) - Float.float16ToFloat(input2));
+            case "*"   : return Float.floatToFloat16(Float.float16ToFloat(input1) * Float.float16ToFloat(input2));
+            case "/"   : return Float.floatToFloat16(Float.float16ToFloat(input1) / Float.float16ToFloat(input2));
+            case "min" : return Float.floatToFloat16(Float.min(Float.float16ToFloat(input1), Float.float16ToFloat(input2)));
+            case "max" : return Float.floatToFloat16(Float.max(Float.float16ToFloat(input1), Float.float16ToFloat(input2)));
+            default    : throw new AssertionError("Unsupported Operation!");
         }
     }
 
@@ -63,7 +79,7 @@ public class FP16ScalarOperations {
         return !((0xFFFF & actual) == (0xFFFF & expected));
     }
 
-    public static void validate(char oper, short input1, short input2) {
+    public static void validate(String oper, short input1, short input2) {
         short actual = actual_value(oper, input1, input2);
         short expected = expected_value(oper, input1, input2);
         if (compare(actual, expected)) {
@@ -91,8 +107,8 @@ public class FP16ScalarOperations {
               (short)-32768,  // -0.0
         };
         for (int i = 0;  i < 1000; i++) {
-            test_add(input1, input2);
-            test_add(special_values, special_values);
+            test_operations(input1, input2);
+            test_operations(special_values, special_values);
         }
         System.out.println("PASS");
     }
