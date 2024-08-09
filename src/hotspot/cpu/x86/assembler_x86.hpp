@@ -2405,8 +2405,18 @@ private:
   void vpaddw(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
   void vpaddd(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
   void vpaddq(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
-  void evaddsh(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void eaddsh(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void esubsh(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void emulsh(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void edivsh(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void emaxsh(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void eminsh(XMMRegister dst, XMMRegister nds, XMMRegister src);
   void evaddph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  void evsubph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  void evdivph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  void evmulph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  void evminph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  void evmaxph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
   // Leaf level assembler routines for masked operations.
   void evpaddb(XMMRegister dst, KRegister mask, XMMRegister nds, XMMRegister src, bool merge, int vector_len);

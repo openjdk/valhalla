@@ -7396,12 +7396,92 @@ void Assembler::evaddph(XMMRegister dst, XMMRegister nds, XMMRegister src, int v
   emit_int16(0x58, (0xC0 | encode));
 }
 
-void Assembler::evaddsh(XMMRegister dst, XMMRegister nds, XMMRegister src) {
+void Assembler::evsubph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(vector_len, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ true);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_NONE, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x5C, (0xC0 | encode));
+}
+
+void Assembler::evmulph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(vector_len, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ true);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_NONE, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x59, (0xC0 | encode));
+}
+
+void Assembler::evminph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(vector_len, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ true);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_NONE, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x5D, (0xC0 | encode));
+}
+
+void Assembler::evmaxph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(vector_len, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ true);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_NONE, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x5F, (0xC0 | encode));
+}
+
+void Assembler::evdivph(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(vector_len, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ true);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_NONE, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x5E, (0xC0 | encode));
+}
+
+void Assembler::eaddsh(XMMRegister dst, XMMRegister nds, XMMRegister src) {
   assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
   InstructionAttr attributes(AVX_128bit, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ false);
   attributes.set_is_evex_instruction();
   int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_F3, VEX_OPCODE_MAP5, &attributes);
   emit_int16(0x58, (0xC0 | encode));
+}
+
+void Assembler::esubsh(XMMRegister dst, XMMRegister nds, XMMRegister src) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(AVX_128bit, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ false);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_F3, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x5C, (0xC0 | encode));
+}
+
+void Assembler::edivsh(XMMRegister dst, XMMRegister nds, XMMRegister src) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(AVX_128bit, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ false);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_F3, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x5E, (0xC0 | encode));
+}
+
+void Assembler::emulsh(XMMRegister dst, XMMRegister nds, XMMRegister src) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(AVX_128bit, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ false);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_F3, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x59, (0xC0 | encode));
+}
+
+void Assembler::emaxsh(XMMRegister dst, XMMRegister nds, XMMRegister src) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(AVX_128bit, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ false);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_F3, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x5F, (0xC0 | encode));
+}
+
+void Assembler::eminsh(XMMRegister dst, XMMRegister nds, XMMRegister src) {
+  assert(VM_Version::supports_avx512_fp16(), "requires AVX512-FP16");
+  InstructionAttr attributes(AVX_128bit, false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ false);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_F3, VEX_OPCODE_MAP5, &attributes);
+  emit_int16(0x5D, (0xC0 | encode));
 }
 
 void Assembler::psubb(XMMRegister dst, XMMRegister src) {

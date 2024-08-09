@@ -497,4 +497,8 @@ public:
   void vector_rearrange_int_float(BasicType bt, XMMRegister dst, XMMRegister shuffle,
                                   XMMRegister src, int vlen_enc);
 
+  void efp16sh(int opcode, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+
+  void evfp16ph(int opcode, XMMRegister dst, XMMRegister src1, XMMRegister src2, int vlen_enc);
+
 #endif // CPU_X86_C2_MACROASSEMBLER_X86_HPP
