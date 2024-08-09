@@ -83,6 +83,8 @@ public class TestFP16ScalarOps {
 
     @Test
     @IR(counts = {IRNode.SUB_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
+    @IR(counts = {IRNode.SUB_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testSub() {
         Float16 res = shortBitsToFloat16((short)0);
@@ -93,6 +95,8 @@ public class TestFP16ScalarOps {
     }
 
     @Test
+    @IR(counts = {IRNode.MUL_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
     @IR(counts = {IRNode.MUL_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testMul() {
@@ -105,6 +109,8 @@ public class TestFP16ScalarOps {
 
     @Test
     @IR(counts = {IRNode.DIV_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
+    @IR(counts = {IRNode.DIV_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testDiv() {
         Float16 res = shortBitsToFloat16((short)0);
@@ -116,6 +122,8 @@ public class TestFP16ScalarOps {
 
     @Test
     @IR(counts = {IRNode.MAX_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
+    @IR(counts = {IRNode.MAX_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testMax() {
         Float16 res = shortBitsToFloat16((short)0);
@@ -126,6 +134,8 @@ public class TestFP16ScalarOps {
     }
 
     @Test
+    @IR(counts = {IRNode.MIN_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
     @IR(counts = {IRNode.MIN_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testMin() {

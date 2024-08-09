@@ -59,6 +59,8 @@ public class TestFloat16VectorOps {
     @Test
     @Warmup(10000)
     @IR(counts = {IRNode.ADD_VHF, ">= 1"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
+    @IR(counts = {IRNode.ADD_VHF, ">= 1"},
         applyIfCPUFeatureOr = {"avx512_fp16", "true", "sve", "true"})
     @IR(counts = {IRNode.ADD_VHF, ">= 1"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
@@ -80,6 +82,8 @@ public class TestFloat16VectorOps {
 
     @Test
     @Warmup(10000)
+    @IR(counts = {IRNode.SUB_VHF, ">= 1"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
     @IR(counts = {IRNode.SUB_VHF, ">= 1"},
         applyIfCPUFeature = {"sve", "true"})
     @IR(counts = {IRNode.SUB_VHF, ">= 1"},
@@ -103,6 +107,8 @@ public class TestFloat16VectorOps {
     @Test
     @Warmup(10000)
     @IR(counts = {IRNode.MUL_VHF, ">= 1"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
+    @IR(counts = {IRNode.MUL_VHF, ">= 1"},
         applyIfCPUFeature = {"sve", "true"})
     @IR(counts = {IRNode.MUL_VHF, ">= 1"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
@@ -124,6 +130,8 @@ public class TestFloat16VectorOps {
 
     @Test
     @Warmup(10000)
+    @IR(counts = {IRNode.DIV_VHF, ">= 1"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
     @IR(counts = {IRNode.DIV_VHF, ">= 1"},
         applyIfCPUFeature = {"sve", "true"})
     @IR(counts = {IRNode.DIV_VHF, ">= 1"},
@@ -147,6 +155,8 @@ public class TestFloat16VectorOps {
     @Test
     @Warmup(10000)
     @IR(counts = {IRNode.MIN_VHF, ">= 1"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
+    @IR(counts = {IRNode.MIN_VHF, ">= 1"},
         applyIfCPUFeature = {"sve", "true"})
     @IR(counts = {IRNode.MIN_VHF, ">= 1"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
@@ -168,6 +178,8 @@ public class TestFloat16VectorOps {
 
     @Test
     @Warmup(10000)
+    @IR(counts = {IRNode.MAX_VHF, ">= 1"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
     @IR(counts = {IRNode.MAX_VHF, ">= 1"},
         applyIfCPUFeature = {"sve", "true"})
     @IR(counts = {IRNode.MAX_VHF, ">= 1"},
