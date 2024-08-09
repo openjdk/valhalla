@@ -72,9 +72,9 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
       // Also, see if the element has secondary supertypes.
       // We need an array type for each before creating this array type.
       if (null_free) {
-        super_klass = element_klass->array_klass_or_null();
+        super_klass = element_klass->array_klass(CHECK_NULL);
       } else {
-        super_klass = element_super->array_klass_or_null();
+        super_klass = element_super->array_klass(CHECK_NULL);
       }
       const Array<Klass*>* element_supers = element_klass->secondary_supers();
       for (int i = element_supers->length() - 1; i >= 0; i--) {
