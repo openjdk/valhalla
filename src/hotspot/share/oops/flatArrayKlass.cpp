@@ -91,6 +91,7 @@ void FlatArrayKlass::set_element_klass(Klass* k) {
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
   assert(UseFlatArray, "Flatten array required");
+  assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
   assert(element_klass->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
@@ -106,33 +107,15 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
   Klass* element_super = element_klass->super();
   if (element_super != nullptr) {
     // The element type has a direct super.  E.g., String[] has direct super of Object[].
-    super_klass = element_klass->array_klass_or_null();
-    bool supers_exist = super_klass != nullptr;
+    super_klass = element_klass->array_klass(CHECK_NULL);
     // Also, see if the element has secondary supertypes.
     // We need an array type for each.
     const Array<Klass*>* element_supers = element_klass->secondary_supers();
     for( int i = element_supers->length()-1; i >= 0; i-- ) {
       Klass* elem_super = element_supers->at(i);
-      if (elem_super->array_klass_or_null() == nullptr) {
-        supers_exist = false;
-        break;
-      }
+      elem_super->array_klass(CHECK_NULL);
     }
-    if (!supers_exist) {
-      // Oops.  Not allocated yet.  Back out, allocate it, and retry.
-      Klass* ek = nullptr;
-      {
-        MutexUnlocker mu(MultiArray_lock);
-        super_klass = element_klass->array_klass(CHECK_NULL);
-        for( int i = element_supers->length()-1; i >= 0; i-- ) {
-          Klass* elem_super = element_supers->at(i);
-          elem_super->array_klass(CHECK_NULL);
-        }
-        // Now retry from the beginning
-        ek = element_klass->value_array_klass(CHECK_NULL);
-      }  // re-lock
-      return FlatArrayKlass::cast(ek);
-    }
+   // Fall through because inheritance is acyclic and we hold the global recursive lock to allocate all the arrays.
   }
 
   Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
@@ -340,62 +323,6 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
      }
    }
 }
-
-
-ArrayKlass* FlatArrayKlass::array_klass(int n, TRAPS) {
-  assert(dimension() <= n, "check order of chain");
-  int dim = dimension();
-  if (dim == n) return this;
-
-  // lock-free read needs acquire semantics
-  if (higher_dimension_acquire() == nullptr) {
-
-    ResourceMark rm(THREAD);
-    {
-      // Ensure atomic creation of higher dimensions
-      MutexLocker mu(THREAD, MultiArray_lock);
-
-      // Check if another thread beat us
-      if (higher_dimension() == nullptr) {
-
-        // Create multi-dim klass object and link them together
-        ObjArrayKlass* ak = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, CHECK_NULL);
-        ak->set_lower_dimension(this);
-        // use 'release' to pair with lock-free load
-        release_set_higher_dimension(ak);
-        assert(ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
-      }
-    }
-  }
-
-  ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
-  JavaThread::cast(THREAD)->check_possible_safepoint();
-  return ak->array_klass(n, THREAD);
-}
-
-ArrayKlass* FlatArrayKlass::array_klass_or_null(int n) {
-
-  assert(dimension() <= n, "check order of chain");
-  int dim = dimension();
-  if (dim == n) return this;
-
-  // lock-free read needs acquire semantics
-  if (higher_dimension_acquire() == nullptr) {
-    return nullptr;
-  }
-
-  ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
-  return ak->array_klass_or_null(n);
-}
-
-ArrayKlass* FlatArrayKlass::array_klass(TRAPS) {
-  return array_klass(dimension() +  1, THREAD);
-}
-
-ArrayKlass* FlatArrayKlass::array_klass_or_null() {
-  return array_klass_or_null(dimension() +  1);
-}
-
 
 ModuleEntry* FlatArrayKlass::module() const {
   assert(element_klass() != nullptr, "FlatArrayKlass returned unexpected nullptr bottom_klass");

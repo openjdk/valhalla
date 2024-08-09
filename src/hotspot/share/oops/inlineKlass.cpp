@@ -185,24 +185,20 @@ bool InlineKlass::flat_array() {
 
 Klass* InlineKlass::value_array_klass(int n, TRAPS) {
   if (Atomic::load_acquire(adr_value_array_klasses()) == nullptr) {
-    ResourceMark rm(THREAD);
-    JavaThread *jt = JavaThread::cast(THREAD);
-    {
-      // Atomic creation of array_klasses
-      MutexLocker ma(THREAD, MultiArray_lock);
+    // Atomic creation of array_klasses
+    RecursiveLocker rl(MultiArray_lock, THREAD);
 
-      // Check if update has already taken place
-      if (value_array_klasses() == nullptr) {
-        ArrayKlass* k;
-        if (flat_array()) {
-          k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
-        } else {
-          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
+    // Check if update has already taken place
+    if (value_array_klasses() == nullptr) {
+      ArrayKlass* k;
+      if (flat_array()) {
+        k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
+      } else {
+        k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
 
-        }
-        // use 'release' to pair with lock-free load
-        Atomic::release_store(adr_value_array_klasses(), k);
       }
+      // use 'release' to pair with lock-free load
+      Atomic::release_store(adr_value_array_klasses(), k);
     }
   }
   ArrayKlass* ak = value_array_klasses();

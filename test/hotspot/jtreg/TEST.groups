@@ -431,7 +431,8 @@ tier1_runtime = \
  -runtime/Unsafe/RangeCheck.java \
   sanity/ \
  -:tier1_runtime_appcds_exclude \
- -runtime/signal
+ -runtime/signal \
+ -runtime/stack
 
 tier1_runtime_no_valhalla = \
   :tier1_runtime \
