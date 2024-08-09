@@ -42,6 +42,7 @@ class OuterStripMinedLoopEndNode;
 class PredicateBlock;
 class PathFrequency;
 class PhaseIdealLoop;
+class UnswitchCandidate;
 class UnswitchedLoopSelector;
 class VectorSet;
 class VSharedData;
@@ -691,6 +692,7 @@ public:
   // Return TRUE or FALSE if the loop should be unswitched -- clone
   // loop with an invariant test
   bool policy_unswitching( PhaseIdealLoop *phase ) const;
+  bool no_unswitch_candidate() const;
 
   // Micro-benchmark spamming.  Remove empty loops.
   bool do_remove_empty_loop( PhaseIdealLoop *phase );
@@ -1422,24 +1424,24 @@ public:
   // execute.
   void do_unswitching(IdealLoopTree* loop, Node_List& old_new);
 
-  // Find candidate "if" for unswitching
-  IfNode* find_unswitch_candidate(const IdealLoopTree* loop, Node_List& unswitch_iffs) const;
+  IfNode* find_unswitch_candidates(const IdealLoopTree* loop, Node_List& flat_array_checks) const;
+  IfNode* find_unswitch_candidate_from_idoms(const IdealLoopTree* loop) const;
 
  private:
   static bool has_control_dependencies_from_predicates(LoopNode* head);
   static void revert_to_normal_loop(const LoopNode* loop_head);
 
   void hoist_invariant_check_casts(const IdealLoopTree* loop, const Node_List& old_new,
-                                   const UnswitchedLoopSelector& unswitched_loop_selector);
+                                   const UnswitchCandidate& unswitch_candidate, const IfNode* loop_selector);
   void add_unswitched_loop_version_bodies_to_igvn(IdealLoopTree* loop, const Node_List& old_new);
   static void increment_unswitch_counts(LoopNode* original_head, LoopNode* new_head);
   void remove_unswitch_candidate_from_loops(const Node_List& old_new, const UnswitchedLoopSelector& unswitched_loop_selector);
 #ifndef PRODUCT
-  static void trace_loop_unswitching_count(IdealLoopTree* loop, LoopNode* original_head, const Node_List& unswitch_iffs);
+  static void trace_loop_unswitching_count(IdealLoopTree* loop, LoopNode* original_head);
   static void trace_loop_unswitching_impossible(const LoopNode* original_head);
   static void trace_loop_unswitching_result(const UnswitchedLoopSelector& unswitched_loop_selector,
-                                            const LoopNode* original_head, const LoopNode* new_head,
-                                            const Node_List& old_new);
+                                            const UnswitchCandidate& unswitch_candidate,
+                                            const LoopNode* original_head, const LoopNode* new_head);
 #endif
 
  public:
@@ -1774,6 +1776,8 @@ public:
   bool can_move_to_inner_loop(Node* n, LoopNode* n_loop, Node* x);
 
   void pin_array_access_nodes_dependent_on(Node* ctrl);
+
+  void collect_flat_array_checks(const IdealLoopTree* loop, Node_List& flat_array_checks) const;
 };
 
 
