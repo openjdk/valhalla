@@ -1769,23 +1769,21 @@ void InstanceKlass::check_valid_for_instantiation(bool throwError, TRAPS) {
 ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
   // Need load-acquire for lock-free read
   if (array_klasses_acquire() == nullptr) {
-    ResourceMark rm(THREAD);
-    JavaThread *jt = THREAD;
-    {
-      // Atomic creation of array_klasses
-      MutexLocker ma(THREAD, MultiArray_lock);
 
-      // Check if update has already taken place
-      if (array_klasses() == nullptr) {
-        ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this,
-                                                                  false, CHECK_NULL);
-        // use 'release' to pair with lock-free load
-        release_set_array_klasses(k);
-      }
+    // Recursively lock array allocation
+    RecursiveLocker rl(MultiArray_lock, THREAD);
+
+    // Check if another thread created the array klass while we were waiting for the lock.
+    if (array_klasses() == nullptr) {
+      ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
+      // use 'release' to pair with lock-free load
+      release_set_array_klasses(k);
     }
   }
+
   // array_klasses() will always be set at this point
   ArrayKlass* ak = array_klasses();
+  assert(ak != nullptr, "should be set");
   return ak->array_klass(n, THREAD);
 }
 
@@ -3003,8 +3001,8 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   if (array_klasses() != nullptr) {
     // To get a consistent list of classes we need MultiArray_lock to ensure
     // array classes aren't observed while they are being restored.
-    MutexLocker ml(MultiArray_lock);
-    assert(this == ObjArrayKlass::cast(array_klasses())->bottom_klass(), "sanity");
+    RecursiveLocker rl(MultiArray_lock, THREAD);
+    assert(this == array_klasses()->bottom_klass(), "sanity");
     // Array classes have null protection domain.
     // --> see ArrayKlass::complete_create_array_klass()
     array_klasses()->restore_unshareable_info(class_loader_data(), Handle(), CHECK);
