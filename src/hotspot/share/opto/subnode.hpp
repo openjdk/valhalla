@@ -433,6 +433,16 @@ public:
   virtual uint ideal_reg() const { return Op_RegF; }
 };
 
+//------------------------------AbsHFNode--------------------------------------
+// Absolute value of a half precision float, a common float-point idiom with a
+// cheap hardware implementation on most chips. Since a naive graph involves control flow, we
+// "match" it in the ideal world (so the control flow can be removed).
+class AbsHFNode : public AbsFNode {
+public:
+  AbsHFNode(Node* in1) : AbsFNode(in1) {}
+  virtual int Opcode() const;
+};
+
 //------------------------------AbsDNode---------------------------------------
 // Absolute value a double, a common float-point idiom with a cheap hardware
 // implementation on most chips.  Since a naive graph involves control flow, we
@@ -513,6 +523,14 @@ public:
   virtual uint ideal_reg() const { return Op_RegD; }
 };
 
+//------------------------------NegHFNode--------------------------------------
+// Negate a half precision float.
+class NegHFNode : public NegFNode {
+public:
+  NegHFNode(Node* in1) : NegFNode(in1) {}
+  virtual int Opcode() const;
+};
+
 //------------------------------AtanDNode--------------------------------------
 // arcus tangens of a double
 class AtanDNode : public Node {
@@ -547,7 +565,10 @@ public:
     if (c != nullptr) {
       // Treat node only as expensive if a control input is set because it might
       // be created from a SqrtDNode in ConvD2FNode::Ideal() that was found to
-      // be unique and therefore has no control input.
+      // be unique and therefore has no control input. This can also be reached from
+      // SqrtHFNode::SqrtHFNode() which could be created from SqrtFNode in ConvF2HFNode::Ideal()
+      // which must have been generated from SqrtDNode in ConvD2FNode::Ideal() in which
+      // case, it needs to be treated as an expensive node.
       C->add_expensive_node(this);
     }
   }
@@ -555,6 +576,14 @@ public:
   const Type *bottom_type() const { return Type::FLOAT; }
   virtual uint ideal_reg() const { return Op_RegF; }
   virtual const Type* Value(PhaseGVN* phase) const;
+};
+
+//------------------------------SqrtHFNode-------------------------------------
+// square root of a half-precision float
+class SqrtHFNode : public SqrtFNode {
+public:
+  SqrtHFNode(Compile* C, Node* c, Node* in1) : SqrtFNode(C, c, in1) {}
+  virtual int Opcode() const;
 };
 
 //-------------------------------ReverseBytesINode--------------------------------

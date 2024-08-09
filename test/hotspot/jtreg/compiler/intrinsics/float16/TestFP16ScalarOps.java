@@ -145,4 +145,49 @@ public class TestFP16ScalarOps {
             dst[i] = float16ToRawShortBits(res);
         }
     }
+
+    @Test
+    @IR(counts = {IRNode.ABS_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testAbs() {
+        Float16 res = shortBitsToFloat16((short)0);
+        for (int i = 0; i < count; i++) {
+            res = Float16.abs(shortBitsToFloat16(src[i]));
+            dst[i] = float16ToRawShortBits(res);
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.NEG_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testNeg() {
+        Float16 res = shortBitsToFloat16((short)0);
+        for (int i = 0; i < count; i++) {
+            res = Float16.negate(shortBitsToFloat16(src[i]));
+            dst[i] = float16ToRawShortBits(res);
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.SQRT_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testSqrt() {
+        Float16 res = shortBitsToFloat16((short)0);
+        for (int i = 0; i < count; i++) {
+            res = Float16.sqrt(shortBitsToFloat16(src[i]));
+            dst[i] = float16ToRawShortBits(res);
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.FMA_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testFma() {
+        Float16 res = shortBitsToFloat16((short)0);
+        for (int i = 0; i < count; i++) {
+            Float16 in = shortBitsToFloat16(src[i]);
+            res = Float16.fma(in, in, in) ;
+            dst[i] = float16ToRawShortBits(res);
+        }
+    }
 }

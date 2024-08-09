@@ -187,4 +187,92 @@ public class TestFloat16VectorOps {
             }
         }
     }
+
+    @Test
+    @Warmup(10000)
+    @IR(counts = {IRNode.ABS_VHF, ">= 1"},
+        applyIfCPUFeature = {"sve", "true"})
+    @IR(counts = {IRNode.ABS_VHF, ">= 1"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void vectorAbsFloat16() {
+        for (int i = 0; i < LEN; ++i) {
+            output[i] = Float16.abs(input[i]);
+        }
+    }
+
+    @Check(test="vectorAbsFloat16")
+    public void checkResultAbs() {
+        for (int i = 0; i < LEN; ++i) {
+            Float16 expected = Float16.abs(input[i]);
+            if (float16ToRawShortBits(output[i]) != float16ToRawShortBits(expected)) {
+                throw new RuntimeException("Invalid result: output[" + i + "] = " + float16ToRawShortBits(output[i]) + " != " + float16ToRawShortBits(expected));
+            }
+        }
+    }
+
+    @Test
+    @Warmup(10000)
+    @IR(counts = {IRNode.NEG_VHF, ">= 1"},
+        applyIfCPUFeature = {"sve", "true"})
+    @IR(counts = {IRNode.NEG_VHF, ">= 1"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void vectorNegFloat16() {
+        for (int i = 0; i < LEN; ++i) {
+            output[i] = Float16.negate(input[i]);
+        }
+    }
+
+    @Check(test="vectorNegFloat16")
+    public void checkResultNeg() {
+        for (int i = 0; i < LEN; ++i) {
+            Float16 expected = Float16.negate(input[i]);
+            if (float16ToRawShortBits(output[i]) != float16ToRawShortBits(expected)) {
+                throw new RuntimeException("Invalid result: output[" + i + "] = " + float16ToRawShortBits(output[i]) + " != " + float16ToRawShortBits(expected));
+            }
+        }
+    }
+
+    @Test
+    @Warmup(10000)
+    @IR(counts = {IRNode.SQRT_VHF, ">= 1"},
+        applyIfCPUFeature = {"sve", "true"})
+    @IR(counts = {IRNode.SQRT_VHF, ">= 1"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void vectorSqrtFloat16() {
+        for (int i = 0; i < LEN; ++i) {
+            output[i] = Float16.sqrt(input[i]);
+        }
+    }
+
+    @Check(test="vectorSqrtFloat16")
+    public void checkResultSqrt() {
+        for (int i = 0; i < LEN; ++i) {
+            Float16 expected = Float16.sqrt(input[i]);
+            if (float16ToRawShortBits(output[i]) != float16ToRawShortBits(expected)) {
+                throw new RuntimeException("Invalid result: output[" + i + "] = " + float16ToRawShortBits(output[i]) + " != " + float16ToRawShortBits(expected));
+            }
+        }
+    }
+
+    @Test
+    @Warmup(10000)
+    @IR(counts = {IRNode.FMA_VHF, ">= 1"},
+        applyIfCPUFeature = {"sve", "true"})
+    @IR(counts = {IRNode.FMA_VHF, ">= 1"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void vectorFmaFloat16() {
+        for (int i = 0; i < LEN; ++i) {
+            output[i] = Float16.fma(input[i], input[i], input[i]);
+        }
+    }
+
+    @Check(test="vectorFmaFloat16")
+    public void checkResultFma() {
+        for (int i = 0; i < LEN; ++i) {
+            Float16 expected = Float16.fma(input[i], input[i], input[i]);
+            if (float16ToRawShortBits(output[i]) != float16ToRawShortBits(expected)) {
+                throw new RuntimeException("Invalid result: output[" + i + "] = " + float16ToRawShortBits(output[i]) + " != " + float16ToRawShortBits(expected));
+            }
+        }
+    }
 }

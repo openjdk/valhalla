@@ -620,6 +620,18 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_min_float16:
     if (!Matcher::match_rule_supported(Op_MinHF)) return false;
     break;
+  case vmIntrinsics::_abs_float16:
+    if (!Matcher::match_rule_supported(Op_AbsHF)) return false;
+    break;
+  case vmIntrinsics::_neg_float16:
+    if (!Matcher::match_rule_supported(Op_NegHF)) return false;
+    break;
+  case vmIntrinsics::_sqrt_float16:
+    if (!Matcher::match_rule_supported(Op_SqrtHF)) return false;
+    break;
+  case vmIntrinsics::_fma_float16:
+    if (!Matcher::match_rule_supported(Op_FmaHF)) return false;
+    break;
   case vmIntrinsics::_hashCode:
   case vmIntrinsics::_identityHashCode:
   case vmIntrinsics::_getClass:

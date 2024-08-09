@@ -85,6 +85,8 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     return (bt == T_DOUBLE ? Op_FmaVD : 0);
   case Op_FmaF:
     return (bt == T_FLOAT ? Op_FmaVF : 0);
+  case Op_FmaHF:
+    return (bt == T_SHORT ? Op_FmaVHF : 0);
   case Op_CMoveF:
     return (bt == T_FLOAT ? Op_VectorBlend : 0);
   case Op_CMoveD:
@@ -146,6 +148,8 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     return (bt == T_FLOAT ? Op_AbsVF : 0);
   case Op_AbsD:
     return (bt == T_DOUBLE ? Op_AbsVD : 0);
+  case Op_AbsHF:
+    return (bt == T_SHORT ? Op_AbsVHF : 0);
   case Op_NegI:
     switch (bt) {
       case T_BYTE:
@@ -159,6 +163,8 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     return (bt == T_FLOAT ? Op_NegVF : 0);
   case Op_NegD:
     return (bt == T_DOUBLE ? Op_NegVD : 0);
+  case Op_NegHF:
+    return (bt == T_SHORT ? Op_NegVHF : 0);
   case Op_RoundDoubleMode:
     return (bt == T_DOUBLE ? Op_RoundDoubleModeV : 0);
   case Op_RotateLeft:
@@ -167,6 +173,8 @@ int VectorNode::opcode(int sopc, BasicType bt) {
     return (is_integral_type(bt) ? Op_RotateRightV : 0);
   case Op_SqrtF:
     return (bt == T_FLOAT ? Op_SqrtVF : 0);
+  case Op_SqrtHF:
+    return (bt == T_SHORT ? Op_SqrtVHF : 0);
   case Op_SqrtD:
     return (bt == T_DOUBLE ? Op_SqrtVD : 0);
   case Op_RoundF:
@@ -608,6 +616,10 @@ bool VectorNode::is_float16_node(int opc) {
   case Op_DivHF:
   case Op_MinHF:
   case Op_MaxHF:
+  case Op_SqrtHF:
+  case Op_AbsHF:
+  case Op_NegHF:
+  case Op_FmaHF:
   case Op_ConvF2HF:
   case Op_ReinterpretS2HF:
      return true;
@@ -760,23 +772,26 @@ VectorNode* VectorNode::make(int vopc, Node* n1, Node* n2, const TypeVect* vt, b
   case Op_MinVHF: return new MinVHFNode(n1, n2, vt);
   case Op_MaxVHF: return new MaxVHFNode(n1, n2, vt);
 
-  case Op_AbsVF: return new AbsVFNode(n1, vt);
-  case Op_AbsVD: return new AbsVDNode(n1, vt);
-  case Op_AbsVB: return new AbsVBNode(n1, vt);
-  case Op_AbsVS: return new AbsVSNode(n1, vt);
-  case Op_AbsVI: return new AbsVINode(n1, vt);
-  case Op_AbsVL: return new AbsVLNode(n1, vt);
+  case Op_AbsVF : return new AbsVFNode(n1, vt);
+  case Op_AbsVD : return new AbsVDNode(n1, vt);
+  case Op_AbsVHF: return new AbsVHFNode(n1, vt);
+  case Op_AbsVB : return new AbsVBNode(n1, vt);
+  case Op_AbsVS : return new AbsVSNode(n1, vt);
+  case Op_AbsVI : return new AbsVINode(n1, vt);
+  case Op_AbsVL : return new AbsVLNode(n1, vt);
 
-  case Op_NegVI: return new NegVINode(n1, vt);
-  case Op_NegVL: return new NegVLNode(n1, vt);
-  case Op_NegVF: return new NegVFNode(n1, vt);
-  case Op_NegVD: return new NegVDNode(n1, vt);
+  case Op_NegVI : return new NegVINode(n1, vt);
+  case Op_NegVL : return new NegVLNode(n1, vt);
+  case Op_NegVF : return new NegVFNode(n1, vt);
+  case Op_NegVD : return new NegVDNode(n1, vt);
+  case Op_NegVHF: return new NegVHFNode(n1, vt);
 
   case Op_ReverseV: return new ReverseVNode(n1, vt);
   case Op_ReverseBytesV: return new ReverseBytesVNode(n1, vt);
 
-  case Op_SqrtVF: return new SqrtVFNode(n1, vt);
-  case Op_SqrtVD: return new SqrtVDNode(n1, vt);
+  case Op_SqrtVHF : return new SqrtVHFNode(n1, vt);
+  case Op_SqrtVF  : return new SqrtVFNode(n1, vt);
+  case Op_SqrtVD  : return new SqrtVDNode(n1, vt);
 
   case Op_RoundVF: return new RoundVFNode(n1, vt);
   case Op_RoundVD: return new RoundVDNode(n1, vt);
@@ -838,6 +853,7 @@ VectorNode* VectorNode::make(int vopc, Node* n1, Node* n2, Node* n3, const TypeV
   switch (vopc) {
   case Op_FmaVD: return new FmaVDNode(n1, n2, n3, vt);
   case Op_FmaVF: return new FmaVFNode(n1, n2, n3, vt);
+  case Op_FmaVHF: return new FmaVHFNode(n1, n2, n3, vt);
   case Op_SignumVD: return new SignumVDNode(n1, n2, n3, vt);
   case Op_SignumVF: return new SignumVFNode(n1, n2, n3, vt);
   default:

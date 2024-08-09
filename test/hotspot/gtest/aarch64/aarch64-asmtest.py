@@ -1601,13 +1601,14 @@ generate(ThreeRegFloatOp,
 
 generate(FourRegFloatOp,
          [["fmadds", "ssss"], ["fmsubs", "ssss"], ["fnmadds", "ssss"], ["fnmadds", "ssss"],
-          ["fmaddd", "dddd"], ["fmsubd", "dddd"], ["fnmaddd", "dddd"], ["fnmaddd", "dddd"],])
+          ["fmaddd", "dddd"], ["fmsubd", "dddd"], ["fnmaddd", "dddd"], ["fnmaddd", "dddd"],
+          ["fmaddh", "hhhh"], ["fmsubh", "hhhh"], ["fnmaddh", "hhhh"], ["fnmaddh", "hhhh"],])
 
 generate(TwoRegFloatOp,
          [["fmovs", "ss"], ["fabss", "ss"], ["fnegs", "ss"], ["fsqrts", "ss"],
           ["fcvts", "ds"], ["fcvtsh", "hs"], ["fcvths", "sh"],
           ["fmovd", "dd"], ["fabsd", "dd"], ["fnegd", "dd"], ["fsqrtd", "dd"],
-          ["fcvtd", "sd"],
+          ["fcvtd", "sd"], ["fabsh", "hh"], ["fnegh", "hh"], ["fsqrth", "hh"],
           ])
 
 generate(FloatConvertOp, [["fcvtzsw", "fcvtzs", "ws"], ["fcvtzs", "fcvtzs", "xs"],

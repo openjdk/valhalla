@@ -162,6 +162,11 @@ public class IRNode {
         beforeMatchingNameRegex(ABS_F, "AbsF");
     }
 
+    public static final String ABS_HF = PREFIX + "ABS_HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(ABS_HF, "AbsHF");
+    }
+
     public static final String ABS_I = PREFIX + "ABS_I" + POSTFIX;
     static {
         beforeMatchingNameRegex(ABS_I, "AbsI");
@@ -202,6 +207,11 @@ public class IRNode {
     public static final String ABS_VD = VECTOR_PREFIX + "ABS_VD" + POSTFIX;
     static {
         vectorNode(ABS_VD, "AbsVD", TYPE_DOUBLE);
+    }
+
+    public static final String ABS_VHF = PREFIX + "ABS_VHF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(ABS_VHF, "AbsVHF");
     }
 
     public static final String ADD = PREFIX + "ADD" + POSTFIX;
@@ -462,6 +472,11 @@ public class IRNode {
         beforeMatchingNameRegex(CONV, "Conv");
     }
 
+    public static final String CONV_F2HF = PREFIX + "CONV_F2HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_F2HF, "ConvF2HF");
+    }
+
     public static final String CONV_I2L = PREFIX + "CONV_I2L" + POSTFIX;
     static {
         beforeMatchingNameRegex(CONV_I2L, "ConvI2L");
@@ -559,6 +574,16 @@ public class IRNode {
     public static final String FMA_VD = VECTOR_PREFIX + "FMA_VD" + POSTFIX;
     static {
         vectorNode(FMA_VD, "FmaVD", TYPE_DOUBLE);
+    }
+
+    public static final String FMA_VHF = PREFIX + "FMA_VHF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(FMA_VHF, "FmaVHF");
+    }
+
+    public static final String FMA_HF = PREFIX + "FMA_HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(FMA_HF, "FmaHF");
     }
 
     public static final String IF = PREFIX + "IF" + POSTFIX;
@@ -1078,6 +1103,11 @@ public class IRNode {
         superWordNodes(MAX_REDUCTION_V, "MaxReductionV");
     }
 
+    public static final String NEG_HF = PREFIX + "NEG_HF" + POSTFIX;
+    static {
+       beforeMatchingNameRegex(NEG_HF, "NegHF");
+    }
+
     public static final String NEG_VF = VECTOR_PREFIX + "NEG_VF" + POSTFIX;
     static {
         vectorNode(NEG_VF, "NegVF", TYPE_FLOAT);
@@ -1086,6 +1116,11 @@ public class IRNode {
     public static final String NEG_VD = VECTOR_PREFIX + "NEG_VD" + POSTFIX;
     static {
         vectorNode(NEG_VD, "NegVD", TYPE_DOUBLE);
+    }
+
+    public static final String NEG_VHF = PREFIX + "NEG_VHF" + POSTFIX;
+    static {
+       beforeMatchingNameRegex(NEG_VHF, "NegVHF");
     }
 
     public static final String NOP = PREFIX + "NOP" + POSTFIX;
@@ -1368,6 +1403,16 @@ public class IRNode {
         vectorNode(SIGNUM_VF, "SignumVF", TYPE_FLOAT);
     }
 
+    public static final String SQRT_HF = PREFIX + "SQRT_HF" + POSTFIX;
+    static {
+       beforeMatchingNameRegex(SQRT_HF, "SqrtHF");
+    }
+
+    public static final String SQRT_F = PREFIX + "SQRT_F" + POSTFIX;
+    static {
+       beforeMatchingNameRegex(SQRT_F, "SqrtF");
+    }
+
     public static final String SQRT_VF = VECTOR_PREFIX + "SQRT_VF" + POSTFIX;
     static {
         vectorNode(SQRT_VF, "SqrtVF", TYPE_FLOAT);
@@ -1376,6 +1421,11 @@ public class IRNode {
     public static final String SQRT_VD = VECTOR_PREFIX + "SQRT_VD" + POSTFIX;
     static {
         vectorNode(SQRT_VD, "SqrtVD", TYPE_DOUBLE);
+    }
+
+    public static final String SQRT_VHF = PREFIX + "SQRT_VHF" + POSTFIX;
+    static {
+       beforeMatchingNameRegex(SQRT_VHF, "SqrtVHF");
     }
 
     public static final String STORE = PREFIX + "STORE" + POSTFIX;

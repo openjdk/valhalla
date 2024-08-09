@@ -1672,23 +1672,27 @@
   declare_c2_type(BoolNode, Node)                                         \
   declare_c2_type(AbsNode, Node)                                          \
   declare_c2_type(AbsINode, AbsNode)                                      \
+  declare_c2_type(AbsHFNode, AbsFNode)                                    \
   declare_c2_type(AbsFNode, AbsNode)                                      \
   declare_c2_type(AbsDNode, AbsNode)                                      \
   declare_c2_type(CmpLTMaskNode, Node)                                    \
   declare_c2_type(NegNode, Node)                                          \
   declare_c2_type(NegINode, NegNode)                                      \
   declare_c2_type(NegLNode, NegNode)                                      \
+  declare_c2_type(NegHFNode, NegFNode)                                    \
   declare_c2_type(NegFNode, NegNode)                                      \
   declare_c2_type(NegDNode, NegNode)                                      \
   declare_c2_type(AtanDNode, Node)                                        \
   declare_c2_type(SqrtFNode, Node)                                        \
   declare_c2_type(SqrtDNode, Node)                                        \
+  declare_c2_type(SqrtHFNode, SqrtFNode)                                  \
   declare_c2_type(ReverseBytesINode, Node)                                \
   declare_c2_type(ReverseBytesLNode, Node)                                \
   declare_c2_type(ReductionNode, Node)                                    \
   declare_c2_type(VectorNode, Node)                                       \
   declare_c2_type(AbsVFNode, VectorNode)                                  \
   declare_c2_type(AbsVDNode, VectorNode)                                  \
+  declare_c2_type(AbsVHFNode, VectorNode)                                 \
   declare_c2_type(AbsVBNode, VectorNode)                                  \
   declare_c2_type(AbsVSNode, VectorNode)                                  \
   declare_c2_type(AbsVINode, VectorNode)                                  \
@@ -1711,6 +1715,9 @@
   declare_c2_type(SubVHFNode, VectorNode)                                 \
   declare_c2_type(SubVFNode, VectorNode)                                  \
   declare_c2_type(SubVDNode, VectorNode)                                  \
+  declare_c2_type(SqrtVHFNode, VectorNode)                                \
+  declare_c2_type(SqrtVFNode, VectorNode)                                 \
+  declare_c2_type(SqrtVDNode, VectorNode)                                 \
   declare_c2_type(MulVBNode, VectorNode)                                  \
   declare_c2_type(MulVSNode, VectorNode)                                  \
   declare_c2_type(MulVLNode, VectorNode)                                  \
@@ -1726,8 +1733,10 @@
   declare_c2_type(NegVLNode, NegVNode)                                    \
   declare_c2_type(NegVFNode, NegVNode)                                    \
   declare_c2_type(NegVDNode, NegVNode)                                    \
+  declare_c2_type(NegVHFNode, NegVNode)                                   \
   declare_c2_type(FmaVDNode, VectorNode)                                  \
   declare_c2_type(FmaVFNode, VectorNode)                                  \
+  declare_c2_type(FmaVHFNode, VectorNode)                                 \
   declare_c2_type(CompressVNode, VectorNode)                              \
   declare_c2_type(CompressMNode, VectorNode)                              \
   declare_c2_type(ExpandVNode, VectorNode)                                \
@@ -1796,6 +1805,7 @@
   declare_c2_type(OverflowMulLNode, OverflowLNode)                        \
   declare_c2_type(FmaDNode, Node)                                         \
   declare_c2_type(FmaFNode, Node)                                         \
+  declare_c2_type(FmaHFNode, FmaFNode)                                    \
   declare_c2_type(CopySignDNode, Node)                                    \
   declare_c2_type(CopySignFNode, Node)                                    \
   declare_c2_type(SignumDNode, Node)                                      \

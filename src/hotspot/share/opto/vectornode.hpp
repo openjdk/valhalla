@@ -426,6 +426,14 @@ public:
   virtual int Opcode() const;
 };
 
+//------------------------------FmaVHFNode-------------------------------------
+// Vector fused-multiply-add half-precision float
+class FmaVHFNode : public FmaVNode {
+public:
+  FmaVHFNode(Node* in1, Node* in2, Node* in3, const TypeVect* vt) : FmaVNode(in1, in2, in3, vt) {}
+  virtual int Opcode() const;
+};
+
 //------------------------------MulReductionVINode--------------------------------------
 // Vector multiply byte, short and int as a reduction
 class MulReductionVINode : public UnorderedReductionNode {
@@ -549,7 +557,7 @@ public:
 //------------------------------AbsVFNode--------------------------------------
 // Vector Abs float
 class AbsVFNode : public VectorNode {
- public:
+public:
   AbsVFNode(Node* in, const TypeVect* vt) : VectorNode(in,vt) {}
   virtual int Opcode() const;
 };
@@ -557,8 +565,16 @@ class AbsVFNode : public VectorNode {
 //------------------------------AbsVDNode--------------------------------------
 // Vector Abs double
 class AbsVDNode : public VectorNode {
- public:
-  AbsVDNode(Node* in, const TypeVect* vt) : VectorNode(in,vt) {}
+public:
+  AbsVDNode(Node* in, const TypeVect* vt) : VectorNode(in, vt) {}
+  virtual int Opcode() const;
+};
+
+//------------------------------AbsVHFNode-------------------------------------
+// Vector Abs half-precision float
+class AbsVHFNode : public VectorNode {
+public:
+  AbsVHFNode(Node* in, const TypeVect* vt) : VectorNode(in, vt) {}
   virtual int Opcode() const;
 };
 
@@ -595,7 +611,7 @@ class NegVLNode : public NegVNode {
 //------------------------------NegVFNode--------------------------------------
 // Vector Neg float
 class NegVFNode : public NegVNode {
- public:
+public:
   NegVFNode(Node* in, const TypeVect* vt) : NegVNode(in, vt) {}
   virtual int Opcode() const;
 };
@@ -603,8 +619,16 @@ class NegVFNode : public NegVNode {
 //------------------------------NegVDNode--------------------------------------
 // Vector Neg double
 class NegVDNode : public NegVNode {
- public:
+public:
   NegVDNode(Node* in, const TypeVect* vt) : NegVNode(in, vt) {}
+  virtual int Opcode() const;
+};
+
+//------------------------------NegVHFNode-------------------------------------
+// Vector Neg half-precision float
+class NegVHFNode : public NegVNode {
+public:
+  NegVHFNode(Node* in, const TypeVect* vt) : NegVNode(in, vt) {}
   virtual int Opcode() const;
 };
 
@@ -629,10 +653,19 @@ class PopCountVLNode : public VectorNode {
 //------------------------------SqrtVFNode--------------------------------------
 // Vector Sqrt float
 class SqrtVFNode : public VectorNode {
- public:
-  SqrtVFNode(Node* in, const TypeVect* vt) : VectorNode(in,vt) {}
+public:
+  SqrtVFNode(Node* in, const TypeVect* vt) : VectorNode(in, vt) {}
   virtual int Opcode() const;
 };
+
+//------------------------------SqrtVHFNode-------------------------------------
+// Vector Sqrt half-precision float
+class SqrtVHFNode : public VectorNode {
+public:
+  SqrtVHFNode(Node* in, const TypeVect* vt) : VectorNode(in, vt) {}
+  virtual int Opcode() const;
+};
+
 //------------------------------RoundDoubleVNode--------------------------------
 // Vector round double
 class RoundDoubleModeVNode : public VectorNode {
@@ -644,7 +677,7 @@ class RoundDoubleModeVNode : public VectorNode {
 //------------------------------SqrtVDNode--------------------------------------
 // Vector Sqrt double
 class SqrtVDNode : public VectorNode {
- public:
+public:
   SqrtVDNode(Node* in, const TypeVect* vt) : VectorNode(in,vt) {}
   virtual int Opcode() const;
 };
