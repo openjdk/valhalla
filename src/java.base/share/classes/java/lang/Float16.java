@@ -907,18 +907,14 @@ public final class Float16
          * The double format has 53 logical bits of precision and its
          * exponent range goes from -1022 to 1023. The Float16 format
          * has 11 bits of logical precision and its exponent range
-         * goes from -14 to 15. Therefore, the bit positions
+         * goes from -14 to 15. Therefore, the individual powers of 2
          * representable in the Float16 format range from the
          * subnormal 2^(-24), MIN_VALUE, to 2^15, the leading bit
          * position of MAX_VALUE.
          *
-         * Consequently, a double can hold the exact sum of any two
-         * Float16 values as the maximum difference in exponents of
-         * Float16 values less than the precision width of double.
-         *
          * In cases where the numerical value of (a * b) + c is
          * computed exactly in a double, after a single rounding to
-         * Float16, the result is of necessity correct since the one
+         * Float16, the result is necessarily correct since the one
          * double -> Float16 conversion is the only source of
          * numerical error. The operation as implemented in those
          * cases would be equivalent to rounding the infinitely precise
@@ -934,10 +930,10 @@ public final class Float16
          * product-sum.
          *
          * For the product a*b of Float16 inputs, the range of
-         * exponents for nonzero finite results goes from 2^(-28)
+         * exponents for nonzero finite results goes from 2^(-48)
          * (from MIN_VALUE squared) to 2^31 (from the exact value of
          * MAX_VALUE squared). This full range of exponent positions,
-         * (31 -(-28) + 1 ) = 60 exceeds the precision of
+         * (31 -(-48) + 1 ) = 80 exceeds the precision of
          * double. However, only the product a*b can exceed the
          * exponent range of Float16. Therefore, there are three main
          * cases to consider:
@@ -948,10 +944,11 @@ public final class Float16
          *
          * MAX_VALUE + 1/2 * ulp(MAX_VALUE) =  0x1.ffcp15 + 0x0.002p15 = 0x1.ffep15
          *
-         * Therefore, any product greater than 0x1.ffep15 + MAX_VALUE
-         * = 0x1.ffdp16 will certainly overflow (under round to
-         * nearest) since adding in c = -MAX_VALUE will still be above
-         * the overflow threshold.
+         * Therefore, for any product greater than or equal in
+         * magnitude to (0x1.ffep15 + MAX_VALUE) = 0x1.ffdp16, the
+         * final fma result will certainly overflow to infinity (under
+         * round to nearest) since adding in c = -MAX_VALUE will still
+         * be at or above the overflow threshold.
          *
          * If the exponent of the product is 15 or 16, the smallest
          * subnormal Float16 is 2^-24 and the ~40 bit wide range bit
@@ -961,27 +958,27 @@ public final class Float16
          * Float16 values; Float16.MIN_EXPONENT <=  exponent <= Float16.MAX_EXPONENT
          *
          * The exact product has at most 22 contiguous bits in its
-         * logical significand. The third number being added in has
-         * at most 11 contiguous bits in its significand and the
-         * lowest bit position that could be set is
-         * 2^(-24). Therefore, when the product has the maximum
-         * in-range exponent, 2^15, a single double has enough
-         * precision to hold down to the smallest subnormal bit
-         * position, 15 - (-24) + 1 = 40 < 53. If the product was
-         * large and overflowed when the third operand was added, this
-         * would cause the exponent to increase to 16, which is within
-         * the range of double, so the product-sum is exact and will
-         * be correct when rounded to Float16.
+         * logical significand. The third number being added in has at
+         * most 11 contiguous bits in its significand and the lowest
+         * bit position that could be set is 2^(-24). Therefore, when
+         * the product has the maximum in-range exponent, 2^15, a
+         * single double has enough precision to hold down to the
+         * smallest subnormal bit position, 15 - (-24) + 1 = 40 <
+         * 53. If the product was large and rounded up, increasing the
+         * exponent, when the third operand was added, this would
+         * cause the exponent to go up to 16, which is within the
+         * range of double, so the product-sum is exact and will be
+         * correct when rounded to Float16.
          *
          * 3) Exponent of product is in the range of subnormal values or smaller,
          * exponent < Float16.MIN_EXPONENT
          *
          * The smallest exponent possible in a product is 2^(-48).
          * For moderately sized Float16 values added to the product,
-         * with a leading exponent of about 4, the sum will not be
+         * with an exponent of about 4, the sum will not be
          * exact. Therefore, an analysis is needed to determine if the
          * double-rounding is benign or would lead to a different
-         * final Float16 result. Double rounding an lead to a
+         * final Float16 result. Double rounding can lead to a
          * different result in two cases:
          *
          * 1) The first rounding from the exact value to the extended
