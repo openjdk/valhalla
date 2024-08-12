@@ -1148,6 +1148,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
     if (is_init == nullptr) {
       // Will only be initialized below, use dummy node for now
       is_init = new Node(1);
+      is_init->init_req(0, kit->control()); // Add an input to prevent dummy from being dead
       gvn.set_type_bottom(is_init);
     }
     Node* null_ctrl = kit->top();
@@ -1215,6 +1216,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
     gvn.hash_delete(cmp);
     cmp->set_req(1, is_init);
     gvn.hash_find_insert(cmp);
+    gvn.record_for_igvn(cmp);
     base_input++;
   }
 }
