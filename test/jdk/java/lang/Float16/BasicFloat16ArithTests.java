@@ -419,7 +419,7 @@ public class BasicFloat16ArithTests {
             checkFloat16(f16,    valueOf(halfWayNextDown).floatValue(),  roundDownMsg);
             checkFloat16(f16Neg, valueOf(-halfWayNextDown).floatValue(), roundDownMsg);
 
-            // Should always round down up
+            // Should always round up
             double halfWayNextUp =   Math.nextUp(halfWay);
             checkFloat16(add(f16, ulp),         valueOf( halfWayNextUp).floatValue(), roundUpMsg);
             checkFloat16(subtract(f16Neg, ulp), valueOf(-halfWayNextUp).floatValue(), roundUpMsg);
