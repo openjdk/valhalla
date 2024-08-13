@@ -4387,4 +4387,100 @@ public class TestLWorld {
     public void testUniqueConcreteValueSubKlass_verifier() {
         testUniqueConcreteValueSubKlass(true);
     }
+
+    static value class MyValueContainer {
+        private final Object value;
+
+        private MyValueContainer(Object value) {
+            this.value = value;
+        }
+    }
+
+    static value class MyValue161 {
+        int x = 0;
+    }
+
+    @Test
+    public MyValueContainer test161(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(new MyValue161()) : null;
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (MyValue161)res.value : null;
+        return res;
+    }
+
+    @Run(test = "test161")
+    public void test161_verifier() {
+        Asserts.assertEquals(test161(true), new MyValueContainer(new MyValue161()));
+        Asserts.assertEquals(test161(false), null);
+    }
+
+    @Test
+    public MyValueContainer test162(boolean b) {
+        MyValueContainer res = b ? null : new MyValueContainer(new MyValue161());
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? null : (MyValue161)res.value;
+        return res;
+    }
+
+    @Run(test = "test162")
+    public void test162_verifier() {
+        Asserts.assertEquals(test162(true), null);
+        Asserts.assertEquals(test162(false), new MyValueContainer(new MyValue161()));
+    }
+
+    @Test
+    public MyValueContainer test163(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(new MyValue161()) : new MyValueContainer(null);
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (MyValue161)res.value : (MyValue161)res.value;
+        return res;
+    }
+
+    @Run(test = "test163")
+    public void test163_verifier() {
+        Asserts.assertEquals(test163(true), new MyValueContainer(new MyValue161()));
+        Asserts.assertEquals(test163(false), new MyValueContainer(null));
+    }
+
+    @Test
+    public MyValueContainer test164(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(null) : new MyValueContainer(new MyValue161());
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (MyValue161)res.value : (MyValue161)res.value;
+        return res;
+    }
+
+    @Run(test = "test164")
+    public void test164_verifier() {
+        Asserts.assertEquals(test164(true), new MyValueContainer(null));
+        Asserts.assertEquals(test164(false), new MyValueContainer(new MyValue161()));
+    }
+
+    @Test
+    public MyValueContainer test165(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(new MyValue161()) : new MyValueContainer(42);
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (MyValue161)res.value : (Integer)res.value;
+        return res;
+    }
+
+    @Run(test = "test165")
+    public void test165_verifier() {
+        Asserts.assertEquals(test165(true), new MyValueContainer(new MyValue161()));
+        Asserts.assertEquals(test165(false), new MyValueContainer(42));
+    }
+
+    @Test
+    public MyValueContainer test166(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(42) : new MyValueContainer(new MyValue161());
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (Integer)res.value : (MyValue161)res.value;
+        return res;
+    }
+
+    @Run(test = "test166")
+    public void test166_verifier() {
+        Asserts.assertEquals(test166(true), new MyValueContainer(42));
+        Asserts.assertEquals(test166(false), new MyValueContainer(new MyValue161()));
+    }
 }

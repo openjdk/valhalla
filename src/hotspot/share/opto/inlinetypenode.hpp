@@ -117,7 +117,7 @@ public:
   void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req_X(IsBuffered, gvn.intcon(buffered ? 1 : 0), &gvn); }
 
   void set_is_larval(bool is_larval) { _is_larval = is_larval; }
-  bool is_larval() { return _is_larval; }
+  bool is_larval() const { return _is_larval; }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }

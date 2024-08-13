@@ -74,7 +74,7 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
     // of the same type but with different scalarization depth during GVN. To avoid inconsistencies
     // during merging, make sure that we only create Phis for fields that are guaranteed to be scalarized.
     bool no_circularity = !gvn->C->has_circular_inline_type() || field_is_flat(i);
-    if (value->is_InlineType() && no_circularity) {
+    if (type->is_inlinetype() && no_circularity) {
       // Handle inline type fields recursively
       value = value->as_InlineType()->clone_with_phis(gvn, region, map);
     } else {
@@ -112,6 +112,9 @@ bool InlineTypeNode::has_phi_inputs(Node* region) {
 
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
 InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform) {
+  assert(is_larval() == other->is_larval(), "Inconsistent larval state");
+  assert(inline_klass() == other->inline_klass(), "Merging incompatible types");
+
   // Merge oop inputs
   PhiNode* phi = get_oop()->as_Phi();
   phi->set_req(pnum, other->get_oop());
