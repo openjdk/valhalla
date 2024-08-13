@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8285932 8310913 8336390
+ * @bug 8285932 8310913 8336390 8338060 8338252
  * @summary Test features provided by the ReferencedKeyMap/ReferencedKeySet classes.
  * @modules java.base/jdk.internal.util
  * @compile --patch-module java.base=${test.src} ReferencedKeyTest.java
@@ -36,17 +36,26 @@ import java.lang.ref.PhantomReference;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 public class ReferencedKeyTest {
-    static String BASE_KEY = "BASEKEY-";
+    private static String BASE_KEY = "BASEKEY-";
 
-    static String genKey(int i) {
+    // Return a String (identity object) that can be a key in WeakHashMap.
+    private static String genKey(int i) {
         return BASE_KEY + i;
+    }
+
+    // Return a String of the letter 'a' plus the integer (0..0xffff)
+    private static String genValue(int i) {
+        return String.valueOf((char) ('a' + i));
     }
 
     public static void main(String[] args) {
@@ -69,26 +78,30 @@ public class ReferencedKeyTest {
 
     static void mapTest(boolean isSoft, Supplier<Map<ReferenceKey<String>, String>> supplier) {
         Map<String, String> map = ReferencedKeyMap.create(isSoft, supplier);
-        populate(map);
+        var strongKeys = populate(map);      // Retain references to the keys
+        methods(map);
+        Reference.reachabilityFence(strongKeys);
+
+        strongKeys = null;      // drop strong key references
         if (!isSoft) {
             if (!collect(() -> map.isEmpty())) {
                 throw new RuntimeException("WeakReference map not collecting!");
             }
         }
-        populate(map);
-        methods(map);
     }
 
     static void setTest(boolean isSoft, Supplier<Map<ReferenceKey<String>, ReferenceKey<String>>> supplier) {
         ReferencedKeySet<String> set = ReferencedKeySet.create(isSoft, supplier);
-        populate(set);
+        var strongKeys = populate(set);      // Retain references to the keys
+        methods(set);
+        Reference.reachabilityFence(strongKeys);
+
+        strongKeys = null;          // drop strong key references
         if (!isSoft) {
             if (!collect(() -> set.isEmpty())) {
                 throw new RuntimeException("WeakReference set not collecting!");
             }
         }
-        populate(set);
-        methods(set);
     }
 
     static void methods(Map<String, String> map) {
@@ -132,8 +145,8 @@ public class ReferencedKeyTest {
         assertTrue(intern2 != null, "intern failed");
         assertTrue(element3 == intern3, "intern failed");
 
-        Long value1 = Long.valueOf(BASE_KEY + 999);
-        Long value2 = Long.valueOf(BASE_KEY + 999);
+        String value1 = genKey(999);
+        String value2 = genKey(999);
         assertTrue(set.add(value1), "key not added");
         assertTrue(!set.add(value1), "key added after second attempt");
         assertTrue(!set.add(value2), "key should not have been added");
@@ -168,18 +181,23 @@ public class ReferencedKeyTest {
         return booleanSupplier.getAsBoolean();
     }
 
-    static void populate(Map<String, String> map) {
-        for (int i = 0; i < 26; i++) {
-            String key = genKey(i);
-            String value = String.valueOf((char) ('a' + i));
-            map.put(key, value);
+    static List<String> populate(Map<String, String> map) {
+        var keyRefs = genStrings(0, 26, ReferencedKeyTest::genKey);
+        var valueRefs = genStrings(0, 26, ReferencedKeyTest::genValue);
+        for (int i = 0; i < keyRefs.size(); i++) {
+            map.put(keyRefs.get(i), valueRefs.get(i));
         }
+        return keyRefs;
     }
 
-    static void populate(Set<String> set) {
-        for (int i = 0; i < 26; i++) {
-            String value = genKey(i);
-            set.add(value);
-        }
+    static List<String> populate(Set<String> set) {
+        var keyRefs = genStrings(0, 26, ReferencedKeyTest::genKey);
+        set.addAll(keyRefs);
+        return keyRefs;
+    }
+
+    // Generate a List of consecutive strings using a function int -> String
+    static List<String> genStrings(int min, int maxExclusive, Function<Integer, String> genString) {
+        return IntStream.range(min, maxExclusive).mapToObj(i -> genString.apply(i)).toList();
     }
 }
