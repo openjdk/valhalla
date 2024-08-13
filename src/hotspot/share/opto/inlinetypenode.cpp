@@ -112,7 +112,6 @@ bool InlineTypeNode::has_phi_inputs(Node* region) {
 
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
 InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform) {
-  assert(is_larval() == other->is_larval(), "Inconsistent larval state");
   assert(inline_klass() == other->inline_klass(), "Merging incompatible types");
 
   // Merge oop inputs
