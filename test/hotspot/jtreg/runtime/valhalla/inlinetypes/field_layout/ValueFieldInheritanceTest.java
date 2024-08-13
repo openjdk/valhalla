@@ -23,7 +23,7 @@
 
   /*
  * @test id=32bits
- * @requires vm.bits == 32
+ * @requires vm.bits == 32 & vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -33,7 +33,7 @@
 
 /*
  * @test id=64bitsCompressedOops
- * @requires vm.bits == 64
+ * @requires vm.bits == 64 & vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -43,7 +43,7 @@
 
 /*
  * @test id=64bitsNoCompressedOops
- * @requires vm.bits == 64
+ * @requires vm.bits == 64 & vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -53,7 +53,7 @@
 
 /*
  * @test id=64bitsNoCompressedOopsNoCompressKlassPointers
- * @requires vm.bits == 64
+ * @requires vm.bits == 64 & vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
