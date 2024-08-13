@@ -4400,6 +4400,7 @@ public class TestLWorld {
         int x = 0;
     }
 
+    // Test merging value classes with Object fields
     @Test
     public MyValueContainer test161(boolean b) {
         MyValueContainer res = b ? new MyValueContainer(new MyValue161()) : null;
@@ -4482,5 +4483,16 @@ public class TestLWorld {
     public void test166_verifier() {
         Asserts.assertEquals(test166(true), new MyValueContainer(42));
         Asserts.assertEquals(test166(false), new MyValueContainer(new MyValue161()));
+    }
+
+    // Verify that monitor information in JVMState is correct at method exit
+    @Test
+    public synchronized Object test167() {
+        return MyValue1.createWithFieldsInline(rI, rL); // Might trigger buffering which requires JVMState
+    }
+
+    @Run(test = "test167")
+    public void test167_verifier() {
+        Asserts.assertEquals(((MyValue1)test167()).hash(), hash());
     }
 }
