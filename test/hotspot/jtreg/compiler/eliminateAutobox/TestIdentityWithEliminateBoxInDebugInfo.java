@@ -26,6 +26,7 @@
  * @test
  * @bug 8261137
  * @requires vm.flavor == "server"
+ * @enablePreview
  * @summary Verify that box object content matches after deoptimization when it is eliminated.
  * @library /test/lib
  *
