@@ -103,18 +103,27 @@ public final class Float16
     /**
      * A constant holding the positive infinity of type {@code
      * Float16}.
+     *
+     * @see Float#POSITIVE_INFINITY
+     * @see Double#POSITIVE_INFINITY
      */
     public static final Float16 POSITIVE_INFINITY = valueOf(Float.POSITIVE_INFINITY);
 
     /**
      * A constant holding the negative infinity of type {@code
      * Float16}.
+     *
+     * @see Float#NEGATIVE_INFINITY
+     * @see Double#NEGATIVE_INFINITY
      */
     public static final Float16 NEGATIVE_INFINITY = valueOf(Float.NEGATIVE_INFINITY);
 
     /**
      * A constant holding a Not-a-Number (NaN) value of type {@code
      * Float16}.
+     *
+     * @see Float#NaN
+     * @see Double#NaN
      */
     public static final Float16 NaN = valueOf(Float.NaN);
 
@@ -122,24 +131,36 @@ public final class Float16
      * A constant holding the largest positive finite value of type
      * {@code Float16},
      * (2-2<sup>-10</sup>)&middot;2<sup>15</sup>, numerically equal to 65504.0.
+     *
+     * @see Float#MAX_VALUE
+     * @see Double#MAX_VALUE
      */
     public static final Float16 MAX_VALUE = valueOf(0x1.ffcp15f);
 
     /**
      * A constant holding the smallest positive normal value of type
      * {@code Float16}, 2<sup>-14</sup>.
+     *
+     * @see Float#MIN_NORMAL
+     * @see Double#MIN_NORMAL
      */
     public static final Float16 MIN_NORMAL = valueOf(0x1.0p-14f);
 
     /**
      * A constant holding the smallest positive nonzero value of type
      * {@code Float16}, 2<sup>-24</sup>.
+     *
+     * @see Float#MIN_VALUE
+     * @see Double#MIN_VALUE
      */
     public static final Float16 MIN_VALUE = valueOf(0x1.0p-24f);
 
     /**
      * The number of bits used to represent a {@code Float16} value,
      * {@value}.
+     *
+     * @see Float#SIZE
+     * @see Double#SIZE
      */
     public static final int SIZE = 16;
 
@@ -147,24 +168,38 @@ public final class Float16
      * The number of bits in the significand of a {@code Float16}
      * value, {@value}.  This corresponds to parameter N in section
      * {@jls 4.2.3} of <cite>The Java Language Specification</cite>.
+     *
+     * @see Float#PRECISION
+     * @see Double#PRECISION
      */
     public static final int PRECISION = 11;
 
     /**
      * Maximum exponent a finite {@code Float16} variable may have,
-     * {@value}.
+     * {@value}. It is equal to the value returned by {@code
+     * Float16.getExponent(Float16.MAX_VALUE)}.
+     *
+     * @see Float#MAX_EXPONENT
+     * @see Double#MAX_EXPONENT
      */
     public static final int MAX_EXPONENT = (1 << (SIZE - PRECISION - 1)) - 1; // 15
 
     /**
      * Minimum exponent a normalized {@code Float16} variable may
-     * have, {@value}.
+     * have, {@value}.  It is equal to the value returned by {@code
+     * Float16.getExponent(Float16.MIN_NORMAL)}.
+     *
+     * @see Float#MIN_EXPONENT
+     * @see Double#MIN_EXPONENT
      */
     public static final int MIN_EXPONENT = 1 - MAX_EXPONENT; // -14
 
     /**
      * The number of bytes used to represent a {@code Float16} value,
      * {@value}.
+     *
+     * @see Float#BYTES
+     * @see Double#BYTES
      */
     public static final int BYTES = SIZE / Byte.SIZE;
 
@@ -543,22 +578,6 @@ public final class Float16
     // public boolean equals(Object obj)
 
     /**
-     * Adds two {@code Float16} values together as per the {@code +}
-     * operator semantics.
-     *
-     * @implSpec
-     * This method is operationally equivalent to {@link #add(Float16, Float16)}.
-     *
-     * @param a the first operand
-     * @param b the second operand
-     * @return the sum of {@code a} and {@code b}
-     */
-    @IntrinsicCandidate
-    public static Float16 sum(Float16 a, Float16 b) {
-        return add(a, b);
-    }
-
-    /**
      * Returns a representation of the specified floating-point value
      * according to the IEEE 754 floating-point binary16 bit layout.
      *
@@ -659,6 +678,7 @@ public final class Float16
      * @see Math#max(float, float)
      * @see Math#max(double, double)
      */
+    @IntrinsicCandidate
     public static Float16 max(Float16 a, Float16 b) {
         return shortBitsToFloat16(floatToFloat16(Math.max(a.floatValue(),
                                                           b.floatValue() )));
@@ -678,6 +698,7 @@ public final class Float16
      * @see Math#min(float, float)
      * @see Math#min(double, double)
      */
+    @IntrinsicCandidate
     public static Float16 min(Float16 a, Float16 b) {
         return shortBitsToFloat16(floatToFloat16(Math.min(a.floatValue(),
                                                           b.floatValue()) ));
@@ -746,7 +767,7 @@ public final class Float16
      *
      * @jls 15.4 Floating-point Expressions
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 add(Float16 addend, Float16 augend) {
         return valueOf(addend.floatValue() + augend.floatValue());
     }
@@ -769,7 +790,7 @@ public final class Float16
      *
      * @jls 15.4 Floating-point Expressions
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 subtract(Float16 minuend, Float16 subtrahend) {
         return valueOf(minuend.floatValue() - subtrahend.floatValue());
     }
@@ -792,7 +813,7 @@ public final class Float16
      *
      * @jls 15.4 Floating-point Expressions
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 multiply(Float16 multiplier, Float16 multiplicand) {
         return valueOf(multiplier.floatValue() * multiplicand.floatValue());
     }
@@ -815,7 +836,7 @@ public final class Float16
      *
      * @jls 15.4 Floating-point Expressions
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 divide(Float16 dividend, Float16 divisor) {
         return valueOf(dividend.floatValue() / divisor.floatValue());
     }

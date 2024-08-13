@@ -3376,7 +3376,7 @@ public:
 // SVE floating-point arithmetic - predicate
 #define INSN(NAME, op1, op2)                                                                          \
   void NAME(FloatRegister Zd_or_Zdn_or_Vd, SIMD_RegVariant T, PRegister Pg, FloatRegister Zn_or_Zm) { \
-    assert(T == S || T == D, "invalid register variant");                                             \
+    assert(T == H || T == S || T == D, "invalid register variant");                                   \
     sve_predicate_reg_insn(op1, op2, Zd_or_Zdn_or_Vd, T, Pg, Zn_or_Zm);                               \
   }
 

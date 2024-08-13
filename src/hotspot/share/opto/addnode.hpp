@@ -403,6 +403,26 @@ public:
   int min_opcode() const { return Op_MinF; }
 };
 
+//------------------------------MaxHFNode--------------------------------------
+// Maximum of 2 half floats.
+class MaxHFNode : public MaxFNode {
+public:
+  MaxHFNode(Node* in1, Node* in2) : MaxFNode(in1, in2) {}
+  virtual int Opcode() const;
+  int max_opcode() const { return Op_MaxHF; }
+  int min_opcode() const { return Op_MinHF; }
+};
+
+//------------------------------MinHFNode---------------------------------------
+// Minimum of 2 half floats.
+class MinHFNode : public MinFNode {
+public:
+  MinHFNode(Node* in1, Node* in2) : MinFNode(in1, in2) {}
+  virtual int Opcode() const;
+  int max_opcode() const { return Op_MaxHF; }
+  int min_opcode() const { return Op_MinHF; }
+};
+
 //------------------------------MaxDNode---------------------------------------
 // Maximum of 2 doubles.
 class MaxDNode : public MaxNode {

@@ -3678,6 +3678,12 @@ void Compile::final_graph_reshaping_impl(Node *n, Final_Reshape_Counts& frc, Uni
 void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& frc, uint nop, Unique_Node_List& dead_nodes) {
   switch( nop ) {
   // Count all float operations that may use FPU
+  case Op_AddHF:
+  case Op_SubHF:
+  case Op_MulHF:
+  case Op_DivHF:
+  case Op_MaxHF:
+  case Op_MinHF:
   case Op_AddF:
   case Op_SubF:
   case Op_MulF:
