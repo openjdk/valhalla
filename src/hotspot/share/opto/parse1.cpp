@@ -2399,17 +2399,6 @@ void Parse::return_current(Node* value) {
     call_register_finalizer();
   }
 
-  // Do not set_parse_bci, so that return goo is credited to the return insn.
-  // vreturn can trigger an allocation so vreturn can throw. Setting
-  // the bci here breaks exception handling. Commenting this out
-  // doesn't seem to break anything.
-  //  set_bci(InvocationEntryBci);
-  if (method()->is_synchronized() && GenerateSynchronizationCode) {
-    shared_unlock(_synch_lock->box_node(), _synch_lock->obj_node());
-  }
-  if (C->env()->dtrace_method_probes()) {
-    make_dtrace_method_exit(method());
-  }
   // frame pointer is always same, already captured
   if (value != nullptr) {
     Node* phi = _exits.argument(0);
@@ -2443,6 +2432,15 @@ void Parse::return_current(Node* value) {
     // If returning oops to an interface-return, there is a silent free
     // cast from oop to interface allowed by the Verifier. Make it explicit here.
     phi->add_req(value);
+  }
+
+  // Do not set_parse_bci, so that return goo is credited to the return insn.
+  set_bci(InvocationEntryBci);
+  if (method()->is_synchronized() && GenerateSynchronizationCode) {
+    shared_unlock(_synch_lock->box_node(), _synch_lock->obj_node());
+  }
+  if (C->env()->dtrace_method_probes()) {
+    make_dtrace_method_exit(method());
   }
 
   SafePointNode* exit_return = _exits.map();
