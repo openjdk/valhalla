@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -25,7 +26,7 @@
  * @test
  * @bug 8261137
  * @requires vm.flavor == "server"
- * @summary Verify that box object identity matches after deoptimization when it is eliminated.
+ * @summary Verify that box object content matches after deoptimization when it is eliminated.
  * @library /test/lib
  *
  * @run main/othervm -Xbatch compiler.eliminateAutobox.TestIdentityWithEliminateBoxInDebugInfo
@@ -67,7 +68,7 @@ public class TestIdentityWithEliminateBoxInDebugInfo {
             if (!c) {
                 Asserts.assertTrue(a == Long.valueOf(42L));
                 Asserts.assertTrue(b == Long.valueOf(-42L));
-                Asserts.assertFalse(h == Long.valueOf(highBitsOnly));
+                Asserts.assertTrue(h == Long.valueOf(highBitsOnly));
             }
         });
 
