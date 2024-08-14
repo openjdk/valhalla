@@ -6457,18 +6457,20 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   if (vk != nullptr) {
     // Called from C1, where the return type is statically known.
     movptr(klass, (intptr_t)vk->get_InlineKlass());
-    jint obj_size = vk->layout_helper();
-    assert(obj_size != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
-    if (UseTLAB) {
-      tlab_allocate(r0, noreg, obj_size, tmp1, tmp2, slow_case);
+    jint lh = vk->layout_helper();
+    assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
+    if (UseTLAB && !Klass::layout_helper_needs_slow_path(lh)) {
+      tlab_allocate(r0, noreg, lh, tmp1, tmp2, slow_case);
     } else {
       b(slow_case);
     }
   } else {
     // Call from interpreter. R0 contains ((the InlineKlass* of the return type) | 0x01)
     andr(klass, r0, -2);
-    ldrw(tmp2, Address(klass, Klass::layout_helper_offset()));
     if (UseTLAB) {
+      ldrw(tmp2, Address(klass, Klass::layout_helper_offset()));
+      tst(tmp2, Klass::_lh_instance_slow_path_bit);
+      br(Assembler::NE, slow_case);
       tlab_allocate(r0, tmp2, 0, tmp1, tmp2, slow_case);
     } else {
       b(slow_case);
