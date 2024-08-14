@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8329817
+ * @bug 8329817 8334432
  * @summary Basic tests of Float16 arithmetic and similar operations
  */
 
@@ -46,6 +46,7 @@ public class BasicFloat16ArithTests {
         checkSqrt();
         checkGetExponent();
         checkUlp();
+        checkValueOfDouble();
         FusedMultiplyAddTests.main();
     }
 
@@ -53,7 +54,7 @@ public class BasicFloat16ArithTests {
      * The software implementation of Float16 delegates to float or
      * double operations for most of the actual computation. This
      * regression test takes that into account as it generally only
-     * has limited tested to probe whether or not the proper
+     * has limited testing to probe whether or not the proper
      * functionality is being delegated to.
      *
      * To make the test easier to read, float literals that are exact
@@ -375,11 +376,81 @@ public class BasicFloat16ArithTests {
         throw new RuntimeException(message);
     }
 
+    private static void checkValueOfDouble() {
+        /*
+         * Check that double -> Float16 conversion rounds properly
+         * around the midway point for each finite Float16 value by
+         * looping over the positive values and checking the negations
+         * along the way.
+         */
+
+        String roundUpMsg   = "Didn't get half-way case rounding down";
+        String roundDownMsg = "Didn't get half-way case rounding up";
+
+        for(int i = 0; i <= Short.MAX_VALUE; i++ ) {
+            boolean isEven = ((i & 0x1) == 0);
+            Float16 f16 = Float16.shortBitsToFloat16((short)i);
+            Float16 f16Neg = negate(f16);
+
+            if (!isFinite(f16))
+                continue;
+
+            // System.out.println("\t" + toHexString(f16));
+
+            Float16 ulp = ulp(f16);
+            double halfWay = f16.doubleValue() + ulp.doubleValue() * 0.5;
+
+            // Under the round to nearest even rounding policy, the
+            // half-way case should round down to the starting value
+            // if the starting value is even; otherwise, it should round up.
+            float roundedBack = valueOf(halfWay).floatValue();
+            float roundedBackNeg = valueOf(-halfWay).floatValue();
+
+            if (isEven) {
+                checkFloat16(f16,    roundedBack,    roundDownMsg);
+                checkFloat16(f16Neg, roundedBackNeg, roundDownMsg);
+            } else {
+                checkFloat16(add(f16,         ulp), roundedBack,    roundUpMsg);
+                checkFloat16(subtract(f16Neg, ulp), roundedBackNeg, roundUpMsg);
+            }
+
+            // Should always round down
+            double halfWayNextDown = Math.nextDown(halfWay);
+            checkFloat16(f16,    valueOf(halfWayNextDown).floatValue(),  roundDownMsg);
+            checkFloat16(f16Neg, valueOf(-halfWayNextDown).floatValue(), roundDownMsg);
+
+            // Should always round up
+            double halfWayNextUp =   Math.nextUp(halfWay);
+            checkFloat16(add(f16, ulp),         valueOf( halfWayNextUp).floatValue(), roundUpMsg);
+            checkFloat16(subtract(f16Neg, ulp), valueOf(-halfWayNextUp).floatValue(), roundUpMsg);
+        }
+    }
+
     class FusedMultiplyAddTests {
         public static void main(String... args) {
+            testZeroNanInfCombos();
             testNonFinite();
             testZeroes();
             testSimple();
+            testRounding();
+        }
+
+        private static void testZeroNanInfCombos() {
+            float [] testInputs = {
+                Float.NaN,
+                -InfinityF,
+                +InfinityF,
+                -0.0f,
+                +0.0f,
+            };
+
+            for (float i : testInputs) {
+                for (float j : testInputs) {
+                    for (float k : testInputs) {
+                        testFusedMacCase(i, j, k, Math.fma(i, j, k));
+                    }
+                }
+            }
         }
 
         private static void testNonFinite() {
@@ -500,8 +571,64 @@ public class BasicFloat16ArithTests {
                  -1.0f - 2.0f*ulpOneFp16,
                  ulpOneFp16 * ulpOneFp16},
 
-//                 // Double-rounding if done in double precision
-//                 {0x1.fffffep23f, 0x1.000004p28f, 0x1.fep5f, 0x1.000002p52f}
+            };
+
+            for (float[] testCase: testCases) {
+                testFusedMacCase(testCase[0], testCase[1], testCase[2], testCase[3]);
+            }
+        }
+
+        private static void testRounding() {
+            final float ulpOneFp16 = ulp(valueOf(1.0f)).floatValue();
+
+            float [][] testCases = {
+                // The product is equal to
+                // (MAX_VALUE + 1/2 * ulp(MAX_VALUE) + MAX_VALUE = (0x1.ffcp15 + 0x0.002p15)+ 0x1.ffcp15
+                // so overflows.
+                {0x1.3p1f, 0x1.afp15f, -MAX_VAL_FP16,
+                 InfinityF},
+
+                // Product exactly equals 0x1.ffep15, the overflow
+                // threshold; subtracting a non-zero finite value will
+                // result in MAX_VALUE, adding zero or a positive
+                // value will overflow.
+                {0x1.2p10f, 0x1.c7p5f, -0x1.0p-14f,
+                 MAX_VAL_FP16},
+
+                {0x1.2p10f, 0x1.c7p5f, -0.0f,
+                 InfinityF},
+
+                {0x1.2p10f, 0x1.c7p5f, +0.0f,
+                 InfinityF},
+
+                {0x1.2p10f, 0x1.c7p5f, +0x1.0p-14f,
+                 InfinityF},
+
+                {0x1.2p10f, 0x1.c7p5f, InfinityF,
+                 InfinityF},
+
+                // PRECISION bits in the subnormal intermediate product
+                {0x1.ffcp-14f, 0x1.0p-24f, 0x1.0p13f, // Can be held exactly
+                 0x1.0p13f},
+
+                {0x1.ffcp-14f, 0x1.0p-24f, 0x1.0p14f, // *Cannot* be held exactly
+                 0x1.0p14f},
+
+                // Check values where the exact result cannot be
+                // exactly stored in a double.
+                {0x1.0p-24f, 0x1.0p-24f, 0x1.0p10f,
+                 0x1.0p10f},
+
+                {0x1.0p-24f, 0x1.0p-24f, 0x1.0p14f,
+                 0x1.0p14f},
+
+                // Check subnormal results, underflow to zero
+                {0x1.0p-24f, -0.5f, 0x1.0p-24f,
+                 0.0f},
+
+                // Check subnormal results, underflow to zero
+                {0x1.0p-24f, -0.5f, 0.0f,
+                 -0.0f},
             };
 
             for (float[] testCase: testCases) {
