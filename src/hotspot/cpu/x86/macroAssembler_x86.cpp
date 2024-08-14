@@ -6162,10 +6162,10 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   if (vk != nullptr) {
     // Called from C1, where the return type is statically known.
     movptr(rbx, (intptr_t)vk->get_InlineKlass());
-    jint obj_size = vk->layout_helper();
-    assert(obj_size != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
-    if (UseTLAB) {
-      tlab_allocate(r15_thread, rax, noreg, obj_size, r13, r14, slow_case);
+    jint lh = vk->layout_helper();
+    assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
+    if (UseTLAB && !Klass::layout_helper_needs_slow_path(lh)) {
+      tlab_allocate(r15_thread, rax, noreg, lh, r13, r14, slow_case);
     } else {
       jmp(slow_case);
     }
@@ -6173,8 +6173,10 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     // Call from interpreter. RAX contains ((the InlineKlass* of the return type) | 0x01)
     mov(rbx, rax);
     andptr(rbx, -2);
-    movl(r14, Address(rbx, Klass::layout_helper_offset()));
     if (UseTLAB) {
+      movl(r14, Address(rbx, Klass::layout_helper_offset()));
+      testl(r14, Klass::_lh_instance_slow_path_bit);
+      jcc(Assembler::notZero, slow_case);
       tlab_allocate(r15_thread, rax, r14, 0, r13, r14, slow_case);
     } else {
       jmp(slow_case);
