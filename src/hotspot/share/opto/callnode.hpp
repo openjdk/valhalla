@@ -819,7 +819,7 @@ class CallStaticJavaNode : public CallJavaNode {
   virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 
-  bool remove_unknown_flat_array_load(PhaseIterGVN* phase, Node* ctl, Node* mem, Node* unc_arg);
+  bool remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node* ctl, Node* mem, Node* unc_arg);
 
 public:
   CallStaticJavaNode(Compile* C, const TypeFunc* tf, address addr, ciMethod* method)
