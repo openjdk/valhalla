@@ -258,7 +258,7 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   assert(_klass_reg->as_register() == r3, "klass_reg must in r3");
 
   if (_is_null_free) {
-    __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_flat_array_id)));
+    __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_null_free_array_id)));
   } else {
     __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
   }
@@ -272,14 +272,14 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
   __ bind(_entry);
-  if (_throw_imse_stub != nullptr) {
+  if (_throw_ie_stub != nullptr) {
     // When we come here, _obj_reg has already been checked to be non-null.
     __ ldr(rscratch1, Address(_obj_reg->as_register(), oopDesc::mark_offset_in_bytes()));
     __ mov(rscratch2, markWord::inline_type_pattern);
     __ andr(rscratch1, rscratch1, rscratch2);
 
     __ cmp(rscratch1, rscratch2);
-    __ br(Assembler::EQ, *_throw_imse_stub->entry());
+    __ br(Assembler::EQ, *_throw_ie_stub->entry());
   }
 
   ce->store_parameter(_obj_reg->as_register(),  1);

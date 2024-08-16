@@ -125,6 +125,13 @@ public class Flags {
      */
     public static final int HASINIT          = 1<<18;
 
+    /** Flag is set for a class symbol if it defines one or more non-empty
+     *  instance initializer block(s). This is relevenat only for class symbols
+     *  that originate from source types. For binary types the instance initializer
+     *  blocks are "normalized" into the constructors.
+     */
+    public static final int HASINITBLOCK         = 1<<18; // ClassSymbols
+
     /** Flag is set for a class or interface whose instances have identity
      * i.e. any concrete class not declared with the modifier `value'
      * (a) abstract class not declared `value'
@@ -132,9 +139,9 @@ public class Flags {
      */
     public static final int IDENTITY_TYPE            = 1<<19;
 
-    /** Class is a unnamed top level class.
+    /** Class is an implicitly declared top level class.
      */
-    public static final int UNNAMED_CLASS    = 1<<23;
+    public static final int IMPLICIT_CLASS    = 1<<23;
 
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
@@ -335,6 +342,11 @@ public class Flags {
     public static final long VALUE_BASED = 1L<<53; //ClassSymbols only
 
     /**
+     * Flag to indicate the given ClassSymbol is a value based.
+     */
+    public static final long MIGRATED_VALUE_CLASS = 1L<<57; //ClassSymbols only
+
+    /**
      * Flag to indicate the given symbol has a @Deprecated annotation.
      */
     public static final long DEPRECATED_ANNOTATION = 1L<<54;
@@ -414,7 +426,7 @@ public class Flags {
     /**
      * Flag to indicate that a field is strict
      */
-    public static final long STRICT = 1L<<51; // VarSymbols
+    public static final long STRICT = 1L<<53; // VarSymbols
 
     /**
      * Flag to indicate that a value class constructor is implicit
@@ -526,6 +538,7 @@ public class Flags {
         ANNOTATION(Flags.ANNOTATION),
         DEPRECATED(Flags.DEPRECATED),
         HASINIT(Flags.HASINIT),
+        HASINITBLOCK(Flags.HASINITBLOCK),
         IDENTITY_TYPE(Flags.IDENTITY_TYPE) {
             @Override
             public String toString() {
@@ -534,7 +547,7 @@ public class Flags {
         },
         VALUE(Flags.VALUE_CLASS),
         IMPLICIT(Flags.IMPLICIT),
-        UNNAMED_CLASS(Flags.UNNAMED_CLASS),
+        IMPLICIT_CLASS(Flags.IMPLICIT_CLASS),
         BLOCK(Flags.BLOCK),
         FROM_SOURCE(Flags.FROM_SOURCE),
         ENUM(Flags.ENUM),

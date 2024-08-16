@@ -21,23 +21,19 @@
  * questions.
  */
 
-// TODO 8325106 Investigate why this suddenly started to throw java.lang.OutOfMemoryError without -Xmx200m
-// and -XX:-UseCompressedOops -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=0 -Xmx20m -Xmn1m -XX:G1HeapRegionSize=1m -XX:-ReduceInitialCardMarks
-
 /**
  * @test
  * @summary Verify that certain array accesses do not trigger deoptimization.
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *          TestArrayAccessDeopt.java
- * @run main/othervm -XX:+EnableValhalla -Xmx200m
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   TestArrayAccessDeopt
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main TestArrayAccessDeopt
  */
 
 import java.io.File;
+import java.util.Objects;
+
 import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
@@ -76,7 +72,7 @@ public class TestArrayAccessDeopt {
     }
 
     public static void test6(MyValue1[] va, Object vt) {
-        va[0] = (MyValue1)vt;
+        va[0] = (MyValue1)Objects.requireNonNull(vt);
     }
 
     public static void test7(MyValue1[] va, MyValue1 vt) {
@@ -88,7 +84,7 @@ public class TestArrayAccessDeopt {
     }
 
     public static void test9(MyValue1[] va, MyValue1 vt) {
-        va[0] = (MyValue1)vt;
+        va[0] = Objects.requireNonNull(vt);
     }
 
     public static void test10(Object[] va) {
@@ -102,12 +98,12 @@ public class TestArrayAccessDeopt {
     static public void main(String[] args) throws Exception {
         if (args.length == 0) {
             // Run test in new VM instance
-            String[] arg = {"-XX:+EnableValhalla", "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED", "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+            String[] arg = {"--enable-preview", "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED", "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                             "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "TestArrayAccessDeopt", "run"};
-            OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
+            OutputAnalyzer oa = ProcessTools.executeTestJava(arg);
             String output = oa.getOutput();
-            oa.shouldNotContain("Uncommon trap occurred");
+            oa.shouldNotContain("UNCOMMON TRAP");
         } else {
             MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
             MyValue1[] vaB = new MyValue1[1];

@@ -318,6 +318,7 @@ public class WeakHashMap<K,V>
      * @throws  NullPointerException if the specified map is null
      * @since   1.3
      */
+    @SuppressWarnings("this-escape")
     public WeakHashMap(Map<? extends K, ? extends V> m) {
         this(Math.max((int) Math.ceil(m.size() / (double)DEFAULT_LOAD_FACTOR),
                 DEFAULT_INITIAL_CAPACITY),
@@ -361,7 +362,7 @@ public class WeakHashMap<K,V>
         // check if the given entry refers to the given key without
         // keeping a strong reference to the entry's referent
         // only identity objects can be compared to a reference
-        if (Objects.isIdentityObject(key) && e.refersTo(key)) return true;
+        if (Objects.hasIdentity(key) && e.refersTo(key)) return true;
 
         // then check for equality if the referent is not cleared
         Object k = e.get();
@@ -530,8 +531,8 @@ public class WeakHashMap<K,V>
      */
     public V put(K key, V value) {
         Object k = maskNull(key);
-        final boolean isValue = Objects.isValueObject(k);
-        if (isValue && valuePolicy == ValuePolicy.DISCARD) {
+        final boolean hasIdentity = Objects.hasIdentity(k);
+        if (!hasIdentity && valuePolicy == ValuePolicy.DISCARD) {
             // put of a value object key with value policy DISCARD is more like remove(key)
             return remove(key);
         }
@@ -549,7 +550,7 @@ public class WeakHashMap<K,V>
         }
 
         Entry<K,V> e = tab[i];
-        e = (isValue) ? newValueEntry(k, value, queue, h, e) : new Entry<>(k, value, queue, h, e);
+        e = hasIdentity ? new Entry<>(k, value, queue, h, e) : newValueEntry(k, value, queue, h, e);
 
         modCount++;
         tab[i] = e;
@@ -1632,7 +1633,7 @@ public class WeakHashMap<K,V>
          * {@return the default policy for retention of keys that are value classes}
          * If the system property "java.util.WeakHashMap.valueKeyRetention"
          * is the name of a {@link ValuePolicy} enum return it,
-         * otherwise return {@link ValuePolicy#SOFT}.
+         * otherwise return {@link ValuePolicy#THROW}.
          */
         private static ValuePolicy initDefaultValuePolicy() {
             try {
@@ -1644,7 +1645,7 @@ public class WeakHashMap<K,V>
             } catch (IllegalArgumentException ex) {
             }
 
-            return SOFT;  // hardcoded default if property not set
+            return THROW;  // hardcoded default if property not set
         }
     }
 

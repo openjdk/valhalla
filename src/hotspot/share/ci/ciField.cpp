@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/reflectionUtils.hpp"
+#include "runtime/reflection.hpp"
 
 // ciField
 //
@@ -105,9 +105,7 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
 
   _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
 
-  // this is needed if the field class is not yet loaded.
-  // _is_null_free = _signature->is_Q_signature();
-  _is_null_free = false; // JDK-8325660: null free-ness should be checked in FieldFlags instead of signature
+  _is_null_free = false;
 
   // Get the field's declared holder.
   //

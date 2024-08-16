@@ -109,20 +109,16 @@ final class InfoFromMemberName implements MethodHandleInfo {
         byte refKind = (byte) getReferenceKind();
         Class<?> defc = getDeclaringClass();
         boolean isPublic = Modifier.isPublic(getModifiers());
-        if (member.isObjectConstructor()) {
-            MethodType methodType = getMethodType();
-            if (MethodHandleNatives.refKindIsObjectConstructor(refKind) &&
-                    methodType.returnType() != void.class) {
-                // object constructor
-                throw new IllegalArgumentException("object constructor must be of void return type");
-            }
-            return isPublic ? defc.getConstructor(methodType.parameterArray())
-                            : defc.getDeclaredConstructor(methodType.parameterArray());
-        } else if (MethodHandleNatives.refKindIsMethod(refKind)) {
+        if (MethodHandleNatives.refKindIsMethod(refKind)) {
             if (isPublic)
                 return defc.getMethod(getName(), getMethodType().parameterArray());
             else
                 return defc.getDeclaredMethod(getName(), getMethodType().parameterArray());
+        } else if (MethodHandleNatives.refKindIsConstructor(refKind)) {
+            if (isPublic)
+                return defc.getConstructor(getMethodType().parameterArray());
+            else
+                return defc.getDeclaredConstructor(getMethodType().parameterArray());
         } else if (MethodHandleNatives.refKindIsField(refKind)) {
             if (isPublic)
                 return defc.getField(getName());

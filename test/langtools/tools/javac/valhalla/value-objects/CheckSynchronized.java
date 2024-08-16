@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check behavior of synzhronized key word on value classes instances and methods.
- * @ignore
+ * @enablePreview
  * @compile/fail/ref=CheckSynchronized.out -XDrawDiagnostics CheckSynchronized.java
  */
 

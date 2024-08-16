@@ -381,6 +381,19 @@ public class Annotate {
             }
 
             if (!c.type.isErroneous()
+                    && toAnnotate.kind == TYP
+                    && types.isSameType(c.type, syms.migratedValueClassType)) {
+                toAnnotate.flags_field |= Flags.MIGRATED_VALUE_CLASS;
+            }
+
+            if (!c.type.isErroneous()
+                    && toAnnotate.kind == VAR
+                    && toAnnotate.owner.kind == TYP
+                    && types.isSameType(c.type, syms.strictType)) {
+                toAnnotate.flags_field |= Flags.STRICT;
+            }
+
+            if (!c.type.isErroneous()
                     && types.isSameType(c.type, syms.restrictedType)) {
                 toAnnotate.flags_field |= Flags.RESTRICTED;
             }
@@ -707,11 +720,15 @@ public class Annotate {
         }
 
         JCNewArray na = (JCNewArray)tree;
+        List<JCExpression> elems = na.elems;
         if (na.elemtype != null) {
             log.error(na.elemtype.pos(), Errors.NewNotAllowedInAnnotation);
+            if (elems == null) {
+                elems = List.nil();
+            }
         }
         ListBuffer<Attribute> buf = new ListBuffer<>();
-        for (List<JCExpression> l = na.elems; l.nonEmpty(); l=l.tail) {
+        for (List<JCExpression> l = elems; l.nonEmpty(); l = l.tail) {
             buf.append(attributeAnnotationValue(types.elemtype(expectedElementType),
                     l.head,
                     env));

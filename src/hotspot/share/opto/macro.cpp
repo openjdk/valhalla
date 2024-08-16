@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -158,7 +158,8 @@ void PhaseMacroExpand::eliminate_gc_barrier(Node* p2x) {
 // Search for a memory operation for the specified memory slice.
 static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_mem, Node *alloc, PhaseGVN *phase) {
   Node *orig_mem = mem;
-  Node *alloc_mem = alloc->in(TypeFunc::Memory);
+  Node *alloc_mem = alloc->as_Allocate()->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
+  assert(alloc_mem != nullptr, "Allocation without a memory projection.");
   const TypeOopPtr *tinst = phase->C->get_adr_type(alias_idx)->isa_oopptr();
   while (true) {
     if (mem == alloc_mem || mem == start_mem ) {
@@ -323,7 +324,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
         // own slice so we need to extract the field being accessed from
         // the address computation
         adr_type = adr_type->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot)->is_aryptr();
-        adr = _igvn.transform(new CastPPNode(adr, adr_type));
+        adr = _igvn.transform(new CastPPNode(ctl, adr, adr_type));
       }
       MergeMemNode* mergemen = _igvn.transform(MergeMemNode::make(mem))->as_MergeMem();
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -370,7 +371,8 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
     return nullptr; // Give up: phi tree too deep
   }
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
-  Node *alloc_mem = alloc->in(TypeFunc::Memory);
+  Node *alloc_mem = alloc->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
+  assert(alloc_mem != nullptr, "Allocation without a memory projection.");
 
   uint length = mem->req();
   GrowableArray <Node *> values(length, length, nullptr);
@@ -466,7 +468,8 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   int alias_idx = C->get_alias_index(adr_t);
   int offset = adr_t->flat_offset();
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
-  Node *alloc_mem = alloc->in(TypeFunc::Memory);
+  Node *alloc_mem = alloc->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
+  assert(alloc_mem != nullptr, "Allocation without a memory projection.");
   VectorSet visited;
 
   bool done = sfpt_mem == alloc_mem;
@@ -687,6 +690,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
           NOT_PRODUCT(fail_eliminate = "null or TOP memory";)
           can_eliminate = false;
         } else if (!reduce_merge_precheck) {
+          assert(!res->is_Phi() || !res->as_Phi()->can_be_inline_type(), "Inline type allocations should not have safepoint uses");
           safepoints->append_if_missing(sfpt);
         }
       } else if (use->is_InlineType() && use->as_InlineType()->get_oop() == res) {
@@ -704,12 +708,15 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
             }
           } else {
             // Add other uses to the worklist to process individually
-            worklist.push(u);
+            // TODO will be fixed by 8328470
+            worklist.push(use);
           }
         }
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // Store to mark word of inline type larval buffer
         assert(res_type->is_inlinetypeptr(), "Unexpected store to mark word");
+      } else if (res_type->is_inlinetypeptr() && use->Opcode() == Op_MemBarRelease) {
+        // Inline type buffer allocations are followed by a membar
       } else if (reduce_merge_precheck && (use->is_Phi() || use->is_EncodeP() || use->Opcode() == Op_MemBarRelease)) {
         // Nothing to do
       } else if (use->Opcode() != Op_CastP2X) { // CastP2X is used by card mark
@@ -854,7 +861,7 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     }
   }
 
-  SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(res_type, alloc, first_ind, nfields);
+  SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(res_type, alloc, first_ind, sfpt->jvms()->depth(), nfields);
   sobj->init_req(0, C->root());
   transform_later(sobj);
 
@@ -896,9 +903,9 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     Node* field_val = nullptr;
     const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
     if (res_type->is_flat()) {
-      ciInlineKlass* vk = res_type->is_aryptr()->elem()->inline_klass();
-      assert(vk->flat_in_array(), "must be flat in array");
-      field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), vk, field_addr_type->isa_aryptr(), 0, alloc);
+      ciInlineKlass* inline_klass = res_type->is_aryptr()->elem()->inline_klass();
+      assert(inline_klass->flat_in_array(), "must be flat in array");
+      field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), inline_klass, field_addr_type->isa_aryptr(), 0, alloc);
     } else {
       field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
     }
@@ -942,9 +949,18 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
         field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
       }
     }
+
+    // Keep track of inline types to scalarize them later
     if (field_val->is_InlineType()) {
-      // Keep track of inline types to scalarize them later
       value_worklist->push(field_val);
+    } else if (field_val->is_Phi()) {
+      PhiNode* phi = field_val->as_Phi();
+      // Eagerly replace inline type phis now since we could be removing an inline type allocation where we must
+      // scalarize all its fields in safepoints.
+      field_val = phi->try_push_inline_types_down(&_igvn, true);
+      if (field_val->is_InlineType()) {
+        value_worklist->push(field_val);
+      }
     }
     sfpt->add_req(field_val);
   }
@@ -1081,7 +1097,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         assert(use->as_InlineType()->get_oop() == res, "unexpected inline type ptr use");
         // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
-        use->as_InlineType()->set_oop(_igvn.zerocon(T_OBJECT));
+        use->as_InlineType()->set_oop(_igvn, _igvn.zerocon(T_OBJECT));
         const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
         _igvn.set_type(use, toop);
         use->as_InlineType()->set_type(toop);
@@ -1096,6 +1112,10 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         // Store to mark word of inline type larval buffer
         assert(inline_alloc, "Unexpected store to mark word");
         _igvn.replace_node(use, use->in(MemNode::Memory));
+      } else if (use->Opcode() == Op_MemBarRelease) {
+        // Inline type buffer allocations are followed by a membar
+        assert(inline_alloc, "Unexpected MemBarRelease");
+        use->as_MemBar()->remove(&_igvn);
       } else {
         eliminate_gc_barrier(use);
       }
@@ -1203,7 +1223,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
   bool boxing_alloc = (res == nullptr) && C->eliminate_boxing() &&
                       tklass->isa_instklassptr() &&
                       tklass->is_instklassptr()->instance_klass()->is_box_klass();
-  if (!alloc->_is_scalar_replaceable && (!boxing_alloc || (res != nullptr))) {
+  if (!alloc->_is_scalar_replaceable && !boxing_alloc && !inline_alloc) {
     return false;
   }
 
@@ -2088,10 +2108,12 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
 // marked for elimination since new obj has no escape information.
 // Mark all associated (same box and obj) lock and unlock nodes for
 // elimination if some of them marked already.
-void PhaseMacroExpand::mark_eliminated_box(Node* oldbox, Node* obj) {
-  if (oldbox->as_BoxLock()->is_eliminated()) {
+void PhaseMacroExpand::mark_eliminated_box(Node* box, Node* obj) {
+  BoxLockNode* oldbox = box->as_BoxLock();
+  if (oldbox->is_eliminated()) {
     return; // This BoxLock node was processed already.
   }
+  assert(!oldbox->is_unbalanced(), "this should not be called for unbalanced region");
   // New implementation (EliminateNestedLocks) has separate BoxLock
   // node for each locked region so mark all associated locks/unlocks as
   // eliminated even if different objects are referenced in one locked region
@@ -2099,8 +2121,9 @@ void PhaseMacroExpand::mark_eliminated_box(Node* oldbox, Node* obj) {
   if (EliminateNestedLocks ||
       oldbox->as_BoxLock()->is_simple_lock_region(nullptr, obj, nullptr)) {
     // Box is used only in one lock region. Mark this box as eliminated.
+    oldbox->set_local();      // This verifies correct state of BoxLock
     _igvn.hash_delete(oldbox);
-    oldbox->as_BoxLock()->set_eliminated(); // This changes box's hash value
+    oldbox->set_eliminated(); // This changes box's hash value
      _igvn.hash_insert(oldbox);
 
     for (uint i = 0; i < oldbox->outcnt(); i++) {
@@ -2127,6 +2150,7 @@ void PhaseMacroExpand::mark_eliminated_box(Node* oldbox, Node* obj) {
   // Note: BoxLock node is marked eliminated only here and it is used
   // to indicate that all associated lock and unlock nodes are marked
   // for elimination.
+  newbox->set_local(); // This verifies correct state of BoxLock
   newbox->set_eliminated();
   transform_later(newbox);
 
@@ -2182,6 +2206,9 @@ void PhaseMacroExpand::mark_eliminated_box(Node* oldbox, Node* obj) {
 
 //-----------------------mark_eliminated_locking_nodes-----------------------
 void PhaseMacroExpand::mark_eliminated_locking_nodes(AbstractLockNode *alock) {
+  if (alock->box_node()->as_BoxLock()->is_unbalanced()) {
+    return; // Can't do any more elimination for this locking region
+  }
   if (EliminateNestedLocks) {
     if (alock->is_nested()) {
        assert(alock->box_node()->as_BoxLock()->is_eliminated(), "sanity");
@@ -2246,49 +2273,6 @@ void PhaseMacroExpand::mark_eliminated_locking_nodes(AbstractLockNode *alock) {
   }
 }
 
-void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
-  Node* obj = lock->obj_node();
-  const TypePtr* obj_type = _igvn.type(obj)->make_ptr();
-  if (!obj_type->can_be_inline_type()) {
-    return;
-  }
-  Node* mark = make_load(*ctrl, lock->memory(), obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
-  Node* value_mask = _igvn.MakeConX(markWord::inline_type_pattern);
-  Node* is_value = _igvn.transform(new AndXNode(mark, value_mask));
-  Node* cmp = _igvn.transform(new CmpXNode(is_value, value_mask));
-  Node* bol = _igvn.transform(new BoolNode(cmp, BoolTest::eq));
-  Node* unc_ctrl = generate_slow_guard(ctrl, bol, nullptr);
-
-  int trap_request = Deoptimization::make_trap_request(Deoptimization::Reason_class_check, Deoptimization::Action_none);
-  address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
-  const TypePtr* no_memory_effects = nullptr;
-  CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap",
-                                         no_memory_effects);
-  unc->init_req(TypeFunc::Control, unc_ctrl);
-  unc->init_req(TypeFunc::I_O, lock->i_o());
-  unc->init_req(TypeFunc::Memory, lock->memory());
-  unc->init_req(TypeFunc::FramePtr,  lock->in(TypeFunc::FramePtr));
-  unc->init_req(TypeFunc::ReturnAdr, lock->in(TypeFunc::ReturnAdr));
-  unc->init_req(TypeFunc::Parms+0, _igvn.intcon(trap_request));
-  unc->set_cnt(PROB_UNLIKELY_MAG(4));
-  unc->copy_call_debug_info(&_igvn, lock);
-
-  assert(unc->peek_monitor_box() == lock->box_node(), "wrong monitor");
-  assert((obj_type->is_inlinetypeptr() && unc->peek_monitor_obj()->is_SafePointScalarObject()) ||
-         (obj->is_InlineType() && obj->in(1) == unc->peek_monitor_obj()) ||
-         (obj == unc->peek_monitor_obj()), "wrong monitor");
-
-  // pop monitor and push obj back on stack: we trap before the monitorenter
-  unc->pop_monitor();
-  unc->grow_stack(unc->jvms(), 1);
-  unc->set_stack(unc->jvms(), unc->jvms()->stk_size()-1, obj);
-  _igvn.register_new_node_with_optimizer(unc);
-
-  unc_ctrl = _igvn.transform(new ProjNode(unc, TypeFunc::Control));
-  Node* halt = _igvn.transform(new HaltNode(unc_ctrl, lock->in(TypeFunc::FramePtr), "monitor enter on inline type"));
-  _igvn.add_input_to(C->root(), halt);
-}
-
 // we have determined that this lock/unlock can be eliminated, we simply
 // eliminate the node without expanding it.
 //
@@ -2335,9 +2319,6 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
   // The input to a Lock is merged memory, so extract its RawMem input
   // (unless the MergeMem has been optimized away.)
   if (alock->is_Lock()) {
-    // Deoptimize and re-execute if object is an inline type
-    inline_type_guard(&ctrl, alock->as_Lock());
-
     // Search for MemBarAcquireLock node and delete it also.
     MemBarNode* membar = fallthroughproj->unique_ctrl_out()->as_MemBar();
     assert(membar != nullptr && membar->Opcode() == Op_MemBarAcquireLock, "");
@@ -2397,9 +2378,6 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
   // Optimize test; set region slot 2
   slow_path = opt_bits_test(ctrl, region, 2, flock, 0, 0);
   mem_phi->init_req(2, mem);
-
-  // Deoptimize and re-execute if object is an inline type
-  inline_type_guard(&slow_path, lock);
 
   // Make slow path call
   CallNode *call = make_slow_call((CallNode *) lock, OptoRuntime::complete_monitor_enter_Type(),
@@ -2752,7 +2730,7 @@ void PhaseMacroExpand::expand_subtypecheck_node(SubTypeCheckNode *check) {
 // }
 void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
   bool array_inputs = _igvn.type(check->in(FlatArrayCheckNode::ArrayOrKlass))->isa_oopptr() != nullptr;
-  if (UseArrayMarkWordCheck && array_inputs) {
+  if (array_inputs) {
     Node* mark = MakeConX(0);
     Node* locked_bit = MakeConX(markWord::unlocked_value);
     Node* mem = check->in(FlatArrayCheckNode::Memory);
@@ -2871,6 +2849,11 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
   // Re-marking may break consistency of Coarsened locks.
   if (!C->coarsened_locks_consistent()) {
     return; // recompile without Coarsened locks if broken
+  } else {
+    // After coarsened locks are eliminated locking regions
+    // become unbalanced. We should not execute any more
+    // locks elimination optimizations on them.
+    C->mark_unbalanced_boxes();
   }
 
   // First, attempt to eliminate locks
@@ -2958,6 +2941,9 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
 //------------------------------expand_macro_nodes----------------------
 //  Returns true if a failure occurred.
 bool PhaseMacroExpand::expand_macro_nodes() {
+  if (StressMacroExpansion) {
+    C->shuffle_macro_nodes();
+  }
   // Last attempt to eliminate macro nodes.
   eliminate_macro_nodes();
   if (C->failing())  return true;
@@ -3042,6 +3028,9 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       }
       assert(!success || (C->macro_count() == (old_macro_count - 1)), "elimination must have deleted one node from macro list");
       progress = progress || success;
+      if (success) {
+        C->print_method(PHASE_AFTER_MACRO_EXPANSION_STEP, 5, n);
+      }
     }
   }
 
@@ -3109,6 +3098,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     }
     assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
     if (C->failing())  return true;
+    C->print_method(PHASE_AFTER_MACRO_EXPANSION_STEP, 5, n);
 
     // Clean up the graph so we're less likely to hit the maximum node
     // limit
@@ -3151,6 +3141,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     }
     assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
     if (C->failing())  return true;
+    C->print_method(PHASE_AFTER_MACRO_EXPANSION_STEP, 5, n);
 
     // Clean up the graph so we're less likely to hit the maximum node
     // limit

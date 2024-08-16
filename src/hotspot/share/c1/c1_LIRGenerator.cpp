@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -207,9 +207,11 @@ void LIRItem::set_result(LIR_Opr opr) {
   assert(value()->operand()->is_illegal() || value()->operand()->is_constant(), "operand should never change");
   value()->set_operand(opr);
 
+#ifdef ASSERT
   if (opr->is_virtual()) {
     _gen->_instruction_for_operand.at_put_grow(opr->vreg_number(), value(), nullptr);
   }
+#endif
 
   _result = opr;
 }
@@ -407,8 +409,20 @@ CodeEmitInfo* LIRGenerator::state_for(Instruction* x, ValueStack* state, bool ig
 
   ValueStack* s = state;
   for_each_state(s) {
-    if (s->kind() == ValueStack::EmptyExceptionState) {
-      assert(s->stack_size() == 0 && s->locals_size() == 0 && (s->locks_size() == 0 || s->locks_size() == 1), "state must be empty");
+    if (s->kind() == ValueStack::EmptyExceptionState ||
+        s->kind() == ValueStack::CallerEmptyExceptionState)
+    {
+#ifdef ASSERT
+      int index;
+      Value value;
+      for_each_stack_value(s, index, value) {
+        fatal("state must be empty");
+      }
+      for_each_local_value(s, index, value) {
+        fatal("state must be empty");
+      }
+#endif
+      assert(s->locks_size() == 0 || s->locks_size() == 1, "state must be empty");
       continue;
     }
 
@@ -613,13 +627,13 @@ void LIRGenerator::logic_op (Bytecodes::Code code, LIR_Opr result_op, LIR_Opr le
 
 
 void LIRGenerator::monitor_enter(LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no,
-                                 CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_imse_stub) {
+                                 CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_ie_stub) {
   if (!GenerateSynchronizationCode) return;
   // for slow path, use debug info for state after successful locking
-  CodeStub* slow_path = new MonitorEnterStub(object, lock, info, throw_imse_stub, scratch);
+  CodeStub* slow_path = new MonitorEnterStub(object, lock, info, throw_ie_stub, scratch);
   __ load_stack_address_monitor(monitor_no, lock);
   // for handling NullPointerException, use debug info representing just the lock stack before this monitorenter
-  __ lock_object(hdr, object, lock, scratch, slow_path, info_for_exception, throw_imse_stub);
+  __ lock_object(hdr, object, lock, scratch, slow_path, info_for_exception, throw_ie_stub);
 }
 
 
@@ -659,7 +673,6 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, stub_id);
 
     assert(klass->is_loaded(), "must be loaded");
-    assert(!klass->is_inlinetype() || !klass->as_inline_klass()->is_empty(), "Sanity check");
     // allocate space for instance
     assert(klass->size_helper() > 0, "illegal instance size");
     const int instance_size = align_object_size(klass->size_helper());
@@ -1330,8 +1343,18 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   // from the primitive class itself. See spec for Class.getModifiers that provides
   // the typed array klasses with similar modifiers as their component types.
 
+  // Valhalla update: the code is now a bit convuloted because arrays and primitive
+  // classes don't have the same modifiers set anymore, but we cannot introduce
+  // branches in LIR generation (JDK-8211231). So, the first part of the code remains
+  // identical, using the byteArrayKlass object to avoid a NPE when accessing the
+  // modifiers. But then the code also prepares the correct modifiers set for
+  // primitive classes, and there's a second conditional move to put the right
+  // value into result.
+
+
   Klass* univ_klass_obj = Universe::byteArrayKlassObj();
-  assert(univ_klass_obj->modifier_flags() == (JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC), "Sanity");
+  assert(univ_klass_obj->modifier_flags() == (JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC
+                                              | (Arguments::enable_preview() ? JVM_ACC_IDENTITY : 0)), "Sanity");
   LIR_Opr prim_klass = LIR_OprFact::metadataConst(univ_klass_obj);
 
   LIR_Opr recv_klass = new_register(T_METADATA);
@@ -1341,9 +1364,14 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   LIR_Opr klass = new_register(T_METADATA);
   __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
   __ cmove(lir_cond_equal, prim_klass, recv_klass, klass, T_ADDRESS);
+  LIR_Opr klass_modifiers = new_register(T_INT);
+  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), klass_modifiers);
 
-  // Get the answer.
-  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), result);
+  LIR_Opr prim_modifiers = load_immediate(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC, T_INT);
+
+  __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
+  __ cmove(lir_cond_equal, prim_modifiers, klass_modifiers, result, T_INT);
+
 }
 
 void LIRGenerator::do_getObjectSize(Intrinsic* x) {
@@ -1503,28 +1531,22 @@ LIR_Opr LIRGenerator::operand_for_instruction(Instruction* x) {
       assert(x->as_Phi() || x->as_Local() != nullptr, "only for Phi and Local");
       // allocate a virtual register for this local or phi
       x->set_operand(rlock(x));
+#ifdef ASSERT
       _instruction_for_operand.at_put_grow(x->operand()->vreg_number(), x, nullptr);
+#endif
     }
   }
   return x->operand();
 }
 
-
-Instruction* LIRGenerator::instruction_for_opr(LIR_Opr opr) {
-  if (opr->is_virtual()) {
-    return instruction_for_vreg(opr->vreg_number());
-  }
-  return nullptr;
-}
-
-
+#ifdef ASSERT
 Instruction* LIRGenerator::instruction_for_vreg(int reg_num) {
   if (reg_num < _instruction_for_operand.length()) {
     return _instruction_for_operand.at(reg_num);
   }
   return nullptr;
 }
-
+#endif
 
 void LIRGenerator::set_vreg_flag(int vreg_num, VregFlag f) {
   if (_vreg_flags.size_in_bits() == 0) {
@@ -2387,18 +2409,6 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 }
 
-void LIRGenerator::do_Deoptimize(Deoptimize* x) {
-  // This happens only when a class X uses the withfield/aconst_init bytecode
-  // to refer to an inline class V, where V has not yet been loaded/resolved.
-  // This is not a common case. Let's just deoptimize.
-  CodeEmitInfo* info = state_for(x, x->state_before());
-  CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
-                                      Deoptimization::Reason_unloaded,
-                                      Deoptimization::Action_make_not_entrant);
-  __ jump(stub);
-  LIR_Opr reg = rlock_result(x, T_OBJECT);
-  __ move(LIR_OprFact::oopConst(nullptr), reg);
-}
 
 void LIRGenerator::do_NullCheck(NullCheck* x) {
   if (x->can_trap()) {
@@ -3058,7 +3068,9 @@ void LIRGenerator::do_Base(Base* x) {
     assert(as_ValueType(t)->tag() == local->type()->tag(), "check");
 #endif // __SOFTFP__
     local->set_operand(dest);
+#ifdef ASSERT
     _instruction_for_operand.at_put_grow(dest->vreg_number(), local, nullptr);
+#endif
     java_index += type2size[t];
   }
 

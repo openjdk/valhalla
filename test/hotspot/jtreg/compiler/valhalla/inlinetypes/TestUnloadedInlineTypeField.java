@@ -39,13 +39,12 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rI;
  * @summary Test the handling of fields of unloaded value classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestUnloadedInlineTypeField.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla
- *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                               compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
+ * @compile TestUnloadedInlineTypeField.java
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
  */
 
 public class TestUnloadedInlineTypeField {
@@ -64,7 +63,7 @@ public class TestUnloadedInlineTypeField {
         };
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+EnableValhalla",
+                   .addFlags("--enable-preview",
                              // Prevent IR Test Framework from loading classes
                              "-DIgnoreCompilerControls=true",
                              // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
@@ -556,13 +555,7 @@ public class TestUnloadedInlineTypeField {
         } else {
             // Make sure klass is resolved
             for (int i = 0; i < 10; ++i) {
-                MyValue13Holder holder = new MyValue13Holder();
-                try {
-                    test13(holder);
-                    Asserts.fail("Should have thrown InstantiationError");
-                } catch (InstantiationError e) {
-                    // OK
-                }
+                test13(new MyValue13Holder());
             }
         }
     }
@@ -601,13 +594,7 @@ public class TestUnloadedInlineTypeField {
         } else {
             // Make sure klass is resolved
             for (int i = 0; i < 10; ++i) {
-                MyValue15Holder holder = new MyValue15Holder();
-                try {
-                    test15(holder);
-                    Asserts.fail("Should have thrown InstantiationError");
-                } catch (InstantiationError e) {
-                    // OK
-                }
+                test15(new MyValue15Holder());
             }
         }
     }
@@ -638,12 +625,7 @@ public class TestUnloadedInlineTypeField {
         } else {
             // Make sure klass is resolved
             for (int i = 0; i < 10; ++i) {
-                try {
-                    test16(false);
-                    Asserts.fail("Should have thrown IncompatibleClassChangeError");
-                } catch (IncompatibleClassChangeError e) {
-                    // OK
-                }
+                test16(false);
             }
         }
     }
@@ -670,12 +652,7 @@ public class TestUnloadedInlineTypeField {
         } else {
             // Make sure klass is resolved
             for (int i = 0; i < 10; ++i) {
-                try {
-                    test17(false);
-                    Asserts.fail("Should have thrown IncompatibleClassChangeError");
-                } catch (IncompatibleClassChangeError e) {
-                    // OK
-                }
+                test17(false);
             }
         }
     }
@@ -811,8 +788,8 @@ public class TestUnloadedInlineTypeField {
     @Run(test = "test21")
     public void test21_verifier() {
         Object ret = test21();
-        Asserts.assertEQ(Test21ClassA.b.x, 0);
-        Asserts.assertEQ(Test21ClassA.c.x, 0);
+        Asserts.assertEQ(Test21ClassA.b.x, 42);
+        Asserts.assertEQ(Test21ClassA.c.x, 42);
     }
 
     static boolean test22FailInit = true;
@@ -1034,7 +1011,7 @@ public class TestUnloadedInlineTypeField {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue27 {
-        int foo = rI;
+        int foo = 42;
     }
 
     static class MyValue27Holder {
@@ -1054,7 +1031,7 @@ public class TestUnloadedInlineTypeField {
 
     @Run(test = "test27")
     public void test27_verifier() {
-        Asserts.assertEQ(test27(), 0);
+        Asserts.assertEQ(test27(), 42);
     }
 
     @ImplicitlyConstructible

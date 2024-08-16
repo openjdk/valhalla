@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,10 @@
 /*
  * @test
  * @summary ValueSerialization support of value classes
+ * @enablePreview
+ * @modules java.base/jdk.internal
  * @compile ValueSerialization.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueSerialization
+ * @run testng/othervm ValueSerialization
  */
 
 import java.io.ByteArrayInputStream;
@@ -89,6 +91,7 @@ public class ValueSerialization {
     }
 
     /** A Serializable value class Point */
+    @jdk.internal.MigratedValueClass
     static value class SerializablePoint implements Serializable {
         public int x;
         public int y;
@@ -97,8 +100,9 @@ public class ValueSerialization {
             return "[SerializablePoint x=" + x + " y=" + y + "]"; }
     }
 
-    /** A Serializable primitive class Point */
-    static primitive class SerializablePrimitivePoint implements Serializable {
+    /** A Serializable value class Point */
+    @jdk.internal.MigratedValueClass
+    static value class SerializablePrimitivePoint implements Serializable {
         public int x;
         public int y;
         SerializablePrimitivePoint(int x, int y) { this.x = x; this.y = y; }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,11 +45,9 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @test id=Serial
  * @requires vm.gc.Serial
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.classfile
- *          java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -63,11 +61,9 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @test id=G1
  * @requires vm.gc.G1
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.classfile
- *          java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -81,11 +77,9 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @test id=Parallel
  * @requires vm.gc.Parallel
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.classfile
- *          java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -99,11 +93,9 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @test id=Z
  * @requires vm.gc.Z
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.classfile
- *          java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -118,11 +110,9 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @test id=ZGen
  * @requires vm.gc.Z & vm.opt.final.ZGenerational
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.classfile
- *          java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox

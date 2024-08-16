@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1021,8 +1021,8 @@ Node* CallNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   // Validate attached generator
   CallGenerator* cg = generator();
   if (cg != nullptr) {
-    assert(is_CallStaticJava()  && cg->is_mh_late_inline() ||
-           is_CallDynamicJava() && cg->is_virtual_late_inline(), "mismatch");
+    assert((is_CallStaticJava()  && cg->is_mh_late_inline()) ||
+           (is_CallDynamicJava() && cg->is_virtual_late_inline()), "mismatch");
   }
 #endif // ASSERT
   return SafePointNode::Ideal(phase, can_reshape);
@@ -1671,9 +1671,10 @@ void SafePointNode::disconnect_from_root(PhaseIterGVN *igvn) {
 
 //==============  SafePointScalarObjectNode  ==============
 
-SafePointScalarObjectNode::SafePointScalarObjectNode(const TypeOopPtr* tp, Node* alloc, uint first_index, uint n_fields) :
+SafePointScalarObjectNode::SafePointScalarObjectNode(const TypeOopPtr* tp, Node* alloc, uint first_index, uint depth, uint n_fields) :
   TypeNode(tp, 1), // 1 control input -- seems required.  Get from root.
   _first_index(first_index),
+  _depth(depth),
   _n_fields(n_fields),
   _alloc(alloc)
 {
@@ -1815,7 +1816,7 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
 void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
 {
   assert(initializer != nullptr &&
-         initializer->is_object_constructor_or_class_initializer(),
+         (initializer->is_object_constructor() || initializer->is_class_initializer()),
          "unexpected initializer method");
   BCEscapeAnalyzer* analyzer = initializer->get_bcea();
   if (analyzer == nullptr) {
@@ -1859,8 +1860,8 @@ Node *AllocateArrayNode::make_ideal_length(const TypeOopPtr* oop_type, PhaseValu
       //   - the narrow_length is 0
       //   - the narrow_length is not wider than length
       assert(narrow_length_type == TypeInt::ZERO ||
-             length_type->is_con() && narrow_length_type->is_con() &&
-                (narrow_length_type->_hi <= length_type->_lo) ||
+             (length_type->is_con() && narrow_length_type->is_con() &&
+              (narrow_length_type->_hi <= length_type->_lo)) ||
              (narrow_length_type->_hi <= length_type->_hi &&
               narrow_length_type->_lo >= length_type->_lo),
              "narrow type must be narrower than length type");
@@ -1873,8 +1874,7 @@ Node *AllocateArrayNode::make_ideal_length(const TypeOopPtr* oop_type, PhaseValu
       // propagate the fact that the array length must be positive.
       InitializeNode* init = initialization();
       if (init != nullptr) {
-        length = new CastIINode(length, narrow_length_type);
-        length->set_req(TypeFunc::Control, init->proj_out_or_null(TypeFunc::Control));
+        length = new CastIINode(init->proj_out_or_null(TypeFunc::Control), length, narrow_length_type);
       }
     }
   }
@@ -2224,7 +2224,7 @@ Node *LockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // If we are locking an non-escaped object, the lock/unlock is unnecessary
     //
     ConnectionGraph *cgr = phase->C->congraph();
-    if (cgr != nullptr && cgr->not_global_escape(obj_node())) {
+    if (cgr != nullptr && cgr->can_eliminate_lock(this)) {
       assert(!is_eliminated() || is_coarsened(), "sanity");
       // The lock could be marked eliminated by lock coarsening
       // code during first IGVN before EA. Replace coarsened flag
@@ -2387,6 +2387,7 @@ bool LockNode::is_nested_lock_region(Compile * c) {
       obj_node = bs->step_over_gc_barrier(obj_node);
       BoxLockNode* box_node = sfn->monitor_box(jvms, idx)->as_BoxLock();
       if ((box_node->stack_slot() < stk_slot) && obj_node->eqv_uncast(obj)) {
+        box->set_nested();
         return true;
       }
     }
@@ -2421,7 +2422,7 @@ Node *UnlockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // If we are unlocking an non-escaped object, the lock/unlock is unnecessary.
     //
     ConnectionGraph *cgr = phase->C->congraph();
-    if (cgr != nullptr && cgr->not_global_escape(obj_node())) {
+    if (cgr != nullptr && cgr->can_eliminate_lock(this)) {
       assert(!is_eliminated() || is_coarsened(), "sanity");
       // The lock could be marked eliminated by lock coarsening
       // code during first IGVN before EA. Replace coarsened flag

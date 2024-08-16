@@ -35,7 +35,6 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.util.ClassFileDumper;
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import sun.invoke.util.ValueConversions;
 import sun.invoke.util.VerifyAccess;
@@ -706,7 +705,7 @@ public class MethodHandles {
      * (See the Java Virtual Machine Specification, section {@jvms 4.10.1.9}.)
      * <p>
      * The JVM represents constructors and static initializer blocks as internal methods
-     * with special names ({@value ConstantDescs#INIT_NAME}, and {@value
+     * with special names ({@value ConstantDescs#INIT_NAME} and {@value
      * ConstantDescs#CLASS_INIT_NAME}).
      * The internal syntax of invocation instructions allows them to refer to such internal
      * methods as if they were normal methods, but the JVM bytecode verifier rejects them.
@@ -1842,7 +1841,7 @@ public class MethodHandles {
          *                           <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
          * @throws NullPointerException if {@code bytes} is {@code null}
          * @since 9
-         * @see Lookup#privateLookupIn
+         * @see MethodHandles#privateLookupIn
          * @see Lookup#dropLookupMode
          * @see ClassLoader#defineClass(String,byte[],int,int,ProtectionDomain)
          */
@@ -3519,10 +3518,10 @@ return mh1;
          */
         public MethodHandle unreflectConstructor(Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructor());
+            assert(ctor.isConstructor());
             @SuppressWarnings("deprecation")
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
-            return lookup.getDirectConstructorNoSecurityManager(c.getDeclaringClass(), ctor);
+            return lookup.getDirectConstructorNoSecurityManager(ctor.getDeclaringClass(), ctor);
         }
 
         /*
@@ -3533,7 +3532,7 @@ return mh1;
          */
         /* package-private */ MethodHandle serializableConstructor(Class<?> decl, Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructor() && constructorInSuperclass(decl, c));
+            assert(ctor.isConstructor() && constructorInSuperclass(decl, c));
             checkAccess(REF_newInvokeSpecial, decl, ctor);
             assert(!MethodHandleNatives.isCallerSensitive(ctor));  // maybeBindCaller not relevant here
             return DirectMethodHandle.makeAllocator(decl, ctor).setVarargs(ctor);
@@ -3819,7 +3818,7 @@ return mh1;
         /** Check name for an illegal leading "&lt;" character. */
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
             if (name.startsWith("<") && refKind != REF_newInvokeSpecial)
-                throw new NoSuchMethodException("illegal method name: " + name + " ref kind " + refKind);
+                throw new NoSuchMethodException("illegal method name: "+name);
         }
 
         /**
@@ -3931,7 +3930,7 @@ return mh1;
         void checkMethod(byte refKind, Class<?> refc, MemberName m) throws IllegalAccessException {
             boolean wantStatic = (refKind == REF_invokeStatic);
             String message;
-            if (m.isObjectConstructor())
+            if (m.isConstructor())
                 message = "expected a method, not a constructor";
             else if (!m.isMethod())
                 message = "expected a method";
@@ -4240,7 +4239,7 @@ return mh1;
         /** Common code for all constructors; do not call directly except from immediately above. */
         private MethodHandle getDirectConstructorCommon(Class<?> refc, MemberName ctor,
                                                   boolean checkSecurity) throws IllegalAccessException {
-            assert(ctor.isObjectConstructor());
+            assert(ctor.isConstructor());
             checkAccess(REF_newInvokeSpecial, refc, ctor);
             // Optionally check with the security manager; this isn't needed for unreflect* calls.
             if (checkSecurity)
@@ -4518,48 +4517,18 @@ return mh1;
      * or greater than the {@code byte[]} array length minus the size (in bytes)
      * of {@code T}.
      * <p>
-     * Access of bytes at an index may be aligned or misaligned for {@code T},
-     * with respect to the underlying memory address, {@code A} say, associated
-     * with the array and index.
-     * If access is misaligned then access for anything other than the
-     * {@code get} and {@code set} access modes will result in an
-     * {@code IllegalStateException}.  In such cases atomic access is only
-     * guaranteed with respect to the largest power of two that divides the GCD
-     * of {@code A} and the size (in bytes) of {@code T}.
-     * If access is aligned then following access modes are supported and are
-     * guaranteed to support atomic access:
-     * <ul>
-     * <li>read write access modes for all {@code T}, with the exception of
-     *     access modes {@code get} and {@code set} for {@code long} and
-     *     {@code double} on 32-bit platforms.
-     * <li>atomic update access modes for {@code int}, {@code long},
-     *     {@code float} or {@code double}.
-     *     (Future major platform releases of the JDK may support additional
-     *     types for certain currently unsupported access modes.)
-     * <li>numeric atomic update access modes for {@code int} and {@code long}.
-     *     (Future major platform releases of the JDK may support additional
-     *     numeric types for certain currently unsupported access modes.)
-     * <li>bitwise atomic update access modes for {@code int} and {@code long}.
-     *     (Future major platform releases of the JDK may support additional
-     *     numeric types for certain currently unsupported access modes.)
-     * </ul>
-     * <p>
-     * Misaligned access, and therefore atomicity guarantees, may be determined
-     * for {@code byte[]} arrays without operating on a specific array.  Given
-     * an {@code index}, {@code T} and its corresponding boxed type,
-     * {@code T_BOX}, misalignment may be determined as follows:
-     * <pre>{@code
-     * int sizeOfT = T_BOX.BYTES;  // size in bytes of T
-     * int misalignedAtZeroIndex = ByteBuffer.wrap(new byte[0]).
-     *     alignmentOffset(0, sizeOfT);
-     * int misalignedAtIndex = (misalignedAtZeroIndex + index) % sizeOfT;
-     * boolean isMisaligned = misalignedAtIndex != 0;
-     * }</pre>
-     * <p>
-     * If the variable type is {@code float} or {@code double} then atomic
-     * update access modes compare values using their bitwise representation
-     * (see {@link Float#floatToRawIntBits} and
-     * {@link Double#doubleToRawLongBits}, respectively).
+     * Only plain {@linkplain VarHandle.AccessMode#GET get} and {@linkplain VarHandle.AccessMode#SET set}
+     * access modes are supported by the returned var handle. For all other access modes, an
+     * {@link UnsupportedOperationException} will be thrown.
+     *
+     * @apiNote if access modes other than plain access are required, clients should
+     * consider using off-heap memory through
+     * {@linkplain java.nio.ByteBuffer#allocateDirect(int) direct byte buffers} or
+     * off-heap {@linkplain java.lang.foreign.MemorySegment memory segments},
+     * or memory segments backed by a
+     * {@linkplain java.lang.foreign.MemorySegment#ofArray(long[]) {@code long[]}},
+     * for which stronger alignment guarantees can be made.
+     *
      * @param viewArrayClass the view array class, with a component type of
      * type {@code T}
      * @param byteOrder the endianness of the view array elements, as
@@ -4605,7 +4574,13 @@ return mh1;
      * or greater than the {@code ByteBuffer} limit minus the size (in bytes) of
      * {@code T}.
      * <p>
-     * Access of bytes at an index may be aligned or misaligned for {@code T},
+     * For heap byte buffers, access is always unaligned. As a result, only the plain
+     * {@linkplain VarHandle.AccessMode#GET get}
+     * and {@linkplain VarHandle.AccessMode#SET set} access modes are supported by the
+     * returned var handle. For all other access modes, an {@link IllegalStateException}
+     * will be thrown.
+     * <p>
+     * For direct buffers only, access of bytes at an index may be aligned or misaligned for {@code T},
      * with respect to the underlying memory address, {@code A} say, associated
      * with the {@code ByteBuffer} and index.
      * If access is misaligned then access for anything other than the
@@ -5191,12 +5166,7 @@ assert((int)twice.invokeExact(21) == 42);
      */
     public static MethodHandle zero(Class<?> type) {
         Objects.requireNonNull(type);
-        // TODO: implicitly constructible value class
-        if (type.isPrimitive()) {
-            return zero(Wrapper.forPrimitiveType(type), type);
-        } else {
-            return zero(Wrapper.OBJECT, type);
-        }
+        return type.isPrimitive() ?  zero(Wrapper.forPrimitiveType(type), type) : zero(Wrapper.OBJECT, type);
     }
 
     private static MethodHandle identityOrVoid(Class<?> type) {
@@ -5226,7 +5196,7 @@ assert((int)twice.invokeExact(21) == 42);
 
     private static final MethodHandle[] IDENTITY_MHS = new MethodHandle[Wrapper.COUNT];
     private static MethodHandle makeIdentity(Class<?> ptype) {
-        MethodType mtype = MethodType.methodType(ptype, ptype);
+        MethodType mtype = methodType(ptype, ptype);
         LambdaForm lform = LambdaForm.identityForm(BasicType.basicType(ptype));
         return MethodHandleImpl.makeIntrinsic(mtype, lform, Intrinsic.IDENTITY);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@
 #include "classfile/symbolTable.hpp"
 #include "code/compiledIC.hpp"
 #include "code/debugInfoRec.hpp"
-#include "code/icBuffer.hpp"
 #include "code/nativeInst.hpp"
 #include "code/vtableStubs.hpp"
 #include "compiler/oopMap.hpp"
@@ -43,7 +42,6 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "oops/compiledICHolder.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -499,7 +497,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
 
   uint int_args = 0;
   uint fp_args = 0;
-  uint stk_args = 0; // inc by 2 each time
+  uint stk_args = 0;
 
   for (int i = 0; i < total_args_passed; i++) {
     switch (sig_bt[i]) {
@@ -511,8 +509,9 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set1(INT_ArgReg[int_args++]->as_VMReg());
       } else {
+        stk_args = align_up(stk_args, 2);
         regs[i].set1(VMRegImpl::stack2reg(stk_args));
-        stk_args += 2;
+        stk_args += 1;
       }
       break;
     case T_VOID:
@@ -529,6 +528,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
+        stk_args = align_up(stk_args, 2);
         regs[i].set2(VMRegImpl::stack2reg(stk_args));
         stk_args += 2;
       }
@@ -537,8 +537,9 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
       if (fp_args < Argument::n_float_register_parameters_j) {
         regs[i].set1(FP_ArgReg[fp_args++]->as_VMReg());
       } else {
+        stk_args = align_up(stk_args, 2);
         regs[i].set1(VMRegImpl::stack2reg(stk_args));
-        stk_args += 2;
+        stk_args += 1;
       }
       break;
     case T_DOUBLE:
@@ -546,6 +547,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
       if (fp_args < Argument::n_float_register_parameters_j) {
         regs[i].set2(FP_ArgReg[fp_args++]->as_VMReg());
       } else {
+        stk_args = align_up(stk_args, 2);
         regs[i].set2(VMRegImpl::stack2reg(stk_args));
         stk_args += 2;
       }
@@ -556,7 +558,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     }
   }
 
-  return align_up(stk_args, 2);
+  return stk_args;
 }
 
 // Same as java_calling_convention() but for multiple return
@@ -1232,19 +1234,10 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 }
 
 static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
-  Label ok;
+  Register data = rax;
+  __ ic_check(1 /* end_alignment */);
+  __ movptr(rbx, Address(data, CompiledICData::speculated_method_offset()));
 
-  Register holder = rax;
-  Register receiver = j_rarg0;
-  Register temp = rbx;
-
-  __ load_klass(temp, receiver, rscratch1);
-  __ cmpptr(temp, Address(holder, CompiledICHolder::holder_klass_offset()));
-  __ movptr(rbx, Address(holder, CompiledICHolder::holder_metadata_offset()));
-  __ jcc(Assembler::equal, ok);
-  __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-
-  __ bind(ok);
   // Method might have been compiled since the call site was patched to
   // interpreted if that is the case treat it as a miss so we can get
   // the call site corrected.
@@ -1313,7 +1306,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
     gen_c2i_adapter(masm, sig, regs, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
                     inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
   }
-
 
   // The c2i adapters might safepoint and trigger a GC. The caller must make sure that
   // the GC knows about the location of oop argument locations passed to the c2i adapter.
@@ -1720,7 +1712,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
     // Emit stub for static call
     CodeBuffer* cbuf = masm->code_section()->outer();
-    address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, __ pc());
+    address stub = CompiledDirectCall::emit_to_interp_stub(*cbuf, __ pc());
     if (stub == nullptr) {
       fatal("CodeCache is full at gen_continuation_enter");
     }
@@ -1757,7 +1749,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
 
   // Emit stub for static call
   CodeBuffer* cbuf = masm->code_section()->outer();
-  address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, __ pc());
+  address stub = CompiledDirectCall::emit_to_interp_stub(*cbuf, __ pc());
   if (stub == nullptr) {
     fatal("CodeCache is full at gen_continuation_enter");
   }
@@ -2014,6 +2006,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                               in_ByteSize(-1),
                                               oop_maps,
                                               exception_offset);
+    if (nm == nullptr) return nm;
     if (method->is_continuation_enter_intrinsic()) {
       ContinuationEntry::set_enter_code(nm, interpreted_entry_offset);
     } else if (method->is_continuation_yield_intrinsic()) {
@@ -2152,25 +2145,13 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // restoring them except rbp. rbp is the only callee save register
   // as far as the interpreter and the compiler(s) are concerned.
 
-
-  const Register ic_reg = rax;
   const Register receiver = j_rarg0;
 
-  Label hit;
   Label exception_pending;
 
-  assert_different_registers(ic_reg, receiver, rscratch1, rscratch2);
+  assert_different_registers(receiver, rscratch1, rscratch2);
   __ verify_oop(receiver);
-  __ load_klass(rscratch1, receiver, rscratch2);
-  __ cmpq(ic_reg, rscratch1);
-  __ jcc(Assembler::equal, hit);
-
-  __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-
-  // Verified entry point must be aligned
-  __ align(8);
-
-  __ bind(hit);
+  __ ic_check(8 /* end_alignment */);
 
   int vep_offset = ((intptr_t)__ pc()) - start;
 
@@ -2463,8 +2444,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
       __ jcc(Assembler::notEqual, slow_path_lock);
     } else {
       assert(LockingMode == LM_LIGHTWEIGHT, "must be");
-      // Load object header
-      __ movptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
       __ lightweight_lock(obj_reg, swap_reg, r15_thread, rscratch1, slow_path_lock);
     }
     __ bind(count_mon);
@@ -2607,9 +2586,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
       __ dec_held_monitor_count();
     } else {
       assert(LockingMode == LM_LIGHTWEIGHT, "must be");
-      __ movptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-      __ andptr(swap_reg, ~(int32_t)markWord::lock_mask_in_place);
-      __ lightweight_unlock(obj_reg, swap_reg, lock_reg, slow_path_unlock);
+      __ lightweight_unlock(obj_reg, swap_reg, r15_thread, lock_reg, slow_path_unlock);
       __ dec_held_monitor_count();
     }
 

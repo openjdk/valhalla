@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,8 @@
  * @summary Test ObjectMethods::bootstrap call via condy
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.org.objectweb.asm
- * @run testng/othervm -XX:+EnableValhalla ObjectMethodsViaCondy
+ * @enablePreview
+ * @run testng/othervm ObjectMethodsViaCondy
  */
 
 import java.io.IOException;

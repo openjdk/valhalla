@@ -22,7 +22,9 @@
  */
 
 // key: compiler.err.value.class.with.implicit.cannot.be.inner
-// options: -XDenableNullRestrictedTypes
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes
 
 class ValueClassWithImplicitCannotBeInner {
     value class V {

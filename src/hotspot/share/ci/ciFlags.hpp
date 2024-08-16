@@ -61,6 +61,7 @@ public:
   bool is_interface            () const { return (_flags & JVM_ACC_INTERFACE                 ) != 0; }
   bool is_abstract             () const { return (_flags & JVM_ACC_ABSTRACT                  ) != 0; }
   bool has_vararg              () const { return (_flags & JVM_ACC_VARARGS                   ) != 0; }
+  bool is_identity             () const { return (_flags & JVM_ACC_IDENTITY                  ) != 0; }
   bool is_stable               () const { return _stable; }
   // In case the current object represents a field, return true if
   // the field is modified outside of instance initializer methods

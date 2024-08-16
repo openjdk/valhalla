@@ -21,13 +21,18 @@
  * questions.
  */
 
+import jdk.internal.misc.PreviewFeatures;
+
 import java.lang.reflect.Modifier;
 import java.lang.annotation.*;
 
 /*
  * @test
  * @bug 8296743
+ * @modules java.base/jdk.internal.misc
  * @summary Verify array classes and primitives have expected modifiers
+ * @run main/othervm TestPrimitiveAndArrayModifiers
+ * @run main/othervm --enable-preview TestPrimitiveAndArrayModifiers
  */
 @ExpectedModifiers(Modifier.PUBLIC | Modifier.FINAL | Modifier.ABSTRACT)
 public class TestPrimitiveAndArrayModifiers {
@@ -67,11 +72,15 @@ public class TestPrimitiveAndArrayModifiers {
         for(var testCase : testCases) {
             int expectedModifiers =
                 testCase.getAnnotation(ExpectedModifiers.class).value();
+            if (PreviewFeatures.isEnabled()) {
+                // All arrays under preview also have IDENTITY
+                expectedModifiers |= Modifier.IDENTITY;
+            }
             Class<?> arrayClass = testCase.arrayType();
             int actualModifiers = arrayClass.getModifiers();
             if (expectedModifiers != actualModifiers) {
                 throw new RuntimeException("Expected " + Modifier.toString(expectedModifiers) +
-                                           "on " + testCase.getCanonicalName() +
+                                           " on " + testCase.getCanonicalName() +
                                            ", but got " + Modifier.toString(actualModifiers));
             }
         }

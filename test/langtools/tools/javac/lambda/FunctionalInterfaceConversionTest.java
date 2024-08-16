@@ -27,6 +27,7 @@
  * @summary Add lambda tests
  *  perform several automated checks in lambda conversion, esp. around accessibility
  *  temporarily workaround combo tests are causing time out in several platforms
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

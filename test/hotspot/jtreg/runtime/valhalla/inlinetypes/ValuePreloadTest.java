@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @library /test/lib
  * @enablePreview
  * @compile ValuePreloadClient0.java PreloadValue0.java ValuePreloadClient1.jcod
- * @run driver ValuePreloadTest
+ * @run main ValuePreloadTest
  */
 
 import java.util.ArrayList;
@@ -54,9 +54,9 @@ public class ValuePreloadTest {
 
     public static void main(String[] args) throws Exception {
         ProcessBuilder pb = exec("-Xlog:class+preload","ValuePreloadClient0");
-        checkFor(pb, "[info][class,preload] Preloading class PreloadValue0 during loading of class ValuePreloadClient0. Cause: field type in Preload attribute");
+        checkFor(pb, "[info][class,preload] Preloading class PreloadValue0 during loading of class ValuePreloadClient0. Cause: field type in LoadableDescriptors attribute");
 
         pb = exec("-Xlog:class+preload","ValuePreloadClient1");
-        checkFor(pb, "[warning][class,preload] Preloading of class PreloadValue1 during linking of class ValuePreloadClient1 (cause: Preload attribute) failed");
+        checkFor(pb, "[warning][class,preload] Preloading of class PreloadValue1 during linking of class ValuePreloadClient1 (cause: LoadableDescriptors attribute) failed");
     }
 }

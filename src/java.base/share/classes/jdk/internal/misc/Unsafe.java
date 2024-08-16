@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package jdk.internal.misc;
 
 import jdk.internal.ref.Cleaner;
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
@@ -182,20 +181,49 @@ public final class Unsafe {
     /**
      * Returns true if the given field is flattened.
      */
-    public boolean isFlattened(Field f) {
+    public boolean isFlatField(Field f) {
         if (f == null) {
             throw new NullPointerException();
         }
-        return isFlattenedField0(f);
+        return isFlatField0(f);
     }
 
-    private native boolean isFlattenedField0(Object o);
+    private native boolean isFlatField0(Object o);
+
+    /* Returns true if the given field has a null marker
+     * <p>
+     * Nullable flat fields are stored in a flattened representation
+     * and have an associated null marker to indicate if the the field value is
+     * null or the one stored with the flat representation
+     */
+
+     public boolean hasNullMarker(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        return hasNullMarker0(f);
+     }
+
+     private native boolean hasNullMarker0(Object o);
+
+     /* Returns the offset of the null marker of the field,
+      * or -1 if the field doesn't have a null marker
+      */
+
+     public int nullMarkerOffset(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        return nullMarkerOffset0(f);
+     }
+
+     private native int nullMarkerOffset0(Object o);
 
     /**
      * Returns true if the given class is a flattened array.
      */
     @IntrinsicCandidate
-    public native boolean isFlattenedArray(Class<?> arrayClass);
+    public native boolean isFlatArray(Class<?> arrayClass);
 
     /**
      * Fetches a reference value from a given Java variable.
@@ -261,20 +289,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native <V> void putValue(Object o, long offset, Class<?> valueType, V v);
-
-    /**
-     * Fetches a reference value of the given type from a given Java variable.
-     * This method can return a reference to a value if it is non-null.
-     *
-     * @param type type
-     */
-    public Object getReference(Object o, long offset, Class<?> type) {
-        return getReference(o, offset);
-    }
-
-    public Object getReferenceVolatile(Object o, long offset, Class<?> type) {
-        return getReferenceVolatile(o, offset);
-    }
 
     /**
      * Returns an uninitialized default instance of the given value class.
@@ -709,9 +723,10 @@ public final class Unsafe {
     /**
      * Allocates a new block of native memory, of the given size in bytes.  The
      * contents of the memory are uninitialized; they will generally be
-     * garbage.  The resulting native pointer will never be zero, and will be
-     * aligned for all value types.  Dispose of this memory by calling {@link
-     * #freeMemory}, or resize it with {@link #reallocateMemory}.
+     * garbage.  The resulting native pointer will be zero if and only if the
+     * requested size is zero.  The resulting native pointer will be aligned for
+     * all value types.   Dispose of this memory by calling {@link #freeMemory}
+     * or resize it with {@link #reallocateMemory}.
      *
      * <em>Note:</em> It is the responsibility of the caller to make
      * sure arguments are checked before the methods are called. While
@@ -1540,11 +1555,11 @@ public final class Unsafe {
     }
 
     /*
-     * For primitive type, CAS should do substitutability test as opposed
+     * For value type, CAS should do substitutability test as opposed
      * to two pointers comparison.
      *
-     * Perhaps we can keep the xxxObject methods for compatibility and
-     * change the JDK 13 xxxReference method signature freely.
+     * TODO: replace global lock workaround with the proper support for
+     * atomic access to value objects and loosely consistent values.
      */
     public final <V> boolean compareAndSetReference(Object o, long offset,
                                                     Class<?> type,
@@ -4221,92 +4236,5 @@ public final class Unsafe {
         if (cleaner != null) {
             cleaner.clean();
         }
-    }
-
-    // The following deprecated methods are used by JSR 166.
-
-    @Deprecated(since="12", forRemoval=true)
-    public final Object getObject(Object o, long offset) {
-        return getReference(o, offset);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final Object getObjectVolatile(Object o, long offset) {
-        return getReferenceVolatile(o, offset);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final Object getObjectAcquire(Object o, long offset) {
-        return getReferenceAcquire(o, offset);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final Object getObjectOpaque(Object o, long offset) {
-        return getReferenceOpaque(o, offset);
-    }
-
-
-    @Deprecated(since="12", forRemoval=true)
-    public final void putObject(Object o, long offset, Object x) {
-        putReference(o, offset, x);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final void putObjectVolatile(Object o, long offset, Object x) {
-        putReferenceVolatile(o, offset, x);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final void putObjectOpaque(Object o, long offset, Object x) {
-        putReferenceOpaque(o, offset, x);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final void putObjectRelease(Object o, long offset, Object x) {
-        putReferenceRelease(o, offset, x);
-    }
-
-
-    @Deprecated(since="12", forRemoval=true)
-    public final Object getAndSetObject(Object o, long offset, Object newValue) {
-        return getAndSetReference(o, offset, newValue);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final Object getAndSetObjectAcquire(Object o, long offset, Object newValue) {
-        return getAndSetReferenceAcquire(o, offset, newValue);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final Object getAndSetObjectRelease(Object o, long offset, Object newValue) {
-        return getAndSetReferenceRelease(o, offset, newValue);
-    }
-
-
-    @Deprecated(since="12", forRemoval=true)
-    public final boolean compareAndSetObject(Object o, long offset, Object expected, Object x) {
-        return compareAndSetReference(o, offset, expected, x);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final Object compareAndExchangeObject(Object o, long offset, Object expected, Object x) {
-        return compareAndExchangeReference(o, offset, expected, x);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final Object compareAndExchangeObjectAcquire(Object o, long offset, Object expected, Object x) {
-        return compareAndExchangeReferenceAcquire(o, offset, expected, x);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final Object compareAndExchangeObjectRelease(Object o, long offset, Object expected, Object x) {
-        return compareAndExchangeReferenceRelease(o, offset, expected, x);
-    }
-
-
-    @Deprecated(since="12", forRemoval=true)
-    public final boolean weakCompareAndSetObject(Object o, long offset, Object expected, Object x) {
-        return weakCompareAndSetReference(o, offset, expected, x);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final boolean weakCompareAndSetObjectAcquire(Object o, long offset, Object expected, Object x) {
-        return weakCompareAndSetReferenceAcquire(o, offset, expected, x);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final boolean weakCompareAndSetObjectPlain(Object o, long offset, Object expected, Object x) {
-        return weakCompareAndSetReferencePlain(o, offset, expected, x);
-    }
-    @Deprecated(since="12", forRemoval=true)
-    public final boolean weakCompareAndSetObjectRelease(Object o, long offset, Object expected, Object x) {
-        return weakCompareAndSetReferenceRelease(o, offset, expected, x);
     }
 }

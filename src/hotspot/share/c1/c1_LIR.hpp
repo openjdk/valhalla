@@ -1982,23 +1982,23 @@ class LIR_OpLock: public LIR_Op {
   LIR_Opr _lock;
   LIR_Opr _scratch;
   CodeStub* _stub;
-  CodeStub* _throw_imse_stub;
+  CodeStub* _throw_ie_stub;
  public:
-  LIR_OpLock(LIR_Code code, LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info, CodeStub* throw_imse_stub=nullptr)
+  LIR_OpLock(LIR_Code code, LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info, CodeStub* throw_ie_stub=nullptr)
     : LIR_Op(code, LIR_OprFact::illegalOpr, info)
     , _hdr(hdr)
     , _obj(obj)
     , _lock(lock)
     , _scratch(scratch)
     , _stub(stub)
-    , _throw_imse_stub(throw_imse_stub)                    {}
+    , _throw_ie_stub(throw_ie_stub)                    {}
 
   LIR_Opr hdr_opr() const                        { return _hdr; }
   LIR_Opr obj_opr() const                        { return _obj; }
   LIR_Opr lock_opr() const                       { return _lock; }
   LIR_Opr scratch_opr() const                    { return _scratch; }
   CodeStub* stub() const                         { return _stub; }
-  CodeStub* throw_imse_stub() const              { return _throw_imse_stub; }
+  CodeStub* throw_ie_stub() const                { return _throw_ie_stub; }
 
   virtual void emit_code(LIR_Assembler* masm);
   virtual LIR_OpLock* as_OpLock() { return this; }
@@ -2488,7 +2488,7 @@ class LIR_List: public CompilationResourceObj {
 
   void load_stack_address_monitor(int monitor_ix, LIR_Opr dst)  { append(new LIR_Op1(lir_monaddr, LIR_OprFact::intConst(monitor_ix), dst)); }
   void unlock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub);
-  void lock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info, CodeStub* throw_imse_stub=nullptr);
+  void lock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info, CodeStub* throw_ie_stub=nullptr);
 
   void breakpoint()                                                  { append(new LIR_Op0(lir_breakpoint)); }
 
