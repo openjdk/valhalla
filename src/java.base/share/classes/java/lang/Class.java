@@ -51,6 +51,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.RecordComponent;
+import java.lang.reflect.RuntimeType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.constant.Constable;
@@ -230,7 +231,8 @@ public final class Class<T> implements java.io.Serializable,
                               Type,
                               AnnotatedElement,
                               TypeDescriptor.OfField<Class<?>>,
-                              Constable {
+                              Constable,
+                              RuntimeType<T> {
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
@@ -4162,13 +4164,27 @@ public final class Class<T> implements java.io.Serializable,
     @SuppressWarnings("unchecked")
     @IntrinsicCandidate
     public T cast(Object obj) {
-        if (obj != null && !isInstance(obj))
+        if (!canCast(obj))
             throw new ClassCastException(cannotCastMsg(obj));
         return (T) obj;
     }
 
     private String cannotCastMsg(Object obj) {
         return "Cannot cast " + obj.getClass().getName() + " to " + getName();
+    }
+
+    /**
+     * Tests whether a cast to this class or interface will succeed.
+     */
+    public boolean canCast(Object obj) {
+        return obj == null || isInstance(obj);
+    }
+
+    /**
+     * Returns this {@code Class}.
+     */
+    public Class<T> baseClass() {
+        return this;
     }
 
     /**
