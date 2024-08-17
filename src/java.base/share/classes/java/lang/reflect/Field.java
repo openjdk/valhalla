@@ -278,7 +278,7 @@ class Field extends AccessibleObject implements Member {
      * enforced by bytecode verification (the same as
      * {@link #getType} in most cases, but {@code Object} in
      * the case of an interface type).
-     * 
+     *
      * @return a {@code RuntimeType} representing the type that
      *         is dynamically enforced by this field
      */
