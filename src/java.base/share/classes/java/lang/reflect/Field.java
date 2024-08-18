@@ -274,7 +274,7 @@ class Field extends AccessibleObject implements Member {
     /**
      * Get a {@code RuntimeType} representing the type that is
      * dynamically enforced by this field. If the field does
-     * not perform dynamic checks, this is the typed that is
+     * not perform dynamic checks, this is the type that is
      * enforced by bytecode verification (the same as
      * {@link #getType} in most cases, but {@code Object} in
      * the case of an interface type).
