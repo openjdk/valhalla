@@ -156,7 +156,7 @@ static bool ok_to_convert(Node* inc, Node* var) {
 static bool is_cloop_condition(BoolNode* bol) {
   for (DUIterator_Fast imax, i = bol->fast_outs(imax); i < imax; i++) {
     Node* out = bol->fast_out(i);
-    if (out->is_CountedLoopEnd()) {
+    if (out->is_BaseCountedLoopEnd()) {
       return true;
     }
   }
@@ -1232,9 +1232,8 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (con2 != (intptr_t) superklass->super_check_offset())
     return nullptr;                // Might be element-klass loading from array klass
 
-  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-  // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
-  // the klass for [LMyValue. Do not bypass the klass load from the primary supertype array.
+  // Do not fold the subtype check to an array klass pointer comparison for null-able inline type arrays
+  // because null-free [LMyValue <: null-able [LMyValue but the klasses are different. Perform a full test.
   if (superklass->is_obj_array_klass() && !superklass->as_array_klass()->is_elem_null_free() &&
       superklass->as_array_klass()->element_klass()->is_inlinetype()) {
     return nullptr;

@@ -45,11 +45,12 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test intrinsic support for value classes.
  * @library /test/lib /
- * @modules java.base/jdk.internal.misc java.base/jdk.internal.value
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestIntrinsics.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestIntrinsics
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestIntrinsics
  */
 
 @ForceCompileClassInitializer
@@ -376,7 +377,7 @@ public class TestIntrinsics {
             Y_OFFSET = U.objectFieldOffset(yField);
             Field v1Field = MyValue1.class.getDeclaredField("v1");
             V1_OFFSET = U.objectFieldOffset(v1Field);
-            V1_FLATTENED = U.isFlattened(v1Field);
+            V1_FLATTENED = U.isFlatField(v1Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -587,7 +588,7 @@ public class TestIntrinsics {
         try {
             Field test31_vt_Field = TestIntrinsics.class.getDeclaredField("test31_vt");
             TEST31_VT_OFFSET = U.objectFieldOffset(test31_vt_Field);
-            TEST31_VT_FLATTENED = U.isFlattened(test31_vt_Field);
+            TEST31_VT_FLATTENED = U.isFlatField(test31_vt_Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -638,7 +639,7 @@ public class TestIntrinsics {
             TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
             TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY.getClass());
             TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY.getClass());
-            TEST33_FLATTENED_ARRAY = U.isFlattenedArray(TEST33_ARRAY.getClass());
+            TEST33_FLATTENED_ARRAY = U.isFlatArray(TEST33_ARRAY.getClass());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -839,7 +840,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(result, null);
         result = test43(MyValue1.class, vt);
         Asserts.assertEQ(result, vt);
-        result = test43(Integer.class, null);
+        result = test43(NonValueClass.class, null);
         Asserts.assertEQ(result, null);
     }
 
@@ -1156,11 +1157,11 @@ public class TestIntrinsics {
 
     @Run(test = "test59")
     public void test59_verifier() throws Exception {
-        test59(Integer.class);
+        test59(Object.class);
         try {
             test59(MyValue1.class);
             throw new RuntimeException("test59 failed: synchronization on value object should not succeed");
-        } catch (IllegalMonitorStateException e) {
+        } catch (IdentityException e) {
 
         }
     }
@@ -1548,7 +1549,7 @@ public class TestIntrinsics {
 
     @Test
     public Object test78(MyValue1 vt) {
-        return Integer.class.cast(vt);
+        return NonValueClass.class.cast(vt);
     }
 
     @Run(test = "test78")
@@ -1567,7 +1568,7 @@ public class TestIntrinsics {
     @Test
     public Object test79(MyValue1 vt) {
         Object tmp = vt;
-        return (Integer)tmp;
+        return (NonValueClass)tmp;
     }
 
     @Run(test = "test79")
@@ -1593,7 +1594,7 @@ public class TestIntrinsics {
     @LooselyConsistentValue
     public static value class Test80Value2 {
         long l = rL;
-        Integer i = rI;
+        NonValueClass obj = new NonValueClass(rI);
     }
 
     // Test that unsafe access is not incorrectly classified as mismatched
@@ -1611,13 +1612,13 @@ public class TestIntrinsics {
     public void test80_verifier() throws Exception {
         Test80Value1 v = new Test80Value1();
         Field field = Test80Value1.class.getDeclaredField("v");
-        Asserts.assertEQ(test80(v, U.isFlattened(field), U.objectFieldOffset(field)), v.v);
+        Asserts.assertEQ(test80(v, U.isFlatField(field), U.objectFieldOffset(field)), v.v);
     }
 
-    // Test correctness of the Unsafe::isFlattenedArray intrinsic
+    // Test correctness of the Unsafe::isFlatArray intrinsic
     @Test
     public boolean test81(Class<?> cls) {
-        return U.isFlattenedArray(cls);
+        return U.isFlatArray(cls);
     }
 
     @Run(test = "test81")
@@ -1628,18 +1629,18 @@ public class TestIntrinsics {
         Asserts.assertFalse(test81(int[].class), "test81_4 failed");
     }
 
-    // Verify that Unsafe::isFlattenedArray checks with statically known classes
+    // Verify that Unsafe::isFlatArray checks with statically known classes
     // are folded
     @Test
     @IR(failOn = {LOADK})
     public boolean test82() {
-        boolean check1 = U.isFlattenedArray(TEST33_ARRAY.getClass());
+        boolean check1 = U.isFlatArray(TEST33_ARRAY.getClass());
         if (!TEST33_FLATTENED_ARRAY) {
             check1 = !check1;
         }
-        boolean check2 = !U.isFlattenedArray(String[].class);
-        boolean check3 = !U.isFlattenedArray(String.class);
-        boolean check4 = !U.isFlattenedArray(int[].class);
+        boolean check2 = !U.isFlatArray(String[].class);
+        boolean check3 = !U.isFlatArray(String.class);
+        boolean check4 = !U.isFlatArray(int[].class);
         return check1 && check2 && check3 && check4;
     }
 
@@ -1664,11 +1665,40 @@ public class TestIntrinsics {
         } else {
             // Trigger deoptimization to verify that re-execution works
             try {
-                test83(new Integer[10]);
+                test83(new NonValueClass[10]);
                 throw new RuntimeException("No NullPointerException thrown");
             } catch (NullPointerException npe) {
                 // Expected
             }
+        }
+    }
+
+    static value class MyValueClonable implements Cloneable {
+        int x;
+
+        MyValueClonable(int x) {
+            this.x = x;
+        }
+
+        @Override
+        public Object clone() throws CloneNotSupportedException {
+            return super.clone();
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.ALLOC, "1"})
+    public Object testClone() throws CloneNotSupportedException {
+        MyValueClonable obj = new MyValueClonable(3);
+        return obj.clone();
+    }
+
+    @Run(test = "testClone")
+    public void testClone_verifier() {
+        try {
+            testClone();
+        } catch (Exception e) {
+            Asserts.fail("testClone() failed", e);
         }
     }
 }

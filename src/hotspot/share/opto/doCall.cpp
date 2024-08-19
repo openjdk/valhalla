@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,15 +51,15 @@
 #include "jfr/jfr.hpp"
 #endif
 
-void print_trace_type_profile(outputStream* out, int depth, ciKlass* prof_klass, int site_count, int receiver_count) {
+static void print_trace_type_profile(outputStream* out, int depth, ciKlass* prof_klass, int site_count, int receiver_count) {
   CompileTask::print_inline_indent(depth, out);
   out->print(" \\-> TypeProfile (%d/%d counts) = ", receiver_count, site_count);
   prof_klass->name()->print_symbol_on(out);
   out->cr();
 }
 
-void trace_type_profile(Compile* C, ciMethod* method, int depth, int bci, ciMethod* prof_method,
-                        ciKlass* prof_klass, int site_count, int receiver_count) {
+static void trace_type_profile(Compile* C, ciMethod* method, int depth, int bci, ciMethod* prof_method,
+                               ciKlass* prof_klass, int site_count, int receiver_count) {
   if (TraceTypeProfile || C->print_inlining()) {
     outputStream* out = tty;
     if (!C->print_inlining()) {
@@ -578,6 +578,23 @@ void Parse::do_call() {
   int       vtable_index       = Method::invalid_vtable_index;
   bool      call_does_dispatch = false;
 
+  // Detect the call to the object or abstract class constructor at the end of a value constructor to know when we are done initializing the larval
+  if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && stack(sp() - nargs)->is_InlineType()) {
+    assert(method()->is_object_constructor() && (method()->holder()->is_inlinetype() || method()->holder()->is_abstract()), "Unexpected caller");
+    InlineTypeNode* receiver = stack(sp() - nargs)->as_InlineType();
+    InlineTypeNode* clone = receiver->clone_if_required(&_gvn, _map);
+    clone->set_is_larval(false);
+    clone = _gvn.transform(clone)->as_InlineType();
+    replace_in_map(receiver, clone);
+
+    if (_caller->has_method()) {
+      // Get receiver from the caller map and update it in the exit map now that we are done initializing it
+      Node* receiver_in_caller = _caller->map()->argument(_caller, 0);
+      assert(receiver_in_caller->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(), "Receiver type mismatch");
+      _exits.map()->replace_edge(receiver_in_caller, clone, &_gvn);
+    }
+  }
+
   // Speculative type of the receiver if any
   ciKlass* speculative_receiver_type = nullptr;
   if (is_virtual_or_interface) {
@@ -740,10 +757,6 @@ void Parse::do_call() {
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
-            // if (declared_signature->returns_null_free_inline_type()) {
-            if (false) { // JDK-8325660: revisit this code after removal of Q-descriptors
-              sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
-            }
             if (arg_type != nullptr && !arg_type->higher_equal(sig_type)) {
               Node* retnode = pop();
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
@@ -794,6 +807,16 @@ void Parse::do_call() {
       Node* retnode = pop();
       retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
       push_node(T_OBJECT, retnode);
+    }
+
+    // Did we inline a value class constructor from another value class constructor?
+    if (_caller->has_method() && cg->is_inline() && cg->method()->is_object_constructor() && cg->method()->holder()->is_inlinetype() &&
+        _method->is_object_constructor() && _method->holder()->is_inlinetype() && receiver == _caller->map()->argument(_caller, 0)) {
+      // Update the receiver in the exit map because the constructor call updated it.
+      // MethodLiveness::BasicBlock::compute_gen_kill_single ensures that the receiver in local(0) is still live.
+      assert(local(0)->is_InlineType(), "Unexpected receiver");
+      assert(receiver->bottom_type()->inline_klass() == local(0)->bottom_type()->inline_klass(), "Receiver type mismatch");
+      _exits.map()->replace_edge(receiver, local(0), &_gvn);
     }
   }
 
@@ -951,7 +974,7 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
 
   // Get the exception oop klass from its header
   Node* ex_klass_node = nullptr;
-  if (has_ex_handler() && !ex_type->klass_is_exact()) {
+  if (has_exception_handler() && !ex_type->klass_is_exact()) {
     Node* p = basic_plus_adr( ex_node, ex_node, oopDesc::klass_offset_in_bytes());
     ex_klass_node = _gvn.transform(LoadKlassNode::make(_gvn, nullptr, immutable_memory(), p, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
 

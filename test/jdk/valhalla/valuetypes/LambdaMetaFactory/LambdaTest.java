@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,8 @@
 /*
  * @test
  * @summary Test lambdas with parameter types or return type of value class
- * @run junit/othervm -XX:+EnableValhalla LambdaTest
+ * @enablePreview
+ * @run junit/othervm LambdaTest
  */
 
 import java.util.function.Function;

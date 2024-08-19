@@ -288,24 +288,47 @@ Node* PhaseMacroExpand::generate_nonpositive_guard(Node** ctrl, Node* index, boo
   return is_notp;
 }
 
-Node* PhaseMacroExpand::array_lh_test(Node* array, jint mask) {
-  Node* klass_adr = basic_plus_adr(array, oopDesc::klass_offset_in_bytes());
-  Node* klass = transform_later(LoadKlassNode::make(_igvn, nullptr, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
-  Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
-  Node* lh_val = _igvn.transform(LoadNode::make(_igvn, nullptr, C->immutable_memory(), lh_addr, lh_addr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
-  Node* masked = transform_later(new AndINode(lh_val, intcon(mask)));
-  Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
-  return transform_later(new BoolNode(cmp, BoolTest::ne));
+Node* PhaseMacroExpand::mark_word_test(Node** ctrl, Node* obj, MergeMemNode* mem, uintptr_t mask_val, RegionNode* region) {
+  // Load markword and check if obj is locked
+  Node* mark = make_load(nullptr, mem->memory_at(Compile::AliasIdxRaw), obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
+  Node* locked_bit = MakeConX(markWord::unlocked_value);
+  locked_bit = transform_later(new AndXNode(locked_bit, mark));
+  Node* cmp = transform_later(new CmpXNode(locked_bit, MakeConX(0)));
+  Node* is_unlocked = transform_later(new BoolNode(cmp, BoolTest::ne));
+  IfNode* iff = transform_later(new IfNode(*ctrl, is_unlocked, PROB_MAX, COUNT_UNKNOWN))->as_If();
+  Node* locked_region = transform_later(new RegionNode(3));
+  Node* mark_phi = transform_later(new PhiNode(locked_region, TypeX_X));
+
+  // Unlocked: Use bits from mark word
+  locked_region->init_req(1, transform_later(new IfTrueNode(iff)));
+  mark_phi->init_req(1, mark);
+
+  // Locked: Load prototype header from klass
+  *ctrl = transform_later(new IfFalseNode(iff));
+  // Make loads control dependent to make sure they are only executed if array is locked
+  Node* klass_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
+  Node* klass = transform_later(LoadKlassNode::make(_igvn, *ctrl, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
+  Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
+  Node* proto = transform_later(LoadNode::make(_igvn, *ctrl, C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
+
+  locked_region->init_req(2, *ctrl);
+  mark_phi->init_req(2, proto);
+  *ctrl = locked_region;
+
+  // Now check if mark word bits are set
+  Node* mask = MakeConX(mask_val);
+  Node* masked = transform_later(new AndXNode(mark_phi, mask));
+  cmp = transform_later(new CmpXNode(masked, mask));
+  Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
+  return generate_fair_guard(ctrl, bol, region);
 }
 
-Node* PhaseMacroExpand::generate_flat_array_guard(Node** ctrl, Node* array, RegionNode* region) {
-  assert(UseFlatArray, "can never be flat");
-  return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_array_tag_flat_value_bit_inplace), region);
+Node* PhaseMacroExpand::generate_flat_array_guard(Node** ctrl, Node* array, MergeMemNode* mem, RegionNode* region) {
+  return mark_word_test(ctrl, array, mem, markWord::flat_array_bit_in_place, region);
 }
 
-Node* PhaseMacroExpand::generate_null_free_array_guard(Node** ctrl, Node* array, RegionNode* region) {
-  assert(EnableValhalla, "can never be null free");
-  return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_null_free_array_bit_inplace), region);
+Node* PhaseMacroExpand::generate_null_free_array_guard(Node** ctrl, Node* array, MergeMemNode* mem, RegionNode* region) {
+  return mark_word_test(ctrl, array, mem, markWord::null_free_array_bit_in_place, region);
 }
 
 void PhaseMacroExpand::finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type) {
@@ -1531,12 +1554,12 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     if (!top_src->is_flat()) {
       if (UseFlatArray && !top_src->is_not_flat()) {
         // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
-        generate_flat_array_guard(&ctrl, src, slow_region);
+        generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       }
       if (EnableValhalla) {
         // No validation. The subtype check emitted at macro expansion time will not go to the slow
         // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
-        generate_null_free_array_guard(&ctrl, dest, slow_region);
+        generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
       }
     } else {
       assert(top_dest->is_flat(), "dest array must be flat");

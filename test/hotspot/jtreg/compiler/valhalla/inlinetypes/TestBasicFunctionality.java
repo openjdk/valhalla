@@ -39,13 +39,14 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
 /*
  * @test
  * @key randomness
+ * @bug 8327695
  * @summary Test the basic value class implementation in C2.
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @modules java.base/jdk.internal.value
  * @library /test/lib /
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestBasicFunctionality.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestBasicFunctionality
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestBasicFunctionality
  */
 
 @ForceCompileClassInitializer
@@ -156,10 +157,10 @@ public class TestBasicFunctionality {
     // the interpreter via a call.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1"},
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2"},
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     public long test6() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -176,7 +177,7 @@ public class TestBasicFunctionality {
     // Create a value object in compiled code and pass it to
     // the interpreter by returning.
     @Test
-    @IR(counts = {ALLOC, "= 2"},
+    @IR(counts = {ALLOC, "<= 2"},
         failOn = {LOAD, TRAP})
     public MyValue1 test7(int x, long y) {
         return MyValue1.createWithFieldsInline(x, y);
@@ -207,16 +208,16 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(test8(false), hash(rI + 1, rL + 1));
     }
 
+static MyValue1 tmp = null;
     // Merge value objects created from two branches
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC, "= 1", LOAD, "= 19",
                   STORE, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
         failOn = {TRAP})
-    // TODO 8325106
-    // @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-    //     counts = {ALLOC, "= 2", STORE, "= 19"},
-    //     failOn = {LOAD, TRAP})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        counts = {ALLOC, "= 2", STORE, "= 19"},
+        failOn = {LOAD, TRAP})
     public MyValue1 test9(boolean b, int localrI, long localrL) {
         MyValue1 v;
         if (b) {
@@ -225,6 +226,7 @@ public class TestBasicFunctionality {
             // some redundant null initializations to be optimized out
             // and matching to fail.
             v = MyValue1.createWithFieldsInline(localrI, localrL);
+            v.hashInterpreted();
         } else {
             // Value object is allocated by the callee
             v = MyValue1.createWithFieldsDontInline(rI + 1, rL + 1);
@@ -285,6 +287,8 @@ public class TestBasicFunctionality {
     }
 
     // Test loop with uncommon trap referencing a value object
+    // TODO 8315003 Re-enable
+    /*
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         counts = {SCOBJ, ">= 1", LOAD, "<= 12"}) // TODO 8227588 (loads should be removed)
@@ -315,6 +319,7 @@ public class TestBasicFunctionality {
         long result = test12(info.isWarmUp());
         Asserts.assertEQ(result, info.isWarmUp() ? rL + (1000 * rI) : ((Math.abs(rI) % 10) + 1) * hash());
     }
+    */
 
     // Test loop with uncommon trap referencing a value object
     @Test
@@ -370,10 +375,10 @@ public class TestBasicFunctionality {
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {LOAD, TRAP},
-        counts = {ALLOC, "= 1"})
+        counts = {ALLOC, "<= 1"}) // 1 MyValue2 allocation (if not the default value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {LOAD, TRAP},
-        counts = {ALLOC, "= 2"})
+        counts = {ALLOC, "<= 2"}) // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
     public long test15() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         return v.hashInterpreted();
@@ -420,10 +425,10 @@ public class TestBasicFunctionality {
     // debug info should include a reference to all its fields.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1"},
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2"},
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     public long test18() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -442,10 +447,10 @@ public class TestBasicFunctionality {
     // should only be allocated once.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1"},
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2"},
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD, TRAP})
     public long test19() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -469,10 +474,10 @@ public class TestBasicFunctionality {
     // correctly allocated.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1"},
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2"},
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
         failOn = LOAD)
     public long test20(boolean deopt, Method m) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -507,8 +512,9 @@ public class TestBasicFunctionality {
 
     // Test value class fields in objects
     @Test
-    @IR(counts = {ALLOC, "= 2"},
-        failOn = TRAP)
+    // TODO 8332886 Re-enable this
+    // @IR(counts = {ALLOC, "= 2"},
+    //     failOn = TRAP)
     public long test21(int x, long y) {
         // Compute hash of value class fields
         long result = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
@@ -638,7 +644,9 @@ public class TestBasicFunctionality {
 
     // Check elimination of redundant value class allocations
     @Test
-    @IR(counts = {ALLOC, "= 1"})
+    // TODO 8332886 Remove the AlwaysIncrementalInline=false condition
+    @IR(applyIf = {"AlwaysIncrementalInline", "false"},
+        counts = {ALLOC, "= 1"})
     public MyValue3 test28(MyValue3[] va) {
         // Create value object and force allocation
         MyValue3 vt = MyValue3.create();
@@ -1007,4 +1015,51 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, info.isWarmUp() ? 0 : hash());
     }
 
+    static value class MyValue41 {
+        int x;
+
+        public MyValue41(int x) {
+            this.x = x;
+        }
+
+        static MyValue41 make() {
+            return new MyValue41(0);
+        }
+    }
+
+    static MyValue41 field41;
+
+    // Test detection of value object copies and removal of the MemBarRelease following the value buffer initialization
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC, ALLOCA, STORE})
+    public void test41(MyValue41 val) {
+        field41 = new MyValue41(val.x);
+    }
+
+    @Run(test = "test41")
+    public void test41_verifier() {
+        MyValue41 val = new MyValue41(rI);
+        test41(val);
+        Asserts.assertEQ(field41, val);
+    }
+
+    @DontInline
+    public void test42_helper(MyValue41 val) {
+        Asserts.assertEQ(val, new MyValue41(rI));
+    }
+
+    // Same as test41 but with call argument requiring buffering
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC, ALLOCA, STORE})
+    public void test42(MyValue41 val) {
+        test42_helper(new MyValue41(val.x));
+    }
+
+    @Run(test = "test42")
+    public void test42_verifier() {
+        MyValue41 val = new MyValue41(rI);
+        test42(val);
+    }
 }

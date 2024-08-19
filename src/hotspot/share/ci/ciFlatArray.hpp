@@ -39,6 +39,10 @@ protected:
   ciFlatArray(flatArrayHandle h_o) : ciArray(h_o) {}
 
   const char* type_string() { return "ciFlatArray"; }
+
+public:
+  bool is_flat()      { return true; }
+  bool is_null_free() { return true; }
 };
 
 #endif // SHARE_VM_CI_CIFLATARRAY_HPP

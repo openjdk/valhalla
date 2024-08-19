@@ -78,11 +78,11 @@ class NullabilityParsingTest {
     // type test patterns
 
     void testTypeTestPatterns(Object o) {
-        switch (o) {
+/*        switch (o) {
             case Point! i -> throw new AssertionError();
             case Shape! s -> throw new AssertionError();
             default -> throw new AssertionError();
-        }
+        }*/
     }
 
     sealed interface I<X> {}
@@ -176,17 +176,17 @@ class NullabilityParsingTest {
     }
 
     void testPatternRule(Object o) {
-        switch (o) {
+/*        switch (o) {
             case Point! s -> { }
                 default -> { }
-        }
+        }*/
     }
 
     void testPatternCol(Object o) {
-        switch (o) {
+/*        switch (o) {
             case Point! s: { }
             default: { }
-        }
+        }*/
     }
 
     void testInstanceOfAndInfix1(Object a, boolean b) {

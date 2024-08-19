@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @summary Test that verifier allows monitor operations on inline types.
  * @enablePreview
  * @compile  VTMonitor.java
- * @run main/othervm -XX:+EnableValhalla -Xverify:remote VTMonitor
+ * @run main/othervm -Xverify:remote VTMonitor
  */
 
 public value final class VTMonitor {
@@ -45,7 +45,7 @@ public value final class VTMonitor {
             synchronized(a) {
                 throw new RuntimeException("Synchronization on inline type should fail");
             }
-        } catch (java.lang.IllegalMonitorStateException e) {
+        } catch (java.lang.IdentityException e) {
             // Expected
         }
     }

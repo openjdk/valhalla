@@ -26,6 +26,7 @@
  * @bug 8235564
  * @summary Verify that passing member references to a method not accepting
  *          functional interface does not crash the compiler.
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

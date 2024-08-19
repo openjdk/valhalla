@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -174,7 +174,6 @@ class InstructionVisitor: public StackObj {
   virtual void do_NewTypeArray   (NewTypeArray*    x) = 0;
   virtual void do_NewObjectArray (NewObjectArray*  x) = 0;
   virtual void do_NewMultiArray  (NewMultiArray*   x) = 0;
-  virtual void do_Deoptimize     (Deoptimize*      x) = 0;
   virtual void do_CheckCast      (CheckCast*       x) = 0;
   virtual void do_InstanceOf     (InstanceOf*      x) = 0;
   virtual void do_MonitorEnter   (MonitorEnter*    x) = 0;
@@ -571,7 +570,6 @@ class Instruction: public CompilationResourceObj {
   virtual NewTypeArray*     as_NewTypeArray()    { return nullptr; }
   virtual NewObjectArray*   as_NewObjectArray()  { return nullptr; }
   virtual NewMultiArray*    as_NewMultiArray()   { return nullptr; }
-  virtual Deoptimize*       as_Deoptimize()      { return nullptr; }
   virtual TypeCheck*        as_TypeCheck()       { return nullptr; }
   virtual CheckCast*        as_CheckCast()       { return nullptr; }
   virtual InstanceOf*       as_InstanceOf()      { return nullptr; }
@@ -1301,7 +1299,7 @@ LEAF(Invoke, StateSplit)
  public:
   // creation
   Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-         ciMethod* target, ValueStack* state_before, bool null_free);
+         ciMethod* target, ValueStack* state_before);
 
   // accessors
   Bytecodes::Code code() const                   { return _code; }
@@ -1411,10 +1409,8 @@ LEAF(NewObjectArray, NewArray)
 
  public:
   // creation
-  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before, bool null_free)
-  : NewArray(length, state_before), _klass(klass) {
-    set_null_free(null_free);
-  }
+  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before)
+  : NewArray(length, state_before), _klass(klass) { }
 
   // accessors
   ciKlass* klass() const                         { return _klass; }
@@ -1453,17 +1449,6 @@ LEAF(NewMultiArray, NewArray)
   ciType* exact_type() const;
 };
 
-LEAF(Deoptimize, StateSplit)
-private:
-  ciKlass*    _klass;
-
- public:
-  Deoptimize(ciKlass* klass, ValueStack* state_before)
-  : StateSplit(objectType, state_before), _klass(klass) {}
-
-  // accessors
-  ciKlass* klass() const                         { return _klass; }
-};
 
 BASE(TypeCheck, StateSplit)
  private:
@@ -1508,10 +1493,8 @@ BASE(TypeCheck, StateSplit)
 LEAF(CheckCast, TypeCheck)
  public:
   // creation
-  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before, bool null_free = false)
-  : TypeCheck(klass, obj, objectType, state_before) {
-    set_null_free(null_free);
-  }
+  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before)
+  : TypeCheck(klass, obj, objectType, state_before) { }
 
   void set_incompatible_class_change_check() {
     set_flag(ThrowIncompatibleClassChangeErrorFlag, true);
@@ -2555,15 +2538,11 @@ LEAF(MemBar, Instruction)
 class BlockPair: public CompilationResourceObj {
  private:
   BlockBegin* _from;
-  BlockBegin* _to;
+  int _index; // sux index of 'to' block
  public:
-  BlockPair(BlockBegin* from, BlockBegin* to): _from(from), _to(to) {}
+  BlockPair(BlockBegin* from, int index): _from(from), _index(index) {}
   BlockBegin* from() const { return _from; }
-  BlockBegin* to() const   { return _to;   }
-  bool is_same(BlockBegin* from, BlockBegin* to) const { return  _from == from && _to == to; }
-  bool is_same(BlockPair* p) const { return  _from == p->from() && _to == p->to(); }
-  void set_to(BlockBegin* b)   { _to = b; }
-  void set_from(BlockBegin* b) { _from = b; }
+  int index() const        { return _index; }
 };
 
 typedef GrowableArray<BlockPair*> BlockPairList;

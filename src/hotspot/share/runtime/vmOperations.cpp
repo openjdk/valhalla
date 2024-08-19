@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
+#include "classfile/stringTable.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
@@ -101,6 +103,14 @@ void VM_ClearICs::doit() {
 
 void VM_CleanClassLoaderDataMetaspaces::doit() {
   ClassLoaderDataGraph::walk_metadata_and_clean_metaspaces();
+}
+
+void VM_RehashStringTable::doit() {
+  StringTable::rehash_table();
+}
+
+void VM_RehashSymbolTable::doit() {
+  SymbolTable::rehash_table();
 }
 
 VM_DeoptimizeFrame::VM_DeoptimizeFrame(JavaThread* thread, intptr_t* id, int reason) {
@@ -347,6 +357,12 @@ class ObjectMonitorsDump : public MonitorClosure, public ObjectMonitorsView {
       return;
     }
 
+    if (monitor->object_peek() == nullptr) {
+      // JNI code doesn't necessarily keep the monitor object
+      // alive. Filter out monitors with dead objects.
+      return;
+    }
+
     add(monitor);
   }
 
@@ -494,10 +510,9 @@ int VM_Exit::wait_for_threads_in_native_to_block() {
   // don't have to wait for user threads to be quiescent, but it's always
   // better to terminate VM when current thread is the only active thread, so
   // wait for user threads too. Numbers are in 10 milliseconds.
-  int max_wait_user_thread = 30;                  // at least 300 milliseconds
-  int max_wait_compiler_thread = 1000;            // at least 10 seconds
-
-  int max_wait = max_wait_compiler_thread;
+  int wait_time_per_attempt = 10;               // in milliseconds
+  int max_wait_attempts_user_thread = UserThreadWaitAttemptsAtExit;
+  int max_wait_attempts_compiler_thread = 1000; // at least 10 seconds
 
   int attempts = 0;
   JavaThreadIteratorWithHandle jtiwh;
@@ -530,16 +545,17 @@ int VM_Exit::wait_for_threads_in_native_to_block() {
 
     if (num_active == 0) {
        return 0;
-    } else if (attempts > max_wait) {
+    } else if (attempts >= max_wait_attempts_compiler_thread) {
        return num_active;
-    } else if (num_active_compiler_thread == 0 && attempts > max_wait_user_thread) {
+    } else if (num_active_compiler_thread == 0 &&
+               attempts >= max_wait_attempts_user_thread) {
        return num_active;
     }
 
     attempts++;
 
     MonitorLocker ml(&timer, Mutex::_no_safepoint_check_flag);
-    ml.wait(10);
+    ml.wait(wait_time_per_attempt);
   }
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -178,9 +178,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         try {
             GoodClass5 vc = new GoodClass5();
             Field f0 = vc.getClass().getDeclaredField("f0");
-            Asserts.assertFalse(UNSAFE.isFlattened(f0), "Unexpected flat field");
+            Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
             Field f1 = vc.getClass().getDeclaredField("f1");
-            Asserts.assertTrue(UNSAFE.isFlattened(f1), "Flat field expected, but field is not flat");
+            Asserts.assertTrue(UNSAFE.isFlatField(f1), "Flat field expected, but field is not flat");
         } catch (IncompatibleClassChangeError e) {
             exception = e;
             System.out.println("Received " + e);
@@ -359,6 +359,56 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
             System.out.println("Received " + e);
         }
         Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
+    }
+
+
+    // Test that a value class annotated with @ImplicitlyConstructible but extending
+    // an abstract value class not annotated with @ImplicitlyConstructible is not
+    // considered as implicitely constructible
+
+    static abstract value class AbstractValue14 { }
+    @ImplicitlyConstructible
+    static value class Value14 extends AbstractValue14 { }
+
+    static class Test14 {
+        @NullRestricted
+        Value14 val;
+    }
+
+    void test_14() {
+        Throwable exception = null;
+        try {
+            Test14 t14 = new Test14();
+        } catch(IncompatibleClassChangeError e) {
+            exception = e;
+            System.out.println("Received "+ e);
+        }
+        Asserts.assertNotNull(exception, "Expected IncompatibleClassChangeError not received");
+    }
+
+    // Test that a value class annotated with @ImplicitlyConstructible but extending
+    // an abstract value class also annotated with @ImplicitlyConstructible is
+    // considered as implicitely constructible
+
+    @ImplicitlyConstructible
+    static abstract value class AbstractValue15 { }
+    @ImplicitlyConstructible
+    static value class Value15 extends AbstractValue15 { }
+
+    static class Test15 {
+        @NullRestricted
+        Value15 val;
+    }
+
+    void test_15() {
+        Throwable exception = null;
+        try {
+            Test15 t15 = new Test15();
+        } catch(IncompatibleClassChangeError e) {
+            exception = e;
+            System.out.println("Received "+ e);
+        }
+        Asserts.assertNull(exception, "Unexpected IncompatibleClassChangeError received");
     }
 
  }

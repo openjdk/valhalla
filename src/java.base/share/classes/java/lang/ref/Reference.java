@@ -40,9 +40,8 @@ import java.util.Objects;
  * implemented in close cooperation with the garbage collector, this class may
  * not be subclassed directly.
  * <p>
- * The referent must be an {@linkplain Objects#isIdentityObject(Object) identity object}.
- * Attempts to create a reference to a {@linkplain Objects#isValueObject value object}
- * results in an {@link IdentityException}.
+ * The referent must be an {@linkplain Objects#hasIdentity(Object) identity object}.
+ * Attempts to create a reference to a value object result in an {@link IdentityException}.
  * @param <T> the type of the referent
  *
  * @author   Mark Reinhold

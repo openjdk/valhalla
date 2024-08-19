@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,8 @@
 /*
  * @test
  * @summary test method reference of value class as the parameter type
- * @run main/othervm -XX:+EnableValhalla MethodReference
+ * @enablePreview
+ * @run main/othervm MethodReference
  */
 
 import java.util.function.Supplier;

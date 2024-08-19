@@ -430,11 +430,6 @@ public class JavaClass extends JavaHeapObject {
                 } else {
                     char sig = f.getSignature().charAt(0);
                     switch (sig) {
-                        case 'Q': {
-                            System.out.println("WARNING: (getInlinedInstanceSize) field "
-                                    + getClazz().getName() + "." + f.getName()
-                                    + " is not inlined, but has Q-signature: " + f.getSignature());
-                        } // continue as 'L' object
                         case 'L':
                         case '[':
                             size += mySnapshot.getIdentifierSize();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -844,14 +844,27 @@ const TypePtr* MemNode::calculate_adr_type(const Type* t, const TypePtr* cross_c
   }
 }
 
+uint8_t MemNode::barrier_data(const Node* n) {
+  if (n->is_LoadStore()) {
+    return n->as_LoadStore()->barrier_data();
+  } else if (n->is_Mem()) {
+    return n->as_Mem()->barrier_data();
+  }
+  return 0;
+}
+
 //=============================================================================
 // Should LoadNode::Ideal() attempt to remove control edges?
 bool LoadNode::can_remove_control() const {
   return !has_pinned_control_dependency();
 }
 uint LoadNode::size_of() const { return sizeof(*this); }
-bool LoadNode::cmp( const Node &n ) const
-{ return !Type::cmp( _type, ((LoadNode&)n)._type ); }
+bool LoadNode::cmp(const Node &n) const {
+  LoadNode& load = (LoadNode &)n;
+  return !Type::cmp(_type, load._type) &&
+         _control_dependency == load._control_dependency &&
+         _mo == load._mo;
+}
 const Type *LoadNode::bottom_type() const { return _type; }
 uint LoadNode::ideal_reg() const {
   return _type->ideal_reg();
@@ -982,10 +995,18 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
                          (tp != nullptr) && (tp->isa_aryptr() != nullptr) &&
                          tp->isa_aryptr()->is_stable();
 
-    return (eliminate_boxing && non_volatile) || is_stable_ary;
+    return (eliminate_boxing && non_volatile) || is_stable_ary || tp->is_inlinetypeptr();
   }
 
   return false;
+}
+
+LoadNode* LoadNode::pin_array_access_node() const {
+  const TypePtr* adr_type = this->adr_type();
+  if (adr_type != nullptr && adr_type->isa_aryptr()) {
+    return clone_pinned();
+  }
+  return nullptr;
 }
 
 // Is the value loaded previously stored by an arraycopy? If so return
@@ -1007,7 +1028,8 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
       return nullptr;
     }
 
-    LoadNode* ld = clone()->as_Load();
+    // load depends on the tests that validate the arraycopy
+    LoadNode* ld = clone_pinned();
     Node* addp = in(MemNode::Address)->clone();
     if (ac->as_ArrayCopy()->is_clonebasic()) {
       assert(ld_alloc != nullptr, "need an alloc");
@@ -1049,8 +1071,6 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
     ld->set_req(MemNode::Address, addp);
     ld->set_req(0, ctl);
     ld->set_req(MemNode::Memory, mem);
-    // load depends on the tests that validate the arraycopy
-    ld->_control_dependency = UnknownControl;
     return ld;
   }
   return nullptr;
@@ -2065,25 +2085,6 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != nullptr && const_oop->is_instance()) {
-      ciType* mirror_type = const_oop->as_instance()->java_mirror_type();
-      if (mirror_type != nullptr) {
-        const Type* const_oop = nullptr;
-        ciInlineKlass* vk = mirror_type->is_inlinetype() ? mirror_type->as_inline_klass() : nullptr;
-        // Fold default value loads
-        if (vk != nullptr && off == vk->default_value_offset()) {
-          const_oop = TypeInstPtr::make(vk->default_instance());
-        }
-        // Fold class mirror loads
-        // JDK-8325660: notion of secondary mirror is gone in JEP 401
-        // if (off == java_lang_Class::primary_mirror_offset()) {
-        //   const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->java_mirror());
-        // } else if (off == java_lang_Class::secondary_mirror_offset()) {
-        //   const_oop = (vk == nullptr) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->java_mirror());
-        // }
-        if (const_oop != nullptr) {
-          return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
-        }
-      }
       const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), bt);
       if (con_type != nullptr) {
         return con_type;
@@ -2099,37 +2100,21 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
            Opcode() == Op_LoadKlass,
            "Field accesses must be precise");
     // For klass/static loads, we expect the _type to be precise
-  } else if (tp->base() == Type::RawPtr && !StressReflectiveCode) {
-    if (adr->is_Load() && off == 0) {
-      /* With mirrors being an indirect in the Klass*
-       * the VM is now using two loads. LoadKlass(LoadP(LoadP(Klass, mirror_offset), zero_offset))
-       * The LoadP from the Klass has a RawPtr type (see LibraryCallKit::load_mirror_from_klass).
-       *
-       * So check the type and klass of the node before the LoadP.
-       */
-      Node* adr2 = adr->in(MemNode::Address);
-      const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
-      if (tkls != nullptr) {
-        if (tkls->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
-          ciKlass* klass = tkls->exact_klass();
-          assert(adr->Opcode() == Op_LoadP, "must load an oop from _java_mirror");
-          assert(Opcode() == Op_LoadP, "must load an oop from _java_mirror");
-          return TypeInstPtr::make(klass->java_mirror());
-        }
-      }
-    } else {
-      // Check for a load of the default value offset from the InlineKlassFixedBlock:
-      // LoadI(LoadP(inline_klass, adr_inlineklass_fixed_block_offset), default_value_offset_offset)
-      intptr_t offset = 0;
-      Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-      if (base != nullptr && base->is_Load() && offset == in_bytes(InlineKlass::default_value_offset_offset())) {
-        const TypeKlassPtr* tkls = phase->type(base->in(MemNode::Address))->isa_klassptr();
-        if (tkls != nullptr && tkls->is_loaded() && tkls->klass_is_exact() && tkls->exact_klass()->is_inlinetype() &&
-            tkls->offset() == in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())) {
-          assert(base->Opcode() == Op_LoadP, "must load an oop from klass");
-          assert(Opcode() == Op_LoadI, "must load an int from fixed block");
-          return TypeInt::make(tkls->exact_klass()->as_inline_klass()->default_value_offset());
-        }
+  } else if (tp->base() == Type::RawPtr && adr->is_Load() && off == 0) {
+    /* With mirrors being an indirect in the Klass*
+     * the VM is now using two loads. LoadKlass(LoadP(LoadP(Klass, mirror_offset), zero_offset))
+     * The LoadP from the Klass has a RawPtr type (see LibraryCallKit::load_mirror_from_klass).
+     *
+     * So check the type and klass of the node before the LoadP.
+     */
+    Node* adr2 = adr->in(MemNode::Address);
+    const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
+    if (tkls != nullptr && !StressReflectiveCode) {
+      if (tkls->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
+        ciKlass* klass = tkls->exact_klass();
+        assert(adr->Opcode() == Op_LoadP, "must load an oop from _java_mirror");
+        assert(Opcode() == Op_LoadP, "must load an oop from _java_mirror");
+        return TypeInstPtr::make(klass->java_mirror());
       }
     }
   }
@@ -2445,8 +2430,8 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             offset == java_lang_Class::array_klass_offset())) {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
-      bool null_free = false;
-      ciType* t = tinst->java_mirror_type();
+      bool is_null_free_array = false;
+      ciType* t = tinst->java_mirror_type(&is_null_free_array);
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != nullptr) {
         // constant oop => constant klass
@@ -2456,15 +2441,22 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          // JDK-8325660: after removal of secondary mirror and Q-types, null_free is now always false => cleanup?
-          return TypeKlassPtr::make(ciArrayKlass::make(t, null_free), Type::trust_interfaces);
+          const TypeKlassPtr* tklass = TypeKlassPtr::make(ciArrayKlass::make(t), Type::trust_interfaces);
+          if (is_null_free_array) {
+            tklass = tklass->is_aryklassptr()->cast_to_null_free();
+          }
+          return tklass;
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has null for a klass field
           return TypePtr::NULL_PTR;
         }
         // (Folds up the 1st indirection in aClassConstant.getModifiers().)
-        return TypeKlassPtr::make(t->as_klass(), Type::trust_interfaces);
+        const TypeKlassPtr* tklass = TypeKlassPtr::make(t->as_klass(), Type::trust_interfaces);
+        if (is_null_free_array) {
+          tklass = tklass->is_aryklassptr()->cast_to_null_free();
+        }
+        return tklass;
       }
       // non-constant mirror, so we can't tell what's going on
     }
@@ -2575,6 +2567,12 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   }
 
   return this;
+}
+
+LoadNode* LoadNode::clone_pinned() const {
+  LoadNode* ld = clone()->as_Load();
+  ld->_control_dependency = UnknownControl;
+  return ld;
 }
 
 
@@ -3485,6 +3483,7 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           my_mem = load_node;
         } else {
           assert(my_mem->unique_out() == this, "sanity");
+          assert(!trailing_load_store(), "load store node can't be eliminated");
           del_req(Precedent);
           phase->is_IterGVN()->_worklist.push(my_mem); // remove dead node later
           my_mem = nullptr;
@@ -5070,7 +5069,7 @@ static void verify_memory_slice(const MergeMemNode* m, int alias_idx, Node* n) {
 //-----------------------------memory_at---------------------------------------
 Node* MergeMemNode::memory_at(uint alias_idx) const {
   assert(alias_idx >= Compile::AliasIdxRaw ||
-         alias_idx == Compile::AliasIdxBot && !Compile::current()->do_aliasing(),
+         (alias_idx == Compile::AliasIdxBot && !Compile::current()->do_aliasing()),
          "must avoid base_memory and AliasIdxTop");
 
   // Otherwise, it is a narrow slice.

@@ -286,8 +286,6 @@ public class Signatures {
                 void addValue(TypeElement e) {
                     if (e.getModifiers().contains(Modifier.VALUE)) {
                         list.add("value");
-                    } else if (e.getModifiers().contains(Modifier.IDENTITY)) {
-                        list.add("identity");
                     }
                 }
 

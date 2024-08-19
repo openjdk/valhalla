@@ -25,8 +25,9 @@
 /*
  * @test
  * @summary test Object methods on value classes
- * @run junit/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ObjectMethods
- * @run junit/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
+ * @enablePreview
+ * @run junit/othervm -Dvalue.bsm.salt=1 ObjectMethods
+ * @run junit/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
 import java.util.List;
 import java.util.Objects;
@@ -133,12 +134,10 @@ public class ObjectMethods {
         Class<?> clazz = obj.getClass();
 
         if (clazz == Object.class) {
-            assertTrue(Objects.isIdentityObject(obj), "Objects.isIdentityObject()");
+            assertTrue(Objects.hasIdentity(obj), "Objects.hasIdentity()");
         } else {
-            assertEquals(identityClass, Objects.isIdentityObject(obj), "Objects.isIdentityObject()");
+            assertEquals(identityClass, Objects.hasIdentity(obj), "Objects.hasIdentity()");
         }
-
-        assertEquals(valueClass, Objects.isValueObject(obj), "Objects.isValueObject()");
 
         assertEquals(identityClass, clazz.isIdentity(), "Class.isIdentity()");
 

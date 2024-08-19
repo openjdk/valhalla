@@ -520,12 +520,6 @@ void InstructionPrinter::do_NewMultiArray(NewMultiArray* x) {
   print_klass(x->klass());
 }
 
-void InstructionPrinter::do_Deoptimize(Deoptimize* x) {
-  output()->print("deoptimize [unloaded=");
-  print_klass(x->klass());
-  output()->print("] ");
-}
-
 void InstructionPrinter::do_MonitorEnter(MonitorEnter* x) {
   output()->print("enter ");
   print_monitor(x);

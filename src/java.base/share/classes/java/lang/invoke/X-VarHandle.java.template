@@ -24,9 +24,11 @@
  */
 package java.lang.invoke;
 
-#if[Reference]
+#if[Object]
+import jdk.internal.value.CheckedType;
+import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
-#end[Reference]
+#end[Object]
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 
@@ -45,40 +47,36 @@ final class VarHandle$Type$s {
         final Class<?> receiverType;
 #if[Object]
         final Class<?> fieldType;
+        final CheckedType checkedFieldType;
 #end[Object]
-#if[Reference]
-        final boolean nullRestricted;
-#end[Reference]
 
-        FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}) {
-            this(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}, FieldInstanceReadOnly.FORM, false);
+        FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}) {
+            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, FieldInstanceReadOnly.FORM, false);
         }
 
-        protected FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted},
+        protected FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType},
                                         VarForm form, boolean exact) {
             super(form, exact);
             this.fieldOffset = fieldOffset;
             this.receiverType = receiverType;
 #if[Object]
             this.fieldType = fieldType;
+            this.checkedFieldType = checkedFieldType;
 #end[Object]
-#if[Reference]
-            this.nullRestricted = nullRestricted;
-#end[Reference]
         }
 
         @Override
         public FieldInstanceReadOnly withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Reference]?, fieldType, nullRestricted}{#if[Value]?, fieldType, true}, vform, true);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, vform, true);
         }
 
         @Override
         public FieldInstanceReadOnly withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Reference]?, fieldType, nullRestricted}{#if[Value]?, fieldType, true}, vform, false);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, vform, false);
         }
 
         @Override
@@ -104,11 +102,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Reference]
-            if (handle.nullRestricted && value == null) {
+#if[Object]
+            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Reference]
+#end[Object]
             return value;
         }
 
@@ -117,11 +115,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Volatile(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Reference]
-            if (handle.nullRestricted && value == null) {
+#if[Object]
+            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Reference]
+#end[Object]
             return value;
         }
 
@@ -130,11 +128,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Opaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Reference]
-            if (handle.nullRestricted && value == null) {
+#if[Object]
+            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Reference]
+#end[Object]
             return value;
         }
 
@@ -143,11 +141,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Reference]
-            if (handle.nullRestricted && value == null) {
+#if[Object]
+            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Reference]
+#end[Object]
             return value;
         }
 
@@ -155,37 +153,33 @@ final class VarHandle$Type$s {
     }
 
     static final class FieldInstanceReadWrite extends FieldInstanceReadOnly {
-        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}) {
-            this(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}, false);
+        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}) {
+            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, false);
         }
 
-        private FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted},
+        private FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType},
                                        boolean exact) {
-            super(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}, FieldInstanceReadWrite.FORM, exact);
+            super(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, FieldInstanceReadWrite.FORM, exact);
         }
 
         @Override
         public FieldInstanceReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Reference]?, fieldType, nullRestricted}{#if[Value]?, fieldType, true}, true);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, true);
         }
 
         @Override
         public FieldInstanceReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Reference]?, fieldType, nullRestricted}{#if[Value]?, fieldType, true}, false);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, false);
         }
 
 #if[Object]
         @ForceInline
         static Object checkCast(FieldInstanceReadWrite handle, $type$ value) {
-#if[Reference]
-            if (value == null && handle.nullRestricted)
-                throw new NullPointerException("null-restricted field");
-#end[Reference]
-            return handle.fieldType.cast(value);
+            return handle.checkedFieldType.cast(value);
         }
 #end[Object]
 
@@ -430,14 +424,14 @@ final class VarHandle$Type$s {
         final long fieldOffset;
 #if[Object]
         final Class<?> fieldType;
-        final boolean nullRestricted;
+        final CheckedType checkedFieldType;
 #end[Object]
 
-        FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}) {
-            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}, FieldStaticReadOnly.FORM, false);
+        FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}) {
+            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, FieldStaticReadOnly.FORM, false);
         }
 
-        protected FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted},
+        protected FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType},
                                       VarForm form, boolean exact) {
             super(form, exact);
             this.declaringClass = declaringClass;
@@ -445,7 +439,7 @@ final class VarHandle$Type$s {
             this.fieldOffset = fieldOffset;
 #if[Object]
             this.fieldType = fieldType;
-            this.nullRestricted = nullRestricted;
+            this.checkedFieldType = checkedFieldType;
 #end[Object]
         }
 
@@ -453,14 +447,14 @@ final class VarHandle$Type$s {
         public FieldStaticReadOnly withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}, vform, true);
+                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, vform, true);
         }
 
         @Override
         public FieldStaticReadOnly withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}, vform, false);
+                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, vform, false);
         }
 
         @Override
@@ -488,11 +482,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Reference]
-            if (handle.nullRestricted && value == null) {
+#if[Object]
+            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Reference]
+#end[Object]
             return value;
         }
 
@@ -501,11 +495,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Volatile(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Reference]
-            if (handle.nullRestricted && value == null) {
+#if[Object]
+            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Reference]
+#end[Object]
             return value;
         }
 
@@ -514,11 +508,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Opaque(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Reference]
-            if (handle.nullRestricted && value == null) {
+#if[Object]
+            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Reference]
+#end[Object]
             return value;
         }
 
@@ -527,11 +521,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Acquire(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.fieldType});
-#if[Reference]
-            if (handle.nullRestricted && value == null) {
+#if[Object]
+            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Reference]
+#end[Object]
             return value;
         }
 
@@ -540,32 +534,33 @@ final class VarHandle$Type$s {
 
     static final class FieldStaticReadWrite extends FieldStaticReadOnly {
 
-        FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}) {
-            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}, false);
+        FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}) {
+            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, false);
         }
 
-        private FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted},
+        private FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType},
                                      boolean exact) {
-            super(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}, FieldStaticReadWrite.FORM, exact);
+            super(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, FieldStaticReadWrite.FORM, exact);
         }
 
         @Override
         public FieldStaticReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType}{#if[Reference]?, nullRestricted}, true);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, true);
         }
 
         @Override
         public FieldStaticReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType}{#if[Reference]?, nullRestricted}, false);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}, false);
         }
 
 #if[Object]
+        @ForceInline
         static Object checkCast(FieldStaticReadWrite handle, $type$ value) {
-            return handle.fieldType.cast(value);
+            return handle.checkedFieldType.cast(value);
         }
 #end[Object]
 
@@ -803,15 +798,6 @@ final class VarHandle$Type$s {
         static final VarForm FORM = new VarForm(FieldStaticReadWrite.class, null, $type$.class);
     }
 
-#if[Reference]
-    static VarHandle makeVarHandleValuesArray(Class<?> arrayClass) {
-        Class<?> componentType = arrayClass.getComponentType();
-        assert UNSAFE.isFlattenedArray(arrayClass);
-        // should cache these VarHandle for performance
-        return VarHandles.makeArrayElementHandle(arrayClass);
-    }
-#end[Reference]
-
     static final class Array extends VarHandle {
         final int abase;
         final int ashift;
@@ -859,7 +845,7 @@ final class VarHandle$Type$s {
 
         @Override
         final MethodType accessModeTypeUncached(AccessType at) {
-            return at.accessModeType({#if[Object]?arrayType:$type$[].class}, {#if[Object]?arrayType.getComponentType():$type$.class}, int.class);
+            return at.accessModeType({#if[Object]?arrayType:$type$[].class}, {#if[Object]?componentType:$type$.class}, int.class);
         }
 
 #if[Object]
@@ -867,9 +853,9 @@ final class VarHandle$Type$s {
         static Object runtimeTypeCheck(Array handle, Object[] oarray, Object value) {
             if (handle.arrayType == oarray.getClass()) {
                 // Fast path: static array type same as argument array type
-                return handle.componentType.cast(value);
+                return {#if[Value]?ValueClass.componentCheckedType(oarray):handle.componentType}.cast(value);
             } else {
-                // Slow path: check value against argument array component type
+                // Slow path: check value against argument array component checked type
                 return reflectiveTypeCheck(oarray, value);
             }
         }
@@ -877,7 +863,7 @@ final class VarHandle$Type$s {
         @ForceInline
         static Object reflectiveTypeCheck(Object[] oarray, Object value) {
             try {
-                return oarray.getClass().getComponentType().cast(value);
+                return ValueClass.componentCheckedType(oarray).cast(value);
             } catch (ClassCastException e) {
                 throw new ArrayStoreException();
             }
@@ -904,10 +890,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                vh.set(oarray, index, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                vh.set(oarray, index, value);
                 return;
             }
 #end[Reference]
@@ -923,9 +910,10 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
                 return vh.getVolatile(oarray, index);
             }
 #end[Reference]
@@ -942,10 +930,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                vh.setVolatile(oarray, index, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                vh.setVolatile(oarray, index, value);
                 return;
             }
 #end[Reference]
@@ -963,9 +952,10 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
                 return vh.getOpaque(oarray, index);
             }
 #end[Reference]
@@ -982,10 +972,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                vh.setOpaque(oarray, index, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                vh.setOpaque(oarray, index, value);
                 return;
             }
 #end[Reference]
@@ -1003,9 +994,10 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
                 return vh.getAcquire(oarray, index);
             }
 #end[Reference]
@@ -1022,10 +1014,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                vh.setRelease(oarray, index, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                vh.setRelease(oarray, index, value);
                 return;
             }
 #end[Reference]
@@ -1044,10 +1037,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.compareAndSet(oarray, index, expected, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.compareAndSet(oarray, index, expected, value);
             }
 #end[Reference]
             return UNSAFE.compareAndSet$Type$(array,
@@ -1065,10 +1059,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.compareAndExchange(oarray, index, expected, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.compareAndExchange(oarray, index, expected, value);
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$(array,
@@ -1086,10 +1081,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.compareAndExchangeAcquire(oarray, index, expected, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.compareAndExchangeAcquire(oarray, index, expected, value);
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$Acquire(array,
@@ -1107,10 +1103,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.compareAndExchangeRelease(oarray, index, expected, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.compareAndExchangeRelease(oarray, index, expected, value);
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$Release(array,
@@ -1128,10 +1125,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.weakCompareAndSetPlain(oarray, index, expected, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.weakCompareAndSetPlain(oarray, index, expected, value);
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Plain(array,
@@ -1149,10 +1147,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.weakCompareAndSet(oarray, index, expected, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.weakCompareAndSet(oarray, index, expected, value);
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$(array,
@@ -1170,10 +1169,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.weakCompareAndSetAcquire(oarray, index, expected, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.weakCompareAndSetAcquire(oarray, index, expected, value);
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Acquire(array,
@@ -1191,10 +1191,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.weakCompareAndSetRelease(oarray, index, expected, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.weakCompareAndSetRelease(oarray, index, expected, value);
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Release(array,
@@ -1212,10 +1213,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.getAndSet(oarray, index, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.getAndSet(oarray, index, value);
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$(array,
@@ -1232,10 +1234,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.getAndSetAcquire(oarray, index, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.getAndSetAcquire(oarray, index, value);
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$Acquire(array,
@@ -1252,10 +1255,11 @@ final class VarHandle$Type$s {
             $type$[] array = ($type$[]) oarray;
 #end[Object]
 #if[Reference]
-            if (UNSAFE.isFlattenedArray(oarray.getClass())) {
-                // for flattened array, delegate to VarHandle of the inline type array
-                VarHandle vh = makeVarHandleValuesArray(oarray.getClass());
-                return vh.getAndSetRelease(oarray, index, reflectiveTypeCheck(array, value));
+            Class<?> arrayType = oarray.getClass();
+            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
+                // delegate to VarHandle of flat array
+                VarHandle vh = VarHandleValues.flatArrayVarHandle(arrayType);
+                return vh.getAndSetRelease(oarray, index, value);
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$Release(array,
@@ -1375,7 +1379,20 @@ final class VarHandle$Type$s {
                                        value);
         }
 #end[Bitwise]
-
         static final VarForm FORM = new VarForm(Array.class, {#if[Object]?Object[].class:$type$[].class}, {#if[Object]?Object.class:$type$.class}, int.class);
     }
+#if[Value]
+    static final ClassValue<Array> flatArrayVarHandles = new ClassValue<>() {
+        @Override protected Array computeValue(Class<?> arrayClass) {
+            assert UNSAFE.isFlatArray(arrayClass);
+            int aoffset = UNSAFE.arrayBaseOffset(arrayClass);
+            int ascale = UNSAFE.arrayIndexScale(arrayClass);
+            int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+            return new Array(aoffset, ashift, arrayClass);
+        }
+    };
+    static VarHandle flatArrayVarHandle(Class<?> arrayClass) {
+        return flatArrayVarHandles.get(arrayClass);
+    }
+#end[Value]
 }

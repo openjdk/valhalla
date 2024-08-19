@@ -27,6 +27,7 @@
 #include "ci/ciObjArray.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
+#include "oops/oop.inline.hpp"
 
 // ciObjArray
 //
@@ -43,4 +44,9 @@ ciObject* ciObjArray::obj_at(int index) {
   } else {
     return CURRENT_ENV->get_object(o);
   }
+}
+
+bool ciObjArray::is_null_free() {
+  VM_ENTRY_MARK;
+  return get_objArrayOop()->is_null_free_array();
 }

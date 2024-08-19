@@ -26,8 +26,9 @@
  * @bug 8187679
  * @summary The VM should exit gracefully when unable to preload an inline type argument
  * @library /test/lib
+ * @enablePreview
  * @compile SimpleInlineType.java TestUnresolvedInlineClass.java
- * @run main/othervm -XX:+EnableValhalla TestUnresolvedInlineClass
+ * @run main/othervm TestUnresolvedInlineClass
  */
 
 import java.io.File;
@@ -51,12 +52,12 @@ public class TestUnresolvedInlineClass {
             }
 
             // Run test in new VM instance
-            String[] arg = {"-XX:+EnableValhalla", "-XX:+InlineTypePassFieldsAsArgs", "TestUnresolvedInlineClass", "run"};
-            OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
+            String[] arg = {"--enable-preview", "-XX:+InlineTypePassFieldsAsArgs", "TestUnresolvedInlineClass", "run"};
+            OutputAnalyzer oa = ProcessTools.executeTestJava(arg);
 
             // Verify that a warning is printed
             String output = oa.getOutput();
-            oa.shouldContain("Preloading of class SimpleInlineType during linking of class TestUnresolvedInlineClass (Preload attribute) failed");
+            oa.shouldContain("Preloading of class SimpleInlineType during linking of class TestUnresolvedInlineClass (cause: LoadableDescriptors attribute) failed");
         }
     }
 }

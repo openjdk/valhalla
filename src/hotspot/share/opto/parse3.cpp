@@ -50,8 +50,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   ciInstanceKlass* field_holder = field->holder();
 
-  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
-    assert(is_get, "inline type field store not supported");
+  if (is_get && is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
     InlineTypeNode* vt = peek()->as_InlineType();
     null_check(vt);
     Node* value = vt->field_value_by_offset(field->offset_in_bytes());
@@ -142,6 +141,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
 
   ciType* field_klass = field->type();
+  field_klass = improve_abstract_inline_type_klass(field_klass);
   int offset = field->offset_in_bytes();
   bool must_assert_null = false;
 
@@ -226,6 +226,23 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
 }
 
+// If the field klass is an abstract value klass (for which we do not know the layout, yet), it could have a unique
+// concrete sub klass for which we have a fixed layout. This allows us to use InlineTypeNodes instead.
+ciType* Parse::improve_abstract_inline_type_klass(ciType* field_klass) {
+  Dependencies* dependencies = C->dependencies();
+  if (UseUniqueSubclasses && dependencies != nullptr && field_klass->is_instance_klass()) {
+    ciInstanceKlass* instance_klass = field_klass->as_instance_klass();
+    if (instance_klass->is_loaded() && instance_klass->is_abstract_value_klass()) {
+      ciInstanceKlass* sub_klass = instance_klass->unique_concrete_subklass();
+      if (sub_klass != nullptr && sub_klass != field_klass) {
+        field_klass = sub_klass;
+        dependencies->assert_abstract_with_unique_concrete_subtype(instance_klass, sub_klass);
+      }
+    }
+  }
+  return field_klass;
+}
+
 void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   bool is_vol = field->is_volatile();
   int offset = field->offset_in_bytes();
@@ -234,9 +251,16 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
 
   if (field->is_null_free()) {
     PreserveReexecuteState preexecs(this);
-    inc_sp(1);
     jvms()->set_should_reexecute(true);
+    inc_sp(1);
     val = null_check(val);
+    if (stopped()) {
+      return;
+    }
+  }
+  if (obj->is_InlineType()) {
+    set_inline_type_field(obj, field, val);
+    return;
   }
   if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
@@ -247,7 +271,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
     inc_sp(1);
-    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset);
+    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset, IN_HEAP | MO_UNORDERED);
     dec_sp(1);
   } else {
     // Store the value.
@@ -299,20 +323,58 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   }
 }
 
+void Parse::set_inline_type_field(Node* obj, ciField* field, Node* val) {
+  assert(_method->is_object_constructor(), "inline type is initialized outside of constructor");
+  assert(obj->as_InlineType()->is_larval(), "must be larval");
+  assert(!_gvn.type(obj)->maybe_null(), "should never be null");
+
+  // Re-execute if buffering in below code triggers deoptimization.
+  PreserveReexecuteState preexecs(this);
+  jvms()->set_should_reexecute(true);
+  inc_sp(1);
+
+  if (!val->is_InlineType() && field->type()->is_inlinetype()) {
+    // Scalarize inline type field value
+    val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
+  } else if (val->is_InlineType() && !field->is_flat()) {
+    // Field value needs to be allocated because it can be merged with a non-inline type.
+    val = val->as_InlineType()->buffer(this);
+  }
+
+  // Clone the inline type node and set the new field value
+  InlineTypeNode* new_vt = obj->as_InlineType()->clone_if_required(&_gvn, _map);
+  new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
+  new_vt = new_vt->adjust_scalarization_depth(this);
+
+  // If the inline type is buffered and the caller might use the buffer, update it.
+  if (new_vt->is_allocated(&gvn()) && (!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor())) {
+    new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, field->offset_in_bytes());
+
+    // Preserve allocation ptr to create precedent edge to it in membar
+    // generated on exit from constructor.
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(new_vt->get_oop());
+    if (alloc != nullptr) {
+      set_alloc_with_final(new_vt->get_oop());
+    }
+    set_wrote_final(true);
+  }
+
+  replace_in_map(obj, _gvn.transform(new_vt));
+  return;
+}
+
 //=============================================================================
 
 void Parse::do_newarray() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
-  // bool null_free = iter().has_Q_signature();
-  bool null_free = false; // JDK-8325660: revisit this code after removal of Q-descriptors
 
   // Uncommon Trap when class that array contains is not loaded
   // we need the loaded class for the rest of graph; do not
   // initialize the container class (see Java spec)!!!
   assert(will_link, "newarray: typeflow responsibility");
 
-  ciArrayKlass* array_klass = ciArrayKlass::make(klass, null_free);
+  ciArrayKlass* array_klass = ciArrayKlass::make(klass);
 
   // Check that array_klass object is loaded
   if (!array_klass->is_loaded()) {

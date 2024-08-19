@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,8 @@
 /*
  * @test
  * @summary Test dynamic proxies with parameter types or return type of value class
- * @run testng/othervm -XX:+EnableValhalla ProxyTest
+ * @enablePreview
+ * @run testng/othervm ProxyTest
  */
 
 import java.lang.reflect.*;

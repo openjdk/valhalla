@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,14 @@
  * @summary Hello World test for using inline classes with CDS
  * @requires vm.cds
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @compile test-classes/HelloInlineClassApp.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses HelloInlineClassTest
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello_inline.jar
+ *          HelloInlineClassApp HelloInlineClassApp$Point
+ *          HelloInlineClassApp$Rectangle HelloInlineClassApp$ValueRecord
+ * @run main/othervm HelloInlineClassTest
  */
 
 import jdk.test.lib.helpers.ClassFileInstaller;
@@ -41,25 +46,26 @@ public class HelloInlineClassTest {
         OutputAnalyzer output =
             TestCommon.dump(appJar, TestCommon.list(mainClass,
                                                     "HelloInlineClassApp$Point",
-                                                    "HelloInlineClassApp$Rectangle"));
+                                                    "HelloInlineClassApp$Rectangle"),
+                            "--enable-preview");
         output.shouldHaveExitValue(0);
 
-        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+        TestCommon.run("--enable-preview",
                        "-Xint", "-cp", appJar,  mainClass)
             .assertNormalExit();
 
-        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+        TestCommon.run("--enable-preview",
                        "-cp", appJar,  mainClass)
             .assertNormalExit();
 
         String compFlag = "-XX:CompileCommand=compileonly,HelloInlineClassApp*::*";
 
-        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+        TestCommon.run("--enable-preview",
                        "-Xcomp", compFlag,
                        "-cp", appJar,  mainClass)
             .assertNormalExit();
 
-        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+        TestCommon.run("--enable-preview",
                        "-Xcomp", compFlag,
                        "-XX:TieredStopAtLevel=1",
                        "-XX:+TieredCompilation",
@@ -67,7 +73,7 @@ public class HelloInlineClassTest {
                        "-cp", appJar,  mainClass)
             .assertNormalExit();
 
-        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+        TestCommon.run("--enable-preview",
                        "-Xcomp", compFlag,
                        "-XX:TieredStopAtLevel=4",
                        "-XX:-TieredCompilation",

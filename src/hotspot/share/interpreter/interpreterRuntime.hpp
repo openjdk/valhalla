@@ -64,6 +64,8 @@ class InterpreterRuntime: AllStatic {
   static void    uninitialized_static_inline_type_field(JavaThread* current, oopDesc* mirror, ResolvedFieldEntry* entry);
   static void    write_heap_copy (JavaThread* current, oopDesc* value, int offset, oopDesc* rcv);
   static void    read_flat_field(JavaThread* current, oopDesc* value, int index, Klass* field_holder);
+  static void    read_nullable_flat_field(JavaThread* current, oopDesc* object, ResolvedFieldEntry* entry);
+  static void    write_nullable_flat_field(JavaThread* current, oopDesc* object, oopDesc* value, ResolvedFieldEntry* entry);
 
   static void value_array_load(JavaThread* current, arrayOopDesc* array, int index);
   static void value_array_store(JavaThread* current, void* val, arrayOopDesc* array, int index);
@@ -117,6 +119,7 @@ class InterpreterRuntime: AllStatic {
 
   static void    throw_illegal_monitor_state_exception(JavaThread* current);
   static void    new_illegal_monitor_state_exception(JavaThread* current);
+  static void    throw_identity_exception(JavaThread* current, oopDesc* obj);
 
   // Breakpoints
   static void _breakpoint(JavaThread* current, Method* method, address bcp);

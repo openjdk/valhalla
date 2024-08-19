@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -253,6 +253,12 @@ class Method : public Metadata {
   u2  max_locals() const                       { return constMethod()->max_locals(); }
   void set_max_locals(int size)                { constMethod()->set_max_locals(size); }
 
+  void set_deprecated() { constMethod()->set_deprecated(); }
+  bool deprecated() const { return constMethod()->deprecated(); }
+
+  void set_deprecated_for_removal() { constMethod()->set_deprecated_for_removal(); }
+  bool deprecated_for_removal() const { return constMethod()->deprecated_for_removal(); }
+
   int highest_comp_level() const;
   void set_highest_comp_level(int level);
   int highest_osr_comp_level() const;
@@ -311,6 +317,9 @@ class Method : public Metadata {
   MethodData* method_data() const              {
     return _method_data;
   }
+
+  // mark an exception handler as entered (used to prune dead catch blocks in C2)
+  void set_exception_handler_entered(int handler_bci);
 
   MethodCounters* method_counters() const {
     return _method_counters;
@@ -400,7 +409,8 @@ public:
   void remove_unshareable_flags() NOT_CDS_RETURN;
 
   // the number of argument reg slots that the compiled method uses on the stack.
-  int num_stack_arg_slots() const { return constMethod()->num_stack_arg_slots(); }
+  int num_stack_arg_slots(bool rounded = true) const {
+    return rounded ? align_up(constMethod()->num_stack_arg_slots(), 2) : constMethod()->num_stack_arg_slots(); }
 
   virtual void metaspace_pointers_do(MetaspaceClosure* iter);
   virtual MetaspaceObj::Type type() const { return MethodType; }
@@ -458,7 +468,7 @@ public:
   void mask_for(int bci, InterpreterOopMap* mask);
 
   // operations on invocation counter
-  void print_invocation_count();
+  void print_invocation_count(outputStream* st);
 
   // byte codes
   void    set_code(address code)      { return constMethod()->set_code(code); }
@@ -588,10 +598,6 @@ public:
 
   // returns true if the method name is <init>
   bool is_object_constructor() const;
-
-  // returns true if the method is an object constructor or class initializer
-  // (non-static <init> or <clinit>).
-  bool is_object_constructor_or_class_initializer() const; // JDK-8325660: revisit this method because it didn't exist before Valhalla and seems to be related to value factories (<vnew) that are now gone
 
   // compiled code support
   // NOTE: code() is inherently racy as deopt can be clearing code
@@ -730,6 +736,7 @@ public:
 
   // Clear methods
   static void clear_jmethod_ids(ClassLoaderData* loader_data);
+  void clear_jmethod_id();
   static void print_jmethod_ids_count(const ClassLoaderData* loader_data, outputStream* out) PRODUCT_RETURN;
 
   // Get this method's jmethodID -- allocate if it doesn't exist
@@ -773,12 +780,6 @@ public:
 
   bool has_reserved_stack_access() const { return constMethod()->reserved_stack_access(); }
   void set_has_reserved_stack_access() { constMethod()->set_reserved_stack_access(); }
-
-  bool has_scalarized_args() const { return constMethod()->has_scalarized_args(); }
-  void set_has_scalarized_args() { constMethod()->set_has_scalarized_args(); }
-
-  bool has_scalarized_return() const { return constMethod()->has_scalarized_return(); }
-  void set_has_scalarized_return() { constMethod()->set_has_scalarized_return(); }
 
   bool is_scalarized_arg(int idx) const;
 
@@ -835,6 +836,14 @@ public:
       build_method_counters(current, this);
     }
     return _method_counters;
+  }
+
+  // Clear the flags related to compiler directives that were set by the compilerBroker,
+  // because the directives can be updated.
+  void clear_directive_flags() {
+    set_has_matching_directives(false);
+    clear_is_not_c1_compilable();
+    clear_is_not_c2_compilable();
   }
 
   void clear_is_not_c1_compilable()           { set_is_not_c1_compilable(false); }

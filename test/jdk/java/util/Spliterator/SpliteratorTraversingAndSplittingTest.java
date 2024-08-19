@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,15 @@
  * @test
  * @summary Spliterator traversing and splitting tests
  * @library /lib/testlibrary/bootlib
+ * @modules java.base/jdk.internal.misc
  * @build java.base/java.util.SpliteratorOfIntDataBuilder
  *        java.base/java.util.SpliteratorTestHelper
  * @run testng SpliteratorTraversingAndSplittingTest
- * @bug 8020016 8071477 8072784 8169838
+ * @run testng/othervm --enable-preview SpliteratorTraversingAndSplittingTest
+ * @bug 8020016 8071477 8072784 8169838 8336672
  */
+
+import jdk.internal.misc.PreviewFeatures;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -628,16 +632,19 @@ public class SpliteratorTraversingAndSplittingTest extends SpliteratorTestHelper
 
             db.addMap(IdentityHashMap::new);
 
-            db.addMap(WeakHashMap::new);
+            if (!PreviewFeatures.isEnabled()) {
+                // With --enable-preview, WeakHashmap is not tested with Integer, a value class
+                db.addMap(WeakHashMap::new);
 
-            db.addMap(m -> {
-                // Create a Map ensuring that for large sizes
-                // buckets will be consist of 2 or more entries
-                WeakHashMap<Integer, Integer> cm = new WeakHashMap<>(1, m.size() + 1);
-                for (Map.Entry<Integer, Integer> e : m.entrySet())
-                    cm.put(e.getKey(), e.getValue());
-                return cm;
-            }, "new java.util.WeakHashMap(1, size + 1)");
+                db.addMap(m -> {
+                    // Create a Map ensuring that for large sizes
+                    // buckets will consist of 2 or more entries
+                    WeakHashMap<Integer, Integer> cm = new WeakHashMap<>(1, m.size() + 1);
+                    for (Map.Entry<Integer, Integer> e : m.entrySet())
+                        cm.put(e.getKey(), e.getValue());
+                    return cm;
+                }, "new java.util.WeakHashMap(1, size + 1)");
+            }
 
             // @@@  Descending maps etc
             db.addMap(TreeMap::new);

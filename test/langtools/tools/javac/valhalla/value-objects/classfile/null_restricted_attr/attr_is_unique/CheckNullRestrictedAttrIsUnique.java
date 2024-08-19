@@ -4,8 +4,8 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.util
  * @library /tools/lib
- * @compile ValueClass.jcod DuplicateNullRestrictedAttr.jcod
- * @compile/fail/ref=CheckNullRestrictedAttrIsUnique.out -XDrawDiagnostics CheckNullRestrictedAttrIsUnique.java
+ * @compile --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes ValueClass.jcod DuplicateNullRestrictedAttr.jcod
+ * @compile/fail/ref=CheckNullRestrictedAttrIsUnique.out --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes -XDrawDiagnostics CheckNullRestrictedAttrIsUnique.java
  */
 
 public class CheckNullRestrictedAttrIsUnique {

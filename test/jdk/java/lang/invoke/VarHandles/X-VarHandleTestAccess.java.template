@@ -26,6 +26,7 @@
 /*
  * @test
 #if[Value]
+ * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
 #end[Value]
  * @run testng/othervm -Diters=10   -Xint                                                   VarHandleTestAccess$Type$

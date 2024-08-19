@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,14 @@
 package runtime.valhalla.inlinetypes;
 
 /* @test
- * @summary test JNI functions with inline types
+ * @summary test JNI functions with instances of value classes
+ * @library /test/lib
  * @enablePreview
  * @run main/othervm/native runtime.valhalla.inlinetypes.InlineWithJni
  */
+
+ import jdk.test.lib.Asserts;
+
 public value class InlineWithJni {
 
     static {
@@ -48,30 +52,19 @@ public value class InlineWithJni {
     public native void doJniMonitorExit();
 
     public static void testJniMonitorOps() {
+        boolean sawIe = false;
         boolean sawImse = false;
         try {
             new InlineWithJni(0).doJniMonitorEnter();
-        } catch (Throwable t) {
-            sawImse = checkImse(t);
+        } catch (IdentityException ie) {
+            sawIe = true;
         }
-        if (!sawImse) {
-            throw new RuntimeException("JNI MonitorEnter did not fail");
-        }
-        sawImse = false;
+        Asserts.assertTrue(sawIe, "Missing IdentityException");
         try {
             new InlineWithJni(0).doJniMonitorExit();
-        } catch (Throwable t) {
-            sawImse = checkImse(t);
+        } catch (IllegalMonitorStateException imse) {
+            sawImse = true;
         }
-        if (!sawImse) {
-            throw new RuntimeException("JNI MonitorExit did not fail");
-        }
-    }
-
-    static boolean checkImse(Throwable t) {
-        if (t instanceof IllegalMonitorStateException) {
-            return true;
-        }
-        throw new RuntimeException(t);
+        Asserts.assertTrue(sawImse, "Missing IllegalMonitorStateException");
     }
 }

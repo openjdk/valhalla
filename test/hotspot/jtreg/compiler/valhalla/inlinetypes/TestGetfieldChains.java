@@ -41,13 +41,11 @@ import jdk.test.lib.Asserts;
  * @summary Verify that chains of getfields on flat fields are correctly optimized.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @compile GetfieldChains.jcod
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestGetfieldChains.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla
- *                               --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                               --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                               compiler.valhalla.inlinetypes.TestGetfieldChains
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestGetfieldChains
  */
 
 @ImplicitlyConstructible
@@ -115,7 +113,7 @@ public class TestGetfieldChains {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+EnableValhalla",
+                   .addFlags("--enable-preview",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .start();

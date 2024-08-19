@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -138,8 +138,8 @@ bool Instruction::maybe_flat_array() {
   if (UseFlatArray) {
     ciType* type = declared_type();
     if (type != nullptr) {
-      if (type->is_obj_array_klass() && !type->as_obj_array_klass()->is_elem_null_free()) {
-        // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
+      if (type->is_obj_array_klass()) {
+        // Due to array covariance, the runtime type might be a flat array.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
         if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flat_in_array())) {
           return true;
@@ -287,7 +287,7 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  return ciArrayKlass::make(klass(), is_null_free());
+  return ciArrayKlass::make(klass());
 }
 
 ciType* NewMultiArray::exact_type() const {
@@ -434,7 +434,7 @@ StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt
 
 
 Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-               ciMethod* target, ValueStack* state_before, bool null_free)
+               ciMethod* target, ValueStack* state_before)
   : StateSplit(result_type, state_before)
   , _code(code)
   , _recv(recv)
@@ -443,7 +443,6 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
 {
   set_flag(TargetIsLoadedFlag,   target->is_loaded());
   set_flag(TargetIsFinalFlag,    target_is_loaded() && target->is_final_method());
-  set_null_free(null_free);
 
   assert(args != nullptr, "args must exist");
 #ifdef ASSERT
@@ -699,6 +698,8 @@ void BlockBegin::substitute_sux(BlockBegin* old_sux, BlockBegin* new_sux) {
 // of the inserted block, without recomputing the values of the other blocks
 // in the CFG. Therefore the value of "depth_first_number" in BlockBegin becomes meaningless.
 BlockBegin* BlockBegin::insert_block_between(BlockBegin* sux) {
+  assert(!sux->is_set(critical_edge_split_flag), "sanity check");
+
   int bci = sux->bci();
   // critical edge splitting may introduce a goto after a if and array
   // bound check elimination may insert a predicate between the if and

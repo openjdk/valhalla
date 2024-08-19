@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,11 @@
  * @test
  * @library /test/lib
  * @summary Serialize and deserialize value objects
- * @run testng/othervm  SimpleValueGraphs
+ * @enablePreview
+ * @modules java.base/jdk.internal
+ * @run testng/othervm SimpleValueGraphs
  */
 
-import java.lang.StackOverflowError;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Externalizable;
@@ -39,7 +40,6 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.io.InvalidClassException;
-import java.io.InvalidObjectException;
 import java.io.NotSerializableException;
 
 import java.util.Arrays;
@@ -47,6 +47,8 @@ import java.util.function.BiFunction;
 import java.util.Objects;
 
 import java.nio.charset.StandardCharsets;
+
+import jdk.internal.MigratedValueClass;
 
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -259,7 +261,7 @@ public class SimpleValueGraphs implements Serializable {
         Tree left();
         Tree right();
     }
-    static identity class TreeI implements Tree, Serializable {
+    static class TreeI implements Tree, Serializable {
 
         private static final long serialVersionUID = 2L;
         private TreeI left;
@@ -307,6 +309,7 @@ public class SimpleValueGraphs implements Serializable {
         }
     }
 
+    @jdk.internal.MigratedValueClass
     static value class TreeV implements Tree, Serializable {
 
         private static final long serialVersionUID = 2L;
@@ -358,7 +361,7 @@ public class SimpleValueGraphs implements Serializable {
     void testExternalizableNotSer() {
         var obj = new ValueExt();
         var ex = Assert.expectThrows(NotSerializableException.class, () -> serialize(obj));
-        Assert.assertTrue(ex.getMessage().contains("Externalizable not valid for value class"));
+        Assert.assertEquals(ex.getMessage(), ValueExt.class.getName());
     }
 
     @Test
@@ -366,14 +369,14 @@ public class SimpleValueGraphs implements Serializable {
         var obj = new IdentExt();
         byte[] bytes = serialize(obj);
         byte[] newBytes = patchBytes(bytes, "IdentExt", "ValueExt");
-        var ex = Assert.expectThrows(NotSerializableException.class, () -> deserialize(newBytes));
+        var ex = Assert.expectThrows(InvalidClassException.class, () -> deserialize(newBytes));
         Assert.assertTrue(ex.getMessage().contains("Externalizable not valid for value class"));
     }
 
     // Exception trying to serialize
     // Exception trying to deserialize
 
-    static identity class IdentExt implements Externalizable {
+    static class IdentExt implements Externalizable {
         public void writeExternal(ObjectOutput is) {
 
         }

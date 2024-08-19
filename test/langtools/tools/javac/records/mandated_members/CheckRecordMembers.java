@@ -28,6 +28,7 @@
  * @bug 8246774
  * @summary check that the accessors, equals, hashCode and toString methods
  *          work as expected
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.api
