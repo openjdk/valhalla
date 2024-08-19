@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,13 @@
  * @summary javap should recognize generics, varargs, enum;
  *          javap prints "extends java.lang.Object"
  * @modules jdk.jdeps/com.sun.tools.javap
+ * @modules java.base/jdk.internal.misc
  * @build T4870651 Test
  * @run main T4870651
  */
 
 import java.io.*;
+import jdk.internal.misc.PreviewFeatures;
 
 public class T4870651 {
     public static void main(String[] args) throws Exception {
@@ -46,7 +48,9 @@ public class T4870651 {
                "v1(java.lang.String...)");
 
         verify("Test$Enum",
-               "flags: (0x4030) ACC_FINAL, ACC_IDENTITY, ACC_ENUM",
+               PreviewFeatures.isEnabled()
+                       ? "flags: (0x4030) ACC_FINAL, ACC_IDENTITY, ACC_ENUM"
+                       : "flags: (0x4030) ACC_FINAL, ACC_SUPER, ACC_ENUM",
                "flags: (0x4019) ACC_PUBLIC, ACC_STATIC, ACC_FINAL, ACC_ENUM");
 
         if (errors > 0)

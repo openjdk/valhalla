@@ -38,3 +38,10 @@ Java_jdk_internal_value_ValueClass_newNullRestrictedArray(JNIEnv *env, jclass cl
 {
     return JVM_NewNullRestrictedArray(env, elmClass, len);
 }
+
+JNIEXPORT jboolean JNICALL
+Java_jdk_internal_value_ValueClass_isNullRestrictedArray(JNIEnv *env, jclass cls, jobject obj)
+{
+    return JVM_IsNullRestrictedArray(env, obj);
+}
+

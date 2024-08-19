@@ -559,6 +559,7 @@ public class Gen extends JCTree.Visitor {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
             if (md.sym.owner.isValueClass()) {
+                rewriteInitializersIfNeeded(md, initCode);
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.append(supercall).appendList(initBlocks)));
             } else {
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.prepend(supercall)));
@@ -568,6 +569,40 @@ public class Gen extends JCTree.Visitor {
                 md.body.endpos = TreeInfo.endPos(md.body.stats.last());
 
             md.sym.appendUniqueTypeAttributes(initTAs);
+        }
+    }
+
+    void rewriteInitializersIfNeeded(JCMethodDecl md, List<JCStatement> initCode) {
+        if (lower.initializerOuterThis.containsKey(md.sym.owner)) {
+            InitializerVisitor initializerVisitor = new InitializerVisitor(md, lower.initializerOuterThis.get(md.sym.owner));
+            for (JCStatement init : initCode) {
+                initializerVisitor.scan(init);
+            }
+        }
+    }
+
+    class InitializerVisitor extends TreeScanner {
+        JCMethodDecl md;
+        Set<JCExpression> exprSet;
+
+        InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
+            this.md = md;
+            this.exprSet = exprSet;
+        }
+
+        @Override
+        public void visitTree(JCTree tree) {}
+
+        @Override
+        public void visitIdent(JCIdent tree) {
+            if (exprSet.contains(tree)) {
+                for (JCVariableDecl param: md.params) {
+                    if (param.name == tree.name &&
+                            ((param.sym.flags_field & (MANDATED | NOOUTERTHIS)) == (MANDATED | NOOUTERTHIS))) {
+                        tree.sym = param.sym;
+                    }
+                }
+            }
         }
     }
 
@@ -1089,10 +1124,6 @@ public class Gen extends JCTree.Visitor {
             code.newLocal(v);
         }
         checkDimension(tree.pos(), v.type);
-        Type localType = v.erasure(types);
-        if (localType.requiresPreload(env.enclClass.sym)) {
-            poolWriter.enterPreloadClass((ClassSymbol) localType.tsym);
-        }
     }
 
     public void visitSkip(JCSkip tree) {
@@ -1452,6 +1483,11 @@ public class Gen extends JCTree.Visitor {
                     code.put4(caseidx, labels[i]);
                     code.put4(caseidx + 4, offsets[i]);
                 }
+            }
+
+            if (swtch instanceof JCSwitchExpression) {
+                 // Emit line position for the end of a switch expression
+                 code.statBegin(TreeInfo.endPos(swtch));
             }
         }
         code.endScopes(limit);
@@ -2365,8 +2401,7 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type,
-                    tree.selected.type.hasImplicitConstructor() && tree.selected.type.isNonNullable()));
+            code.emitLdc((LoadableConstant)checkDimension(tree.pos(), tree.selected.type));
             result = items.makeStackItem(pt);
             return;
         }

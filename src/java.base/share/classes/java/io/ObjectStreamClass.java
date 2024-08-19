@@ -56,6 +56,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import jdk.internal.MigratedValueClass;
+import jdk.internal.event.SerializationMisdeclarationEvent;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
@@ -63,7 +66,6 @@ import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.JavaSecurityAccess;
 import jdk.internal.util.ByteArray;
-import jdk.internal.value.ValueClass;
 import sun.reflect.misc.ReflectUtil;
 
 /**
@@ -413,7 +415,7 @@ public final class ObjectStreamClass implements Serializable {
                         canonicalCtr = canonicalRecordCtr(cl);
                         deserializationCtrs = new DeserializationConstructorsCache();
                     } else if (isValue) {
-                        // Value objects are created using Unsafe.
+                        // Value object instance creation is specialized in newInstance()
                         cons = null;
                     } else if (externalizable) {
                         cons = getExternalizableConstructor(cl);
@@ -467,6 +469,10 @@ public final class ObjectStreamClass implements Serializable {
             }
         }
         initialized = true;
+
+        if (SerializationMisdeclarationEvent.enabled() && serializable) {
+            SerializationMisdeclarationChecker.checkMisdeclarations(cl);
+        }
     }
 
     /**
@@ -960,12 +966,13 @@ public final class ObjectStreamClass implements Serializable {
      * be instantiated by the serialization runtime--i.e., if it is
      * externalizable and defines a public no-arg constructor, if it is
      * non-externalizable and its first non-serializable superclass defines an
-     * accessible no-arg constructor, or if the class is a value class.
+     * accessible no-arg constructor, or if the class is a migrated value class.
      * Otherwise, returns false.
      */
     boolean isInstantiable() {
         requireInitialized();
-        return (cons != null | isValue);
+        return (cons != null |
+                (isValue && cl != null && cl.isAnnotationPresent(jdk.internal.MigratedValueClass.class)));
     }
 
     /**
@@ -2106,7 +2113,7 @@ public final class ObjectStreamClass implements Serializable {
                 Field f = fields[i].getField();
                 vals[offsets[i]] = switch (typeCodes[i]) {
                     case 'L', '[' ->
-                            UNSAFE.isFlattened(f)
+                            UNSAFE.isFlatField(f)
                                     ? UNSAFE.getValue(obj, readKeys[i], f.getType())
                                     : UNSAFE.getReference(obj, readKeys[i]);
                     default       -> throw new InternalError();
@@ -2159,7 +2166,7 @@ public final class ObjectStreamClass implements Serializable {
                                 obj.getClass().getName());
                         }
                         if (!dryRun) {
-                            if (UNSAFE.isFlattened(f)) {
+                            if (UNSAFE.isFlatField(f)) {
                                 UNSAFE.putValue(obj, key, f.getType(), val);
                             } else {
                                 UNSAFE.putReference(obj, key, val);

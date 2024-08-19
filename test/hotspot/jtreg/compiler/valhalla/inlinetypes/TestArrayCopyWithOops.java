@@ -26,26 +26,18 @@
  * @bug 8252506
  * @summary Verify that arraycopy intrinsics properly handle flat value class arrays with oop fields.
  * @library /test/lib
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestArrayCopyWithOops.java
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
+ * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch -XX:FlatArrayElementMaxSize=0
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
- * @run main/othervm -XX:+EnableValhalla
- *                   --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *                   --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
+ * @run main/othervm compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */
 
 package compiler.valhalla.inlinetypes;
@@ -141,11 +133,8 @@ public class TestArrayCopyWithOops {
 
     // Arrays.copyOf tests
 
-    // TODO 8325106 test9/test11 and test10/test12 are equivalent
-    // Using ManyOops[].class in both test9/11 and running with -XX:+IgnoreUnrecognizedVMOptions -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline triggers an exception
     static Object[] test9() {
-        ManyOops[] src = createValueClassArray();
-        return Arrays.copyOf(src, LEN, src.getClass());
+        return Arrays.copyOf(createValueClassArray(), LEN, ManyOops[].class);
     }
 
     static Object[] test10() {
@@ -158,7 +147,8 @@ public class TestArrayCopyWithOops {
     }
 
     static Object[] test12() {
-        return Arrays.copyOf(createObjectArray(), LEN, Object[].class);
+        Object[] src = createObjectArray();
+        return Arrays.copyOf(createObjectArray(), LEN, src.getClass());
     }
 
     // System.arraycopy test using generic_copy stub

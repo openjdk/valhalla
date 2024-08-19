@@ -27,6 +27,7 @@
  * @test
  * @bug 8156486
 #if[Value]
+ * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
 #end[Value]
  * @run testng/othervm VarHandleTestMethodType$Type$

@@ -40,14 +40,17 @@ private:
   Value            _obj;
   ciInstanceKlass* _holder;
   int              _offset;
-public:
-  DelayedFieldAccess(Value obj, ciInstanceKlass* holder, int offset)
-  : _obj(obj), _holder(holder) , _offset(offset) { }
+  ValueStack*      _state_before;
 
-  Value obj() const               { return _obj; }
+public:
+  DelayedFieldAccess(Value obj, ciInstanceKlass* holder, int offset, ValueStack* state_before)
+  : _obj(obj), _holder(holder) , _offset(offset), _state_before(state_before) { }
+
+  Value obj() const { return _obj; }
   ciInstanceKlass* holder() const { return _holder; }
-  int offset() const              { return _offset; }
-  void inc_offset(int offset)     { _offset += offset; }
+  int offset() const { return _offset; }
+  void inc_offset(int offset) { _offset += offset; }
+  ValueStack* state_before() const { return _state_before; }
 };
 
 class GraphBuilder {

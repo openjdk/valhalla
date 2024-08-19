@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,9 @@
  * @test
  * @summary Test reflection and method handle on accessing a field of a null-restricted value class
  *          that may be flattened or non-flattened
- * @run junit/othervm -XX:+EnableValhalla NullRestrictedTest
- * @run junit/othervm -XX:+EnableValhalla -XX:InlineFieldMaxFlatSize=0 NullRestrictedTest
+ * @enablePreview
+ * @run junit/othervm NullRestrictedTest
+ * @run junit/othervm -XX:InlineFieldMaxFlatSize=0 NullRestrictedTest
  */
 
 import java.lang.invoke.MethodHandles;

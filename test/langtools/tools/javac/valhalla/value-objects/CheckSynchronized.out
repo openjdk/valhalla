@@ -4,4 +4,6 @@ CheckSynchronized.java:12:9: compiler.err.type.found.req: CheckSynchronized, (co
 CheckSynchronized.java:15:9: compiler.err.type.found.req: CheckSynchronized, (compiler.misc.type.req.identity)
 CheckSynchronized.java:19:9: compiler.err.type.found.req: CheckSynchronized, (compiler.misc.type.req.identity)
 CheckSynchronized.java:23:9: compiler.err.type.found.req: int, (compiler.misc.type.req.identity)
+- compiler.note.preview.filename: CheckSynchronized.java, DEFAULT
+- compiler.note.preview.recompile
 6 errors

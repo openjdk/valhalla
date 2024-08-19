@@ -25,6 +25,7 @@
 
 /*
  * @test
+ * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
  * @comment Set CompileThresholdScaling to 0.1 so that the warmup loop sets to 2000 iterations
  *          to hit compilation thresholds

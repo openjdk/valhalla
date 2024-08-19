@@ -22,7 +22,9 @@
  */
 
 // key: compiler.err.value.class.with.implicit.declares.init.block
-// options: -XDenableNullRestrictedTypes
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes
 
 value class ValueClassWithImplicitCantDeclareInitBlock {
     int i;

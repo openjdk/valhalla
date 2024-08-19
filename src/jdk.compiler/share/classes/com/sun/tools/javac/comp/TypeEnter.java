@@ -921,7 +921,7 @@ public class TypeEnter implements Completer {
                             !supClass.isPermittedExplicit &&
                             supClassEnv != null &&
                             supClassEnv.toplevel == baseEnv.toplevel) {
-                            supClass.permitted = supClass.permitted.append(sym);
+                            supClass.addPermittedSubclass(sym, tree.pos);
                         }
                     }
                 }
@@ -934,7 +934,7 @@ public class TypeEnter implements Completer {
                     Type pt = attr.attribBase(permitted, baseEnv, false, false, false);
                     permittedSubtypeSymbols.append(pt.tsym);
                 }
-                sym.permitted = permittedSubtypeSymbols.toList();
+                sym.setPermittedSubclasses(permittedSubtypeSymbols.toList());
             }
         }
     }

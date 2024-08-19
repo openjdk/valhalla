@@ -25,12 +25,8 @@
  * @test
  * @bug 8161013
  * @summary Verify that anonymous class binaries have the correct flags set
- * @modules java.base/jdk.internal.classfile
- *          java.base/jdk.internal.classfile.attribute
- *          java.base/jdk.internal.classfile.constantpool
- *          java.base/jdk.internal.classfile.instruction
- *          java.base/jdk.internal.classfile.components
- *          java.base/jdk.internal.classfile.impl
+ * @enablePreview
+ * @modules java.base/jdk.internal.classfile.impl
  * @run main AnonymousClassFlags
  */
 
@@ -38,9 +34,9 @@ import java.util.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import jdk.internal.classfile.*;
-import jdk.internal.classfile.attribute.InnerClassInfo;
-import jdk.internal.classfile.attribute.InnerClassesAttribute;
+import java.lang.classfile.*;
+import java.lang.classfile.attribute.InnerClassInfo;
+import java.lang.classfile.attribute.InnerClassesAttribute;
 
 public class AnonymousClassFlags {
     public static void main(String[] args) throws Exception {
@@ -53,12 +49,12 @@ public class AnonymousClassFlags {
     // ******* TEST CASES ********
 
     static Object o1 = new Object() {
-        { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
+        { anonClasses.put(getClass().getName(), ClassFile.ACC_IDENTITY); }
     };
 
     static void staticMethod() {
         Object o2 = new Object() {
-            { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
+            { anonClasses.put(getClass().getName(), ClassFile.ACC_IDENTITY); }
         };
     }
 
@@ -66,17 +62,17 @@ public class AnonymousClassFlags {
         staticMethod();
 
         Object o3 = new Object() {
-            { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
+            { anonClasses.put(getClass().getName(), ClassFile.ACC_IDENTITY); }
         };
     }
 
     Object o4 = new Object() {
-        { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
+        { anonClasses.put(getClass().getName(), ClassFile.ACC_IDENTITY); }
     };
 
     void instanceMethod() {
         Object o5 = new Object() {
-            { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
+            { anonClasses.put(getClass().getName(), ClassFile.ACC_IDENTITY); }
         };
     }
 
@@ -84,7 +80,7 @@ public class AnonymousClassFlags {
         instanceMethod();
 
         Object o6 = new Object() {
-            { anonClasses.put(getClass().getName(), Classfile.ACC_IDENTITY); }
+            { anonClasses.put(getClass().getName(), ClassFile.ACC_IDENTITY); }
         };
     }
 
@@ -95,10 +91,10 @@ public class AnonymousClassFlags {
         instanceMethod();
 
         Path outerFile = Paths.get(classesDir, getClass().getName() + ".class");
-        ClassModel outerClass = Classfile.of().parse(outerFile);
+        ClassModel outerClass = ClassFile.of().parse(outerFile);
         for (Map.Entry<String,Integer> entry : anonClasses.entrySet()) {
             Path innerFile = Paths.get(classesDir, entry.getKey() + ".class");
-            ClassModel innerClass = Classfile.of().parse(innerFile);
+            ClassModel innerClass = ClassFile.of().parse(innerFile);
             String name = entry.getKey();
             int expected = entry.getValue();
             assertInnerFlags(outerClass, name, expected);
@@ -108,8 +104,8 @@ public class AnonymousClassFlags {
     }
 
     static void assertClassFlags(ClassModel classFile, String name, int expected) {
-        int mask = Classfile.ACC_PUBLIC | Classfile.ACC_FINAL | Classfile.ACC_INTERFACE | Classfile.ACC_ABSTRACT |
-                   Classfile.ACC_SYNTHETIC | Classfile.ACC_ANNOTATION | Classfile.ACC_ENUM | Classfile.ACC_IDENTITY;
+        int mask = ClassFile.ACC_PUBLIC | ClassFile.ACC_FINAL | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT |
+                   ClassFile.ACC_SYNTHETIC | ClassFile.ACC_ANNOTATION | ClassFile.ACC_ENUM | ClassFile.ACC_IDENTITY;
         int classExpected = (expected & mask);
         int classActual = classFile.flags().flagsMask();
         if (classActual != classExpected) {

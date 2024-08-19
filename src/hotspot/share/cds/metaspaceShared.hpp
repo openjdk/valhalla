@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,7 @@ class MetaspaceShared : AllStatic {
   static intx _relocation_delta;
   static char* _requested_base_address;
   static bool _use_optimized_module_handling;
+
  public:
   enum {
     // core archive spaces
@@ -72,7 +73,7 @@ class MetaspaceShared : AllStatic {
 
 private:
   static void preload_and_dump_impl(TRAPS) NOT_CDS_RETURN;
-  static void preload_classes(TRAPS) NOT_CDS_RETURN;
+  static void loadable_descriptors(TRAPS) NOT_CDS_RETURN;
 
 public:
   static Symbol* symbol_rs_base() {

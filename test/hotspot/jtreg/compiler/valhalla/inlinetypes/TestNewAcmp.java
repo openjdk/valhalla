@@ -25,10 +25,10 @@
  * @test TestNewAcmp
  * @summary Verifies correctness of the acmp bytecode with value object operands.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @compile TestNewAcmp.java
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -XX:+EnableValhalla
- *                               -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.inlinetypes.TestNewAcmp
  */
 
@@ -54,8 +54,7 @@ interface MyInterface {
 
 }
 
-abstract class MyAbstract implements MyInterface {
-
+abstract value class MyAbstract implements MyInterface {
 
 }
 
@@ -1868,7 +1867,7 @@ public class TestNewAcmp {
 
     private static void enumerateVMOptions() throws Exception {
         String[] baseOptions = {
-            "-XX:+EnableValhalla",
+            "--enable-preview",
             "-Xbootclasspath/a:.",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+WhiteBoxAPI",
@@ -1902,7 +1901,7 @@ public class TestNewAcmp {
                     continue;
                 }
 
-                OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
+                OutputAnalyzer oa = ProcessTools.executeTestJava(cmds);
                 String output = oa.getOutput();
                 oa.shouldHaveExitValue(0);
                 System.out.println(output);

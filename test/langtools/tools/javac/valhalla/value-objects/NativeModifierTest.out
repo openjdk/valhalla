@@ -1,3 +1,0 @@
-NativeModifierTest.java:8:15: compiler.err.mod.not.allowed.here: native
-NativeModifierTest.java:10:19: compiler.err.mod.not.allowed.here: native
-2 errors

@@ -22,7 +22,9 @@
  */
 
 // key: compiler.err.implicit.const.must.be.public
-// options: -XDenableNullRestrictedTypes
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes
 
 value class ImplicitMustBePublic {
     implicit ImplicitMustBePublic();

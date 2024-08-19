@@ -126,6 +126,10 @@ class ReflectAccess implements jdk.internal.access.JavaLangReflectAccess {
         return f.isTrustedFinal();
     }
 
+    public boolean isNullRestrictedField(Field f) {
+        return f.isNullRestricted();
+    }
+
     public <T> T newInstance(Constructor<T> ctor, Object[] args, Class<?> caller)
         throws IllegalAccessException, InstantiationException, InvocationTargetException
     {

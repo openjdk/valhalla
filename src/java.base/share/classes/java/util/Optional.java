@@ -58,6 +58,7 @@ import java.util.stream.Stream;
  * @param <T> the type of value
  * @since 1.8
  */
+@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
 public final class Optional<T> {
     /**

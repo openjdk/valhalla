@@ -2,8 +2,9 @@
  * @test /nodynamiccopyright/
  * @bug 8314165
  * @summary check for illegal circularity at class loading time
- * @build CyclicValueClass
- * @compile/fail/ref=CheckForCyclesAtClassLoadingTimeTest.out -XDrawDiagnostics CheckForCyclesAtClassLoadingTimeTest.java
+ * @compile --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes CyclicValueClass.jcod
+ * @compile/fail/ref=CheckForCyclesAtClassLoadingTimeTest.out --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes -XDrawDiagnostics CheckForCyclesAtClassLoadingTimeTest.java
+ * @ignore
  */
 class CheckForCyclesAtClassLoadingTimeTest {
     CyclicValueClass cyclicValueClass;

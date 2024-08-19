@@ -25,22 +25,19 @@
  * @test
  * @bug 8270995
  * @summary Membars of non-escaping value class buffer allocations should be removed.
- * @library /test/lib
- * @compile TestUnexpectedMemBar.java
- * @run main/othervm -XX:+EnableValhalla
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @library /test/lib /
+ * @enablePreview
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-TieredCompilation -XX:-ReduceInitialCardMarks
  *                   -XX:+AlwaysIncrementalInline -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM -XX:StressSeed=851121348
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar
- * @run main/othervm -XX:+EnableValhalla
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-TieredCompilation -XX:-ReduceInitialCardMarks -XX:+AlwaysIncrementalInline
  *                   -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar
- * @run main/othervm -XX:+EnableValhalla
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar
@@ -50,7 +47,7 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-value class MyValue {
+value class MyValue1 {
     int a = 0;
     int b = 0;
     int c = 0;
@@ -60,8 +57,24 @@ value class MyValue {
     Integer i;
     int[] array;
 
-    public MyValue(Integer i, int[] array) {
+    public MyValue1(Integer i, int[] array) {
         this.i = i;
+        this.array = array;
+    }
+}
+
+value class MyValue2 {
+    int a = 0;
+    int b = 0;
+    int c = 0;
+    int d = 0;
+    int e = 0;
+
+    NonValueClass obj;
+    int[] array;
+
+    public MyValue2(NonValueClass obj, int[] array) {
+        this.obj = obj;
         this.array = array;
     }
 }
@@ -70,16 +83,30 @@ public class TestUnexpectedMemBar {
 
     public static int test1(Integer i) {
         int[] array = new int[1];
-        MyValue vt = new MyValue(i, array);
-        vt = new MyValue(vt.i, vt.array);
+        MyValue1 vt = new MyValue1(i, array);
+        vt = new MyValue1(vt.i, vt.array);
         return vt.i + vt.array[0];
     }
 
     public static int test2(Integer i) {
         int[] array = {i};
-        MyValue vt = new MyValue(i, array);
-        vt = new MyValue(vt.i, vt.array);
+        MyValue1 vt = new MyValue1(i, array);
+        vt = new MyValue1(vt.i, vt.array);
         return vt.i + vt.array[0];
+    }
+
+    public static int test3(NonValueClass obj) {
+        int[] array = new int[1];
+        MyValue2 vt = new MyValue2(obj, array);
+        vt = new MyValue2(vt.obj, vt.array);
+        return vt.obj.x + vt.array[0];
+    }
+
+    public static int test4(NonValueClass obj) {
+        int[] array = {obj.x};
+        MyValue2 vt = new MyValue2(obj, array);
+        vt = new MyValue2(vt.obj, vt.array);
+        return vt.obj.x + vt.array[0];
     }
 
     public static void main(String[] args) {
@@ -88,6 +115,10 @@ public class TestUnexpectedMemBar {
             Asserts.assertEquals(res, i, "test1 failed");
             res = test2(i);
             Asserts.assertEquals(res, 2*i, "test2 failed");
+            res = test3(new NonValueClass(i));
+            Asserts.assertEquals(res, i, "test3 failed");
+            res = test4(new NonValueClass(i));
+            Asserts.assertEquals(res, 2*i, "test4 failed");
         }
     }
 }

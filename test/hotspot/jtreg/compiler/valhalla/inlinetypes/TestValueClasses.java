@@ -26,14 +26,12 @@ package compiler.valhalla.inlinetypes;
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 import jdk.experimental.bytecode.TypeTag;
-import test.java.lang.invoke.lib.OldInstructionHelper;
 
 import java.lang.reflect.Method;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
@@ -43,13 +41,12 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @test
  * @key randomness
  * @summary Test correct handling of value classes.
- * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
- * @compile --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED
- *          --add-exports java.base/jdk.internal.value=ALL-UNNAMED TestValueClasses.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla compiler.valhalla.inlinetypes.TestValueClasses
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestValueClasses
  */
 
 @ForceCompileClassInitializer
@@ -532,9 +529,9 @@ public class TestValueClasses {
     // Test that calling convention optimization prevents buffering of arguments
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " = 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation
+        counts = {ALLOC_G, " <= 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the default value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " = 8"}) // 1 MyValueClass1 allocation + 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation
+        counts = {ALLOC_G, " <= 8"}) // 1 MyValueClass1 allocation + 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the default value)
     public MyValueClass1 test15(MyValueClass1 vt) {
         MyValueClass1 res = test15_helper1(vt);
         vt = MyValueClass1.createWithFieldsInline(rI, rL);
@@ -569,9 +566,9 @@ public class TestValueClasses {
     // Test that calling convention optimization prevents buffering of return values
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        counts = {ALLOC_G, " = 1"}) // 1 MyValueClass2Inline allocation
+        counts = {ALLOC_G, " <= 1"}) // 1 MyValueClass2Inline allocation (if not the default value)
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " = 2"}) // 1 MyValueClass2 + 1 MyValueClass2Inline allocation
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValueClass2 + 1 MyValueClass2Inline allocation  (if not the default value)
     public MyValueClass2 test16(int c, boolean b) {
         MyValueClass2 res = null;
         if (c == 1) {

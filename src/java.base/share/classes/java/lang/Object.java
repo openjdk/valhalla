@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,21 +27,15 @@ package java.lang;
 
 import jdk.internal.misc.Blocker;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
-import jdk.internal.access.SharedSecrets;
-
-import java.util.Objects;
 
 /**
  * Class {@code Object} is the root of the class hierarchy.
  * Every class has {@code Object} as a superclass. All objects,
  * including arrays, implement the methods of this class.
  * <p>
- * Subclasses of {@code java.lang.Object} can be either {@linkplain Class#isIdentity()
- * identity classes} or {@linkplain Class#isValue value classes}.
- * The class {@code Object} itself is neither an identity class nor a value class.
- * See {@jls The Java Language Specification  8.1.1.5 identity and value Classes}.
- * An instance can be created with {@code new Object()}, those instances are
- * {@link Objects#isIdentityObject(Object) an identity object}.
+ * Subclasses of {@code java.lang.Object} can be either an {@linkplain Class#isIdentity identity class}
+ * or a {@linkplain Class#isValue value class}.
+ * See {@jls The Java Language Specification 8.1.1.5 value Classes}.
  *
  * @see     java.lang.Class
  * @since   1.0

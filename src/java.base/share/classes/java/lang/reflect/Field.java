@@ -226,9 +226,7 @@ class Field extends AccessibleObject implements Member {
     public Set<AccessFlag> accessFlags() {
         int major = SharedSecrets.getJavaLangAccess().classFileFormatVersion(getDeclaringClass()) & 0xffff;
         var cffv = ClassFileFormatVersion.fromMajor(major);
-        return AccessFlag.maskToAccessFlags(getModifiers(),
-                AccessFlag.Location.FIELD,
-                cffv);
+        return AccessFlag.maskToAccessFlags(getModifiers(), AccessFlag.Location.FIELD, cffv);
     }
 
     /**

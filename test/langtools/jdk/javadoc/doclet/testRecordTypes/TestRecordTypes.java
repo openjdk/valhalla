@@ -73,7 +73,7 @@ public class TestRecordTypes extends JavadocTester {
                 """
                     <h1 title="Record Class R" class="title">Record Class R</h1>""",
                 """
-                    <span class="modifiers">public identity record </span><span class="element-name type-name-label">R</span>""",
+                    <span class="modifiers">public record </span><span class="element-name type-name-label">R</span>""",
                 """
                     <code><a href="#%3Cinit%3E(int)" class="member-name-link">R</a><wbr>(int&nbsp;r1)</code>""");
     }
@@ -94,7 +94,7 @@ public class TestRecordTypes extends JavadocTester {
                 """
                     <h1 title="Record Class R" class="title">Record Class R</h1>""",
                 """
-                    <span class="modifiers">public identity record </span><span class="element-name type-name-label">R</span>""",
+                    <span class="modifiers">public record </span><span class="element-name type-name-label">R</span>""",
                 """
                     <code><a href="#%3Cinit%3E(int)" class="member-name-link">R</a><wbr>(int&nbsp;r1)</code>""");
     }
@@ -115,7 +115,7 @@ public class TestRecordTypes extends JavadocTester {
                 """
                     <h1 title="Record Class R" class="title">Record Class R</h1>""",
                 """
-                    <span class="modifiers">public identity record </span><span class="element-name type-name-label">R</span>""",
+                    <span class="modifiers">public record </span><span class="element-name type-name-label">R</span>""",
                 """
                     <code><a href="#%3Cinit%3E()" class="member-name-link">R</a>()</code>""");
     }
@@ -140,7 +140,7 @@ public class TestRecordTypes extends JavadocTester {
                 """
                     <h1 title="Record Class R" class="title">Record Class R</h1>""",
                 """
-                    <span class="modifiers">public identity record </span><span class="element-name type-name-label">R</span>""",
+                    <span class="modifiers">public record </span><span class="element-name type-name-label">R</span>""",
                 """
                     <dl class="notes">
                     <dt>Record Components:</dt>
@@ -171,7 +171,7 @@ public class TestRecordTypes extends JavadocTester {
                 """
                     <h1 title="Record Class R" class="title">Record Class R&lt;T&gt;</h1>""",
                 """
-                    <span class="modifiers">public identity record </span><span class="element-name type-name-label">R&lt;T&gt;</span>""",
+                    <span class="modifiers">public record </span><span class="element-name type-name-label">R&lt;T&gt;</span>""",
                 """
                     <dl class="notes">
                     <dt>Type Parameters:</dt>
@@ -469,7 +469,7 @@ public class TestRecordTypes extends JavadocTester {
 
         checkOutput("p/R.html", true,
                 """
-                    <div class="type-signature"><span class="modifiers">public identity record </span><span c\
+                    <div class="type-signature"><span class="modifiers">public record </span><span c\
                     lass="element-name type-name-label">R</span>("""
                         + rcAnno
                         + """

@@ -21,17 +21,10 @@
  * questions.
  */
 
-<<<<<<<< HEAD:test/langtools/tools/javac/diags/examples/CantImplementInterface.java
-// key: compiler.err.cant.implement.interface
-// options: -XDenableNullRestrictedTypes
-
-class CantImplementInterface implements LooselyConsistentValue {
-========
 // key: compiler.err.call.must.only.appear.in.ctor
 
 class CallOnlyInConstructor {
     void foo() {
         super();
     }
->>>>>>>> lworld:test/langtools/tools/javac/diags/examples/CallOnlyInConstructor.java
 }

@@ -25,6 +25,7 @@
  * @test
  * @bug     8042239
  * @summary Verify that TreeMaker.Type(Type) can handle all reasonable types
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.code

@@ -55,8 +55,6 @@
 
 // Forward declarations.
 class OopClosure;
-class FilteringClosure;
-
 class PSPromotionManager;
 class ParCompactionManager;
 

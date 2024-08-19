@@ -116,17 +116,17 @@ public class TestSealed extends TestRunner {
                 "- compiler.note.proc.messager:     this class has: 2, permitted subclasses",
                 "- compiler.note.proc.messager:     permitted subclass: NonSealedClass1",
                 "- compiler.note.proc.messager:     permitted subclass: SealedClass",
-                "- compiler.note.proc.messager: visiting: NonSealedClass1 Modifiers: [non-sealed, identity]",
+                "- compiler.note.proc.messager: visiting: NonSealedClass1 Modifiers: [non-sealed]",
                 "- compiler.note.proc.messager:     this class has: 0, permitted subclasses",
-                "- compiler.note.proc.messager: visiting: SealedClass Modifiers: [sealed, identity]",
+                "- compiler.note.proc.messager: visiting: SealedClass Modifiers: [sealed]",
                 "- compiler.note.proc.messager:     this class has: 2, permitted subclasses",
                 "- compiler.note.proc.messager:     permitted subclass: FinalClass",
                 "- compiler.note.proc.messager:     permitted subclass: NonSealedClass2",
-                "- compiler.note.proc.messager: visiting: FinalClass Modifiers: [identity, final]",
+                "- compiler.note.proc.messager: visiting: FinalClass Modifiers: [final]",
                 "- compiler.note.proc.messager:     this class has: 0, permitted subclasses",
-                "- compiler.note.proc.messager: visiting: NonSealedClass2 Modifiers: [non-sealed, identity]",
+                "- compiler.note.proc.messager: visiting: NonSealedClass2 Modifiers: [non-sealed]",
                 "- compiler.note.proc.messager:     this class has: 0, permitted subclasses",
-                "- compiler.note.proc.messager: visiting: ClassOutOfSealedHierarchy Modifiers: [identity]",
+                "- compiler.note.proc.messager: visiting: ClassOutOfSealedHierarchy Modifiers: []",
                 "- compiler.note.proc.messager:     this class has: 0, permitted subclasses"
         );
 

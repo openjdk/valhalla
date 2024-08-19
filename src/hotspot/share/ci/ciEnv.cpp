@@ -122,7 +122,6 @@ ciEnv::ciEnv(CompileTask* task)
   _oop_recorder = nullptr;
   _debug_info = nullptr;
   _dependencies = nullptr;
-  _failure_reason = nullptr;
   _inc_decompile_count_on_failure = true;
   _compilable = MethodCompilable;
   _break_at_compile = false;
@@ -251,7 +250,6 @@ ciEnv::ciEnv(Arena* arena) : _ciEnv_arena(mtCompiler) {
   _oop_recorder = nullptr;
   _debug_info = nullptr;
   _dependencies = nullptr;
-  _failure_reason = nullptr;
   _inc_decompile_count_on_failure = true;
   _compilable = MethodCompilable_never;
   _break_at_compile = false;
@@ -542,11 +540,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != nullptr && elem_klass->is_loaded()) {
       // Now make an array for it
-      // JEP 401 doesn't provide static information about null-freeness,
-      // This code should be revisited or removed: JDK-8325660
-      bool null_free_array = false;
-      // bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
-      return ciArrayKlass::make(elem_klass, null_free_array);
+      return ciArrayKlass::make(elem_klass);
     }
   }
 
@@ -1153,17 +1147,15 @@ void ciEnv::register_method(ciMethod* target,
 #endif
 
       if (entry_bci == InvocationEntryBci) {
-        if (TieredCompilation) {
-          // If there is an old version we're done with it
-          CompiledMethod* old = method->code();
-          if (TraceMethodReplacement && old != nullptr) {
-            ResourceMark rm;
-            char *method_name = method->name_and_sig_as_C_string();
-            tty->print_cr("Replacing method %s", method_name);
-          }
-          if (old != nullptr) {
-            old->make_not_used();
-          }
+        // If there is an old version we're done with it
+        CompiledMethod* old = method->code();
+        if (TraceMethodReplacement && old != nullptr) {
+          ResourceMark rm;
+          char *method_name = method->name_and_sig_as_C_string();
+          tty->print_cr("Replacing method %s", method_name);
+        }
+        if (old != nullptr) {
+          old->make_not_used();
         }
 
         LogTarget(Info, nmethod, install) lt;
@@ -1243,9 +1235,9 @@ int ciEnv::num_inlined_bytecodes() const {
 // ------------------------------------------------------------------
 // ciEnv::record_failure()
 void ciEnv::record_failure(const char* reason) {
-  if (_failure_reason == nullptr) {
+  if (_failure_reason.get() == nullptr) {
     // Record the first failure reason.
-    _failure_reason = reason;
+    _failure_reason.set(reason);
   }
 }
 
@@ -1275,7 +1267,7 @@ void ciEnv::record_method_not_compilable(const char* reason, bool all_tiers) {
     _compilable = new_compilable;
 
     // Reset failure reason; this one is more important.
-    _failure_reason = nullptr;
+    _failure_reason.clear();
     record_failure(reason);
   }
 }

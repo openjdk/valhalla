@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -437,10 +437,16 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   }
   InstanceKlass* ik = InstanceKlass::cast(klass);
   if (!ik->is_implicitly_constructible()) {
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not annotated with @ImplicitlyConstructible");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
   }
   oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
+JVM_END
+
+
+JVM_ENTRY(jboolean, JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj))
+  arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
+  return oop->is_null_free_array();
 JVM_END
 
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
@@ -714,11 +720,16 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   // All arrays are considered to be cloneable (See JLS 20.1.5).
   // All j.l.r.Reference classes are considered non-cloneable.
   if (!klass->is_cloneable() ||
-       klass->is_inline_klass() ||
       (klass->is_instance_klass() &&
        InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
     ResourceMark rm(THREAD);
     THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
+  }
+
+  if (klass->is_inline_klass()) {
+    // Value instances have no identity, so return the current instance instead of allocating a new one
+    // Value classes cannot have finalizers, so the method can return immediately
+    return JNIHandles::make_local(THREAD, obj());
   }
 
   // Make shallow object copy
@@ -2706,7 +2717,7 @@ JVM_END
 JVM_ENTRY(jint, JVM_GetFieldIxModifiers(JNIEnv *env, jclass cls, int field_index))
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls));
   k = JvmtiThreadState::class_to_verify_considering_redefinition(k, thread);
-  return InstanceKlass::cast(k)->field_access_flags(field_index) & JVM_RECOGNIZED_FIELD_MODIFIERS;
+  return InstanceKlass::cast(k)->field_access_flags(field_index);
 JVM_END
 
 
@@ -2896,7 +2907,7 @@ JVM_ENTRY(jint, JVM_GetCPFieldModifiers(JNIEnv *env, jclass cls, int cp_index, j
       InstanceKlass* ik = InstanceKlass::cast(k_called);
       for (JavaFieldStream fs(ik); !fs.done(); fs.next()) {
         if (fs.name() == name && fs.signature() == signature) {
-          return fs.access_flags().as_short() & JVM_RECOGNIZED_FIELD_MODIFIERS;
+          return fs.access_flags().as_short();
         }
       }
       return -1;
@@ -3691,12 +3702,6 @@ JVM_ENTRY(jobject, JVM_NewInstanceFromConstructor(JNIEnv *env, jobject c, jobjec
   return res;
 JVM_END
 
-// Atomic ///////////////////////////////////////////////////////////////////////////////////////////
-
-JVM_LEAF(jboolean, JVM_SupportsCX8())
-  return VM_Version::supports_cx8();
-JVM_END
-
 JVM_ENTRY(void, JVM_InitializeFromArchive(JNIEnv* env, jclass cls))
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
   assert(k->is_klass(), "just checking");
@@ -3799,14 +3804,6 @@ JVM_ENTRY(jclass, JVM_LookupLambdaProxyClassFromArchive(JNIEnv* env,
 #endif // INCLUDE_CDS
 JVM_END
 
-JVM_LEAF(jboolean, JVM_IsCDSDumpingEnabled(JNIEnv* env))
-  return CDSConfig::is_dumping_archive();
-JVM_END
-
-JVM_LEAF(jboolean, JVM_IsSharingEnabled(JNIEnv* env))
-  return UseSharedSpaces;
-JVM_END
-
 JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
   if (CDSConfig::is_dumping_static_archive()) {
     // We do this so that the default CDS archive can be deterministic.
@@ -3830,17 +3827,13 @@ JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
   }
 JVM_END
 
-JVM_LEAF(jboolean, JVM_IsDumpingClassList(JNIEnv *env))
-#if INCLUDE_CDS
-  return ClassListWriter::is_enabled() || CDSConfig::is_dumping_dynamic_archive();
-#else
-  return false;
-#endif // INCLUDE_CDS
+JVM_ENTRY_NO_ENV(jint, JVM_GetCDSConfigStatus())
+  return CDSConfig::get_status();
 JVM_END
 
 JVM_ENTRY(void, JVM_LogLambdaFormInvoker(JNIEnv *env, jstring line))
 #if INCLUDE_CDS
-  assert(ClassListWriter::is_enabled() || CDSConfig::is_dumping_dynamic_archive(),  "Should be set and open or do dynamic dump");
+  assert(CDSConfig::is_logging_lambda_form_invokers(), "sanity");
   if (line != nullptr) {
     ResourceMark rm(THREAD);
     Handle h_line (THREAD, JNIHandles::resolve_non_null(line));
@@ -4044,8 +4037,6 @@ JVM_ENTRY(void, JVM_VirtualThreadStart(JNIEnv* env, jobject vthread))
     // set VTMS transition bit value in JavaThread and java.lang.VirtualThread object
     JvmtiVTMSTransitionDisabler::set_is_in_VTMS_transition(thread, vthread, false);
   }
-#else
-  fatal("Should only be called with JVMTI enabled");
 #endif
 JVM_END
 
@@ -4061,8 +4052,6 @@ JVM_ENTRY(void, JVM_VirtualThreadEnd(JNIEnv* env, jobject vthread))
     // set VTMS transition bit value in JavaThread and java.lang.VirtualThread object
     JvmtiVTMSTransitionDisabler::set_is_in_VTMS_transition(thread, vthread, true);
   }
-#else
-  fatal("Should only be called with JVMTI enabled");
 #endif
 JVM_END
 
@@ -4080,8 +4069,6 @@ JVM_ENTRY(void, JVM_VirtualThreadMount(JNIEnv* env, jobject vthread, jboolean hi
     // set VTMS transition bit value in JavaThread and java.lang.VirtualThread object
     JvmtiVTMSTransitionDisabler::set_is_in_VTMS_transition(thread, vthread, hide);
   }
-#else
-  fatal("Should only be called with JVMTI enabled");
 #endif
 JVM_END
 
@@ -4099,13 +4086,11 @@ JVM_ENTRY(void, JVM_VirtualThreadUnmount(JNIEnv* env, jobject vthread, jboolean 
     // set VTMS transition bit value in JavaThread and java.lang.VirtualThread object
     JvmtiVTMSTransitionDisabler::set_is_in_VTMS_transition(thread, vthread, hide);
   }
-#else
-  fatal("Should only be called with JVMTI enabled");
 #endif
 JVM_END
 
 // Always update the temporary VTMS transition bit.
-JVM_ENTRY(void, JVM_VirtualThreadHideFrames(JNIEnv* env, jobject vthread, jboolean hide))
+JVM_ENTRY(void, JVM_VirtualThreadHideFrames(JNIEnv* env, jclass clazz, jboolean hide))
 #if INCLUDE_JVMTI
   if (!DoJVMTIVirtualThreadTransitions) {
     assert(!JvmtiExport::can_support_virtual_threads(), "sanity check");
@@ -4114,8 +4099,20 @@ JVM_ENTRY(void, JVM_VirtualThreadHideFrames(JNIEnv* env, jobject vthread, jboole
   assert(!thread->is_in_VTMS_transition(), "sanity check");
   assert(thread->is_in_tmp_VTMS_transition() != (bool)hide, "sanity check");
   thread->toggle_is_in_tmp_VTMS_transition();
-#else
-  fatal("Should only be called with JVMTI enabled");
+#endif
+JVM_END
+
+// Notification from VirtualThread about disabling JVMTI Suspend in a sync critical section.
+// Needed to avoid deadlocks with JVMTI suspend mechanism.
+JVM_ENTRY(void, JVM_VirtualThreadDisableSuspend(JNIEnv* env, jclass clazz, jboolean enter))
+#if INCLUDE_JVMTI
+  if (!DoJVMTIVirtualThreadTransitions) {
+    assert(!JvmtiExport::can_support_virtual_threads(), "sanity check");
+    return;
+  }
+  assert(thread->is_disable_suspend() != (bool)enter,
+         "nested or unbalanced monitor enter/exit is not allowed");
+  thread->toggle_is_disable_suspend();
 #endif
 JVM_END
 

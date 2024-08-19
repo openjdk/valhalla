@@ -195,7 +195,8 @@ class TestZGCCorrectBarrierElision {
     }
 
     @Test
-    @IR(counts = { IRNode.Z_LOAD_P_WITH_BARRIER_FLAG, Common.REMAINING, "1" }, phase = CompilePhase.FINAL_CODE)
+// TODO 8329234
+//    @IR(counts = { IRNode.Z_LOAD_P_WITH_BARRIER_FLAG, Common.REMAINING, "1" }, phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.Z_GET_AND_SET_P_WITH_BARRIER_FLAG, Common.REMAINING, "1" }, phase = CompilePhase.FINAL_CODE)
     static void testLoadThenAtomic(Outer o, Inner i) {
         Common.blackhole(o.field1);

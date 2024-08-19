@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,8 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/archiveUtils.hpp"
+#include "cds/cdsConfig.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -55,6 +57,10 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   set_prototype_header(markWord::inline_type_prototype());
   assert(is_inline_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
+}
+
+InlineKlass::InlineKlass() {
+  assert(CDSConfig::is_dumping_archive() || UseSharedSpaces, "only for CDS");
 }
 
 void InlineKlass::init_fixed_block() {
@@ -141,6 +147,11 @@ void InlineKlass::write_flat_field(oop obj, int offset, oop value, TRAPS) {
   if (value == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
+  write_non_null_flat_field(obj, offset, value);
+}
+
+void InlineKlass::write_non_null_flat_field(oop obj, int offset, oop value) {
+  assert(value != nullptr, "");
   if (!is_empty_inline_type()) {
     inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
   }
@@ -153,7 +164,7 @@ bool InlineKlass::flat_array() {
     return false;
   }
   // Too big
-  int elem_bytes = get_exact_size_in_bytes();
+  int elem_bytes = get_payload_size_in_bytes();
   if ((FlatArrayElementMaxSize >= 0) && (elem_bytes > FlatArrayElementMaxSize)) {
     return false;
   }
@@ -174,24 +185,20 @@ bool InlineKlass::flat_array() {
 
 Klass* InlineKlass::value_array_klass(int n, TRAPS) {
   if (Atomic::load_acquire(adr_value_array_klasses()) == nullptr) {
-    ResourceMark rm(THREAD);
-    JavaThread *jt = JavaThread::cast(THREAD);
-    {
-      // Atomic creation of array_klasses
-      MutexLocker ma(THREAD, MultiArray_lock);
+    // Atomic creation of array_klasses
+    RecursiveLocker rl(MultiArray_lock, THREAD);
 
-      // Check if update has already taken place
-      if (value_array_klasses() == nullptr) {
-        ArrayKlass* k;
-        if (flat_array()) {
-          k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
-        } else {
-          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
+    // Check if update has already taken place
+    if (value_array_klasses() == nullptr) {
+      ArrayKlass* k;
+      if (flat_array()) {
+        k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
+      } else {
+        k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
 
-        }
-        // use 'release' to pair with lock-free load
-        Atomic::release_store(adr_value_array_klasses(), k);
       }
+      // use 'release' to pair with lock-free load
+      Atomic::release_store(adr_value_array_klasses(), k);
     }
   }
   ArrayKlass* ak = value_array_klasses();
@@ -308,9 +315,11 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
 void InlineKlass::deallocate_contents(ClassLoaderData* loader_data) {
   if (extended_sig() != nullptr) {
     MetadataFactory::free_array<SigEntry>(loader_data, extended_sig());
+    *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
   }
   if (return_regs() != nullptr) {
     MetadataFactory::free_array<VMRegPair>(loader_data, return_regs());
+    *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
   }
   cleanup_blobs();
   InstanceKlass::deallocate_contents(loader_data);
@@ -513,6 +522,10 @@ void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 void InlineKlass::remove_unshareable_info() {
   InstanceKlass::remove_unshareable_info();
 
+  // update it to point to the "buffered" copy of this class.
+  _adr_inlineklass_fixed_block = inlineklass_static_block();
+  ArchivePtrMarker::mark_pointer((address*)&_adr_inlineklass_fixed_block);
+
   *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
   *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
   *((address*)adr_pack_handler()) = nullptr;
@@ -532,10 +545,6 @@ void InlineKlass::remove_java_mirror() {
 }
 
 void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
-  // We are no longer bookkeeping pointer to fixed block during serialization, hence reinitializing
-  // fixed block address since its size was already accounted by InstanceKlass::size() and it will
-  // anyways be part of shared archive.
-  _adr_inlineklass_fixed_block = inlineklass_static_block();
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
   if (value_array_klasses() != nullptr) {
     value_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
