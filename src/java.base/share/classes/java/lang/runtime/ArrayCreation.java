@@ -74,7 +74,7 @@ public class ArrayCreation {
 
     private static Object makeDefault(RuntimeType<?> componentType, int flags, int length) {
         if (!componentType.baseClass().isPrimitive() && !componentType.canCast(null)) {
-            throw new IllegalArgumentException();
+            throw new AssertionError("unsupported component type: " + componentType);
         }
         return Array.newInstance(componentType.baseClass(), length);
     }
