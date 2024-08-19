@@ -147,56 +147,72 @@ public class ArrayCreation {
     private static Object makeComputed_byte(RuntimeType<?> componentType, int flags,
                                             int length, IntFunction<?> func) {
         byte[] result = new byte[length];
-        IntStream.range(0, length).forEach(i -> result[i] = (byte) func.apply(i));
+        for (int i = 0; i < length; i++) {
+            result[i] = (byte) func.apply(i);
+        }
         return result;
     }
 
     private static Object makeComputed_short(RuntimeType<?> componentType, int flags,
                                               int length, IntFunction<?> func) {
         short[] result = new short[length];
-        IntStream.range(0, length).forEach(i -> result[i] = (short) func.apply(i));
+        for (int i = 0; i < length; i++) {
+            result[i] = (short) func.apply(i);
+        }
         return result;
     }
 
     private static Object makeComputed_int(RuntimeType<?> componentType, int flags,
                                           int length, IntFunction<?> func) {
         int[] result = new int[length];
-        Arrays.setAll(result, i -> (int) func.apply(i));
+        for (int i = 0; i < length; i++) {
+            result[i] = (int) func.apply(i);
+        }
         return result;
     }
 
     private static Object makeComputed_long(RuntimeType<?> componentType, int flags,
                                             int length, IntFunction<?> func) {
         long[] result = new long[length];
-        Arrays.setAll(result, i -> (long) func.apply(i));
+        for (int i = 0; i < length; i++) {
+            result[i] = (long) func.apply(i);
+        }
         return result;
     }
 
     private static Object makeComputed_float(RuntimeType<?> componentType, int flags,
                                               int length, IntFunction<?> func) {
         float[] result = new float[length];
-        IntStream.range(0, length).forEach(i -> result[i] = (float) func.apply(i));
+        for (int i = 0; i < length; i++) {
+            result[i] = (float) func.apply(i);
+        }
         return result;
     }
 
     private static Object makeComputed_double(RuntimeType<?> componentType, int flags,
                                                 int length, IntFunction<?> func) {
         double[] result = new double[length];
-        Arrays.setAll(result, i -> (double) func.apply(i));
+        for (int i = 0; i < length; i++) {
+            result[i] = (double) func.apply(i);
+        }
         return result;
     }
 
     private static Object makeComputed_boolean(RuntimeType<?> componentType, int flags,
                                                   int length, IntFunction<?> func) {
         boolean[] result = new boolean[length];
-        IntStream.range(0, length).forEach(i -> result[i] = (boolean) func.apply(i));
+        for (int i = 0; i < length; i++) {
+            result[i] = (boolean) func.apply(i);
+        }
         return result;
     }
 
     private static Object makeComputed_char(RuntimeType<?> componentType, int flags,
                                             int length, IntFunction<?> func) {
         char[] result = new char[length];
-        IntStream.range(0, length).forEach(i -> result[i] = (char) func.apply(i));
+        for (int i = 0; i < length; i++) {
+            result[i] = (char) func.apply(i);
+        }
         return result;
     }
 
