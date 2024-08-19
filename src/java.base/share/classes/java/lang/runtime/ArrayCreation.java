@@ -436,7 +436,15 @@ public class ArrayCreation {
                                               int flags, Object... values) throws Throwable {
         flags = flags | Modifier.STRICT;
         MethodHandle factory = LOOKUP.findStatic(ArrayCreation.class, "makeCopy", MAKE_COPY_TYPE);
-        factory = insertArguments(factory, 0, componentType, flags, values.length, values, 0);
+        Object src = values;
+        if (componentType.baseClass().isPrimitive()) {
+            // unbox values
+            src = Array.newInstance(componentType.baseClass(), values.length);
+            for (int i = 0; i < values.length; i++) {
+                Array.set(src, i, values[i]);
+            }
+        }
+        factory = insertArguments(factory, 0, componentType, flags, values.length, src, 0);
         return new ConstantCallSite(factory.asType(type));
     }
 
