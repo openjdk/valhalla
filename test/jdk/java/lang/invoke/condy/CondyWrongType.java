@@ -26,7 +26,6 @@
  * @bug 8186046
  * @summary Test bootstrap methods returning the wrong type
  * @library /java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @run testng CondyWrongType
  * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyWrongType

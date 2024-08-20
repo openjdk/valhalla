@@ -179,7 +179,6 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
     // TypeFlow asserted a specific object type.  Value must have that type.
     Node* bad_type_ctrl = nullptr;
     if (tp->is_inlinetypeptr() && !tp->maybe_null()) {
-      // TODO 8325106 Dead code?
       // Check inline types for null here to prevent checkcast from adding an
       // exception state before the bytecode entry (use 'bad_type_ctrl' instead).
       l = null_check_oop(l, &bad_type_ctrl);
@@ -237,10 +236,20 @@ void Parse::load_interpreter_state(Node* osr_buf) {
   Node *monitors_addr = basic_plus_adr(osr_buf, osr_buf, (max_locals+mcnt*2-1)*wordSize);
   for (index = 0; index < mcnt; index++) {
     // Make a BoxLockNode for the monitor.
-    Node *box = new BoxLockNode(next_monitor());
+    BoxLockNode* osr_box = new BoxLockNode(next_monitor());
     // Check for bailout after new BoxLockNode
     if (failing()) { return; }
-    box = _gvn.transform(box);
+
+    // This OSR locking region is unbalanced because it does not have Lock node:
+    // locking was done in Interpreter.
+    // This is similar to Coarsened case when Lock node is eliminated
+    // and as result the region is marked as Unbalanced.
+
+    // Emulate Coarsened state transition from Regular to Unbalanced.
+    osr_box->set_coarsened();
+    osr_box->set_unbalanced();
+
+    Node* box = _gvn.transform(osr_box);
 
     // Displaced headers and locked objects are interleaved in the
     // temp OSR buffer.  We only copy the locked objects out here.
@@ -625,8 +634,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
-      // TODO 8325106 Shouldn't we use replace_in_map here?
-      set_local(i, cast);
+      replace_in_map(parm, cast);
     }
   }
 
@@ -1924,11 +1932,24 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
             const JVMState* jvms = map()->jvms();
             if (EliminateNestedLocks &&
                 jvms->is_mon(j) && jvms->is_monitor_box(j)) {
-              // BoxLock nodes are not commoning.
+              // BoxLock nodes are not commoning when EliminateNestedLocks is on.
               // Use old BoxLock node as merged box.
               assert(newin->jvms()->is_monitor_box(j), "sanity");
               // This assert also tests that nodes are BoxLock.
               assert(BoxLockNode::same_slot(n, m), "sanity");
+              BoxLockNode* old_box = m->as_BoxLock();
+              if (n->as_BoxLock()->is_unbalanced() && !old_box->is_unbalanced()) {
+                // Preserve Unbalanced status.
+                //
+                // `old_box` can have only Regular or Coarsened status
+                // because this code is executed only during Parse phase and
+                // Incremental Inlining before EA and Macro nodes elimination.
+                //
+                // Incremental Inlining is executed after IGVN optimizations
+                // during which BoxLock can be marked as Coarsened.
+                old_box->set_coarsened(); // Verifies state
+                old_box->set_unbalanced();
+              }
               C->gvn_replace_by(n, m);
             } else if (!check_elide_phi || !target->can_elide_SEL_phi(j)) {
               phi = ensure_phi(j, nophi);
@@ -2202,7 +2223,6 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     // Inline types are merged by merging their field values.
     // Create a cloned InlineTypeNode with phi inputs that
     // represents the merged inline type and update the map.
-    // TODO 8325106 Why can't we pass map here?
     vt = vt->clone_with_phis(&_gvn, region);
     map->set_req(idx, vt);
     return vt->get_oop()->as_Phi();
@@ -2379,17 +2399,6 @@ void Parse::return_current(Node* value) {
     call_register_finalizer();
   }
 
-  // Do not set_parse_bci, so that return goo is credited to the return insn.
-  // vreturn can trigger an allocation so vreturn can throw. Setting
-  // the bci here breaks exception handling. Commenting this out
-  // doesn't seem to break anything.
-  //  set_bci(InvocationEntryBci);
-  if (method()->is_synchronized() && GenerateSynchronizationCode) {
-    shared_unlock(_synch_lock->box_node(), _synch_lock->obj_node());
-  }
-  if (C->env()->dtrace_method_probes()) {
-    make_dtrace_method_exit(method());
-  }
   // frame pointer is always same, already captured
   if (value != nullptr) {
     Node* phi = _exits.argument(0);
@@ -2423,6 +2432,15 @@ void Parse::return_current(Node* value) {
     // If returning oops to an interface-return, there is a silent free
     // cast from oop to interface allowed by the Verifier. Make it explicit here.
     phi->add_req(value);
+  }
+
+  // Do not set_parse_bci, so that return goo is credited to the return insn.
+  set_bci(InvocationEntryBci);
+  if (method()->is_synchronized() && GenerateSynchronizationCode) {
+    shared_unlock(_synch_lock->box_node(), _synch_lock->obj_node());
+  }
+  if (C->env()->dtrace_method_probes()) {
+    make_dtrace_method_exit(method());
   }
 
   SafePointNode* exit_return = _exits.map();

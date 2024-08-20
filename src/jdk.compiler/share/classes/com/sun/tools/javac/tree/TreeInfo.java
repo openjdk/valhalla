@@ -208,9 +208,9 @@ public class TreeInfo {
                 Names names = select.name.table.names;
                 return currentClassSym.isSubClass(selectedClassSym, types) &&
                         (select.name == names._super ||
-                                (select.name == names._this &&
-                                        (currentClassSym == selectedClassSym ||
-                                                !currentClassSym.isEnclosedBy(selectedClassSym))));
+                        (select.name == names._this &&
+                            (currentClassSym == selectedClassSym ||
+                            !currentClassSym.isEnclosedBy(selectedClassSym))));
             }
             default:
                 return false;

@@ -252,6 +252,9 @@ public class Symtab {
     public final Type migratedValueClassType;
     public final Type migratedValueClassInternalType;
     public final Type strictType;
+    /** The symbol representing the finalize method on Object */
+    public final MethodSymbol objectFinalize;
+    public final Type numberType;
 
     /** The symbol representing the length field of an array.
      */
@@ -550,6 +553,12 @@ public class Symtab {
 
         // Enter predefined classes. All are assumed to be in the java.base module.
         objectType = enterClass("java.lang.Object");
+        throwableType = enterClass("java.lang.Throwable");
+        objectFinalize = new MethodSymbol(PROTECTED,
+                names.finalize,
+                new MethodType(List.nil(), voidType,
+                        List.of(throwableType), methodClass),
+                objectType.tsym);
         objectMethodsType = enterClass("java.lang.runtime.ObjectMethods");
         exactConversionsSupportType = enterClass("java.lang.runtime.ExactConversionsSupport");
         objectsType = enterClass("java.util.Objects");
@@ -558,7 +567,6 @@ public class Symtab {
         stringBufferType = enterClass("java.lang.StringBuffer");
         stringBuilderType = enterClass("java.lang.StringBuilder");
         cloneableType = enterClass("java.lang.Cloneable");
-        throwableType = enterClass("java.lang.Throwable");
         serializableType = enterClass("java.io.Serializable");
         serializedLambdaType = enterClass("java.lang.invoke.SerializedLambda");
         varHandleType = enterClass("java.lang.invoke.VarHandle");
@@ -654,6 +662,8 @@ public class Symtab {
         templateRuntimeType = enterClass("java.lang.runtime.TemplateRuntime");
         processorType = enterClass("java.lang.StringTemplate$Processor");
         linkageType = enterClass("java.lang.StringTemplate$Processor$Linkage");
+
+        numberType = enterClass("java.lang.Number");
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a

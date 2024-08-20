@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,15 +77,12 @@ class VerificationType {
       Primitive          = 0x1,        // see below for primitive list
       Uninitialized      = 0x2,        // 0x00ffff00 contains bci
       TypeQuery          = 0x3,        // Meta-types used for category testing
-      InlineType         = 0x4,        // _sym contains the name of an inline type
 
       // Utility flags
       ReferenceFlag      = 0x00,       // For reference query types
       Category1Flag      = 0x01,       // One-word values
       Category2Flag      = 0x02,       // First word of a two-word value
       Category2_2ndFlag  = 0x04,       // Second word of a two-word value
-      InlineTypeFlag     = 0x08,       // For inline type query types
-      NonScalarFlag      = 0x10,       // For either inline type or reference queries
 
       // special reference values
       Null               = 0x00000000, // A reference with a 0 sym is null
@@ -118,8 +115,6 @@ class VerificationType {
       Category1Query     = (Category1Flag     << 1 * BitsPerByte) | TypeQuery,
       Category2Query     = (Category2Flag     << 1 * BitsPerByte) | TypeQuery,
       Category2_2ndQuery = (Category2_2ndFlag << 1 * BitsPerByte) | TypeQuery,
-      InlineTypeQuery    = (InlineTypeFlag    << 1 * BitsPerByte) | TypeQuery,
-      NonScalarQuery     = (NonScalarFlag     << 1 * BitsPerByte) | TypeQuery
     };
 
   VerificationType(uintptr_t raw_data) {
@@ -152,16 +147,12 @@ class VerificationType {
   // any reference is assignable to reference_check.
   static VerificationType reference_check()
     { return VerificationType(ReferenceQuery); }
-  static VerificationType inline_type_check()
-    { return VerificationType(InlineTypeQuery); }
   static VerificationType category1_check()
     { return VerificationType(Category1Query); }
   static VerificationType category2_check()
     { return VerificationType(Category2Query); }
   static VerificationType category2_2nd_check()
     { return VerificationType(Category2_2ndQuery); }
-  static VerificationType nonscalar_check()
-    { return VerificationType(NonScalarQuery); }
 
   // For reference types, store the actual Symbol
   static VerificationType reference_type(Symbol* sh) {
@@ -175,17 +166,6 @@ class VerificationType {
     { return VerificationType(bci << 1 * BitsPerByte | Uninitialized); }
   static VerificationType uninitialized_this_type()
     { return uninitialized_type(BciForThis); }
-
-  // For inline types, store the actual Symbol* and set the 3rd bit.
-  // Provides a way for an inline type to be distinguished from a reference type.
-  static VerificationType inline_type(Symbol* sh) {
-      assert(((uintptr_t)sh & TypeMask) == 0, "Symbols must be aligned");
-      assert((uintptr_t)sh != 0, "Null is not a valid inline type");
-      // If the above assert fails in the future because oop* isn't aligned,
-      // then this type encoding system will have to change to have a tag value
-      // to discriminate between oops and primitives.
-      return VerificationType((uintptr_t)sh | InlineType);
-  }
 
   // Create based on u1 read from classfile
   static VerificationType from_tag(u1 tag);
@@ -202,8 +182,7 @@ class VerificationType {
   bool is_double() const    { return (_u._data == Double); }
   bool is_long2() const     { return (_u._data == Long_2nd); }
   bool is_double2() const   { return (_u._data == Double_2nd); }
-  bool is_reference() const { return (((_u._data & TypeMask) == Reference) && !is_inline_type_check()); }
-  bool is_inline_type() const { return ((_u._data & TypeMask) == InlineType); }
+  bool is_reference() const { return ((_u._data & TypeMask) == Reference); }
   bool is_category1() const {
     // This should return true for all one-word types, which are category1
     // primitives, references (including uninitialized refs) and inline types.
@@ -221,8 +200,6 @@ class VerificationType {
     return ((_u._data & Category2_2nd) == Category2_2nd);
   }
   bool is_reference_check() const { return _u._data == ReferenceQuery; }
-  bool is_inline_type_check() const { return _u._data == InlineTypeQuery; }
-  bool is_nonscalar_check() const { return _u._data == NonScalarQuery; }
   bool is_category1_check() const { return _u._data == Category1Query; }
   bool is_category2_check() const { return _u._data == Category2Query; }
   bool is_category2_2nd_check() const { return _u._data == Category2_2ndQuery; }
@@ -261,27 +238,20 @@ class VerificationType {
     return VerificationType(is_long() ? Long_2nd : Double_2nd);
   }
 
-  static VerificationType change_ref_to_inline_type(VerificationType ref) {
-    assert(ref.is_reference(), "Bad arg");
-    assert(!ref.is_null(), "Unexpected nullptr");
-    return inline_type(ref.name());
-  }
-
   u2 bci() const {
     assert(is_uninitialized(), "Must be uninitialized type");
     return ((_u._data & BciMask) >> 1 * BitsPerByte);
   }
 
   Symbol* name() const {
-    assert(!is_null() && (is_reference() || is_inline_type()), "Must be a non-null reference or an inline type");
-    return (is_reference() ? _u._sym : ((Symbol*)(_u._data & ~(uintptr_t)InlineType)));
+    assert(!is_null() && is_reference(), "Must be a non-null reference");
+    return _u._sym;
   }
 
   bool equals(const VerificationType& t) const {
     return (_u._data == t._u._data ||
-            (((is_reference() && t.is_reference()) ||
-             (is_inline_type() && t.is_inline_type())) &&
-              !is_null() && !t.is_null() && name() == t.name()));
+            (((is_reference() && t.is_reference())) &&
+             !is_null() && !t.is_null() && name() == t.name()));
 
   }
 
@@ -311,11 +281,6 @@ class VerificationType {
           return from.is_category2_2nd();
         case ReferenceQuery:
           return from.is_reference() || from.is_uninitialized();
-        case NonScalarQuery:
-          return from.is_reference() || from.is_uninitialized() ||
-                 from.is_inline_type();
-        case InlineTypeQuery:
-          return from.is_inline_type();
         case Boolean:
         case Byte:
         case Char:
@@ -323,11 +288,7 @@ class VerificationType {
           // An int can be assigned to boolean, byte, char or short values.
           return from.is_integer();
         default:
-          if (is_inline_type()) {
-            return is_inline_type_assignable_from(from);
-          } else if (is_reference() && from.is_inline_type()) {
-            return is_ref_assignable_from_inline_type(from, context, THREAD);
-          } else if (is_reference() && from.is_reference()) {
+          if (is_reference() && from.is_reference()) {
             return is_reference_assignable_from(from, context,
                                                 from_field_is_protected,
                                                 THREAD);
@@ -374,11 +335,6 @@ class VerificationType {
   bool is_reference_assignable_from(
     const VerificationType&, ClassVerifier*, bool from_field_is_protected,
     TRAPS) const;
-
-  bool is_inline_type_assignable_from(const VerificationType& from) const;
-
-  bool is_ref_assignable_from_inline_type(const VerificationType& from, ClassVerifier* context, TRAPS) const;
-
 
  public:
   static bool resolve_and_check_assignability(InstanceKlass* klass, Symbol* name,

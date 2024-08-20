@@ -96,7 +96,7 @@ public class PoolWriter {
     /** The inner classes to be written, as an ordered set (enclosing first). */
     LinkedHashSet<ClassSymbol> innerClasses = new LinkedHashSet<>();
 
-    Set<ClassSymbol> preloadClasses = new HashSet<>();
+    Set<Symbol> loadableDescriptors = new HashSet<>();
 
     /** The list of entries in the BootstrapMethods attribute. */
     Map<BsmKey, Integer> bootstrapMethods = new LinkedHashMap<>();
@@ -236,14 +236,14 @@ public class PoolWriter {
         }
     }
 
-    /** Enter a value class into the `preloadClasses' set.
+    /** Enter a value class into the `loadableDescriptorsClasses' set.
      */
-    void enterPreloadClass(ClassSymbol c) {
+    void enterLoadableDescriptorsClass(Symbol c) {
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }
         c.complete();
-        preloadClasses.add(c);
+        loadableDescriptors.add(c);
     }
 
     /**
@@ -526,7 +526,7 @@ public class PoolWriter {
 
     void reset() {
         innerClasses.clear();
-        preloadClasses.clear();
+        loadableDescriptors.clear();
         bootstrapMethods.clear();
         pool.reset();
     }

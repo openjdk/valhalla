@@ -57,7 +57,7 @@ public class TestUnresolvedInlineClass {
 
             // Verify that a warning is printed
             String output = oa.getOutput();
-            oa.shouldContain("Preloading of class SimpleInlineType during linking of class TestUnresolvedInlineClass (cause: Preload attribute) failed");
+            oa.shouldContain("Preloading of class SimpleInlineType during linking of class TestUnresolvedInlineClass (cause: LoadableDescriptors attribute) failed");
         }
     }
 }

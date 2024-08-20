@@ -5111,10 +5111,6 @@ public class Resolve {
         DeferredAttr.AttrMode attrMode() {
             return attrMode;
         }
-
-        boolean internal() {
-            return internalResolution;
-        }
     }
 
     MethodResolutionContext currentResolutionContext = null;

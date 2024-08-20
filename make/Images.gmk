@@ -145,6 +145,14 @@ define CreateCDSArchive
     $1_$2_$3_CDS_ARCHIVE := lib/$1/classes$2$3.jsa
   endif
 
+  ifneq ($(COMPARE_BUILD), )
+    DEBUG_CDS_ARCHIVE := true
+  endif
+
+  ifeq ($(DEBUG_CDS_ARCHIVE), true)
+    $1_$2_CDS_DUMP_FLAGS += -Xlog:cds+map*=trace:file=$$(JDK_IMAGE_DIR)/$$($1_$2_CDS_ARCHIVE).cdsmap:none:filesize=0
+  endif
+
   $$(eval $$(call SetupExecute, $1_$2_$3_gen_cds_archive_jdk, \
       WARN := Creating CDS$$($1_$2_$3_DUMP_TYPE) archive for jdk image for $1, \
       INFO := Using CDS flags for $1: $$($1_$2_$3_CDS_DUMP_FLAGS), \
@@ -172,18 +180,16 @@ define CreateCDSArchive
   JRE_TARGETS += $$($1_$2_$3_gen_cds_archive_jre)
 endef
 
-# TODO: add these to below when CDS & --enable-preview is well tested.
-#     $(eval $(call CreateCDSArchive,$v,,_valhalla))
-#     $(eval $(call CreateCDSArchive,$v,_nocoops,_valhalla))
-
 ifeq ($(BUILD_CDS_ARCHIVE), true)
   $(foreach v, $(JVM_VARIANTS), \
     $(eval $(call CreateCDSArchive,$v,,)) \
+    $(eval $(call CreateCDSArchive,$v,,_valhalla)) \
   )
 
   ifeq ($(call isTargetCpuBits, 64), true)
     $(foreach v, $(JVM_VARIANTS), \
       $(eval $(call CreateCDSArchive,$v,_nocoops,)) \
+      $(eval $(call CreateCDSArchive,$v,_nocoops,_valhalla)) \
     )
   endif
 endif

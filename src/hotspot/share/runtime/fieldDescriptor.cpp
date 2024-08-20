@@ -45,7 +45,8 @@ Symbol* fieldDescriptor::generic_signature() const {
 
 bool fieldDescriptor::is_trusted_final() const {
   InstanceKlass* ik = field_holder();
-  return is_final() && (is_static() || ik->is_hidden() || ik->is_record() || ik->is_inline_klass());
+  return is_final() && (is_static() || ik->is_hidden() || ik->is_record() || ik->is_inline_klass()
+                        || (ik->is_abstract() && !ik->is_identity_class() && !ik->is_interface()));
 }
 
 AnnotationArray* fieldDescriptor::annotations() const {
@@ -211,5 +212,4 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       break;
     }
   }
-  st->cr();
 }

@@ -56,6 +56,7 @@ import java.util.stream.LongStream;
  * @since 1.8
  */
 @jdk.internal.ValueBased
+@jdk.internal.MigratedValueClass
 public final class OptionalLong {
     /**
      * Common instance for {@code empty()}.

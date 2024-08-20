@@ -30,7 +30,6 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @test ObjectMethods
  * @summary Check object methods implemented by the VM behave with value types
  * @library /test/lib /test/jdk/java/lang/invoke/common
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile ObjectMethods.java
  * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
@@ -61,8 +60,9 @@ public class ObjectMethods {
         //hashCode()/identityHashCode()
         checkHashCodes(val, sameVal.hashCode());
 
-        // clone()
+        // clone() - test the default implementation from j.l.Object
         checkNotCloneable(val);
+        checkCloneable(new MyCloneableInt(78));
 
         // synchronized
         checkSynchronized(val);
@@ -108,7 +108,22 @@ public class ObjectMethods {
         if (!sawCnse) {
             throw new RuntimeException("clone() did not fail");
         }
-        // Cloneable inline type checked by "BadInlineTypes" CFP tests
+    }
+
+    static void checkCloneable(MyCloneableInt val) {
+        boolean sawCnse = false;
+        MyCloneableInt val2 = null;
+        try {
+            val2 = (MyCloneableInt)val.attemptClone();
+        } catch (CloneNotSupportedException cnse) {
+            sawCnse = true;
+        }
+        if (sawCnse) {
+            throw new RuntimeException("clone() did fail");
+        }
+        if (val != val2) {
+            throw new RuntimeException("Cloned value is not identical to the original");
+        }
     }
 
     static void checkSynchronized(Object val) {
@@ -216,6 +231,25 @@ public class ObjectMethods {
     static value class MyInt {
         int value;
         public MyInt(int v) { value = v; }
+        public Object attemptClone() throws CloneNotSupportedException {
+            try { // Check it is not possible to clone...
+                MethodHandles.Lookup lookup = MethodHandles.lookup();
+                MethodHandle mh = lookup.findVirtual(getClass(),
+                                                     "clone",
+                                                     MethodType.methodType(Object.class));
+                return mh.invokeExact(this);
+            } catch (Throwable t) {
+                if (t instanceof CloneNotSupportedException) {
+                    throw (CloneNotSupportedException) t;
+                }
+                throw new RuntimeException(t);
+            }
+        }
+    }
+
+    static value class MyCloneableInt implements Cloneable {
+        int value;
+        public MyCloneableInt(int v) { value = v; }
         public Object attemptClone() throws CloneNotSupportedException {
             try { // Check it is not possible to clone...
                 MethodHandles.Lookup lookup = MethodHandles.lookup();

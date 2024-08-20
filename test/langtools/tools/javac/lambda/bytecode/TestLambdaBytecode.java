@@ -26,8 +26,8 @@
  * @bug 8009649 8129962 8238358
  * @summary Lambda back-end should generate invokevirtual for method handles referring to
  *          private instance methods as lambda proxy is a nestmate of the target clsas
- * @library /tools/javac/lib
  * @enablePreview
+ * @library /tools/javac/lib
  * @modules java.base/jdk.internal.classfile.impl
  *          jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

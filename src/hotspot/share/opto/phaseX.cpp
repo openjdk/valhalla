@@ -1511,7 +1511,6 @@ void PhaseIterGVN::add_users_of_use_to_worklist(Node* n, Node* use, Unique_Node_
   }
 
   // AndLNode::Ideal folds GraphKit::mark_word_test patterns. Give it a chance to run.
-  // TODO 8325106 Improve this to handle all patterns
   if (n->is_Load() && use->is_Phi()) {
     for (DUIterator_Fast imax, i = use->fast_outs(imax); i < imax; i++) {
       Node* u = use->fast_out(i);

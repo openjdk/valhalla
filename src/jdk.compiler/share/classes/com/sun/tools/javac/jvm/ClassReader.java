@@ -575,7 +575,6 @@ public class ClassReader {
             throw badClassFile("bad.class.signature", quoteBadSignature());
         sigp++;
         Type outer = Type.noType;
-        Name name;
         int startSbp = sbp;
 
         while (true) {
@@ -1528,6 +1527,7 @@ public class ClassReader {
                 sym.flags_field |= MIGRATED_VALUE_CLASS;
                 if (needsValueFlag(sym, sym.flags_field)) {
                     sym.flags_field |= VALUE_CLASS;
+                    sym.flags_field &= ~IDENTITY_TYPE;
                 }
             } else if (proxy.type.tsym.flatName() == syms.restrictedType.tsym.flatName()) {
                 Assert.check(sym.kind == MTH);
@@ -1549,6 +1549,7 @@ public class ClassReader {
                     sym.flags_field |= MIGRATED_VALUE_CLASS;
                     if (needsValueFlag(sym, sym.flags_field)) {
                         sym.flags_field |= VALUE_CLASS;
+                        sym.flags_field &= ~IDENTITY_TYPE;
                     }
                 }  else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
@@ -3175,10 +3176,11 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags)) || (majorVersion < V66.major && (flags & INTERFACE) == 0)) {
+        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags)) || (majorVersion < V67.major && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
         } else if (needsValueFlag(c, flags)) {
             flags |= VALUE_CLASS;
+            flags &= ~IDENTITY_TYPE;
         }
         flags &= ~ACC_IDENTITY; // ACC_IDENTITY and SYNCHRONIZED bits overloaded
         return flags;
@@ -3187,8 +3189,8 @@ public class ClassReader {
     private boolean needsValueFlag(Symbol c, long flags) {
         boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         if (allowValueClasses) {
-            if (previewClassFile && majorVersion >= V66.major && (flags & INTERFACE) == 0 ||
-                    majorVersion >= V66.major && isMigratedValueClass(flags)) {
+            if (previewClassFile && majorVersion >= V67.major && (flags & INTERFACE) == 0 ||
+                    majorVersion >= V67.major && isMigratedValueClass(flags)) {
                 return true;
             }
         }

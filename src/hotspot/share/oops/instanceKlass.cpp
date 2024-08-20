@@ -172,10 +172,10 @@ bool InstanceKlass::field_is_null_free_inline_type(int index) const {
   return field(index).field_flags().is_null_free_inline_type();
 }
 
-bool InstanceKlass::is_class_in_preload_attribute(Symbol* name) const {
-  if (_preload_classes == nullptr) return false;
-  for (int i = 0; i < _preload_classes->length(); i++) {
-        Symbol* class_name = _constants->klass_at_noresolve(_preload_classes->at(i));
+bool InstanceKlass::is_class_in_loadable_descriptors_attribute(Symbol* name) const {
+  if (_loadable_descriptors == nullptr) return false;
+  for (int i = 0; i < _loadable_descriptors->length(); i++) {
+        Symbol* class_name = _constants->klass_at_noresolve(_loadable_descriptors->at(i));
         if (class_name == name) return true;
   }
   return false;
@@ -568,7 +568,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
   _init_thread(nullptr),
   _inline_type_field_klasses(nullptr),
   _null_marker_offsets(nullptr),
-  _preload_classes(nullptr),
+  _loadable_descriptors(nullptr),
   _adr_inlineklass_fixed_block(nullptr)
 {
   set_vtable_length(parser.vtable_size());
@@ -720,11 +720,12 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
 
   if (inline_type_field_klasses_array() != nullptr) {
     MetadataFactory::free_array<InlineKlass*>(loader_data, inline_type_field_klasses_array());
+    set_inline_type_field_klasses_array(nullptr);
   }
-  set_inline_type_field_klasses_array(nullptr);
 
   if (null_marker_offsets_array() != nullptr) {
     MetadataFactory::free_array<int>(loader_data, null_marker_offsets_array());
+    set_null_marker_offsets_array(nullptr);
   }
 
   // If a method from a redefined class is using this constant pool, don't
@@ -761,11 +762,12 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_permitted_subclasses(nullptr);
 
-  if (preload_classes() != nullptr &&
-      preload_classes() != Universe::the_empty_short_array() &&
-      !preload_classes()->is_shared()) {
-    MetadataFactory::free_array<jushort>(loader_data, preload_classes());
+  if (loadable_descriptors() != nullptr &&
+      loadable_descriptors() != Universe::the_empty_short_array() &&
+      !loadable_descriptors()->is_shared()) {
+    MetadataFactory::free_array<jushort>(loader_data, loadable_descriptors());
   }
+  set_loadable_descriptors(nullptr);
 
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != nullptr && !annotations()->is_shared()) {
@@ -1005,19 +1007,29 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                         err_msg("class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
                         klass->external_name()), false);
           }
-          // the inline_type_field_klass_array is not updated because of CDS (see verifications in SystemDictionary::load_shared_class())
+          // the inline_type_field_klasses_array might have been loaded with CDS, so update only if not already set and check consistency
+          if (inline_type_field_klasses_array()->at(fs.index()) == nullptr) {
+            set_inline_type_field_klass(fs.index(), InlineKlass::cast(ik));
+          }
+          assert(get_inline_type_field_klass(fs.index()) == ik, "Must match");
+        } else {
+          if (inline_type_field_klasses_array()->at(fs.index()) == nullptr) {
+            set_inline_type_field_klass(fs.index(), InlineKlass::cast(this));
+          }
+          assert(get_inline_type_field_klass(fs.index()) == this, "Must match");
         }
       }
     }
 
-    // Aggressively preloading all classes from the Preload attribute
-    if (preload_classes() != nullptr) {
+    // Aggressively preloading all classes from the LoadableDescriptors attribute
+    if (loadable_descriptors() != nullptr) {
       HandleMark hm(THREAD);
-      for (int i = 0; i < preload_classes()->length(); i++) {
-        if (constants()->tag_at(preload_classes()->at(i)).is_klass()) continue;
-        Symbol* class_name = constants()->klass_at_noresolve(preload_classes()->at(i));
+      for (int i = 0; i < loadable_descriptors()->length(); i++) {
+        Symbol* sig = constants()->symbol_at(loadable_descriptors()->at(i));
+        if (!Signature::has_envelope(sig)) continue;
+        TempNewSymbol class_name = Signature::strip_envelope(sig);
         if (class_name == name()) continue;
-        log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the Preload attribute", class_name->as_C_string(), name()->as_C_string());
+        log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the LoadableDescriptors attribute", sig->as_C_string(), name()->as_C_string());
         oop loader = class_loader();
         oop protection_domain = this->protection_domain();
         Klass* klass = SystemDictionary::resolve_or_null(class_name,
@@ -1026,13 +1038,13 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           CLEAR_PENDING_EXCEPTION;
         }
         if (klass != nullptr) {
-          log_info(class, preload)("Preloading of class %s during linking of class %s (cause: Preload attribute) succeeded", class_name->as_C_string(), name()->as_C_string());
+          log_info(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) succeeded", class_name->as_C_string(), name()->as_C_string());
           if (!klass->is_inline_klass()) {
             // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-              log_warning(class, preload)("Preloading class %s during linking of class %s (cause: Preload attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
+              log_warning(class, preload)("Preloading class %s during linking of class %s (cause: LoadableDescriptors attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
           }
         } else {
-          log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: Preload attribute) failed", class_name->as_C_string(), name()->as_C_string());
+          log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) failed", class_name->as_C_string(), name()->as_C_string());
         }
       }
     }
@@ -1383,23 +1395,14 @@ void InstanceKlass::initialize_impl(TRAPS) {
   if (EnableValhalla) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (fs.is_null_free_inline_type()) {
-        Klass* klass = get_inline_type_field_klass_or_null(fs.index());
-        if (fs.access_flags().is_static() && klass == nullptr) {
-          klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
-              Handle(THREAD, class_loader()),
-              Handle(THREAD, protection_domain()),
-              true, THREAD);
-          assert(klass->is_inline_klass(), "Must be");
-          set_inline_type_field_klass(fs.index(), InlineKlass::cast(klass));
-        }
 
-        if (!HAS_PENDING_EXCEPTION) {
-          assert(klass != nullptr, "Must  be");
-          InstanceKlass::cast(klass)->initialize(THREAD);
-          if (fs.access_flags().is_static()) {
-            if (java_mirror()->obj_field(fs.offset()) == nullptr) {
-              java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
-            }
+        // inline type field klass array entries must have alreadyt been filed at load time or link time
+        Klass* klass = get_inline_type_field_klass(fs.index());
+
+        InstanceKlass::cast(klass)->initialize(THREAD);
+        if (fs.access_flags().is_static()) {
+          if (java_mirror()->obj_field(fs.offset()) == nullptr) {
+            java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
           }
         }
 
@@ -1766,23 +1769,21 @@ void InstanceKlass::check_valid_for_instantiation(bool throwError, TRAPS) {
 ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
   // Need load-acquire for lock-free read
   if (array_klasses_acquire() == nullptr) {
-    ResourceMark rm(THREAD);
-    JavaThread *jt = THREAD;
-    {
-      // Atomic creation of array_klasses
-      MutexLocker ma(THREAD, MultiArray_lock);
 
-      // Check if update has already taken place
-      if (array_klasses() == nullptr) {
-        ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this,
-                                                                  false, CHECK_NULL);
-        // use 'release' to pair with lock-free load
-        release_set_array_klasses(k);
-      }
+    // Recursively lock array allocation
+    RecursiveLocker rl(MultiArray_lock, THREAD);
+
+    // Check if another thread created the array klass while we were waiting for the lock.
+    if (array_klasses() == nullptr) {
+      ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
+      // use 'release' to pair with lock-free load
+      release_set_array_klasses(k);
     }
   }
+
   // array_klasses() will always be set at this point
   ArrayKlass* ak = array_klasses();
+  assert(ak != nullptr, "should be set");
   return ak->array_klass(n, THREAD);
 }
 
@@ -2836,7 +2837,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 
   it->push(&_nest_members);
   it->push(&_permitted_subclasses);
-  it->push(&_preload_classes);
+  it->push(&_loadable_descriptors);
   it->push(&_record_components);
 
   it->push(&_inline_type_field_klasses, MetaspaceClosure::_writable);
@@ -2939,7 +2940,7 @@ void InstanceKlass::init_shared_package_entry() {
       _package_entry = PackageEntry::get_archived_entry(_package_entry);
     }
   } else if (CDSConfig::is_dumping_dynamic_archive() &&
-             CDSConfig::is_loading_full_module_graph() &&
+             CDSConfig::is_using_full_module_graph() &&
              MetaspaceShared::is_in_shared_metaspace(_package_entry)) {
     // _package_entry is an archived package in the base archive. Leave it as is.
   } else {
@@ -3000,7 +3001,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   if (array_klasses() != nullptr) {
     // To get a consistent list of classes we need MultiArray_lock to ensure
     // array classes aren't observed while they are being restored.
-    MutexLocker ml(MultiArray_lock);
+    RecursiveLocker rl(MultiArray_lock, THREAD);
     assert(this == ObjArrayKlass::cast(array_klasses())->bottom_klass(), "sanity");
     // Array classes have null protection domain.
     // --> see ArrayKlass::complete_create_array_klass()
@@ -3272,7 +3273,7 @@ void InstanceKlass::set_package(ClassLoaderData* loader_data, PackageEntry* pkg_
   }
 
   if (is_shared() && _package_entry != nullptr) {
-    if (CDSConfig::is_loading_full_module_graph() && _package_entry == pkg_entry) {
+    if (CDSConfig::is_using_full_module_graph() && _package_entry == pkg_entry) {
       // we can use the saved package
       assert(MetaspaceShared::is_in_shared_metaspace(_package_entry), "must be");
       return;
@@ -3950,7 +3951,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     st->print(BULLET"record components:     "); record_components()->print_value_on(st);     st->cr();
   }
   st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
-  st->print(BULLET"preload classes:     "); preload_classes()->print_value_on(st); st->cr();
+  st->print(BULLET"loadable descriptors:     "); loadable_descriptors()->print_value_on(st); st->cr();
   if (java_mirror() != nullptr) {
     st->print(BULLET"java mirror:       ");
     java_mirror()->print_value_on(st);
