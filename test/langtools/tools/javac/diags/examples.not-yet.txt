@@ -221,5 +221,3 @@ compiler.err.annotation.unrecognized.attribute.name
 compiler.warn.restricted.method
 # Value Objects
 compiler.misc.feature.value.classes
-compiler.misc.feature.super.init                            # temporary as we are using statements before super in value classes
-compiler.warn.preview.feature.use                           # temporary as we are using statements before super in value classes

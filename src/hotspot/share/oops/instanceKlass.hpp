@@ -300,7 +300,7 @@ class InstanceKlass: public Klass {
 
   Array<InlineKlass*>* _inline_type_field_klasses; // For "inline class" fields, null if none present
   Array<int>* _null_marker_offsets; // for flat fields with a null marker
-  Array<u2>* _preload_classes;
+  Array<u2>* _loadable_descriptors;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
   // embedded Java vtable follows here
@@ -370,11 +370,10 @@ class InstanceKlass: public Klass {
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 
-  // Query if this class implements jl.NonTearable or was
-  // mentioned in the JVM option ForceNonTearable.
+  // Query if this class is mentioned in the JVM option ForceNonTearable.
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
-  // It inherits from supers along with NonTearable.
+  // It inherits from supers.
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
@@ -451,7 +450,7 @@ class InstanceKlass: public Klass {
   bool field_is_flat(int index) const { return field_flags(index).is_flat(); }
   bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
   bool field_is_null_free_inline_type(int index) const;
-  bool is_class_in_preload_attribute(Symbol* name) const;
+  bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -463,8 +462,8 @@ class InstanceKlass: public Klass {
   Array<FieldStatus>* fields_status() const {return _fields_status; }
   void set_fields_status(Array<FieldStatus>* array) { _fields_status = array; }
 
-  Array<u2>* preload_classes() const { return _preload_classes; }
-  void set_preload_classes(Array<u2>* c) { _preload_classes = c; }
+  Array<u2>* loadable_descriptors() const { return _loadable_descriptors; }
+  void set_loadable_descriptors(Array<u2>* c) { _loadable_descriptors = c; }
 
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }

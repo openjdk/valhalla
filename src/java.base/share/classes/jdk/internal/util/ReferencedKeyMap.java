@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@ import jdk.internal.access.SharedSecrets;
  * remove entries automatically when the key is garbage collected. This is
  * accomplished by using a backing map where the keys are either a
  * {@link WeakReference} or a {@link SoftReference}.
+ * Keys must be {@linkplain Class#isIdentity() identity objects.}
  * <p>
  * To create a {@link ReferencedKeyMap} the user must provide a {@link Supplier}
  * of the backing map and whether {@link WeakReference} or
@@ -438,5 +439,31 @@ public final class ReferencedKeyMap<K, V> implements Map<K, V> {
         } while (interned == null);
         return interned;
     }
+
+
+    /**
+     * Attempt to add key to map if absent.
+     *
+     * @param setMap    {@link ReferencedKeyMap} where interning takes place
+     * @param key       key to add
+     *
+     * @param <T> type of key
+     *
+     * @return true if the key was added
+     */
+    static <T> boolean internAddKey(ReferencedKeyMap<T, ReferenceKey<T>> setMap, T key) {
+        ReferenceKey<T> entryKey = setMap.entryKey(key);
+        setMap.removeStaleReferences();
+        ReferenceKey<T> existing = setMap.map.putIfAbsent(entryKey, entryKey);
+        if (existing == null) {
+            return true;
+        } else {
+            // If {@code putIfAbsent} returns non-null then was actually a
+            // {@code replace} and older key was used. In that case the new
+            // key was not used and the reference marked stale.
+            entryKey.unused();
+            return false;
+        }
+     }
 
 }

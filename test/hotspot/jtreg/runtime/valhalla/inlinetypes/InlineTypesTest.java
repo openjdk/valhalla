@@ -57,7 +57,6 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @modules java.base/jdk.internal.vm.annotation
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile InlineTypesTest.java
  * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent

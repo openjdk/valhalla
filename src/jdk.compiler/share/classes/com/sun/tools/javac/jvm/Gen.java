@@ -1113,10 +1113,6 @@ public class Gen extends JCTree.Visitor {
             code.newLocal(v);
         }
         checkDimension(tree.pos(), v.type);
-        Type localType = v.erasure(types);
-        if (localType.requiresPreload(env.enclClass.sym)) {
-            poolWriter.enterPreloadClass((ClassSymbol) localType.tsym);
-        }
     }
 
     public void visitSkip(JCSkip tree) {
@@ -1476,6 +1472,11 @@ public class Gen extends JCTree.Visitor {
                     code.put4(caseidx, labels[i]);
                     code.put4(caseidx + 4, offsets[i]);
                 }
+            }
+
+            if (swtch instanceof JCSwitchExpression) {
+                 // Emit line position for the end of a switch expression
+                 code.statBegin(TreeInfo.endPos(swtch));
             }
         }
         code.endScopes(limit);

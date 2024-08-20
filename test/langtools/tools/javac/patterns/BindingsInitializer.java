@@ -26,6 +26,7 @@
  * @bug 8278834
  * @summary Verify pattern matching nested inside initializers of classes nested in methods
  *          works correctly.
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api

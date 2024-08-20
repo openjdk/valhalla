@@ -26,6 +26,7 @@
  * @test
  * @library /test/lib
  * @enablePreview
+ * @modules java.base/jdk.internal.misc
  * @run main/othervm -Xint
  *                   -XX:CompileCommand=dontinline,*TestGetModifiers.test
  *                   compiler.intrinsics.klass.TestGetModifiers
@@ -36,6 +37,7 @@
  * @requires vm.compiler1.enabled
  * @library /test/lib
  * @enablePreview
+ * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:TieredStopAtLevel=1 -XX:+TieredCompilation
  *                   -XX:CompileCommand=dontinline,*TestGetModifiers.test
  *                   compiler.intrinsics.klass.TestGetModifiers
@@ -46,6 +48,7 @@
  * @requires vm.compiler2.enabled
  * @library /test/lib
  * @enablePreview
+ * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:-TieredCompilation
  *                   -XX:CompileCommand=dontinline,*TestGetModifiers.test
  *                   compiler.intrinsics.klass.TestGetModifiers
@@ -57,6 +60,7 @@ import java.lang.reflect.Modifier;
 import static java.lang.reflect.Modifier.*;
 
 import jdk.test.lib.Asserts;
+import jdk.internal.misc.PreviewFeatures;
 
 public class TestGetModifiers {
     public static class T1 {
@@ -81,7 +85,7 @@ public class TestGetModifiers {
         for (int i = 0; i < 100_000; i++) {
             int actualMods = cl.getModifiers();
             if (actualMods != expectedMods) {
-                throw new IllegalStateException("Error with: " + cl);
+                throw new IllegalStateException("Error with: " + cl + " : " + actualMods  + " vs " + expectedMods);
             }
         }
     }
@@ -91,7 +95,7 @@ public class TestGetModifiers {
         test(T2.class,                                      PUBLIC | FINAL | STATIC | IDENTITY);
         test(T3.class,                                      PRIVATE | STATIC | IDENTITY);
         test(T4.class,                                      PROTECTED | STATIC | IDENTITY);
-        test(new TestGetModifiers().new T5().getClass(),    IDENTITY);
+        test(new TestGetModifiers().new T5().getClass(),       IDENTITY);
         test(T6.class,                                      ABSTRACT | STATIC | INTERFACE);
 
         test(int.class,                                     PUBLIC | ABSTRACT | FINAL);
@@ -102,15 +106,15 @@ public class TestGetModifiers {
         test(byte.class,                                    PUBLIC | ABSTRACT | FINAL);
         test(short.class,                                   PUBLIC | ABSTRACT | FINAL);
         test(void.class,                                    PUBLIC | ABSTRACT | FINAL);
-        test(int[].class,                                   PUBLIC | ABSTRACT | FINAL);
-        test(long[].class,                                  PUBLIC | ABSTRACT | FINAL);
-        test(double[].class,                                PUBLIC | ABSTRACT | FINAL);
-        test(float[].class,                                 PUBLIC | ABSTRACT | FINAL);
-        test(char[].class,                                  PUBLIC | ABSTRACT | FINAL);
-        test(byte[].class,                                  PUBLIC | ABSTRACT | FINAL);
-        test(short[].class,                                 PUBLIC | ABSTRACT | FINAL);
-        test(Object[].class,                                PUBLIC | ABSTRACT | FINAL);
-        test(TestGetModifiers[].class,                      PUBLIC | ABSTRACT | FINAL);
+        test(int[].class,                                   PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
+        test(long[].class,                                  PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
+        test(double[].class,                                PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
+        test(float[].class,                                 PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
+        test(char[].class,                                  PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
+        test(byte[].class,                                  PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
+        test(short[].class,                                 PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
+        test(Object[].class,                                PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
+        test(TestGetModifiers[].class,                      PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
 
         test(new TestGetModifiers().getClass(),             PUBLIC | IDENTITY);
         test(new T1().getClass(),                           PUBLIC | STATIC | IDENTITY);

@@ -1198,6 +1198,9 @@ public class ObjectOutputStream
             } else if (obj instanceof Enum) {
                 writeEnum((Enum<?>) obj, desc, unshared);
             } else if (obj instanceof Serializable) {
+                if (cl.isValue() && !desc.isInstantiable()) {
+                    throw new NotSerializableException(cl.getName());
+                }
                 writeOrdinaryObject(obj, desc, unshared);
             } else {
                 if (extendedDebugInfo) {

@@ -158,7 +158,8 @@ void PhaseMacroExpand::eliminate_gc_barrier(Node* p2x) {
 // Search for a memory operation for the specified memory slice.
 static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_mem, Node *alloc, PhaseGVN *phase) {
   Node *orig_mem = mem;
-  Node *alloc_mem = alloc->in(TypeFunc::Memory);
+  Node *alloc_mem = alloc->as_Allocate()->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
+  assert(alloc_mem != nullptr, "Allocation without a memory projection.");
   const TypeOopPtr *tinst = phase->C->get_adr_type(alias_idx)->isa_oopptr();
   while (true) {
     if (mem == alloc_mem || mem == start_mem ) {
@@ -370,7 +371,8 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
     return nullptr; // Give up: phi tree too deep
   }
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
-  Node *alloc_mem = alloc->in(TypeFunc::Memory);
+  Node *alloc_mem = alloc->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
+  assert(alloc_mem != nullptr, "Allocation without a memory projection.");
 
   uint length = mem->req();
   GrowableArray <Node *> values(length, length, nullptr);
@@ -466,7 +468,8 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   int alias_idx = C->get_alias_index(adr_t);
   int offset = adr_t->flat_offset();
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
-  Node *alloc_mem = alloc->in(TypeFunc::Memory);
+  Node *alloc_mem = alloc->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
+  assert(alloc_mem != nullptr, "Allocation without a memory projection.");
   VectorSet visited;
 
   bool done = sfpt_mem == alloc_mem;
@@ -687,11 +690,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
           NOT_PRODUCT(fail_eliminate = "null or TOP memory";)
           can_eliminate = false;
         } else if (!reduce_merge_precheck) {
-          if (res->is_Phi() && res->as_Phi()->can_be_inline_type()) {
-            // Can only eliminate allocation if the phi had been replaced by an InlineTypeNode before which did not happen.
-            // TODO 8325106 Why wasn't it replaced by an InlineTypeNode?
-            can_eliminate = false;
-          }
+          assert(!res->is_Phi() || !res->as_Phi()->can_be_inline_type(), "Inline type allocations should not have safepoint uses");
           safepoints->append_if_missing(sfpt);
         }
       } else if (use->is_InlineType() && use->as_InlineType()->get_oop() == res) {
@@ -2109,10 +2108,12 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
 // marked for elimination since new obj has no escape information.
 // Mark all associated (same box and obj) lock and unlock nodes for
 // elimination if some of them marked already.
-void PhaseMacroExpand::mark_eliminated_box(Node* oldbox, Node* obj) {
-  if (oldbox->as_BoxLock()->is_eliminated()) {
+void PhaseMacroExpand::mark_eliminated_box(Node* box, Node* obj) {
+  BoxLockNode* oldbox = box->as_BoxLock();
+  if (oldbox->is_eliminated()) {
     return; // This BoxLock node was processed already.
   }
+  assert(!oldbox->is_unbalanced(), "this should not be called for unbalanced region");
   // New implementation (EliminateNestedLocks) has separate BoxLock
   // node for each locked region so mark all associated locks/unlocks as
   // eliminated even if different objects are referenced in one locked region
@@ -2120,8 +2121,9 @@ void PhaseMacroExpand::mark_eliminated_box(Node* oldbox, Node* obj) {
   if (EliminateNestedLocks ||
       oldbox->as_BoxLock()->is_simple_lock_region(nullptr, obj, nullptr)) {
     // Box is used only in one lock region. Mark this box as eliminated.
+    oldbox->set_local();      // This verifies correct state of BoxLock
     _igvn.hash_delete(oldbox);
-    oldbox->as_BoxLock()->set_eliminated(); // This changes box's hash value
+    oldbox->set_eliminated(); // This changes box's hash value
      _igvn.hash_insert(oldbox);
 
     for (uint i = 0; i < oldbox->outcnt(); i++) {
@@ -2148,6 +2150,7 @@ void PhaseMacroExpand::mark_eliminated_box(Node* oldbox, Node* obj) {
   // Note: BoxLock node is marked eliminated only here and it is used
   // to indicate that all associated lock and unlock nodes are marked
   // for elimination.
+  newbox->set_local(); // This verifies correct state of BoxLock
   newbox->set_eliminated();
   transform_later(newbox);
 
@@ -2203,6 +2206,9 @@ void PhaseMacroExpand::mark_eliminated_box(Node* oldbox, Node* obj) {
 
 //-----------------------mark_eliminated_locking_nodes-----------------------
 void PhaseMacroExpand::mark_eliminated_locking_nodes(AbstractLockNode *alock) {
+  if (alock->box_node()->as_BoxLock()->is_unbalanced()) {
+    return; // Can't do any more elimination for this locking region
+  }
   if (EliminateNestedLocks) {
     if (alock->is_nested()) {
        assert(alock->box_node()->as_BoxLock()->is_eliminated(), "sanity");
@@ -2843,6 +2849,11 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
   // Re-marking may break consistency of Coarsened locks.
   if (!C->coarsened_locks_consistent()) {
     return; // recompile without Coarsened locks if broken
+  } else {
+    // After coarsened locks are eliminated locking regions
+    // become unbalanced. We should not execute any more
+    // locks elimination optimizations on them.
+    C->mark_unbalanced_boxes();
   }
 
   // First, attempt to eliminate locks

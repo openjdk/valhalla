@@ -103,6 +103,7 @@ public class Lower extends TreeTranslator {
     private final boolean optimizeOuterThis;
     private final boolean useMatchException;
     private final HashMap<TypePairs, String> typePairToName;
+    private final boolean allowValueClasses;
 
     @SuppressWarnings("this-escape")
     protected Lower(Context context) {
@@ -135,6 +136,8 @@ public class Lower extends TreeTranslator {
         useMatchException = Feature.PATTERN_SWITCH.allowedInSource(source) &&
                             (preview.isEnabled() || !preview.isPreview(Feature.PATTERN_SWITCH));
         typePairToName = TypePairs.initialize(syms);
+        this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** The currently enclosing class.
@@ -912,6 +915,7 @@ public class Lower extends TreeTranslator {
             if (isTranslatedClassAvailable(c))
                 continue;
             // Create class definition tree.
+            // IDENTITY_TYPE will be interpreted as ACC_SUPER for older class files so we are fine
             JCClassDecl cdec = makeEmptyClass(STATIC | SYNTHETIC | IDENTITY_TYPE,
                     c.outermostClass(), c.flatname, false);
             swapAccessConstructorTag(c, cdec.sym);
@@ -1396,6 +1400,7 @@ public class Lower extends TreeTranslator {
                                             i);
             ClassSymbol ctag = chk.getCompiled(topModle, flatname);
             if (ctag == null)
+                // IDENTITY_TYPE will be interpreted as ACC_SUPER for older class files so we are fine
                 ctag = makeEmptyClass(STATIC | SYNTHETIC | IDENTITY_TYPE, topClass).sym;
             else if (!ctag.isAnonymous())
                 continue;
@@ -1637,7 +1642,7 @@ public class Lower extends TreeTranslator {
      *  @param owner      The class in which the definition goes.
      */
     JCVariableDecl outerThisDef(int pos, ClassSymbol owner) {
-        VarSymbol outerThis = makeOuterThisVarSymbol(owner, FINAL | SYNTHETIC | (owner.isValueClass() ? STRICT : 0));
+        VarSymbol outerThis = makeOuterThisVarSymbol(owner, FINAL | SYNTHETIC | (allowValueClasses && owner.isValueClass() ? STRICT : 0));
         return makeOuterThisVarDecl(pos, outerThis);
     }
 
@@ -1844,7 +1849,6 @@ public class Lower extends TreeTranslator {
         List<VarSymbol> ots = outerThisStack;
         if (ots.isEmpty()) {
             log.error(pos, Errors.NoEnclInstanceOfTypeInScope(c));
-            Assert.error();
             return makeNull();
         }
         VarSymbol ot = ots.head;
@@ -1970,6 +1974,7 @@ public class Lower extends TreeTranslator {
             if (sym.kind == TYP &&
                 sym.name == names.empty &&
                 (sym.flags() & INTERFACE) == 0) return (ClassSymbol) sym;
+        // IDENTITY_TYPE will be interpreted as ACC_SUPER for older class files so we are fine
         return makeEmptyClass(STATIC | SYNTHETIC | IDENTITY_TYPE, clazz).sym;
     }
 
@@ -2022,6 +2027,7 @@ public class Lower extends TreeTranslator {
     private ClassSymbol assertionsDisabledClass() {
         if (assertionsDisabledClassCache != null) return assertionsDisabledClassCache;
 
+        // IDENTITY_TYPE will be interpreted as ACC_SUPER for older class files so we are fine
         assertionsDisabledClassCache = makeEmptyClass(STATIC | SYNTHETIC | IDENTITY_TYPE, outermostClassDef.sym).sym;
 
         return assertionsDisabledClassCache;
@@ -2310,7 +2316,7 @@ public class Lower extends TreeTranslator {
 
         // If this is a local class, define proxies for all its free variables.
         List<JCVariableDecl> fvdefs = freevarDefs(
-            tree.pos, freevars(currentClass), currentClass, currentClass.isValueClass() ? STRICT : 0);
+            tree.pos, freevars(currentClass), currentClass, allowValueClasses && currentClass.isValueClass() ? STRICT : 0);
 
         // Recursively translate superclass, interfaces.
         tree.extending = translate(tree.extending);
@@ -2988,43 +2994,36 @@ public class Lower extends TreeTranslator {
                     .VarDef(dollar_s, instanceOfExpr).setType(dollar_s.type);
 
             if (types.isUnconditionallyExact(tree.expr.type, tree.pattern.type)) {
-                exactnessCheck = make
-                        .LetExpr(List.of(var), make.Literal(BOOLEAN, 1).setType(syms.booleanType.constType(1)))
-                        .setType(syms.booleanType);
+                exactnessCheck = make.Literal(BOOLEAN, 1).setType(syms.booleanType.constType(1));
             }
             else if (tree.expr.type.isReference()) {
-                JCExpression nullCheck = makeBinary(NE,
-                        make.Ident(dollar_s),
-                        makeNull());
-                if (types.isUnconditionallyExact(types.unboxedType(tree.expr.type), tree.pattern.type)) {
-                    exactnessCheck = make
-                            .LetExpr(List.of(var), nullCheck)
-                            .setType(syms.booleanType);
-                } else if (types.unboxedType(tree.expr.type).isPrimitive()) {
-                    exactnessCheck = getExactnessCheck(tree,
-                            boxIfNeeded(make.Ident(dollar_s), types.unboxedType(tree.expr.type)));
-                } else {
-                    exactnessCheck = make.at(tree.pos())
-                            .TypeTest(make.Ident(dollar_s), make.Type(types.boxedClass(tree.pattern.type).type))
-                            .setType(syms.booleanType);
-                }
+                JCExpression nullCheck =
+                        makeBinary(NE,
+                            make.Ident(dollar_s),
+                            makeNull());
 
-                exactnessCheck = make.LetExpr(List.of(var), makeBinary(AND,
-                        nullCheck,
-                        exactnessCheck))
-                        .setType(syms.booleanType);
+                if (types.isUnconditionallyExact(types.unboxedType(tree.expr.type), tree.pattern.type)) {
+                    exactnessCheck = nullCheck;
+                } else if (types.unboxedType(tree.expr.type).isPrimitive()) {
+                    exactnessCheck =
+                        makeBinary(AND,
+                            nullCheck,
+                            getExactnessCheck(tree, boxIfNeeded(make.Ident(dollar_s), types.unboxedType(tree.expr.type))));
+                } else {
+                    exactnessCheck =
+                        makeBinary(AND,
+                            nullCheck,
+                            make.at(tree.pos())
+                                .TypeTest(make.Ident(dollar_s), make.Type(types.boxedClass(tree.pattern.type).type))
+                                .setType(syms.booleanType));
+                }
             }
             else if (tree.expr.type.isPrimitive()) {
-                JCIdent argument = make.Ident(dollar_s);
-
-                JCExpression exactnessCheckCall =
-                        getExactnessCheck(tree, argument);
-
-                exactnessCheck = make.LetExpr(List.of(var), exactnessCheckCall)
-                        .setType(syms.booleanType);
+                exactnessCheck = getExactnessCheck(tree, make.Ident(dollar_s));
             }
 
-            result = exactnessCheck;
+            result = make.LetExpr(List.of(var), exactnessCheck)
+                    .setType(syms.booleanType);
         } else {
             tree.expr = translate(tree.expr);
             tree.pattern = translate(tree.pattern);

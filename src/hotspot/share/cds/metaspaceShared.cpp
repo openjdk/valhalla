@@ -110,7 +110,7 @@ bool MetaspaceShared::_use_optimized_module_handling = true;
 // These regions are aligned with MetaspaceShared::core_region_alignment().
 //
 // These 2 regions are populated in the following steps:
-// [0] All classes are loaded in MetaspaceShared::preload_classes(). All metadata are
+// [0] All classes are loaded in MetaspaceShared::loadable_descriptors(). All metadata are
 //     temporarily allocated outside of the shared regions.
 // [1] We enter a safepoint and allocate a buffer for the rw/ro regions.
 // [2] C++ vtables are copied into the rw region.
@@ -727,7 +727,7 @@ void MetaspaceShared::get_default_classlist(char* default_classlist, const size_
   }
 }
 
-void MetaspaceShared::preload_classes(TRAPS) {
+void MetaspaceShared::loadable_descriptors(TRAPS) {
   char default_classlist[JVM_MAXPATHLEN];
   const char* classlist_path;
 
@@ -764,7 +764,7 @@ void MetaspaceShared::preload_classes(TRAPS) {
 }
 
 void MetaspaceShared::preload_and_dump_impl(TRAPS) {
-  preload_classes(CHECK);
+  loadable_descriptors(CHECK);
 
   if (SharedArchiveConfigFile) {
     log_info(cds)("Reading extra data from %s ...", SharedArchiveConfigFile);
@@ -786,7 +786,7 @@ void MetaspaceShared::preload_and_dump_impl(TRAPS) {
   if (CDSConfig::is_dumping_heap()) {
     if (!HeapShared::is_archived_boot_layer_available(THREAD)) {
       log_info(cds)("archivedBootLayer not available, disabling full module graph");
-      CDSConfig::disable_dumping_full_module_graph();
+      CDSConfig::stop_dumping_full_module_graph();
     }
     HeapShared::init_for_dumping(CHECK);
     ArchiveHeapWriter::init();
@@ -1182,8 +1182,8 @@ MapArchiveResult MetaspaceShared::map_archives(FileMapInfo* static_mapinfo, File
           static_mapinfo->map_or_load_heap_region();
         }
 #endif // _LP64
-    log_info(cds)("initial optimized module handling: %s", MetaspaceShared::use_optimized_module_handling() ? "enabled" : "disabled");
-    log_info(cds)("initial full module graph: %s", CDSConfig::is_loading_full_module_graph() ? "enabled" : "disabled");
+    log_info(cds)("initial optimized module handling: %s", CDSConfig::is_using_optimized_module_handling() ? "enabled" : "disabled");
+    log_info(cds)("initial full module graph: %s", CDSConfig::is_using_full_module_graph() ? "enabled" : "disabled");
   } else {
     unmap_archive(static_mapinfo);
     unmap_archive(dynamic_mapinfo);
@@ -1333,6 +1333,9 @@ char* MetaspaceShared::reserve_address_space_for_archives(FileMapInfo* static_ma
       release_reserved_spaces(total_space_rs, archive_space_rs, class_space_rs);
       return nullptr;
     }
+    // NMT: fix up the space tags
+    MemTracker::record_virtual_memory_type(archive_space_rs.base(), mtClassShared);
+    MemTracker::record_virtual_memory_type(class_space_rs.base(), mtClass);
   } else {
     if (use_archive_base_addr && base_address != nullptr) {
       total_space_rs = ReservedSpace(total_range_size, archive_space_alignment,
@@ -1362,16 +1365,13 @@ char* MetaspaceShared::reserve_address_space_for_archives(FileMapInfo* static_ma
                                                  (size_t)archive_space_alignment);
     class_space_rs = total_space_rs.last_part(ccs_begin_offset);
     MemTracker::record_virtual_memory_split_reserved(total_space_rs.base(), total_space_rs.size(),
-                                                     ccs_begin_offset);
+                                                     ccs_begin_offset, mtClassShared, mtClass);
   }
   assert(is_aligned(archive_space_rs.base(), archive_space_alignment), "Sanity");
   assert(is_aligned(archive_space_rs.size(), archive_space_alignment), "Sanity");
   assert(is_aligned(class_space_rs.base(), class_space_alignment), "Sanity");
   assert(is_aligned(class_space_rs.size(), class_space_alignment), "Sanity");
 
-  // NMT: fix up the space tags
-  MemTracker::record_virtual_memory_type(archive_space_rs.base(), mtClassShared);
-  MemTracker::record_virtual_memory_type(class_space_rs.base(), mtClass);
 
   return archive_space_rs.base();
 

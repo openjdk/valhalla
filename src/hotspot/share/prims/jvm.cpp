@@ -437,7 +437,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   }
   InstanceKlass* ik = InstanceKlass::cast(klass);
   if (!ik->is_implicitly_constructible()) {
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not annotated with @ImplicitlyConstructible");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
   }
   oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
@@ -720,11 +720,16 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   // All arrays are considered to be cloneable (See JLS 20.1.5).
   // All j.l.r.Reference classes are considered non-cloneable.
   if (!klass->is_cloneable() ||
-       klass->is_inline_klass() ||
       (klass->is_instance_klass() &&
        InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
     ResourceMark rm(THREAD);
     THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
+  }
+
+  if (klass->is_inline_klass()) {
+    // Value instances have no identity, so return the current instance instead of allocating a new one
+    // Value classes cannot have finalizers, so the method can return immediately
+    return JNIHandles::make_local(THREAD, obj());
   }
 
   // Make shallow object copy
@@ -3799,14 +3804,6 @@ JVM_ENTRY(jclass, JVM_LookupLambdaProxyClassFromArchive(JNIEnv* env,
 #endif // INCLUDE_CDS
 JVM_END
 
-JVM_LEAF(jboolean, JVM_IsCDSDumpingEnabled(JNIEnv* env))
-  return CDSConfig::is_dumping_archive();
-JVM_END
-
-JVM_LEAF(jboolean, JVM_IsSharingEnabled(JNIEnv* env))
-  return UseSharedSpaces;
-JVM_END
-
 JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
   if (CDSConfig::is_dumping_static_archive()) {
     // We do this so that the default CDS archive can be deterministic.
@@ -3830,17 +3827,13 @@ JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
   }
 JVM_END
 
-JVM_LEAF(jboolean, JVM_IsDumpingClassList(JNIEnv *env))
-#if INCLUDE_CDS
-  return ClassListWriter::is_enabled() || CDSConfig::is_dumping_dynamic_archive();
-#else
-  return false;
-#endif // INCLUDE_CDS
+JVM_ENTRY_NO_ENV(jint, JVM_GetCDSConfigStatus())
+  return CDSConfig::get_status();
 JVM_END
 
 JVM_ENTRY(void, JVM_LogLambdaFormInvoker(JNIEnv *env, jstring line))
 #if INCLUDE_CDS
-  assert(ClassListWriter::is_enabled() || CDSConfig::is_dumping_dynamic_archive(),  "Should be set and open or do dynamic dump");
+  assert(CDSConfig::is_logging_lambda_form_invokers(), "sanity");
   if (line != nullptr) {
     ResourceMark rm(THREAD);
     Handle h_line (THREAD, JNIHandles::resolve_non_null(line));

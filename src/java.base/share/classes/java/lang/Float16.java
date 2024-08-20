@@ -73,6 +73,7 @@ import static java.lang.Float.floatToFloat16;
 // Enhanced Primitive Boxes described by JEP-402 (https://openjdk.org/jeps/402)
 @jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
+@SuppressWarnings("serial")
 public final class Float16
     extends Number
     implements Comparable<Float16> {

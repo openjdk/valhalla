@@ -25,6 +25,7 @@
  * @test
  * @bug 8243047
  * @summary javac should not crash while processing exits in class initializers in Flow
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file
