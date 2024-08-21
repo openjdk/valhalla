@@ -99,7 +99,8 @@ public class Types {
 
     public final Warner noWarnings;
 
-    private boolean enableNullRestrictedTypes;
+    /* are nullable and null-restricted types allowed? */
+    private boolean allowNullRestrictedTypes;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
     public static Types instance(Context context) {
@@ -126,8 +127,9 @@ public class Types {
                 return "NO_WARNINGS";
             }
         };
-        Options options = Options.instance(context);
-        enableNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
+        Preview preview = Preview.instance(context);
+        allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
+                Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
     }
     // </editor-fold>
 
@@ -1086,7 +1088,7 @@ public class Types {
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
         if (t.equalsIgnoreMetadata(s)) {
-            if (enableNullRestrictedTypes) {
+            if (allowNullRestrictedTypes) {
                 new NullabilityComparator((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
             }
             return true;
@@ -1208,7 +1210,7 @@ public class Types {
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
                                           s.getEnclosingType());
-                if (result && enableNullRestrictedTypes) {
+                if (result && allowNullRestrictedTypes) {
                     new NullabilityComparator((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
                 }
                 return result;
@@ -1488,7 +1490,7 @@ public class Types {
                 boolean equal = t.tsym == s.tsym
                         && visit(t.getEnclosingType(), s.getEnclosingType())
                         && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
-                if (equal && enableNullRestrictedTypes) {
+                if (equal && allowNullRestrictedTypes) {
                     new NullabilityComparator((t1, t2) -> !hasSameNullability(t1, t2)).visit(s, t);
                 }
                 return equal;

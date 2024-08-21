@@ -4,8 +4,8 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.util
  * @library /tools/lib
- * @compile --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes NullRestrictedOnArray.jcod
- * @compile/fail/ref=CheckFieldTypeTest2.out --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes -XDrawDiagnostics CheckFieldTypeTest2.java
+ * @compile --enable-preview -source ${jdk.version} NullRestrictedOnArray.jcod
+ * @compile/fail/ref=CheckFieldTypeTest2.out --enable-preview -source ${jdk.version} -XDrawDiagnostics CheckFieldTypeTest2.java
  */
 
 public class CheckFieldTypeTest2 {

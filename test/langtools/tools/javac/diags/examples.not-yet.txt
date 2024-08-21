@@ -224,7 +224,7 @@ compiler.warn.restricted.method
 compiler.misc.feature.value.classes
 
 #nullable types
-compiler.misc.feature.bang.types
+compiler.misc.feature.null.restricted.types
 compiler.warn.accessing.member.of.nullable
 compiler.warn.narrowing.nullness.conversion
 compiler.warn.non.nullable.should.be.initialized

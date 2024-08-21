@@ -115,7 +115,6 @@ public class TestValueClasses extends JavadocTester {
         javadoc("-d", base.resolve("out").toString(),
                 "--enable-preview", "-source", String.valueOf(Runtime.version().feature()),
                 "-sourcepath", src.toString(),
-                "-XDenableNullRestrictedTypes",
                 "p");
         checkExit(Exit.OK);
 

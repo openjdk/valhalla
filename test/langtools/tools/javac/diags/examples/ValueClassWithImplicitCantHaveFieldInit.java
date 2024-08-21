@@ -24,7 +24,7 @@
 // key: compiler.err.value.class.with.implicit.instance.field.initializer
 // key: compiler.note.preview.filename
 // key: compiler.note.preview.recompile
-// options: --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes -XDenableNullRestrictedTypes
+// options: --enable-preview -source ${jdk.version}
 
 value class ValueClassWithImplicitCantHaveFieldInit {
     int i = 0;

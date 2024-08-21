@@ -22,7 +22,7 @@
  */
 
 // key: compiler.err.cant.implement.interface
-// options: --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes
+// options: --enable-preview -source ${jdk.version}
 
 class CantImplementInterface implements LooselyConsistentValue {
 }

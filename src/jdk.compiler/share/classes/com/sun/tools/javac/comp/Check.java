@@ -183,7 +183,8 @@ public class Check {
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
         allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
                 Feature.VALUE_CLASSES.allowedInSource(source);
-        enableNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
+        allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
+                Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -231,9 +232,10 @@ public class Check {
      */
     private final boolean allowValueClasses;
 
-    /** Are null-restricted types allowed
+    /** Are null restricted types allowed
      */
-    private final boolean enableNullRestrictedTypes;
+    private final boolean allowNullRestrictedTypes;
+
 /* *************************************************************************
  * Errors and Warnings
  **************************************************************************/
@@ -313,7 +315,7 @@ public class Check {
      *  @param warnKey    A warning key.
      */
     public void warnNullableTypes(DiagnosticPosition pos, Warning warnKey) {
-        if (enableNullRestrictedTypes && lint.isEnabled(LintCategory.NULL)) {
+        if (allowNullRestrictedTypes && lint.isEnabled(LintCategory.NULL)) {
             log.warning(LintCategory.NULL, pos, warnKey);
         }
     }
@@ -816,7 +818,7 @@ public class Check {
     }
 
     void checkConstraintsOfValueClassesWithImplicitConst(JCClassDecl classDecl, ClassSymbol c) {
-        if (enableNullRestrictedTypes) {
+        if (allowNullRestrictedTypes) {
             JCMethodDecl implicitConstructor = TreeInfo.getImplicitConstructor(classDecl.defs);
             if (implicitConstructor != null) {
                 Type encl = c.type.getEnclosingType();
@@ -2794,7 +2796,7 @@ public class Check {
 
         boolean implementsLooselyConsistentValue = false;
         try {
-            implementsLooselyConsistentValue = allowValueClasses && enableNullRestrictedTypes ? types.asSuper(c, syms.looselyConsistentValueType.tsym) != null : false;
+            implementsLooselyConsistentValue = allowValueClasses && allowNullRestrictedTypes ? types.asSuper(c, syms.looselyConsistentValueType.tsym) != null : false;
         } catch (CompletionFailure cf) {
             // ignore
         }
@@ -4571,7 +4573,7 @@ public class Check {
 
         @Override
         public void warn(LintCategory lint) {
-            if (enableNullRestrictedTypes) {
+            if (allowNullRestrictedTypes) {
                 boolean warned = this.warned;
                 super.warn(lint);
                 if (warned) return; // suppress redundant diagnostics

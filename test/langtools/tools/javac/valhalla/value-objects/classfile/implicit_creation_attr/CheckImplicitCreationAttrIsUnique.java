@@ -5,7 +5,7 @@
  *          jdk.compiler/com.sun.tools.javac.util
  * @library /tools/lib
  * @compile DuplicateImplicitCreationAttr.jcod
- * @compile/fail/ref=CheckImplicitCreationAttrIsUnique.out --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes -XDrawDiagnostics CheckImplicitCreationAttrIsUnique.java
+ * @compile/fail/ref=CheckImplicitCreationAttrIsUnique.out --enable-preview -source ${jdk.version} -XDrawDiagnostics CheckImplicitCreationAttrIsUnique.java
  */
 
 public class CheckImplicitCreationAttrIsUnique {

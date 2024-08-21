@@ -183,7 +183,8 @@ public class Attr extends JCTree.Visitor {
         unknownTypeInfo = new ResultInfo(KindSelector.TYP, Type.noType);
         unknownTypeExprInfo = new ResultInfo(KindSelector.VAL_TYP, Type.noType);
         recoveryInfo = new RecoveryInfo(deferredAttr.emptyDeferredAttrContext);
-        enableNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
+        allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
+                Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
     }
 
     /** Switch: reifiable types in instanceof enabled?
@@ -215,7 +216,7 @@ public class Attr extends JCTree.Visitor {
 
     /** Are null-restricted types allowed
      */
-    private final boolean enableNullRestrictedTypes;
+    private final boolean allowNullRestrictedTypes;
 
     /** Check kind and type of given tree against protokind and prototype.
      *  If check succeeds, store type in tree and return it.
@@ -743,8 +744,7 @@ public class Attr extends JCTree.Visitor {
      */
     Type attribType(JCTree tree, Env<AttrContext> env, Type pt) {
         Type result = attribTree(tree, env, new ResultInfo(KindSelector.TYP, pt));
-        if (enableNullRestrictedTypes &&
-                tree instanceof JCNullableTypeExpression nullableTypeExpression &&
+        if (allowNullRestrictedTypes && tree instanceof JCNullableTypeExpression nullableTypeExpression &&
                 nullableTypeExpression.getNullMarker() != NullMarker.UNSPECIFIED) {
             result = tree.type = result.addMetadata(new TypeMetadata.NullMarker(nullableTypeExpression.getNullMarker()));
         }
@@ -1183,7 +1183,7 @@ public class Attr extends JCTree.Visitor {
             for (List<JCExpression> l = tree.thrown; l.nonEmpty(); l = l.tail)
                 chk.checkType(l.head.pos(), l.head.type, syms.throwableType);
 
-            if (enableNullRestrictedTypes && tree.sym.isImplicitConstructor()) {
+            if (allowNullRestrictedTypes && tree.sym.isImplicitConstructor()) {
                 if (tree.body == null) {
                     tree.body = make.Block(0, List.nil());
                 } else {
@@ -1362,7 +1362,7 @@ public class Attr extends JCTree.Visitor {
                     log.error(tree, Errors.IllegalRecordComponentName(v));
                 }
             }
-            if (enableNullRestrictedTypes) {
+            if (allowNullRestrictedTypes) {
                 Type elemOrType = result;
                 while (!elemOrType.hasTag(ERROR) && types.elemtype(elemOrType) != null) {
                     elemOrType = types.elemtype(elemOrType);
@@ -2960,7 +2960,7 @@ public class Attr extends JCTree.Visitor {
 
             if (tree.constructor != null && tree.constructor.kind == MTH) {
                 owntype = clazztype;
-                if (enableNullRestrictedTypes && owntype.getMetadata(TypeMetadata.NullMarker.class) == null) {
+                if (allowNullRestrictedTypes && owntype.getMetadata(TypeMetadata.NullMarker.class) == null) {
                     owntype = owntype.addMetadata(new TypeMetadata.NullMarker(NullMarker.NOT_NULL)); // constructor invocations are always null restricted
                 }
             }
@@ -5433,8 +5433,7 @@ public class Attr extends JCTree.Visitor {
             attribClass(c);
             if (c.type.isValueClass()) {
                 final Env<AttrContext> env = typeEnvs.get(c);
-                if (enableNullRestrictedTypes &&
-                        env != null && env.tree != null && env.tree.hasTag(CLASSDEF) && TreeInfo.getImplicitConstructor(((JCClassDecl)env.tree).defs) != null)
+                if (allowNullRestrictedTypes && env != null && env.tree != null && env.tree.hasTag(CLASSDEF) && TreeInfo.getImplicitConstructor(((JCClassDecl)env.tree).defs) != null)
                     chk.checkNonCyclicMembership((JCClassDecl)env.tree);
             }
         } catch (CompletionFailure ex) {

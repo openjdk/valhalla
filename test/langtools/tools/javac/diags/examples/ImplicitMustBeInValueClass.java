@@ -24,7 +24,7 @@
 // key: compiler.err.implicit.const.must.be.declared.in.value.class
 // key: compiler.note.preview.filename
 // key: compiler.note.preview.recompile
-// options: --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes
+// options: --enable-preview -source ${jdk.version}
 
 class ImplicitMustBeInValueClass {
     public implicit ImplicitMustBeInValueClass();
