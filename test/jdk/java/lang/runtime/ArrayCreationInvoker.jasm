@@ -1,0 +1,420 @@
+/*
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
+public class ArrayCreationInvoker version 67:0 {
+
+    const #1 = Dynamic REF_invokeStatic:java/lang/invoke/ConstantBootstraps.primitiveClass
+                   :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/Class;)Ljava/lang/Class;"
+                   :I:"Ljava/lang/Class;";
+
+    public static Method constantFilled3S:"()[Ljava/lang/String;" stack 1 {
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;IILjava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"()[Ljava/lang/String;"
+                class java/lang/String, int 0, int 3, String "c";
+        areturn;
+    }
+
+    public static Method constantFilled3I:"()[I" stack 1 {
+         invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;IILjava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"()[I"
+                #1, int 0, int 3, int 3;
+         areturn;
+     }
+
+    public static Method constantFilled0S:"()[Ljava/lang/String;" stack 1 {
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;IILjava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"()[Ljava/lang/String;"
+                class java/lang/String, int 0, int 0, String "c";
+        areturn;
+    }
+
+    public static Method constantFilled0I:"()[I" stack 1 {
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;IILjava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"()[I"
+                #1, int 0, int 0, int 3;
+        areturn;
+    }
+
+    public static Method constantFilledNS:"(I)[Ljava/lang/String;" stack 1 {
+        iload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;IILjava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"(I)[Ljava/lang/String;"
+                class java/lang/String, int 0, int -1, String "c";
+        areturn;
+    }
+
+    public static Method constantFilledNI:"(I)[I" stack 1 {
+        iload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;IILjava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"(I)[I"
+                #1, int 0, int -1, int 3;
+        areturn;
+    }
+
+    public static Method dynamicFilled3S:"(Ljava/lang/String;)[Ljava/lang/String;" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(Ljava/lang/String;)[Ljava/lang/String;"
+                class java/lang/String, int 0, int 3;
+        areturn;
+    }
+
+    public static Method dynamicFilled3I:"(I)[I" stack 1 {
+        iload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(I)[I"
+                #1, int 0, int 3;
+        areturn;
+    }
+
+    public static Method dynamicFilled0S:"(Ljava/lang/String;)[Ljava/lang/String;" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(Ljava/lang/String;)[Ljava/lang/String;"
+                class java/lang/String, int 0, int 0;
+        areturn;
+    }
+
+    public static Method dynamicFilled0I:"(I)[I" stack 1 {
+        iload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(I)[I"
+                #1, int 0, int 0;
+        areturn;
+    }
+
+    public static Method dynamicFilledNS:"(ILjava/lang/String;)[Ljava/lang/String;" stack 2 {
+        iload_0;
+        aload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(ILjava/lang/String;)[Ljava/lang/String;"
+                class java/lang/String, int 0, int -1;
+        areturn;
+    }
+
+    public static Method dynamicFilledNI:"(II)[I" stack 2 {
+        iload_0;
+        iload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicFilled
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(II)[I"
+                #1, int 0, int -1;
+        areturn;
+    }
+
+    public static Method computed3S:"(Ljava/util/function/IntFunction;)[Ljava/lang/String;" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.computed
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(Ljava/util/function/IntFunction;)[Ljava/lang/String;"
+                class java/lang/String, int 0, int 3;
+        areturn;
+    }
+
+    public static Method computed3I:"(Ljava/util/function/IntFunction;)[I" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.computed
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(Ljava/util/function/IntFunction;)[I"
+                #1, int 0, int 3;
+        areturn;
+    }
+
+    public static Method computed0S:"(Ljava/util/function/IntFunction;)[Ljava/lang/String;" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.computed
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(Ljava/util/function/IntFunction;)[Ljava/lang/String;"
+                class java/lang/String, int 0, int 0;
+        areturn;
+    }
+
+    public static Method computed0I:"(Ljava/util/function/IntFunction;)[I" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.computed
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(Ljava/util/function/IntFunction;)[I"
+                #1, int 0, int 0;
+        areturn;
+    }
+
+    public static Method computedNS:"(ILjava/util/function/IntFunction;)[Ljava/lang/String;" stack 2 {
+        iload_0;
+        aload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.computed
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(ILjava/util/function/IntFunction;)[Ljava/lang/String;"
+                class java/lang/String, int 0, int -1;
+        areturn;
+    }
+
+    public static Method computedNI:"(ILjava/util/function/IntFunction;)[I" stack 2 {
+        iload_0;
+        aload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.computed
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(ILjava/util/function/IntFunction;)[I"
+                #1, int 0, int -1;
+        areturn;
+    }
+
+    public static Method copied3S:"([Ljava/lang/Object;)[Ljava/lang/String;" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.copied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"([Ljava/lang/Object;)[Ljava/lang/String;"
+                class java/lang/String, int 0, int 3;
+        areturn;
+    }
+
+    public static Method copied3I:"([I)[I" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.copied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"([I)[I"
+                #1, int 0, int 3;
+        areturn;
+    }
+
+    public static Method copied0S:"([Ljava/lang/Object;)[Ljava/lang/String;" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.copied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"([Ljava/lang/Object;)[Ljava/lang/String;"
+                class java/lang/String, int 0, int 0;
+        areturn;
+    }
+
+    public static Method copied0I:"([I)[I" stack 1 {
+        aload_0;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.copied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"([I)[I"
+                #1, int 0, int 0;
+        areturn;
+    }
+
+    public static Method copiedNS:"(I[Ljava/lang/Object;)[Ljava/lang/String;" stack 2 {
+        iload_0;
+        aload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.copied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(I[Ljava/lang/Object;)[Ljava/lang/String;"
+                class java/lang/String, int 0, int -1;
+        areturn;
+    }
+
+    public static Method copiedNI:"(I[I)[I" stack 2 {
+        iload_0;
+        aload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.copied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(I[I)[I"
+                #1, int 0, int -1;
+        areturn;
+    }
+
+    public static Method offsetCopied3S:"([Ljava/lang/Object;I)[Ljava/lang/String;" stack 2 {
+        aload_0;
+        iload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.offsetCopied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"([Ljava/lang/Object;I)[Ljava/lang/String;"
+                class java/lang/String, int 0, int 3;
+        areturn;
+    }
+
+    public static Method offsetCopied3I:"([II)[I" stack 2 {
+        aload_0;
+        iload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.offsetCopied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"([II)[I"
+                #1, int 0, int 3;
+        areturn;
+    }
+
+    public static Method offsetCopied0S:"([Ljava/lang/Object;I)[Ljava/lang/String;" stack 2 {
+        aload_0;
+        iload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.offsetCopied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"([Ljava/lang/Object;I)[Ljava/lang/String;"
+                class java/lang/String, int 0, int 0;
+        areturn;
+    }
+
+    public static Method offsetCopied0I:"([II)[I" stack 2 {
+        aload_0;
+        iload_1;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.offsetCopied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"([II)[I"
+                #1, int 0, int 0;
+        areturn;
+    }
+
+    public static Method offsetCopiedNS:"(I[Ljava/lang/Object;I)[Ljava/lang/String;" stack 3 {
+        iload_0;
+        aload_1;
+        iload_2;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.offsetCopied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(I[Ljava/lang/Object;I)[Ljava/lang/String;"
+                class java/lang/String, int 0, int -1;
+        areturn;
+    }
+
+    public static Method offsetCopiedNI:"(I[II)[I" stack 3 {
+        iload_0;
+        aload_1;
+        iload_2;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.offsetCopied
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;II)Ljava/lang/invoke/CallSite;"
+                :_:"(I[II)[I"
+                #1, int 0, int -1;
+        areturn;
+    }
+
+    public static Method constantEnumerated3S:"()[Ljava/lang/String;" stack 1 {
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantEnumerated
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;I[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"()[Ljava/lang/String;"
+                class java/lang/String, int 0, String "c1", String "c2", String "c3";
+        areturn;
+    }
+
+    public static Method constantEnumerated3I:"()[I" stack 1 {
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantEnumerated
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;I[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"()[I"
+                #1, int 0, int 30, int 40, int 50;
+        areturn;
+    }
+
+    public static Method constantEnumerated0S:"()[Ljava/lang/String;" stack 1 {
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantEnumerated
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;I[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"()[Ljava/lang/String;"
+                class java/lang/String, int 0;
+        areturn;
+    }
+
+    public static Method constantEnumerated0I:"()[I" stack 1 {
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.constantEnumerated
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;I[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;"
+                :_:"()[I"
+                #1, int 0;
+        areturn;
+    }
+
+    public static Method dynamicEnumerated3S
+            :"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)[Ljava/lang/String;"
+            stack 3 {
+        aload_0;
+        aload_1;
+        aload_2;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicEnumerated
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;I)Ljava/lang/invoke/CallSite;"
+                :_:"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)[Ljava/lang/String;"
+                class java/lang/String, int 0;
+        areturn;
+    }
+
+    public static Method dynamicEnumerated3I:"(III)[I" stack 3 {
+        iload_0;
+        iload_1;
+        iload_2;
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicEnumerated
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;I)Ljava/lang/invoke/CallSite;"
+                :_:"(III)[I"
+                #1, int 0;
+        areturn;
+    }
+
+    public static Method dynamicEnumerated0S:"()[Ljava/lang/String;" stack 1 {
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicEnumerated
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;I)Ljava/lang/invoke/CallSite;"
+                :_:"()[Ljava/lang/String;"
+                class java/lang/String, int 0;
+        areturn;
+    }
+
+    public static Method dynamicEnumerated0I:"()[I" stack 1 {
+        invokedynamic
+            InvokeDynamic REF_invokeStatic:java/lang/runtime/ArrayCreation.dynamicEnumerated
+                :"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/reflect/RuntimeType;I)Ljava/lang/invoke/CallSite;"
+                :_:"()[I"
+                #1, int 0;
+        areturn;
+    }
+
+ }

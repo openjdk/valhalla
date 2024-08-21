@@ -25,6 +25,7 @@
 package java.lang.invoke;
 
 import sun.invoke.util.Wrapper;
+import java.lang.reflect.RuntimeType;
 
 import static java.lang.invoke.MethodHandleNatives.mapLookupExceptionToError;
 import static java.util.Objects.requireNonNull;
@@ -113,6 +114,19 @@ public final class ConstantBootstraps {
         }
 
         return Wrapper.forPrimitiveType(name.charAt(0)).primitiveType();
+    }
+
+    /**
+     * Returns a {@link RuntimeType} for the null-restricted type of {@code cls}.
+     *
+     * @param lookup unused
+     * @param name unused
+     * @param type the required result type (must be {@code RuntimeType.class})
+     * @param cls the class, interface, or array type to be null-restricted
+     * @return the null-restricted {@code RuntimeType}
+     */
+    public static RuntimeType<?> nullRestrictedClass(MethodHandles.Lookup lookup, String name, Class<?> type, Class<?> cls) {
+        return RuntimeType.nullRestricted(cls);
     }
 
     /**

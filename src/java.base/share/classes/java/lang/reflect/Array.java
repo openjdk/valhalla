@@ -495,6 +495,16 @@ class Array {
     public static native void setDouble(Object array, int index, double d)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
+    /**
+     * Get the {@code RuntimeType} enforced on components of an array.
+     *
+     * @param array the array
+     * @return the {@code RuntimeType} of the components of {@code array}
+     */
+    public static RuntimeType<?> componentType(Object array) {
+        return array.getClass().getComponentType();
+    }
+
     /*
      * Private
      */
