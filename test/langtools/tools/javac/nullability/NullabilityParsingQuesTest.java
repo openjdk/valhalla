@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,62 +27,62 @@
  * @test
  * @enablePreview
  * @summary Smoke test for parsing of bang types
- * @compile NullabilityParsingTest.java
+ * @compile -XDenableNullRestrictedTypes NullabilityParsingQuesTest.java
  */
 
-import java.util.function.*;
-import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
-class NullabilityParsingTest {
+class NullabilityParsingQuesTest {
     static value class Point { public implicit Point(); }
     static value class Shape { public implicit Shape(); }
     // fields
-    Point! o2;
+    Point? o2;
 
     // method parameters
-    void m2(Point! o) { }
+    void m2(Point? o) { }
 
     // method returns
-    Point! m2() { return new Point(); }
+    Point? m2() { return new Point(); }
 
     // locals
     void testLocals() {
-        Point! o2;
+        Point? o2;
     }
 
     // generics - field
-    Consumer<Point!> co2;
+    Consumer<Point?> co2;
 
     // generics - method param
-    void m4(Consumer<Point!> co) { }
+    void m4(Consumer<Point?> co) { }
 
     // generics - method return
-    Consumer<Point!> m4() { return null; }
+    Consumer<Point?> m4() { return null; }
 
     // generics - local
     void testGenericLocals() {
-        Consumer<Point!> co2;
+        Consumer<Point?> co2;
     }
 
     // lambdas
     void testLambdas() {
-        Consumer<Point!> co2 = (Point! co) -> {};
+        Consumer<Point?> co2 = (Point? co) -> {};
     }
 
     void testGenericLambdas() {
-        Consumer<Consumer<Point!>> co2 = (Consumer<Point!> co) -> {};
-        Consumer<Function<Point!, Point!>> co3 = (Function<Point!, Point!> co) -> {};
-        Consumer<Consumer<Consumer<Consumer<Point!>>>> co6 = (Consumer<Consumer<Consumer<Point!>>> co) -> {};
+        Consumer<Consumer<Point?>> co2 = (Consumer<Point?> co) -> {};
+        Consumer<Function<Point?, Point?>> co3 = (Function<Point?, Point?> co) -> {};
+        Consumer<Consumer<Consumer<Consumer<Point?>>>> co6 = (Consumer<Consumer<Consumer<Point?>>> co) -> {};
     }
 
     // type test patterns
 
     void testTypeTestPatterns(Object o) {
-/*        switch (o) {
-            case Point! i -> throw new AssertionError();
-            case Shape! s -> throw new AssertionError();
+        switch (o) {
+            case Point? i -> throw new AssertionError();
+            case Shape? s -> throw new AssertionError();
             default -> throw new AssertionError();
-        }*/
+        }
     }
 
     sealed interface I<X> {}
@@ -90,7 +90,7 @@ class NullabilityParsingTest {
 
     void genericTypeTestPatterns(A o) {
         switch (o) {
-            case I<Point!> i -> { }
+            case I<Point?> i -> { }
         }
     }
 
@@ -99,7 +99,7 @@ class NullabilityParsingTest {
 
     void genericTypeTestPatterns(A2 o) {
         switch (o) {
-            case I2<I<Point!>> i -> { }
+            case I2<I<Point?>> i -> { }
         }
     }
 
@@ -108,7 +108,7 @@ class NullabilityParsingTest {
 
     void genericTypeTestPatterns(A3 o) {
         switch (o) {
-            case I3<I2<I<Point!>>> i -> { }
+            case I3<I2<I<Point?>>> i -> { }
         }
     }
 
@@ -118,7 +118,7 @@ class NullabilityParsingTest {
 
     void genericRecordPatterns(R o) {
         switch (o) {
-            case R!(I<Point!> i) -> { }
+            case R?(I<Point?> i) -> { }
         }
     }
 
@@ -126,7 +126,7 @@ class NullabilityParsingTest {
 
     void genericRecordPatterns(R2 o) {
         switch (o) {
-            case R2!(I2<I<Point!>> i) -> { }
+            case R2?(I2<I<Point?>> i) -> { }
         }
     }
 
@@ -134,66 +134,66 @@ class NullabilityParsingTest {
 
     void genericRecordPatterns(R3 o) {
         switch (o) {
-            case R3!(I3<I2<I<Point!>>> i) -> { }
+            case R3?(I3<I2<I<Point?>>> i) -> { }
         }
     }
 
     // instanceof/cast
 
     void testInstanceOf(Object o) {
-        boolean r2 = o instanceof Point!;
+        boolean r2 = o instanceof Point?;
     }
 
     void testInstanceRecord(R r) {
-        boolean r2 = r instanceof R(I<Point!> i);
+        boolean r2 = r instanceof R(I<Point?> i);
     }
 
     void testCast(Object o) {
-        Point! s2 = (Point!)o;
+        Point? s2 = (Point?)o;
     }
 
     void testGenericCast(A a) {
-        I<Point!> i2 = (I<Point!>)a;
+        I<Point?> i2 = (I<Point?>)a;
     }
-/*
+
     void testGenericCast2(A a) {
-        I<Point!> i2 = (I<Point!>)a;
+        I<Point?> i2 = (I<Point?>)a;
     }
-*/
+
     // arrays
 
-    Point![]![]![]! oarr;
-    Function<Point![]![]!, Function<Point![]![]!, Point![]![]!>>[][] garr;
+    Point?[]?[]?[]? oarr;
+    Function<Point?[]?[]?, Function<Point?[]?[]?, Point?[]?[]?>>[][] garr;
 
     void mBad1(Object o) {
         Point s1 = o instanceof Point ? (Point)o : null;
-        Point s2 = o instanceof Point! ? (Point)o : null;
+        Point s2 = o instanceof Point? ? (Point)o : null;
     }
 
     void mBad2(Object o) {
         Point s1 = o instanceof Point ? null : null;
-        Point s2 = o instanceof Point! ? null : null;
+        Point s2 = o instanceof Point? ? null : null;
     }
 
     void testPatternRule(Object o) {
-/*        switch (o) {
-            case Point! s -> { }
+        switch (o) {
+            case Point? s -> { }
                 default -> { }
-        }*/
+        }
     }
 
     void testPatternCol(Object o) {
-/*        switch (o) {
-            case Point! s: { }
+        switch (o) {
+            case Point? s: { }
             default: { }
-        }*/
+        }
     }
 
     void testInstanceOfAndInfix1(Object a, boolean b) {
-        boolean x2 = a instanceof Point! && b;
+        boolean x2 = a instanceof Point? && b;
     }
 
     void testInstanceOfAndInfix2(Object a, boolean b) {
-        boolean x2 = a instanceof Point! s && b;
+        boolean x2 = a instanceof Point? s && b;
     }
 }

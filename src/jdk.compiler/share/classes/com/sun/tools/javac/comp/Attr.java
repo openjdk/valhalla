@@ -1367,13 +1367,14 @@ public class Attr extends JCTree.Visitor {
                 while (!elemOrType.hasTag(ERROR) && types.elemtype(elemOrType) != null) {
                     elemOrType = types.elemtype(elemOrType);
                 }
-                if ((result.isNonNullable() || elemOrType.isNonNullable()) && (!elemOrType.isValueClass() || !elemOrType.hasImplicitConstructor())) {
-                    log.error(tree.pos(),
-                            types.elemtype(result) == null?
-                                    Errors.TypeCantBeNullRestricted(result) :
-                                    Errors.TypeCantBeNullRestricted2(result)
-                    );
-                }
+//                @@@ Maybe guard with flag?
+//                if ((result.isNonNullable() || elemOrType.isNonNullable()) && (!elemOrType.isValueClass() || !elemOrType.hasImplicitConstructor())) {
+//                    log.error(tree.pos(),
+//                            types.elemtype(result) == null?
+//                                    Errors.TypeCantBeNullRestricted(result) :
+//                                    Errors.TypeCantBeNullRestricted2(result)
+//                    );
+//                }
             }
         }
         finally {

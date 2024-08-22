@@ -1036,7 +1036,7 @@ public class Types {
                 } else {
                     return isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
                 }
-            } else if (isSubtype(t, s, capture)) {
+            } else if (isSubtype(t, s, capture, warn)) {
                 return true;
             } else if (t.hasTag(TYPEVAR)) {
                 return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
@@ -1086,10 +1086,18 @@ public class Types {
     public final boolean isSubtypeNoCapture(Type t, Type s) {
         return isSubtype(t, s, false);
     }
+    public boolean isSubtype(Type t, Type s, boolean capture, Warner warner) {
+        try {
+            pushWarner(warner);
+            return isSubtype(t, s, capture);
+        } finally {
+            popWarner();
+        }
+    }
     public boolean isSubtype(Type t, Type s, boolean capture) {
         if (t.equalsIgnoreMetadata(s)) {
-            if (allowNullRestrictedTypes) {
-                new NullabilityComparator((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
+            if (allowNullRestrictedTypes && warnStack.nonEmpty() && hasNarrowerNullability(s, t)) {
+                warnStack.head.warn(LintCategory.NULL);
             }
             return true;
         }
@@ -1117,8 +1125,8 @@ public class Types {
         return isSubtype.visit(capture ? capture(t) : t, s);
     }
     // where
-        private IsSubtype isSubtype = new IsSubtype();
-        class IsSubtype extends TypeRelation {
+        private TypeRelation isSubtype = new TypeRelation()
+        {
             @Override
             public Boolean visitType(Type t, Type s) {
                 switch (t.getTag()) {
@@ -1210,8 +1218,8 @@ public class Types {
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
                                           s.getEnclosingType());
-                if (result && allowNullRestrictedTypes) {
-                    new NullabilityComparator((t1, t2) -> hasNarrowerNullability(t1, t2)).visit(s, t);
+                if (result && allowNullRestrictedTypes && warnStack.nonEmpty() && hasNarrowerNullability(s, t)) {
+                    warnStack.head.warn(LintCategory.NULL);
                 }
                 return result;
             }
@@ -1254,53 +1262,7 @@ public class Types {
             public Boolean visitErrorType(ErrorType t, Type s) {
                 return true;
             }
-        }
-
-        public class NullabilityComparator extends TypeRelation {
-            BiFunction<Type, Type, Boolean> differentNullability;
-
-            NullabilityComparator(BiFunction<Type, Type, Boolean> differentNullability) {
-                this.differentNullability = differentNullability;
-            }
-
-            @Override
-            public Boolean visitType(Type t, Type s) {
-                Warner warner = !warnStack.isEmpty() ? warnStack.head : noWarnings;
-                if (differentNullability.apply(t, s)) {
-                    warner.warn(LintCategory.NULL);
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-
-            @Override
-            public Boolean visitClassType(ClassType t, Type s) {
-                Warner warner = !warnStack.isEmpty() ? warnStack.head : noWarnings;
-                if (differentNullability.apply(t, s)) {
-                    warner.warn(LintCategory.NULL);
-                    return true;
-                } else {
-                    return s != null && (!s.isParameterized() || compareTypeArgsRecursive(t, s))
-                            && visit(t.getEnclosingType(), s.getEnclosingType());
-                }
-            }
-            // where
-            boolean compareTypeArgsRecursive(Type t, Type s) {
-                return compareTypeArgs(t.getTypeArguments(), s.getTypeArguments());
-            }
-
-            boolean compareTypeArgs(List<Type> ts, List<Type> ss) {
-                while (ts.nonEmpty() && ss.nonEmpty()) {
-                    if (visit(ts.head, ss.head)) {
-                        return true;
-                    }
-                    ts = ts.tail;
-                    ss = ss.tail;
-                }
-                return false;
-            }
-        }
+        };
 
     /**
      * Is t a subtype of every type in given list `ts'?<br>
@@ -1490,8 +1452,8 @@ public class Types {
                 boolean equal = t.tsym == s.tsym
                         && visit(t.getEnclosingType(), s.getEnclosingType())
                         && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
-                if (equal && allowNullRestrictedTypes) {
-                    new NullabilityComparator((t1, t2) -> !hasSameNullability(t1, t2)).visit(s, t);
+                if (equal && allowNullRestrictedTypes && warnStack.nonEmpty() && !hasSameNullability(s, t)) {
+                    warnStack.head.warn(LintCategory.NULL);
                 }
                 return equal;
             }
@@ -5429,26 +5391,20 @@ public class Types {
      * Do t and s have the same nullability?
      */
     public boolean hasSameNullability(Type t, Type s) {
-        if (s == null) {
-            return t.isNullUnspecified();
+        if (s == null || t == null || t.isNullUnspecified() || s.isNullUnspecified()) {
+            return true;
         }
-        if (t.isNullUnspecified()) {
-            return s.isNullUnspecified();
-        }
-        if (t.isNonNullable()) {
-            return s.isNonNullable();
-        }
-        throw new AssertionError("shouldn't get here");
+        return t.getNullMarker() == s.getNullMarker();
     }
 
     /**
-     * Does t has narrower nullability than s?
+     * Does t have narrower nullability than s?
      */
     public boolean hasNarrowerNullability(Type t, Type s) {
-        if (t.isNonNullable()) {
-            return s != null && !s.isNonNullable();
+        if (s == null || t == null || t.isNullUnspecified() || s.isNullUnspecified()) {
+            return false;
         }
-        return false;
+        return t.getNullMarker().ordinal() < s.getNullMarker().ordinal();
     }
     // </editor-fold>
 

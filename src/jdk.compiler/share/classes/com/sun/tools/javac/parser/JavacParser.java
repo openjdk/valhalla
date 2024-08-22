@@ -195,8 +195,8 @@ public class JavacParser implements Parser {
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
                 Feature.VALUE_CLASSES.allowedInSource(source);
-        this.allowNullRestrictedTypes = (!preview.isPreview(Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
-                Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
+        this.allowNullRestrictedTypes = true; /*(!preview.isPreview(Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
+                Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);*/
     }
 
     /** Construct a parser from an existing parser, with minimal overhead.
@@ -709,10 +709,6 @@ public class JavacParser implements Parser {
                 t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
             }
         }
-        if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-            setNullMarker(t);
-            nextToken();
-        }
         return t;
     }
 
@@ -1187,7 +1183,7 @@ public class JavacParser implements Parser {
                     JCModifiers mods = optFinal(0);
                     int typePos = token.pos;
                     JCExpression type = unannotatedType(false, NOQUES | TYPE);
-                    if (allowNullRestrictedTypes && token.kind == QUES && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                    if (allowNullRestrictedTypes && token.kind == QUES) {
                         if (peekToken(IDENTIFIER, COMMA) || peekToken(IDENTIFIER, SEMI) ||
                                 peekToken(IDENTIFIER, RPAREN) || peekToken(IDENTIFIER, INSTANCEOF_INFIX)) {
                             setNullMarker(type);
@@ -1378,7 +1374,6 @@ public class JavacParser implements Parser {
         int pos = token.pos;
         JCExpression t;
         List<JCExpression> typeArgs = typeArgumentsOpt(EXPR);
-        boolean emotionalMarkersOK = false;
         switch (token.kind) {
         case QUES:
             if (isMode(TYPE) && isMode(TYPEARG) && !isMode(NOPARAMS)) {
@@ -1521,7 +1516,6 @@ public class JavacParser implements Parser {
             } else {
                 t = toP(F.at(token.pos).Ident(ident()));
                 if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind) && (peekToken(LBRACKET) || peekToken(LT))) {
-                    emotionalMarkersOK = true;
                     selectTypeMode();
                     setNullMarker(t);
                     nextToken();
@@ -1676,16 +1670,6 @@ public class JavacParser implements Parser {
                 }
             }
             if (typeArgs != null) illegal();
-            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind) && (token.kind == QUES || token.kind == BANG || (token.kind == STAR))) {
-                if (peekToken(LBRACKET) || peekToken(LT) || emotionalMarkersOK) {
-                    selectTypeMode();
-                    setNullMarker(t);
-                    nextToken();
-                } else {
-                    // not a type
-                    break;
-                }
-            }
             t = typeArgumentsOpt(t);
             break;
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
@@ -2177,7 +2161,7 @@ public class JavacParser implements Parser {
 
     /** Accepts all identifier-like tokens */
     protected Predicate<TokenKind> LAX_IDENTIFIER = t -> t == IDENTIFIER || t == UNDERSCORE || t == ASSERT || t == ENUM;
-    protected Predicate<TokenKind> EMOTIONAL_QUALIFIER = t -> t == BANG;
+    protected Predicate<TokenKind> EMOTIONAL_QUALIFIER = t -> t == BANG || (t == QUES && !isMode(NOQUES)) || t == STAR;
     protected Predicate<TokenKind> GENERIC_TYPE_END = t -> t == GT || t == GTGT || t == GTGTGT;
     protected Predicate<TokenKind> INSTANCEOF_INFIX = t -> t == AMPAMP || t == BARBAR ||
                                                            t == EQEQ || t == BANGEQ;
