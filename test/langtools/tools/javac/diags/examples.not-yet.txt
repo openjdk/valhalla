@@ -236,5 +236,3 @@ compiler.warn.overrides.with.different.nullness.2
 compiler.misc.attribute.must.be.unique                                   # bad class file
 compiler.misc.attribute.not.applicable.to.field.type                     # bad class file
 compiler.misc.attribute.only.applicable.to.fields                        # bad class file
-compiler.err.type.cant.be.null.restricted
-compiler.err.type.cant.be.null.restricted.2

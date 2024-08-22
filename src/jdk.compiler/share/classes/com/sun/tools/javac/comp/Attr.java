@@ -185,6 +185,7 @@ public class Attr extends JCTree.Visitor {
         recoveryInfo = new RecoveryInfo(deferredAttr.emptyDeferredAttrContext);
         allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
                 Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
+        allowNullRestrictedTypesForValueClassesOnly = options.isSet("allowNullRestrictedTypesForValueClassesOnly");
     }
 
     /** Switch: reifiable types in instanceof enabled?
@@ -217,6 +218,10 @@ public class Attr extends JCTree.Visitor {
     /** Are null-restricted types allowed
      */
     private final boolean allowNullRestrictedTypes;
+
+    /** Are null-restricted types allowed for value classes only
+     */
+    private final boolean allowNullRestrictedTypesForValueClassesOnly;
 
     /** Check kind and type of given tree against protokind and prototype.
      *  If check succeeds, store type in tree and return it.
@@ -1367,14 +1372,14 @@ public class Attr extends JCTree.Visitor {
                 while (!elemOrType.hasTag(ERROR) && types.elemtype(elemOrType) != null) {
                     elemOrType = types.elemtype(elemOrType);
                 }
-//                @@@ Maybe guard with flag?
-//                if ((result.isNonNullable() || elemOrType.isNonNullable()) && (!elemOrType.isValueClass() || !elemOrType.hasImplicitConstructor())) {
-//                    log.error(tree.pos(),
-//                            types.elemtype(result) == null?
-//                                    Errors.TypeCantBeNullRestricted(result) :
-//                                    Errors.TypeCantBeNullRestricted2(result)
-//                    );
-//                }
+                if (allowNullRestrictedTypesForValueClassesOnly &&
+                        ((result.isNonNullable() || elemOrType.isNonNullable()) && (!elemOrType.isValueClass() || !elemOrType.hasImplicitConstructor()))) {
+                    log.error(tree.pos(),
+                            types.elemtype(result) == null?
+                                    Errors.TypeCantBeNullRestricted(result) :
+                                    Errors.TypeCantBeNullRestricted2(result)
+                    );
+                }
             }
         }
         finally {
