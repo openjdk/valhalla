@@ -83,7 +83,7 @@ public class ClassWriter extends ClassFile {
 
     /** Switch: are null-restricted types allowed
      */
-    private boolean enableNullRestrictedTypes;
+    private boolean allowNullRestrictedTypes;
 
     /** Switch: generate CharacterRangeTable attribute.
      */
@@ -197,7 +197,8 @@ public class ClassWriter extends ClassFile {
             dumpInnerClassModifiers = modifierFlags.indexOf('i') != -1;
             dumpMethodModifiers = modifierFlags.indexOf('m') != -1;
         }
-        enableNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
+        allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
+                Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
     }
 
     public void addExtraAttributes(ToIntFunction<Symbol> addExtraAttributes) {
@@ -959,7 +960,7 @@ public class ClassWriter extends ClassFile {
     /** Write "ImplicitCreation" attribute.
      */
     int writeImplicitCreationIfNeeded(ClassSymbol csym) {
-        if (enableNullRestrictedTypes && csym.isValueClass() && csym.hasImplicitConstructor()) {
+        if (allowNullRestrictedTypes && csym.isValueClass() && csym.hasImplicitConstructor()) {
             int alenIdx = writeAttr(names.ImplicitCreation);
             int flags = /*ACC_DEFAULT |*/ (csym.isSubClass(syms.looselyConsistentValueType.tsym, types) ? ACC_NON_ATOMIC : 0);
             databuf.appendChar(flags);
@@ -972,9 +973,12 @@ public class ClassWriter extends ClassFile {
     /** Write "NullRestricted" attribute.
      */
     int writeNullRestrictedIfNeeded(Symbol sym) {
-        if (enableNullRestrictedTypes && sym.kind == VAR && sym.type.isNonNullable() && !sym.type.hasTag(ARRAY)) {
+        if (allowNullRestrictedTypes && sym.kind == VAR && sym.type.isNonNullable() && !sym.type.hasTag(ARRAY)) {
             int alenIdx = writeAttr(names.NullRestricted);
             endAttr(alenIdx);
+            if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
+                preview.markUsesPreview(null);
+            }
             return 1;
         }
         return 0;

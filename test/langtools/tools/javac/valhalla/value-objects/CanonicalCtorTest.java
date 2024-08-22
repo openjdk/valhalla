@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8208067
- * @compile --enable-preview -source ${jdk.version} -XDenableNullRestrictedTypes CanonicalCtorTest.java
+ * @compile --enable-preview -source ${jdk.version} CanonicalCtorTest.java
  * @summary Verify that instance methods are callable from ctor after all instance fields are DA.
  */
 

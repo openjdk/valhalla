@@ -104,7 +104,7 @@ public class Lower extends TreeTranslator {
     private final boolean useMatchException;
     private final HashMap<TypePairs, String> typePairToName;
     private final boolean allowValueClasses;
-    private final boolean enableNullRestrictedTypes;
+    private final boolean allowNullRestrictedTypes;
 
     @SuppressWarnings("this-escape")
     protected Lower(Context context) {
@@ -139,7 +139,8 @@ public class Lower extends TreeTranslator {
         typePairToName = TypePairs.initialize(syms);
         this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
                 Feature.VALUE_CLASSES.allowedInSource(source);
-        enableNullRestrictedTypes = options.isSet("enableNullRestrictedTypes");
+        this.allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
+                Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
     }
 
     /** The currently enclosing class.
@@ -4401,7 +4402,7 @@ public class Lower extends TreeTranslator {
             noOfDims++;
         }
         tree.elems = translate(tree.elems, types.elemtype(tree.type));
-        if (!enableNullRestrictedTypes || tree.elemtype == null || !originalElemType.type.isNonNullable()) {
+        if (!allowNullRestrictedTypes || tree.elemtype == null || !originalElemType.type.isNonNullable()) {
             result = tree;
         } else {
             Symbol elemClass = syms.getClassField(tree.elemtype.type, types);
