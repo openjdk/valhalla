@@ -765,22 +765,25 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     }
 
     public boolean isNullable() {
-        TypeMetadata.NullMarker nm = getMetadata(TypeMetadata.NullMarker.class);
-        return nm != null && nm.nullMarker() == NullMarker.NULLABLE;
+        return getNullMarker() == NullMarker.NULLABLE;
     }
 
     public boolean isNonNullable() {
-        TypeMetadata.NullMarker nm = getMetadata(TypeMetadata.NullMarker.class);
-        return nm != null && nm.nullMarker() == NullMarker.NOT_NULL;
+        return getNullMarker() == NullMarker.NOT_NULL;
     }
 
     public boolean isParametric() {
-        TypeMetadata.NullMarker nm = getMetadata(TypeMetadata.NullMarker.class);
-        return nm != null && nm.nullMarker() == NullMarker.PARAMETRIC;
+        return getNullMarker() == NullMarker.PARAMETRIC;
     }
 
     public boolean isNullUnspecified() {
-        return getMetadata(TypeMetadata.NullMarker.class) == null;
+        return getNullMarker() == NullMarker.UNSPECIFIED;
+    }
+
+    public NullMarker getNullMarker() {
+        TypeMetadata.NullMarker nm = getMetadata(TypeMetadata.NullMarker.class);
+        return nm != null ?
+                nm.nullMarker() : NullMarker.UNSPECIFIED;
     }
 
     // end of support for null-marked types

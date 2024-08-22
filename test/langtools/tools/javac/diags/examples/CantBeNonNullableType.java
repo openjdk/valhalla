@@ -25,7 +25,7 @@
 // key: compiler.err.type.cant.be.null.restricted.2
 // key: compiler.note.preview.filename
 // key: compiler.note.preview.recompile
-// options: --enable-preview -source ${jdk.version}
+// options: --enable-preview -source ${jdk.version} -XDallowNullRestrictedTypesForValueClassesOnly
 
 public class CantBeNonNullableType {
     String! s;
