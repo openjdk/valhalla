@@ -195,8 +195,8 @@ public class JavacParser implements Parser {
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
                 Feature.VALUE_CLASSES.allowedInSource(source);
-        this.allowNullRestrictedTypes = true; /*(!preview.isPreview(Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
-                Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);*/
+        this.allowNullRestrictedTypes = (!preview.isPreview(Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
+                Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
     }
 
     /** Construct a parser from an existing parser, with minimal overhead.
