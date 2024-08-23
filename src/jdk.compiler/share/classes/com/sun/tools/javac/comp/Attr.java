@@ -1373,7 +1373,7 @@ public class Attr extends JCTree.Visitor {
                     elemOrType = types.elemtype(elemOrType);
                 }
                 if (allowNullRestrictedTypesForValueClassesOnly &&
-                        ((result.isNonNullable() || elemOrType.isNonNullable()) && (!elemOrType.isValueClass() || !elemOrType.hasImplicitConstructor()))) {
+                        ((types.isNonNullable(result) || types.isNonNullable(elemOrType)) && (!elemOrType.isValueClass() || !elemOrType.hasImplicitConstructor()))) {
                     log.error(tree.pos(),
                             types.elemtype(result) == null?
                                     Errors.TypeCantBeNullRestricted(result) :
@@ -4465,11 +4465,11 @@ public class Attr extends JCTree.Visitor {
             site = capture(site); // Capture field access
 
         // check nullness of site
-        if (site.isNullable()) {
+        if (types.isNullable(site)) {
             chk.warnNullableTypes(tree.selected, Warnings.AccessingMemberOfNullable);
         }
 
-        if (site.isParametric()) {
+        if (types.isParametric(site)) {
             chk.warnNullableTypes(tree.selected, Warnings.AccessingMemberOfParametric);
         }
 

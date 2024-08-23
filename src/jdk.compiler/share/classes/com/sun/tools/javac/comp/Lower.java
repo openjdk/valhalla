@@ -4402,7 +4402,7 @@ public class Lower extends TreeTranslator {
             noOfDims++;
         }
         tree.elems = translate(tree.elems, types.elemtype(tree.type));
-        if (!allowNullRestrictedTypes || tree.elemtype == null || !originalElemType.type.isNonNullable()) {
+        if (!allowNullRestrictedTypes || tree.elemtype == null || !types.isNonNullable(originalElemType.type)) {
             result = tree;
         } else {
             Symbol elemClass = syms.getClassField(tree.elemtype.type, types);
