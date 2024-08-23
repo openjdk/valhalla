@@ -3,6 +3,7 @@
  * @summary Smoke test for nullability warnings
  * @enablePreview
  * @compile/fail/ref=NullabilityWarningsTest.out -XDrawDiagnostics -Werror -Xlint:null NullabilityWarningsTest.java
+ * @compile/fail/ref=NullabilityWarningsTest_parametric.out -XDrawDiagnostics -Werror -Xlint:null -XDtvarUnspecifiedNullity NullabilityWarningsTest.java
  */
 
 public class NullabilityWarningsTest {
@@ -49,5 +50,23 @@ public class NullabilityWarningsTest {
         bes_null = bes_nonnull;
         bes_unknown = bes_null;
         bes_unknown = bes_nonnull;
+    }
+
+    void testMember() {
+        Box<String?> bs_null = null;
+        Box<String!> bs_nonnull = null;
+        Box<String> bs_unknown = null;
+
+        String s_unknown = bs_null.get();
+        s_unknown = bs_nonnull.get();
+        s_unknown = bs_unknown.get();
+
+        String? s_null = bs_null.get();
+        s_null = bs_nonnull.get();
+        s_null = bs_unknown.get();
+
+        String! s_nonnull = bs_null.get(); //warn
+        s_nonnull = bs_nonnull.get();
+        s_nonnull = bs_unknown.get();
     }
 }

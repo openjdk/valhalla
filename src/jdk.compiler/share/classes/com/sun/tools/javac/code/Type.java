@@ -543,13 +543,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         if (moreInfo && hasTag(TYPEVAR)) {
             sb.append(hashCode());
         }
-        if (isNullable()) {
-            sb.append("?");
-        } else if (isNonNullable()) {
-            sb.append("!");
-        } else if (isParametric()) {
-            sb.append("*");
-        }
+        sb.append(getNullMarker().typeSuffix());
         return sb.toString();
     }
 
@@ -762,22 +756,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return (nullMarker == NullMarker.UNSPECIFIED) ?
                 base :
                 base.addMetadata(new TypeMetadata.NullMarker(nullMarker));
-    }
-
-    public boolean isNullable() {
-        return getNullMarker() == NullMarker.NULLABLE;
-    }
-
-    public boolean isNonNullable() {
-        return getNullMarker() == NullMarker.NOT_NULL;
-    }
-
-    public boolean isParametric() {
-        return getNullMarker() == NullMarker.PARAMETRIC;
-    }
-
-    public boolean isNullUnspecified() {
-        return getNullMarker() == NullMarker.UNSPECIFIED;
     }
 
     public NullMarker getNullMarker() {
@@ -1149,13 +1127,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 }
             }
 
-            if (isNullable()) {
-                buf.append("?");
-            } else if (isNonNullable()) {
-                buf.append("!");
-            } else if (isParametric()) {
-                buf.append("*");
-            }
+            buf.append(getNullMarker().typeSuffix());
 
             if (getTypeArguments().nonEmpty()) {
                 buf.append('<');
@@ -1472,13 +1444,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             t = this;
             do {
                 t.appendAnnotationsString(sb, true);
-                if (t.isNullable()) {
-                    sb.append("?");
-                } else if (t.isNonNullable()) {
-                    sb.append("!");
-                } else if (t.isParametric()) {
-                    sb.append("*");
-                }
+                sb.append(t.getNullMarker().typeSuffix());
                 sb.append("[]");
                 t = ((ArrayType) t).getComponentType();
             } while (t.getKind() == TypeKind.ARRAY);
@@ -2236,7 +2202,9 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 }
             } else {
                 Type bound2 = bound.map(toTypeVarMap).baseType();
-                bound2 = bound2.asNullMarked(bound.getNullMarker());
+                if (types.isParametric(qtype)) {
+                    bound2 = bound2.asNullMarked(bound.getNullMarker());
+                }
                 List<Type> prevBounds = bounds.get(ib);
                 if (bound == qtype) return;
                 for (Type b : prevBounds) {

@@ -2542,7 +2542,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && symbol.type.isNonNullable();
+            return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && types.isNonNullable(symbol.type);
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {
@@ -4638,7 +4638,7 @@ public class Check {
             } else {
                 boolean warned = this.warned;
                 if (warned) return;
-                if (expected.isParametric()) {
+                if (types.isParametric(expected)) {
                     // not sure this is the right warning
                     Check.this.warnNullableTypes(pos(), Warnings.NarrowingNullnessConversion);
                 }

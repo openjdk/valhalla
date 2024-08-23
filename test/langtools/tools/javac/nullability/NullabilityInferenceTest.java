@@ -3,6 +3,7 @@
  * @summary Smoke test for nullability inference
  * @enablePreview
  * @compile/fail/ref=NullabilityInferenceTest.out -XDrawDiagnostics NullabilityInferenceTest.java
+ * @compile/fail/ref=NullabilityInferenceTest_parametric.out -XDrawDiagnostics -XDtvarUnspecifiedNullity NullabilityInferenceTest.java
  */
 
 import java.util.List;

@@ -1,0 +1,17 @@
+NullabilityInferenceTest.java:23:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:24:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:25:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:26:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:34:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:35:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:36:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:37:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:45:39: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:46:39: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:47:39: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+NullabilityInferenceTest.java:48:39: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.util.List<Test.Box<java.lang.String>>, java.lang.Integer)
+- compiler.note.unchecked.filename: NullabilityInferenceTest.java
+- compiler.note.unchecked.recompile
+- compiler.note.preview.filename: NullabilityInferenceTest.java, DEFAULT
+- compiler.note.preview.recompile
+12 errors

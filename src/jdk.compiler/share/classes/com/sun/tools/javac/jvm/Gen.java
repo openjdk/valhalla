@@ -928,7 +928,7 @@ public class Gen extends JCTree.Visitor {
     public void genArgs(List<JCExpression> trees, List<Type> pts) {
         for (List<JCExpression> l = trees; l.nonEmpty(); l = l.tail) {
             genExpr(l.head, pts.head).load();
-            if (pts.head.isNonNullable() && !l.head.type.isNonNullable()) {
+            if (types.isNonNullable(pts.head) && !types.isNullable(l.head.type)) {
                 code.emitop0(dup);
                 genNullCheck(l.head);
             }
@@ -1113,7 +1113,7 @@ public class Gen extends JCTree.Visitor {
                 Assert.check(code.isStatementStart());
                 code.newLocal(v);
                 genExpr(tree.init, v.erasure(types)).load();
-                if (tree.type.isNonNullable() && !tree.init.type.isNonNullable()) {
+                if (types.isNonNullable(tree.type) && !types.isNonNullable(tree.init.type)) {
                     code.emitop0(dup);
                     genNullCheck(tree.init);
                 }
@@ -2118,7 +2118,7 @@ public class Gen extends JCTree.Visitor {
     public void visitAssign(JCAssign tree) {
         Item l = genExpr(tree.lhs, tree.lhs.type);
         genExpr(tree.rhs, tree.lhs.type).load();
-        if (tree.lhs.type.isNonNullable() && !tree.rhs.type.isNonNullable()) {
+        if (types.isNonNullable(tree.lhs.type) && !types.isNonNullable(tree.rhs.type)) {
             code.emitop0(dup);
             genNullCheck(tree.rhs);
         }
@@ -2327,7 +2327,7 @@ public class Gen extends JCTree.Visitor {
 
     public void visitTypeCast(JCTypeCast tree) {
         result = genExpr(tree.expr, tree.clazz.type).load();
-        if (tree.clazz.type.isNonNullable() && !tree.expr.type.isNonNullable()) {
+        if (types.isNonNullable(tree.clazz.type) && !types.isNonNullable(tree.expr.type)) {
             code.emitop0(dup);
             genNullCheck(tree.expr);
         }
