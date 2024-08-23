@@ -187,7 +187,12 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
         StringBuilder res = new StringBuilder();
         printBaseElementType(t, res, locale);
         printBrackets(t, res, locale);
+        res.append(nullMarker(t));
         return res.toString();
+    }
+
+    private String nullMarker(Type t) {
+        return t.getNullMarker().typeSuffix();
     }
 
     private String printAnnotations(Type t) {
@@ -230,9 +235,11 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
             buf.append('.');
             buf.append(printAnnotations(t));
             buf.append(className(t, false, locale));
+            buf.append(nullMarker(t));
         } else {
             buf.append(printAnnotations(t));
             buf.append(className(t, true, locale));
+            buf.append(nullMarker(t));
         }
         if (t.getTypeArguments().nonEmpty()) {
             buf.append('<');
@@ -283,7 +290,7 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
         String s = (t.tsym == null || t.tsym.name == null)
                 ? localize(locale, "compiler.misc.type.none")
                 : t.tsym.name.toString();
-        return s;
+        return s + nullMarker(t);
     }
 
     /**
