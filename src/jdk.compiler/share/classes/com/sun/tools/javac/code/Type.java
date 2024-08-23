@@ -757,11 +757,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     // support for null-marked types
 
     public Type asNullMarked(NullMarker nullMarker) {
-        if (nullMarker == NullMarker.UNSPECIFIED) {
-            return this;
-        } else {
-            return addMetadata(new TypeMetadata.NullMarker(nullMarker));
-        }
+        if (nullMarker == getNullMarker()) return this;
+        Type base = dropMetadata(TypeMetadata.NullMarker.class);
+        return (nullMarker == NullMarker.UNSPECIFIED) ?
+                base :
+                base.addMetadata(new TypeMetadata.NullMarker(nullMarker));
     }
 
     public boolean isNullable() {
@@ -2236,11 +2236,13 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 }
             } else {
                 Type bound2 = bound.map(toTypeVarMap).baseType();
+                bound2 = bound2.asNullMarked(bound.getNullMarker());
                 List<Type> prevBounds = bounds.get(ib);
                 if (bound == qtype) return;
                 for (Type b : prevBounds) {
                     //check for redundancy - do not add same bound twice
-                    if (types.isSameType(b, bound2)) return;
+                    if (b.getNullMarker() == bound2.getNullMarker() &&
+                            types.isSameType(b, bound2)) return;
                 }
                 bounds.put(ib, prevBounds.prepend(bound2));
                 notifyBoundChange(ib, bound2, false);

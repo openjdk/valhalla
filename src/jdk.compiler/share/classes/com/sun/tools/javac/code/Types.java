@@ -50,6 +50,7 @@ import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.jvm.ClassFile;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.BoundKind.*;
@@ -4032,10 +4033,14 @@ public class Types {
         final int CLASS_BOUND = 2;
 
         int[] kinds = new int[ts.length];
+        NullMarker nullMarker = NullMarker.NOT_NULL;
 
         int boundkind = UNKNOWN_BOUND;
         for (int i = 0 ; i < ts.length ; i++) {
             Type t = ts[i];
+            if (t.getNullMarker().ordinal() > nullMarker.ordinal()) {
+                nullMarker = t.getNullMarker();
+            }
             switch (t.getTag()) {
             case CLASS:
                 boundkind |= kinds[i] = CLASS_BOUND;
@@ -4085,7 +4090,8 @@ public class Types {
                 }
             }
             // lub(A[], B[]) is lub(A, B)[]
-            return new ArrayType(lub(elements), syms.arrayClass);
+            return new ArrayType(lub(elements), syms.arrayClass)
+                    .asNullMarked(nullMarker);
 
         case CLASS_BOUND:
             // calculate lub(A, B)
@@ -4120,7 +4126,8 @@ public class Types {
             }
             //step 4 - let MEC be { G1, G2 ... Gn }, then we have that
             //lub = lci(Inv(G1)) & lci(Inv(G2)) & ... & lci(Inv(Gn))
-            return compoundMin(candidates);
+            return compoundMin(candidates)
+                    .asNullMarked(nullMarker);
 
         default:
             // calculate lub(A, B[])
@@ -4172,15 +4179,18 @@ public class Types {
     public Type glb(Type t, Type s) {
         if (s == null)
             return t;
-        else if (t.isPrimitive() || s.isPrimitive())
+
+        final NullMarker nullMarker = t.getNullMarker().ordinal() < s.getNullMarker().ordinal() ?
+                    t.getNullMarker() : s.getNullMarker();
+        if (t.isPrimitive() || s.isPrimitive())
             return syms.errType;
         else if (isSubtypeNoCapture(t, s))
-            return t;
+            return t.asNullMarked(nullMarker);
         else if (isSubtypeNoCapture(s, t))
-            return s;
+            return s.asNullMarked(nullMarker);
 
         List<Type> closure = union(closure(t), closure(s));
-        return glbFlattened(closure, t);
+        return glbFlattened(closure, t).asNullMarked(nullMarker);
     }
     //where
     /**
