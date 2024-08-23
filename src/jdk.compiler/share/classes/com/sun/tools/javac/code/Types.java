@@ -50,6 +50,7 @@ import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.jvm.ClassFile;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.BoundKind.*;
@@ -5287,6 +5288,10 @@ public class Types {
                     }
                     append('T');
                     append(type.tsym.name);
+                    NullMarker nullMarker = type.getNullMarker();
+                    if (nullMarker != NullMarker.UNSPECIFIED) {
+                        append(nullMarker.typeSuffix().charAt(0));
+                    }
                     append(';');
                     break;
                 case FORALL:
@@ -5321,6 +5326,10 @@ public class Types {
                 assembleClassSig(rawOuter
                         ? types.erasure(outer)
                         : outer);
+                NullMarker nullMarker = outer.getNullMarker();
+                if (nullMarker != NullMarker.UNSPECIFIED) {
+                    append(nullMarker.typeSuffix().charAt(0));
+                }
                 append(rawOuter ? '$' : '.');
                 Assert.check(c.flatname.startsWith(c.owner.enclClass().flatname));
                 append(rawOuter
@@ -5328,6 +5337,10 @@ public class Types {
                         : c.name);
             } else {
                 append(externalize(c.flatname));
+            }
+            NullMarker nullMarker = type.getNullMarker();
+            if (nullMarker != NullMarker.UNSPECIFIED) {
+                append(nullMarker.typeSuffix().charAt(0));
             }
             if (ct.getTypeArguments().nonEmpty()) {
                 append('<');

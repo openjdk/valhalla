@@ -26,6 +26,7 @@
 package com.sun.tools.javac.jvm;
 
 import java.io.*;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +50,7 @@ import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant;
 import com.sun.tools.javac.jvm.PoolConstant.Dynamic.BsmKey;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 
@@ -373,6 +375,7 @@ public class ClassWriter extends ClassFile {
         if ((flags & (SYNTHETIC | BRIDGE)) != SYNTHETIC &&
             (flags & ANONCONSTR) == 0 &&
             (!types.isSameType(sym.type, sym.erasure(types)) ||
+             nullMarkersScanner.visit(sym.type, new HashSet<>()) ||
              poolWriter.signatureGen.hasTypeVar(sym.type.getThrownTypes()))) {
             // note that a local class with captured variables
             // will get a signature attribute
@@ -387,6 +390,83 @@ public class ClassWriter extends ClassFile {
             acount += writeNullRestrictedIfNeeded(sym);
         }
         return acount;
+    }
+
+    NullMarkersScanner nullMarkersScanner = new NullMarkersScanner();
+    class NullMarkersScanner extends Types.SimpleVisitor<Boolean, Set<Type>> {
+
+        @Override
+        public Boolean visitType(Type t, Set<Type> types) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitClassType(ClassType t, Set<Type> seen) {
+            if (t.getNullMarker() != NullMarker.UNSPECIFIED) {
+                return true;
+            } else {
+                for (Type param : t.allparams()) {
+                    if (param.getNullMarker() != NullMarker.UNSPECIFIED) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public Boolean visitArrayType(ArrayType t, Set<Type> seen) {
+            if (t.getNullMarker() != NullMarker.UNSPECIFIED) {
+                return true;
+            }
+            return visit(t.elemtype, seen);
+        }
+
+        @Override
+        public Boolean visitWildcardType(WildcardType t, Set<Type> seen) {
+            return visit(t.type, seen);
+        }
+
+        @Override
+        public Boolean visitTypeVar(TypeVar t, Set<Type> seen) {
+            if ((t.tsym.flags() & Flags.SYNTHETIC) != 0 && seen.add(t)) {
+                return visit(t.getUpperBound(), seen);
+            }
+            return false;
+        }
+
+        @Override
+        public Boolean visitCapturedType(CapturedType t, Set<Type> seen) {
+            if (seen.add(t)) {
+                return visit(t.getUpperBound(), seen) || visit(t.getLowerBound(), seen);
+            }
+            return false;
+        }
+
+        @Override
+        public Boolean visitMethodType(MethodType t, Set<Type> seen) {
+            for (Type arg : t.argtypes) {
+                if (visit(arg, seen)) {
+                    return true;
+                }
+            }
+            for (Type param : t.allparams()) {
+                if (visit(param, seen)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public Boolean visitForAll(ForAll t, Set<Type> seen) {
+            for (Type tvar : t.tvars) {
+                if (visit(tvar, seen)) {
+                    return true;
+                }
+            }
+            return visit(t.qtype, seen);
+        }
     }
 
     /**

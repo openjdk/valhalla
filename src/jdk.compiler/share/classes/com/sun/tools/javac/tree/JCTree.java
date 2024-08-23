@@ -2926,6 +2926,16 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             public String typeSuffix() {
                 return typeSuffix;
             }
+
+            public static NullMarker of(String typeSuffix) {
+                return switch (typeSuffix) {
+                    case "!" -> NOT_NULL;
+                    case "?" -> NULLABLE;
+                    case "*" -> PARAMETRIC;
+                    case "" -> UNSPECIFIED;
+                    default -> throw new AssertionError("invalid type suffix");
+                };
+            }
         }
     }
 

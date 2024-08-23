@@ -66,6 +66,7 @@ import com.sun.tools.javac.resources.CompilerProperties;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.ByteBuffer.UnderflowException;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -580,27 +581,44 @@ public class ClassReader {
         while (true) {
             final byte c = signature[sigp++];
             switch (c) {
-
             case ';': {         // end
+                byte previousChar = signature[sigp - 2];
+                NullMarker nm = NullMarker.UNSPECIFIED;
+                if (previousChar == '!' || previousChar == '?') {
+                    nm = NullMarker.of(String.valueOf((char)previousChar));
+                }
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
-                                                         sbp - startSbp));
+                                                         sbp - (startSbp + (nm != NullMarker.UNSPECIFIED ? 1 : 0)) ));
 
                 try {
                     if (outer == Type.noType) {
                         ClassType et = (ClassType) t.erasure(types);
-                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
+                        ClassType res = new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
+                        if (nm != NullMarker.UNSPECIFIED) {
+                            res = (ClassType) res.addMetadata(new TypeMetadata.NullMarker(nm));
+                        }
+                        return res;
                     }
-                    return new ClassType(outer, List.nil(), t, List.nil());
+                    ClassType res = new ClassType(outer, List.nil(), t, List.nil());
+                    if (nm != NullMarker.UNSPECIFIED) {
+                        res = (ClassType) res.addMetadata(new TypeMetadata.NullMarker(nm));
+                    }
+                    return res;
                 } finally {
                     sbp = startSbp;
                 }
             }
 
             case '<':           // generic arguments
+                byte previousChar = signature[sigp - 2];
+                NullMarker nm = NullMarker.UNSPECIFIED;
+                if (previousChar == '!' || previousChar == '?') {
+                    nm = NullMarker.of(String.valueOf((char)previousChar));
+                }
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
-                                                         sbp - startSbp));
+                                                         sbp - (startSbp + (nm != NullMarker.UNSPECIFIED ? 1 : 0)) ));
                 outer = new ClassType(outer, sigToTypes('>'), t, List.nil()) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
@@ -633,6 +651,9 @@ public class ClassReader {
                             throw new UnsupportedOperationException();
                         }
                     };
+                if (nm != NullMarker.UNSPECIFIED) {
+                    outer = outer.addMetadata(new TypeMetadata.NullMarker(nm));
+                }
                 switch (signature[sigp++]) {
                 case ';':
                     if (sigp < siglimit && signature[sigp] == '.') {
@@ -1340,10 +1361,10 @@ public class ClassReader {
                     if (sym.type.isPrimitive() || sym.type.hasTag(TypeTag.ARRAY)) {
                         throw badClassFile("attribute.not.applicable.to.field.type", names.NullRestricted, sym.type);
                     }
-                    if (sym.type.isNonNullable()) {
-                        throw badClassFile("attribute.must.be.unique", names.NullRestricted);
-                    }
-                    sym.type = sym.type.asNullMarked(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL);
+                    /*if (!sym.type.isNonNullable()) {
+                        //throw badClassFile("attribute.must.be.unique", names.NullRestricted);
+                        sym.type = sym.type.asNullMarked(NullMarker.NOT_NULL);
+                    }*/
                 }
             },
         };
