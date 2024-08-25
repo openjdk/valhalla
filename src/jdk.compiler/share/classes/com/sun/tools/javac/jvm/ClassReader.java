@@ -1361,10 +1361,12 @@ public class ClassReader {
                     if (sym.type.isPrimitive() || sym.type.hasTag(TypeTag.ARRAY)) {
                         throw badClassFile("attribute.not.applicable.to.field.type", names.NullRestricted, sym.type);
                     }
-                    /*if (!sym.type.isNonNullable()) {
-                        //throw badClassFile("attribute.must.be.unique", names.NullRestricted);
-                        sym.type = sym.type.asNullMarked(NullMarker.NOT_NULL);
-                    }*/
+                    /*
+                    if (types.isNonNullable(sym.type)) {
+                        throw badClassFile("attribute.must.be.unique", names.NullRestricted);
+                    }
+                    sym.type = sym.type.asNullMarked(NullMarker.NOT_NULL);
+                    */
                 }
             },
         };
@@ -3544,6 +3546,6 @@ public class ClassReader {
     }
     // where
     private boolean cyclePossible(VarSymbol symbol) {
-        return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && symbol.type.isNonNullable();
+        return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && types.isNonNullable(symbol.type);
     }
 }

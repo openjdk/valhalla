@@ -1471,7 +1471,10 @@ public class Infer {
         EQ(InferenceBound.EQ) {
             @Override
             Type solve(UndetVar uv, InferenceContext inferenceContext) {
-                return filterBounds(uv, inferenceContext).head;
+                Infer infer = inferenceContext.infer;
+                List<Type> eqbounds = filterBounds(uv, inferenceContext);
+                return eqbounds.tail.tail == null  ?
+                        eqbounds.head : infer.types.lub(eqbounds);
             }
         },
         /**

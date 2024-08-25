@@ -3,9 +3,8 @@ NullabilityWarningsTest.java:31:19: compiler.warn.unchecked.nullness.conversion
 NullabilityWarningsTest.java:32:22: compiler.warn.unchecked.nullness.conversion
 NullabilityWarningsTest.java:41:20: compiler.warn.unchecked.nullness.conversion
 NullabilityWarningsTest.java:49:23: compiler.warn.unchecked.nullness.conversion
-NullabilityWarningsTest.java:68:40: compiler.warn.unchecked.nullness.conversion
 - compiler.err.warnings.and.werror
 - compiler.note.preview.filename: NullabilityWarningsTest.java, DEFAULT
 - compiler.note.preview.recompile
 1 error
-6 warnings
+5 warnings

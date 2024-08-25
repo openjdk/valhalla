@@ -1053,7 +1053,7 @@ public class ClassWriter extends ClassFile {
     /** Write "NullRestricted" attribute.
      */
     int writeNullRestrictedIfNeeded(Symbol sym) {
-        if (allowNullRestrictedTypes && sym.kind == VAR && sym.type.isNonNullable() && !sym.type.hasTag(ARRAY)) {
+        if (allowNullRestrictedTypes && sym.kind == VAR && types.isNonNullable(sym.type) && !sym.type.hasTag(ARRAY)) {
             int alenIdx = writeAttr(names.NullRestricted);
             endAttr(alenIdx);
             if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {

@@ -2216,7 +2216,7 @@ public class Flow {
             return sym.owner.kind == TYP &&
                     ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
                             classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
-                            (sym.type.isNonNullable() || sym.type.isParametric()));
+                            (types.isNonNullable(sym.type) || types.isParametric(sym.type)));
         }
 
         /** Initialize new trackable variable by setting its address field
@@ -2309,7 +2309,7 @@ public class Flow {
                 (sym.flags_field & CLASH) == 0) {
                 if (isUninitializedNonNullableOrParametricField(sym)) {
                     if (lint.isEnabled(Lint.LintCategory.NULL)) {
-                        if (sym.type.isNonNullable()) {
+                        if (types.isNonNullable(sym.type)) {
                             log.warning(pos, Warnings.NonNullableShouldBeInitialized);
                         } else {
                             log.warning(pos, Warnings.ParametricShouldBeInitialized);

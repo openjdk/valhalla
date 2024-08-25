@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -102,6 +101,7 @@ public class Types {
 
     /* are nullable and null-restricted types allowed? */
     private boolean allowNullRestrictedTypes;
+    private boolean tvarUnspecifiedNullity;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
     public static Types instance(Context context) {
@@ -131,6 +131,8 @@ public class Types {
         Preview preview = Preview.instance(context);
         allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
                 Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
+        Options options = Options.instance(context);
+        tvarUnspecifiedNullity = options.isSet("tvarUnspecifiedNullity");
     }
     // </editor-fold>
 
@@ -1143,7 +1145,7 @@ public class Types {
                  case TYPEVAR:
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT: {
-                     if (s.isNonNullable()) {
+                     if (isNonNullable(s)) {
                          return false;
                      }
                      return
@@ -1770,7 +1772,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || s.hasTag(BOT) && (!t.hasImplicitConstructor() || !t.isNonNullable()))
+                if (s.hasTag(ERROR) || s.hasTag(BOT) && (!t.hasImplicitConstructor() || !isNonNullable(t)))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
@@ -2375,8 +2377,20 @@ public class Types {
                             if (baseParams.isEmpty()) {
                                 // then base is a raw type
                                 return erasure(sym.type);
+                            } else if (baseParams.length() != ownerParams.length()) {
+                                // rare type, recovery
+                                return subst(sym.type, ownerParams,
+                                        baseParams.map(ta -> ta.asNullMarked(NullMarker.UNSPECIFIED)));
                             } else {
-                                return subst(sym.type, ownerParams, baseParams);
+                                ListBuffer<Type> newBaseParams = new ListBuffer<>();
+                                for (Type tvar : ownerParams) {
+                                    Type baseParam = isParametric(tvar) ?
+                                            baseParams.head :
+                                            baseParams.head.asNullMarked(NullMarker.UNSPECIFIED);
+                                    newBaseParams.add(baseParam);
+                                    baseParams = baseParams.tail;
+                                }
+                                return subst(sym.type, ownerParams, newBaseParams.toList());
                             }
                         }
                     }
@@ -4033,10 +4047,14 @@ public class Types {
         final int CLASS_BOUND = 2;
 
         int[] kinds = new int[ts.length];
+        NullMarker nullMarker = NullMarker.NOT_NULL;
 
         int boundkind = UNKNOWN_BOUND;
         for (int i = 0 ; i < ts.length ; i++) {
             Type t = ts[i];
+            if (t.getNullMarker().ordinal() > nullMarker.ordinal()) {
+                nullMarker = t.getNullMarker();
+            }
             switch (t.getTag()) {
             case CLASS:
                 boundkind |= kinds[i] = CLASS_BOUND;
@@ -4086,7 +4104,8 @@ public class Types {
                 }
             }
             // lub(A[], B[]) is lub(A, B)[]
-            return new ArrayType(lub(elements), syms.arrayClass);
+            return new ArrayType(lub(elements), syms.arrayClass)
+                    .asNullMarked(nullMarker);
 
         case CLASS_BOUND:
             // calculate lub(A, B)
@@ -4121,7 +4140,8 @@ public class Types {
             }
             //step 4 - let MEC be { G1, G2 ... Gn }, then we have that
             //lub = lci(Inv(G1)) & lci(Inv(G2)) & ... & lci(Inv(Gn))
-            return compoundMin(candidates);
+            return compoundMin(candidates)
+                    .asNullMarked(nullMarker);
 
         default:
             // calculate lub(A, B[])
@@ -4173,15 +4193,18 @@ public class Types {
     public Type glb(Type t, Type s) {
         if (s == null)
             return t;
-        else if (t.isPrimitive() || s.isPrimitive())
+
+        final NullMarker nullMarker = t.getNullMarker().ordinal() < s.getNullMarker().ordinal() ?
+                    t.getNullMarker() : s.getNullMarker();
+        if (t.isPrimitive() || s.isPrimitive())
             return syms.errType;
         else if (isSubtypeNoCapture(t, s))
-            return t;
+            return t.asNullMarked(nullMarker);
         else if (isSubtypeNoCapture(s, t))
-            return s;
+            return s.asNullMarked(nullMarker);
 
         List<Type> closure = union(closure(t), closure(s));
-        return glbFlattened(closure, t);
+        return glbFlattened(closure, t).asNullMarked(nullMarker);
     }
     //where
     /**
@@ -5400,11 +5423,30 @@ public class Types {
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="nullability methods">
+
+    public boolean isNullable(Type type) {
+        return type.getNullMarker() == NullMarker.NULLABLE;
+    }
+
+    public boolean isNonNullable(Type type) {
+        return type.getNullMarker() == NullMarker.NOT_NULL;
+    }
+
+    public boolean isParametric(Type type) {
+        return type.getNullMarker() == NullMarker.PARAMETRIC ||
+                (type.hasTag(TYPEVAR) && type.getNullMarker() == NullMarker.UNSPECIFIED && !tvarUnspecifiedNullity);
+    }
+
+    public boolean isNullUnspecified(Type type) {
+        return type.getNullMarker() == NullMarker.UNSPECIFIED &&
+                (!type.hasTag(TYPEVAR) || tvarUnspecifiedNullity);
+    }
+
     /**
      * Do t and s have the same nullability?
      */
     public boolean hasSameNullability(Type t, Type s) {
-        if (s == null || t == null || t.isNullUnspecified() || s.isNullUnspecified()) {
+        if (s == null || t == null || isNullUnspecified(t) || isNullUnspecified(s)) {
             return true;
         }
         return t.getNullMarker() == s.getNullMarker();
@@ -5414,7 +5456,7 @@ public class Types {
      * Does t have narrower nullability than s?
      */
     public boolean hasNarrowerNullability(Type t, Type s) {
-        if (s == null || t == null || t.isNullUnspecified() || s.isNullUnspecified()) {
+        if (s == null || t == null || isNullUnspecified(t) || isNullUnspecified(s)) {
             return false;
         }
         return t.getNullMarker().ordinal() < s.getNullMarker().ordinal();
