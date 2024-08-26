@@ -455,6 +455,9 @@ public class ClassWriter extends ClassFile {
                     return true;
                 }
             }
+            if (visit(t.restype, seen)) {
+                return true;
+            }
             return false;
         }
 

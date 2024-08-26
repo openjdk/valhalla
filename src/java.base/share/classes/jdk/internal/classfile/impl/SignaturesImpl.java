@@ -133,7 +133,7 @@ public final class SignaturesImpl {
 
     private RefTypeSig referenceTypeSig() {
         return switch (sig.charAt(sigp)) {
-            case 'L' : classTypeSig();
+            case 'L' : yield classTypeSig();
             case 'T' : {
                 sigp++;
                 var ty = Signature.TypeVarSig.of(sig.substring(sigp, requireIdentifier()));
@@ -144,7 +144,7 @@ public final class SignaturesImpl {
                 sigp++;
                 yield ArrayTypeSig.of(typeSig());
             }
-            case '?' : case '!' : {
+            case '?' : case '!' : case '=' : {
                 sigp++;
                 yield referenceTypeSig();
             }

@@ -4470,7 +4470,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (types.isParametric(site)) {
-            chk.warnNullableTypes(tree.selected, Warnings.AccessingMemberOfParametric);
+            //chk.warnNullableTypes(tree.selected, Warnings.AccessingMemberOfParametric);
         }
 
         // don't allow T.class T[].class, etc

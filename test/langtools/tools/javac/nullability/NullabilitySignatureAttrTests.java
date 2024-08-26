@@ -88,7 +88,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                         Test! t;
                     }
                     """,
-                    "LTest!;"
+                    "!LTest;"
             ),
             new SignatureData(
                     """
@@ -96,7 +96,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                         Test? t;
                     }
                     """,
-                    "LTest?;"
+                    "?LTest;"
             ),
             new SignatureData(
                     """
@@ -105,7 +105,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                         List<Test!> t;
                     }
                     """,
-                    "Ljava/util/List<LTest!;>;"
+                    "Ljava/util/List<!LTest;>;"
             ),
             new SignatureData(
                     """
@@ -114,7 +114,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                         List<Test?> t;
                     }
                     """,
-                    "Ljava/util/List<LTest?;>;"
+                    "Ljava/util/List<?LTest;>;"
             ),
             new SignatureData(
                     """
@@ -123,7 +123,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                         List!<Test!> t;
                     }
                     """,
-                    "Ljava/util/List!<LTest!;>;"
+                    "!Ljava/util/List<!LTest;>;"
             ),
             new SignatureData(
                     """
@@ -132,7 +132,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                         List?<Test?> t;
                     }
                     """,
-                    "Ljava/util/List?<LTest?;>;"
+                    "?Ljava/util/List<?LTest;>;"
             ),
             new SignatureData(
                     """
@@ -140,7 +140,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                         T! t;
                     }
                     """,
-                    "TT!;"
+                    "!TT;"
             ),
             new SignatureData(
                     """
@@ -148,11 +148,11 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                         T? t;
                     }
                     """,
-                    "TT?;"
+                    "?TT;"
             )
     );
 
-    /*@Test
+    @Test
     void testCheckFieldSignature() throws Exception {
         for (SignatureData sd : signatureDataList) {
             File dir = assertOK(true, sd.source);
@@ -164,7 +164,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                 Assert.check(sa.getSignature(classFile.constant_pool).toString().equals(sd.expectedSignature));
             }
         }
-    }*/
+    }
 
     record SepCompilationData(String clientSrc, String serverSrc, List<String> sourceExpectedWarnings, List<String> sepCompExpectedWarnings) {}
     final List<SepCompilationData> sepCompilationDataList = List.of(
@@ -322,8 +322,8 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                     .getOutputLines(Task.OutputKind.DIRECT);
             if (!scd.sourceExpectedWarnings.equals(log))
                 throw new Exception("expected output not found: " + log);
-            /* now lets remove serverSrc's source and compile client's source using the class file version of serverSrc
-             */
+
+            // now lets remove serverSrc's source and compile client's source using the class file version of serverSrc
             tb.deleteFiles(src.resolve("Server.java"));
             log = new JavacTask(tb)
                     .outdir(out)

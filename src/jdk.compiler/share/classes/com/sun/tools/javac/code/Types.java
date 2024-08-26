@@ -5317,8 +5317,8 @@ public class Types {
                     if (((TypeVar)type).isCaptured()) {
                         reportIllegalSignature(type);
                     }
-                    if (types.isParametric(type)) {
-                        append('*');
+                    if (types.isDeclaredParametric(type)) {
+                        append('=');// '*' is already used for wildcards
                     } else {
                         NullMarker nmTV = type.getNullMarker();
                         if (nmTV != NullMarker.UNSPECIFIED) {
@@ -5445,6 +5445,10 @@ public class Types {
     public boolean isParametric(Type type) {
         return type.getNullMarker() == NullMarker.PARAMETRIC ||
                 (type.hasTag(TYPEVAR) && type.getNullMarker() == NullMarker.UNSPECIFIED && !tvarUnspecifiedNullity);
+    }
+
+    public boolean isDeclaredParametric(Type type) {
+        return type.getNullMarker() == NullMarker.PARAMETRIC;
     }
 
     public boolean isNullUnspecified(Type type) {

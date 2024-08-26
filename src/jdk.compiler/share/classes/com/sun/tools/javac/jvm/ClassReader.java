@@ -62,10 +62,8 @@ import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.jvm.ClassFile.Version;
 import com.sun.tools.javac.jvm.PoolConstant.NameAndType;
 import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.resources.CompilerProperties;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
-import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.ByteBuffer.UnderflowException;
@@ -173,6 +171,7 @@ public class ClassReader {
     /** The current scope where type variables are entered.
      */
     protected WriteableScope typevars;
+    Map<Name, NullMarker> typeVarNamesToNullMarkersMap = new HashMap<>();
 
     private List<InterimUsesDirective> interimUses = List.nil();
     private List<InterimProvidesDirective> interimProvides = List.nil();
@@ -471,12 +470,19 @@ public class ClassReader {
     /** Convert signature to type, where signature is implicit.
      */
     Type sigToType() {
+        return sigToType(null);
+    }
+    Type sigToType(NullMarker nm) {
         switch ((char) signature[sigp]) {
         case 'T':
             sigp++;
             int start = sigp;
             while (signature[sigp] != ';') sigp++;
             sigp++;
+            if (nm != null && sigEnterPhase) {
+                Name tvName = readName(signature, start, sigp - 1 - start);
+                typeVarNamesToNullMarkersMap.put(tvName, nm);
+            }
             return sigEnterPhase
                 ? Type.noType
                 : findTypeVar(readName(signature, start, sigp - 1 - start));
@@ -562,11 +568,12 @@ public class ClassReader {
             Type poly = new ForAll(sigToTypeParams(), sigToType());
             typevars = typevars.leave();
             return poly;
-        case '?': case '!' :
+        case '?': case '!' : case '=':
             char nmChar = (char)signature[sigp];
             sigp++;
-            Type t = sigToType();
-            return t.asNullMarked(NullMarker.of(String.valueOf(nmChar)));
+            NullMarker nMarker = nmChar == '=' ? NullMarker.PARAMETRIC : NullMarker.of(String.valueOf(nmChar));
+            Type t = sigToType(nMarker);
+            return t == Type.noType ? t : t.asNullMarked(nMarker);
         default:
             throw badClassFile("bad.signature", quoteBadSignature());
         }
@@ -603,14 +610,9 @@ public class ClassReader {
             }
 
             case '<':           // generic arguments
-                byte previousChar = signature[sigp - 2];
-                NullMarker nm = NullMarker.UNSPECIFIED;
-                if (previousChar == '!' || previousChar == '?') {
-                    nm = NullMarker.of(String.valueOf((char)previousChar));
-                }
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
-                                                         sbp - (startSbp + (nm != NullMarker.UNSPECIFIED ? 1 : 0)) ));
+                                                         sbp - startSbp ));
                 outer = new ClassType(outer, sigToTypes('>'), t, List.nil()) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
@@ -643,9 +645,6 @@ public class ClassReader {
                             throw new UnsupportedOperationException();
                         }
                     };
-                if (nm != NullMarker.UNSPECIFIED) {
-                    outer = outer.addMetadata(new TypeMetadata.NullMarker(nm));
-                }
                 switch (signature[sigp++]) {
                 case ';':
                     if (sigp < siglimit && signature[sigp] == '.') {
@@ -735,6 +734,7 @@ public class ClassReader {
             sigp++;
             int start = sigp;
             sigEnterPhase = true;
+            typeVarNamesToNullMarkersMap.clear();
             while (signature[sigp] != '>')
                 tvars = tvars.prepend(sigToTypeParam());
             sigEnterPhase = false;
@@ -755,6 +755,10 @@ public class ClassReader {
         TypeVar tvar;
         if (sigEnterPhase) {
             tvar = new TypeVar(name, currentOwner, syms.botType);
+            NullMarker nm = typeVarNamesToNullMarkersMap.get(name);
+            if (nm != null) {
+                tvar = (TypeVar) tvar.asNullMarked(nm);
+            }
             typevars.enter(tvar.tsym);
         } else {
             tvar = (TypeVar)findTypeVar(name);
@@ -1048,7 +1052,6 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-
                     }
                 }
             },
