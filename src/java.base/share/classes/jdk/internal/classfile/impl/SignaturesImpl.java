@@ -133,18 +133,22 @@ public final class SignaturesImpl {
 
     private RefTypeSig referenceTypeSig() {
         return switch (sig.charAt(sigp)) {
-            case 'L' -> classTypeSig();
-            case 'T' -> {
+            case 'L' : classTypeSig();
+            case 'T' : {
                 sigp++;
                 var ty = Signature.TypeVarSig.of(sig.substring(sigp, requireIdentifier()));
                 require(';');
                 yield ty;
             }
-            case '[' -> {
+            case '[' : {
                 sigp++;
                 yield ArrayTypeSig.of(typeSig());
             }
-            default -> throw unexpectedError("a type signature");
+            case '?' : case '!' : {
+                sigp++;
+                yield referenceTypeSig();
+            }
+            default : throw unexpectedError("a type signature");
         };
     }
 

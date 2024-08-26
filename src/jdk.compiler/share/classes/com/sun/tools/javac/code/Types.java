@@ -5264,12 +5264,20 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
+                    NullMarker nullMarker = type.getNullMarker();
+                    if (nullMarker != NullMarker.UNSPECIFIED) {
+                        append(nullMarker.typeSuffix().charAt(0));
+                    }
                     append('L');
                     assembleClassSig(type);
                     append(';');
                     break;
                 case ARRAY:
                     ArrayType at = (ArrayType) type;
+                    NullMarker nmArray = at.getNullMarker();
+                    if (nmArray != NullMarker.UNSPECIFIED) {
+                        append(nmArray.typeSuffix().charAt(0));
+                    }
                     append('[');
                     assembleSig(at.elemtype);
                     break;
@@ -5309,12 +5317,16 @@ public class Types {
                     if (((TypeVar)type).isCaptured()) {
                         reportIllegalSignature(type);
                     }
+                    if (types.isParametric(type)) {
+                        append('*');
+                    } else {
+                        NullMarker nmTV = type.getNullMarker();
+                        if (nmTV != NullMarker.UNSPECIFIED) {
+                            append(nmTV.typeSuffix().charAt(0));
+                        }
+                    }
                     append('T');
                     append(type.tsym.name);
-                    NullMarker nullMarker = type.getNullMarker();
-                    if (nullMarker != NullMarker.UNSPECIFIED) {
-                        append(nullMarker.typeSuffix().charAt(0));
-                    }
                     append(';');
                     break;
                 case FORALL:
@@ -5343,16 +5355,18 @@ public class Types {
             classReference(c);
             Type outer = ct.getEnclosingType();
             if (outer.allparams().nonEmpty()) {
+                /*
+                NullMarker nullMarker = outer.getNullMarker();
+                if (nullMarker != NullMarker.UNSPECIFIED) {
+                    append(nullMarker.typeSuffix().charAt(0));
+                }
+                */
                 boolean rawOuter =
                         c.owner.kind == MTH || // either a local class
                         c.name == types.names.empty; // or anonymous
                 assembleClassSig(rawOuter
                         ? types.erasure(outer)
                         : outer);
-                NullMarker nullMarker = outer.getNullMarker();
-                if (nullMarker != NullMarker.UNSPECIFIED) {
-                    append(nullMarker.typeSuffix().charAt(0));
-                }
                 append(rawOuter ? '$' : '.');
                 Assert.check(c.flatname.startsWith(c.owner.enclClass().flatname));
                 append(rawOuter
@@ -5360,10 +5374,6 @@ public class Types {
                         : c.name);
             } else {
                 append(externalize(c.flatname));
-            }
-            NullMarker nullMarker = type.getNullMarker();
-            if (nullMarker != NullMarker.UNSPECIFIED) {
-                append(nullMarker.typeSuffix().charAt(0));
             }
             if (ct.getTypeArguments().nonEmpty()) {
                 append('<');

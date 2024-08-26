@@ -562,6 +562,11 @@ public class ClassReader {
             Type poly = new ForAll(sigToTypeParams(), sigToType());
             typevars = typevars.leave();
             return poly;
+        case '?': case '!' :
+            char nmChar = (char)signature[sigp];
+            sigp++;
+            Type t = sigToType();
+            return t.asNullMarked(NullMarker.of(String.valueOf(nmChar)));
         default:
             throw badClassFile("bad.signature", quoteBadSignature());
         }
@@ -582,29 +587,16 @@ public class ClassReader {
             final byte c = signature[sigp++];
             switch (c) {
             case ';': {         // end
-                byte previousChar = signature[sigp - 2];
-                NullMarker nm = NullMarker.UNSPECIFIED;
-                if (previousChar == '!' || previousChar == '?') {
-                    nm = NullMarker.of(String.valueOf((char)previousChar));
-                }
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
-                                                         sbp - (startSbp + (nm != NullMarker.UNSPECIFIED ? 1 : 0)) ));
+                                                         sbp - startSbp));
 
                 try {
                     if (outer == Type.noType) {
                         ClassType et = (ClassType) t.erasure(types);
-                        ClassType res = new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
-                        if (nm != NullMarker.UNSPECIFIED) {
-                            res = (ClassType) res.addMetadata(new TypeMetadata.NullMarker(nm));
-                        }
-                        return res;
+                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
                     }
-                    ClassType res = new ClassType(outer, List.nil(), t, List.nil());
-                    if (nm != NullMarker.UNSPECIFIED) {
-                        res = (ClassType) res.addMetadata(new TypeMetadata.NullMarker(nm));
-                    }
-                    return res;
+                    return new ClassType(outer, List.nil(), t, List.nil());
                 } finally {
                     sbp = startSbp;
                 }
