@@ -2312,7 +2312,8 @@ public class Flow {
                         if (types.isNonNullable(sym.type)) {
                             log.warning(pos, Warnings.NonNullableShouldBeInitialized);
                         } else {
-                            log.warning(pos, Warnings.ParametricShouldBeInitialized);
+                            // see JDK-8339087
+                            //log.warning(pos, Warnings.ParametricShouldBeInitialized);
                         }
                     }
                 } else {
