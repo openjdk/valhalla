@@ -25,6 +25,7 @@
  * @test
  * @bug 8013576 8129962
  * @summary Add stat support to LambdaToMethod
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

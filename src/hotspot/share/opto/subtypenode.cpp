@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,8 +132,7 @@ Node *SubTypeCheckNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
   // Verify that optimizing the subtype check to a simple code pattern
   // when possible would not constant fold better
-  // TODO 8325106
-  // assert(verify(phase), "missing Value() optimization");
+  assert(verify(phase), "missing Value() optimization");
 
   return nullptr;
 }
@@ -261,7 +260,7 @@ uint SubTypeCheckNode::hash() const {
 #ifndef PRODUCT
 void SubTypeCheckNode::dump_spec(outputStream* st) const {
   if (_method != nullptr) {
-    st->print(" profiled at: ");
+    st->print(" profiled at:");
     _method->print_short_name(st);
     st->print(":%d", _bci);
   }

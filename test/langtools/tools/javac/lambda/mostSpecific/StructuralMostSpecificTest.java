@@ -27,6 +27,7 @@
  * @summary Add lambda tests
  *  Automatic test for checking correctness of structural most specific test routine
  *  temporarily workaround combo tests are causing time out in several platforms
+ * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

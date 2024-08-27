@@ -23,7 +23,7 @@
 
 /*
  * @test 8292817
- * @summary add binary compatibility tests for value objects
+ * @summary binary compatibility tests for value objects
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main

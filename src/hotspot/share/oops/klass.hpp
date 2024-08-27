@@ -665,9 +665,7 @@ protected:
   #endif
 
   bool is_instance_klass()              const { return assert_same_query(_kind <= InstanceStackChunkKlassKind, is_instance_klass_slow()); }
-  bool is_inline_klass()                const { return is_inline_klass_slow(); } //temporary hack
-  // Other is anything that is not one of the more specialized kinds of InstanceKlass.
-  bool is_other_instance_klass()        const { return _kind <= InlineKlassKind; }
+  bool is_inline_klass()                const { return assert_same_query(_kind == InlineKlassKind, is_inline_klass_slow()); }
   bool is_reference_instance_klass()    const { return _kind == InstanceRefKlassKind; }
   bool is_mirror_instance_klass()       const { return _kind == InstanceMirrorKlassKind; }
   bool is_class_loader_instance_klass() const { return _kind == InstanceClassLoaderKlassKind; }

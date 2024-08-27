@@ -1506,7 +1506,7 @@ public:
   ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false) { }
 };
 
-int compare(ReassignedField* left, ReassignedField* right) {
+static int compare(ReassignedField* left, ReassignedField* right) {
   return left->_offset - right->_offset;
 }
 

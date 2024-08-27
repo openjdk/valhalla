@@ -1143,7 +1143,6 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 
   // return the ConP(Foo.klass)
   assert(mirror_type->is_klass(), "mirror_type should represent a Klass*");
-  // TODO 8325106 Handle null free arrays here?
   return phase->makecon(TypeKlassPtr::make(mirror_type->as_klass(), Type::trust_interfaces));
 }
 
@@ -1233,10 +1232,8 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (con2 != (intptr_t) superklass->super_check_offset())
     return nullptr;                // Might be element-klass loading from array klass
 
-  // TODO 8325106 Fix comment
-  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-  // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
-  // the klass for [LMyValue. Do not bypass the klass load from the primary supertype array.
+  // Do not fold the subtype check to an array klass pointer comparison for null-able inline type arrays
+  // because null-free [LMyValue <: null-able [LMyValue but the klasses are different. Perform a full test.
   if (superklass->is_obj_array_klass() && !superklass->as_array_klass()->is_elem_null_free() &&
       superklass->as_array_klass()->element_klass()->is_inlinetype()) {
     return nullptr;

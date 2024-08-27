@@ -361,5 +361,55 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
     }
 
+
+    // Test that a value class annotated with @ImplicitlyConstructible but extending
+    // an abstract value class not annotated with @ImplicitlyConstructible is not
+    // considered as implicitely constructible
+
+    static abstract value class AbstractValue14 { }
+    @ImplicitlyConstructible
+    static value class Value14 extends AbstractValue14 { }
+
+    static class Test14 {
+        @NullRestricted
+        Value14 val;
+    }
+
+    void test_14() {
+        Throwable exception = null;
+        try {
+            Test14 t14 = new Test14();
+        } catch(IncompatibleClassChangeError e) {
+            exception = e;
+            System.out.println("Received "+ e);
+        }
+        Asserts.assertNotNull(exception, "Expected IncompatibleClassChangeError not received");
+    }
+
+    // Test that a value class annotated with @ImplicitlyConstructible but extending
+    // an abstract value class also annotated with @ImplicitlyConstructible is
+    // considered as implicitely constructible
+
+    @ImplicitlyConstructible
+    static abstract value class AbstractValue15 { }
+    @ImplicitlyConstructible
+    static value class Value15 extends AbstractValue15 { }
+
+    static class Test15 {
+        @NullRestricted
+        Value15 val;
+    }
+
+    void test_15() {
+        Throwable exception = null;
+        try {
+            Test15 t15 = new Test15();
+        } catch(IncompatibleClassChangeError e) {
+            exception = e;
+            System.out.println("Received "+ e);
+        }
+        Asserts.assertNull(exception, "Unexpected IncompatibleClassChangeError received");
+    }
+
  }
 

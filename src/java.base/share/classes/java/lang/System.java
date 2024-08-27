@@ -2460,6 +2460,9 @@ public final class System {
             public Module addEnableNativeAccess(Module m) {
                 return m.implAddEnableNativeAccess();
             }
+            public boolean addEnableNativeAccess(ModuleLayer layer, String name) {
+                return layer.addEnableNativeAccess(name);
+            }
             public void addEnableNativeAccessToAllUnnamed() {
                 Module.implAddEnableNativeAccessToAllUnnamed();
             }
@@ -2691,6 +2694,11 @@ public final class System {
             @Override
             public boolean bytesCompatible(String string, Charset charset) {
                 return string.bytesCompatible(charset);
+            }
+
+            @Override
+            public boolean allowSecurityManager() {
+                return System.allowSecurityManager();
             }
         });
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,15 +51,15 @@
 #include "jfr/jfr.hpp"
 #endif
 
-void print_trace_type_profile(outputStream* out, int depth, ciKlass* prof_klass, int site_count, int receiver_count) {
+static void print_trace_type_profile(outputStream* out, int depth, ciKlass* prof_klass, int site_count, int receiver_count) {
   CompileTask::print_inline_indent(depth, out);
   out->print(" \\-> TypeProfile (%d/%d counts) = ", receiver_count, site_count);
   prof_klass->name()->print_symbol_on(out);
   out->cr();
 }
 
-void trace_type_profile(Compile* C, ciMethod* method, int depth, int bci, ciMethod* prof_method,
-                        ciKlass* prof_klass, int site_count, int receiver_count) {
+static void trace_type_profile(Compile* C, ciMethod* method, int depth, int bci, ciMethod* prof_method,
+                               ciKlass* prof_klass, int site_count, int receiver_count) {
   if (TraceTypeProfile || C->print_inlining()) {
     outputStream* out = tty;
     if (!C->print_inlining()) {
@@ -582,8 +582,6 @@ void Parse::do_call() {
   if (orig_callee->is_object_constructor() && (orig_callee->holder()->is_abstract() || orig_callee->holder()->is_java_lang_Object()) && stack(sp() - nargs)->is_InlineType()) {
     assert(method()->is_object_constructor() && (method()->holder()->is_inlinetype() || method()->holder()->is_abstract()), "Unexpected caller");
     InlineTypeNode* receiver = stack(sp() - nargs)->as_InlineType();
-    // TODO 8325106 re-enable the assert and add the same check for the receiver in the caller map
-    //assert(receiver->is_larval(), "must be larval");
     InlineTypeNode* clone = receiver->clone_if_required(&_gvn, _map);
     clone->set_is_larval(false);
     clone = _gvn.transform(clone)->as_InlineType();

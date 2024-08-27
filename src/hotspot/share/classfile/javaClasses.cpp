@@ -1010,10 +1010,6 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
       Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
       assert(element_klass != nullptr, "Must have an element klass");
       oop comp_oop = element_klass->java_mirror();
-      if (element_klass->is_inline_klass()) {
-        InlineKlass* ik = InlineKlass::cast(element_klass);
-        comp_oop = ik->java_mirror();
-      }
       if (is_scratch) {
         comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
       } else {
@@ -1102,12 +1098,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
 // latter may contain dumptime-specific information that cannot be archived
 // (e.g., ClassLoaderData*, or static fields that are modified by Java code execution).
 void java_lang_Class::create_scratch_mirror(Klass* k, TRAPS) {
-  // Inline classes encapsulate two mirror objects, a value mirror (primitive value mirror)
-  // and a reference mirror (primitive class mirror), skip over scratch mirror allocation
-  // for inline classes, they will not be part of shared archive and will be created while
-  // restoring unshared fileds. Refer Klass::restore_unshareable_info() for more details.
-  if (k->is_inline_klass() ||
-      (k->class_loader() != nullptr &&
+  if ((k->class_loader() != nullptr &&
        k->class_loader() != SystemDictionary::java_platform_loader() &&
        k->class_loader() != SystemDictionary::java_system_loader())) {
     // We only archive the mirrors of classes loaded by the built-in loaders
@@ -1375,7 +1366,7 @@ Klass* java_lang_Class::array_klass_acquire(oop java_class) {
 void java_lang_Class::release_set_array_klass(oop java_class, Klass* klass) {
   assert(klass->is_klass() && klass->is_array_klass(), "should be array klass");
   if (klass->is_flatArray_klass() || (klass->is_objArray_klass() && ObjArrayKlass::cast(klass)->is_null_free_array_klass())) {
-    // TODO 8325106 Ignore flat / null-free arrays
+    // TODO 8336006 Ignore flat / null-free arrays
     return;
   }
   java_class->release_metadata_field_put(_array_klass_offset, klass);
@@ -1569,6 +1560,7 @@ int java_lang_Thread::_jvmti_thread_state_offset;
 int java_lang_Thread::_jvmti_VTMS_transition_disable_count_offset;
 int java_lang_Thread::_jvmti_is_in_VTMS_transition_offset;
 int java_lang_Thread::_interrupted_offset;
+int java_lang_Thread::_interruptLock_offset;
 int java_lang_Thread::_tid_offset;
 int java_lang_Thread::_continuation_offset;
 int java_lang_Thread::_park_blocker_offset;
@@ -1582,6 +1574,7 @@ JFR_ONLY(int java_lang_Thread::_jfr_epoch_offset;)
   macro(_inheritedAccessControlContext_offset, k, vmSymbols::inheritedAccessControlContext_name(), accesscontrolcontext_signature, false); \
   macro(_eetop_offset,         k, "eetop", long_signature, false); \
   macro(_interrupted_offset,   k, "interrupted", bool_signature, false); \
+  macro(_interruptLock_offset, k, "interruptLock", object_signature, false); \
   macro(_tid_offset,           k, "tid", long_signature, false); \
   macro(_park_blocker_offset,  k, "parkBlocker", object_signature, false); \
   macro(_continuation_offset,  k, "cont", continuation_signature, false); \
@@ -1663,6 +1656,9 @@ void java_lang_Thread::clear_scopedValueBindings(oop java_thread) {
 oop java_lang_Thread::holder(oop java_thread) {
   // Note: may return null if the thread is still attaching
   return java_thread->obj_field(_holder_offset);
+}
+oop java_lang_Thread::interrupt_lock(oop java_thread) {
+  return java_thread->obj_field(_interruptLock_offset);
 }
 
 bool java_lang_Thread::interrupted(oop java_thread) {

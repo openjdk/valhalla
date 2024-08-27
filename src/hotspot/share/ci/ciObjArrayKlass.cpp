@@ -175,14 +175,17 @@ ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {
-  // TODO 8325106 Fix comment
-  // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
-  if (!is_loaded() || element_klass()->is_inlinetype()) {
+  if (!is_loaded()) {
     return nullptr;
   }
   ciType* base = base_element_type();
   if (base->is_instance_klass()) {
     ciInstanceKlass* ik = base->as_instance_klass();
+    // Even though MyValue is final, [LMyValue is only exact if the array
+    // is null-free due to null-free [LMyValue <: null-able [LMyValue.
+    if (ik->is_inlinetype() && !is_elem_null_free()) {
+      return nullptr;
+    }
     if (ik->exact_klass() != nullptr) {
       return this;
     }

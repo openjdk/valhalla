@@ -73,6 +73,7 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/threads.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/align.hpp"
 #include "utilities/quickSort.hpp"
@@ -1246,6 +1247,8 @@ void Method::remove_unshareable_flags() {
   set_is_not_c1_compilable(false);
   set_is_not_c2_osr_compilable(false);
   set_on_stack_flag(false);
+  set_has_scalarized_args(false);
+  set_has_scalarized_return(false);
 }
 #endif
 
@@ -1291,10 +1294,17 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   // ONLY USE the h_method now as make_adapter may have blocked
 
   if (h_method->is_continuation_native_intrinsic()) {
-    // the entry points to this method will be set in set_code, called when first resolving this method
     _from_interpreted_entry = nullptr;
     _from_compiled_entry = nullptr;
     _i2i_entry = nullptr;
+    if (Continuations::enabled()) {
+      assert(!Threads::is_vm_complete(), "should only be called during vm init");
+      AdapterHandlerLibrary::create_native_wrapper(h_method);
+      if (!h_method->has_compiled_code()) {
+        THROW_MSG(vmSymbols::java_lang_OutOfMemoryError(), "Initial size of CodeCache is too small");
+      }
+      assert(_from_interpreted_entry == get_i2c_entry(), "invariant");
+    }
   }
 }
 

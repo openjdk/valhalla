@@ -917,6 +917,11 @@ public class IRNode {
         beforeMatchingNameRegex(MAX_VHF, "MaxVHF");
     }
 
+    public static final String MAX_VL = VECTOR_PREFIX + "MAX_VL" + POSTFIX;
+    static {
+        vectorNode(MAX_VL, "MaxV", TYPE_LONG);
+    }
+
     public static final String MEMBAR = PREFIX + "MEMBAR" + POSTFIX;
     static {
         beforeMatchingNameRegex(MEMBAR, "MemBar");
@@ -990,6 +995,11 @@ public class IRNode {
     public static final String MIN_VHF = PREFIX + "MIN_VHF" + POSTFIX;
     static {
         beforeMatchingNameRegex(MIN_VHF, "MinVHF");
+    }
+
+    public static final String MIN_VL = VECTOR_PREFIX + "MIN_VL" + POSTFIX;
+    static {
+        vectorNode(MIN_VL, "MinV", TYPE_LONG);
     }
 
     public static final String MUL = PREFIX + "MUL" + POSTFIX;

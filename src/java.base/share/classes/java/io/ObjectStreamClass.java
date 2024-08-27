@@ -57,6 +57,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import jdk.internal.MigratedValueClass;
 import jdk.internal.event.SerializationMisdeclarationEvent;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.reflect.CallerSensitive;
@@ -414,7 +415,7 @@ public final class ObjectStreamClass implements Serializable {
                         canonicalCtr = canonicalRecordCtr(cl);
                         deserializationCtrs = new DeserializationConstructorsCache();
                     } else if (isValue) {
-                        // Value objects are created using Unsafe.
+                        // Value object instance creation is specialized in newInstance()
                         cons = null;
                     } else if (externalizable) {
                         cons = getExternalizableConstructor(cl);
@@ -965,12 +966,13 @@ public final class ObjectStreamClass implements Serializable {
      * be instantiated by the serialization runtime--i.e., if it is
      * externalizable and defines a public no-arg constructor, if it is
      * non-externalizable and its first non-serializable superclass defines an
-     * accessible no-arg constructor, or if the class is a value class.
+     * accessible no-arg constructor, or if the class is a migrated value class.
      * Otherwise, returns false.
      */
     boolean isInstantiable() {
         requireInitialized();
-        return (cons != null | isValue);
+        return (cons != null |
+                (isValue && cl != null && cl.isAnnotationPresent(jdk.internal.MigratedValueClass.class)));
     }
 
     /**
