@@ -34,29 +34,38 @@ import jdk.test.lib.Asserts;
  * @run driver compiler.c2.irTests.ConvF2HFIdealizationTests
  */
 public class ConvF2HFIdealizationTests {
+    private short[] sin;
+    private short[] sout;
+    private static final int SIZE = 65504;
+    public ConvF2HFIdealizationTests() {
+        sin  = new short[SIZE];
+        sout = new short[SIZE];
+        for (int i = 0; i < SIZE; i++) {
+            sin[i] = Float.floatToFloat16((float)i);
+        }
+    }
     public static void main(String[] args) {
-        TestFramework.runWithFlags("--enable-preview");
-    }
-
-    @Run(test = {"test1"})
-    public void runMethod() {
-        float f = RunInfo.getRandom().nextFloat();
-        Float16 f16 = Float16.valueOf(f);
-        assertResult(f16);
-    }
-
-    @DontCompile
-    public void assertResult(Float16 fp16) {
-        Asserts.assertEQ(Float.floatToFloat16((float)Math.sqrt((double)fp16.floatValue())), test1(fp16));
+        TestFramework.runWithFlags("--enable-preview", "-XX:-UseSuperWord");
     }
 
     @Test
-    @IR(counts = {IRNode.SQRT_HF, "1", IRNode.REINTERPRET_S2HF, "1", IRNode.REINTERPRET_HF2S, "1"},
+    @IR(counts = {IRNode.SQRT_HF, ">=1", IRNode.REINTERPRET_S2HF, ">=1", IRNode.REINTERPRET_HF2S, ">=1"},
         failOn = {IRNode.SQRT_F, IRNode.CONV_HF2F, IRNode.CONV_F2HF},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     // Test pattern - ConvHF2F -> ConvF2D -> SqrtD -> ConvD2F -> ConvF2HF is optimized to ReinterpretS2HF -> SqrtHF -> ReinterpretHF2S
-    public short test1(Float16 x) {
-        return Float.floatToFloat16((float)Math.sqrt((double)x.floatValue()));
+    public void test1() {
+        for (int i = 0; i < SIZE; i++) {
+            sout[i] = Float.floatToFloat16((float)Math.sqrt(Float16.shortBitsToFloat16(sin[i]).floatValue()));
+        }
     }
 
+    @Check(test="test1")
+    public void checkResult() {
+        for (int i = 0; i < SIZE; i++) {
+            short expected = Float16.float16ToRawShortBits(Float16.sqrt(Float16.shortBitsToFloat16(sin[i])));
+            if (expected != sout[i]) {
+                throw new RuntimeException("Invalid result: sout[" + i + "] = " + sout[i] + " != " + expected);
+            }
+        }
+    }
 }
