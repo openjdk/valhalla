@@ -2312,7 +2312,7 @@ public class Flow {
                         if (types.isNonNullable(sym.type)) {
                             log.warning(pos, Warnings.NonNullableShouldBeInitialized);
                         } else {
-                            log.warning(pos, Warnings.ParametricShouldBeInitialized);
+                            //log.warning(pos, Warnings.ParametricShouldBeInitialized);
                         }
                     }
                 } else {
