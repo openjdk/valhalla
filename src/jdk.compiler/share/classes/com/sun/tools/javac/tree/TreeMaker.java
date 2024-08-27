@@ -33,6 +33,7 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.UnresolvedClass;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
@@ -427,10 +428,20 @@ public class TreeMaker implements JCTree.Factory {
     }
 
     public JCNewArray NewArray(JCExpression elemtype,
-                             List<JCExpression> dims,
-                             List<JCExpression> elems)
+                               List<JCExpression> dims,
+                               List<JCExpression> elems)
     {
-        JCNewArray tree = new JCNewArray(elemtype, dims, elems);
+        JCNewArray tree = new JCNewArray(elemtype, dims, elems, List.nil());
+        tree.pos = pos;
+        return tree;
+    }
+
+    public JCNewArray NewArray(JCExpression elemtype,
+                             List<JCExpression> dims,
+                             List<JCExpression> elems,
+                             List<NullMarker> nullMarkers)
+    {
+        JCNewArray tree = new JCNewArray(elemtype, dims, elems, nullMarkers);
         tree.pos = pos;
         return tree;
     }
