@@ -5374,12 +5374,6 @@ public class Types {
             classReference(c);
             Type outer = ct.getEnclosingType();
             if (outer.allparams().nonEmpty()) {
-                /*
-                NullMarker nullMarker = outer.getNullMarker();
-                if (nullMarker != NullMarker.UNSPECIFIED) {
-                    append(nullMarker.typeSuffix().charAt(0));
-                }
-                */
                 boolean rawOuter =
                         c.owner.kind == MTH || // either a local class
                         c.name == types.names.empty; // or anonymous
