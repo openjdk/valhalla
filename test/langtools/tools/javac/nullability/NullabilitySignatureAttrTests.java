@@ -298,6 +298,48 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                             "- compiler.note.preview.filename: Client.java, DEFAULT",
                             "- compiler.note.preview.recompile",
                             "1 warning")
+            ),
+            new SepCompilationData(
+                    """
+                    import java.util.function.*;
+                    class Client extends Vector<Byte>{
+                        void foo(Server s, Unary op) {
+                            int opc = 1;
+                            s.unaryOp(getClass(), null, byte.class, this, null, UN_IMPL.find(op, opc, Client::unaryOperations));
+                        }
+                        interface Operator {}
+                        interface Unary extends Operator {}
+                        static class ImplCache<OP extends Operator,T> {
+                            public ImplCache(Class<OP> whatKind, Class<? extends Vector<?>> whatVec) {}
+                            public T find(OP op, int opc, IntFunction<T> supplier) {
+                                return null;
+                            }
+                        }
+                        static ImplCache<Unary, Server.UnaryOperation<Client, VectorMask<Byte>>>
+                            UN_IMPL = new ImplCache<>(Unary.class, Client.class);
+                        static Server.UnaryOperation<Client, VectorMask<Byte>> unaryOperations(int opc_) { return null; }
+                    }
+                    """,
+                    """
+                    class Server {
+                        <V extends Vector<E>,
+                         M extends VectorMask<E>,
+                         E>
+                        V unaryOp(Class<? extends V> vClass, Class<? extends M> mClass, Class<E> eClass,
+                                  V v, M m,
+                                  UnaryOperation<V, M> defaultImpl) {
+                            return null;
+                        }
+                        public interface UnaryOperation<V extends Vector<?>,
+                                                        M extends VectorMask<?>> {
+                            V apply(V v, M m);
+                        }
+                    }
+                    class Vector<V> {}
+                    class VectorMask<VM> {}
+                    """,
+                    List.of(""),
+                    List.of("")
             )
     );
 
