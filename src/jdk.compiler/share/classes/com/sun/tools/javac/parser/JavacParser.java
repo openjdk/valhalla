@@ -1534,14 +1534,18 @@ public class JavacParser implements Parser {
                         nextToken();
                         if (token.kind == RBRACKET) {
                             nextToken();
+                            Token nullMarker = null;
+                            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                                nullMarker = token;
+                                nextToken();
+                            }
                             t = bracketsOpt(t);
                             t = toP(F.at(pos).TypeArray(t));
+                            if (nullMarker != null) {
+                                setNullMarker(t, nullMarker);
+                            }
                             if (annos.nonEmpty()) {
                                 t = toP(F.at(pos).AnnotatedType(annos, t));
-                            }
-                            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                                setNullMarker(t);
-                                nextToken();
                             }
                             t = bracketsSuffix(t);
                         } else {
@@ -1894,12 +1898,15 @@ public class JavacParser implements Parser {
 
     void setNullMarker(JCExpression exp, Token tk) {
         checkSourceLevel(Feature.NULL_RESTRICTED_TYPES);
-        ((JCNullableTypeExpression)exp).setNullMarker(
-                tk.kind == QUES ?
-                        NullMarker.NULLABLE :
-                        token.kind == BANG ?
-                                NullMarker.NOT_NULL :
-                                NullMarker.PARAMETRIC);
+        ((JCNullableTypeExpression)exp).setNullMarker(nullMarker(tk));
+    }
+
+    NullMarker nullMarker(Token tk) {
+        return tk.kind == QUES ?
+                NullMarker.NULLABLE :
+                tk.kind == BANG ?
+                        NullMarker.NOT_NULL :
+                        NullMarker.PARAMETRIC;
     }
 
     /**
@@ -2504,12 +2511,6 @@ public class JavacParser implements Parser {
             int pos = token.pos;
             nextToken();
             t = bracketsOptCont(t, pos, nextLevelAnnotations);
-        } else if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind) && peekToken(LBRACKET)) {
-            Token nullMarker = token;
-            nextToken();
-            int pos = token.pos;
-            nextToken();
-            t = bracketsOptCont(t, pos, nextLevelAnnotations, nullMarker);
         } else if (!nextLevelAnnotations.isEmpty()) {
             if (permitTypeAnnotationsPushBack) {
                 this.typeAnnotationsPushedBack = nextLevelAnnotations;
@@ -2532,12 +2533,12 @@ public class JavacParser implements Parser {
 
     private JCExpression bracketsOptCont(JCExpression t, int pos,
             List<JCAnnotation> annotations) {
-        return bracketsOptCont(t, pos, annotations, null);
-    }
-
-    private JCExpression bracketsOptCont(JCExpression t, int pos,
-                                         List<JCAnnotation> annotations, Token nullMarker) {
         accept(RBRACKET);
+        Token nullMarker = null;
+        if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+            nullMarker = token;
+            nextToken();
+        }
         t = bracketsOpt(t);
         t = toP(F.at(pos).TypeArray(t));
         if (nullMarker != null) {
@@ -2643,6 +2644,10 @@ public class JavacParser implements Parser {
         selectTypeMode();
         boolean diamondFound = false;
         int lastTypeargsPos = -1;
+        if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+            setNullMarker(t);
+            nextToken();
+        }
         if (token.kind == LT) {
             lastTypeargsPos = token.pos;
             t = typeArguments(t, true);
@@ -2660,6 +2665,11 @@ public class JavacParser implements Parser {
 
             if (tyannos != null && tyannos.nonEmpty()) {
                 t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
+            }
+
+            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                setNullMarker(t);
+                nextToken();
             }
 
             if (token.kind == LT) {
@@ -2762,6 +2772,7 @@ public class JavacParser implements Parser {
             }
         } else {
             ListBuffer<JCExpression> dims = new ListBuffer<>();
+            ListBuffer<NullMarker> nullMarkers = new ListBuffer<>();
 
             // maintain array dimension type annotations
             ListBuffer<List<JCAnnotation>> dimAnnotations = new ListBuffer<>();
@@ -2769,17 +2780,38 @@ public class JavacParser implements Parser {
 
             dims.append(parseExpression());
             accept(RBRACKET);
+            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                nullMarkers.add(nullMarker(token));
+                nextToken();
+            } else {
+                nullMarkers.add(NullMarker.UNSPECIFIED);
+            }
             while (token.kind == LBRACKET
-                    || token.kind == MONKEYS_AT) {
+                    || token.kind == MONKEYS_AT ||
+                    (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind))) {
                 List<JCAnnotation> maybeDimAnnos = typeAnnotationsOpt();
                 int pos = token.pos;
                 nextToken();
-                if (token.kind == RBRACKET) { // no dimension
+                if (token.kind == RBRACKET) {
+                    Token nullMarker = null;
+                    if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                        nullMarker = token;
+                        nextToken();
+                    }
                     elemtype = bracketsOptCont(elemtype, pos, maybeDimAnnos);
+                    if (nullMarker != null) {
+                        setNullMarker(elemtype, nullMarker);
+                    }
                 } else {
                     dimAnnotations.append(maybeDimAnnos);
                     dims.append(parseExpression());
                     accept(RBRACKET);
+                    if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                        nullMarkers.add(nullMarker(token));
+                        nextToken();
+                    } else {
+                        nullMarkers.add(NullMarker.UNSPECIFIED);
+                    }
                 }
             }
 
@@ -2790,8 +2822,10 @@ public class JavacParser implements Parser {
                 elems = arrayInitializerElements(newpos, elemtype);
             }
 
-            JCNewArray na = toP(F.at(newpos).NewArray(elemtype, dims.toList(), elems));
+            JCNewArray na = toP(F.at(newpos).NewArray(elemtype, dims.toList(), elems, nullMarkers.toList()));
             na.dimAnnotations = dimAnnotations.toList();
+
+            Assert.check(dims.length() == nullMarkers.length(), na);
 
             if (elems != null) {
                 return syntaxError(errpos, List.of(na), Errors.IllegalArrayCreationBothDimensionAndInitialization);

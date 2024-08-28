@@ -1444,8 +1444,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             t = this;
             do {
                 t.appendAnnotationsString(sb, true);
-                sb.append(t.getNullMarker().typeSuffix());
                 sb.append("[]");
+                sb.append(t.getNullMarker().typeSuffix());
                 t = ((ArrayType) t).getComponentType();
             } while (t.getKind() == TypeKind.ARRAY);
 

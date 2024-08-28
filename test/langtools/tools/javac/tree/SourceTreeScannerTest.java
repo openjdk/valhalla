@@ -58,6 +58,7 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.tree.JCTree.TypeBoundKind;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Pair;
@@ -172,6 +173,8 @@ public class SourceTreeScannerTest extends AbstractTreeScannerTest {
                 for (Object item: list)
                     reflectiveScan(item);
             } else if (o instanceof Pair) {
+                return;
+            } else if (o instanceof NullMarker) {
                 return;
             } else
                 error("unexpected item: " + o);
