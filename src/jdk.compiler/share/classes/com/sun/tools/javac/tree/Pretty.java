@@ -191,7 +191,8 @@ public class Pretty extends JCTree.Visitor {
             if (tree == null) print("/*missing*/");
             else {
                 tree.accept(this);
-                if (tree instanceof JCNullableTypeExpression nullableType) {
+                if (!(tree instanceof JCArrayTypeTree) &&
+                        tree instanceof JCNullableTypeExpression nullableType) {
                     print(nullableType.getNullMarker().typeSuffix());
                 }
             }
@@ -1562,6 +1563,7 @@ public class Pretty extends JCTree.Visitor {
             }
             if (elem.hasTag(TYPEARRAY)) {
                 print("[]");
+                print(((JCArrayTypeTree)elem).getNullMarker().typeSuffix());
                 elem = ((JCArrayTypeTree)elem).elemtype;
             } else {
                 break;

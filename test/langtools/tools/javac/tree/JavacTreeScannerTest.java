@@ -52,6 +52,7 @@ import javax.tools.*;
 import com.sun.source.util.JavacTask;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Pair;
@@ -165,8 +166,11 @@ public class JavacTreeScannerTest extends AbstractTreeScannerTest {
                     reflectiveScan(item);
             } else if (o instanceof Pair) {
                 return;
-            } else
+            } else if (o instanceof NullMarker) {
+                return;
+            } else {
                 error("unexpected item: " + o);
+            }
         }
 
         JavaFileObject sourcefile;

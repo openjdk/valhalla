@@ -38,6 +38,7 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Directive.RequiresDirective;
 import com.sun.tools.javac.code.Scope.*;
 import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -1912,15 +1913,18 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<JCAnnotation> annotations;
         // type annotations on dimensions
         public List<List<JCAnnotation>> dimAnnotations;
+        public List<NullMarker> nullMarkers;
         public List<JCExpression> elems;
         protected JCNewArray(JCExpression elemtype,
-                           List<JCExpression> dims,
-                           List<JCExpression> elems)
+                             List<JCExpression> dims,
+                             List<JCExpression> elems,
+                             List<NullMarker> nullMarkers)
         {
             this.elemtype = elemtype;
             this.dims = dims;
             this.annotations = List.nil();
             this.dimAnnotations = List.nil();
+            this.nullMarkers = nullMarkers;
             this.elems = elems;
         }
         @Override

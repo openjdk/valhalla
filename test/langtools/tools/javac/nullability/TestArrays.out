@@ -1,0 +1,19 @@
+TestArrays.java:19:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:20:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:27:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:29:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:35:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:36:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:37:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:51:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:52:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:59:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:61:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:67:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:68:21: compiler.warn.unchecked.nullness.conversion
+TestArrays.java:69:21: compiler.warn.unchecked.nullness.conversion
+- compiler.err.warnings.and.werror
+- compiler.note.preview.filename: TestArrays.java, DEFAULT
+- compiler.note.preview.recompile
+1 error
+14 warnings
