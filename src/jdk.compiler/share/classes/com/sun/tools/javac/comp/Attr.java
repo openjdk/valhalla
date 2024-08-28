@@ -3152,7 +3152,7 @@ public class Attr extends JCTree.Visitor {
             elemtype = attribType(tree.elemtype, localEnv);
             chk.validate(tree.elemtype, localEnv);
             owntype = elemtype;
-            List<NullMarker> nullMarkers = tree.nullMarkers; // maybe reverse?
+            List<NullMarker> nullMarkers = tree.nullMarkers.reverse();
             for (List<JCExpression> l = tree.dims; l.nonEmpty(); l = l.tail) {
                 attribExpr(l.head, localEnv, syms.intType);
                 owntype = new ArrayType(owntype, syms.arrayClass)

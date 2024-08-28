@@ -1034,11 +1034,16 @@ public class Types {
     //where
         private boolean isSubtypeUncheckedInternal(Type t, Type s, boolean capture, Warner warn) {
             if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
+                boolean result;
                 if (((ArrayType)t).elemtype.isPrimitive()) {
-                    return isSameType(elemtype(t), elemtype(s));
+                    result = isSameType(elemtype(t), elemtype(s));
                 } else {
-                    return isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
+                    result = isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
                 }
+                if (result && allowNullRestrictedTypes && hasNarrowerNullability(s, t)) {
+                    warn.warn(LintCategory.NULL);
+                }
+                return result;
             } else if (isSubtype(t, s, capture, warn)) {
                 return true;
             } else if (t.hasTag(TYPEVAR)) {
@@ -1229,21 +1234,26 @@ public class Types {
 
             @Override
             public Boolean visitArrayType(ArrayType t, Type s) {
+                boolean result = false;
                 if (s.hasTag(ARRAY)) {
                     if (t.elemtype.isPrimitive())
-                        return isSameType(t.elemtype, elemtype(s));
+                        result = isSameType(t.elemtype, elemtype(s));
                     else
-                        return isSubtypeNoCapture(t.elemtype, elemtype(s));
+                        result = isSubtypeNoCapture(t.elemtype, elemtype(s));
                 }
 
-                if (s.hasTag(CLASS)) {
+                if (!result && s.hasTag(CLASS)) {
                     Name sname = s.tsym.getQualifiedName();
-                    return sname == names.java_lang_Object
+                    result = sname == names.java_lang_Object
                         || sname == names.java_lang_Cloneable
                         || sname == names.java_io_Serializable;
                 }
 
-                return false;
+                if (result && allowNullRestrictedTypes && warnStack.nonEmpty() && hasNarrowerNullability(s, t)) {
+                    warnStack.head.warn(LintCategory.NULL);
+                }
+
+                return result;
             }
 
             @Override
@@ -1384,32 +1394,44 @@ public class Types {
         TypeRelation isSameTypeVisitor = new TypeRelation() {
 
             public Boolean visitType(Type t, Type s) {
-                if (t.equalsIgnoreMetadata(s))
+                if (t.equalsIgnoreMetadata(s)) {
+                    if (allowNullRestrictedTypes && warnStack.nonEmpty() && !hasSameNullability(s, t)) {
+                        warnStack.head.warn(LintCategory.NULL);
+                    }
                     return true;
+                }
 
                 if (s.isPartial())
                     return visit(s, t);
 
                 switch (t.getTag()) {
-                case BYTE: case CHAR: case SHORT: case INT: case LONG: case FLOAT:
-                case DOUBLE: case BOOLEAN: case VOID: case BOT: case NONE:
-                    return t.hasTag(s.getTag());
-                case TYPEVAR: {
-                    if (s.hasTag(TYPEVAR)) {
-                        //type-substitution does not preserve type-var types
-                        //check that type var symbols and bounds are indeed the same
-                        return t == s;
+                    case BYTE:
+                    case CHAR:
+                    case SHORT:
+                    case INT:
+                    case LONG:
+                    case FLOAT:
+                    case DOUBLE:
+                    case BOOLEAN:
+                    case VOID:
+                    case BOT:
+                    case NONE:
+                        return t.hasTag(s.getTag());
+                    case TYPEVAR: {
+                        if (s.hasTag(TYPEVAR)) {
+                            //type-substitution does not preserve type-var types
+                            //check that type var symbols and bounds are indeed the same
+                            return t == s;
+                        } else {
+                            //special case for s == ? super X, where upper(s) = u
+                            //check that u == t, where u has been set by Type.withTypeVar
+                            return s.isSuperBound() &&
+                                    !s.isExtendsBound() &&
+                                    visit(t, wildUpperBound(s));
+                        }
                     }
-                    else {
-                        //special case for s == ? super X, where upper(s) = u
-                        //check that u == t, where u has been set by Type.withTypeVar
-                        return s.isSuperBound() &&
-                                !s.isExtendsBound() &&
-                                visit(t, wildUpperBound(s));
-                    }
-                }
-                default:
-                    throw new AssertionError("isSameType " + t.getTag());
+                    default:
+                        throw new AssertionError("isSameType " + t.getTag());
                 }
             }
 
@@ -1439,7 +1461,7 @@ public class Types {
                     if (!visit(supertype(t), supertype(s)))
                         return false;
 
-                    Map<Symbol,Type> tMap = new HashMap<>();
+                    Map<Symbol, Type> tMap = new HashMap<>();
                     for (Type ti : interfaces(t)) {
                         tMap.put(ti.tsym, ti);
                     }
@@ -1463,14 +1485,19 @@ public class Types {
 
             @Override
             public Boolean visitArrayType(ArrayType t, Type s) {
-                if (t == s)
-                    return true;
-
-                if (s.isPartial())
-                    return visit(s, t);
-
-                return s.hasTag(ARRAY)
-                    && containsTypeEquivalent(t.elemtype, elemtype(s));
+                boolean result;
+                if (t == s) {
+                    result = true;
+                } else if (s.isPartial()) {
+                    result = visit(s, t);
+                } else {
+                    result = s.hasTag(ARRAY) &&
+                            containsTypeEquivalent(t.elemtype, elemtype(s));
+                }
+                if (result && allowNullRestrictedTypes && warnStack.nonEmpty() && !hasSameNullability(s, t)) {
+                    warnStack.head.warn(LintCategory.NULL);
+                }
+                return result;
             }
 
             @Override
