@@ -1405,33 +1405,25 @@ public class Types {
                     return visit(s, t);
 
                 switch (t.getTag()) {
-                    case BYTE:
-                    case CHAR:
-                    case SHORT:
-                    case INT:
-                    case LONG:
-                    case FLOAT:
-                    case DOUBLE:
-                    case BOOLEAN:
-                    case VOID:
-                    case BOT:
-                    case NONE:
-                        return t.hasTag(s.getTag());
-                    case TYPEVAR: {
-                        if (s.hasTag(TYPEVAR)) {
-                            //type-substitution does not preserve type-var types
-                            //check that type var symbols and bounds are indeed the same
-                            return t == s;
-                        } else {
-                            //special case for s == ? super X, where upper(s) = u
-                            //check that u == t, where u has been set by Type.withTypeVar
-                            return s.isSuperBound() &&
-                                    !s.isExtendsBound() &&
-                                    visit(t, wildUpperBound(s));
-                        }
+                case BYTE: case CHAR: case SHORT: case INT: case LONG: case FLOAT:
+                case DOUBLE: case BOOLEAN: case VOID: case BOT: case NONE:
+                    return t.hasTag(s.getTag());
+                case TYPEVAR: {
+                    if (s.hasTag(TYPEVAR)) {
+                        //type-substitution does not preserve type-var types
+                        //check that type var symbols and bounds are indeed the same
+                        return t == s;
                     }
-                    default:
-                        throw new AssertionError("isSameType " + t.getTag());
+                    else {
+                        //special case for s == ? super X, where upper(s) = u
+                        //check that u == t, where u has been set by Type.withTypeVar
+                        return s.isSuperBound() &&
+                                !s.isExtendsBound() &&
+                                visit(t, wildUpperBound(s));
+                    }
+                }
+                default:
+                    throw new AssertionError("isSameType " + t.getTag());
                 }
             }
 
@@ -1461,7 +1453,7 @@ public class Types {
                     if (!visit(supertype(t), supertype(s)))
                         return false;
 
-                    Map<Symbol, Type> tMap = new HashMap<>();
+                    Map<Symbol,Type> tMap = new HashMap<>();
                     for (Type ti : interfaces(t)) {
                         tMap.put(ti.tsym, ti);
                     }
