@@ -1342,12 +1342,7 @@ public class ClassReader {
                     if (sym.type.isPrimitive() || sym.type.hasTag(TypeTag.ARRAY)) {
                         throw badClassFile("attribute.not.applicable.to.field.type", names.NullRestricted, sym.type);
                     }
-                    /*
-                    if (types.isNonNullable(sym.type)) {
-                        throw badClassFile("attribute.must.be.unique", names.NullRestricted);
-                    }
-                    sym.type = sym.type.asNullMarked(NullMarker.NOT_NULL);
-                    */
+                    // there is no point on setting the nullness or not has it will be set while parsing the signature
                 }
             },
         };
