@@ -49,6 +49,7 @@ import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant;
 import com.sun.tools.javac.jvm.PoolConstant.Dynamic.BsmKey;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 
@@ -373,6 +374,7 @@ public class ClassWriter extends ClassFile {
         if ((flags & (SYNTHETIC | BRIDGE)) != SYNTHETIC &&
             (flags & ANONCONSTR) == 0 &&
             (!types.isSameType(sym.type, sym.erasure(types)) ||
+             nullMarkersScanner.visit(sym.type, null) ||
              poolWriter.signatureGen.hasTypeVar(sym.type.getThrownTypes()))) {
             // note that a local class with captured variables
             // will get a signature attribute
@@ -387,6 +389,53 @@ public class ClassWriter extends ClassFile {
             acount += writeNullRestrictedIfNeeded(sym);
         }
         return acount;
+    }
+
+    NullMarkersScanner nullMarkersScanner = new NullMarkersScanner();
+    /* we don't need to scan generic / parameterized types as we will be generating a signature for them anyways
+     */
+    class NullMarkersScanner extends Types.SimpleVisitor<Boolean, Void> {
+
+        @Override
+        public Boolean visitType(Type t, Void ignore) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitClassType(ClassType t, Void ignore) {
+            if (!t.isParameterized()) {
+                if (t.getNullMarker() != NullMarker.UNSPECIFIED) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public Boolean visitArrayType(ArrayType t, Void ignore) {
+            if (t.getNullMarker() != NullMarker.UNSPECIFIED) {
+                return true;
+            }
+            return visit(t.elemtype, ignore);
+        }
+
+        @Override
+        public Boolean visitMethodType(MethodType t, Void ignore) {
+            for (Type arg : t.argtypes) {
+                if (visit(arg, ignore)) {
+                    return true;
+                }
+            }
+            for (Type param : t.allparams()) {
+                if (visit(param, ignore)) {
+                    return true;
+                }
+            }
+            if (visit(t.restype, ignore)) {
+                return true;
+            }
+            return false;
+        }
     }
 
     /**

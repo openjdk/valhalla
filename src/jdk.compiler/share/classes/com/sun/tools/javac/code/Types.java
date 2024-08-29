@@ -2506,7 +2506,7 @@ public class Types {
                             //fall-through
                         case BYTE, CHAR, SHORT, LONG, FLOAT, INT, DOUBLE, BOOLEAN,
                              ARRAY, MODULE, TYPEVAR, WILDCARD, BOT:
-                            return s.dropMetadata(Annotations.class);
+                            return s.dropMetadata(Annotations.class).dropMetadata(TypeMetadata.NullMarker.class);
                         case VOID, METHOD, PACKAGE, FORALL, DEFERRED,
                              NONE, ERROR, UNKNOWN, UNDETVAR, UNINITIALIZED_THIS,
                              UNINITIALIZED_OBJECT:
@@ -2551,7 +2551,13 @@ public class Types {
                 Type erased = erasure(t.getUpperBound(), recurse);
                 return combineMetadata(erased, t);
             }
-        };
+
+        @Override
+        public Type visitArrayType(ArrayType t, Boolean aBoolean) {
+            Type erased = super.visitArrayType(t, aBoolean);
+            return combineMetadata(erased, t);
+        }
+    };
 
     public List<Type> erasure(List<Type> ts) {
         return erasure.visit(ts, false);
@@ -5283,12 +5289,20 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
+                    NullMarker nullMarker = type.getNullMarker();
+                    if (nullMarker != NullMarker.UNSPECIFIED) {
+                        append(nullMarker.typeSuffix().charAt(0));
+                    }
                     append('L');
                     assembleClassSig(type);
                     append(';');
                     break;
                 case ARRAY:
                     ArrayType at = (ArrayType) type;
+                    NullMarker nmArray = at.getNullMarker();
+                    if (nmArray != NullMarker.UNSPECIFIED) {
+                        append(nmArray.typeSuffix().charAt(0));
+                    }
                     append('[');
                     assembleSig(at.elemtype);
                     break;
@@ -5327,6 +5341,14 @@ public class Types {
                 case TYPEVAR:
                     if (((TypeVar)type).isCaptured()) {
                         reportIllegalSignature(type);
+                    }
+                    if (types.isDeclaredParametric(type)) {
+                        append('=');// '*' is already used for wildcards
+                    } else {
+                        NullMarker nmTV = type.getNullMarker();
+                        if (nmTV != NullMarker.UNSPECIFIED) {
+                            append(nmTV.typeSuffix().charAt(0));
+                        }
                     }
                     append('T');
                     append(type.tsym.name);
@@ -5442,6 +5464,10 @@ public class Types {
     public boolean isParametric(Type type) {
         return type.getNullMarker() == NullMarker.PARAMETRIC ||
                 (type.hasTag(TYPEVAR) && type.getNullMarker() == NullMarker.UNSPECIFIED && !tvarUnspecifiedNullity);
+    }
+
+    public boolean isDeclaredParametric(Type type) {
+        return type.getNullMarker() == NullMarker.PARAMETRIC;
     }
 
     public boolean isNullUnspecified(Type type) {

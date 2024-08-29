@@ -62,10 +62,9 @@ import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.jvm.ClassFile.Version;
 import com.sun.tools.javac.jvm.PoolConstant.NameAndType;
 import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.resources.CompilerProperties;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
-import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.ByteBuffer.UnderflowException;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -561,6 +560,11 @@ public class ClassReader {
             Type poly = new ForAll(sigToTypeParams(), sigToType());
             typevars = typevars.leave();
             return poly;
+        case '?': case '!' : case '=':
+            char nmChar = (char)signature[sigp];
+            sigp++;
+            Type t = sigToType();
+            return t == Type.noType ? t : t.asNullMarked(nmChar == '=' ? NullMarker.PARAMETRIC : NullMarker.of(String.valueOf(nmChar)));
         default:
             throw badClassFile("bad.signature", quoteBadSignature());
         }
@@ -580,7 +584,6 @@ public class ClassReader {
         while (true) {
             final byte c = signature[sigp++];
             switch (c) {
-
             case ';': {         // end
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
@@ -600,7 +603,7 @@ public class ClassReader {
             case '<':           // generic arguments
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
-                                                         sbp - startSbp));
+                                                         sbp - startSbp ));
                 outer = new ClassType(outer, sigToTypes('>'), t, List.nil()) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
@@ -1035,7 +1038,6 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-
                     }
                 }
             },
@@ -1340,10 +1342,7 @@ public class ClassReader {
                     if (sym.type.isPrimitive() || sym.type.hasTag(TypeTag.ARRAY)) {
                         throw badClassFile("attribute.not.applicable.to.field.type", names.NullRestricted, sym.type);
                     }
-                    if (types.isNonNullable(sym.type)) {
-                        throw badClassFile("attribute.must.be.unique", names.NullRestricted);
-                    }
-                    sym.type = sym.type.asNullMarked(JCTree.JCNullableTypeExpression.NullMarker.NOT_NULL);
+                    // there is no point on setting the nullness or not has it will be set while parsing the signature
                 }
             },
         };

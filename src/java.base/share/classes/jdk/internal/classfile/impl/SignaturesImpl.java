@@ -144,6 +144,10 @@ public final class SignaturesImpl {
                 sigp++;
                 yield ArrayTypeSig.of(typeSig());
             }
+            case '?', '!', '=' -> {
+                sigp++;
+                yield referenceTypeSig();
+            }
             default -> throw unexpectedError("a type signature");
         };
     }

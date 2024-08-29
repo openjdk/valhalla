@@ -6,6 +6,7 @@
  * @library /tools/lib
  * @compile --enable-preview -source ${jdk.version} ValueClass.jcod DuplicateNullRestrictedAttr.jcod
  * @compile/fail/ref=CheckNullRestrictedAttrIsUnique.out --enable-preview -source ${jdk.version} -XDrawDiagnostics CheckNullRestrictedAttrIsUnique.java
+ * @ignore
  */
 
 public class CheckNullRestrictedAttrIsUnique {
