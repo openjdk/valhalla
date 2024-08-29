@@ -171,7 +171,6 @@ public class ClassReader {
     /** The current scope where type variables are entered.
      */
     protected WriteableScope typevars;
-    Map<Name, NullMarker> typeVarNamesToNullMarkersMap = new HashMap<>();
 
     private List<InterimUsesDirective> interimUses = List.nil();
     private List<InterimProvidesDirective> interimProvides = List.nil();
@@ -470,19 +469,12 @@ public class ClassReader {
     /** Convert signature to type, where signature is implicit.
      */
     Type sigToType() {
-        return sigToType(null);
-    }
-    Type sigToType(NullMarker nm) {
         switch ((char) signature[sigp]) {
         case 'T':
             sigp++;
             int start = sigp;
             while (signature[sigp] != ';') sigp++;
             sigp++;
-            if (nm != null && sigEnterPhase) {
-                Name tvName = readName(signature, start, sigp - 1 - start);
-                typeVarNamesToNullMarkersMap.put(tvName, nm);
-            }
             return sigEnterPhase
                 ? Type.noType
                 : findTypeVar(readName(signature, start, sigp - 1 - start));
@@ -571,9 +563,8 @@ public class ClassReader {
         case '?': case '!' : case '=':
             char nmChar = (char)signature[sigp];
             sigp++;
-            NullMarker nMarker = nmChar == '=' ? NullMarker.PARAMETRIC : NullMarker.of(String.valueOf(nmChar));
-            Type t = sigToType(nMarker);
-            return t == Type.noType ? t : t.asNullMarked(nMarker);
+            Type t = sigToType();
+            return t == Type.noType ? t : t.asNullMarked(nmChar == '=' ? NullMarker.PARAMETRIC : NullMarker.of(String.valueOf(nmChar)));
         default:
             throw badClassFile("bad.signature", quoteBadSignature());
         }
@@ -734,7 +725,6 @@ public class ClassReader {
             sigp++;
             int start = sigp;
             sigEnterPhase = true;
-            typeVarNamesToNullMarkersMap.clear();
             while (signature[sigp] != '>')
                 tvars = tvars.prepend(sigToTypeParam());
             sigEnterPhase = false;
@@ -755,10 +745,6 @@ public class ClassReader {
         TypeVar tvar;
         if (sigEnterPhase) {
             tvar = new TypeVar(name, currentOwner, syms.botType);
-            NullMarker nm = typeVarNamesToNullMarkersMap.get(name);
-            if (nm != null) {
-                tvar = (TypeVar) tvar.asNullMarked(nm);
-            }
             typevars.enter(tvar.tsym);
         } else {
             tvar = (TypeVar)findTypeVar(name);
