@@ -2506,7 +2506,7 @@ public class Types {
                             //fall-through
                         case BYTE, CHAR, SHORT, LONG, FLOAT, INT, DOUBLE, BOOLEAN,
                              ARRAY, MODULE, TYPEVAR, WILDCARD, BOT:
-                            return s.dropMetadata(Annotations.class);
+                            return s.dropMetadata(Annotations.class).dropMetadata(TypeMetadata.NullMarker.class);
                         case VOID, METHOD, PACKAGE, FORALL, DEFERRED,
                              NONE, ERROR, UNKNOWN, UNDETVAR, UNINITIALIZED_THIS,
                              UNINITIALIZED_OBJECT:
@@ -2551,7 +2551,13 @@ public class Types {
                 Type erased = erasure(t.getUpperBound(), recurse);
                 return combineMetadata(erased, t);
             }
-        };
+
+        @Override
+        public Type visitArrayType(ArrayType t, Boolean aBoolean) {
+            Type erased = super.visitArrayType(t, aBoolean);
+            return combineMetadata(erased, t);
+        }
+    };
 
     public List<Type> erasure(List<Type> ts) {
         return erasure.visit(ts, false);

@@ -149,6 +149,38 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                     }
                     """,
                     "?TT;"
+            ),
+            new SignatureData(
+                    """
+                    class Test {
+                        String[]? t;
+                    }
+                    """,
+                    "?[Ljava/lang/String;"
+            ),
+            new SignatureData(
+                    """
+                    class Test {
+                        String[]! t;
+                    }
+                    """,
+                    "![Ljava/lang/String;"
+            ),
+            new SignatureData(
+                    """
+                    class Test {
+                        String![]? t;
+                    }
+                    """,
+                    "?[!Ljava/lang/String;"
+            ),
+            new SignatureData(
+                    """
+                    class Test {
+                        String?[]![]? t;
+                    }
+                    """,
+                    "![?[?Ljava/lang/String;"
             )
     );
 
@@ -295,6 +327,104 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                             "- compiler.note.preview.recompile",
                             "1 warning"),
                     List.of("Client.java:2:37: compiler.warn.unchecked.nullness.conversion",
+                            "- compiler.note.preview.filename: Client.java, DEFAULT",
+                            "- compiler.note.preview.recompile",
+                            "1 warning")
+            ),
+            new SepCompilationData(
+                    """
+                    class Client {
+                        static String?[]![]? a = Server.b;
+                    }
+                    """,
+                    """
+                    class Server {
+                        public static String?[]?[]? b;
+                    }
+                    """,
+                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
+                            "- compiler.note.preview.plural: DEFAULT",
+                            "- compiler.note.preview.recompile",
+                            "1 warning"),
+                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
+                            "- compiler.note.preview.filename: Client.java, DEFAULT",
+                            "- compiler.note.preview.recompile",
+                            "1 warning")
+            ),
+            new SepCompilationData(
+                    """
+                    class Client {
+                        static String![]?[]? a = Server.b;
+                    }
+                    """,
+                    """
+                    class Server {
+                        public static String?[]?[]? b;
+                    }
+                    """,
+                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
+                            "- compiler.note.preview.plural: DEFAULT",
+                            "- compiler.note.preview.recompile",
+                            "1 warning"),
+                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
+                            "- compiler.note.preview.filename: Client.java, DEFAULT",
+                            "- compiler.note.preview.recompile",
+                            "1 warning")
+            ),
+            new SepCompilationData(
+                    """
+                    class Client {
+                        static String?[]?[]! a = Server.b;
+                    }
+                    """,
+                    """
+                    class Server {
+                        public static String?[]?[]? b;
+                    }
+                    """,
+                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
+                            "- compiler.note.preview.plural: DEFAULT",
+                            "- compiler.note.preview.recompile",
+                            "1 warning"),
+                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
+                            "- compiler.note.preview.filename: Client.java, DEFAULT",
+                            "- compiler.note.preview.recompile",
+                            "1 warning")
+            ),
+            new SepCompilationData(
+                    """
+                    class Client {
+                        static String?[]?[]? a = Server.b;
+                    }
+                    """,
+                    """
+                    class Server {
+                        public static String?[]?[]? b;
+                    }
+                    """,
+                    List.of("- compiler.note.preview.plural: DEFAULT",
+                            "- compiler.note.preview.recompile"),
+                    List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
+                            "- compiler.note.preview.recompile")
+            ),
+            new SepCompilationData(
+                    """
+                    import java.util.List;
+                    class Client {
+                        static List<? extends String!> a = Server.b;
+                    }
+                    """,
+                    """
+                    import java.util.List;
+                    class Server {
+                        public static List<? extends String?> b;
+                    }
+                    """,
+                    List.of("Client.java:3:46: compiler.warn.unchecked.nullness.conversion",
+                            "- compiler.note.preview.plural: DEFAULT",
+                            "- compiler.note.preview.recompile",
+                            "1 warning"),
+                    List.of("Client.java:3:46: compiler.warn.unchecked.nullness.conversion",
                             "- compiler.note.preview.filename: Client.java, DEFAULT",
                             "- compiler.note.preview.recompile",
                             "1 warning")
