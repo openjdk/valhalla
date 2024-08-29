@@ -115,7 +115,7 @@ class FieldStreamBase : public StackObj {
     return field()->field_flags().is_null_free_inline_type();
   }
 
-  bool is_flat() {
+  bool is_flat() const {
     return field()->field_flags().is_flat();
   }
 
@@ -291,6 +291,9 @@ class HierarchicalFieldStream : public StackObj  {
     return _current_stream.field_descriptor();
   }
 
+  const FieldStreamType& current() const {
+    return _current_stream;
+  }
 };
 
 #endif // SHARE_OOPS_FIELDSTREAMS_HPP

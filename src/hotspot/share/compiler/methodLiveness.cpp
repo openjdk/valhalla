@@ -618,18 +618,22 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
       // These bytecodes have no effect on the method's locals.
       break;
 
-    case Bytecodes::_return:
-      if (instruction->method()->intrinsic_id() == vmIntrinsics::_Object_init ||
-          (instruction->method()->is_object_constructor() && instruction->method()->holder()->is_inlinetype())) {
-        // return from Object.init implicitly registers a finalizer
-        // for the receiver if needed, so keep it alive.
-        // Value class constructors update the scalarized receiver. Keep it live so that
-        // we can find it after (chained) constructor calls and propagate updates to the caller.
+    case Bytecodes::_return: {
+      ciMethod* method = instruction->method();
+      ciInstanceKlass* holder = method->holder();
+      if (method->intrinsic_id() == vmIntrinsics::_Object_init ||
+          (method->is_object_constructor() &&
+           ((!holder->is_abstract() && holder->is_inlinetype()) ||
+            holder->is_abstract()))) {
+        // Returning from Object.<init> implicitly registers a finalizer for the receiver if needed, so keep it alive.
+        // Value class constructors update the scalarized receiver. We need to keep it live so that we can find it after
+        // (chained) constructor calls and propagate updates to the caller. If the holder of the constructor is abstract,
+        // we do not know if the constructor was called from a value class or not. We therefore keep the receiver of all
+        // abstract constructors live.
         load_one(0);
       }
       break;
-
-
+    }
     case Bytecodes::_lload:
     case Bytecodes::_dload:
       load_two(instruction->get_index());

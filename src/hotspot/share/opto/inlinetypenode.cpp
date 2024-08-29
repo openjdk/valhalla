@@ -258,9 +258,15 @@ bool InlineTypeNode::field_is_null_free(uint index) const {
 }
 
 void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
-  // Don't scalarize larvals in their own constructor call because the constructor will update them
-  if (is_larval() && sfpt->is_CallJava() && sfpt->as_CallJava()->method() != nullptr && sfpt->as_CallJava()->method()->is_object_constructor() &&
-      sfpt->as_CallJava()->method()->holder()->is_inlinetype() && sfpt->in(TypeFunc::Parms) == this) {
+  // We should not scalarize larvals in their own inline type constructor methods because their fields could still be
+  // updated. If we scalarize now and update the fields, we cannot propagate the update out of the constructor call
+  // because the scalarized fields are local to this method. We need to use the buffer to make the update visible to
+  // the outside (see also CompiledEntrySignature::compute_calling_conventions()).
+  if (is_larval() && sfpt->is_CallJava() && sfpt->as_CallJava()->method() != nullptr &&
+      sfpt->as_CallJava()->method()->is_object_constructor() && bottom_type()->is_inlinetypeptr() &&
+      sfpt->in(TypeFunc::Parms) == this) {
+    // Receiver of larval is always buffered in its constructor call because it was initially created outside the
+    // constructor.
     assert(is_allocated(igvn), "receiver must be allocated");
     return;
   }
@@ -529,7 +535,7 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass
   }
 }
 
-InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
+InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace, bool must_init) {
   if (kit->gvn().find_int_con(get_is_buffered(), 0) == 1) {
     // Already buffered
     return this;
@@ -584,9 +590,15 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
       kit->kill_dead_locals();
       Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
       Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true, this);
-      // No need to initialize a larval buffer, we make sure that the oop can not escape
-      if (!is_larval()) {
-        // Larval will be initialized later
+
+      // Larval?
+      // - must_init set: We are about to call an abstract value class constructor or the Object constructor which is
+      //                  not inlined. It is therefore escaping and we must initialize the buffer because we have not
+      //                  done this, yet, for larvals (see second case).
+      // - Other larvals: We do not need to initialize the buffer because a larval could still be updated which will
+      //                  create a new buffer. Once the larval escapes, we will initialize the buffer (must_init set).
+      assert(!must_init || is_larval(), "must_init should only be set for larval");
+      if (!is_larval() || must_init) {
         store(kit, alloc_oop, alloc_oop, vk);
 
         // Do not let stores that initialize this buffer be reordered with a subsequent
@@ -1327,3 +1339,11 @@ const Type* InlineTypeNode::Value(PhaseGVN* phase) const {
   }
   return t;
 }
+
+#ifndef PRODUCT
+void InlineTypeNode::dump_spec(outputStream* st) const {
+  if (_is_larval) {
+    st->print(" #larval");
+  }
+}
+#endif // NOT PRODUCT

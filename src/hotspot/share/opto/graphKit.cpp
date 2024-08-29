@@ -990,8 +990,9 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
       for (j = 0; j < l; j++) {
         Node* val = in_map->in(k + j);
         // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee_jvms != nullptr &&
-            callee_jvms->method()->is_object_constructor() && callee_jvms->method()->holder()->is_inlinetype() && val == in_map->argument(in_jvms, 0)) {
+        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
+            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
+            val->bottom_type()->is_inlinetypeptr()) {
           val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
         }
         call->set_req(p++, val);
@@ -1008,8 +1009,9 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
       for (j = 0; j < l; j++) {
         Node* val = in_map->in(k + j);
         // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee_jvms != nullptr &&
-            callee_jvms->method()->is_object_constructor() && callee_jvms->method()->holder()->is_inlinetype() && val == in_map->argument(in_jvms, 0)) {
+        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
+            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
+            val->bottom_type()->is_inlinetypeptr()) {
           val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
         }
         call->set_req(p++, val);
@@ -1892,7 +1894,25 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       continue;
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
-      arg = arg->as_InlineType()->buffer(this);
+      InlineTypeNode* inline_type = arg->as_InlineType();
+      const ciMethod* caller_method = _method;
+      const ciMethod* method = call->method();
+      ciInstanceKlass* holder = method->holder();
+      const bool is_receiver = i == TypeFunc::Parms;
+      bool must_init_buffer = false;
+      // Do we have a larval receiver for an abstract constructor or the Object constructor (that is not going to be
+      // inlined)?
+      if (is_receiver && inline_type->is_larval() && method->is_object_constructor() &&
+          (holder->is_abstract() || holder->is_java_lang_Object())) {
+        // We normally do not want to initialize the buffer of a larval because we are going to update it anyway which
+        // requires us to create a new buffer. But at this point, we are going to call the super constructor of this
+        // concrete or abstract inline type without inlining it. After that, the larval is completely initialized and
+        // thus not a larval anymore. We therefore need to force an initialization of the buffer to not lose all the
+        // field writes so far in case the buffer needs to be used (e.g. to read from when deoptimizing at runtime) or
+        // further updated in abstract super value class constructors which could have more fields to be initialized.
+        must_init_buffer = true;
+      }
+      arg = inline_type->buffer(this, true, must_init_buffer);
     }
     if (t != Type::HALF) {
       arg_num++;
@@ -1970,13 +1990,18 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   }
 
   // We just called the constructor on a value type receiver. Reload it from the buffer
-  if (call->method()->is_object_constructor() && call->method()->holder()->is_inlinetype()) {
-    InlineTypeNode* receiver = call->in(TypeFunc::Parms)->as_InlineType();
-    assert(receiver->is_larval(), "must be larval");
-    assert(receiver->is_allocated(&gvn()), "larval must be buffered");
-    InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, receiver->get_oop(), receiver->bottom_type()->inline_klass(), true);
-    assert(!reloaded->is_larval(), "should not be larval anymore");
-    replace_in_map(receiver, reloaded);
+  ciMethod* method = call->method();
+  if (method->is_object_constructor() && !method->holder()->is_java_lang_Object()) {
+    Node* receiver = call->in(TypeFunc::Parms);
+    if (receiver->bottom_type()->is_inlinetypeptr()) {
+      InlineTypeNode* inline_type_receiver = receiver->as_InlineType();
+      assert(inline_type_receiver->is_larval(), "must be larval");
+      assert(inline_type_receiver->is_allocated(&gvn()), "larval must be buffered");
+      InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, inline_type_receiver->get_oop(),
+                                                               receiver->bottom_type()->inline_klass(), true);
+      assert(!reloaded->is_larval(), "should not be larval anymore");
+      replace_in_map(inline_type_receiver, reloaded);
+    }
   }
 
   return ret;
