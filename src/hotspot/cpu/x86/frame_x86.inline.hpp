@@ -403,6 +403,9 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   // On Intel the return_address is always the word on the stack
   address sender_pc = (address) *(sender_sp-1);
 
+  // TODO
+  // sender_pc_copy = Continuation::is_return_barrier_entry
+
 #ifdef ASSERT
   if (sender_pc != sender_pc_copy) {
     // When extending the stack in the callee method entry to make room for unpacking of value

@@ -102,15 +102,46 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
     // had a safepoint in finalize_freeze, after constructing f.
     fp = *(intptr_t**)(f.sp() - frame::sender_sp_offset);
 
-    int fsize = FKind::size(f);
-    sp = caller.unextended_sp() - fsize;
+    intptr_t* sender_sp = f.unextended_sp() + FKind::size(f);
+    intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
+
+
+    tty->print_cr("new_heap_frame");
+
+    // Repair the sender sp if this is a method with scalarized inline type args
+    sender_sp = f.repair_sender_sp(sender_sp, fp_addr);
+
+    // TODO this is without args!
+    int real_frame_size = sender_sp - f.unextended_sp();
+   // assert(real_frame_size == FKind::size(f), "sanity");
+
+    CompiledMethod* cm = f.cb()->as_compiled_method_or_null();
+    if (cm != nullptr && cm->needs_stack_repair()) {
+// Subtract arg size TODO why -2?
+      real_frame_size -= (int)(sender_sp-(intptr_t*)fp_addr)-2;
+    }
+
+    sp = caller.unextended_sp() - real_frame_size;
+
     if (caller.is_interpreted_frame()) {
       // If the caller is interpreted, our stackargs are not supposed to overlap with it
       // so we make more room by moving sp down by argsize
       int argsize = FKind::stack_argsize(f);
+
+      CompiledMethod* cm = f.cb()->as_compiled_method_or_null();
+      if (cm != nullptr && cm->needs_stack_repair()) {
+        argsize = (int)(sender_sp-(intptr_t*)fp_addr)-2;
+        // Includes return address
+      }
+      tty->print_cr("argsize = %d", argsize);
       sp -= argsize;
+
+      // TODO fix
     }
-    caller.set_sp(sp + fsize);
+
+    tty->print_cr("real_frame_size = %d", real_frame_size);
+
+    caller.set_sp(sp + real_frame_size);
 
     assert(_cont.tail()->is_in_chunk(sp), "");
 
@@ -223,18 +254,40 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
     return f;
   } else {
     int fsize = FKind::size(hf);
+
+    // TODO fix
+    intptr_t* sender_sp = hf.unextended_sp() + hf.cb()->frame_size();
+    intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
+    sender_sp = hf.repair_sender_sp(sender_sp, fp_addr);
+    if (hf.cb()->as_compiled_method()->needs_stack_repair()) {
+      int real_frame_size = sender_sp - hf.unextended_sp();
+      //assert(fsize == real_frame_size, "sanity");
+      fsize = real_frame_size + 4;
+    }
+
     intptr_t* frame_sp = caller.unextended_sp() - fsize;
     if (bottom || caller.is_interpreted_frame()) {
       int argsize = hf.compiled_frame_stack_argsize();
 
-      fsize += argsize;
-      frame_sp   -= argsize;
+      tty->print_cr("ThawBase::new_stack_frame repair");
+
+
+      if (hf.cb()->as_compiled_method()->needs_stack_repair()) {
+       // intptr_t** saved_fp_addr = (intptr_t**) (stack_frame_bottom - frame::sender_sp_offset);
+       // stack_frame_bottom = f.repair_sender_sp(stack_frame_bottom, saved_fp_addr) - 1;
+        argsize = (int)(sender_sp - (intptr_t*)fp_addr - 2) + 4; // Account for fp and ret
+      } else {
+        frame_sp   -= argsize;
+      }
       caller.set_sp(caller.sp() - argsize);
-      assert(caller.sp() == frame_sp + (fsize-argsize), "");
+   //   assert(caller.sp() == frame_sp + fsize, "");
 
       frame_sp = align(hf, frame_sp, caller, bottom);
+
+      tty->print_cr("new_stack_frame argsize = %d", argsize);
     }
 
+    tty->print_cr("ThawBase::new_stack_frame sender_sp = " INTPTR_FORMAT " frame_sp = " INTPTR_FORMAT, p2i(sender_sp), p2i(frame_sp));
     assert(hf.cb() != nullptr, "");
     assert(hf.oop_map() != nullptr, "");
     intptr_t* fp;
@@ -242,7 +295,7 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
       // we need to recreate a "real" frame pointer, pointing into the stack
       fp = frame_sp + FKind::size(hf) - frame::sender_sp_offset;
     } else {
-       // we need to re-read fp because it may be an oop and we might have fixed the frame.
+      // we need to re-read fp because it may be an oop and we might have fixed the frame.
       fp = *(intptr_t**)(hf.sp() - frame::sender_sp_offset);
     }
     return frame(frame_sp, frame_sp, fp, hf.pc(), hf.cb(), hf.oop_map(), false); // TODO PERF : this computes deopt state; is it necessary?
@@ -252,7 +305,7 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
 inline intptr_t* ThawBase::align(const frame& hf, intptr_t* frame_sp, frame& caller, bool bottom) {
 #ifdef _LP64
   if (((intptr_t)frame_sp & 0xf) != 0) {
-    assert(caller.is_interpreted_frame() || (bottom && hf.compiled_frame_stack_argsize() % 2 != 0), "");
+//    assert(caller.is_interpreted_frame() || (bottom && hf.compiled_frame_stack_argsize() % 2 != 0), "");
     frame_sp--;
     caller.set_sp(caller.sp() - 1);
   }

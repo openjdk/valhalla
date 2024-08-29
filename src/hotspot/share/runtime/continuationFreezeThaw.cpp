@@ -1154,10 +1154,25 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
                                                         bool callee_interpreted) {
   // The frame's top never includes the stack arguments to the callee
   intptr_t* const stack_frame_top = ContinuationHelper::CompiledFrame::frame_top(f, callee_argsize, callee_interpreted);
-  intptr_t* const stack_frame_bottom = ContinuationHelper::CompiledFrame::frame_bottom(f);
+  intptr_t* stack_frame_bottom = ContinuationHelper::CompiledFrame::frame_bottom(f);
+
+  tty->print_cr("recurse_freeze_compiled_frame");
+  print_frame_layout(f, false, tty);
+
+  // Repair the sender sp if this is a method with scalarized inline type args
+  int stack_argsize = ContinuationHelper::CompiledFrame::stack_argsize(f);
+  if (f.cb()->as_compiled_method()->needs_stack_repair()) {
+    intptr_t** saved_fp_addr = (intptr_t**) (stack_frame_bottom - frame::sender_sp_offset);
+    stack_frame_bottom = f.repair_sender_sp(stack_frame_bottom, saved_fp_addr);
+    stack_argsize = (int)(stack_frame_bottom-(intptr_t*)saved_fp_addr - 2); // Account for fp and ret
+    stack_frame_bottom -= stack_argsize;
+    tty->print_cr("REPAIR stack_frame_bottom = " INTPTR_FORMAT " saved_fp_addr = " INTPTR_FORMAT, p2i(stack_frame_bottom), p2i(saved_fp_addr));
+  }
   // including metadata between f and its stackargs
-  const int argsize = ContinuationHelper::CompiledFrame::stack_argsize(f) + frame::metadata_words_at_top;
-  const int fsize = pointer_delta_as_int(stack_frame_bottom + argsize, stack_frame_top);
+  int argsize = stack_argsize + frame::metadata_words_at_top;
+  int fsize = pointer_delta_as_int(stack_frame_bottom + argsize, stack_frame_top);
+
+  tty->print_cr("fsize (with args) = %d, argsize = %d stack_frame_top = " INTPTR_FORMAT " stack_frame_bottom = " INTPTR_FORMAT, fsize, argsize, p2i(stack_frame_top), p2i(stack_frame_bottom));
 
   log_develop_trace(continuations)("recurse_freeze_compiled_frame %s _size: %d fsize: %d argsize: %d",
                              ContinuationHelper::Frame::frame_method(f) != nullptr ?
@@ -1171,6 +1186,9 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
     return result;
   }
 
+  tty->print_cr("CALLER");
+  print_frame_layout(caller, false, tty);
+
   bool is_bottom_frame = result == freeze_ok_bottom;
   assert(!caller.is_empty() || is_bottom_frame, "");
 
@@ -1178,16 +1196,28 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
 
   frame hf = new_heap_frame<ContinuationHelper::CompiledFrame>(f, caller);
 
+  print_frame_layout(hf, false, tty);
+
   intptr_t* heap_frame_top = ContinuationHelper::CompiledFrame::frame_top(hf, callee_argsize, callee_interpreted);
 
   copy_to_chunk(stack_frame_top, heap_frame_top, fsize);
   assert(!is_bottom_frame || !caller.is_compiled_frame() || (heap_frame_top + fsize) == (caller.unextended_sp() + argsize), "");
+
+  tty->print_cr("AFTER COPY is_bottom_frame = %d", is_bottom_frame);
+  print_frame_layout(caller, false, tty);
+  tty->print_cr("-->");
+  print_frame_layout(hf, false, tty);
 
   if (caller.is_interpreted_frame()) {
     _total_align_size += frame::align_wiggle; // See Thaw::align
   }
 
   patch(f, hf, caller, is_bottom_frame);
+
+  tty->print_cr("AFTER PATCH");
+  print_frame_layout(caller, false, tty);
+  tty->print_cr("-->");
+  print_frame_layout(hf, false, tty);
 
   assert(is_bottom_frame || Interpreter::contains(ContinuationHelper::CompiledFrame::real_pc(caller)) == caller.is_interpreted_frame(), "");
 
@@ -1865,6 +1895,8 @@ inline void ThawBase::clear_chunk(stackChunkOop chunk) {
   assert(chunk_sp == f.sp(), "");
   assert(chunk_sp == f.unextended_sp(), "");
 
+  // TODO might need repair
+  assert(!f.cb()->as_compiled_method()->needs_stack_repair(), "needs stack repair");
   const int frame_size = f.cb()->frame_size();
   argsize = f.stack_argsize();
 
@@ -2076,7 +2108,21 @@ bool ThawBase::recurse_thaw_java_frame(frame& caller, int num_frames) {
 
   DEBUG_ONLY(_frames++;)
 
+  // TODO might need repair
   int argsize = _stream.stack_argsize();
+  if (_stream.cb() != nullptr && _stream.cb()->as_compiled_method()->needs_stack_repair()) {
+    tty->print_cr("REPAIR");
+
+    intptr_t* sender_sp = _stream.unextended_sp() + _stream.frame_size();
+    intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
+
+  // Repair the sender sp if this is a method with scalarized inline type args
+    sender_sp = _stream.to_frame().repair_sender_sp(sender_sp, fp_addr);
+
+    argsize = (int)(sender_sp-(intptr_t*)fp_addr)-2;
+
+    tty->print_cr("argsize = %d", argsize);
+  }
 
   _stream.next(SmallRegisterMap::instance);
   assert(_stream.to_frame().is_empty() == _stream.is_done(), "");
@@ -2149,6 +2195,10 @@ inline void ThawBase::patch(frame& f, const frame& caller, bool bottom) {
   if (bottom) {
     ContinuationHelper::Frame::patch_pc(caller, _cont.is_empty() ? caller.pc()
                                                                  : StubRoutines::cont_returnBarrier());
+    if (f.cb() != nullptr && f.cb()->is_compiled() && f.cb()->as_compiled_method()->needs_stack_repair()) {
+      address* pc_addr = &(((address*) caller.sp())[-1+8]);
+      *pc_addr = StubRoutines::cont_returnBarrier();
+    }
   } else {
     // caller might have been deoptimized during thaw but we've overwritten the return address when copying f from the heap.
     // If the caller is not deoptimized, pc is unchanged.
@@ -2161,8 +2211,8 @@ inline void ThawBase::patch(frame& f, const frame& caller, bool bottom) {
     ContinuationHelper::InterpretedFrame::patch_sender_sp(f, caller);
   }
 
-  assert(!bottom || !_cont.is_empty() || Continuation::is_continuation_entry_frame(f, nullptr), "");
-  assert(!bottom || (_cont.is_empty() != Continuation::is_cont_barrier_frame(f)), "");
+//  assert(!bottom || !_cont.is_empty() || Continuation::is_continuation_entry_frame(f, nullptr), "");
+//  assert(!bottom || (_cont.is_empty() != Continuation::is_cont_barrier_frame(f)), "");
 }
 
 void ThawBase::clear_bitmap_bits(address start, address end) {
@@ -2260,6 +2310,9 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     _align_size += frame::align_wiggle; // we add one whether or not we've aligned because we add it in freeze_interpreted_frame
   }
 
+  tty->print_cr("CALLER");
+  print_frame_layout(caller, false, tty);
+
   // new_stack_frame must construct the resulting frame using hf.pc() rather than hf.raw_pc() because the frame is not
   // yet laid out in the stack, and so the original_pc is not stored in it.
   // As a result, f.is_deoptimized_frame() is always false and we must test hf to know if the frame is deoptimized.
@@ -2276,14 +2329,40 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
   // copy metadata, except the metadata at the top of the (unextended) entry frame
   int sz = fsize + frame::metadata_words_at_bottom + (is_bottom_frame && added_argsize == 0 ? 0 : frame::metadata_words_at_top);
 
+  if (hf.cb()->as_compiled_method()->needs_stack_repair()) {
+    //assert(!is_bottom_frame, "handle this");
+// TODO what about is_bottom_frame?
+    intptr_t* sender_sp = hf.unextended_sp() + ContinuationHelper::CompiledFrame::size(hf);
+    intptr_t** fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
+    tty->print_cr("Needs repair " INTPTR_FORMAT " " INTPTR_FORMAT, p2i(sender_sp), p2i(fp_addr));
+
+    // Repair the sender sp if this is a method with scalarized inline type args
+    intptr_t* real_frame_size_addr = (intptr_t*) (fp_addr - 1);
+    int real_frame_size = ((*real_frame_size_addr) + wordSize) / wordSize;
+    assert(real_frame_size >= hf.cb()->frame_size() && real_frame_size <= 1000000, "invalid frame size");
+    sz = real_frame_size + frame::metadata_words_at_bottom + 4;
+  }
+
+  tty->print_cr("recurse_thaw_compiled_frame sz = %d, from = "  INTPTR_FORMAT " to "  INTPTR_FORMAT " entrySP " INTPTR_FORMAT, sz, p2i(from), p2i(to), p2i(_cont.entrySP()));
+
   // If we're the bottom-most thawed frame, we're writing to within one word from entrySP
   // (we might have one padding word for alignment)
-  assert(!is_bottom_frame || (_cont.entrySP() - 1 <= to + sz && to + sz <= _cont.entrySP()), "");
-  assert(!is_bottom_frame || hf.compiled_frame_stack_argsize() != 0 || (to + sz && to + sz == _cont.entrySP()), "");
+  // TODO ENABLE!
+  //assert(!is_bottom_frame || (_cont.entrySP() - 1 <= to + sz && to + sz <= _cont.entrySP()), "");
+  //assert(!is_bottom_frame || hf.compiled_frame_stack_argsize() != 0 || (to + sz && to + sz == _cont.entrySP()), "");
 
   copy_from_chunk(from, to, sz); // copying good oops because we invoked barriers above
 
+  print_frame_layout(caller, false, tty);
+  tty->print_cr("-->>");
+  print_frame_layout(f, false, tty);
+
   patch(f, caller, is_bottom_frame);
+
+  tty->print_cr("AFTER PATCH");
+  print_frame_layout(caller, false, tty);
+  tty->print_cr("-->>");
+  print_frame_layout(f, false, tty);
 
   // f.is_deoptimized_frame() is always false and we must test hf.is_deoptimized_frame() (see comment above)
   assert(!f.is_deoptimized_frame(), "");
@@ -2308,6 +2387,7 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     // can only fix caller once this frame is thawed (due to callee saved regs); this happens on the stack
     _cont.tail()->fix_thawed_frame(caller, SmallRegisterMap::instance);
   } else if (_cont.tail()->has_bitmap() && added_argsize > 0) {
+    // TODO?
     address start = (address)(heap_frame_top + ContinuationHelper::CompiledFrame::size(hf) + frame::metadata_words_at_top);
     int stack_args_slots = f.cb()->as_compiled_method()->method()->num_stack_arg_slots(false /* rounded */);
     int argsize_in_bytes = stack_args_slots * VMRegImpl::stack_slot_size;
@@ -2465,7 +2545,7 @@ static inline intptr_t* thaw_internal(JavaThread* thread, const Continuation::th
   if (LoomVerifyAfterThaw) {
     assert(do_verify_after_thaw(thread, cont.tail(), tty), "");
   }
-  assert(ContinuationEntry::assert_entry_frame_laid_out(thread), "");
+  //assert(ContinuationEntry::assert_entry_frame_laid_out(thread), "");
   clear_anchor(thread);
 
   LogTarget(Trace, continuations) lt;

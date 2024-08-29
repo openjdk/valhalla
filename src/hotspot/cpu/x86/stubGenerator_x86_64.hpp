@@ -567,7 +567,7 @@ class StubGenerator: public StubCodeGenerator {
 
   address generate_cont_thaw(const char* label, Continuation::thaw_kind kind);
   address generate_cont_thaw();
-
+  // ???
   // TODO: will probably need multiple return barriers depending on return type
   address generate_cont_returnBarrier();
   address generate_cont_returnBarrier_exception();

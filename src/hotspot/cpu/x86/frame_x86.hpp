@@ -144,9 +144,6 @@
     return (intptr_t*) addr_at(offset);
   }
 
-  // Support for scalarized inline type calling convention
-  intptr_t* repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const;
-
 #ifdef ASSERT
   // Used in frame::sender_for_{interpreter,compiled}_frame
   static void verify_deopt_original_pc(CompiledMethod* nm, intptr_t* unextended_sp);
@@ -176,6 +173,9 @@
   void set_offset_fp(int value) { assert_on_heap(); _offset_fp = value; }
 
   inline address* sender_pc_addr() const;
+
+  // Support for scalarized inline type calling convention
+  intptr_t* repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const;
 
   // expression stack tos if we are nested in a java call
   intptr_t* interpreter_frame_last_sp() const;

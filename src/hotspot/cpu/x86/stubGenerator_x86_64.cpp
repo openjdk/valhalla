@@ -3672,8 +3672,6 @@ address StubGenerator::generate_cont_thaw(const char* label, Continuation::thaw_
   StubCodeMark mark(this, "StubRoutines", label);
   address start = __ pc();
 
-  // TODO: Handle Valhalla return types. May require generating different return barriers.
-
   if (!return_barrier) {
     // Pop return address. If we don't do this, we get a drift,
     // where the bottom-most frozen frame continuously grows.
@@ -3695,6 +3693,12 @@ address StubGenerator::generate_cont_thaw(const char* label, Continuation::thaw_
   if (return_barrier) {
     // Preserve possible return value from a method returning to the return barrier.
     __ push(rax);
+    __ push(rdi);
+    __ push(rsi);
+    __ push(rdx);
+    __ push(rcx);
+    __ push(r8);
+    __ push(r9);
     __ push_d(xmm0);
   }
 
@@ -3707,6 +3711,12 @@ address StubGenerator::generate_cont_thaw(const char* label, Continuation::thaw_
     // Restore return value from a method returning to the return barrier.
     // No safepoint in the call to thaw, so even an oop return value should be OK.
     __ pop_d(xmm0);
+    __ pop(r9);
+    __ pop(r8);
+    __ pop(rcx);
+    __ pop(rdx);
+    __ pop(rsi);
+    __ pop(rdi);
     __ pop(rax);
   }
 
@@ -3734,6 +3744,12 @@ address StubGenerator::generate_cont_thaw(const char* label, Continuation::thaw_
   if (return_barrier) {
     // Preserve possible return value from a method returning to the return barrier. (Again.)
     __ push(rax);
+    __ push(rdi);
+    __ push(rsi);
+    __ push(rdx);
+    __ push(rcx);
+    __ push(r8);
+    __ push(r9);
     __ push_d(xmm0);
   }
 
@@ -3747,6 +3763,12 @@ address StubGenerator::generate_cont_thaw(const char* label, Continuation::thaw_
     // Restore return value from a method returning to the return barrier. (Again.)
     // No safepoint in the call to thaw, so even an oop return value should be OK.
     __ pop_d(xmm0);
+    __ pop(r9);
+    __ pop(r8);
+    __ pop(rcx);
+    __ pop(rdx);
+    __ pop(rsi);
+    __ pop(rdi);
     __ pop(rax);
   } else {
     // Return 0 (success) from doYield.
@@ -3790,6 +3812,7 @@ address StubGenerator::generate_cont_thaw() {
   return generate_cont_thaw("Cont thaw", Continuation::thaw_top);
 }
 
+// ???
 // TODO: will probably need multiple return barriers depending on return type
 
 address StubGenerator::generate_cont_returnBarrier() {

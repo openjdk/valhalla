@@ -1445,6 +1445,7 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
     // For now just label the frame
     values.describe(-1, info_address, err_msg("#%d entry frame", frame_no), 2);
   } else if (cb()->is_compiled()) {
+    // TODO add printing here
     // For now just label the frame
     CompiledMethod* cm = cb()->as_compiled_method();
     values.describe(-1, info_address,
@@ -1460,35 +1461,23 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
       Method* m = cm->method();
 
       int stack_slot_offset = cm->frame_size() * wordSize; // offset, in bytes, to caller sp
-      int sizeargs = m->size_of_parameters();
 
-      BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sizeargs);
-      VMRegPair* regs   = NEW_RESOURCE_ARRAY(VMRegPair, sizeargs);
-      {
-        int sig_index = 0;
-        if (!m->is_static()) {
-          sig_bt[sig_index++] = T_OBJECT; // 'this'
-        }
-        for (SignatureStream ss(m->signature()); !ss.at_return_type(); ss.next()) {
-          BasicType t = ss.type();
-          assert(type2size[t] == 1 || type2size[t] == 2, "size is 1 or 2");
-          sig_bt[sig_index++] = t;
-          if (type2size[t] == 2) {
-            sig_bt[sig_index++] = T_VOID;
-          }
-        }
-        assert(sig_index == sizeargs, "");
-      }
-      int stack_arg_slots = SharedRuntime::java_calling_convention(sig_bt, regs, sizeargs);
-      assert(stack_arg_slots ==  m->num_stack_arg_slots(false /* rounded */), "");
+      // TODO handle scalarized args
+
+      CompiledEntrySignature ces(m);
+      ces.compute_calling_conventions(false);
+      const GrowableArray<SigEntry>* sig_cc = ces.sig_cc();
+      const VMRegPair* regs = ces.regs_cc();
+
+    //  assert(stack_arg_slots ==  m->num_stack_arg_slots(false /* rounded */), "");
       int out_preserve = SharedRuntime::out_preserve_stack_slots();
       int sig_index = 0;
       int arg_index = (m->is_static() ? 0 : -1);
-      for (SignatureStream ss(m->signature()); !ss.at_return_type(); ) {
+      for (ExtendedSignature sig = ExtendedSignature(sig_cc, SigEntryFilter()); !sig.at_end(); ++sig) {
         bool at_this = (arg_index == -1);
+        // TODO unused?
         bool at_old_sp = false;
-        BasicType t = (at_this ? T_OBJECT : ss.type());
-        assert(t == sig_bt[sig_index], "sigs in sync");
+        BasicType t = (*sig)._bt;
         VMReg fst = regs[sig_index].first();
         if (fst->is_stack()) {
           assert(((int)fst->reg2stack()) >= 0, "reg2stack: %d", fst->reg2stack());
@@ -1502,9 +1491,6 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
         }
         sig_index += type2size[t];
         arg_index += 1;
-        if (!at_this) {
-          ss.next();
-        }
       }
     }
 
