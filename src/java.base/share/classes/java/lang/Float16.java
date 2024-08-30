@@ -285,14 +285,15 @@ public final class Float16
     public static Float16 valueOf(long value) {
         if (value <= -65_520L) {  // -(Float16.MAX_VALUE + Float16.ulp(Float16.MAX_VALUE) / 2)
             return NEGATIVE_INFINITY;
+        } else {
+            if (value >= 65_520L) {  // Float16.MAX_VALUE + Float16.ulp(Float16.MAX_VALUE) / 2
+                return POSITIVE_INFINITY;
+            }
+            // Remaining range of long, the integers in approx. +/-
+            // 2^16, all fit in a float so the correct conversion can
+            // be done via an intermediate float conversion.
+            return valueOf((float)value);
         }
-        if (value >= 65_520L) {  // Float16.MAX_VALUE + Float16.ulp(Float16.MAX_VALUE) / 2
-            return POSITIVE_INFINITY;
-        }
-        // Remaining range of long, the integers in approx. +/-
-        // 2^16, all fit in a float so the correct conversion can
-        // be done via an intermediate float conversion.
-        return valueOf((float)value);
     }
 
    /**
