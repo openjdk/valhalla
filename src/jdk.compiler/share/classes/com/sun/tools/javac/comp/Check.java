@@ -2010,16 +2010,21 @@ public class Check {
         Type otres = types.subst(ot.getReturnType(), otvars, mtvars);
 
         overrideWarner.clear();
-        boolean resultTypesOK =
-            types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
-        if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness1);
-        }
-        overrideWarner.remove(LintCategory.NULL);
-        // at this point we know this will be true but to gather the warnings
-        types.isSubSignature(mt, ot, overrideWarner);
-        if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness2);
+        boolean resultTypesOK = false;
+        try {
+            types.pushWarner(overrideWarner);
+            resultTypesOK = types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
+            if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
+                warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness1);
+            }
+            overrideWarner.remove(LintCategory.NULL);
+            // at this point we know this will be true but to gather the warnings
+            types.isSubSignature(mt, ot, overrideWarner);
+            if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
+                warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), Warnings.OverridesWithDifferentNullness2);
+            }
+        } finally {
+            types.popWarner();
         }
         if (!resultTypesOK) {
             if ((m.flags() & STATIC) != 0 && (other.flags() & STATIC) != 0) {

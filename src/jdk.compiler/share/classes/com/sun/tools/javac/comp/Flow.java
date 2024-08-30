@@ -2199,7 +2199,7 @@ public class Flow {
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
                 isFinalUninitializedField(sym)) ||
-                isUninitializedNonNullableOrParametricField(sym));
+                isUninitializedNonNullableField(sym));
         }
 
         boolean isFinalUninitializedField(VarSymbol sym) {
@@ -2217,6 +2217,13 @@ public class Flow {
                     ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
                             classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
                             (types.isNonNullable(sym.type) || types.isParametric(sym.type)));
+        }
+
+        boolean isUninitializedNonNullableField(VarSymbol sym) {
+            return sym.owner.kind == TYP &&
+                    ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
+                            classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
+                            types.isNonNullable(sym.type));
         }
 
         /** Initialize new trackable variable by setting its address field
@@ -2307,14 +2314,12 @@ public class Flow {
                 trackable(sym) &&
                 !inits.isMember(sym.adr) &&
                 (sym.flags_field & CLASH) == 0) {
-                if (isUninitializedNonNullableOrParametricField(sym)) {
-                    if (lint.isEnabled(Lint.LintCategory.NULL)) {
-                        if (types.isNonNullable(sym.type)) {
-                            log.warning(pos, Warnings.NonNullableShouldBeInitialized);
-                        } else {
-                            // see JDK-8339087
-                            //log.warning(pos, Warnings.ParametricShouldBeInitialized);
-                        }
+                if (isUninitializedNonNullableField(sym)) {
+                    if (types.isNonNullable(sym.type)) {
+                        log.error(pos, Errors.NonNullableShouldBeInitialized);
+                    } else {
+                        // see JDK-8339087
+                        //log.warning(pos, Warnings.ParametricShouldBeInitialized);
                     }
                 } else {
                     log.error(pos, errkey);
