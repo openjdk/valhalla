@@ -28,6 +28,7 @@ package java.lang;
 import java.lang.invoke.MethodHandles;
 import java.lang.constant.Constable;
 import java.lang.constant.ConstantDesc;
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import jdk.internal.math.FloatConsts;
@@ -282,17 +283,16 @@ public final class Float16
     * @param  value a {@code long} value.
     */
     public static Float16 valueOf(long value) {
-        if (value < -65_504L) {
+        if (value <= -65_520L) {  // -(Float16.MAX_VALUE + Float16.ulp(Float16.MAX_VALUE) / 2)
             return NEGATIVE_INFINITY;
-        } else {
-            if (value > 65_504L) {
-                return NEGATIVE_INFINITY;
-            }
-            // Remaining range of long, the integers in approx. +/-
-            // 2^16, all fit in a float so the correct conversion can
-            // be done via an intermediate float conversion.
-            return valueOf((float)value);
         }
+        if (value >= 65_520L) {  // Float16.MAX_VALUE + Float16.ulp(Float16.MAX_VALUE) / 2
+            return POSITIVE_INFINITY;
+        }
+        // Remaining range of long, the integers in approx. +/-
+        // 2^16, all fit in a float so the correct conversion can
+        // be done via an intermediate float conversion.
+        return valueOf((float)value);
     }
 
    /**
@@ -417,6 +417,20 @@ public final class Float16
     public static Float16 valueOf(String s) throws NumberFormatException {
         // TOOD: adjust precision of parsing if needed
         return valueOf(Double.parseDouble(s));
+    }
+
+    /**
+     * {@return a {@link Float16} value rounded from the {@link BigDecimal}
+     * argument using the round to nearest rounding policy}
+     *
+     * @apiNote
+     * This method corresponds to the convertFormat operation defined
+     * in IEEE 754.
+     *
+     * @param  v a {@link BigDecimal}
+     */
+    public static Float16 valueOf(BigDecimal v) {
+        return v.float16Value();
     }
 
     //    /**
@@ -856,7 +870,6 @@ public final class Float16
      *
      * @param radicand the argument to have its square root taken
      *
-     * @see Math#sqrt(float)
      * @see Math#sqrt(double)
      */
     // @IntrinsicCandidate
