@@ -33,23 +33,22 @@
  *      jdk.compiler/com.sun.tools.javac.code
  *      jdk.compiler/com.sun.tools.javac.util
  *      jdk.jdeps/com.sun.tools.classfile
- * @run testng/othervm NullabilityCompilationTests
- * @ignore 8316628
+ * @run junit NullabilityCompilationTests
  */
 import java.util.List;
 import java.util.function.Consumer;
 
 import javax.tools.Diagnostic;
 
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 import tools.javac.combo.CompilationTestCase;
 
-import static org.testng.Assert.assertEquals;
-
-@Test
 public class NullabilityCompilationTests extends CompilationTestCase {
-    private static String[] EMPTY_OPTIONS = {};
-    private static String[] LINT_OPTIONS = { "-Xlint:null" };
+    private static String[] PREVIEW_OPTIONS = {
+            "--enable-preview", "-source", Integer.toString(Runtime.version().feature())};
+    private static String[] PREVIEW_PLUS_LINT_OPTIONS = {
+            "--enable-preview", "-source", Integer.toString(Runtime.version().feature()),
+            "-Xlint:null" };
 
     public NullabilityCompilationTests() {
         setDefaultFilename("Test.java");
@@ -95,10 +94,10 @@ public class NullabilityCompilationTests extends CompilationTestCase {
     void testList(List<DiagAndCode> testList) {
         for (DiagAndCode diagAndCode : testList) {
             if (diagAndCode.result == Result.Clean) {
-                testHelper(LINT_OPTIONS, diagAndCode.code);
+                testHelper(PREVIEW_PLUS_LINT_OPTIONS, diagAndCode.code);
             } else if (diagAndCode.result == Result.Warning) {
-                testHelper(LINT_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.COMPILE_WITH_WARNING, diagAndCode.code, null);
-                testHelper(EMPTY_OPTIONS, diagAndCode.code,
+                testHelper(PREVIEW_PLUS_LINT_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.COMPILE_WITH_WARNING, diagAndCode.code, null);
+                testHelper(PREVIEW_OPTIONS, diagAndCode.code,
                         d -> {
                             if (d.getKind() == Diagnostic.Kind.WARNING) {
                                 // shouldn't issue any warnings if the -Xlint:null option is not passed
@@ -106,10 +105,10 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                             }
                         });
             } else {
-                testHelper(EMPTY_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.ERROR, diagAndCode.code, null);
+                testHelper(PREVIEW_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.ERROR, diagAndCode.code, null);
             }
             if (diagAndCode.result != Result.Error) {
-                testHelper(EMPTY_OPTIONS, diagAndCode.code);
+                testHelper(PREVIEW_OPTIONS, diagAndCode.code);
             }
         }
     }
@@ -122,7 +121,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
         }
     }
 
-    public void testErrorNonNullableCantBeAssignedNull() {
+    @Test
+    void testErrorNonNullableCantBeAssignedNull() {
         testList(
                 List.of(
                         new DiagAndCode(
@@ -136,6 +136,14 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.err.prob.found.req"),
                         new DiagAndCode(
                                 """
+                                class Foo {
+                                    Foo! s = null;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.prob.found.req"),
+                        new DiagAndCode(
+                                """
                                 value class Point { public implicit Point(); }
                                 class Foo {
                                     Point[]! s = null;
@@ -143,7 +151,15 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Error,
                                 "compiler.err.prob.found.req"),
-                        /*new DiagAndCode(
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    Foo[]! s = null;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.prob.found.req"),
+                        new DiagAndCode(
                                 """
                                 import java.util.function.*;
                                 class Test<T> {
@@ -154,7 +170,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.prob.found.req"),*/
+                                "compiler.err.prob.found.req"),
                         new DiagAndCode(
                                 """
                                 value class Point { public implicit Point(); }
@@ -173,7 +189,9 @@ public class NullabilityCompilationTests extends CompilationTestCase {
         );
     }
 
-    public void testWarnUninitialized() {
+
+    @Test
+    void testErrorUninitialized() {
         testList(
                 List.of(
                         new DiagAndCode(
@@ -183,8 +201,16 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     Point! s;
                                 }
                                 """,
-                                Result.Warning,
-                                "compiler.warn.non.nullable.should.be.initialized"),
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    Foo! s;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
                                 value class Point { public implicit Point(); }
@@ -192,8 +218,16 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     Point[]! s;
                                 }
                                 """,
-                                Result.Warning,
-                                "compiler.warn.non.nullable.should.be.initialized"),
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    Foo[]! s;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
                                 value class Point { public implicit Point(); }
@@ -201,8 +235,16 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     Point![]! s;
                                 }
                                 """,
-                                Result.Warning,
-                                "compiler.warn.non.nullable.should.be.initialized"),
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    Foo![]! s;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
                                 value class Point { public implicit Point(); }
@@ -210,38 +252,63 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     Point![]![]! s;
                                 }
                                 """,
-                                Result.Warning,
-                                "compiler.warn.non.nullable.should.be.initialized"),
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    Foo![]![]! s;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
                                 value class Point { public implicit Point(); }
                                 class Foo {
-                                    Point[][]! s;
+                                    Point[]![] s;
                                 }
                                 """,
-                                Result.Warning,
-                                "compiler.warn.non.nullable.should.be.initialized"),
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    Foo[]![] s;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
                                 value class Point { public implicit Point(); }
                                 class Foo {
-                                    Point[][][]! s;
+                                    Point[]![][] s;
                                 }
                                 """,
-                                Result.Warning,
-                                "compiler.warn.non.nullable.should.be.initialized")
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    Foo[]![][] s;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized")
                 )
         );
     }
 
-    public void testUncheckedNullnessConversions () {
+    @Test
+    void testUncheckedNullnessConversions () {
         testList(
                 List.of(
                         new DiagAndCode(
                                 """
                                 value class Point { public implicit Point(); }
                                 class Foo {
-                                    void m(Point! s1, Point s3) {
+                                    void m(Point! s1, Point? s3) {
                                         s1 = s3;
                                     }
                                 }
@@ -249,7 +316,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 Result.Warning,
                                 "compiler.warn.unchecked.nullness.conversion",
                                 1),
-                        /*new DiagAndCode(
+                        new DiagAndCode(
                                 """
                                 class Foo {
                                     void m(Object! s1, String s3) {
@@ -257,9 +324,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     }
                                 }
                                 """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),*/
+                                Result.Clean,
+                                ""),
                         new DiagAndCode(
                                 """
                                 value class Point { public implicit Point(); }
@@ -271,11 +337,27 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Clean,
                                 ""),
-                        /*
+                        new DiagAndCode(
+                                """
+                                class Foo<T extends String!> {
+                                    Foo<String?> f2;
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.unchecked.nullness.conversion",
+                                1),
                         new DiagAndCode(
                                 """
                                 class Foo<T extends String!> {
                                     Foo<String> f2;
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Foo<T extends Object!> {
+                                    Foo<String?> f2;
                                 }
                                 """,
                                 Result.Warning,
@@ -287,11 +369,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     Foo<String> f2;
                                 }
                                 """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        */
-
+                                Result.Clean,
+                                ""),
                         // wildcards
                         new DiagAndCode(
                                 """
@@ -299,6 +378,18 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 value class Point { public implicit Point(); }
                                 class Foo {
                                     void test(List<? extends Point!> ls1, List<? extends Point> ls3) {
+                                        ls1 = ls3;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                import java.util.*;
+                                value class Point { public implicit Point(); }
+                                class Foo {
+                                    void test(List<? extends Point!> ls1, List<? extends Point?> ls3) {
                                         ls1 = ls3;
                                     }
                                 }
@@ -311,6 +402,17 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 import java.util.*;
                                 class Foo {
                                     void test(List<? extends Object!> ls1, List<? extends String> ls3) {
+                                        ls1 = ls3;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                import java.util.*;
+                                class Foo {
+                                    void test(List<? extends Object!> ls1, List<? extends String?> ls3) {
                                         ls1 = ls3;
                                     }
                                 }
@@ -328,15 +430,38 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     }
                                 }
                                 """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    static value class Atom {}
+                                    static class Box<X> {}
+                                    void test(Box<? extends Atom!> t1, Box<Atom?> t2) {
+                                        t1 = t2;
+                                    }
+                                }
+                                """,
                                 Result.Warning,
                                 "compiler.warn.unchecked.nullness.conversion",
                                 1),
-
                         new DiagAndCode(
                                 """
                                 class Wrapper<T> {}
                                 class Test<T> {
                                     Wrapper<T> newWrapper() { return null; }
+                                    void m() {
+                                        Wrapper<T!> w = newWrapper();
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Wrapper<T> {}
+                                class Test<T> {
+                                    Wrapper<T?> newWrapper() { return null; }
                                     void m() {
                                         Wrapper<T!> w = newWrapper();
                                     }
@@ -355,6 +480,18 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     }
                                 }
                                 """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test {
+                                    void plot(Function<String?, String> f) {}
+                                    void m(Function<String!, String> gradient) {
+                                        plot(gradient);
+                                    }
+                                }
+                                """,
                                 Result.Warning,
                                 "compiler.warn.unchecked.nullness.conversion",
                                 1),
@@ -364,6 +501,18 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 class Test {
                                     void plot(Function<String!, String> f) {}
                                     void m(Function<String, String> gradient) {
+                                        plot(gradient);
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                import java.util.function.*;
+                                class Test {
+                                    void plot(Function<String!, String> f) {}
+                                    void m(Function<String?, String> gradient) {
                                         plot(gradient);
                                     }
                                 }
@@ -436,10 +585,25 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     }
                                 }
                                 """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    class Box<X> {}
+                                    static value class Point { public implicit Point(); }
+                                    @SafeVarargs
+                                    private <Z> Z make_box_uni(Z... bs) {
+                                        return bs[0];
+                                    }
+                                    void test(Box<Point!> bref, Box<Point?> bval) {
+                                        Box<? extends Point!> res = make_box_uni(bref, bval);
+                                    }
+                                }
+                                """,
                                 Result.Warning,
                                 "compiler.warn.unchecked.nullness.conversion",
                                 1),
-
                         new DiagAndCode(
                                 """
                                 import java.util.*;
@@ -466,7 +630,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
         );
     }
 
-    public void testNoWarnings() {
+    @Test
+    void testNoWarnings() {
         testList(
                 List.of(
                         new DiagAndCode(
@@ -581,15 +746,13 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 import java.lang.invoke.*;
                                 class Cell {
                                     final void reset() {
-                                        /* we are testing that the compiler won't infer the arguments of
-                                         * VarHandle::setVolatile as (Cell, String!)
-                                         */
+                                        // we are testing that the compiler won't infer the arguments of
+                                        // VarHandle::setVolatile as (Cell, String!)
                                         VALUE.setVolatile(this, "");
                                     }
                                     final void reset(String identity) {
-                                        /* if that were the case, see comment above, then this invocation would generate
-                                         * a warning, VarHandle::setVolatile is a polymorphic signature method
-                                         */
+                                        // if that were the case, see comment above, then this invocation would generate
+                                        // a warning, VarHandle::setVolatile is a polymorphic signature method
                                         VALUE.setVolatile(this, identity);
                                     }
 
@@ -655,7 +818,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
         );
     }
 
-    public void testOverridingWarnings() {
+    @Test
+    void testOverridingWarnings() {
         testList(
                 List.of(
                         new DiagAndCode(
@@ -665,7 +829,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
 
                                 abstract class B extends A {
-                                    abstract String lookup(String arg);
+                                    abstract String? lookup(String arg);
                                 }
                                 """,
                                 Result.Warning,
@@ -678,7 +842,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
 
                                 abstract class B extends A {
-                                    abstract String lookup(Point arg);
+                                    abstract String lookup(Point? arg);
                                 }
                                 """,
                                 Result.Warning,

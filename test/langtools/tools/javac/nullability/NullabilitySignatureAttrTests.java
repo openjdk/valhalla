@@ -85,7 +85,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             new SignatureData(
                     """
                     class Test {
-                        Test! t;
+                        Test! t = new Test();
                     }
                     """,
                     "!LTest;"
@@ -120,7 +120,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                     """
                     import java.util.*;
                     class Test {
-                        List!<Test!> t;
+                        List!<Test!> t = new ArrayList<>();
                     }
                     """,
                     "!Ljava/util/List<!LTest;>;"
@@ -137,7 +137,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             new SignatureData(
                     """
                     class Test<T> {
-                        T! t;
+                        T! t = (T)new Object();
                     }
                     """,
                     "!TT;"
@@ -161,7 +161,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             new SignatureData(
                     """
                     class Test {
-                        String[]! t;
+                        String[]! t = {""};
                     }
                     """,
                     "![Ljava/lang/String;"
@@ -177,7 +177,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             new SignatureData(
                     """
                     class Test {
-                        String?[]![]? t;
+                        String?[]![]? t = {{""}};
                     }
                     """,
                     "![?[?Ljava/lang/String;"

@@ -36,7 +36,7 @@ class NullabilityParsingBangTest {
     static value class Point { public implicit Point(); }
     static value class Shape { public implicit Shape(); }
     // fields
-    Point! o2;
+    Point! o2 = new Point();
 
     // method parameters
     void m2(Point! o) { }
@@ -161,7 +161,7 @@ class NullabilityParsingBangTest {
 
     // arrays
 
-    Point![]![]![]! oarr;
+    Point![]![]![]! oarr = {{{new Point()}}};
     Function<Point![]![]!, Function<Point![]![]!, Point![]![]!>>[][] garr;
 
     void mBad1(Object o) {
