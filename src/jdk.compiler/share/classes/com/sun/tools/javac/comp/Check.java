@@ -1319,10 +1319,15 @@ public class Check {
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
             else {
-                boolean isInstanceFieldOfValueClass = sym.owner.type.isValueClass() && (flags & STATIC) == 0;
-                mask = !isInstanceFieldOfValueClass ? VarFlags : ExtendedVarFlags;
+                boolean isInstanceFieldOfValueClass =
+                        (sym.owner.type.isValueClass() && (flags & STATIC) == 0);
+                boolean isNonNullableInstanceFieldOfNonValueClass =
+                        (!sym.owner.type.isValueClass() && (flags & STATIC) == 0) && types.isNonNullable(sym.type);
+                mask = isInstanceFieldOfValueClass || isNonNullableInstanceFieldOfNonValueClass ? ExtendedVarFlags : VarFlags;
                 if (isInstanceFieldOfValueClass) {
                     implicit |= FINAL | STRICT;
+                } else if (isNonNullableInstanceFieldOfNonValueClass) {
+                    implicit |= STRICT;
                 }
             }
             break;

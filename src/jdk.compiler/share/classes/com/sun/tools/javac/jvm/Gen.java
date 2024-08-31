@@ -425,8 +425,10 @@ public class Gen extends JCTree.Visitor {
      */
     List<JCTree> normalizeDefs(List<JCTree> defs, ClassSymbol c) {
         ListBuffer<JCStatement> initCode = new ListBuffer<>();
+        // initializers for non-nullable fields of non-value classes
+        ListBuffer<JCStatement> initCodeNonNullableFields = new ListBuffer<>();
         // only used for value classes
-        ListBuffer<JCStatement> initBlocks = new ListBuffer<>();
+        ListBuffer<JCStatement> valueClassesInitBlocks = new ListBuffer<>();
         ListBuffer<Attribute.TypeCompound> initTAs = new ListBuffer<>();
         ListBuffer<JCStatement> clinitCode = new ListBuffer<>();
         ListBuffer<Attribute.TypeCompound> clinitTAs = new ListBuffer<>();
@@ -444,7 +446,7 @@ public class Gen extends JCTree.Visitor {
                     clinitCode.append(block);
                 else if ((block.flags & SYNTHETIC) == 0) {
                     if (c.isValueClass()) {
-                        initBlocks.append(block);
+                        valueClassesInitBlocks.append(block);
                     } else {
                         initCode.append(block);
                     }
@@ -462,7 +464,11 @@ public class Gen extends JCTree.Visitor {
                         // Always initialize instance variables.
                         JCStatement init = make.at(vdef.pos()).
                             Assignment(sym, vdef.init);
-                        initCode.append(init);
+                        if (!vdef.sym.owner.isValueClass() && types.isNonNullable(vdef.sym.type)) {
+                            initCodeNonNullableFields.append(init);
+                        } else {
+                            initCode.append(init);
+                        }
                         endPosTable.replaceTree(vdef, init);
                         initTAs.addAll(getAndRemoveNonFieldTAs(sym));
                     } else if (sym.getConstValue() == null) {
@@ -487,11 +493,11 @@ public class Gen extends JCTree.Visitor {
             }
         }
         // Insert any instance initializers into all constructors.
-        if (initCode.length() != 0 || initBlocks.length() != 0) {
+        if (initCode.length() != 0 || initCodeNonNullableFields.length() != 0 || valueClassesInitBlocks.length() != 0) {
             initTAs.addAll(c.getInitTypeAttributes());
             List<Attribute.TypeCompound> initTAlist = initTAs.toList();
             for (JCTree t : methodDefs) {
-                normalizeMethod((JCMethodDecl)t, initCode.toList(), initBlocks.toList(), initTAlist);
+                normalizeMethod((JCMethodDecl)t, initCode.toList(), initCodeNonNullableFields.toList(), valueClassesInitBlocks.toList(), initTAlist);
             }
         }
         // If there are class initializers, create a <clinit> method
@@ -554,13 +560,16 @@ public class Gen extends JCTree.Visitor {
      *  @param initCode  The list of instance initializer statements.
      *  @param initTAs  Type annotations from the initializer expression.
      */
-    void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<JCStatement> initBlocks,  List<TypeCompound> initTAs) {
+    void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<JCStatement> initCodeNonNullableFields, List<JCStatement> valueClassesInitBlocks, List<TypeCompound> initTAs) {
         if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
             if (md.sym.owner.isValueClass()) {
                 rewriteInitializersIfNeeded(md, initCode);
-                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.append(supercall).appendList(initBlocks)));
+                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.append(supercall).appendList(valueClassesInitBlocks)));
+            } else if (!initCodeNonNullableFields.isEmpty()) {
+                rewriteInitializersIfNeeded(md, initCodeNonNullableFields);
+                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCodeNonNullableFields.append(supercall).appendList(initCode)));
             } else {
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.prepend(supercall)));
             }
