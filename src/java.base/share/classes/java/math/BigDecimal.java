@@ -3853,8 +3853,9 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
         /*
          * We have
          *      2^12 = 2^{P+1} <= i < 2^{P+5} = 2^16
-         * Contrary to the double and float cases, here we cannot simply
-         * declare i as short, because P + 5 < Short.SIZE fails to hold.
+         * Contrary to the double and float cases, where we use long and int, resp.,
+         * here we cannot simply declare i as short, because P + 5 < Short.SIZE
+         * fails to hold.
          * Using int is safe, though.
          *
          * Further, as Math.scalb(Float16) does not exists, we fall back to
