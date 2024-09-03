@@ -629,6 +629,21 @@ public class IRNode {
         beforeMatchingNameRegex(IS_INFINITE_F, "IsInfiniteF");
     }
 
+    public static final String IS_FINITE_HF = PREFIX + "IS_FINITE_HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(IS_FINITE_HF, "IsFiniteHF");
+    }
+
+    public static final String IS_INFINITE_HF = PREFIX + "IS_INFINITE_HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(IS_INFINITE_HF, "IsInfiniteHF");
+    }
+
+    public static final String IS_NAN_HF = PREFIX + "IS_NAN_HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(IS_NAN_HF, "IsNaNHF");
+    }
+
     public static final String LOAD = PREFIX + "LOAD" + POSTFIX;
     static {
         beforeMatchingNameRegex(LOAD, "Load(B|UB|S|US|I|L|F|D|P|N)");

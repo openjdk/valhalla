@@ -1621,7 +1621,8 @@ generate(FloatConvertOp, [["fcvtzsw", "fcvtzs", "ws"], ["fcvtzs", "fcvtzs", "xs"
                           ["fmovs", "fmov", "sw"], ["fmovd", "fmov", "dx"]])
 
 generate(TwoRegFloatOp, [["fcmps", "ss"], ["fcmpd", "dd"],
-                         ["fcmps", "sz"], ["fcmpd", "dz"]])
+                         ["fcmps", "sz"], ["fcmpd", "dz"],
+                         ["fcmph", "hh"]])
 
 for kind in range(3):
      generate(LoadStorePairOp, [["stp", "stp", kind, "w"], ["ldp", "ldp", kind, "w"],

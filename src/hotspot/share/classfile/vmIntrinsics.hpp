@@ -197,16 +197,18 @@ class methodHandle;
                                                                                                                         \
                                                                                                                         \
   /* Float16 intrinsics, similar to what we have in Math. */                                                            \
-  /* All names for Float16 binary operations */                                                                         \
+  /* All names for Float16 operations */                                                                                \
   do_name(add_name, "add")                                                                                              \
   do_name(subtract_name, "subtract")                                                                                    \
   do_name(multiply_name, "multiply")                                                                                    \
   do_name(divide_name, "divide")                                                                                        \
   do_name(neg_name, "negate")                                                                                           \
+  do_name(isNaN_name, "isNaN")                                                                                          \
   /* Float16 signatures */                                                                                              \
   do_signature(float16_float16_signature, "(Ljava/lang/Float16;)Ljava/lang/Float16;")                                   \
   do_signature(float16_2_float16_signature, "(Ljava/lang/Float16;Ljava/lang/Float16;)Ljava/lang/Float16;")              \
   do_signature(float16_3_float16_signature, "(Ljava/lang/Float16;Ljava/lang/Float16;Ljava/lang/Float16;)Ljava/lang/Float16;") \
+  do_signature(float16_bool_signature, "(Ljava/lang/Float16;)Z")                                                        \
   /* Float16 intrinsics for binary operations */                                                                        \
   do_intrinsic(_add_float16,              java_lang_Float16,      add_name,         float16_2_float16_signature,  F_S)  \
   do_intrinsic(_subtract_float16,         java_lang_Float16,      subtract_name,    float16_2_float16_signature,  F_S)  \
@@ -220,6 +222,10 @@ class methodHandle;
   do_intrinsic(_sqrt_float16,             java_lang_Float16,      sqrt_name,  float16_float16_signature,         F_S)   \
   /* Float16 intrinsics for ternary operations */                                                                       \
   do_intrinsic(_fma_float16,              java_lang_Float16,      fma_name,   float16_3_float16_signature,       F_S)   \
+  /* Float16 isFinite, isInfinite, isNaN */                                                                             \
+  do_intrinsic(_float16IsFinite,          java_lang_Float16,      isFinite_name,      float16_bool_signature,    F_S)   \
+  do_intrinsic(_float16IsInfinite,        java_lang_Float16,      isInfinite_name,    float16_bool_signature,    F_S)   \
+  do_intrinsic(_float16IsNaN,             java_lang_Float16,      isNaN_name,         float16_bool_signature,    F_S)   \
   /* StrictMath intrinsics, similar to what we have in Math. */                                                         \
   do_intrinsic(_min_strict,               java_lang_StrictMath,   min_name,           int2_int_signature,        F_S)   \
   do_intrinsic(_max_strict,               java_lang_StrictMath,   max_name,           int2_int_signature,        F_S)   \

@@ -40,17 +40,20 @@ public class FP16ScalarOperations {
 
     public static short actual_value(String oper, short... val) {
         switch (oper) {
-            case "abs"  : return float16ToRawShortBits(Float16.abs(shortBitsToFloat16(val[0])));
-            case "neg"  : return float16ToRawShortBits(Float16.negate(shortBitsToFloat16(val[0])));
-            case "sqrt" : return float16ToRawShortBits(Float16.sqrt(shortBitsToFloat16(val[0])));
-            case "+"    : return float16ToRawShortBits(Float16.add(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
-            case "-"    : return float16ToRawShortBits(Float16.subtract(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
-            case "*"    : return float16ToRawShortBits(Float16.multiply(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
-            case "/"    : return float16ToRawShortBits(Float16.divide(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
-            case "min"  : return float16ToRawShortBits(Float16.min(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
-            case "max"  : return float16ToRawShortBits(Float16.max(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
-            case "fma"  : return float16ToRawShortBits(Float16.fma(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1]), shortBitsToFloat16(val[2])));
-            default     : throw new AssertionError("Unsupported Operation!");
+            case "abs"        : return float16ToRawShortBits(Float16.abs(shortBitsToFloat16(val[0])));
+            case "neg"        : return float16ToRawShortBits(Float16.negate(shortBitsToFloat16(val[0])));
+            case "sqrt"       : return float16ToRawShortBits(Float16.sqrt(shortBitsToFloat16(val[0])));
+            case "isInfinite" : return (short)(Float16.isInfinite(shortBitsToFloat16(val[0])) ? 1 : 0);
+            case "isFinite"   : return (short)(Float16.isFinite(shortBitsToFloat16(val[0])) ? 1 : 0);
+            case "isNaN"      : return (short)(Float16.isNaN(shortBitsToFloat16(val[0])) ? 1 : 0);
+            case "+"          : return float16ToRawShortBits(Float16.add(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
+            case "-"          : return float16ToRawShortBits(Float16.subtract(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
+            case "*"          : return float16ToRawShortBits(Float16.multiply(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
+            case "/"          : return float16ToRawShortBits(Float16.divide(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
+            case "min"        : return float16ToRawShortBits(Float16.min(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
+            case "max"        : return float16ToRawShortBits(Float16.max(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1])));
+            case "fma"        : return float16ToRawShortBits(Float16.fma(shortBitsToFloat16(val[0]), shortBitsToFloat16(val[1]), shortBitsToFloat16(val[2])));
+            default           : throw new AssertionError("Unsupported Operation!");
         }
     }
 
@@ -59,6 +62,9 @@ public class FP16ScalarOperations {
             validate("abs", arr1[i]);
             validate("neg", arr1[i]);
             validate("sqrt", arr1[i]);
+            validate("isInfinite", arr1[i]);
+            validate("isFinite", arr1[i]);
+            validate("isNaN", arr1[i]);
             validate("+", arr1[i], arr2[i]);
             validate("-", arr1[i], arr2[i]);
             validate("*", arr1[i], arr2[i]);
@@ -71,17 +77,20 @@ public class FP16ScalarOperations {
 
     public static short expected_value(String oper, short... input) {
         switch(oper) {
-            case "abs" : return Float.floatToFloat16(Math.abs(Float.float16ToFloat(input[0])));
-            case "neg" : return (short)(input[0] ^ (short)0x0000_8000);
-            case "sqrt": return Float.floatToFloat16((float)Math.sqrt((double)Float.float16ToFloat(input[0])));
-            case "+"   : return Float.floatToFloat16(Float.float16ToFloat(input[0]) + Float.float16ToFloat(input[1]));
-            case "-"   : return Float.floatToFloat16(Float.float16ToFloat(input[0]) - Float.float16ToFloat(input[1]));
-            case "*"   : return Float.floatToFloat16(Float.float16ToFloat(input[0]) * Float.float16ToFloat(input[1]));
-            case "/"   : return Float.floatToFloat16(Float.float16ToFloat(input[0]) / Float.float16ToFloat(input[1]));
-            case "min" : return Float.floatToFloat16(Float.min(Float.float16ToFloat(input[0]), Float.float16ToFloat(input[1])));
-            case "max" : return Float.floatToFloat16(Float.max(Float.float16ToFloat(input[0]), Float.float16ToFloat(input[1])));
-            case "fma" : return Float.floatToFloat16(Float.float16ToFloat(input[0]) * Float.float16ToFloat(input[1]) + Float.float16ToFloat(input[2]));
-            default    : throw new AssertionError("Unsupported Operation!");
+            case "abs"        : return Float.floatToFloat16(Math.abs(Float.float16ToFloat(input[0])));
+            case "neg"        : return (short)(input[0] ^ (short)0x0000_8000);
+            case "sqrt"       : return Float.floatToFloat16((float)Math.sqrt((double)Float.float16ToFloat(input[0])));
+            case "isInfinite" : return (short)(Float.isInfinite(Float.float16ToFloat(input[0])) ? 1 : 0);
+            case "isFinite"   : return (short)(Float.isFinite(Float.float16ToFloat(input[0])) ? 1 : 0);
+            case "isNaN"      : return (short)(Float.isNaN(Float.float16ToFloat(input[0])) ? 1 : 0);
+            case "+"          : return Float.floatToFloat16(Float.float16ToFloat(input[0]) + Float.float16ToFloat(input[1]));
+            case "-"          : return Float.floatToFloat16(Float.float16ToFloat(input[0]) - Float.float16ToFloat(input[1]));
+            case "*"          : return Float.floatToFloat16(Float.float16ToFloat(input[0]) * Float.float16ToFloat(input[1]));
+            case "/"          : return Float.floatToFloat16(Float.float16ToFloat(input[0]) / Float.float16ToFloat(input[1]));
+            case "min"        : return Float.floatToFloat16(Float.min(Float.float16ToFloat(input[0]), Float.float16ToFloat(input[1])));
+            case "max"        : return Float.floatToFloat16(Float.max(Float.float16ToFloat(input[0]), Float.float16ToFloat(input[1])));
+            case "fma"        : return Float.floatToFloat16(Float.float16ToFloat(input[0]) * Float.float16ToFloat(input[1]) + Float.float16ToFloat(input[2]));
+            default           : throw new AssertionError("Unsupported Operation!");
         }
     }
 

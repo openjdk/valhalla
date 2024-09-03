@@ -2310,6 +2310,9 @@ bool Matcher::match_rule_supported(int opcode) {
     case Op_NegHF:
     case Op_SqrtHF:
     case Op_FmaHF:
+    case Op_IsNaNHF:
+    case Op_IsFiniteHF:
+    case Op_IsInfiniteHF:
       // Half-precision floating point scalar operations require FEAT_FP16
       // to be available. FEAT_FP16 is enabled if both "fphp" and "asimdhp"
       // features are supported.
@@ -17263,6 +17266,57 @@ instruct reinterpretHF2SAndHF2F(vRegF dst, vRegF src)
   %}
   ins_pipe(pipe_slow);
 %}
+
+//------------------ FP16 isFinite -------------------------------
+
+instruct isFiniteHF(iRegINoSp dst, vRegF src, vRegF tmp)
+%{
+  match(Set dst (IsFiniteHF src));
+  effect(TEMP tmp);
+  format %{ "isFiniteHF $dst, $src # Half float isFinite" %}
+  ins_encode %{
+    __ fabsh($src$$FloatRegister, $src$$FloatRegister);
+    __ movz(rscratch1, 0x7bff); // Load Float16.MAX_VALUE
+    __ fmovs($tmp$$FloatRegister, rscratch1);
+    __ fcmph($tmp$$FloatRegister, $src$$FloatRegister);
+    __ csetw($dst$$Register, Assembler::GE); // Set result to true if
+                                             // max value is >= input
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+//------------------ FP16 isNaN ----------------------------------
+
+instruct isNaNHF(iRegINoSp dst, vRegF src)
+%{
+  match(Set dst (IsNaNHF src));
+  format %{ "isNaNHF $dst, $src # Half float isNaN" %}
+  ins_encode %{
+    __ fcmph($src$$FloatRegister, $src$$FloatRegister);
+    __ csetw($dst$$Register, Assembler::NE); // Set result to true if the
+                                             // input is not equal to itself
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+//------------------ FP16 isInfinite -----------------------------
+
+instruct isInfiniteHF(iRegINoSp dst, vRegF src, vRegF tmp)
+%{
+  match(Set dst (IsInfiniteHF src));
+  effect(TEMP tmp);
+  format %{ "isInfiniteHF $dst, $src # Half float isInfinite" %}
+  ins_encode %{
+    __ fabsh($src$$FloatRegister, $src$$FloatRegister);
+    __ movz(rscratch1, 0x7bff); // Load Float16.MAX_VALUE
+    __ fmovs($tmp$$FloatRegister, rscratch1);
+    __ fcmph($src$$FloatRegister, $tmp$$FloatRegister);
+    __ csetw($dst$$Register, Assembler::GT); // Set result to true if
+                                             // input > max value
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
 // ============================================================================
 // This name is KNOWN by the ADLC and cannot be changed.
 // The ADLC forces a 'TypeRawPtr::BOTTOM' output type

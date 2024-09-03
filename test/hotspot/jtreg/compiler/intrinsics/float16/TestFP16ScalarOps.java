@@ -38,6 +38,7 @@ import static java.lang.Float16.*;
 public class TestFP16ScalarOps {
     private static final int count = 1024;
 
+    private boolean[] out;
     private short[] src;
     private short[] dst;
     private short res;
@@ -49,6 +50,7 @@ public class TestFP16ScalarOps {
     public TestFP16ScalarOps() {
         src = new short[count];
         dst = new short[count];
+        out = new boolean[count];
         for (int i = 0; i < count; i++) {
             src[i] = Float.floatToFloat16(i);
         }
@@ -188,6 +190,36 @@ public class TestFP16ScalarOps {
             Float16 in = shortBitsToFloat16(src[i]);
             res = Float16.fma(in, in, in) ;
             dst[i] = float16ToRawShortBits(res);
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.IS_FINITE_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testIsFinite() {
+        for (int i = 0; i < count; i++) {
+            Float16 in = shortBitsToFloat16(src[i]);
+            out[i] = Float16.isFinite(in);
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.IS_INFINITE_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testIsInfinite() {
+        for (int i = 0; i < count; i++) {
+            Float16 in = shortBitsToFloat16(src[i]);
+            out[i] = Float16.isInfinite(in);
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.IS_NAN_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testIsNaN() {
+        for (int i = 0; i < count; i++) {
+            Float16 in = shortBitsToFloat16(src[i]);
+            out[i] = Float16.isNaN(in);
         }
     }
 }

@@ -449,6 +449,7 @@ public final class Float16
      * @see Float#isNaN(float)
      * @see Double#isNaN(double)
      */
+    @IntrinsicCandidate
     public static boolean isNaN(Float16 f16) {
         return Float.isNaN(f16.floatValue());
     }
@@ -468,6 +469,7 @@ public final class Float16
      * @see Float#isInfinite(float)
      * @see Double#isInfinite(double)
      */
+    @IntrinsicCandidate
     public static boolean isInfinite(Float16 f16) {
         return Float.isInfinite(f16.floatValue());
     }
@@ -488,6 +490,7 @@ public final class Float16
      * @see Float#isFinite(float)
      * @see Double#isFinite(double)
      */
+    @IntrinsicCandidate
     public static boolean isFinite(Float16 f16) {
         return Float.isFinite(f16.floatValue());
      }
