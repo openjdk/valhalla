@@ -708,7 +708,6 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
             }
           } else {
             // Add other uses to the worklist to process individually
-            // TODO will be fixed by 8328470
             worklist.push(use);
           }
         }
@@ -859,6 +858,16 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
         element_size = res_type->is_aryptr()->flat_elem_size();
       }
     }
+
+    if (res->bottom_type()->is_inlinetypeptr()) {
+      assert(C->has_circular_inline_type(), "non-circular inline types should have been replaced earlier");
+      // Nullable inline types have an IsInit field which is added to the safepoint when scalarizing them (see
+      // InlineTypeNode::make_scalar_in_safepoint()). When having circular inline types, we stop scalarizing at depth 1
+      // to avoid an endless recursion. Therefore, we do not have a SafePointScalarObjectNode node here, yet.
+      // We are about to create a SafePointScalarObjectNode as if this is a normal object. Add an additional top input
+      // to skip over the IsInit check later in PhaseOutput::filLocArray() for inline types.
+      sfpt->add_req(C->top());
+    }
   }
 
   SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(res_type, alloc, first_ind, sfpt->jvms()->depth(), nfields);
@@ -981,7 +990,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   }
 
   // Process the safepoint uses
-  assert(safepoints.length() == 0 || !res_type->is_inlinetypeptr(), "Inline type allocations should not have safepoint uses");
+  assert(safepoints.length() == 0 || !res_type->is_inlinetypeptr() || C->has_circular_inline_type(), "Inline type allocations should not have safepoint uses");
   Unique_Node_List value_worklist;
   while (safepoints.length() > 0) {
     SafePointNode* sfpt = safepoints.pop();
@@ -1240,7 +1249,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
-      assert(!inline_alloc, "Inline type allocations should not have safepoint uses");
+      assert(!inline_alloc || C->has_circular_inline_type(), "Inline type allocations should not have safepoint uses");
       return false;
     }
   }
