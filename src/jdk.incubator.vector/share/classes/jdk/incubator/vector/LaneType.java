@@ -40,7 +40,8 @@ enum LaneType {
     BYTE(byte.class, Byte.class, byte[].class, 'I', -1, Byte.SIZE, T_BYTE),
     SHORT(short.class, Short.class, short[].class, 'I', -1, Short.SIZE, T_SHORT),
     INT(int.class, Integer.class, int[].class, 'I', -1, Integer.SIZE, T_INT),
-    LONG(long.class, Long.class, long[].class, 'I', -1, Long.SIZE, T_LONG);
+    LONG(long.class, Long.class, long[].class, 'I', -1, Long.SIZE, T_LONG),
+    FLOAT16(Float16.class, Float16.class, Float16[].class, 'F', 11, Float16.SIZE, T_FLOAT16);
 
     LaneType(Class<?> elementType,
              Class<?> genericElementType,
@@ -65,14 +66,14 @@ enum LaneType {
         // int:128 or int:4 or float:16, report the size in the
         // printName.  If we do unsigned or vector or bit lane types,
         // report that condition also.
-        this.typeChar = genericElementType.getSimpleName().charAt(0);
-        assert("FDBSIL".indexOf(typeChar) == ordinal()) : this;
+        this.typeChar = genericElementType.getSimpleName().charAt(getElementTypeIndex(elementType));
+        assert("FDBSILo".indexOf(typeChar) == ordinal()) : this;
         // Same as in JVMS, org.objectweb.asm.Opcodes, etc.:
         this.basicType = basicType;
         assert(basicType ==
                ( (elementSizeLog2 - /*lg(Byte.SIZE)*/ 3)
                  | (elementKind == 'F' ? 4 : 8))) : this;
-        assert("....zcFDBSILoav..".charAt(basicType) == typeChar);
+        assert("....zoFDBSILSoav..".charAt(basicType) == typeChar);
     }
 
     final Class<?> elementType;
@@ -108,13 +109,21 @@ enum LaneType {
         return asFloating;
     }
 
+    static int getElementTypeIndex(Class<?> elementType) {
+        if (elementType == java.lang.Float16.class) {
+            return 2;
+        } else {
+            return 0;
+        }
+    }
+
     /** Decode a class mirror for an element type into an enum. */
     @ForceInline
     static LaneType of(Class<?> elementType) {
         // The following two lines are expected to
         // constant fold in the JIT, if the argument
         // is constant and this method is inlined.
-        int c0 = elementType.getName().charAt(0);
+        int c0 = elementType.getSimpleName().charAt(getElementTypeIndex(elementType));
         LaneType type = ENUM_FROM_C0[c0 & C0_MASK];
         // This line can short-circuit if a valid
         // elementType constant was passed:
@@ -184,7 +193,8 @@ enum LaneType {
         SK_SHORT    = 4,
         SK_INT      = 5,
         SK_LONG     = 6,
-        SK_LIMIT    = 7;
+        SK_FLOAT16  = 7,
+        SK_LIMIT    = 8;
 
     /*package-private*/
     @ForceInline
@@ -225,7 +235,7 @@ enum LaneType {
             } catch (ReflectiveOperationException ex) {
                 throw new AssertionError(ex);
             }
-            int c0 = value.elementType.getName().charAt(0);
+            int c0 = value.elementType.getSimpleName().charAt(getElementTypeIndex(value.elementType));
             c0 &= C0_MASK;
             assert(valuesByC0[c0] == null);
             valuesByC0[c0] = value;

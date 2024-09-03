@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -347,14 +347,16 @@ final class IntMaxVector extends IntVector {
     @Override
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op) {
-        return (long) super.reduceLanesTemplate(op);  // specialized
+        int res = super.reduceLanesTemplate(op);  // specialized
+        return  (long) res;
     }
 
     @Override
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op,
                                         VectorMask<Integer> m) {
-        return (long) super.reduceLanesTemplate(op, IntMaxMask.class, (IntMaxMask) m);  // specialized
+        int res = super.reduceLanesTemplate(op, IntMaxMask.class, (IntMaxMask) m);  // specialized
+        return  (long) res;
     }
 
     @ForceInline
@@ -652,7 +654,7 @@ final class IntMaxVector extends IntVector {
         /*package-private*/
         IntMaxMask indexPartiallyInUpperRange(long offset, long limit) {
             return (IntMaxMask) VectorSupport.indexPartiallyInUpperRange(
-                IntMaxMask.class, int.class, VLENGTH, offset, limit,
+                IntMaxMask.class, ETYPE, VLENGTH, offset, limit,
                 (o, l) -> (IntMaxMask) TRUE_MASK.indexPartiallyInRange(o, l));
         }
 

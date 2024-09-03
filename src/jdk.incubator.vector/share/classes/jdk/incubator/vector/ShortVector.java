@@ -2221,8 +2221,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
                 // instruction directly, load IOTA from memory
                 // and multiply.
                 ShortVector iota = s.iota();
-                short sc = (short) scale_;
-                return v.add(sc == 1 ? iota : iota.mul(sc));
+                return v.add(scale_ == 1 ? iota : iota.mul((short)scale_));
             });
     }
 
@@ -2285,7 +2284,8 @@ public abstract class ShortVector extends AbstractVector<Short> {
         that.check(this);
         Objects.checkIndex(origin, length() + 1);
         VectorShuffle<Short> iota = iotaShuffle();
-        VectorMask<Short> blendMask = iota.toVector().compare(VectorOperators.LT, (broadcast((short)(length() - origin))));
+        short pivotidx = (short)(length() - origin);
+        VectorMask<Short> blendMask = iota.toVector().compare(VectorOperators.LT, broadcast(pivotidx));
         iota = iotaShuffle(origin, 1, true);
         return that.rearrange(iota).blend(this.rearrange(iota), blendMask);
     }
@@ -2315,7 +2315,8 @@ public abstract class ShortVector extends AbstractVector<Short> {
     ShortVector sliceTemplate(int origin) {
         Objects.checkIndex(origin, length() + 1);
         VectorShuffle<Short> iota = iotaShuffle();
-        VectorMask<Short> blendMask = iota.toVector().compare(VectorOperators.LT, (broadcast((short)(length() - origin))));
+        short pivotidx = (short)(length() - origin);
+        VectorMask<Short> blendMask = iota.toVector().compare(VectorOperators.LT, broadcast(pivotidx));
         iota = iotaShuffle(origin, 1, true);
         return vspecies().zero().blend(this.rearrange(iota), blendMask);
     }
@@ -2377,7 +2378,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
         Objects.checkIndex(origin, length() + 1);
         VectorShuffle<Short> iota = iotaShuffle();
         VectorMask<Short> blendMask = iota.toVector().compare(VectorOperators.GE,
-                                                                  (broadcast((short)(origin))));
+                                                                  broadcast((short)(origin)));
         iota = iotaShuffle(-origin, 1, true);
         return vspecies().zero().blend(this.rearrange(iota), blendMask);
     }
@@ -2949,7 +2950,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
         short[] a = toArray();
         double[] res = new double[a.length];
         for (int i = 0; i < a.length; i++) {
-            res[i] = (double) a[i];
+            res[i] = ((double) a[i]);
         }
         return res;
     }
@@ -4011,11 +4012,10 @@ public abstract class ShortVector extends AbstractVector<Short> {
     @ForceInline
     @Override
     public final
-    Vector<?>
+    HalffloatVector
     viewAsFloatingLanes() {
-        LaneType flt = LaneType.SHORT.asFloating();
-        // asFloating() will throw UnsupportedOperationException for the unsupported type short
-        throw new AssertionError("Cannot reach here");
+        LaneType flt = LaneType.FLOAT16.asFloating();
+        return (HalffloatVector) asVectorRaw(flt);
     }
 
     // ================================================

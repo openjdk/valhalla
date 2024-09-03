@@ -139,6 +139,7 @@ public class VectorSupport {
 
     // BasicType codes, for primitives only:
     public static final int
+        T_FLOAT16 = 5,
         T_FLOAT   = 6,
         T_DOUBLE  = 7,
         T_BYTE    = 8,

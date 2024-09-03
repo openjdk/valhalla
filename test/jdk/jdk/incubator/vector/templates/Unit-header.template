@@ -1750,13 +1750,13 @@ relativeError));
         Assert.assertEquals(asFloating.species(), SPECIES);
     }
 #else[FP]
-#if[byteOrShort]
+#if[byte]
 
     @Test(expectedExceptions = UnsupportedOperationException.class)
     void viewAsFloatingLanesTest() {
         SPECIES.zero().viewAsFloatingLanes();
     }
-#else[byteOrShort]
+#else[byte]
 
     @Test
     void viewAsFloatingLanesTest() {
@@ -1767,7 +1767,7 @@ relativeError));
         Assert.assertEquals(asFloatingSpecies.length(), SPECIES.length());
         Assert.assertEquals(asFloating.viewAsIntegralLanes().species(), SPECIES);
     }
-#end[byteOrShort]
+#end[byte]
 #end[FP]
 #if[BITWISE]
 

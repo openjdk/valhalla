@@ -237,10 +237,18 @@ public enum VectorShape {
         return computePreferredShape();
     }
 
+    private static Class<?> getEffectiveLaneType(Class<?> elementType) {
+        if (elementType == Float16.class) {
+            return short.class;
+        } else {
+            return elementType;
+        }
+    }
+
     private static VectorShape computePreferredShape() {
         int prefBitSize = Integer.MAX_VALUE;
         for (LaneType type : LaneType.values()) {
-            Class<?> etype = type.elementType;
+            Class<?> etype = getEffectiveLaneType(type.elementType);
             prefBitSize = Math.min(prefBitSize, getMaxVectorBitSize(etype));
         }
         // If these assertions fail, we must reconsider our API portability assumptions.

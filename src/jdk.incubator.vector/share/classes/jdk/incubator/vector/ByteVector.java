@@ -2220,8 +2220,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                 // instruction directly, load IOTA from memory
                 // and multiply.
                 ByteVector iota = s.iota();
-                byte sc = (byte) scale_;
-                return v.add(sc == 1 ? iota : iota.mul(sc));
+                return v.add(scale_ == 1 ? iota : iota.mul((byte)scale_));
             });
     }
 
@@ -2284,7 +2283,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         that.check(this);
         Objects.checkIndex(origin, length() + 1);
         VectorShuffle<Byte> iota = iotaShuffle();
-        VectorMask<Byte> blendMask = iota.toVector().compare(VectorOperators.LT, (broadcast((byte)(length() - origin))));
+        byte pivotidx = (byte)(length() - origin);
+        VectorMask<Byte> blendMask = iota.toVector().compare(VectorOperators.LT, broadcast(pivotidx));
         iota = iotaShuffle(origin, 1, true);
         return that.rearrange(iota).blend(this.rearrange(iota), blendMask);
     }
@@ -2314,7 +2314,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     ByteVector sliceTemplate(int origin) {
         Objects.checkIndex(origin, length() + 1);
         VectorShuffle<Byte> iota = iotaShuffle();
-        VectorMask<Byte> blendMask = iota.toVector().compare(VectorOperators.LT, (broadcast((byte)(length() - origin))));
+        byte pivotidx = (byte)(length() - origin);
+        VectorMask<Byte> blendMask = iota.toVector().compare(VectorOperators.LT, broadcast(pivotidx));
         iota = iotaShuffle(origin, 1, true);
         return vspecies().zero().blend(this.rearrange(iota), blendMask);
     }
@@ -2376,7 +2377,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         Objects.checkIndex(origin, length() + 1);
         VectorShuffle<Byte> iota = iotaShuffle();
         VectorMask<Byte> blendMask = iota.toVector().compare(VectorOperators.GE,
-                                                                  (broadcast((byte)(origin))));
+                                                                  broadcast((byte)(origin)));
         iota = iotaShuffle(-origin, 1, true);
         return vspecies().zero().blend(this.rearrange(iota), blendMask);
     }
@@ -2948,7 +2949,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         byte[] a = toArray();
         double[] res = new double[a.length];
         for (int i = 0; i < a.length; i++) {
-            res[i] = (double) a[i];
+            res[i] = ((double) a[i]);
         }
         return res;
     }

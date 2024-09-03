@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -334,14 +334,16 @@ final class Float256Vector extends FloatVector {
     @Override
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op) {
-        return (long) super.reduceLanesTemplate(op);  // specialized
+        float res = super.reduceLanesTemplate(op);  // specialized
+        return  (long) res;
     }
 
     @Override
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op,
                                         VectorMask<Float> m) {
-        return (long) super.reduceLanesTemplate(op, Float256Mask.class, (Float256Mask) m);  // specialized
+        float res = super.reduceLanesTemplate(op, Float256Mask.class, (Float256Mask) m);  // specialized
+        return  (long) res;
     }
 
     @ForceInline
@@ -655,7 +657,7 @@ final class Float256Vector extends FloatVector {
         /*package-private*/
         Float256Mask indexPartiallyInUpperRange(long offset, long limit) {
             return (Float256Mask) VectorSupport.indexPartiallyInUpperRange(
-                Float256Mask.class, float.class, VLENGTH, offset, limit,
+                Float256Mask.class, ETYPE, VLENGTH, offset, limit,
                 (o, l) -> (Float256Mask) TRUE_MASK.indexPartiallyInRange(o, l));
         }
 

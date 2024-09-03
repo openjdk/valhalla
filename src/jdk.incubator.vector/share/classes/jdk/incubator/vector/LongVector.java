@@ -2092,8 +2092,7 @@ public abstract class LongVector extends AbstractVector<Long> {
                 // instruction directly, load IOTA from memory
                 // and multiply.
                 LongVector iota = s.iota();
-                long sc = (long) scale_;
-                return v.add(sc == 1 ? iota : iota.mul(sc));
+                return v.add(scale_ == 1 ? iota : iota.mul((long)scale_));
             });
     }
 
@@ -2135,7 +2134,8 @@ public abstract class LongVector extends AbstractVector<Long> {
         that.check(this);
         Objects.checkIndex(origin, length() + 1);
         VectorShuffle<Long> iota = iotaShuffle();
-        VectorMask<Long> blendMask = iota.toVector().compare(VectorOperators.LT, (broadcast((long)(length() - origin))));
+        long pivotidx = (long)(length() - origin);
+        VectorMask<Long> blendMask = iota.toVector().compare(VectorOperators.LT, broadcast(pivotidx));
         iota = iotaShuffle(origin, 1, true);
         return that.rearrange(iota).blend(this.rearrange(iota), blendMask);
     }
@@ -2165,7 +2165,8 @@ public abstract class LongVector extends AbstractVector<Long> {
     LongVector sliceTemplate(int origin) {
         Objects.checkIndex(origin, length() + 1);
         VectorShuffle<Long> iota = iotaShuffle();
-        VectorMask<Long> blendMask = iota.toVector().compare(VectorOperators.LT, (broadcast((long)(length() - origin))));
+        long pivotidx = (long)(length() - origin);
+        VectorMask<Long> blendMask = iota.toVector().compare(VectorOperators.LT, broadcast(pivotidx));
         iota = iotaShuffle(origin, 1, true);
         return vspecies().zero().blend(this.rearrange(iota), blendMask);
     }
@@ -2227,7 +2228,7 @@ public abstract class LongVector extends AbstractVector<Long> {
         Objects.checkIndex(origin, length() + 1);
         VectorShuffle<Long> iota = iotaShuffle();
         VectorMask<Long> blendMask = iota.toVector().compare(VectorOperators.GE,
-                                                                  (broadcast((long)(origin))));
+                                                                  broadcast((long)(origin)));
         iota = iotaShuffle(-origin, 1, true);
         return vspecies().zero().blend(this.rearrange(iota), blendMask);
     }
@@ -2787,7 +2788,7 @@ public abstract class LongVector extends AbstractVector<Long> {
         long[] a = toArray();
         double[] res = new double[a.length];
         for (int i = 0; i < a.length; i++) {
-            res[i] = (double) a[i];
+            res[i] = ((double) a[i]);
         }
         return res;
     }

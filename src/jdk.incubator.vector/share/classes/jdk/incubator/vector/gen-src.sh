@@ -53,10 +53,12 @@ typeprefix=
 globalArgs=""
 #globalArgs="$globalArgs -KextraOverrides"
 
-for type in byte short int long float double
+for type in byte short int long float double Halffloat
 do
+
   Type="$(tr '[:lower:]' '[:upper:]' <<< ${type:0:1})${type:1}"
   TYPE="$(tr '[:lower:]' '[:upper:]' <<< ${type})"
+
   args=$globalArgs
   args="$args -K$type -Dtype=$type -DType=$Type -DTYPE=$TYPE"
 
@@ -66,25 +68,33 @@ do
   kind=BITWISE
 
   bitstype=$type
+  maskbitstype=$type
   Bitstype=$Type
   Boxbitstype=$Boxtype
 
   fptype=$type
   Fptype=$Type
   Boxfptype=$Boxtype
+  elemtype=$type
+  Elemtype=$Type
+  FPtype=$type
 
-  case $type in
-    byte)
+
+  case $Type in
+    Byte)
       Wideboxtype=Integer
       sizeInBytes=1
       args="$args -KbyteOrShort"
       ;;
-    short)
+    Short)
+      fptype=float16
+      Fptype=Float16
+      Boxfptype=Halffloat
       Wideboxtype=Integer
       sizeInBytes=2
       args="$args -KbyteOrShort"
       ;;
-    int)
+    Int)
       Boxtype=Integer
       Wideboxtype=Integer
       Boxbitstype=Integer
@@ -94,35 +104,55 @@ do
       sizeInBytes=4
       args="$args -KintOrLong -KintOrFP -KintOrFloat"
       ;;
-    long)
+    Long)
       fptype=double
       Fptype=Double
       Boxfptype=Double
       sizeInBytes=8
       args="$args -KintOrLong -KlongOrDouble"
       ;;
-    float)
+    Float)
       kind=FP
       bitstype=int
+      maskbitstype=int
       Bitstype=Int
       Boxbitstype=Integer
       sizeInBytes=4
       args="$args -KintOrFP -KintOrFloat"
+      FPtype=FP32
       ;;
-    double)
+    Double)
       kind=FP
       bitstype=long
+      maskbitstype=long
       Bitstype=Long
       Boxbitstype=Long
       sizeInBytes=8
       args="$args -KintOrFP -KlongOrDouble"
+      FPtype=FP64
+      ;;
+    Halffloat)
+      kind=FP
+      bitstype=short
+      maskbitstype=short
+      Bitstype=Short
+      Boxbitstype=Short
+      sizeInBytes=2
+      Boxtype=Float16
+      elemtype=Float16
+      Elemtype=Float16
+      FPtype=FP16
+      fptype=float16
+      Fptype=Float16
+      args="$args -KbyteOrShort -KshortOrFP -KshortOrHalffloat"
       ;;
   esac
 
-  args="$args -K$kind -DBoxtype=$Boxtype -DWideboxtype=$Wideboxtype"
-  args="$args -Dbitstype=$bitstype -DBitstype=$Bitstype -DBoxbitstype=$Boxbitstype"
+  args="$args -K$FPtype -K$kind -DBoxtype=$Boxtype -DWideboxtype=$Wideboxtype"
+  args="$args -Dbitstype=$bitstype -Dmaskbitstype=$maskbitstype -DBitstype=$Bitstype -DBoxbitstype=$Boxbitstype"
   args="$args -Dfptype=$fptype -DFptype=$Fptype -DBoxfptype=$Boxfptype"
   args="$args -DsizeInBytes=$sizeInBytes"
+  args="$args -Delemtype=$elemtype -DElemtype=$Elemtype"
 
   abstractvectortype=${typeprefix}${Type}Vector
   abstractbitsvectortype=${typeprefix}${Bitstype}Vector

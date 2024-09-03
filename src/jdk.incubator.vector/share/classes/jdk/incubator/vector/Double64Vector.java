@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -334,14 +334,16 @@ final class Double64Vector extends DoubleVector {
     @Override
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op) {
-        return (long) super.reduceLanesTemplate(op);  // specialized
+        double res = super.reduceLanesTemplate(op);  // specialized
+        return  (long) res;
     }
 
     @Override
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op,
                                         VectorMask<Double> m) {
-        return (long) super.reduceLanesTemplate(op, Double64Mask.class, (Double64Mask) m);  // specialized
+        double res = super.reduceLanesTemplate(op, Double64Mask.class, (Double64Mask) m);  // specialized
+        return  (long) res;
     }
 
     @ForceInline
@@ -641,7 +643,7 @@ final class Double64Vector extends DoubleVector {
         /*package-private*/
         Double64Mask indexPartiallyInUpperRange(long offset, long limit) {
             return (Double64Mask) VectorSupport.indexPartiallyInUpperRange(
-                Double64Mask.class, double.class, VLENGTH, offset, limit,
+                Double64Mask.class, ETYPE, VLENGTH, offset, limit,
                 (o, l) -> (Double64Mask) TRUE_MASK.indexPartiallyInRange(o, l));
         }
 

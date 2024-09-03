@@ -1382,9 +1382,14 @@ public class Short512VectorTests extends AbstractVectorTest {
         Assert.assertEquals(asIntegral.species(), SPECIES);
     }
 
-    @Test(expectedExceptions = UnsupportedOperationException.class)
+    @Test
     void viewAsFloatingLanesTest() {
-        SPECIES.zero().viewAsFloatingLanes();
+        Vector<?> asFloating = SPECIES.zero().viewAsFloatingLanes();
+        VectorSpecies<?> asFloatingSpecies = asFloating.species();
+        Assert.assertNotEquals(asFloatingSpecies.elementType(), SPECIES.elementType());
+        Assert.assertEquals(asFloatingSpecies.vectorShape(), SPECIES.vectorShape());
+        Assert.assertEquals(asFloatingSpecies.length(), SPECIES.length());
+        Assert.assertEquals(asFloating.viewAsIntegralLanes().species(), SPECIES);
     }
 
     @Test

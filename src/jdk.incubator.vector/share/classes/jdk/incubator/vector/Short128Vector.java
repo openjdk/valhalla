@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -347,14 +347,16 @@ final class Short128Vector extends ShortVector {
     @Override
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op) {
-        return (long) super.reduceLanesTemplate(op);  // specialized
+        short res = super.reduceLanesTemplate(op);  // specialized
+        return  (long) res;
     }
 
     @Override
     @ForceInline
     public final long reduceLanesToLong(VectorOperators.Associative op,
                                         VectorMask<Short> m) {
-        return (long) super.reduceLanesTemplate(op, Short128Mask.class, (Short128Mask) m);  // specialized
+        short res = super.reduceLanesTemplate(op, Short128Mask.class, (Short128Mask) m);  // specialized
+        return  (long) res;
     }
 
     @ForceInline
@@ -666,7 +668,7 @@ final class Short128Vector extends ShortVector {
         /*package-private*/
         Short128Mask indexPartiallyInUpperRange(long offset, long limit) {
             return (Short128Mask) VectorSupport.indexPartiallyInUpperRange(
-                Short128Mask.class, short.class, VLENGTH, offset, limit,
+                Short128Mask.class, ETYPE, VLENGTH, offset, limit,
                 (o, l) -> (Short128Mask) TRUE_MASK.indexPartiallyInRange(o, l));
         }
 
