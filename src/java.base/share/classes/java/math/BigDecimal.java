@@ -3827,17 +3827,18 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
         }
         BigInteger w = unscaledValue().abs();
         long qb = w.bitLength() - (long) Math.ceil(scale * L);
+        Float16 signum = Float16.valueOf(signum());
         if (qb < Q_MIN_F16 - 2) {  // qb < -26
-            return Float16.valueOf(signum() * 0.0f);
+            return Float16.multiply(signum, Float16.valueOf(0));
         }
         if (qb > Q_MAX_F16 + P_F16 + 1) {  // qb > 17
-            return Float16.valueOf(signum() * Float.POSITIVE_INFINITY);
+            return Float16.multiply(signum, Float16.POSITIVE_INFINITY);
         }
         if (scale < 0) {
-            return Float16.valueOf(signum() * w.multiply(bigTenToThe(-scale)).floatValue());
+            return Float16.multiply(signum, w.multiply(bigTenToThe(-scale)).float16Value());
         }
         if (scale == 0) {
-            return Float16.valueOf(signum() * w.floatValue());
+            return Float16.multiply(signum, w.float16Value());
         }
         int ql = (int) qb - (P_F16 + 3);
         BigInteger pow10 = bigTenToThe(scale);
