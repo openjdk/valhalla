@@ -428,6 +428,7 @@ public final class Float16
      * in IEEE 754.
      *
      * @param  v a {@link BigDecimal}
+     * @see BigDecimal#float16Value()
      */
     public static Float16 valueOf(BigDecimal v) {
         return v.float16Value();
