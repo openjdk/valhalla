@@ -2207,6 +2207,8 @@ public class TestNullableInlineTypes {
         }
     }
 
+// TODO 8325632 Fails with -XX:+UnlockExperimentalVMOptions -XX:PerMethodSpecTrapLimit=0 -XX:PerMethodTrapLimit=0
+/*
     @ForceInline
     public Object test80_helper(Object obj, int i) {
         if ((i % 2) == 0) {
@@ -2215,8 +2217,6 @@ public class TestNullableInlineTypes {
         return obj;
     }
 
-// TODO 8325632 Fails with -XX:+UnlockExperimentalVMOptions -XX:PerMethodSpecTrapLimit=0 -XX:PerMethodTrapLimit=0
-/*
     // Test that phi nodes referencing themselves (loops) do not block scalarization
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE})
