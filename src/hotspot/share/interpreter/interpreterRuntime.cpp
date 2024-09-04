@@ -382,8 +382,7 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool*
   Klass*    klass = pool->klass_at(index, CHECK);
   bool has_flat_layout = klass->is_inline_klass() &&
     InstanceKlass::cast(klass)->is_implicitly_constructible() &&
-    InstanceKlass::cast(klass)->has_null_restricted_array() &&
-    !InstanceKlass::cast(klass)->must_be_atomic();
+    InstanceKlass::cast(klass)->has_null_restricted_array();
   if (has_flat_layout) {
     obj = oopFactory::new_valueArray(klass, size, CHECK);
   } else {

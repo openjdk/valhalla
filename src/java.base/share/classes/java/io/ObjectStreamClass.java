@@ -28,6 +28,7 @@ package java.io;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InaccessibleObjectException;
@@ -1974,7 +1975,11 @@ public final class ObjectStreamClass implements Serializable {
          * @return a buffered default value
          */
         static Object newValueInstance(Class<?> clazz) throws InstantiationException{
-            assert clazz.isValue() : "Should be a value class";
+            var accessFlags = clazz.accessFlags();
+            if (accessFlags.contains(AccessFlag.ABSTRACT) ||
+                    accessFlags.contains(AccessFlag.IDENTITY)) {
+                throw new InstantiationException("Value class not instantiable: " + clazz.getName());
+            }
             // may not be implicitly constructible; so allocate with Unsafe
             Object obj = UNSAFE.uninitializedDefaultValue(clazz);
             return UNSAFE.makePrivateBuffer(obj);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,23 +22,6 @@
  */
 
 #include "jni.h"
-#include "testlib_threads.h"
 
-void call(void* ctxt) {
-    JavaVM* jvm = (JavaVM*) ctxt;
-    JNIEnv* env;
-    jvm->AttachCurrentThread((void**)&env, NULL);
-    jclass linkerClass = env->FindClass("java/lang/foreign/Linker");
-    jmethodID nativeLinkerMethod = env->GetStaticMethodID(linkerClass, "nativeLinker", "()Ljava/lang/foreign/Linker;");
-    env->CallStaticVoidMethod(linkerClass, nativeLinkerMethod);
-    jvm->DetachCurrentThread();
-}
-
-extern "C" {
-    JNIEXPORT void JNICALL
-    Java_org_openjdk_foreigntest_PanamaMainUnnamedModule_nativeLinker0(JNIEnv *env, jclass cls) {
-        JavaVM* jvm;
-        env->GetJavaVM(&jvm);
-        run_in_new_thread_and_join(call, jvm);
-    }
-}
+JNIEXPORT
+void JNICALL Java_compiler_calls_NativeCalls_emptyStaticNative(JNIEnv* env, jclass jclazz) {}
