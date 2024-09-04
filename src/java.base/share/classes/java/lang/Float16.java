@@ -88,7 +88,6 @@ public final class Float16
     // nextUp / nextDown
     // IEEEremainder / remainder operator remainder
     // signum
-    // valueOf(BigDecimal) -- main implementation could be package private in BigDecimal
 
    /**
     * Returns a {@code Float16} instance wrapping IEEE 754 binary16
@@ -433,14 +432,6 @@ public final class Float16
     public static Float16 valueOf(BigDecimal v) {
         return v.float16Value();
     }
-
-    //    /**
-    //     * ...
-    //     * @see BigDecimal#floatValue()
-    //     * @see BigDecimal#doubleValue()
-    //     */
-    //    public static Float16 valueOf(BigDecimal bd)
-
 
     /**
      * Returns {@code true} if the specified number is a
