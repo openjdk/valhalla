@@ -259,9 +259,9 @@ bool InlineTypeNode::field_is_null_free(uint index) const {
 
 void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   // We should not scalarize larvals in debug info of their constructor calls because their fields could still be
-  // updated. If we scalarize and update the fields in the constructor, the updates won't be visible in the caller after deoptimization
-  // because the scalarized field values are local to the caller. We need to use a buffer to make the updates visible to
-  // the outside.
+  // updated. If we scalarize and update the fields in the constructor, the updates won't be visible in the caller after
+  // deoptimization because the scalarized field values are local to the caller. We need to use a buffer to make the
+  // updates visible to the outside.
   if (is_larval() && sfpt->is_CallJava() && sfpt->as_CallJava()->method() != nullptr &&
       sfpt->as_CallJava()->method()->is_object_constructor() && bottom_type()->is_inlinetypeptr() &&
       sfpt->in(TypeFunc::Parms) == this) {
