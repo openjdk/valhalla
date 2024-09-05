@@ -1462,8 +1462,6 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
 
       int stack_slot_offset = cm->frame_size() * wordSize; // offset, in bytes, to caller sp
 
-      // TODO handle scalarized args
-
       CompiledEntrySignature ces(m);
       ces.compute_calling_conventions(false);
       const GrowableArray<SigEntry>* sig_cc = ces.sig_cc();
@@ -1475,8 +1473,6 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
       int arg_index = (m->is_static() ? 0 : -1);
       for (ExtendedSignature sig = ExtendedSignature(sig_cc, SigEntryFilter()); !sig.at_end(); ++sig) {
         bool at_this = (arg_index == -1);
-        // TODO unused?
-        bool at_old_sp = false;
         BasicType t = (*sig)._bt;
         VMReg fst = regs[sig_index].first();
         if (fst->is_stack()) {

@@ -1187,7 +1187,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
   }
 
   tty->print_cr("CALLER");
-  print_frame_layout(caller, false, tty);
+  if (caller.is_empty()) tty->print_cr("EMPTY"); else print_frame_layout(caller, false, tty);
 
   bool is_bottom_frame = result == freeze_ok_bottom;
   assert(!caller.is_empty() || is_bottom_frame, "");
@@ -1196,7 +1196,8 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
 
   frame hf = new_heap_frame<ContinuationHelper::CompiledFrame>(f, caller);
 
-  print_frame_layout(hf, false, tty);
+  // TODO this asserts sometimes
+//  print_frame_layout(hf, false, tty);
 
   intptr_t* heap_frame_top = ContinuationHelper::CompiledFrame::frame_top(hf, callee_argsize, callee_interpreted);
 
@@ -1204,7 +1205,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
   assert(!is_bottom_frame || !caller.is_compiled_frame() || (heap_frame_top + fsize) == (caller.unextended_sp() + argsize), "");
 
   tty->print_cr("AFTER COPY is_bottom_frame = %d", is_bottom_frame);
-  print_frame_layout(caller, false, tty);
+  if (caller.is_empty()) tty->print_cr("EMPTY"); else print_frame_layout(caller, false, tty);
   tty->print_cr("-->");
   print_frame_layout(hf, false, tty);
 
@@ -1215,7 +1216,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
   patch(f, hf, caller, is_bottom_frame);
 
   tty->print_cr("AFTER PATCH");
-  print_frame_layout(caller, false, tty);
+  if (caller.is_empty()) tty->print_cr("EMPTY"); else print_frame_layout(caller, false, tty);
   tty->print_cr("-->");
   print_frame_layout(hf, false, tty);
 

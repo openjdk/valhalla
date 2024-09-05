@@ -152,11 +152,26 @@ public class Test {
     // Bottom frame is
     // java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge -XX:-UseOnStackReplacement Test.java
 
+/*
 // TODO run with and without PreserveFramePointer
 // TODO run with -XX:CompileCommand=dontinline,*::*verify
+// Variants of -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
+
+FAILS:
+../build/fastdebug/jdk/bin/java --enable-preview -Xcomp -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,Test*::* Test.java
+../build/fastdebug/jdk/bin/java --enable-preview -Xcomp -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge* -XX:+TraceDeoptimization Test.java
+
+WORKS:
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::testSmall -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::testLargeHelper -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::testLarge2Helper -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge -XX:-UseOnStackReplacement Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge2 -XX:-UseOnStackReplacement Test.java
+*/
+
     public static void main(String[] args) throws Exception {
-    // TODO need more variants with interpreted and C1 compiled callers, deopts, etc.
-    // Variants of -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields 
+    // TODO need more variants with interpreted and C1 compiled callers, deopts (including -XX:+DeoptimizeALot), etc.
     // TODO add variants with oops
         CountDownLatch cdl = new CountDownLatch(1);
         Thread.ofVirtual().name("vt1").start(() -> {

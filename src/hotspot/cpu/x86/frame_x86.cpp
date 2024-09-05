@@ -676,12 +676,10 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
   if (cm != nullptr && cm->needs_stack_repair()) {
     // The stack increment resides just below the saved rbp on the stack
     // and does not account for the return address.
-    tty->print_cr("REPAIR");
     intptr_t* real_frame_size_addr = (intptr_t*) (saved_fp_addr - 1);
     int real_frame_size = ((*real_frame_size_addr) + wordSize) / wordSize;
     assert(real_frame_size >= _cb->frame_size() && real_frame_size <= 1000000, "invalid frame size");
     sender_sp = unextended_sp() + real_frame_size;
-    tty->print_cr("DONE");
   }
   return sender_sp;
 }

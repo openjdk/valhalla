@@ -102,46 +102,39 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
     // had a safepoint in finalize_freeze, after constructing f.
     fp = *(intptr_t**)(f.sp() - frame::sender_sp_offset);
 
-    intptr_t* sender_sp = f.unextended_sp() + FKind::size(f);
-    intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
+    int fsize = FKind::size(f);
 
-
-    tty->print_cr("new_heap_frame");
-
-    // Repair the sender sp if this is a method with scalarized inline type args
-    sender_sp = f.repair_sender_sp(sender_sp, fp_addr);
-
-    // TODO this is without args!
-    int real_frame_size = sender_sp - f.unextended_sp();
-   // assert(real_frame_size == FKind::size(f), "sanity");
-
+    int argsize = FKind::stack_argsize(f);
     CompiledMethod* cm = f.cb()->as_compiled_method_or_null();
     if (cm != nullptr && cm->needs_stack_repair()) {
-// Subtract arg size TODO why -2?
-      real_frame_size -= (int)(sender_sp-(intptr_t*)fp_addr)-2;
+      tty->print_cr("new_heap_frame");
+
+      intptr_t* sender_sp = f.unextended_sp() + fsize;
+      intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
+
+      // TODO factor out
+      //intptr_t* real_frame_size_addr = (intptr_t*) (fp_addr - 1);
+      //fsize = ((*real_frame_size_addr) + wordSize) / wordSize;
+
+      sender_sp = f.repair_sender_sp(sender_sp, fp_addr);
+      int real_frame_size = sender_sp - f.unextended_sp();
+
+      // TODO this is without args! Is it?
+      // Subtract arg size
+      argsize = (sender_sp-(intptr_t*)fp_addr)-2;
+      real_frame_size -= argsize;
+      tty->print_cr("real_frame_size = %d vs. %d", real_frame_size, FKind::size(f));
+      assert(real_frame_size == fsize, "sanity");
     }
 
-    sp = caller.unextended_sp() - real_frame_size;
+    sp = caller.unextended_sp() - fsize;
 
     if (caller.is_interpreted_frame()) {
       // If the caller is interpreted, our stackargs are not supposed to overlap with it
       // so we make more room by moving sp down by argsize
-      int argsize = FKind::stack_argsize(f);
-
-      CompiledMethod* cm = f.cb()->as_compiled_method_or_null();
-      if (cm != nullptr && cm->needs_stack_repair()) {
-        argsize = (int)(sender_sp-(intptr_t*)fp_addr)-2;
-        // Includes return address
-      }
-      tty->print_cr("argsize = %d", argsize);
       sp -= argsize;
-
-      // TODO fix
     }
-
-    tty->print_cr("real_frame_size = %d", real_frame_size);
-
-    caller.set_sp(sp + real_frame_size);
+    caller.set_sp(sp + fsize);
 
     assert(_cont.tail()->is_in_chunk(sp), "");
 
