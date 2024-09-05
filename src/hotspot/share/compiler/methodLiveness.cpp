@@ -624,7 +624,7 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
       const bool abstract_klass = holder->is_abstract();
       const bool concrete_value_klass = !abstract_klass && holder->is_inlinetype();
       if (method->intrinsic_id() == vmIntrinsics::_Object_init ||
-          (method->is_object_constructor() && (concrete_value_klass || abstract_klass)) {
+          (method->is_object_constructor() && (concrete_value_klass || abstract_klass))) {
         // Returning from Object.<init> implicitly registers a finalizer for the receiver if needed, to keep it alive.
         // Value class constructors update the scalarized receiver. We need to keep it live so that we can find it after
         // (chained) constructor calls and propagate updates to the caller. If the holder of the constructor is abstract,

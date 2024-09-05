@@ -1904,9 +1904,9 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       bool must_init_buffer = true;
       // We always need to buffer inline types when they are escaping. However, we can skip the actual initialization
       // of the buffer if the inline type is a larval because we are going to update the buffer anyway which requires
-      // us to create a one. But there is one special case where we are still required to initialize the buffer: When
-      // we have a larval receiver invoked on an abstract (value class) constructor or the Object constructor (that is
-      // not going to be inlined). After this call, the larval is completely initialized and thus not a larval anymore.
+      // us to create a new one. But there is one special case where we are still required to initialize the buffer:
+      // When we have a larval receiver invoked on an abstract (value class) constructor or the Object constructor (that
+      // is not going to be inlined). After this call, the larval is completely initialized and thus not a larval anymore.
       // We therefore need to force an initialization of the buffer to not lose all the field writes so far in case the
       // buffer needs to be used (e.g. to read from when deoptimizing at runtime) or further updated in abstract super
       // value class constructors which could have more fields to be initialized. Note that we do not need to
