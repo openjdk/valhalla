@@ -1996,11 +1996,11 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   ciMethod* method = call->method();
   if (method->is_object_constructor() && !method->holder()->is_java_lang_Object()) {
     InlineTypeNode* inline_type_receiver = call->in(TypeFunc::Parms)->isa_InlineType();
-    if (receiver != nullptr) {
+    if (inline_type_receiver != nullptr) {
       assert(inline_type_receiver->is_larval(), "must be larval");
       assert(inline_type_receiver->is_allocated(&gvn()), "larval must be buffered");
       InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, inline_type_receiver->get_oop(),
-                                                               receiver->bottom_type()->inline_klass(), true);
+                                                               inline_type_receiver->bottom_type()->inline_klass(), true);
       assert(!reloaded->is_larval(), "should not be larval anymore");
       replace_in_map(inline_type_receiver, reloaded);
     }
