@@ -1227,7 +1227,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
-    bool caller_is_c1 = callerFrame.is_compiled_frame() && callerFrame.cb()->is_compiled_by_c1();
+    bool caller_is_c1 = callerFrame.is_compiled_frame() && callerFrame.cb()->as_nmethod()->is_compiled_by_c1();
     if (!caller_is_c1 && callee->is_scalarized_arg(0)) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       // Resolve the call without receiver null checking.
@@ -1694,7 +1694,7 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
   assert(stub_frame.is_runtime_frame(), "must be a runtimeStub");
   frame caller = stub_frame.sender(&reg_map);
   if (caller.is_compiled_frame()) {
-    caller_is_c1 = caller.cb()->is_compiled_by_c1();
+    caller_is_c1 = caller.cb()->as_nmethod()->is_compiled_by_c1();
   }
 
   // Do nothing if the frame isn't a live compiled frame.

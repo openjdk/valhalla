@@ -668,8 +668,8 @@ frame::frame(void* sp, void* fp, void* pc) {
 // Check for a method with scalarized inline type arguments that needs
 // a stack repair and return the repaired sender stack pointer.
 intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const {
-  CompiledMethod* cm = _cb->as_compiled_method_or_null();
-  if (cm != nullptr && cm->needs_stack_repair()) {
+  nmethod* nm = _cb->as_nmethod_or_null();
+  if (nm != nullptr && nm->needs_stack_repair()) {
     // The stack increment resides just below the saved rbp on the stack
     // and does not account for the return address.
     intptr_t* real_frame_size_addr = (intptr_t*) (saved_fp_addr - 1);
