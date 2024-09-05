@@ -230,6 +230,8 @@ class frame {
   // NB: receiver must not be first frame
   frame java_sender() const;
 
+  bool needs_stack_repair() const;
+
  private:
   // Helper methods for better factored code in frame::sender
   inline frame sender_for_compiled_frame(RegisterMap* map) const;

@@ -103,35 +103,20 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
     fp = *(intptr_t**)(f.sp() - frame::sender_sp_offset);
 
     int fsize = FKind::size(f);
-
-    int argsize = FKind::stack_argsize(f);
-    CompiledMethod* cm = f.cb()->as_compiled_method_or_null();
-    if (cm != nullptr && cm->needs_stack_repair()) {
-      tty->print_cr("new_heap_frame");
-
-      intptr_t* sender_sp = f.unextended_sp() + fsize;
-      intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
-
-      // TODO factor out
-      //intptr_t* real_frame_size_addr = (intptr_t*) (fp_addr - 1);
-      //fsize = ((*real_frame_size_addr) + wordSize) / wordSize;
-
-      sender_sp = f.repair_sender_sp(sender_sp, fp_addr);
-      int real_frame_size = sender_sp - f.unextended_sp();
-
-      // TODO this is without args! Is it?
-      // Subtract arg size
-      argsize = (sender_sp-(intptr_t*)fp_addr)-2;
-      real_frame_size -= argsize;
-      tty->print_cr("real_frame_size = %d vs. %d", real_frame_size, FKind::size(f));
-      assert(real_frame_size == fsize, "sanity");
-    }
-
     sp = caller.unextended_sp() - fsize;
-
     if (caller.is_interpreted_frame()) {
       // If the caller is interpreted, our stackargs are not supposed to overlap with it
       // so we make more room by moving sp down by argsize
+      int argsize = FKind::stack_argsize(f);
+      if (f.needs_stack_repair()) {
+        tty->print_cr("new_heap_frame: Re-computing argsize");
+
+        intptr_t* sender_sp = f.unextended_sp() + fsize;
+        intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
+        sender_sp = f.repair_sender_sp(sender_sp, fp_addr);
+
+        argsize = (sender_sp - (intptr_t*)fp_addr) - 2; // -2 to account for the return address and the return address copy, see MacroAssembler::extend_stack_for_inline_args
+      }
       sp -= argsize;
     }
     caller.set_sp(sp + fsize);
@@ -247,40 +232,28 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
     return f;
   } else {
     int fsize = FKind::size(hf);
-
-    // TODO fix
-    intptr_t* sender_sp = hf.unextended_sp() + hf.cb()->frame_size();
-    intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
-    sender_sp = hf.repair_sender_sp(sender_sp, fp_addr);
-    if (hf.cb()->as_compiled_method()->needs_stack_repair()) {
-      int real_frame_size = sender_sp - hf.unextended_sp();
-      //assert(fsize == real_frame_size, "sanity");
-      fsize = real_frame_size + 4;
-    }
-
     intptr_t* frame_sp = caller.unextended_sp() - fsize;
     if (bottom || caller.is_interpreted_frame()) {
       int argsize = hf.compiled_frame_stack_argsize();
 
-      tty->print_cr("ThawBase::new_stack_frame repair");
-
-
-      if (hf.cb()->as_compiled_method()->needs_stack_repair()) {
-       // intptr_t** saved_fp_addr = (intptr_t**) (stack_frame_bottom - frame::sender_sp_offset);
-       // stack_frame_bottom = f.repair_sender_sp(stack_frame_bottom, saved_fp_addr) - 1;
-        argsize = (int)(sender_sp - (intptr_t*)fp_addr - 2) + 4; // Account for fp and ret
-      } else {
-        frame_sp   -= argsize;
+      if (hf.needs_stack_repair()) {
+        intptr_t* sender_sp = hf.unextended_sp() + fsize;
+        intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
+        sender_sp = hf.repair_sender_sp(sender_sp, fp_addr);
+        // -2 to account for the return address and the return address copy, see MacroAssembler::extend_stack_for_inline_args
+        argsize = (sender_sp - (intptr_t*)fp_addr - 2);
+        argsize += 4; // TODO account for the args pushed by the interpreter and the return address copy (?)
+        tty->print_cr("ThawBase::new_stack_frame sender_sp = " INTPTR_FORMAT " frame_sp = " INTPTR_FORMAT " argsize = %d", p2i(sender_sp), p2i(frame_sp), argsize);
       }
+
+      fsize += argsize;
+      frame_sp -= argsize;
       caller.set_sp(caller.sp() - argsize);
-   //   assert(caller.sp() == frame_sp + fsize, "");
+      assert(caller.sp() == frame_sp + (fsize-argsize), "");
 
       frame_sp = align(hf, frame_sp, caller, bottom);
-
-      tty->print_cr("new_stack_frame argsize = %d", argsize);
     }
 
-    tty->print_cr("ThawBase::new_stack_frame sender_sp = " INTPTR_FORMAT " frame_sp = " INTPTR_FORMAT, p2i(sender_sp), p2i(frame_sp));
     assert(hf.cb() != nullptr, "");
     assert(hf.oop_map() != nullptr, "");
     intptr_t* fp;
@@ -298,7 +271,7 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
 inline intptr_t* ThawBase::align(const frame& hf, intptr_t* frame_sp, frame& caller, bool bottom) {
 #ifdef _LP64
   if (((intptr_t)frame_sp & 0xf) != 0) {
-//    assert(caller.is_interpreted_frame() || (bottom && hf.compiled_frame_stack_argsize() % 2 != 0), "");
+    assert(caller.is_interpreted_frame() || (bottom && hf.compiled_frame_stack_argsize() % 2 != 0), "");
     frame_sp--;
     caller.set_sp(caller.sp() - 1);
   }

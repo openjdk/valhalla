@@ -421,6 +421,12 @@ frame frame::real_sender(RegisterMap* map) const {
   return result;
 }
 
+bool frame::needs_stack_repair() const {
+  assert(is_empty() || cb() == get_cb(), "sanity");
+  CompiledMethod* cm = cb()->as_compiled_method_or_null();
+  return cm != nullptr && cm->needs_stack_repair();
+}
+
 // Interpreter frames
 
 

@@ -1161,7 +1161,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
 
   // Repair the sender sp if this is a method with scalarized inline type args
   int stack_argsize = ContinuationHelper::CompiledFrame::stack_argsize(f);
-  if (f.cb()->as_compiled_method()->needs_stack_repair()) {
+  if (f.needs_stack_repair()) {
     intptr_t** saved_fp_addr = (intptr_t**) (stack_frame_bottom - frame::sender_sp_offset);
     stack_frame_bottom = f.repair_sender_sp(stack_frame_bottom, saved_fp_addr);
     stack_argsize = (int)(stack_frame_bottom-(intptr_t*)saved_fp_addr - 2); // Account for fp and ret
@@ -2196,7 +2196,7 @@ inline void ThawBase::patch(frame& f, const frame& caller, bool bottom) {
   if (bottom) {
     ContinuationHelper::Frame::patch_pc(caller, _cont.is_empty() ? caller.pc()
                                                                  : StubRoutines::cont_returnBarrier());
-    if (f.cb() != nullptr && f.cb()->is_compiled() && f.cb()->as_compiled_method()->needs_stack_repair()) {
+    if (f.needs_stack_repair()) {
       address* pc_addr = &(((address*) caller.sp())[-1+8]);
       *pc_addr = StubRoutines::cont_returnBarrier();
     }
@@ -2212,8 +2212,8 @@ inline void ThawBase::patch(frame& f, const frame& caller, bool bottom) {
     ContinuationHelper::InterpretedFrame::patch_sender_sp(f, caller);
   }
 
-//  assert(!bottom || !_cont.is_empty() || Continuation::is_continuation_entry_frame(f, nullptr), "");
-//  assert(!bottom || (_cont.is_empty() != Continuation::is_cont_barrier_frame(f)), "");
+  assert(!bottom || !_cont.is_empty() || Continuation::is_continuation_entry_frame(f, nullptr), "");
+  assert(!bottom || (_cont.is_empty() != Continuation::is_cont_barrier_frame(f)), "");
 }
 
 void ThawBase::clear_bitmap_bits(address start, address end) {
@@ -2330,7 +2330,7 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
   // copy metadata, except the metadata at the top of the (unextended) entry frame
   int sz = fsize + frame::metadata_words_at_bottom + (is_bottom_frame && added_argsize == 0 ? 0 : frame::metadata_words_at_top);
 
-  if (hf.cb()->as_compiled_method()->needs_stack_repair()) {
+  if (hf.needs_stack_repair()) {
     //assert(!is_bottom_frame, "handle this");
 // TODO what about is_bottom_frame?
     intptr_t* sender_sp = hf.unextended_sp() + ContinuationHelper::CompiledFrame::size(hf);
@@ -2348,9 +2348,8 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
 
   // If we're the bottom-most thawed frame, we're writing to within one word from entrySP
   // (we might have one padding word for alignment)
-  // TODO ENABLE!
-  //assert(!is_bottom_frame || (_cont.entrySP() - 1 <= to + sz && to + sz <= _cont.entrySP()), "");
-  //assert(!is_bottom_frame || hf.compiled_frame_stack_argsize() != 0 || (to + sz && to + sz == _cont.entrySP()), "");
+  assert(!is_bottom_frame || (_cont.entrySP() - 1 <= to + sz && to + sz <= _cont.entrySP()), "");
+  assert(!is_bottom_frame || hf.compiled_frame_stack_argsize() != 0 || (to + sz && to + sz == _cont.entrySP()), "");
 
   copy_from_chunk(from, to, sz); // copying good oops because we invoked barriers above
 
@@ -2546,6 +2545,7 @@ static inline intptr_t* thaw_internal(JavaThread* thread, const Continuation::th
   if (LoomVerifyAfterThaw) {
     assert(do_verify_after_thaw(thread, cont.tail(), tty), "");
   }
+  // TODO fix
   //assert(ContinuationEntry::assert_entry_frame_laid_out(thread), "");
   clear_anchor(thread);
 

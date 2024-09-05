@@ -64,6 +64,46 @@ public class Test {
         }
     }
 
+    // Large value class with oops (and different number of fields) that requires stack extension/repair
+    static value class LargeValueWithOops {
+        Object x1;
+        Object x2;
+        Object x3;
+        Object x4;
+        Object x5;
+        Object x6;
+        Object x7;
+        Object x8;
+        Object x9;
+
+        public LargeValueWithOops(Object obj) {
+            this.x1 = obj;
+            this.x2 = obj;
+            this.x3 = obj;
+            this.x4 = obj;
+            this.x5 = obj;
+            this.x6 = obj;
+            this.x7 = obj;
+            this.x8 = obj;
+            this.x9 = obj;
+        }
+
+        public String toString() {
+            return "x1 = " + x1 + ", x2 = " + x2 + ", x3 = " + x3 + ", x4 = " + x4 + ", x5 = " + x5 +
+                   ", x6 = " + x6 + ", x7 = " + x7 + ", x8 = " + x8 + ", x9 = " + x9;
+        }
+
+        public void verify(String loc, Object obj) {
+            if (x1 != obj || x2 != obj || x3 != obj || x4 != obj || x5 != obj ||
+                x6 != obj || x7 != obj || x8 != obj || x9 != obj) {
+                new RuntimeException("Incorrect result at " + loc + " for obj = " + obj + ": " + this).printStackTrace(System.out);
+                System.exit(1);
+            }
+        }
+    }
+
+    public static void dontInline() { }
+
     public static SmallValue testSmall(SmallValue val, int i, boolean park) {
         val.verify("entry", i);
         if (park) {
@@ -73,7 +113,6 @@ public class Test {
         return val;
     }
 
-// TODO add variant with values on stack even for the non scalarized version
     public static LargeValue testLarge(LargeValue val, int i, boolean park) {
         val.verify("entry", i);
         if (park) {
@@ -90,8 +129,7 @@ public class Test {
         return val;
     }
 
-    public static void dontInline() { }
-
+    // Version that already has values on the stack even before stack extensions
     public static LargeValue testLarge2(LargeValue val1, LargeValue val2, LargeValue val3, LargeValue val4, LargeValue val5, 
                                         LargeValue val6, LargeValue val7, LargeValue val8, LargeValue val9, LargeValue val10, int i, boolean park) {
         val1.verify("entry", i);
@@ -128,6 +166,57 @@ public class Test {
         return val;
     }
 
+    public static LargeValueWithOops testLargeWithOops(LargeValueWithOops val, Object obj, boolean park) {
+        val.verify("entry", obj);
+        if (park) {
+            LockSupport.parkNanos(1000);
+        }
+        dontInline(); // Prevent C2 from optimizing out below checks
+        val.verify("exit", obj);
+        return val;
+    }
+
+    public static LargeValueWithOops testLargeWithOopsHelper(Object obj, boolean park) {
+        LargeValueWithOops val = testLargeWithOops(new LargeValueWithOops(obj), obj, park);
+        val.verify("helper", obj);
+        return val;
+    }
+
+    // Version that already has values on the stack even before stack extensions
+    public static LargeValueWithOops testLargeWithOops2(LargeValueWithOops val1, LargeValueWithOops val2, LargeValueWithOops val3, LargeValueWithOops val4, LargeValueWithOops val5,
+                                                        LargeValueWithOops val6, LargeValueWithOops val7, LargeValueWithOops val8, LargeValueWithOops val9, Object obj, boolean park) {
+        val1.verify("entry", obj);
+        val2.verify("entry", obj);
+        val3.verify("entry", obj);
+        val4.verify("entry", obj);
+        val5.verify("entry", obj);
+        val6.verify("entry", obj);
+        val7.verify("entry", obj);
+        val8.verify("entry", obj);
+        val9.verify("entry", obj);
+        if (park) {
+            LockSupport.parkNanos(1000);
+        }
+        dontInline(); // Prevent C2 from optimizing out below checks
+        val1.verify("exit", obj);
+        val2.verify("exit", obj);
+        val3.verify("exit", obj);
+        val4.verify("exit", obj);
+        val5.verify("exit", obj);
+        val6.verify("exit", obj);
+        val7.verify("exit", obj);
+        val8.verify("exit", obj);
+        val9.verify("exit", obj);
+        return val5;
+    }
+
+    public static LargeValueWithOops testLargeWithOops2Helper(Object obj, boolean park) {
+        LargeValueWithOops val = testLargeWithOops2(new LargeValueWithOops(obj), new LargeValueWithOops(obj), new LargeValueWithOops(obj), new LargeValueWithOops(obj), new LargeValueWithOops(obj),
+                                                    new LargeValueWithOops(obj), new LargeValueWithOops(obj), new LargeValueWithOops(obj), new LargeValueWithOops(obj), obj, park);
+        val.verify("helper", obj);
+        return val;
+    }
+
     public static int testLargePOJO(boolean isInit, int x1, int x2, int x3, int x4, int x5, 
                                     int x6, int x7, int x8, int x9, int x10, int i, boolean park) {
         if (park) {
@@ -160,14 +249,15 @@ public class Test {
 FAILS:
 ../build/fastdebug/jdk/bin/java --enable-preview -Xcomp -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,Test*::* Test.java
 ../build/fastdebug/jdk/bin/java --enable-preview -Xcomp -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge* -XX:+TraceDeoptimization Test.java
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java
 
 WORKS:
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::testSmall -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::testLargeHelper -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::testLarge2Helper -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge2 -XX:-UseOnStackReplacement Test.java
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=dontinline,*::testSmall -XX:CompileCommand=dontinline,*::testLargeHelper -XX:CompileCommand=dontinline,*::testLarge2Helper -XX:CompileCommand=compileonly,*::test* -XX:CompileCommand=dontinline,*::testLargeWithOopsHelper -XX:-UseOnStackReplacement -XX:CompileCommand=dontinline,*::testLargeWithOops2Helper Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLarge -XX:-UseOnStackReplacement Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLarge2 -XX:-UseOnStackReplacement Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLargeWithOops -XX:-UseOnStackReplacement Test.java &&
+../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLargeWithOops2 -XX:-UseOnStackReplacement Test.java
 */
 
     public static void main(String[] args) throws Exception {
@@ -180,6 +270,11 @@ WORKS:
                 testSmall(new SmallValue(i), i, (i % 1000) == 0).verify("return", i);
                 testLargeHelper(i, (i % 1000) == 0).verify("return", i);
                 testLarge2Helper(i, (i % 1000) == 0).verify("return", i + 4);
+
+                // TODO enable
+                // testLargeWithOopsHelper(new SmallValue(i), (i % 1000) == 0).verify("return", obj);
+                // testLargeWithOops2Helper(new SmallValue(i), (i % 1000) == 0).verify("return", obj);
+
                 //testLargeHelperPOJO(i, (i % 1000) == 0);//.verify("return", i);
             }
             cdl.countDown();
