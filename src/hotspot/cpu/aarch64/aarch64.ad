@@ -17269,16 +17269,17 @@ instruct reinterpretHF2SAndHF2F(vRegF dst, vRegF src)
 
 //------------------ FP16 isFinite -------------------------------
 
-instruct isFiniteHF(iRegINoSp dst, vRegF src, vRegF tmp)
+instruct isFiniteHF(iRegINoSp dst, iRegINoSp src, vRegF tmp, vRegF tmp1)
 %{
   match(Set dst (IsFiniteHF src));
-  effect(TEMP tmp);
+  effect(TEMP tmp, TEMP tmp1);
   format %{ "isFiniteHF $dst, $src # Half float isFinite" %}
   ins_encode %{
-    __ fabsh($src$$FloatRegister, $src$$FloatRegister);
+    __ fmovs($tmp$$FloatRegister, $src$$Register);
+    __ fabsh($tmp$$FloatRegister, $tmp$$FloatRegister);
     __ movz(rscratch1, 0x7bff); // Load Float16.MAX_VALUE
-    __ fmovs($tmp$$FloatRegister, rscratch1);
-    __ fcmph($tmp$$FloatRegister, $src$$FloatRegister);
+    __ fmovs($tmp1$$FloatRegister, rscratch1);
+    __ fcmph($tmp1$$FloatRegister, $tmp$$FloatRegister);
     __ csetw($dst$$Register, Assembler::GE); // Set result to true if
                                              // max value is >= input
   %}
@@ -17287,12 +17288,14 @@ instruct isFiniteHF(iRegINoSp dst, vRegF src, vRegF tmp)
 
 //------------------ FP16 isNaN ----------------------------------
 
-instruct isNaNHF(iRegINoSp dst, vRegF src)
+instruct isNaNHF(iRegINoSp dst, iRegINoSp src, vRegF tmp)
 %{
+  effect(TEMP tmp);
   match(Set dst (IsNaNHF src));
   format %{ "isNaNHF $dst, $src # Half float isNaN" %}
   ins_encode %{
-    __ fcmph($src$$FloatRegister, $src$$FloatRegister);
+    __ fmovs($tmp$$FloatRegister, $src$$Register);
+    __ fcmph($tmp$$FloatRegister, $tmp$$FloatRegister);
     __ csetw($dst$$Register, Assembler::NE); // Set result to true if the
                                              // input is not equal to itself
   %}
@@ -17301,18 +17304,17 @@ instruct isNaNHF(iRegINoSp dst, vRegF src)
 
 //------------------ FP16 isInfinite -----------------------------
 
-instruct isInfiniteHF(iRegINoSp dst, vRegF src, vRegF tmp)
+instruct isInfiniteHF(iRegINoSp dst, iRegINoSp src)
 %{
   match(Set dst (IsInfiniteHF src));
-  effect(TEMP tmp);
   format %{ "isInfiniteHF $dst, $src # Half float isInfinite" %}
   ins_encode %{
-    __ fabsh($src$$FloatRegister, $src$$FloatRegister);
-    __ movz(rscratch1, 0x7bff); // Load Float16.MAX_VALUE
-    __ fmovs($tmp$$FloatRegister, rscratch1);
-    __ fcmph($src$$FloatRegister, $tmp$$FloatRegister);
-    __ csetw($dst$$Register, Assembler::GT); // Set result to true if
-                                             // input > max value
+    __ movz(rscratch1, 0x7c00); // Load FP16 positive infinity
+    __ movz(rscratch2, 0x7fff); // Load 16-bit sign mask
+    __ eor(rscratch1, $src$$Register, rscratch1); // eor FP16 positive infinity with src
+    __ ands(rscratch1, rscratch1, rscratch2); // Mask off the sign bit (ensures both positive
+                                              // and negative infinite values are identified)
+    __ csetw($dst$$Register, Assembler::EQ); // Set the destination if it is equal to zero
   %}
   ins_pipe(pipe_class_default);
 %}

@@ -194,7 +194,7 @@ public class TestFP16ScalarOps {
     }
 
     @Test
-    @IR(counts = {IRNode.IS_FINITE_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0"},
+    @IR(counts = {IRNode.IS_FINITE_HF, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testIsFinite() {
         for (int i = 0; i < count; i++) {
@@ -204,7 +204,7 @@ public class TestFP16ScalarOps {
     }
 
     @Test
-    @IR(counts = {IRNode.IS_INFINITE_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0"},
+    @IR(counts = {IRNode.IS_INFINITE_HF, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testIsInfinite() {
         for (int i = 0; i < count; i++) {
@@ -214,7 +214,7 @@ public class TestFP16ScalarOps {
     }
 
     @Test
-    @IR(counts = {IRNode.IS_NAN_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0"},
+    @IR(counts = {IRNode.IS_NAN_HF, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testIsNaN() {
         for (int i = 0; i < count; i++) {

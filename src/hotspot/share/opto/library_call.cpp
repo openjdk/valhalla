@@ -5266,16 +5266,12 @@ bool LibraryCallKit::inline_fp_range_check(vmIntrinsics::ID id) {
 
 bool LibraryCallKit::inline_fp16_range_check(vmIntrinsics::ID id) {
 
-  if (!Matcher::match_rule_supported(Op_ReinterpretS2HF)) {
-    return false;
-  }
-
   Node* arg = argument(0);
   if (!arg->is_InlineType()) {
     return false;
   }
 
-  Node* fld = _gvn.transform(new ReinterpretS2HFNode(arg->as_InlineType()->field_value(0)));
+  Node* fld = _gvn.transform(arg->as_InlineType()->field_value(0));
   Node* result = nullptr;
 
   switch (id) {
