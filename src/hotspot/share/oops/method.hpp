@@ -62,7 +62,7 @@ class MethodData;
 class MethodCounters;
 class ConstMethod;
 class InlineTableSizes;
-class CompiledMethod;
+class nmethod;
 class InterpreterOopMap;
 
 class Method : public Metadata {
@@ -93,7 +93,7 @@ class Method : public Metadata {
   address _i2i_entry;           // All-args-on-stack calling convention
   // Entry point for calling from compiled code, to compiled code if it exists
   // or else the interpreter.
-  volatile address _from_compiled_entry;           // Cache of: _code ? _code->verified_entry_point()           : _adapter->c2i_entry()
+  volatile address _from_compiled_entry;           // Cache of: _code ? _code->entry_point() : _adapter->c2i_entry()
   volatile address _from_compiled_inline_ro_entry; // Cache of: _code ? _code->verified_inline_ro_entry_point() : _adapter->c2i_inline_ro_entry()
   volatile address _from_compiled_inline_entry;    // Cache of: _code ? _code->verified_inline_entry_point()    : _adapter->c2i_inline_entry()
   // The entry point for calling both from and to compiled code is
@@ -101,8 +101,8 @@ class Method : public Metadata {
   // field can come and go.  It can transition from null to not-null at any
   // time (whenever a compile completes).  It can transition from not-null to
   // null only at safepoints (because of a de-opt).
-  CompiledMethod* volatile _code;                       // Points to the corresponding piece of native code
-  volatile address           _from_interpreted_entry; // Cache of _code ? _adapter->i2c_entry() : _i2i_entry
+  nmethod* volatile _code;                   // Points to the corresponding piece of native code
+  volatile address  _from_interpreted_entry; // Cache of _code ? _adapter->i2c_entry() : _i2i_entry
 
   // Constructor
   Method(ConstMethod* xconst, AccessFlags access_flags, Symbol* name);
@@ -363,10 +363,10 @@ class Method : public Metadata {
   address verified_inline_code_entry();
   address verified_inline_ro_code_entry();
   bool check_code() const;      // Not inline to avoid circular ref
-  CompiledMethod* code() const;
+  nmethod* code() const;
 
   // Locks CompiledMethod_lock if not held.
-  void unlink_code(CompiledMethod *compare);
+  void unlink_code(nmethod *compare);
   // Locks CompiledMethod_lock if not held.
   void unlink_code();
 
@@ -379,7 +379,7 @@ private:
   }
 
 public:
-  static void set_code(const methodHandle& mh, CompiledMethod* code);
+  static void set_code(const methodHandle& mh, nmethod* code);
   void set_adapter_entry(AdapterHandlerEntry* adapter) {
     _adapter = adapter;
   }
