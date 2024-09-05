@@ -250,7 +250,7 @@ class HierarchicalFieldStream : public StackObj  {
   bool done() const { return _next_klass == nullptr && _current_stream.done(); }
 
   // bridge functions from FieldStreamBase
-  bool index() const {
+  int index() const {
     return _current_stream.index();
   }
 
