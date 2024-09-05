@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1401,7 +1401,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
                        adr_type, dest_elem,
                        src, src_offset, dest, dest_offset, length,
                        dest_length,
-                       true, !ac->is_copyofrange());
+                       true, ac->has_negative_length_guard());
+
     return;
   }
 

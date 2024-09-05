@@ -50,7 +50,8 @@ class flatArrayOopDesc : public arrayOopDesc {
   }
 
   static int object_size(int lh, int length) {
-    julong size_in_bytes = header_size_in_bytes() + element_size(lh, length);
+    julong size_in_bytes = base_offset_in_bytes(Klass::layout_helper_element_type(lh));
+    size_in_bytes += element_size(lh, length);
     julong size_in_words = ((size_in_bytes + (HeapWordSize-1)) >> LogHeapWordSize);
     assert(size_in_words <= (julong)max_jint, "no overflow");
     return align_object_size((intptr_t)size_in_words);

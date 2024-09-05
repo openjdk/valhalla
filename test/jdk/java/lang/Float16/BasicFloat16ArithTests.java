@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8329817 8334432
+ * @bug 8329817 8334432 8339076
  * @summary Basic tests of Float16 arithmetic and similar operations
  */
 
@@ -47,6 +47,7 @@ public class BasicFloat16ArithTests {
         checkGetExponent();
         checkUlp();
         checkValueOfDouble();
+        checkValueOfLong();
         FusedMultiplyAddTests.main();
     }
 
@@ -424,6 +425,15 @@ public class BasicFloat16ArithTests {
             checkFloat16(add(f16, ulp),         valueOf( halfWayNextUp).floatValue(), roundUpMsg);
             checkFloat16(subtract(f16Neg, ulp), valueOf(-halfWayNextUp).floatValue(), roundUpMsg);
         }
+    }
+
+    private static void checkValueOfLong() {
+        checkFloat16(valueOf(-65_521), Float.NEGATIVE_INFINITY, "-infinity");
+        checkFloat16(valueOf(-65_520), Float.NEGATIVE_INFINITY, "-infinity");
+        checkFloat16(valueOf(-65_519), -MAX_VALUE.floatValue(), "-MAX_VALUE");
+        checkFloat16(valueOf(65_519), MAX_VALUE.floatValue(), "MAX_VALUE");
+        checkFloat16(valueOf(65_520), Float.POSITIVE_INFINITY, "+infinity");
+        checkFloat16(valueOf(65_521), Float.POSITIVE_INFINITY, "+infinity");
     }
 
     class FusedMultiplyAddTests {

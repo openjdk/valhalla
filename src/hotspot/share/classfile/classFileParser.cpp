@@ -6405,6 +6405,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_NullRestrictedArray)) {
       _has_null_restricted_array = true;
+      _is_implicitly_constructible = _parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible);
     }
     // Implicit constructibility and null restriction are sufficient to guarantee atomic updates to value based boxed primitives.
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ValueBased) && _has_null_restricted_array && _is_implicitly_constructible) {

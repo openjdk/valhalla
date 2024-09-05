@@ -26,6 +26,7 @@
 #define SHARE_OOPS_ARRAYOOP_HPP
 
 #include "oops/oop.hpp"
+#include "runtime/globals.hpp"
 #include "utilities/align.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -55,12 +56,15 @@ private:
 
   // Given a type, return true if elements of that type must be aligned to 64-bit.
   static bool element_type_should_be_aligned(BasicType type) {
+    if (EnableValhalla && type == T_PRIMITIVE_OBJECT) {
+      return true; //CMH: tighten the alignment when removing T_PRIMITIVE_OBJECT
+    }
 #ifdef _LP64
-    if (type == T_OBJECT || type == T_ARRAY || type == T_PRIMITIVE_OBJECT) {
+    if (type == T_OBJECT || type == T_ARRAY) {
       return !UseCompressedOops;
     }
 #endif
-    return type == T_DOUBLE || type == T_LONG || type == T_PRIMITIVE_OBJECT;
+    return type == T_DOUBLE || type == T_LONG;
   }
 
  public:

@@ -1128,7 +1128,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, PackageEntry* pkg_entry, bo
     if (!CDSConfig::is_valhalla_preview()) {
       // Dynamic dumping requires UseSharedSpaces to be enabled. Since --patch-module
       // is not supported with UseSharedSpaces, we can never come here during dynamic dumping.
-      assert(!CDSConfig::is_dumping_dynamic_archive(), "sanity");
+      assert(!CDSConfig::is_dumping_archive(), "CDS doesn't support --patch-module during dumping");
     }
     if (CDSConfig::is_valhalla_preview() || !CDSConfig::is_dumping_static_archive()) {
       stream = search_module_entries(THREAD, _patch_mod_entries, pkg_entry, file_name);
@@ -1146,6 +1146,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, PackageEntry* pkg_entry, bo
     } else {
       // Exploded build - attempt to locate class in its defining module's location.
       assert(_exploded_entries != nullptr, "No exploded build entries present");
+      assert(!CDSConfig::is_dumping_archive(), "CDS dumping doesn't support exploded build");
       stream = search_module_entries(THREAD, _exploded_entries, pkg_entry, file_name);
     }
   }
