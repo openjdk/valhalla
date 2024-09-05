@@ -590,14 +590,10 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace, boo
       Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
       Node* alloc_oop  = kit->new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true, this);
 
-      // Larval?
-      // - must_init set: We are about to call an abstract value class constructor or the Object constructor which is
-      //                  not inlined. It is therefore escaping and we must initialize the buffer because we have not
-      //                  done this, yet, for larvals (see second case).
-      // - Other larvals: We do not need to initialize the buffer because a larval could still be updated which will
-      //                  create a new buffer. Once the larval escapes, we will initialize the buffer (must_init set).
-      assert(!must_init || is_larval(), "must_init should only be set for larval");
-      if (!is_larval() || must_init) {
+      if (must_init) {
+        // Either not a larval or a larval receiver on which we are about to invoke an abstract value class constructor
+        // or the Object constructor which is not inlined. It is therefore escaping, and we must initialize the buffer
+        // because we have not done this, yet, for larvals (see else case).
         store(kit, alloc_oop, alloc_oop, vk);
 
         // Do not let stores that initialize this buffer be reordered with a subsequent
@@ -605,6 +601,10 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace, boo
         AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop);
         assert(alloc != nullptr, "must have an allocation node");
         kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+      } else {
+        // We do not need to initialize the buffer because a larval could still be updated which will create a new buffer.
+        // Once the larval escapes, we will initialize the buffer (must_init set).
+        assert(is_larval(), "only larvals can possibly skip the initialization of their buffer");
       }
       oop->init_req(3, alloc_oop);
     }

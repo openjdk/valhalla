@@ -250,6 +250,9 @@ class HierarchicalFieldStream : public StackObj  {
   bool done() const { return _next_klass == nullptr && _current_stream.done(); }
 
   // bridge functions from FieldStreamBase
+  bool index() const {
+    return _current_stream.index();
+  }
 
   AccessFlags access_flags() const {
     return _current_stream.access_flags();
@@ -291,8 +294,8 @@ class HierarchicalFieldStream : public StackObj  {
     return _current_stream.field_descriptor();
   }
 
-  const FieldStreamType& current() const {
-    return _current_stream;
+  bool is_flat() const {
+    return _current_stream.is_flat();
   }
 };
 

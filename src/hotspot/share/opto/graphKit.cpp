@@ -1895,22 +1895,25 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
       InlineTypeNode* inline_type = arg->as_InlineType();
-      const ciMethod* caller_method = _method;
       const ciMethod* method = call->method();
       ciInstanceKlass* holder = method->holder();
       const bool is_receiver = (i == TypeFunc::Parms);
-      bool must_init_buffer = false;
-      // Do we have a larval receiver for an abstract constructor or the Object constructor (that is not going to be
-      // inlined)?
-      if (is_receiver && inline_type->is_larval() && method->is_object_constructor() &&
-          (holder->is_abstract() || holder->is_java_lang_Object())) {
-        // We normally do not want to initialize the buffer of a larval because we are going to update it anyway which
-        // requires us to create a new buffer. But at this point, we are going to call the super constructor of this
-        // concrete or abstract inline type without inlining it. After that, the larval is completely initialized and
-        // thus not a larval anymore. We therefore need to force an initialization of the buffer to not lose all the
-        // field writes so far in case the buffer needs to be used (e.g. to read from when deoptimizing at runtime) or
-        // further updated in abstract super value class constructors which could have more fields to be initialized.
-        must_init_buffer = true;
+      const bool is_abstract_or_object_klass_constructor = method->is_object_constructor() &&
+                                                           (holder->is_abstract() || holder->is_java_lang_Object());
+      const bool is_larval_receiver_on_super_constructor = is_receiver && is_abstract_or_object_klass_constructor;
+      bool must_init_buffer = true;
+      // We always need to buffer inline types when they are escaping. However, we can skip the actual initialization
+      // of the buffer if the inline type is a larval because we are going to update the buffer anyway which requires
+      // us to create a one. But there is one special case where we are still required to initialize the buffer: When
+      // we have a larval receiver invoked on an abstract (value class) constructor or the Object constructor (that is
+      // not going to be inlined). After this call, the larval is completely initialized and thus not a larval anymore.
+      // We therefore need to force an initialization of the buffer to not lose all the field writes so far in case the
+      // buffer needs to be used (e.g. to read from when deoptimizing at runtime) or further updated in abstract super
+      // value class constructors which could have more fields to be initialized. Note that we do not need to
+      // initialize the buffer when invoking another constructor in the same class on a larval receiver because we
+      // have not initialized any fields, yet (this is done completely by the other constructor call).
+      if (inline_type->is_larval() && !is_larval_receiver_on_super_constructor) {
+        must_init_buffer = false;
       }
       arg = inline_type->buffer(this, true, must_init_buffer);
     }

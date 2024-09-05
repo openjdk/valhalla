@@ -144,7 +144,7 @@ public:
   InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
   // Allocates the inline type (if not yet allocated)
-  InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true, bool must_init = false);
+  InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true, bool must_init = true);
   bool is_allocated(PhaseGVN* phase) const;
 
   void replace_call_results(GraphKit* kit, CallNode* call, Compile* C);

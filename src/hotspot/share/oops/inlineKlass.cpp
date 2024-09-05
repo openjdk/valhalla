@@ -253,9 +253,9 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
-    if (fs.current().is_flat()) {
+    if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
-      Klass* vk = get_inline_type_field_klass(fs.current().index());
+      Klass* vk = get_inline_type_field_klass(fs.index());
       count += InlineKlass::cast(vk)->collect_fields(sig, offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
