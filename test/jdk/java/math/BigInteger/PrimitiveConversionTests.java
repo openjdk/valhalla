@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,9 @@ import java.util.Random;
 
 /**
  * @test
- * @bug 7131192
- * @summary This test ensures that BigInteger.floatValue() and
- *          BigInteger.doubleValue() behave correctly.
+ * @bug 7131192 8339252
+ * @summary This test ensures that BigInteger.float16Value(),
+ *          BigInteger.floatValue(), BigInteger.doubleValue() behave correctly.
  * @author Louis Wasserman
  */
 public class PrimitiveConversionTests {
@@ -98,9 +98,45 @@ public class PrimitiveConversionTests {
         return failures;
     }
 
+    public static int testFloat16Value() {
+        /*
+         * Test all integers in Float16's finite range and slightly beyond.
+         * Also test a couple of really big integers.
+         */
+        System.out.println("--- testFloat16Value ---");
+        int high = Float16.MAX_VALUE.intValue() + Float16.ulp(Float16.MAX_VALUE).intValue();
+        int failures = 0;
+        for (int i = 0; i <= high; ++i) {
+            BigInteger big = BigInteger.valueOf(i);
+            failures = checkFloat16(Float16.valueOf(i), big.float16Value(), big, failures);
+
+            big = BigInteger.valueOf(-i);
+            failures = checkFloat16(Float16.valueOf(-i), big.float16Value(), big, failures);
+        }
+
+        BigInteger large = ONE.shiftLeft(1_000);
+        failures = checkFloat16(Float16.POSITIVE_INFINITY, large.float16Value(), large, failures);
+
+        large = large.negate();
+        failures = checkFloat16(Float16.NEGATIVE_INFINITY, large.float16Value(), large, failures);
+
+        return failures;
+    }
+
+    private static int checkFloat16(Float16 expected, Float16 actual, BigInteger large, int failures) {
+        if (Float16.float16ToRawShortBits(expected) !=
+                Float16.float16ToRawShortBits(actual)) {
+            System.out.format("big: %s, expected: %s, actual: %s%n",
+                    large, Float16.toHexString(expected), Float16.toHexString(actual));
+            failures++;
+        }
+        return failures;
+    }
+
     public static void main(String[] args) {
         int failures = testDoubleValue();
         failures += testFloatValue();
+        failures += testFloat16Value();
         if (failures > 0) {
             throw new RuntimeException("Incurred " + failures
                     + " failures while testing primitive conversions.");

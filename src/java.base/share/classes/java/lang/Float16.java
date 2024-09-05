@@ -28,6 +28,7 @@ package java.lang;
 import java.lang.invoke.MethodHandles;
 import java.lang.constant.Constable;
 import java.lang.constant.ConstantDesc;
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import jdk.internal.math.FloatConsts;
@@ -87,7 +88,6 @@ public final class Float16
     // nextUp / nextDown
     // IEEEremainder / remainder operator remainder
     // signum
-    // valueOf(BigDecimal) -- main implementation could be package private in BigDecimal
 
    /**
     * Returns a {@code Float16} instance wrapping IEEE 754 binary16
@@ -419,13 +419,20 @@ public final class Float16
         return valueOf(Double.parseDouble(s));
     }
 
-    //    /**
-    //     * ...
-    //     * @see BigDecimal#floatValue()
-    //     * @see BigDecimal#doubleValue()
-    //     */
-    //    public static Float16 valueOf(BigDecimal bd)
-
+    /**
+     * {@return a {@link Float16} value rounded from the {@link BigDecimal}
+     * argument using the round to nearest rounding policy}
+     *
+     * @apiNote
+     * This method corresponds to the convertFormat operation defined
+     * in IEEE 754.
+     *
+     * @param  v a {@link BigDecimal}
+     * @see BigDecimal#float16Value()
+     */
+    public static Float16 valueOf(BigDecimal v) {
+        return v.float16Value();
+    }
 
     /**
      * Returns {@code true} if the specified number is a
