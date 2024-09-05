@@ -1898,7 +1898,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       const ciMethod* caller_method = _method;
       const ciMethod* method = call->method();
       ciInstanceKlass* holder = method->holder();
-      const bool is_receiver = i == TypeFunc::Parms;
+      const bool is_receiver = (i == TypeFunc::Parms);
       bool must_init_buffer = false;
       // Do we have a larval receiver for an abstract constructor or the Object constructor (that is not going to be
       // inlined)?
@@ -1992,9 +1992,8 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   // We just called the constructor on a value type receiver. Reload it from the buffer
   ciMethod* method = call->method();
   if (method->is_object_constructor() && !method->holder()->is_java_lang_Object()) {
-    Node* receiver = call->in(TypeFunc::Parms);
-    if (receiver->bottom_type()->is_inlinetypeptr()) {
-      InlineTypeNode* inline_type_receiver = receiver->as_InlineType();
+    InlineTypeNode* inline_type_receiver = call->in(TypeFunc::Parms)->isa_InlineType();
+    if (receiver != nullptr) {
       assert(inline_type_receiver->is_larval(), "must be larval");
       assert(inline_type_receiver->is_allocated(&gvn()), "larval must be buffered");
       InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, inline_type_receiver->get_oop(),

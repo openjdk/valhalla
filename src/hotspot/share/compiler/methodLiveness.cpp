@@ -625,10 +625,10 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
           (method->is_object_constructor() &&
            ((!holder->is_abstract() && holder->is_inlinetype()) ||
             holder->is_abstract()))) {
-        // Returning from Object.<init> implicitly registers a finalizer for the receiver if needed, so keep it alive.
+        // Returning from Object.<init> implicitly registers a finalizer for the receiver if needed, to keep it alive.
         // Value class constructors update the scalarized receiver. We need to keep it live so that we can find it after
         // (chained) constructor calls and propagate updates to the caller. If the holder of the constructor is abstract,
-        // we do not know if the constructor was called from a value class or not. We therefore keep the receiver of all
+        // we do not know if the constructor was called on a value class or not. We therefore keep the receiver of all
         // abstract constructors live.
         load_one(0);
       }

@@ -35,7 +35,7 @@ int ciInlineKlass::compute_nonstatic_fields() {
   ciInstanceKlass* super_klass = super();
   GrowableArray<ciField*>* super_klass_fields = nullptr;
   if (super_klass != nullptr && super_klass->has_nonstatic_fields()) {
-    int super_flen   = super_klass->nof_nonstatic_fields();
+    int super_flen = super_klass->nof_nonstatic_fields();
     super_klass_fields = super_klass->_nonstatic_fields;
     assert(super_flen == 0 || super_klass_fields != nullptr, "first get nof_fields");
   }

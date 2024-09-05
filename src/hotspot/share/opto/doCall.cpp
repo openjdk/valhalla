@@ -804,18 +804,18 @@ void Parse::do_call() {
         // Is the holder of the current constructor method an inline type?
         _caller->map()->argument(_caller, 0)->bottom_type()->is_inlinetypeptr();
     assert(!is_current_method_inline_type_constructor || !cg->method()->is_object_constructor() || receiver != nullptr,
-           "must have valid receiver after calling another inline type constructor");
+           "must have valid receiver after calling another constructor");
     if (is_current_method_inline_type_constructor &&
         // Is the just called method an inline type constructor?
         cg->method()->is_object_constructor() && receiver->bottom_type()->is_inlinetypeptr() &&
-        // AND:
-        // 1) ...has the same receiver? Then it's another constructor of the same class doing the initialization.
+         // AND:
+         // 1) ... invoked on the same receiver? Then it's another constructor on the same object doing the initialization.
         (receiver == _caller->map()->argument(_caller, 0) ||
-         // 2) ...is abstract? Then it's the call to the super constructor which eventually calls Object.<init> to
+         // 2) ... abstract? Then it's the call to the super constructor which eventually calls Object.<init> to
          //                    finish the initialization of this larval.
          cg->method()->holder()->is_abstract() ||
-         // 3) ...Object.<init>? Then we know it's the final call to finish the larval initialization. Other
-         //       Object.<init> calls would have a non-inline-type receiver which we already excluded in the check above.
+         // 3) ... Object.<init>? Then we know it's the final call to finish the larval initialization. Other
+         //        Object.<init> calls would have a non-inline-type receiver which we already excluded in the check above.
          cg->method()->holder()->is_java_lang_Object())
         ) {
       assert(local(0)->is_InlineType() && receiver->bottom_type()->is_inlinetypeptr() && receiver->is_InlineType() &&

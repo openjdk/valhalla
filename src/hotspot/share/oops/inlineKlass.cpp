@@ -244,7 +244,7 @@ Klass* InlineKlass::value_array_klass_or_null() {
 // T_VOID) or the compiler point of view (each field of the inline
 // types is an argument: drop all T_METADATA/T_VOID from the list).
 //
-// Inline types could also have fields in abstract super value classes.
+// Value classes could also have fields in abstract super value classes.
 // Use a HierarchicalFieldStream to get them as well.
 int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   int count = 0;
