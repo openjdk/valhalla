@@ -144,7 +144,7 @@ class ObjectValue: public ScopeValue {
   ObjectValue(int id, ScopeValue* klass = nullptr, bool is_scalar_replaced = true, ScopeValue* is_init = nullptr)
      : _id(id)
      , _klass(klass)
-     , _is_init(is_init)
+     , _is_init((is_init == nullptr) ? new MarkerValue() : is_init)
      , _field_values()
      , _value()
      , _visited(false)

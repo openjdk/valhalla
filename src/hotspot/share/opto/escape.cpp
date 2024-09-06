@@ -565,7 +565,8 @@ bool ConnectionGraph::can_reduce_check_users(Node* n, uint nesting) const {
     } else if (nesting > 0) {
       NOT_PRODUCT(if (TraceReduceAllocationMerges) tty->print_cr("Can NOT reduce Phi %d on invocation %d. Unsupported user %s at nesting level %d.", n->_idx, _invocation, use->Name(), nesting);)
       return false;
-    } else if (use->is_CastPP()) {
+    // TODO 8315003 Re-enable
+    } else if (use->is_CastPP() && false) {
       const Type* cast_t = _igvn->type(use);
       if (cast_t == nullptr || cast_t->make_ptr()->isa_instptr() == nullptr) {
         NOT_PRODUCT(use->dump();)
@@ -1225,7 +1226,10 @@ bool ConnectionGraph::reduce_phi_on_safepoints_helper(Node* ophi, Node* cast, No
       AllocateNode* alloc = ptn->ideal_node()->as_Allocate();
       Unique_Node_List value_worklist;
       SafePointScalarObjectNode* sobj = mexp.create_scalarized_object_description(alloc, sfpt, &value_worklist);
-      guarantee(value_worklist.size() == 0, "Unimplemented: Valhalla support for 8287061");
+      // TODO 8315003 Remove this bailout
+      if (value_worklist.size() != 0) {
+        return false;
+      }
       if (sobj == nullptr) {
         return false;
       }
