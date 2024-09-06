@@ -2605,10 +2605,10 @@ bool SuperWord::output() {
           vn = VectorNode::make(opc, in1, in2, vlen, velt_basic_type(n));
           vlen_in_bytes = vn->as_Vector()->length_in_bytes();
         }
-      } else if (opc == Op_SqrtF || opc == Op_SqrtD ||
-                 opc == Op_AbsF || opc == Op_AbsD ||
+      } else if (opc == Op_SqrtHF || opc == Op_SqrtF || opc == Op_SqrtD ||
+                 opc == Op_AbsHF || opc == Op_AbsF || opc == Op_AbsD ||
                  opc == Op_AbsI || opc == Op_AbsL ||
-                 opc == Op_NegF || opc == Op_NegD ||
+                 opc == Op_NegHF || opc == Op_NegF || opc == Op_NegD ||
                  opc == Op_RoundF || opc == Op_RoundD ||
                  opc == Op_ReverseBytesI || opc == Op_ReverseBytesL ||
                  opc == Op_ReverseBytesUS || opc == Op_ReverseBytesS ||
@@ -2646,7 +2646,7 @@ bool SuperWord::output() {
         Node* in = vector_opd(p, 1);
         vn = VectorReinterpretNode::make(in, vt, vt);
         vlen_in_bytes = vn->as_Vector()->length_in_bytes();
-      } else if (opc == Op_FmaD || opc == Op_FmaF) {
+      } else if (opc == Op_FmaD || opc == Op_FmaF || opc == Op_FmaHF) {
         // Promote operands to vector
         Node* in1 = vector_opd(p, 1);
         Node* in2 = vector_opd(p, 2);

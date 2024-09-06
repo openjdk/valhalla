@@ -865,7 +865,7 @@ public final class Float16
      *
      * @see Math#sqrt(double)
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 sqrt(Float16 radicand) {
         // Rounding path of sqrt(Float16 -> double) -> Float16 is fine
         // for preserving the correct final value. The conversion
@@ -899,7 +899,7 @@ public final class Float16
      * @see Math#fma(float, float, float)
      * @see Math#fma(double, double, double)
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 fma(Float16 a, Float16 b, Float16 c) {
         /*
          * The double format has sufficient precision that a Float16
@@ -1101,7 +1101,7 @@ public final class Float16
      * @param f16 the value to be negated
      * @jls 15.15.4 Unary Minus Operator {@code -}
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 negate(Float16 f16) {
         // Negate sign bit only. Per IEEE 754-2019 section 5.5.1,
         // negate is a bit-level operation and not a logical
@@ -1123,7 +1123,7 @@ public final class Float16
      * @see Math#abs(float)
      * @see Math#abs(double)
      */
-    // @IntrinsicCandidate
+    @IntrinsicCandidate
     public static Float16 abs(Float16 f16) {
         // Zero out sign bit. Per IEE 754-2019 section 5.5.1, abs is a
         // bit-level operation and not a logical operation.

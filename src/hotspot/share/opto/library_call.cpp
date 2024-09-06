@@ -545,13 +545,16 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_longBitsToDouble:
   case vmIntrinsics::_floatToFloat16:
   case vmIntrinsics::_float16ToFloat:           return inline_fp_conversions(intrinsic_id());
+  case vmIntrinsics::_abs_float16:
+  case vmIntrinsics::_neg_float16:
+  case vmIntrinsics::_sqrt_float16:             return inline_fp16_operations(intrinsic_id(), 1);
   case vmIntrinsics::_add_float16:
   case vmIntrinsics::_subtract_float16:
   case vmIntrinsics::_multiply_float16:
   case vmIntrinsics::_divide_float16:
   case vmIntrinsics::_max_float16:
-  case vmIntrinsics::_min_float16:              return inline_fp16_operations(intrinsic_id());
-
+  case vmIntrinsics::_min_float16:              return inline_fp16_operations(intrinsic_id(), 2);
+  case vmIntrinsics::_fma_float16:              return inline_fp16_operations(intrinsic_id(), 3);
   case vmIntrinsics::_floatIsFinite:
   case vmIntrinsics::_floatIsInfinite:
   case vmIntrinsics::_doubleIsFinite:
@@ -5064,23 +5067,53 @@ bool LibraryCallKit::inline_native_Reflection_getCallerClass() {
   return false;  // bail-out; let JVM_GetCallerClass do the work
 }
 
-bool LibraryCallKit::inline_fp16_operations(vmIntrinsics::ID id) {
+bool LibraryCallKit::inline_fp16_operations(vmIntrinsics::ID id, int num_args) {
   if (!Matcher::match_rule_supported(Op_ReinterpretS2HF) ||
       !Matcher::match_rule_supported(Op_ReinterpretHF2S)) {
     return false;
   }
 
-  Node* result = nullptr;
-  Node* val1 = argument(0);  // receiver
-  Node* val2 = argument(1);  // argument
-  if (!val1->is_InlineType() || !val2->is_InlineType()) {
-    return false;
+  // Inputs
+  Node* val1 = nullptr;
+  Node* val2 = nullptr;
+  Node* val3 = nullptr;
+  // Transformed nodes
+  Node* fld1 = nullptr;
+  Node* fld2 = nullptr;
+  Node* fld3 = nullptr;
+  switch(num_args) {
+    case 3:
+      val3 = argument(2);
+      if (!val3->is_InlineType()) {
+        return false;
+      }
+      fld3 = _gvn.transform(new ReinterpretS2HFNode(val3->as_InlineType()->field_value(0)));
+    // fall-through
+    case 2:
+      val2 = argument(1);
+      if (!val2->is_InlineType()) {
+        return false;
+      }
+      fld2 = _gvn.transform(new ReinterpretS2HFNode(val2->as_InlineType()->field_value(0)));
+    // fall-through
+    case 1:
+      val1 = argument(0);
+      if (!val1->is_InlineType()) {
+        return false;
+      }
+      fld1 = _gvn.transform(new ReinterpretS2HFNode(val1->as_InlineType()->field_value(0)));
+      break;
+    default: fatal("Unsupported number of arguments %d", num_args);
   }
 
-  Node* fld1 = _gvn.transform(new ReinterpretS2HFNode(val1->as_InlineType()->field_value(0)));
-  Node* fld2 = _gvn.transform(new ReinterpretS2HFNode(val2->as_InlineType()->field_value(0)));
-
+  Node* result = nullptr;
   switch (id) {
+  // Unary operations
+  case vmIntrinsics::_abs_float16:       result = _gvn.transform(new AbsHFNode(fld1)); break;
+  case vmIntrinsics::_neg_float16:       result = _gvn.transform(new NegHFNode(fld1)); break;
+  case vmIntrinsics::_sqrt_float16:      result = _gvn.transform(new SqrtHFNode(C, control(), fld1)); break;
+
+  // Binary operations
   case vmIntrinsics::_add_float16:       result = _gvn.transform(new AddHFNode(fld1, fld2));    break;
   case vmIntrinsics::_subtract_float16:  result = _gvn.transform(new SubHFNode(fld1, fld2));    break;
   case vmIntrinsics::_multiply_float16:  result = _gvn.transform(new MulHFNode(fld1, fld2));    break;
@@ -5088,6 +5121,8 @@ bool LibraryCallKit::inline_fp16_operations(vmIntrinsics::ID id) {
   case vmIntrinsics::_max_float16:       result = _gvn.transform(new MaxHFNode(fld1, fld2));    break;
   case vmIntrinsics::_min_float16:       result = _gvn.transform(new MinHFNode(fld1, fld2));    break;
 
+  // Ternary operations
+  case vmIntrinsics::_fma_float16:       result = _gvn.transform(new FmaHFNode(control(), fld1, fld2, fld3)); break;
   default:
     fatal_unexpected_iid(id);
     break;

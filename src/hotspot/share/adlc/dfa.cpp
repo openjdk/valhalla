@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -580,9 +580,9 @@ const char*  dfa_shared_preds::_pred [dfa_shared_preds::count] = { "n->get_int()
 // Helper method to check whether a node is vector unary operation.
 static bool is_vector_unary_op_name(const char* op_name) {
   static const char* vector_unary_op_list[] = {
-    "AbsVB", "AbsVS", "AbsVI", "AbsVL", "AbsVF", "AbsVD",
-    "NegVI", "NegVL", "NegVF", "NegVD",
-    "SqrtVF", "SqrtVD",
+    "AbsVB", "AbsVS", "AbsVI", "AbsVL", "AbsVF", "AbsVD", "AbsVHF",
+    "NegVI", "NegVL", "NegVF", "NegVD", "NegVHF",
+    "SqrtVF", "SqrtVD", "SqrtVHF",
     "PopCountVI", "PopCountVL",
     "CountLeadingZerosV", "CountTrailingZerosV",
     "ReverseV", "ReverseBytesV",

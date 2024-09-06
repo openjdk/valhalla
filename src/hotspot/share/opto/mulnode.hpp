@@ -403,6 +403,14 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
 };
 
+//------------------------------FmaHFNode-------------------------------------
+// fused-multiply-add half-precision float
+class FmaHFNode : public FmaFNode {
+public:
+  FmaHFNode(Node* c, Node* in1, Node* in2, Node* in3) : FmaFNode(c, in1, in2, in3) {}
+  virtual int Opcode() const;
+};
+
 //------------------------------MulAddS2INode----------------------------------
 // Multiply shorts into integers and add them.
 // Semantics: I_OUT = S1 * S2 + S3 * S4

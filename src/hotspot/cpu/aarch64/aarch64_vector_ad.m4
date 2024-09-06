@@ -223,6 +223,10 @@ source %{
       case Op_DivVHF:
       case Op_MinVHF:
       case Op_MaxVHF:
+      case Op_AbsVHF:
+      case Op_NegVHF:
+      case Op_SqrtVHF:
+      case Op_FmaVHF:
         // FEAT_FP16 is enabled if both "fphp" and "asimdhp" features are supported.
         // Only the Neon instructions need this check. SVE supports half-precision floats
         // by default.
@@ -876,20 +880,22 @@ dnl
 // ------------------------------ Vector abs -----------------------------------
 
 // vector abs
-UNARY_OP(vabsB, AbsVB, absr, sve_abs,  B)
-UNARY_OP(vabsS, AbsVS, absr, sve_abs,  H)
-UNARY_OP(vabsI, AbsVI, absr, sve_abs,  S)
-UNARY_OP(vabsL, AbsVL, absr, sve_abs,  D)
-UNARY_OP(vabsF, AbsVF, fabs, sve_fabs, S)
-UNARY_OP(vabsD, AbsVD, fabs, sve_fabs, D)
+UNARY_OP(vabsB,  AbsVB,  absr, sve_abs,  B)
+UNARY_OP(vabsS,  AbsVS,  absr, sve_abs,  H)
+UNARY_OP(vabsI,  AbsVI,  absr, sve_abs,  S)
+UNARY_OP(vabsL,  AbsVL,  absr, sve_abs,  D)
+UNARY_OP(vabsF,  AbsVF,  fabs, sve_fabs, S)
+UNARY_OP(vabsD,  AbsVD,  fabs, sve_fabs, D)
+UNARY_OP(vabsHF, AbsVHF, fabs, sve_fabs, H)
 
 // vector abs - predicated
-UNARY_OP_PREDICATE_WITH_SIZE(vabsB, AbsVB, sve_abs,  B)
-UNARY_OP_PREDICATE_WITH_SIZE(vabsS, AbsVS, sve_abs,  H)
-UNARY_OP_PREDICATE_WITH_SIZE(vabsI, AbsVI, sve_abs,  S)
-UNARY_OP_PREDICATE_WITH_SIZE(vabsL, AbsVL, sve_abs,  D)
-UNARY_OP_PREDICATE_WITH_SIZE(vabsF, AbsVF, sve_fabs, S)
-UNARY_OP_PREDICATE_WITH_SIZE(vabsD, AbsVD, sve_fabs, D)
+UNARY_OP_PREDICATE_WITH_SIZE(vabsB,  AbsVB,  sve_abs,  B)
+UNARY_OP_PREDICATE_WITH_SIZE(vabsS,  AbsVS,  sve_abs,  H)
+UNARY_OP_PREDICATE_WITH_SIZE(vabsI,  AbsVI,  sve_abs,  S)
+UNARY_OP_PREDICATE_WITH_SIZE(vabsL,  AbsVL,  sve_abs,  D)
+UNARY_OP_PREDICATE_WITH_SIZE(vabsF,  AbsVF,  sve_fabs, S)
+UNARY_OP_PREDICATE_WITH_SIZE(vabsD,  AbsVD,  sve_fabs, D)
+UNARY_OP_PREDICATE_WITH_SIZE(vabsHF, AbsVHF, sve_fabs, H)
 
 // ------------------------------ Vector fabd ----------------------------------
 
@@ -959,23 +965,26 @@ instruct vnegI(vReg dst, vReg src) %{
 UNARY_OP(vnegL, NegVL, negr, sve_neg,  D)
 UNARY_OP(vnegF, NegVF, fneg, sve_fneg, S)
 UNARY_OP(vnegD, NegVD, fneg, sve_fneg, D)
+UNARY_OP(vnegVF, NegVHF, fneg, sve_fneg, H)
 
 // vector neg - predicated
 UNARY_OP_PREDICATE(vnegI, NegVI, sve_neg)
 UNARY_OP_PREDICATE_WITH_SIZE(vnegL, NegVL, sve_neg,  D)
 UNARY_OP_PREDICATE_WITH_SIZE(vnegF, NegVF, sve_fneg, S)
 UNARY_OP_PREDICATE_WITH_SIZE(vnegD, NegVD, sve_fneg, D)
+UNARY_OP_PREDICATE_WITH_SIZE(vnegHF, NegVHF, sve_fneg, H)
 
 // ------------------------------ Vector sqrt ----------------------------------
 
 // vector sqrt
-UNARY_OP(vsqrtF, SqrtVF, fsqrt, sve_fsqrt, S)
-UNARY_OP(vsqrtD, SqrtVD, fsqrt, sve_fsqrt, D)
+UNARY_OP(vsqrtF,  SqrtVF,  fsqrt, sve_fsqrt, S)
+UNARY_OP(vsqrtD,  SqrtVD,  fsqrt, sve_fsqrt, D)
+UNARY_OP(vsqrtHF, SqrtVHF, fsqrt, sve_fsqrt, H)
 
 // vector sqrt - predicated
-UNARY_OP_PREDICATE_WITH_SIZE(vsqrtF, SqrtVF, sve_fsqrt, S)
-UNARY_OP_PREDICATE_WITH_SIZE(vsqrtD, SqrtVD, sve_fsqrt, D)
-
+UNARY_OP_PREDICATE_WITH_SIZE(vsqrtF,  SqrtVF,  sve_fsqrt, S)
+UNARY_OP_PREDICATE_WITH_SIZE(vsqrtD,  SqrtVD,  sve_fsqrt, D)
+UNARY_OP_PREDICATE_WITH_SIZE(vsqrtHF, SqrtVHF, sve_fsqrt, H)
 dnl
 dnl VMINMAX_L_NEON($1,   $2     )
 dnl VMINMAX_L_NEON(type, op_name)
@@ -1205,6 +1214,7 @@ instruct vmla_masked(vReg dst_src1, vReg src2, vReg src3, pRegGov pg) %{
 // dst_src1 = src2 * src3 + dst_src1
 
 instruct vfmla(vReg dst_src1, vReg src2, vReg src3) %{
+  match(Set dst_src1 (FmaVHF dst_src1 (Binary src2 src3)));
   match(Set dst_src1 (FmaVF dst_src1 (Binary src2 src3)));
   match(Set dst_src1 (FmaVD dst_src1 (Binary src2 src3)));
   format %{ "vfmla $dst_src1, $src2, $src3" %}
@@ -1229,6 +1239,7 @@ instruct vfmla(vReg dst_src1, vReg src2, vReg src3) %{
 
 instruct vfmad_masked(vReg dst_src1, vReg src2, vReg src3, pRegGov pg) %{
   predicate(UseSVE > 0);
+  match(Set dst_src1 (FmaVHF (Binary dst_src1 src2) (Binary src3 pg)));
   match(Set dst_src1 (FmaVF (Binary dst_src1 src2) (Binary src3 pg)));
   match(Set dst_src1 (FmaVD (Binary dst_src1 src2) (Binary src3 pg)));
   format %{ "vfmad_masked $dst_src1, $pg, $src2, $src3" %}
