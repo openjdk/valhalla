@@ -825,8 +825,10 @@ void Parse::do_call() {
       InlineTypeNode* cloned_updated_receiver = updated_receiver->clone_if_required(&_gvn, _map);
       cloned_updated_receiver->set_is_larval(false);
       cloned_updated_receiver = _gvn.transform(cloned_updated_receiver)->as_InlineType();
-      // Receiver updated by the just called constructor. We need to update the map to make the effect visible.
-      replace_in_map(receiver, cloned_updated_receiver);
+      // Receiver updated by the just called constructor. We need to update the map to make the effect visible. After
+      // the super() call, only the updated receiver in local(0) will be used from now on. Therefore, we do not need
+      // to update the original receiver 'receiver' but only the 'updated_receiver'.
+      replace_in_map(updated_receiver, cloned_updated_receiver);
 
       if (_caller->has_method()) {
         // If the current method is inlined, we also need to update the exit map to propagate the updated receiver

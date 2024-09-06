@@ -67,6 +67,20 @@ import jdk.test.whitebox.WhiteBox;
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
 
+/**
+ * @test id=DontInlineHelper
+ * @summary Test construction of value objects.
+ * @key randomness
+ * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                   -XX:CompileCommand=dontinline,compiler*::helper*
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
+ *                   compiler.valhalla.inlinetypes.TestValueConstruction
+ */
+
 /*
  * @test id=DontInlineMyValueInit
  * @key randomness
