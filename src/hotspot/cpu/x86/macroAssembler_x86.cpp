@@ -6543,7 +6543,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
 
 // Clearing constant sized memory using YMM/ZMM registers.
 void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegister xtmp, KRegister mask) {
-  assert(UseAVX > 2 && VM_Version::supports_avx512vlbw(), "");
+  assert(UseAVX > 2 && VM_Version::supports_avx512vl(), "");
   bool use64byteVector = (MaxVectorSize > 32) && (VM_Version::avx3_threshold() == 0);
 
   int vector64_count = (cnt & (~0x7)) >> 3;

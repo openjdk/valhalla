@@ -5687,7 +5687,7 @@ instruct bytes_reversebit_int(rRegI dst, rRegI src, rRegI rtmp, rFlagsReg cr) %{
   ins_pipe( ialu_reg );
 %}
 
-instruct bytes_reversebit_int_gfni(rRegI dst, rRegI src, regF xtmp1, regF xtmp2, rRegL rtmp, rFlagsReg cr) %{
+instruct bytes_reversebit_int_gfni(rRegI dst, rRegI src, vlRegF xtmp1, vlRegF xtmp2, rRegL rtmp, rFlagsReg cr) %{
   predicate(VM_Version::supports_gfni());
   match(Set dst (ReverseI src));
   effect(TEMP dst, TEMP xtmp1, TEMP xtmp2, TEMP rtmp, KILL cr);
@@ -5709,7 +5709,7 @@ instruct bytes_reversebit_long(rRegL dst, rRegL src, rRegL rtmp1, rRegL rtmp2, r
   ins_pipe( ialu_reg );
 %}
 
-instruct bytes_reversebit_long_gfni(rRegL dst, rRegL src, regD xtmp1, regD xtmp2, rRegL rtmp, rFlagsReg cr) %{
+instruct bytes_reversebit_long_gfni(rRegL dst, rRegL src, vlRegD xtmp1, vlRegD xtmp2, rRegL rtmp, rFlagsReg cr) %{
   predicate(VM_Version::supports_gfni());
   match(Set dst (ReverseL src));
   effect(TEMP dst, TEMP xtmp1, TEMP xtmp2, TEMP rtmp, KILL cr);
@@ -10449,7 +10449,7 @@ instruct MoveL2D_reg_reg(regD dst, rRegL src) %{
 
 
 // Fast clearing of an array
-// Small ClearArray non-AVX512.
+// Small non-constant lenght ClearArray for non-AVX512 targets.
 instruct rep_stos(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                   Universe dummy, rFlagsReg cr)
 %{
@@ -10565,7 +10565,7 @@ instruct rep_stos_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
   ins_pipe(pipe_slow);
 %}
 
-// Small ClearArray AVX512 non-constant length.
+// Small non-constant length ClearArray for AVX512 targets.
 instruct rep_stos_evex(rcx_RegL cnt, rdi_RegP base, legRegD tmp, kReg ktmp, rax_RegL val,
                        Universe dummy, rFlagsReg cr)
 %{
@@ -10686,7 +10686,7 @@ instruct rep_stos_evex_word_copy(rcx_RegL cnt, rdi_RegP base, legRegD tmp, kReg 
   ins_pipe(pipe_slow);
 %}
 
-// Large ClearArray non-AVX512.
+// Large non-constant length ClearArray for non-AVX512 targets.
 instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                         Universe dummy, rFlagsReg cr)
 %{
@@ -10782,7 +10782,7 @@ instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_Reg
   ins_pipe(pipe_slow);
 %}
 
-// Large ClearArray AVX512.
+// Large non-constant length ClearArray for AVX512 targets.
 instruct rep_stos_large_evex(rcx_RegL cnt, rdi_RegP base, legRegD tmp, kReg ktmp, rax_RegL val,
                              Universe dummy, rFlagsReg cr)
 %{
@@ -10883,11 +10883,11 @@ instruct rep_stos_large_evex_word_copy(rcx_RegL cnt, rdi_RegP base, legRegD tmp,
   ins_pipe(pipe_slow);
 %}
 
-// Small ClearArray AVX512 constant length.
+// Small constant length ClearArray for AVX512 targets.
 instruct rep_stos_im(immL cnt, rRegP base, regD tmp, rax_RegL val, kReg ktmp, Universe dummy, rFlagsReg cr)
 %{
   predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
-            ((UseAVX > 2) && VM_Version::supports_avx512vlbw()));
+            ((MaxVectorSize >= 32) && VM_Version::supports_avx512vl()));
   match(Set dummy (ClearArray (Binary cnt base) val));
   ins_cost(100);
   effect(TEMP tmp, USE_KILL val, TEMP ktmp, KILL cr);

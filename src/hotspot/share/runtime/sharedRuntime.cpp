@@ -1707,6 +1707,7 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
     address pc = caller.pc();
 
     nmethod* caller_nm = CodeCache::find_nmethod(pc);
+    assert(caller_nm != nullptr, "did not find caller nmethod");
 
     // Default call_addr is the location of the "basic" call.
     // Determine the address of the call we a reresolving. With
@@ -3157,7 +3158,7 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
 
       if (nm != nullptr) {
         {
-          MutexLocker pl(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+          MutexLocker pl(NMethodState_lock, Mutex::_no_safepoint_check_flag);
           if (nm->make_in_use()) {
             method->set_code(method, nm);
           }
