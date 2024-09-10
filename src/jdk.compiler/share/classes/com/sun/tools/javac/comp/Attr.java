@@ -319,7 +319,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (!env.info.ctorPrologue &&
-                // it is OK instance initializer blocks will go after super() anyways
+                // it is OK, in value classes, instance initializer blocks will go after super() anyways
                 ((v.owner.isValueClass() && !env.info.instanceInitializerBlock) ||
                         types.isNonNullable(v.type)) &&
                 v.owner.kind == TYP &&
