@@ -70,6 +70,13 @@ public class Tests {
         return longBitsToDouble(Double.doubleToRawLongBits(d) ^ SIGNBIT );
     }
 
+    public static String toHexString(Float16 f) {
+        if (!Float16.isNaN(f))
+            return Float16.toHexString(f);
+        else
+            return "NaN(0x" + Integer.toHexString(Float16.float16ToRawShortBits(f) & 0xffff) + ")";
+    }
+
     public static String toHexString(float f) {
         if (!Float.isNaN(f))
             return Float.toHexString(f);
@@ -233,6 +240,38 @@ public class Tests {
     }
 
     /**
+     * Returns unbiased exponent of a {@code Float16}; for
+     * subnormal values, the number is treated as if it were
+     * normalized.  That is for all finite, non-zero, positive numbers
+     * <i>x</i>, <code>scalb(<i>x</i>, -ilogb(<i>x</i>))</code> is
+     * always in the range [1, 2).
+     * <p>
+     * Special cases:
+     * <ul>
+     * <li> If the argument is NaN, then the result is 2<sup>30</sup>.
+     * <li> If the argument is infinite, then the result is 2<sup>28</sup>.
+     * <li> If the argument is zero, then the result is -(2<sup>28</sup>).
+     * </ul>
+     *
+     * @param f floating-point number whose exponent is to be extracted
+     * @return unbiased exponent of the argument.
+     */
+    public static int ilogb(Float16 f) {
+        int bits = Float16.float16ToRawShortBits(f);
+        int be = (bits & Float16Consts.EXP_BIT_MASK) >>> Float16Consts.SIGNIFICAND_WIDTH - 1;
+        int t = bits & Float16Consts.SIGNIF_BIT_MASK;
+        return be == 0  // zeros or subnormals
+                ? t != 0
+                    ? Float16Consts.MIN_SUB_EXPONENT + Integer.SIZE - 1 - Integer.numberOfLeadingZeros(t)  // subnormals
+                    : -(1 << 28)  // zeros
+                : be < 2 * Float16Consts.EXP_BIAS + 1
+                ? be - Float16Consts.EXP_BIAS  // normals
+                : t == 0
+                ? 1 << 28   // infinities
+                : 1 << 30;  // NaNs
+    }
+
+    /**
      * Returns {@code true} if the unordered relation holds
      * between the two arguments.  When two floating-point values are
      * unordered, one value is neither less than, equal to, nor
@@ -361,6 +400,19 @@ public class Tests {
         }
     }
 
+    public static int test(String testName, Float16 input,
+            Float16 result, Float16 expected) {
+        if (Float16.compare(expected, result) != 0 ) {
+            System.err.println("Failure for " + testName + ":\n" +
+                    "\tFor input " + input    + "\t(" + toHexString(input) + ")\n" +
+                    "\texpected  " + expected + "\t(" + toHexString(expected) + ")\n" +
+                    "\tgot       " + result   + "\t(" + toHexString(result) + ").");
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
     public static int test(String testName,
                            double input,
                            DoubleUnaryOperator func,
@@ -427,6 +479,21 @@ public class Tests {
                                                + input2   + "\n"  +
                                "\texpected  "  + expected + "\t(" + toHexString(expected) + ")\n" +
                                "\tgot       "  + result   + "\t(" + toHexString(result) + ").");
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    public static int test(String testName,
+            Float16 input1, int input2,
+            Float16 result, Float16 expected) {
+        if (Float16.compare(expected, result ) != 0) {
+            System.err.println("Failure for "  + testName + ":\n" +
+                    "\tFor inputs " + input1   + "\t(" + toHexString(input1) + ") and "
+                    + input2   + "\n"  +
+                    "\texpected  "  + expected + "\t(" + toHexString(expected) + ")\n" +
+                    "\tgot       "  + result   + "\t(" + toHexString(result) + ").");
             return 1;
         } else {
             return 0;
