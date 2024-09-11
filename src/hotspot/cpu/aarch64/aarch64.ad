@@ -2156,10 +2156,8 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 }
 #endif
 
-void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
+void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
 {
-  C2_MacroAssembler _masm(&cbuf);
-
   if (!_verified) {
     __ ic_check(1);
   } else {

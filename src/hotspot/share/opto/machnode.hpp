@@ -513,7 +513,7 @@ public:
            MachIdealNode::cmp(n);
   }
   virtual uint size_of() const { return sizeof(*this); }
-  virtual void emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const;
+  virtual void emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const;
 
 #ifndef PRODUCT
   virtual const char* Name() const { return "InlineType Entry-Point"; }
