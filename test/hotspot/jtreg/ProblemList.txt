@@ -78,6 +78,8 @@ compiler/floatingpoint/TestSubnormalDouble.java 8317810 generic-i586
 
 compiler/startup/StartupOutput.java 8326615 generic-x64
 
+compiler/c2/irTests/scalarReplacement/AllocationMergesTests.java 8315003 generic-all
+
 #############################################################################
 
 # :hotspot_gc
@@ -124,6 +126,7 @@ applications/jcstress/copy.java 8229852 linux-all
 
 containers/docker/TestJcmd.java 8278102 linux-all
 containers/docker/TestMemoryAwareness.java 8303470 linux-all
+containers/docker/TestJFREvents.java 8327723 linux-x64
 
 
 # Valhalla

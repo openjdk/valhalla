@@ -2857,6 +2857,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
     //    Foo[] fa = blah(); Foo x = fa[0]; fa[1] = x;
     // Here, the type of 'fa' is often exact, so the store check
     // of fa[1]=x will fold up, without testing the nullness of x.
+    //
 
     // At macro expansion, we would have already folded the SubTypeCheckNode
     // being expanded here because we always perform the static sub type

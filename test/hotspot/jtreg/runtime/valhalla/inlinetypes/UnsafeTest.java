@@ -121,7 +121,7 @@ public class UnsafeTest {
         try {
             v = U.makePrivateBuffer(v);
             // patch v3.o
-            U.putObject(v, off_o, list);
+            U.putReference(v, off_o, list);
             // patch v3.v.i;
             U.putInt(v, off_v + off_i - U.valueHeaderSize(Value2.class), 999);
             // patch v3.v.v.point
