@@ -35,10 +35,18 @@
  *      jdk.jdeps/com.sun.tools.classfile
  * @run junit NullabilityCompilationTests
  */
-import java.util.List;
+
+import java.io.File;
 import java.util.function.Consumer;
+import java.util.List;
+import java.util.Set;
 
 import javax.tools.Diagnostic;
+
+import com.sun.tools.classfile.ClassFile;
+import com.sun.tools.classfile.Field;
+import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.util.Assert;
 
 import org.junit.jupiter.api.Test;
 import tools.javac.combo.CompilationTestCase;
@@ -849,5 +857,73 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.warn.overrides.with.different.nullness.2")
                 )
         );
+    }
+
+    @Test
+    void testNonNullableFieldsAreStrict() throws Exception {
+        testList(
+                List.of(
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    Object! o;
+                                    Test() {
+                                        super();
+                                        o = new Object();
+                                    }
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.cant.ref.after.ctor.called"),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    Object! o;
+                                    Test() {
+                                        o = new Object();
+                                        super();
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    Object! o = new Object();
+                                    Test() {}
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    Object! o = new Object();
+                                }
+                                """,
+                                Result.Clean,
+                                "")
+                )
+        );
+
+        for (String source : List.of(
+                """
+                class Test {
+                    Object! o = new Object();
+                }
+                """
+        )) {
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                ClassFile classFile = ClassFile.read(fileEntry);
+                for (Field field : classFile.fields) {
+                    if (!field.access_flags.is(Flags.STATIC)) {
+                        Set<String> fieldFlags = field.access_flags.getFieldFlags();
+                        Assert.check(fieldFlags.size() == 1 && fieldFlags.contains("ACC_STRICT"));
+                    }
+                }
+            }
+        }
     }
 }
