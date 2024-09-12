@@ -25,6 +25,7 @@
  * NullabilityCompilationTests
  *
  * @test
+ * @bug 8339357 8340027
  * @enablePreview
  * @summary compilation tests for bang types
  * @library /lib/combo /tools/lib /tools/javac/lib
@@ -879,6 +880,14 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """
                                 class Test {
                                     Object! o;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    Object! o;
                                     Test() {
                                         o = new Object();
                                         super();
@@ -903,6 +912,34 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
+                                ""),
+                        // static fields
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    static Object! o;
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.non.nullable.should.be.initialized"),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    static Object! o = new Object();
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    static Object! o;
+                                    static {
+                                        o = new Object();
+                                    }
+                                }
+                                """,
+                                Result.Clean,
                                 "")
                 )
         );
@@ -911,6 +948,11 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 """
                 class Test {
                     Object! o = new Object();
+                }
+                """,
+                """
+                class Test {
+                    static Object! o = new Object();
                 }
                 """
         )) {
@@ -921,6 +963,9 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                     if (!field.access_flags.is(Flags.STATIC)) {
                         Set<String> fieldFlags = field.access_flags.getFieldFlags();
                         Assert.check(fieldFlags.size() == 1 && fieldFlags.contains("ACC_STRICT"));
+                    } else {
+                        Set<String> fieldFlags = field.access_flags.getFieldFlags();
+                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains("ACC_STRICT") && fieldFlags.contains("ACC_STATIC"));
                     }
                 }
             }
