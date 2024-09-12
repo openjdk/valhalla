@@ -28,62 +28,56 @@
             are generated for value classes.
  * @requires vm.jvmti
  * @enablePreview
- * @compile FieldAccessModify.java
- * @run main/othervm/native -agentlib:FieldAccessModify FieldAccessModify
+ * @run main/othervm/native -agentlib:FieldAccessModify -XX:+EnableValhalla FieldAccessModify
  */
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
-
 public class FieldAccessModify {
 
     private static final String agentLib = "FieldAccessModify";
 
-    private static value class MyPrimitive {
-        public int MyPrimitive_fld1;
-        public int MyPrimitive_fld2;
+    private static value class ValueClass {
+        public int valueClass_fld1;
+        public int valueClass_fld2;
 
-        public MyPrimitive(int v1, int v2) { MyPrimitive_fld1 = v1; MyPrimitive_fld2 = v2; }
-
-        public static MyPrimitive create(int v1, int v2) {
-            return new MyPrimitive(v1, v2);
-        }
+        public ValueClass(int v1, int v2) { valueClass_fld1 = v1; valueClass_fld2 = v2; }
 
         public String toString() {
-            return "MyPrimitive { fld1=" + MyPrimitive_fld1 + ", fld2=" + MyPrimitive_fld2 + "}";
+            return "ValueClass { fld1=" + valueClass_fld1 + ", fld2=" + valueClass_fld2 + "}";
         }
 
     }
 
     private static class InstanceHolder {
-        public final MyPrimitive InstanceHolder_fld1;
+        public final ValueClass instanceHolder_fld1;
 
         public InstanceHolder(int v) {
-            InstanceHolder_fld1 = MyPrimitive.create(v, v + 100);
+            instanceHolder_fld1 = new ValueClass(v, v + 100);
         }
 
         public String toString() {
-            return "InstanceHolder { fld1 is " + InstanceHolder_fld1 + "}";
+            return "InstanceHolder { fld1 is " + instanceHolder_fld1 + "}";
         }
     }
 
-    private static value class PrimitiveHolder {
-        public MyPrimitive PrimitiveHolder_fld1;
+    private static value class ValueHolder {
+        public ValueClass valueHolder_fld1;
 
-        public PrimitiveHolder(int v) {
-            PrimitiveHolder_fld1 = MyPrimitive.create(v, v + 200);
+        public ValueHolder(int v) {
+            valueHolder_fld1 = new ValueClass(v, v + 200);
         }
 
         public String toString() {
-            return "PrimitiveHolder { fld1 is " + PrimitiveHolder_fld1 + "}";
+            return "ValueHolder { fld1 is " + valueHolder_fld1 + "}";
         }
     }
 
     private static class TestHolder {
-        public MyPrimitive primitiveObj = MyPrimitive.create(1, 1);
+        public ValueClass valueObj = new ValueClass(1, 1);
         public InstanceHolder instanceHolderObj = new InstanceHolder(1);
-        public PrimitiveHolder primitiveHolderObj = new PrimitiveHolder(1);
+        public ValueHolder valueHolderObj = new ValueHolder(1);
     }
 
     public static void main(String[] args) throws Exception {
@@ -98,67 +92,67 @@ public class FieldAccessModify {
         // create objects for access testing before setting watchers
         TestHolder testHolder = new TestHolder();
 
-        if (!initWatchers(MyPrimitive.class, MyPrimitive.class.getDeclaredField("MyPrimitive_fld1"))) {
-            throw new RuntimeException("Watchers initializations error (MyPrimitive_fld1)");
+        if (!initWatchers(ValueClass.class, ValueClass.class.getDeclaredField("valueClass_fld1"))) {
+            throw new RuntimeException("Watchers initializations error (valueClass_fld1)");
         }
-        if (!initWatchers(MyPrimitive.class, MyPrimitive.class.getDeclaredField("MyPrimitive_fld2"))) {
-            throw new RuntimeException("Watchers initializations error (MyPrimitive_fld2)");
+        if (!initWatchers(ValueClass.class, ValueClass.class.getDeclaredField("valueClass_fld2"))) {
+            throw new RuntimeException("Watchers initializations error (valueClass_fld2)");
         }
-        if (!initWatchers(InstanceHolder.class, InstanceHolder.class.getDeclaredField("InstanceHolder_fld1"))) {
-            throw new RuntimeException("Watchers initializations error (InstanceHolder_fld1)");
+        if (!initWatchers(InstanceHolder.class, InstanceHolder.class.getDeclaredField("instanceHolder_fld1"))) {
+            throw new RuntimeException("Watchers initializations error (instanceHolder_fld1)");
         }
-        if (!initWatchers(PrimitiveHolder.class, PrimitiveHolder.class.getDeclaredField("PrimitiveHolder_fld1"))) {
-            throw new RuntimeException("Watchers initializations error (PrimitiveHolder_fld1)");
+        if (!initWatchers(ValueHolder.class, ValueHolder.class.getDeclaredField("valueHolder_fld1"))) {
+            throw new RuntimeException("Watchers initializations error (valueHolder_fld1)");
         }
 
-        test("MyPrimitive (access)", () -> {
-                testHolder.primitiveObj.toString();     // should access both MyPrimitive_fld1 and MyPrimitive_fld2
+        test("ValueClass (access)", () -> {
+                testHolder.valueObj.toString();     // should access both valueClass_fld1 and valueClass_fld2
             }, new TestResult() {
-                public boolean MyPrimitive_fld1_access;
-                public boolean MyPrimitive_fld2_access;
+                public boolean valueClass_fld1_access;
+                public boolean valueClass_fld2_access;
             });
 
         test("InstanceHolder (access)", () ->  {
                 testHolder.instanceHolderObj.toString();
             }, new TestResult() {
-                public boolean InstanceHolder_fld1_access;
-                // MyPrimitive fields should be accessed too
-                public boolean MyPrimitive_fld1_access;
-                public boolean MyPrimitive_fld2_access;
+                public boolean instanceHolder_fld1_access;
+                // ValueClass fields should be accessed too
+                public boolean valueClass_fld1_access;
+                public boolean valueClass_fld2_access;
             });
 
-        test("PrimitiveHolder (access)", () ->  {
-                testHolder.primitiveHolderObj.toString();
+        test("ValueHolder (access)", () ->  {
+                testHolder.valueHolderObj.toString();
             }, new TestResult() {
-                public boolean PrimitiveHolder_fld1_access;
-                // MyPrimitive fields should be accessed too
-                public boolean MyPrimitive_fld1_access;
-                public boolean MyPrimitive_fld2_access;
+                public boolean valueHolder_fld1_access;
+                // ValueClass fields should be accessed too
+                public boolean valueClass_fld1_access;
+                public boolean valueClass_fld2_access;
             });
 
-        test("MyPrimitive (modify)", () ->  {
-                MyPrimitive obj = MyPrimitive.create(1, 1);
+        test("ValueClass (modify)", () ->  {
+                ValueClass obj = new ValueClass(1, 1);
             }, new TestResult() {
-                // KNOWN_ISSUE public boolean MyPrimitive_fld1_modify;
-                // KNOWN_ISSUE public boolean MyPrimitive_fld2_modify;
+                public boolean valueClass_fld1_modify;
+                public boolean valueClass_fld2_modify;
             });
 
         test("InstanceHolder (modify)", () ->  {
                 InstanceHolder obj = new InstanceHolder(10);
             }, new TestResult() {
-                public boolean InstanceHolder_fld1_modify;
-                // MyPrimitive fields should be modified too
-                // KNOWN_ISSUE public boolean MyPrimitive_fld1_modify;
-                // KNOWN_ISSUE public boolean MyPrimitive_fld2_modify;
+                public boolean instanceHolder_fld1_modify;
+                // ValueClass fields should be modified too
+                boolean valueClass_fld1_modify;
+                public boolean valueClass_fld2_modify;
             });
 
-        test("PrimitiveHolder (modify)", () ->  {
-                PrimitiveHolder obj = new PrimitiveHolder(11);
+        test("ValueHolder (modify)", () ->  {
+                ValueHolder obj = new ValueHolder(11);
             }, new TestResult() {
-                // KNOWN_ISSUE public boolean PrimitiveHolder_fld1_modify;
-                // MyPrimitive fields should be modified too
-                // KNOWN_ISSUE public boolean MyPrimitive_fld1_modify;
-                // KNOWN_ISSUE public boolean MyPrimitive_fld2_modify;
+                public boolean valueHolder_fld1_modify;
+                // ValueClass fields should be modified too
+                public boolean valueClass_fld1_modify;
+                public boolean valueClass_fld2_modify;
             });
 
     }

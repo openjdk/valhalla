@@ -157,7 +157,7 @@ serviceability/attach/ConcAttachTest.java 8290043 linux-all
 serviceability/jvmti/stress/StackTrace/NotSuspended/GetStackTraceNotSuspendedStressTest.java 8315980 linux-all,windows-x64
 
 # Valhalla TODO:
-serviceability/jvmti/Valhalla/HeapDump/HeapDump.java 8317416 generic-all
+serviceability/jvmti/valhalla/HeapDump/HeapDump.java 8317416 generic-all
 
 serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
 serviceability/sa/ClhsdbCDSJstackPrintAll.java 8190936 generic-all
