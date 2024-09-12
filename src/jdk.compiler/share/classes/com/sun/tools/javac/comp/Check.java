@@ -1321,12 +1321,11 @@ public class Check {
             else {
                 boolean isInstanceFieldOfValueClass =
                         (sym.owner.type.isValueClass() && (flags & STATIC) == 0);
-                boolean isNonNullableInstanceFieldOfNonValueClass =
-                        (!sym.owner.type.isValueClass() && (flags & STATIC) == 0) && types.isNonNullable(sym.type);
-                mask = isInstanceFieldOfValueClass || isNonNullableInstanceFieldOfNonValueClass ? ExtendedVarFlags : VarFlags;
+                boolean isNonNullableFieldOfNonValueClass = !sym.owner.type.isValueClass() && types.isNonNullable(sym.type);
+                mask = isInstanceFieldOfValueClass || isNonNullableFieldOfNonValueClass ? ExtendedVarFlags : VarFlags;
                 if (isInstanceFieldOfValueClass) {
                     implicit |= FINAL | STRICT;
-                } else if (isNonNullableInstanceFieldOfNonValueClass) {
+                } else if (isNonNullableFieldOfNonValueClass) {
                     implicit |= STRICT;
                 }
             }
