@@ -191,7 +191,7 @@ public class TestFloat16VectorOps {
     @Test
     @Warmup(10000)
     @IR(counts = {IRNode.ABS_VHF, ">= 1"},
-        applyIfCPUFeature = {"sve", "true"})
+        applyIfCPUFeatureOr = {"avx512_fp16", "true", "sve", "true"})
     @IR(counts = {IRNode.ABS_VHF, ">= 1"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void vectorAbsFloat16() {
@@ -213,7 +213,7 @@ public class TestFloat16VectorOps {
     @Test
     @Warmup(10000)
     @IR(counts = {IRNode.NEG_VHF, ">= 1"},
-        applyIfCPUFeature = {"sve", "true"})
+        applyIfCPUFeatureOr = {"avx512_fp16", "true", "sve", "true"})
     @IR(counts = {IRNode.NEG_VHF, ">= 1"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void vectorNegFloat16() {
@@ -235,7 +235,7 @@ public class TestFloat16VectorOps {
     @Test
     @Warmup(10000)
     @IR(counts = {IRNode.SQRT_VHF, ">= 1"},
-        applyIfCPUFeature = {"sve", "true"})
+        applyIfCPUFeatureOr = {"avx512_fp16", "true", "sve", "true"})
     @IR(counts = {IRNode.SQRT_VHF, ">= 1"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void vectorSqrtFloat16() {
@@ -257,7 +257,7 @@ public class TestFloat16VectorOps {
     @Test
     @Warmup(10000)
     @IR(counts = {IRNode.FMA_VHF, ">= 1"},
-        applyIfCPUFeature = {"sve", "true"})
+        applyIfCPUFeatureOr = {"avx512_fp16", "true", "sve", "true"})
     @IR(counts = {IRNode.FMA_VHF, ">= 1"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void vectorFmaFloat16() {

@@ -148,6 +148,8 @@ public class TestFP16ScalarOps {
 
     @Test
     @IR(counts = {IRNode.ABS_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
+    @IR(counts = {IRNode.ABS_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testAbs() {
         Float16 res = shortBitsToFloat16((short)0);
@@ -158,6 +160,8 @@ public class TestFP16ScalarOps {
     }
 
     @Test
+    @IR(counts = {IRNode.NEG_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
     @IR(counts = {IRNode.NEG_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testNeg() {
@@ -170,6 +174,8 @@ public class TestFP16ScalarOps {
 
     @Test
     @IR(counts = {IRNode.SQRT_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
+    @IR(counts = {IRNode.SQRT_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testSqrt() {
         Float16 res = shortBitsToFloat16((short)0);
@@ -180,6 +186,8 @@ public class TestFP16ScalarOps {
     }
 
     @Test
+    @IR(counts = {IRNode.FMA_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
+        applyIfCPUFeature = {"avx512_fp16", "true"})
     @IR(counts = {IRNode.FMA_HF, "> 0", IRNode.REINTERPRET_S2HF, "> 0", IRNode.REINTERPRET_HF2S, "> 0"},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     public void testFma() {
