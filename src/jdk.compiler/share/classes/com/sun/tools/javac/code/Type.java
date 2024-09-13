@@ -1138,7 +1138,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 //where
             private String className(Symbol sym, boolean longform) {
-                if (sym.name.isEmpty() && (sym.flags() & COMPOUND) != 0) {
+                // invoking sym.flags() below can provoke symbol completion
+                if (sym.name.isEmpty() && (sym.flags_field & COMPOUND) != 0) {
                     StringBuilder s = new StringBuilder(supertype_field.toString());
                     for (List<Type> is=interfaces_field; is.nonEmpty(); is = is.tail) {
                         s.append("&");

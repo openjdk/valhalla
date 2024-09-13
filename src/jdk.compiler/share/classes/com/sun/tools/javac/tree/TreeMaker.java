@@ -893,7 +893,11 @@ public class TreeMaker implements JCTree.Factory {
         default:
             throw new AssertionError("unexpected type: " + t);
         }
-        return tp.setType(t);
+        tp.setType(t);
+        TypeMetadata.NullMarker nm = t.getMetadata(TypeMetadata.NullMarker.class);
+        return (nm != null && nm.nullMarker() != NullMarker.UNSPECIFIED && tp instanceof JCNullableTypeExpression) ?
+            ((JCNullableTypeExpression)tp).setNullMarker(t.getMetadata(TypeMetadata.NullMarker.class).nullMarker()) :
+            tp;
     }
 
     /** Create a list of trees representing given list of types.

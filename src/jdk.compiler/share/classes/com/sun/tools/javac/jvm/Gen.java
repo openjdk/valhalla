@@ -930,17 +930,13 @@ public class Gen extends JCTree.Visitor {
     }
 
     /** Derived visitor method: generate code for a list of method arguments.
-     *  @param trees    The argument expressions to be visited.
-     *  @param pts      The expression's expected types (i.e. the formal parameter
-     *                  types of the invoked method).
+     *  @param trees            The argument expressions to be visited.
+     *  @param pts              The expression's expected types (i.e. the formal parameter
+     *                          types of the invoked method), these types could be erased.
      */
     public void genArgs(List<JCExpression> trees, List<Type> pts) {
         for (List<JCExpression> l = trees; l.nonEmpty(); l = l.tail) {
             genExpr(l.head, pts.head).load();
-            if (types.isNonNullable(pts.head) && !types.isNullable(l.head.type)) {
-                code.emitop0(dup);
-                genNullCheck(l.head);
-            }
             pts = pts.tail;
         }
         // require lists be of same length
@@ -1122,10 +1118,6 @@ public class Gen extends JCTree.Visitor {
                 Assert.check(code.isStatementStart());
                 code.newLocal(v);
                 genExpr(tree.init, v.erasure(types)).load();
-                if (types.isNonNullable(tree.type) && !types.isNonNullable(tree.init.type)) {
-                    code.emitop0(dup);
-                    genNullCheck(tree.init);
-                }
                 items.makeLocalItem(v).store();
                 Assert.check(code.isStatementStart());
             }
@@ -1977,8 +1969,8 @@ public class Gen extends JCTree.Visitor {
         // the parameters of the method's external type (that is, any implicit
         // outer instance of a super(...) call appears as first parameter).
         MethodSymbol msym = (MethodSymbol)TreeInfo.symbol(tree.meth);
-        genArgs(tree.args,
-                msym.externalType(types).getParameterTypes());
+        List<Type> erasedPts = msym.externalType(types).getParameterTypes();
+        genArgs(tree.args, erasedPts);
         if (!msym.isDynamic()) {
             code.statBegin(tree.pos);
         }
@@ -2070,7 +2062,8 @@ public class Gen extends JCTree.Visitor {
         // Generate code for all arguments, where the expected types are
         // the parameters of the constructor's external type (that is,
         // any implicit outer instance appears as first parameter).
-        genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
+        List<Type> erasedPts = tree.constructor.externalType(types).getParameterTypes();
+        genArgs(tree.args, erasedPts);
 
         items.makeMemberItem(tree.constructor, true).invoke();
         result = items.makeStackItem(tree.type);
@@ -2127,10 +2120,6 @@ public class Gen extends JCTree.Visitor {
     public void visitAssign(JCAssign tree) {
         Item l = genExpr(tree.lhs, tree.lhs.type);
         genExpr(tree.rhs, tree.lhs.type).load();
-        if (types.isNonNullable(tree.lhs.type) && !types.isNonNullable(tree.rhs.type)) {
-            code.emitop0(dup);
-            genNullCheck(tree.rhs);
-        }
         if (tree.rhs.type.hasTag(BOT)) {
             /* This is just a case of widening reference conversion that per 5.1.5 simply calls
                for "regarding a reference as having some other type in a manner that can be proved
@@ -2336,10 +2325,6 @@ public class Gen extends JCTree.Visitor {
 
     public void visitTypeCast(JCTypeCast tree) {
         result = genExpr(tree.expr, tree.clazz.type).load();
-        if (types.isNonNullable(tree.clazz.type) && !types.isNonNullable(tree.expr.type)) {
-            code.emitop0(dup);
-            genNullCheck(tree.expr);
-        }
         setTypeAnnotationPositions(tree.pos);
         // Additional code is only needed if we cast to a reference type
         // which is not statically a supertype of the expression's type.

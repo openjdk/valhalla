@@ -175,29 +175,62 @@ public class TransTypes extends TreeTranslator {
 
     /** Translate method argument list, casting each argument
      *  to its corresponding type in a list of target types.
-     *  @param _args            The method argument list.
-     *  @param parameters       The list of target types.
-     *  @param varargsElement   The erasure of the varargs element type,
-     *  or null if translating a non-varargs invocation
+     *  @param _args               The method argument list.
+     *  @param parameters          The list of target types.
+     *  @param varargsElement      The erasure of the varargs element type,
+     *                             or null if translating a non-varargs invocation
      */
     <T extends JCTree> List<T> translateArgs(List<T> _args,
-                                           List<Type> parameters,
-                                           Type varargsElement) {
-        if (parameters.isEmpty()) return _args;
+                                             List<Type> parameters,
+                                             Type varargsElement) {
+        return translateArgs(_args, parameters, List.nil(), varargsElement, varargsElement);
+    }
+
+    /** Translate method argument list, casting each argument
+     *  to its corresponding type in a list of target types.
+     *  @param _args                      The method argument list.
+     *  @param erasedParameterTypes       The list of target types (after erasure).
+     *  @param unerasedParamTypes         The list of target original parameter types.
+     *  @param varargsElement             The erasure of the varargs element type,
+     *                                    or null if translating a non-varargs invocation
+     */
+    @SuppressWarnings("unchecked")
+    <T extends JCTree> List<T> translateArgs(List<T> _args,
+                                           List<Type> erasedParameterTypes,
+                                           List<Type> unerasedParamTypes,
+                                           Type varargsElement,
+                                           Type originalVarargsElement) {
+        if (erasedParameterTypes.isEmpty()) return _args;
         List<T> args = _args;
-        while (parameters.tail.nonEmpty()) {
-            args.head = translate(args.head, parameters.head);
+        while (erasedParameterTypes.tail.nonEmpty()) {
+            if (!unerasedParamTypes.isEmpty() && unerasedParamTypes.head != null) {
+                if (types.isNonNullable(unerasedParamTypes.head) && !types.isNonNullable(args.head.type)) {
+                    args.head = (T)attr.makeNullCheck((JCExpression)args.head);
+                }
+            }
+            args.head = translate(args.head, erasedParameterTypes.head);
             args = args.tail;
-            parameters = parameters.tail;
+            erasedParameterTypes = erasedParameterTypes.tail;
+            if (!unerasedParamTypes.isEmpty()) {
+                unerasedParamTypes = unerasedParamTypes.tail;
+            }
         }
-        Type parameter = parameters.head;
+        Type parameter = erasedParameterTypes.head;
         Assert.check(varargsElement != null || args.length() == 1);
         if (varargsElement != null) {
             while (args.nonEmpty()) {
+                if (types.isNonNullable(originalVarargsElement) && !types.isNonNullable(args.head.type)) {
+                    args.head = (T)attr.makeNullCheck((JCExpression)args.head);
+                }
                 args.head = translate(args.head, varargsElement);
                 args = args.tail;
             }
         } else {
+            if (!unerasedParamTypes.isEmpty() && unerasedParamTypes.head != null) {
+                if (types.isNonNullable(unerasedParamTypes.head) && !types.isNonNullable(args.head.type)) {
+                    args.head = (T)attr.makeNullCheck((JCExpression)args.head);
+                }
+            }
             args.head = translate(args.head, parameter);
         }
         return _args;
@@ -485,6 +518,11 @@ public class TransTypes extends TreeTranslator {
 
     public void visitVarDef(JCVariableDecl tree) {
         tree.vartype = translate(tree.vartype, null);
+        if (tree.init != null) {
+            if (types.isNonNullable(tree.type) && !types.isNonNullable(tree.init.type)) {
+                tree.init = attr.makeNullCheck(tree.init);
+            }
+        }
         tree.init = translate(tree.init, tree.sym.erasure(types));
         tree.type = erasure(tree.type);
         result = tree;
@@ -666,12 +704,18 @@ public class TransTypes extends TreeTranslator {
         tree.meth = translate(tree.meth, null);
         Symbol meth = TreeInfo.symbol(tree.meth);
         Type mt = meth.erasure(types);
+        List<Type> unerasedParamTypes = meth.type.getParameterTypes();
+        Type originalVarargsElement = tree.varargsElement;
         boolean useInstantiatedPtArgs = !types.isSignaturePolymorphic((MethodSymbol)meth.baseSymbol());
         List<Type> argtypes = useInstantiatedPtArgs ?
                 tree.meth.type.getParameterTypes() :
                 mt.getParameterTypes();
-        if (meth.name == names.init && meth.owner == syms.enumSym)
+        if (meth.name == names.init && meth.owner == syms.enumSym) {
+            // this is special case code only for j.l.Enum constructor and will effectively
+            // set the argtypes to an empty list making the invocation to translateArgs a no-op
             argtypes = argtypes.tail.tail;
+            unerasedParamTypes = unerasedParamTypes.tail.tail;
+        }
         if (tree.varargsElement != null)
             tree.varargsElement = types.erasure(tree.varargsElement);
         else
@@ -679,7 +723,7 @@ public class TransTypes extends TreeTranslator {
                 Assert.error(String.format("Incorrect number of arguments; expected %d, found %d",
                         tree.args.length(), argtypes.length()));
             }
-        tree.args = translateArgs(tree.args, argtypes, tree.varargsElement);
+        tree.args = translateArgs(tree.args, argtypes, unerasedParamTypes, tree.varargsElement, originalVarargsElement);
 
         tree.type = types.erasure(tree.type);
         // Insert casts of method invocation results as needed.
@@ -705,10 +749,11 @@ public class TransTypes extends TreeTranslator {
                 tree.constructor.erasure(types).getParameterTypes();
 
         tree.clazz = translate(tree.clazz, null);
+        Type originalVarargsElement = tree.varargsElement;
         if (tree.varargsElement != null)
             tree.varargsElement = types.erasure(tree.varargsElement);
         tree.args = translateArgs(
-            tree.args, argtypes, tree.varargsElement);
+            tree.args, argtypes, tree.constructor.type.getParameterTypes(), tree.varargsElement, originalVarargsElement);
         tree.def = translate(tree.def, null);
         if (erasedConstructorType != null)
             tree.constructorType = erasedConstructorType;
@@ -736,6 +781,9 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitAssign(JCAssign tree) {
+        if (types.isNonNullable(tree.lhs.type) && !types.isNonNullable(tree.rhs.type)) {
+            tree.rhs = attr.makeNullCheck(tree.rhs);
+        }
         tree.lhs = translate(tree.lhs, null);
         tree.rhs = translate(tree.rhs, erasure(tree.lhs.type));
         tree.type = erasure(tree.lhs.type);
@@ -772,6 +820,9 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitTypeCast(JCTypeCast tree) {
+        if (types.isNonNullable(tree.clazz.type) && !types.isNonNullable(tree.expr.type)) {
+            tree.expr = attr.makeNullCheck(tree.expr);
+        }
         tree.clazz = translate(tree.clazz, null);
         Type originalTarget = tree.type;
         tree.type = erasure(tree.type);

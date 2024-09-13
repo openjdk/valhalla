@@ -2911,8 +2911,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             return nullMarker;
         }
 
-        public void setNullMarker(NullMarker nullMarker) {
+        public JCNullableTypeExpression setNullMarker(NullMarker nullMarker) {
             this.nullMarker = nullMarker;
+            return this;
         }
 
         public enum NullMarker {
