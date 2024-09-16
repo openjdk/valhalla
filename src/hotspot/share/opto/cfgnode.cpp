@@ -2763,6 +2763,17 @@ bool PhiNode::can_push_inline_types_down(PhaseGVN* phase, const bool can_reshape
   return true;
 }
 
+#ifdef ASSERT
+bool PhiNode::can_push_inline_types_down(PhaseGVN* phase) {
+  if (!can_be_inline_type()) {
+    return false;
+  }
+
+  ciInlineKlass* inline_klass;
+  return can_push_inline_types_down(phase, true, inline_klass);
+}
+#endif // ASSERT
+
 static int compare_types(const Type* const& e1, const Type* const& e2) {
   return (intptr_t)e1 - (intptr_t)e2;
 }

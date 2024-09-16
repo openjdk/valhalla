@@ -37,6 +37,7 @@
 #include "opto/cfgnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/escape.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/macro.hpp"
 #include "opto/locknode.hpp"
 #include "opto/phaseX.hpp"
@@ -567,8 +568,7 @@ bool ConnectionGraph::can_reduce_check_users(Node* n, uint nesting) const {
     } else if (nesting > 0) {
       NOT_PRODUCT(if (TraceReduceAllocationMerges) tty->print_cr("Can NOT reduce Phi %d on invocation %d. Unsupported user %s at nesting level %d.", n->_idx, _invocation, use->Name(), nesting);)
       return false;
-    // TODO 8315003 Re-enable
-    } else if (use->is_CastPP() && false) {
+    } else if (use->is_CastPP()) {
       const Type* cast_t = _igvn->type(use);
       if (cast_t == nullptr || cast_t->make_ptr()->isa_instptr() == nullptr) {
 #ifndef PRODUCT
@@ -586,18 +586,23 @@ bool ConnectionGraph::can_reduce_check_users(Node* n, uint nesting) const {
         // CmpP/N used by the If controlling the cast.
         if (use->in(0)->is_IfTrue() || use->in(0)->is_IfFalse()) {
           Node* iff = use->in(0)->in(0);
-          if (iff->Opcode() == Op_If && iff->in(1)->is_Bool() && iff->in(1)->in(1)->is_Cmp()) {
+          // We may have Opaque4 node between If and Bool nodes.
+          // Bail out in such case - we need to preserve Opaque4 for correct
+          // processing predicates after loop opts.
+          bool can_reduce = (iff->Opcode() == Op_If) && iff->in(1)->is_Bool() && iff->in(1)->in(1)->is_Cmp();
+          if (can_reduce) {
             Node* iff_cmp = iff->in(1)->in(1);
             int opc = iff_cmp->Opcode();
-            if ((opc == Op_CmpP || opc == Op_CmpN) && !can_reduce_cmp(n, iff_cmp)) {
+            can_reduce = (opc == Op_CmpP || opc == Op_CmpN) && can_reduce_cmp(n, iff_cmp);
+          }
+          if (!can_reduce) {
 #ifndef PRODUCT
-              if (TraceReduceAllocationMerges) {
-                tty->print_cr("Can NOT reduce Phi %d on invocation %d. CastPP %d doesn't have simple control.", n->_idx, _invocation, use->_idx);
-                n->dump(5);
-              }
-#endif
-              return false;
+            if (TraceReduceAllocationMerges) {
+              tty->print_cr("Can NOT reduce Phi %d on invocation %d. CastPP %d doesn't have simple control.", n->_idx, _invocation, use->_idx);
+              n->dump(5);
             }
+#endif
+            return false;
           }
         }
       }
@@ -1250,12 +1255,16 @@ bool ConnectionGraph::reduce_phi_on_safepoints_helper(Node* ophi, Node* cast, No
 
       AllocateNode* alloc = ptn->ideal_node()->as_Allocate();
       Unique_Node_List value_worklist;
-      SafePointScalarObjectNode* sobj = mexp.create_scalarized_object_description(alloc, sfpt, &value_worklist);
-      // TODO 8315003 Remove this bailout
-      if (value_worklist.size() != 0) {
-        return false;
+#ifdef ASSERT
+      const Type* res_type = alloc->result_cast()->bottom_type();
+      if (res_type->is_inlinetypeptr() && !Compile::current()->has_circular_inline_type()) {
+        PhiNode* phi = ophi->as_Phi();
+        assert(!ophi->as_Phi()->can_push_inline_types_down(_igvn), "missed earlier scalarization opportunity");
       }
+#endif
+      SafePointScalarObjectNode* sobj = mexp.create_scalarized_object_description(alloc, sfpt, &value_worklist);
       if (sobj == nullptr) {
+        _compile->record_failure(C2Compiler::retry_no_reduce_allocation_merges());
         return false;
       }
 
@@ -1266,6 +1275,15 @@ bool ConnectionGraph::reduce_phi_on_safepoints_helper(Node* ophi, Node* cast, No
 
       // Register the scalarized object as a candidate for reallocation
       smerge->add_req(sobj);
+
+      // Scalarize inline types that were added to the safepoint.
+      // Don't allow linking a constant oop (if available) for flat array elements
+      // because Deoptimization::reassign_flat_array_elements needs field values.
+      const bool allow_oop = !merge_t->is_flat();
+      for (uint j = 0; j < value_worklist.size(); ++j) {
+        InlineTypeNode* vt = value_worklist.at(j)->as_InlineType();
+        vt->make_scalar_in_safepoints(_igvn, allow_oop);
+      }
     }
 
     // Replaces debug information references to "original_sfpt_parent" in "sfpt" with references to "smerge"
