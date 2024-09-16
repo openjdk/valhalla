@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,10 +36,16 @@ import jdk.test.lib.RandomFactory;
 public class IeeeRecommendedTests {
     private IeeeRecommendedTests(){}
 
-    static final float  NaNf = Float.NaN;
-    static final double NaNd = Double.NaN;
-    static final float  infinityF = Float.POSITIVE_INFINITY;
-    static final double infinityD = Double.POSITIVE_INFINITY;
+    static final Float16  NaNf16 = Float16.NaN;
+    static final float    NaNf = Float.NaN;
+    static final double   NaNd = Double.NaN;
+    static final Float16  infinityF16 = Float16.POSITIVE_INFINITY;
+    static final float    infinityF = Float.POSITIVE_INFINITY;
+    static final double   infinityD = Double.POSITIVE_INFINITY;
+
+    static final Float16  Float16_MAX_VALUEmm       = Float16.valueOf(0x1.ff8P+15f);
+    static final Float16  Float16_MAX_SUBNORMAL     = Float16.valueOf(0x0.ffcP-14f);
+    static final Float16  Float16_MAX_SUBNORMALmm   = Float16.valueOf(0x0.ff8P-14f);
 
     static final float  Float_MAX_VALUEmm       = 0x1.fffffcP+127f;
     static final float  Float_MAX_SUBNORMAL     = 0x0.fffffeP-126f;
@@ -51,6 +57,10 @@ public class IeeeRecommendedTests {
 
     // Initialize shared random number generator
     static java.util.Random rand = RandomFactory.getRandom();
+
+    static Float16 copySign(Float16 magnitude, Float16 sign) {
+        return Float16.valueOf(Math.copySign(magnitude.floatValue(), sign.floatValue()));
+    }
 
     /**
      * Returns a floating-point power of two in the normal range.
@@ -68,6 +78,15 @@ public class IeeeRecommendedTests {
         return Float.intBitsToFloat(((n + Float.MAX_EXPONENT) <<
                                      (FloatConsts.SIGNIFICAND_WIDTH-1))
                                     & FloatConsts.EXP_BIT_MASK);
+    }
+
+    /**
+     * Returns a floating-point power of two in the normal range.
+     */
+    static Float16 powerOfTwoF16(int n) {
+        return Float16.shortBitsToFloat16((short) (((n + Float16.MAX_EXPONENT) <<
+                        (Float16Consts.SIGNIFICAND_WIDTH-1))
+                        & Float16Consts.EXP_BIT_MASK));
     }
 
     /* ******************** getExponent tests ****************************** */
@@ -519,6 +538,41 @@ public class IeeeRecommendedTests {
 
     /* ******************** nextUp tests ********************************* */
 
+    public static int testFloat16NextUp() {
+        int failures=0;
+
+        /*
+         * Each row of testCases represents one test case for nextUp;
+         * the first column is the input and the second column is the
+         * expected result.
+         */
+        Float16 testCases [][] = {
+                {NaNf16,                      NaNf16},
+                {Float16.negate(infinityF16),   Float16.negate(Float16.MAX_VALUE)},
+                {Float16.negate(Float16.MAX_VALUE),          Float16.negate(Float16_MAX_VALUEmm)},
+                {Float16.negate(Float16.MIN_NORMAL),         Float16.negate(Float16_MAX_SUBNORMAL)},
+                {Float16.negate(Float16_MAX_SUBNORMAL),         Float16.negate(Float16_MAX_SUBNORMALmm)},
+                {Float16.negate(Float16.MIN_VALUE),         Float16.valueOf(-0.0f)},
+                {Float16.valueOf(-0.0f),         Float16.MIN_VALUE},
+                {Float16.valueOf(0.0f),         Float16.MIN_VALUE},
+                {Float16.MIN_VALUE,           Float16.multiply(Float16.MIN_VALUE, Float16.valueOf(2))},
+
+                {Float16_MAX_SUBNORMALmm,     Float16_MAX_SUBNORMAL},
+                {Float16_MAX_SUBNORMAL,       Float16.MIN_NORMAL},
+                {Float16.MIN_NORMAL,          Float16.add(Float16.MIN_NORMAL, Float16.MIN_VALUE)},
+                {Float16_MAX_VALUEmm,         Float16.MAX_VALUE},
+                {Float16.MAX_VALUE,           infinityF16},
+                {infinityF16,                 infinityF16}
+        };
+
+        for(int i = 0; i < testCases.length; i++) {
+            failures+=Tests.test("Float16.nextUp(Float16)",
+                    testCases[i][0], Float16.nextUp(testCases[i][0]), testCases[i][1]);
+        }
+
+        return failures;
+    }
+
     public static int testFloatNextUp() {
         int failures=0;
 
@@ -595,6 +649,41 @@ public class IeeeRecommendedTests {
     }
 
     /* ******************** nextDown tests ********************************* */
+
+    public static int testFloat16NextDown() {
+        int failures=0;
+
+        /*
+         * Each row of testCases represents one test case for nextDown;
+         * the first column is the input and the second column is the
+         * expected result.
+         */
+        Float16 testCases [][] = {
+                {NaNf16,                      NaNf16},
+                {Float16.negate(infinityF16),                Float16.negate(infinityF16)},
+                {Float16.negate(Float16.MAX_VALUE),          Float16.negate(infinityF16)},
+                {Float16.negate(Float16_MAX_VALUEmm),        Float16.negate(Float16.MAX_VALUE)},
+                {Float16.negate(Float16_MAX_SUBNORMAL),      Float16.negate(Float16.MIN_NORMAL)},
+                {Float16.negate(Float16_MAX_SUBNORMALmm),    Float16.negate(Float16_MAX_SUBNORMAL)},
+                {Float16.valueOf(-0.0f),                     Float16.negate(Float16.MIN_VALUE)},
+                {Float16.valueOf(+0.0f),                     Float16.negate(Float16.MIN_VALUE)},
+                {Float16.MIN_VALUE,           Float16.valueOf(0.0f)},
+                {Float16.multiply(Float16.MIN_VALUE, Float16.valueOf(2)),         Float16.MIN_VALUE},
+                {Float16_MAX_SUBNORMAL,       Float16_MAX_SUBNORMALmm},
+                {Float16.MIN_NORMAL,          Float16_MAX_SUBNORMAL},
+                {Float16.add(Float16.MIN_NORMAL, Float16.MIN_VALUE),           Float16.MIN_NORMAL},
+                {Float16.MAX_VALUE,           Float16_MAX_VALUEmm},
+                {infinityF16,                 Float16.MAX_VALUE},
+        };
+
+        for(int i = 0; i < testCases.length; i++) {
+            failures+=Tests.test("Float16.nextDown(Float16)",
+                    testCases[i][0], Float16.nextDown(testCases[i][0]), testCases[i][1]);
+        }
+
+        return failures;
+    }
+
 
     public static int testFloatNextDown() {
         int failures=0;
@@ -782,7 +871,7 @@ public class IeeeRecommendedTests {
 
     /* ******************** copySign tests******************************** */
 
-   public static int testFloatCopySign() {
+    public static int testFloatCopySign() {
         int failures = 0;
 
         // testCases[0] are logically positive numbers;
@@ -942,6 +1031,206 @@ public class IeeeRecommendedTests {
     }
 
     /* ************************ scalb tests ******************************* */
+
+    static int testScalbCase(Float16 value, int scale_factor, Float16 expected) {
+        int failures=0;
+
+        failures+=Tests.test("Float16.scalb(Float16,int)",
+                value, scale_factor,
+                Float16.scalb(value, scale_factor), expected);
+
+        failures+=Tests.test("Float16.scalb(Float16,int)",
+                Float16.negate(value), scale_factor,
+                Float16.scalb(Float16.negate(value), scale_factor), Float16.negate(expected));
+        return failures;
+    }
+
+    public static int testFloat16Scalb() {
+        int failures=0;
+        int MAX_SCALE = Float16.MAX_EXPONENT + -Float16.MIN_EXPONENT +
+                Float16Consts.SIGNIFICAND_WIDTH + 1;
+
+
+        // Arguments x, where scalb(x,n) is x for any n.
+        Float16 [] identityTestCases = {NaNf16,
+                Float16.valueOf(-0.0f),
+                Float16.valueOf(+0.0f),
+                infinityF16,
+                Float16.negate(infinityF16)
+        };
+
+        Float16 [] subnormalTestCases = {
+                Float16.MIN_VALUE,
+                Float16.multiply(Float16.valueOf(3), Float16.MIN_VALUE),
+                Float16_MAX_SUBNORMALmm,
+                Float16_MAX_SUBNORMAL
+        };
+
+        Float16 [] someTestCases = {
+                Float16.MIN_VALUE,
+                Float16.multiply(Float16.valueOf(3), Float16.MIN_VALUE),
+                Float16_MAX_SUBNORMALmm,
+                Float16_MAX_SUBNORMAL,
+                Float16.MIN_NORMAL,
+                Float16.valueOf(1),
+                Float16.valueOf(2),
+                Float16.valueOf(3),
+                Float16.valueOf(Math.PI),
+                Float16_MAX_VALUEmm,
+                Float16.MAX_VALUE
+        };
+
+        int [] oneMultiplyScalingFactors = {
+                Float16.MIN_EXPONENT,
+                Float16.MIN_EXPONENT+1,
+                -3,
+                -2,
+                -1,
+                0,
+                1,
+                2,
+                3,
+                Float16.MAX_EXPONENT-1,
+                Float16.MAX_EXPONENT
+        };
+
+        int [] manyScalingFactors = {
+                Integer.MIN_VALUE,
+                Integer.MIN_VALUE+1,
+                -MAX_SCALE -1,
+                -MAX_SCALE,
+                -MAX_SCALE+1,
+
+                2*Float16.MIN_EXPONENT-1,       // -29
+                2*Float16.MIN_EXPONENT,         // -28
+                2*Float16.MIN_EXPONENT+1,       // -27
+
+                Float16.MIN_EXPONENT - Float16Consts.SIGNIFICAND_WIDTH,
+                Float16Consts.MIN_SUB_EXPONENT,
+                -Float16.MAX_EXPONENT,          // -15
+                Float16.MIN_EXPONENT,           // -14
+
+                -2,
+                -1,
+                0,
+                1,
+                2,
+
+                Float16.MAX_EXPONENT-1,         // 14
+                Float16.MAX_EXPONENT,           // 15
+                Float16.MAX_EXPONENT+1,         // 16
+
+                2*Float16.MAX_EXPONENT-1,       // 29
+                2*Float16.MAX_EXPONENT,         // 30
+                2*Float16.MAX_EXPONENT+1,       // 31
+
+                MAX_SCALE-1,
+                MAX_SCALE,
+                MAX_SCALE+1,
+                Integer.MAX_VALUE-1,
+                Integer.MAX_VALUE
+        };
+
+        // Test cases where scaling is always a no-op
+        for(int i=0; i < identityTestCases.length; i++) {
+            for(int j=0; j < manyScalingFactors.length; j++) {
+                failures += testScalbCase(identityTestCases[i],
+                        manyScalingFactors[j],
+                        identityTestCases[i]);
+            }
+        }
+
+        // Test cases where result is 0.0 or infinity due to magnitude
+        // of the scaling factor
+        for(int i=0; i < someTestCases.length; i++) {
+            for(int j=0; j < manyScalingFactors.length; j++) {
+                int scaleFactor = manyScalingFactors[j];
+                if (Math.abs(scaleFactor) >= MAX_SCALE) {
+                    Float16 value = someTestCases[i];
+                    failures+=testScalbCase(value,
+                            scaleFactor,
+                            copySign( (scaleFactor>0?infinityF16:Float16.valueOf(0)), value) );
+                }
+            }
+        }
+
+        // Test cases that could be done with one floating-point
+        // multiply.
+        for(int i=0; i < someTestCases.length; i++) {
+            for(int j=0; j < oneMultiplyScalingFactors.length; j++) {
+                int scaleFactor = oneMultiplyScalingFactors[j];
+                Float16 value = someTestCases[i];
+
+                failures+=testScalbCase(value,
+                        scaleFactor,
+                        Float16.multiply(value, powerOfTwoF16(scaleFactor)));
+            }
+        }
+
+        // Create 2^MAX_EXPONENT
+        Float16 twoToTheMaxExp = Float16.valueOf(1); // 2^0
+        for(int i = 0; i < Float16.MAX_EXPONENT; i++)
+            twoToTheMaxExp = Float16.multiply(Float16.valueOf(2), twoToTheMaxExp);
+
+        // Scale-up subnormal values until they all overflow
+        for(int i=0; i < subnormalTestCases.length; i++) {
+            Float16 scale = Float16.valueOf(1); // 2^j
+            Float16 value = subnormalTestCases[i];
+
+            for(int j=Float16.MAX_EXPONENT*2; j < MAX_SCALE; j++) { // MAX_SCALE -1 should cause overflow
+                int scaleFactor = j;
+
+                failures+=testScalbCase(value,
+                        scaleFactor,
+                        (Tests.ilogb(value) +j > Float16.MAX_EXPONENT ) ?
+                                copySign(infinityF16, value) : // overflow
+                                // calculate right answer
+                                Float16.multiply(twoToTheMaxExp,
+                                        Float16.multiply(twoToTheMaxExp,
+                                                Float16.multiply(scale, value))) );
+                scale = Float16.multiply(scale, Float16.valueOf(2));
+            }
+        }
+
+        // Scale down a large number until it underflows.  By scaling
+        // down MAX_NORMALmm, the first subnormal result will be exact
+        // but the next one will round -- all those results can be
+        // checked by halving a separate value in the loop.  Actually,
+        // we can keep halving and checking until the product is zero
+        // since:
+        //
+        // 1. If the scalb of MAX_VALUEmm is subnormal and *not* exact
+        // it will round *up*
+        //
+        // 2. When rounding first occurs in the expected product, it
+        // too rounds up, to 2^-MAX_EXPONENT.
+        //
+        // Halving expected after rounding happends to give the same
+        // result as the scalb operation.
+        Float16 expected = Float16.multiply(Float16_MAX_VALUEmm, Float16.valueOf(0.5f));
+        for(int i = -1; i > -MAX_SCALE; i--) {
+            failures+=testScalbCase(Float16_MAX_VALUEmm, i, expected);
+
+            expected = Float16.multiply(expected, Float16.valueOf(0.5f));
+        }
+
+        // Tricky rounding tests:
+        // Scale down a large number into subnormal range such that if
+        // scalb is being implemented with multiple floating-point
+        // multiplies, the value would round twice if the multiplies
+        // were done in the wrong order.
+
+        Float16 value = Float16.valueOf(0x1.02cP-1);
+        expected     = Float16.valueOf(0x1.02p-17);
+        for(int i = 0; i < Float16.MAX_EXPONENT+2; i++) {
+            failures+=testScalbCase(value,
+                    -16-i,
+                    expected);
+            value = Float16.multiply(value, Float16.valueOf(2));
+        }
+
+        return failures;
+    }
 
     static int testScalbCase(float value, int scale_factor, float expected) {
         int failures=0;
@@ -1681,9 +1970,11 @@ public class IeeeRecommendedTests {
         failures += testFloatNextAfter();
         failures += testDoubleNextAfter();
 
+        failures += testFloat16NextUp();
         failures += testFloatNextUp();
         failures += testDoubleNextUp();
 
+        failures += testFloat16NextDown();
         failures += testFloatNextDown();
         failures += testDoubleNextDown();
 
@@ -1693,6 +1984,7 @@ public class IeeeRecommendedTests {
         failures += testFloatCopySign();
         failures += testDoubleCopySign();
 
+        failures += testFloat16Scalb();
         failures += testFloatScalb();
         failures += testDoubleScalb();
 

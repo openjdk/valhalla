@@ -25,15 +25,9 @@
 
 package java.lang;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.constant.Constable;
-import java.lang.constant.ConstantDesc;
 import java.math.BigDecimal;
-import java.util.Optional;
 
-import jdk.internal.math.FloatConsts;
-import jdk.internal.math.FloatingDecimal;
-import jdk.internal.math.FloatToDecimal;
+import jdk.internal.math.*;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import static java.lang.Float.float16ToFloat;
@@ -1204,4 +1198,126 @@ public final class Float16
         }
         };
     }
+
+    /**
+     * Returns the floating-point value adjacent to {@code v} in
+     * the direction of positive infinity.
+     *
+     * <p>Special Cases:
+     * <ul>
+     * <li> If the argument is NaN, the result is NaN.
+     *
+     * <li> If the argument is positive infinity, the result is
+     * positive infinity.
+     *
+     * <li> If the argument is zero, the result is
+     * {@link #MIN_VALUE}
+     *
+     * </ul>
+     *
+     * @apiNote This method corresponds to the nextUp
+     * operation defined in IEEE 754.
+     *
+     * @param v starting floating-point value
+     * @return The adjacent floating-point value closer to positive
+     * infinity.
+     */
+    public static Float16 nextUp(Float16 v) {
+        float f = v.floatValue();
+        if (f < Float.POSITIVE_INFINITY) {
+            if (f != 0) {
+                int bits = float16ToRawShortBits(v);
+                return shortBitsToFloat16((short) (bits + ((bits >= 0) ? 1 : -1)));
+            }
+            return MIN_VALUE;
+        }
+        return v; // v is NaN or +Infinity
+    }
+
+    /**
+     * Returns the floating-point value adjacent to {@code v} in
+     * the direction of negative infinity.
+     *
+     * <p>Special Cases:
+     * <ul>
+     * <li> If the argument is NaN, the result is NaN.
+     *
+     * <li> If the argument is negative infinity, the result is
+     * negative infinity.
+     *
+     * <li> If the argument is zero, the result is
+     * -{@link #MIN_VALUE}
+     *
+     * </ul>
+     *
+     * @apiNote This method corresponds to the nextDown
+     * operation defined in IEEE 754.
+     *
+     * @param v  starting floating-point value
+     * @return The adjacent floating-point value closer to negative
+     * infinity.
+     */
+    public static Float16 nextDown(Float16 v) {
+        float f = v.floatValue();
+        if (f > Float.NEGATIVE_INFINITY) {
+            if (f != 0) {
+                int bits = float16ToRawShortBits(v);
+                return shortBitsToFloat16((short) (bits - ((bits >= 0) ? 1 : -1)));
+            }
+            return negate(MIN_VALUE);
+        }
+        return v; // v is NaN or -Infinity
+    }
+
+    /**
+     * Returns {@code v} &times; 2<sup>{@code scaleFactor}</sup>
+     * rounded as if performed by a single correctly rounded
+     * floating-point multiply.  If the exponent of the result is
+     * between {@link Float16#MIN_EXPONENT} and {@link
+     * Float16#MAX_EXPONENT}, the answer is calculated exactly.  If the
+     * exponent of the result would be larger than {@code
+     * Float16.MAX_EXPONENT}, an infinity is returned.  Note that if the
+     * result is subnormal, precision may be lost; that is, when
+     * {@code scalb(x, n)} is subnormal, {@code scalb(scalb(x, n),
+     * -n)} may not equal <i>x</i>.  When the result is non-NaN, the
+     * result has the same sign as {@code v}.
+     *
+     * <p>Special cases:
+     * <ul>
+     * <li> If the first argument is NaN, NaN is returned.
+     * <li> If the first argument is infinite, then an infinity of the
+     * same sign is returned.
+     * <li> If the first argument is zero, then a zero of the same
+     * sign is returned.
+     * </ul>
+     *
+     * @apiNote This method corresponds to the scaleB operation
+     * defined in IEEE 754.
+     *
+     * @param v number to be scaled by a power of two.
+     * @param scaleFactor power of 2 used to scale {@code v}
+     * @return {@code v} &times; 2<sup>{@code scaleFactor}</sup>
+     */
+    public static Float16 scalb(Float16 v, int scaleFactor) {
+        // magnitude of a power of two so large that scaling a finite
+        // nonzero value by it would be guaranteed to over or
+        // underflow; due to rounding, scaling down takes an
+        // additional power of two which is reflected here
+        final int MAX_SCALE = Float16.MAX_EXPONENT + -Float16.MIN_EXPONENT +
+                Float16Consts.SIGNIFICAND_WIDTH + 1;
+
+        // Make sure scaling factor is in a reasonable range
+        scaleFactor = Math.max(Math.min(scaleFactor, MAX_SCALE), -MAX_SCALE);
+
+        /*
+         * Since + MAX_SCALE for Float16 fits well within the double
+         * exponent range and + Float16 -> double conversion is exact
+         * the multiplication below will be exact. Therefore, the
+         * rounding that occurs when the double product is cast to
+         * Float16 will be the correctly rounded Float16 result.
+         */
+        return valueOf(v.doubleValue()
+                * Double.longBitsToDouble((long) (scaleFactor + DoubleConsts.EXP_BIAS) << Double.PRECISION - 1));
+    }
+
 }
