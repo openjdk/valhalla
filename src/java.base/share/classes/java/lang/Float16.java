@@ -489,10 +489,6 @@ public final class Float16
         return Float.isFinite(f16.floatValue());
      }
 
-    // Skipping for now
-    // public boolean isNaN()
-    // public boolean isInfinite() {
-
     /**
      * {@return the value of this {@code Float16} as a {@code byte} after
      * a narrowing primitive conversion}

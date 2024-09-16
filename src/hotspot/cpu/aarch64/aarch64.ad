@@ -17301,18 +17301,17 @@ instruct isNaNHF(iRegINoSp dst, vRegF src)
 
 //------------------ FP16 isInfinite -----------------------------
 
-instruct isInfiniteHF(iRegINoSp dst, vRegF src, vRegF tmp)
+instruct isInfiniteHF(iRegINoSp dst, iRegINoSp src)
 %{
-  match(Set dst (IsInfiniteHF src));
-  effect(TEMP tmp);
+  match(Set dst (IsInfiniteHF (ReinterpretS2HF src)));
   format %{ "isInfiniteHF $dst, $src # Half float isInfinite" %}
   ins_encode %{
-    __ fabsh($src$$FloatRegister, $src$$FloatRegister);
-    __ movz(rscratch1, 0x7bff); // Load Float16.MAX_VALUE
-    __ fmovs($tmp$$FloatRegister, rscratch1);
-    __ fcmph($src$$FloatRegister, $tmp$$FloatRegister);
-    __ csetw($dst$$Register, Assembler::GT); // Set result to true if
-                                             // input > max value
+    __ movz(rscratch1, 0x7c00); // Load FP16 positive infinity
+    __ movz(rscratch2, 0x7fff); // Load 16-bit sign mask
+    __ eor(rscratch1, $src$$Register, rscratch1); // eor FP16 positive infinity with src
+    __ ands(rscratch1, rscratch1, rscratch2); // Mask off the sign bit (ensures both positive
+                                              // and negative infinite values are identified)
+    __ csetw($dst$$Register, Assembler::EQ); // Set the destination if result of "and" is zero
   %}
   ins_pipe(pipe_class_default);
 %}
