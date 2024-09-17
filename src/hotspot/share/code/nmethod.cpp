@@ -1212,9 +1212,9 @@ void nmethod::init_defaults(CodeBuffer *code_buffer, CodeOffsets* offsets) {
 
   _entry_offset          = checked_cast<uint16_t>(offsets->value(CodeOffsets::Entry));
   _verified_entry_offset = checked_cast<uint16_t>(offsets->value(CodeOffsets::Verified_Entry));
-  _inline_entry_offset              = _entry_offset;
-  _verified_inline_entry_offset     = _verified_entry_offset;
-  _verified_inline_ro_entry_offset  = _verified_entry_offset;
+  _inline_entry_point             = entry_point();
+  _verified_inline_entry_point    = verified_entry_point();
+  _verified_inline_ro_entry_point = verified_entry_point();
   _stub_offset           = content_offset() + code_buffer->total_offset_of(code_buffer->stubs());
 
   _skipped_instructions_size = checked_cast<uint16_t>(code_buffer->total_skipped_instructions_size());
@@ -1457,9 +1457,9 @@ nmethod::nmethod(
 #else
     DEBUG_ONLY( int data_end_offset = _nul_chk_table_offset + align_up(nul_chk_table->size_in_bytes(), oopSize); )
 #endif
-    _inline_entry_point       = code_begin()         + offsets->value(CodeOffsets::Inline_Entry);
-    _verified_inline_entry_point = code_begin()      + offsets->value(CodeOffsets::Verified_Inline_Entry);
-    _verified_inline_ro_entry_point = code_begin()   + offsets->value(CodeOffsets::Verified_Inline_Entry_RO);
+    _inline_entry_point             = code_begin() + offsets->value(CodeOffsets::Inline_Entry);
+    _verified_inline_entry_point    = code_begin() + offsets->value(CodeOffsets::Verified_Inline_Entry);
+    _verified_inline_ro_entry_point = code_begin() + offsets->value(CodeOffsets::Verified_Inline_Entry_RO);
     assert((data_offset() + data_end_offset) <= nmethod_size, "wrong nmethod's size: %d < %d", nmethod_size, (data_offset() + data_end_offset));
 
     // after _scopes_pcs_offset is set

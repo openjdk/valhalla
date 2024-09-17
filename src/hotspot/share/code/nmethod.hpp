@@ -222,9 +222,10 @@ class nmethod : public CodeBlob {
   address  _osr_entry_point;       // entry point for on stack replacement
   uint16_t _entry_offset;          // entry point with class check
   uint16_t _verified_entry_offset; // entry point without class check
-  uint16_t _inline_entry_offset;               // inline type entry point (unpack all inline type args) with class check
-  uint16_t _verified_inline_entry_offset;      // inline type entry point (unpack all inline type args) without class check
-  uint16_t _verified_inline_ro_entry_offset;   // inline type entry point (unpack receiver only) without class check
+  // TODO: can these be uint16_t, seem rely on -1 CodeOffset, can change later...
+  address _inline_entry_point;              // inline type entry point (unpack all inline type args) with class check
+  address _verified_inline_entry_point;     // inline type entry point (unpack all inline type args) without class check
+  address _verified_inline_ro_entry_point;  // inline type entry point (unpack receiver only) without class check
   int      _entry_bci;             // != InvocationEntryBci if this nmethod is an on-stack replacement method
 
   // _consts_offset == _content_offset because SECT_CONSTS is first in code buffer
@@ -605,9 +606,9 @@ public:
   // entry points
   address entry_point() const          { return code_begin() + _entry_offset;          } // normal entry point
   address verified_entry_point() const { return code_begin() + _verified_entry_offset; } // if klass is correct
-  address inline_entry_point() const              { return code_begin() + _inline_entry_offset; }             // inline type entry point (unpack all inline type args)
-  address verified_inline_entry_point() const     { return code_begin() + _verified_inline_entry_offset; }    // inline type entry point (unpack all inline type args) without class check
-  address verified_inline_ro_entry_point() const  { return code_begin() + _verified_inline_ro_entry_offset; } // inline type entry point (only unpack receiver) without class check
+  address inline_entry_point() const              { return _inline_entry_point; }             // inline type entry point (unpack all inline type args)
+  address verified_inline_entry_point() const     { return _verified_inline_entry_point; }    // inline type entry point (unpack all inline type args) without class check
+  address verified_inline_ro_entry_point() const  { return _verified_inline_ro_entry_point; } // inline type entry point (only unpack receiver) without class check
 
   enum : signed char { not_installed = -1, // in construction, only the owner doing the construction is
                                            // allowed to advance state

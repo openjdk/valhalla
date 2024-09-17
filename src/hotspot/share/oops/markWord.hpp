@@ -415,7 +415,7 @@ class markWord {
   inline static markWord encode_pointer_as_mark(void* p) { return from_pointer(p).set_marked(); }
 
   // Recover address of oop from encoded form used in mark
-  inline void* decode_pointer() {
+  inline void* decode_pointer() const {
     return (EnableValhalla && _value < static_prototype_value_max) ? nullptr :
       (void*) (clear_lock_bits().value());
   }
