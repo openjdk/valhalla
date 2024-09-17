@@ -1028,7 +1028,7 @@ public class Annotate {
         return validRepeated;
     }
 
-    /********************
+    /* ******************
      * Type annotations *
      ********************/
 
@@ -1181,7 +1181,7 @@ public class Annotate {
         }
     }
 
-    /*********************
+    /* *******************
      * Completer support *
      *********************/
 
