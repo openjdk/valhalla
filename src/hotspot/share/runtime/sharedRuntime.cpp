@@ -1442,7 +1442,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_ic_miss(JavaThread* 
     current->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return entry_for_handle_wrong_method(callee_method, false, is_optimized, caller_is_c1);
+  return get_resolved_entry(current, callee_method, false, is_optimized, caller_is_c1);
 JRT_END
 
 
@@ -1502,7 +1502,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* current)
     current->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return entry_for_handle_wrong_method(callee_method, is_static_call, is_optimized, caller_is_c1);
+  return get_resolved_entry(current, callee_method, is_static_call, is_optimized, caller_is_c1);
 JRT_END
 
 // Handle abstract method call
@@ -1539,6 +1539,27 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_abstract(JavaThread*
   return res;
 JRT_END
 
+// return verified_code_entry if interp_only_mode is not set for the current thread;
+// otherwise return c2i entry.
+address SharedRuntime::get_resolved_entry(JavaThread* current, methodHandle callee_method,
+                                          bool is_static_call, bool is_optimized, bool caller_is_c1) {
+  if (current->is_interp_only_mode() && !callee_method->is_special_native_intrinsic()) {
+    // In interp_only_mode we need to go to the interpreted entry
+    // The c2i won't patch in this mode -- see fixup_callers_callsite
+    return callee_method->get_c2i_entry();
+  }
+
+  if (caller_is_c1) {
+    assert(callee_method->verified_inline_code_entry() != nullptr, "Jump to zero!");
+    return callee_method->verified_inline_code_entry();
+  } else if (is_static_call || is_optimized) {
+    assert(callee_method->verified_code_entry() != nullptr, "Jump to zero!");
+    return callee_method->verified_code_entry();
+  } else {
+    assert(callee_method->verified_inline_ro_code_entry() != nullptr, "Jump to zero!");
+    return callee_method->verified_inline_ro_code_entry();
+  }
+}
 
 // resolve a static call and patch code
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_static_call_C(JavaThread* current ))
@@ -1548,38 +1569,10 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_static_call_C(JavaThread* curren
   JRT_BLOCK
     callee_method = SharedRuntime::resolve_helper(false, false, caller_is_c1, CHECK_NULL);
     current->set_vm_result_2(callee_method());
-
-    if (current->is_interp_only_mode()) {
-      RegisterMap reg_map(current,
-                          RegisterMap::UpdateMap::skip,
-                          RegisterMap::ProcessFrames::include,
-                          RegisterMap::WalkContinuation::skip);
-      frame stub_frame = current->last_frame();
-      assert(stub_frame.is_runtime_frame(), "must be a runtimeStub");
-      frame caller = stub_frame.sender(&reg_map);
-      enter_special = caller.cb() != nullptr && caller.cb()->is_nmethod()
-        && caller.cb()->as_nmethod()->method()->is_continuation_enter_intrinsic();
-    }
   JRT_BLOCK_END
-
-  if (current->is_interp_only_mode() && enter_special) {
-    // enterSpecial is compiled and calls this method to resolve the call to Continuation::enter
-    // but in interp_only_mode we need to go to the interpreted entry
-    // The c2i won't patch in this mode -- see fixup_callers_callsite
-    //
-    // This should probably be done in all cases, not just enterSpecial (see JDK-8218403),
-    // but that's part of a larger fix, and the situation is worse for enterSpecial, as it has no
-    // interpreted version.
-    return callee_method->get_c2i_entry();
-  }
-
   // return compiled code entry point after potential safepoints
-  address entry = caller_is_c1 ?
-    callee_method->verified_inline_code_entry() : callee_method->verified_code_entry();
-  assert(entry != nullptr, "Jump to zero!");
-  return entry;
+  return get_resolved_entry(current, callee_method, true, false, caller_is_c1);
 JRT_END
-
 
 // resolve virtual call and update inline cache to monomorphic
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_virtual_call_C(JavaThread* current))
@@ -1590,10 +1583,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_virtual_call_C(JavaThread* curre
     current->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  address entry = caller_is_c1 ?
-    callee_method->verified_inline_code_entry() : callee_method->verified_inline_ro_code_entry();
-  assert(entry != nullptr, "Jump to zero!");
-  return entry;
+  return get_resolved_entry(current, callee_method, false, false, caller_is_c1);
 JRT_END
 
 
@@ -1607,10 +1597,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread* c
     current->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  address entry = caller_is_c1 ?
-    callee_method->verified_inline_code_entry() : callee_method->verified_code_entry();
-  assert(entry != nullptr, "Jump to zero!");
-  return entry;
+  return get_resolved_entry(current, callee_method, false, true, caller_is_c1);
 JRT_END
 
 
@@ -2034,6 +2021,20 @@ void SharedRuntime::monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThrea
 JRT_LEAF(void, SharedRuntime::complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current))
   assert(current == JavaThread::current(), "pre-condition");
   SharedRuntime::monitor_exit_helper(obj, lock, current);
+JRT_END
+
+// This is only called when CheckJNICalls is true, and only
+// for virtual thread termination.
+JRT_LEAF(void,  SharedRuntime::log_jni_monitor_still_held())
+  assert(CheckJNICalls, "Only call this when checking JNI usage");
+  if (log_is_enabled(Debug, jni)) {
+    JavaThread* current = JavaThread::current();
+    int64_t vthread_id = java_lang_Thread::thread_id(current->vthread());
+    int64_t carrier_id = java_lang_Thread::thread_id(current->threadObj());
+    log_debug(jni)("VirtualThread (tid: " INT64_FORMAT ", carrier id: " INT64_FORMAT
+                   ") exiting with Objects still locked by JNI MonitorEnter.",
+                   vthread_id, carrier_id);
+  }
 JRT_END
 
 #ifndef PRODUCT

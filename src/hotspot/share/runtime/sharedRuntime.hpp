@@ -350,18 +350,8 @@ class SharedRuntime: AllStatic {
 
   static void monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
-  static address entry_for_handle_wrong_method(methodHandle callee_method, bool is_static_call, bool is_optimized, bool caller_is_c1) {
-    assert(callee_method->verified_code_entry() != nullptr, "Jump to zero!");
-    assert(callee_method->verified_inline_code_entry() != nullptr, "Jump to zero!");
-    assert(callee_method->verified_inline_ro_code_entry() != nullptr, "Jump to zero!");
-    if (caller_is_c1) {
-      return callee_method->verified_inline_code_entry();
-    } else if (is_static_call || is_optimized) {
-      return callee_method->verified_code_entry();
-    } else {
-      return callee_method->verified_inline_ro_code_entry();
-    }
-  }
+  // Issue UL warning for unlocked JNI monitor on virtual thread termination
+  static void log_jni_monitor_still_held();
 
  private:
   static Handle find_callee_info(Bytecodes::Code& bc, CallInfo& callinfo, TRAPS);
@@ -522,6 +512,8 @@ class SharedRuntime: AllStatic {
   static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
   // Resolving of calls
+  static address get_resolved_entry        (JavaThread* current, methodHandle callee_method,
+                                            bool is_static_call, bool is_optimized, bool caller_is_c1);
   static address resolve_static_call_C     (JavaThread* current);
   static address resolve_virtual_call_C    (JavaThread* current);
   static address resolve_opt_virtual_call_C(JavaThread* current);

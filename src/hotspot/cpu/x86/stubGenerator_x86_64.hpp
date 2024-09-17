@@ -608,6 +608,12 @@ class StubGenerator: public StubCodeGenerator {
   // interpreter or compiled code marshalling registers to/from inline type instance
   address generate_return_value_stub(address destination, const char* name, bool has_res);
 
+  // Specialized stub implementations for UseSecondarySupersTable.
+  address generate_lookup_secondary_supers_table_stub(u1 super_klass_index);
+
+  // Slow path implementation for UseSecondarySupersTable.
+  address generate_lookup_secondary_supers_table_slow_path_stub();
+
   void create_control_words();
 
   // Initialization

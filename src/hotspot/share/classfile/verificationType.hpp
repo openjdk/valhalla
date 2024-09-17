@@ -49,10 +49,10 @@ class ClassVerifier;
 
 class VerificationType {
   private:
-    // Least significant bits of _handle are always 0, so we use these as
-    // the indicator that the _handle is valid.  Otherwise, the _data field
+    // Least significant 2 bits of _sym are always 0, so we use these as
+    // the indicator that _sym is a valid pointer.  Otherwise, the _data field
     // contains encoded data (as specified below).  Should the VM change
-    // and the lower bits on oops aren't 0, the assert in the constructor
+    // and the lower 2 bits of Symbol* aren't 0, the assert in the constructor
     // will catch this and we'll have to add a descriminator tag to this
     // structure.
     union {
