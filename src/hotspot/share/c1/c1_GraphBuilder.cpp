@@ -1657,8 +1657,7 @@ void GraphBuilder::call_register_finalizer() {
 
 
 void GraphBuilder::method_return(Value x, bool ignore_return) {
-  if (RegisterFinalizersAtInit &&
-      method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+  if (method()->intrinsic_id() == vmIntrinsics::_Object_init) {
     call_register_finalizer();
   }
 

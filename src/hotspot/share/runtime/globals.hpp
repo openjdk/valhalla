@@ -671,10 +671,6 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, PrintWarnings, true,                                        \
           "Print JVM warnings to output stream")                            \
                                                                             \
-  product(bool, RegisterFinalizersAtInit, true,                             \
-          "(Deprecated) Register finalizable objects at end of "            \
-          "Object.<init> or after allocation")                              \
-                                                                            \
   develop(bool, RegisterReferences, true,                                   \
           "Tell whether the VM should register soft/weak/final/phantom "    \
           "references")                                                     \
@@ -744,9 +740,8 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(int, MonitorUsedDeflationThreshold, 90, DIAGNOSTIC,               \
           "Percentage of used monitors before triggering deflation (0 is "  \
-          "off). The check is performed on GuaranteedSafepointInterval, "   \
-          "AsyncDeflationInterval or GuaranteedAsyncDeflationInterval, "    \
-          "whichever is lower.")                                            \
+          "off). The check is performed on AsyncDeflationInterval or "      \
+          "GuaranteedAsyncDeflationInterval, whichever is lower.")          \
           range(0, 100)                                                     \
                                                                             \
   product(uintx, NoAsyncDeflationProgressMax, 3, DIAGNOSTIC,                \
@@ -893,9 +888,6 @@ const int ObjectAlignmentInBytes = 8;
   develop(bool, TraceBytecodes, false,                                      \
           "Trace bytecode execution")                                       \
                                                                             \
-  develop(bool, TraceInvocationCounterOverflow, false,                      \
-          "Trace method invocation counter overflow")                       \
-                                                                            \
   develop(bool, VerifyDependencies, trueInDebug,                            \
           "Exercise and verify the compilation dependency mechanism")       \
                                                                             \
@@ -981,7 +973,7 @@ const int ObjectAlignmentInBytes = 8;
              "Enable Thread SMR Statistics")                                \
                                                                             \
   product(bool, UseNotificationThread, true,                                \
-          "Use Notification Thread")                                        \
+          "(Deprecated) Use Notification Thread")                           \
                                                                             \
   product(bool, Inline, true,                                               \
           "Enable inlining")                                                \
@@ -1006,9 +998,6 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   develop(bool, TraceMethodReplacement, false,                              \
           "Print when methods are replaced do to recompilation")            \
-                                                                            \
-  product(bool, PrintMethodFlushingStatistics, false, DIAGNOSTIC,           \
-          "print statistics about method flushing")                         \
                                                                             \
   product(intx, MinPassesBeforeFlush, 10, DIAGNOSTIC,                       \
           "Minimum number of sweeper passes before an nmethod "             \
@@ -1298,7 +1287,7 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   /* notice: the max range value here is max_jint, not max_intx  */         \
   /* because of overflow issue                                   */         \
-  product(intx, GuaranteedSafepointInterval, 1000, DIAGNOSTIC,              \
+  product(intx, GuaranteedSafepointInterval, 0, DIAGNOSTIC,                 \
           "Guarantee a safepoint (at least) every so many milliseconds "    \
           "(0 means none)")                                                 \
           range(0, max_jint)                                                \
@@ -2001,7 +1990,8 @@ const int ObjectAlignmentInBytes = 8;
           "and leading and trailing stars '*' are wildcards)")              \
                                                                             \
   product(bool, UseEmptySlotsInSupers, true,                                \
-                "Allow allocating fields in empty slots of super-classes")  \
+          "(Deprecated) Allow allocating fields in empty slots of "         \
+          "super-classes")                                                  \
                                                                             \
   product(bool, DeoptimizeNMethodBarriersALot, false, DIAGNOSTIC,           \
                 "Make nmethod barriers deoptimise a lot.")                  \
