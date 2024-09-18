@@ -714,7 +714,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // Store to mark word of inline type larval buffer
         assert(res_type->is_inlinetypeptr(), "Unexpected store to mark word");
-      } else if (res_type->is_inlinetypeptr() && use->Opcode() == Op_MemBarRelease) {
+      } else if (res_type->is_inlinetypeptr() && (use->Opcode() == Op_MemBarRelease || use->Opcode() == Op_MemBarStoreStore)) {
         // Inline type buffer allocations are followed by a membar
       } else if (reduce_merge_precheck &&
                  (use->is_Phi() || use->is_EncodeP() ||
@@ -1127,7 +1127,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         // Store to mark word of inline type larval buffer
         assert(inline_alloc, "Unexpected store to mark word");
         _igvn.replace_node(use, use->in(MemNode::Memory));
-      } else if (use->Opcode() == Op_MemBarRelease) {
+      } else if (use->Opcode() == Op_MemBarRelease || use->Opcode() == Op_MemBarStoreStore) {
         // Inline type buffer allocations are followed by a membar
         assert(inline_alloc, "Unexpected MemBarRelease");
         use->as_MemBar()->remove(&_igvn);
