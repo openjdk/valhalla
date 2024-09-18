@@ -555,9 +555,6 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_max_float16:
   case vmIntrinsics::_min_float16:              return inline_fp16_operations(intrinsic_id(), 2);
   case vmIntrinsics::_fma_float16:              return inline_fp16_operations(intrinsic_id(), 3);
-  case vmIntrinsics::_float16IsNaN:
-  case vmIntrinsics::_float16IsFinite:
-  case vmIntrinsics::_float16IsInfinite:        return inline_fp16_range_check(intrinsic_id());
   case vmIntrinsics::_floatIsFinite:
   case vmIntrinsics::_floatIsInfinite:
   case vmIntrinsics::_doubleIsFinite:
@@ -5255,38 +5252,6 @@ bool LibraryCallKit::inline_fp_range_check(vmIntrinsics::ID id) {
     break;
   case vmIntrinsics::_doubleIsFinite:
     result = new IsFiniteDNode(arg);
-    break;
-  default:
-    fatal_unexpected_iid(id);
-    break;
-  }
-  set_result(_gvn.transform(result));
-  return true;
-}
-
-bool LibraryCallKit::inline_fp16_range_check(vmIntrinsics::ID id) {
-
-  if (!Matcher::match_rule_supported(Op_ReinterpretS2HF)) {
-    return false;
-  }
-
-  Node* arg = argument(0);
-  if (!arg->is_InlineType()) {
-    return false;
-  }
-
-  Node* fld = _gvn.transform(new ReinterpretS2HFNode(arg->as_InlineType()->field_value(0)));
-  Node* result = nullptr;
-
-  switch (id) {
-  case vmIntrinsics::_float16IsNaN:
-    result = new IsNaNHFNode(fld);
-    break;
-  case vmIntrinsics::_float16IsFinite:
-    result = new IsFiniteHFNode(fld);
-    break;
-  case vmIntrinsics::_float16IsInfinite:
-    result = new IsInfiniteHFNode(fld);
     break;
   default:
     fatal_unexpected_iid(id);

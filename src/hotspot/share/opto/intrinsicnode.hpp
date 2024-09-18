@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -339,29 +339,4 @@ class IsFiniteDNode : public Node {
   virtual uint ideal_reg() const { return Op_RegI; }
 };
 
-//---------- IsFiniteHFNode ----------------------------------------------------
-// Returns true if a half-precision float is finite
-class IsFiniteHFNode : public IsFiniteFNode {
-  public:
-  IsFiniteHFNode(Node* in1) : IsFiniteFNode(in1) {}
-  virtual int   Opcode() const;
-};
-
-//---------- IsInfiniteHFNode --------------------------------------------------
-// Returns true if a half-precision float is infinite
-class IsInfiniteHFNode : public IsInfiniteFNode {
-  public:
-  IsInfiniteHFNode(Node* in1) : IsInfiniteFNode(in1) {}
-  virtual int   Opcode() const;
-};
-
-//---------- IsNaNHFFNode ------------------------------------------------------
-// Returns true if a half-precision float is a NaN
-class IsNaNHFNode : public Node {
-  public:
-  IsNaNHFNode(Node* in1) : Node(0, in1) {}
-  virtual int   Opcode() const;
-  const Type* bottom_type() const { return TypeInt::BOOL; }
-  virtual uint ideal_reg() const { return Op_RegI; }
-};
 #endif // SHARE_OPTO_INTRINSICNODE_HPP

@@ -632,15 +632,6 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_fma_float16:
     if (!Matcher::match_rule_supported(Op_FmaHF)) return false;
     break;
-  case vmIntrinsics::_float16IsFinite:
-    if (!Matcher::match_rule_supported(Op_IsFiniteHF)) return false;
-    break;
-  case vmIntrinsics::_float16IsInfinite:
-    if (!Matcher::match_rule_supported(Op_IsInfiniteHF)) return false;
-    break;
-  case vmIntrinsics::_float16IsNaN:
-    if (!Matcher::match_rule_supported(Op_IsNaNHF)) return false;
-    break;
   case vmIntrinsics::_hashCode:
   case vmIntrinsics::_identityHashCode:
   case vmIntrinsics::_getClass:

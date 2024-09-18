@@ -2255,7 +2255,6 @@ public:
   // INSN(fcmped, 0b000,  0b01, 0b00, 0b10000);
   // INSN1(fcmped, 0b000, 0b01, 0b00, 0b11000);
 
-  INSN(fcmph, 0b000, 0b11, 0b00, 0b00000); // Half-precision floating-point quiet compare
 #undef INSN
 #undef INSN1
 
