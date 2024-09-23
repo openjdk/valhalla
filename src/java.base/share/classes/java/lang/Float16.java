@@ -444,7 +444,9 @@ public final class Float16
      * @see Double#isNaN(double)
      */
     public static boolean isNaN(Float16 f16) {
-        return ((float16ToRawShortBits(f16) & 0x7e00) == 0x7e00);
+        final short bits = float16ToRawShortBits(f16);
+        // A NaN value has all ones in its exponent and a non-zero significand
+        return ((bits & 0x7c00) == 0x7c00 && (bits & 0x03ff) != 0);
     }
 
     /**
