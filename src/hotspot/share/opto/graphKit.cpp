@@ -4756,12 +4756,15 @@ Node* GraphKit::load_mirror_from_klass(Node* klass) {
 }
 
 Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {
-  const TypeOopPtr* obj_type = obj->bottom_type()->isa_oopptr();
+  const Type* obj_type = obj->bottom_type();
   const TypeOopPtr* sig_type = TypeOopPtr::make_from_klass(type);
-  if (obj_type != nullptr && sig_type->is_loaded() && !obj_type->higher_equal(sig_type)) {
+  if (obj_type->isa_oopptr() && sig_type->is_loaded() && !obj_type->higher_equal(sig_type)) {
     const Type* narrow_obj_type = obj_type->filter_speculative(sig_type); // keep speculative part
     Node* casted_obj = gvn().transform(new CheckCastPPNode(control(), obj, narrow_obj_type));
-    return casted_obj;
+    obj = casted_obj;
+  }
+  if (sig_type->is_inlinetypeptr()) {
+    obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass(), !gvn().type(obj)->maybe_null());
   }
   return obj;
 }

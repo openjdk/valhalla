@@ -1165,19 +1165,6 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   }
 }
 
-static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
-  PhaseGVN& gvn = kit.gvn();
-  Node* arg = kit.argument(arg_nb);
-
-  Node* casted_arg = kit.maybe_narrow_object_type(arg, t);
-  if (casted_arg->is_top()) {
-    print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
-                           "argument types mismatch");
-    return; // FIXME: effectively dead; issue a halt node instead
-  } else if (casted_arg != arg) {
-    kit.set_argument(arg_nb, casted_arg);
-  }
-}
 
 CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool allow_inline, bool& input_not_const) {
   GraphKit kit(jvms);
@@ -1252,13 +1239,29 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         const int receiver_skip = target->is_static() ? 0 : 1;
         // Cast receiver to its type.
         if (!target->is_static()) {
-          cast_argument(nargs, 0, signature->accessing_klass(), kit);
+          Node* recv = kit.argument(0);
+          Node* casted_recv = kit.maybe_narrow_object_type(recv, signature->accessing_klass());
+          if (casted_recv->is_top()) {
+            print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
+                                   "argument types mismatch");
+            return nullptr; // FIXME: effectively dead; issue a halt node instead
+          } else if (casted_recv != recv) {
+            kit.set_argument(0, casted_recv);
+          }
         }
         // Cast reference arguments to its type.
         for (int i = 0, j = 0; i < signature->count(); i++) {
           ciType* t = signature->type_at(i);
           if (t->is_klass()) {
-            cast_argument(nargs, receiver_skip + j, t, kit);
+            Node* arg = kit.argument(receiver_skip + j);
+            Node* casted_arg = kit.maybe_narrow_object_type(arg, t->as_klass());
+            if (casted_arg->is_top()) {
+              print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
+                                     "argument types mismatch");
+              return nullptr; // FIXME: effectively dead; issue a halt node instead
+            } else if (casted_arg != arg) {
+              kit.set_argument(receiver_skip + j, casted_arg);
+            }
           }
           j += t->size();  // long and double take two slots
         }
