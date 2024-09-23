@@ -1168,16 +1168,14 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
 static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
   PhaseGVN& gvn = kit.gvn();
   Node* arg = kit.argument(arg_nb);
-  const Type* arg_type = arg->bottom_type();
-  const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
-  if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
-    const Type* narrowed_arg_type = arg_type->filter_speculative(sig_type); // keep speculative part
-    arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, narrowed_arg_type));
-    kit.set_argument(arg_nb, arg);
-  }
-  if (sig_type->is_inlinetypeptr()) {
-    arg = InlineTypeNode::make_from_oop(&kit, arg, sig_type->inline_klass(), !kit.gvn().type(arg)->maybe_null());
-    kit.set_argument(arg_nb, arg);
+
+  Node* casted_arg = kit.maybe_narrow_object_type(arg, t);
+  if (casted_arg->is_top()) {
+    print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
+                           "argument types mismatch");
+    return; // FIXME: effectively dead; issue a halt node instead
+  } else if (casted_arg != arg) {
+    kit.set_argument(arg_nb, casted_arg);
   }
 }
 

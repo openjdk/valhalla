@@ -269,6 +269,7 @@ public enum Source {
         PRIMITIVE_PATTERNS(JDK23, Fragments.FeaturePrimitivePatterns, DiagKind.PLURAL),
         SUPER_INIT(JDK22, Fragments.FeatureSuperInit, DiagKind.NORMAL),
         VALUE_CLASSES(JDK22, Fragments.FeatureValueClasses, DiagKind.PLURAL),
+        MODULE_IMPORTS(JDK23, Fragments.FeatureModuleImports, DiagKind.PLURAL),
         ;
 
         enum DiagKind {
