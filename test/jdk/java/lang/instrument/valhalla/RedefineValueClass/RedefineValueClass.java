@@ -160,16 +160,16 @@ public class RedefineValueClass {
             break;
 
         default:
-		    throw new RuntimeException("Unknown test directory: " + origin);
+            throw new RuntimeException("Unknown test directory: " + origin);
         }
 
         // Compile and check bad transformations
         checkBadTransforms(Host.class, badTransforms);
 
         // Compile and check good transformations
-		if (goodTransforms != null) {
+        if (goodTransforms != null) {
             checkGoodTransforms(Host.class, goodTransforms);
-		}
+        }
     }
 
     static void checkGoodTransforms(Class<?> c, String[] dirs) throws Throwable {

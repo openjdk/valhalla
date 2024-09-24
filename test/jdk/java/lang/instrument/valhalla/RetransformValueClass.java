@@ -64,7 +64,7 @@ public class RetransformValueClass {
             runTest();
         }
     }
-    
+
     static void buildAgent() throws Exception {
         String manifest = "Premain-Class: RetransformValueClass\nCan-Redefine-Classes: true\nCan-Retransform-Classes: true\n";
         ClassFileInstaller.writeJar("testAgent.jar", ClassFileInstaller.Manifest.fromString(manifest), "RetransformValueClass");
@@ -83,9 +83,9 @@ public class RetransformValueClass {
 
     static void runTest() throws Exception {
         instrumentation.addTransformer(new Transformer(), true);
-        
+
         instrumentation.retransformClasses(targetClass);
-        
+
         transformToOriginalClassbytes = true;
         instrumentation.retransformClasses(targetClass);
     }
@@ -109,7 +109,7 @@ public class RetransformValueClass {
             return null;
         }
     }
-    
+
     static void log(Object o) {
         System.out.println(String.valueOf(o));
     }
