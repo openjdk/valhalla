@@ -54,6 +54,7 @@ class Bundle;
 class CallGenerator;
 class CallNode;
 class CallStaticJavaNode;
+class CastIINode;
 class CloneMap;
 class CompilationFailureInfo;
 class ConnectionGraph;
@@ -1306,6 +1307,9 @@ private:
   int random();
   bool randomized_select(int count);
 
+  // seed random number generation and log the seed for repeatability.
+  void initialize_stress_seed(const DirectiveSet* directive);
+
   // supporting clone_map
   CloneMap&     clone_map();
   void          set_clone_map(Dict* d);
@@ -1339,6 +1343,8 @@ private:
                             BasicType out_bt, BasicType in_bt);
 
   static Node* narrow_value(BasicType bt, Node* value, const Type* type, PhaseGVN* phase, bool transform_res);
+
+  void remove_range_check_cast(CastIINode* cast);
 };
 
 #endif // SHARE_OPTO_COMPILE_HPP

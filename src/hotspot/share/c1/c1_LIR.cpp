@@ -387,7 +387,15 @@ LIR_OpArrayCopy::LIR_OpArrayCopy(LIR_Opr src, LIR_Opr src_pos, LIR_Opr dst, LIR_
   , _tmp(tmp)
   , _expected_type(expected_type)
   , _flags(flags) {
+#if defined(X86) || defined(AARCH64) || defined(S390)
+  if (expected_type != nullptr && flags == 0) {
+    _stub = nullptr;
+  } else {
+    _stub = new ArrayCopyStub(this);
+  }
+#else
   _stub = new ArrayCopyStub(this);
+#endif
 }
 
 LIR_OpUpdateCRC32::LIR_OpUpdateCRC32(LIR_Opr crc, LIR_Opr val, LIR_Opr res)
@@ -1121,7 +1129,10 @@ void LIR_OpLabel::emit_code(LIR_Assembler* masm) {
 
 void LIR_OpArrayCopy::emit_code(LIR_Assembler* masm) {
   masm->emit_arraycopy(this);
-  masm->append_code_stub(stub());
+  ArrayCopyStub* code_stub = stub();
+  if (code_stub != nullptr) {
+    masm->append_code_stub(code_stub);
+  }
 }
 
 void LIR_OpUpdateCRC32::emit_code(LIR_Assembler* masm) {
@@ -1512,7 +1523,7 @@ void LIR_List::allocate_object(LIR_Opr dst, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, 
                            stub));
 }
 
-void LIR_List::allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub, bool is_null_free) {
+void LIR_List::allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub, bool zero_array, bool is_null_free) {
   append(new LIR_OpAllocArray(
                            klass,
                            len,
@@ -1523,6 +1534,7 @@ void LIR_List::allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, L
                            t4,
                            type,
                            stub,
+                           zero_array,
                            is_null_free));
 }
 
