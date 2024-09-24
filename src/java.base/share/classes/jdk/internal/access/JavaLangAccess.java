@@ -26,6 +26,7 @@
 package jdk.internal.access;
 
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.lang.annotation.Annotation;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
@@ -401,6 +402,11 @@ public interface JavaLangAccess {
      * with `System.setIn(newIn)` method
      */
     InputStream initialSystemIn();
+
+    /**
+     * Returns the initial value of System.err.
+     */
+    PrintStream initialSystemErr();
 
     /**
      * Encodes ASCII codepoints as possible from the source array into
