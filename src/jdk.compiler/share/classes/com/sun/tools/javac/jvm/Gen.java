@@ -930,9 +930,9 @@ public class Gen extends JCTree.Visitor {
     }
 
     /** Derived visitor method: generate code for a list of method arguments.
-     *  @param trees            The argument expressions to be visited.
-     *  @param pts              The expression's expected types (i.e. the formal parameter
-     *                          types of the invoked method), these types could be erased.
+     *  @param trees    The argument expressions to be visited.
+     *  @param pts      The expression's expected types (i.e. the formal parameter
+     *                  types of the invoked method).
      */
     public void genArgs(List<JCExpression> trees, List<Type> pts) {
         for (List<JCExpression> l = trees; l.nonEmpty(); l = l.tail) {
@@ -1969,8 +1969,8 @@ public class Gen extends JCTree.Visitor {
         // the parameters of the method's external type (that is, any implicit
         // outer instance of a super(...) call appears as first parameter).
         MethodSymbol msym = (MethodSymbol)TreeInfo.symbol(tree.meth);
-        List<Type> erasedPts = msym.externalType(types).getParameterTypes();
-        genArgs(tree.args, erasedPts);
+        genArgs(tree.args,
+                msym.externalType(types).getParameterTypes());
         if (!msym.isDynamic()) {
             code.statBegin(tree.pos);
         }
@@ -2062,8 +2062,7 @@ public class Gen extends JCTree.Visitor {
         // Generate code for all arguments, where the expected types are
         // the parameters of the constructor's external type (that is,
         // any implicit outer instance appears as first parameter).
-        List<Type> erasedPts = tree.constructor.externalType(types).getParameterTypes();
-        genArgs(tree.args, erasedPts);
+        genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
 
         items.makeMemberItem(tree.constructor, true).invoke();
         result = items.makeStackItem(tree.type);
