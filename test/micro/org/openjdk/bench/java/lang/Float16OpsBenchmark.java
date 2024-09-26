@@ -177,7 +177,7 @@ public class Float16OpsBenchmark {
         Float16 vector1Square = Float16.valueOf(0.0f);
         Float16 vector2Square = Float16.valueOf(0.0f);
         for (int i = 0; i < vectorDim; i++) {
-            // Explicit add + multiply operations ensure double rounding.
+            // Explicit add and multiply operation ensures double rounding.
             macRes = Float16.add(Float16.multiply(vector1[i], vector2[i]), macRes);
             vector1Square = Float16.fma(vector1[i], vector1[i], vector1Square);
             vector2Square = Float16.fma(vector2[i], vector2[i], vector2Square);
