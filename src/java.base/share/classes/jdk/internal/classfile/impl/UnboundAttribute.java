@@ -436,7 +436,7 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
         private final List<Utf8Entry> loadableDescriptors;
 
         public UnboundLoadableDescriptorsAttribute(List<Utf8Entry> loadableDescriptors) {
-            super(Attributes.LOADABLE_DESCRIPTORS);
+            super(Attributes.loadableDescriptors());
             this.loadableDescriptors = List.copyOf(loadableDescriptors);
         }
 

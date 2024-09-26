@@ -53,6 +53,7 @@ import jdk.internal.javac.PreviewFeature;
  * <li>{@link #enclosingMethod()}
  * <li>{@link #exceptions()}
  * <li>{@link #innerClasses()}
+ * <li>{@link #loadableDescriptors()}
  * <li>{@link #methodParameters()}
  * <li>{@link #module()}
  * <li>{@link #moduleHashes()}
@@ -296,6 +297,14 @@ public final class Attributes {
      */
     public static AttributeMapper<LineNumberTableAttribute> lineNumberTable() {
         return LineNumberTableMapper.INSTANCE;
+    }
+
+    /**
+     * {@return Attribute mapper for the {@code LoadableDescriptors} attribute}
+     * @since 23
+     */
+    public static AttributeMapper<LoadableDescriptorsAttribute> loadableDescriptors() {
+        return LoadableDescriptorsMapper.INSTANCE;
     }
 
     /**
