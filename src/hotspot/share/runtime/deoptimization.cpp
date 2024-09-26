@@ -1275,15 +1275,11 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       InstanceKlass* ik = InstanceKlass::cast(k);
       if (obj == nullptr && !cache_init_error) {
         InternalOOMEMark iom(THREAD);
-#if COMPILER2_OR_JVMCI
         if (EnableVectorSupport && VectorSupport::is_vector(ik)) {
           obj = VectorSupport::allocate_vector(ik, fr, reg_map, sv, THREAD);
         } else {
           obj = ik->allocate_instance(THREAD);
         }
-#else
-        obj = ik->allocate_instance(THREAD);
-#endif // COMPILER2_OR_JVMCI
       }
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* ak = FlatArrayKlass::cast(k);
@@ -1664,7 +1660,6 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
       continue;
     }
 #endif // INCLUDE_JVMCI
-#if COMPILER2_OR_JVMCI
     if (EnableVectorSupport && VectorSupport::is_vector(k)) {
       assert(sv->field_size() == 1, "%s not a vector", k->name()->as_C_string());
       ScopeValue* payload = sv->field_at(0);
@@ -1684,7 +1679,6 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
       // Else fall-through to do assignment for scalar-replaced boxed vector representation
       // which could be restored after vector object allocation.
     }
-#endif /* !COMPILER2_OR_JVMCI */
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
       reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, CHECK);

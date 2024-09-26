@@ -4158,7 +4158,7 @@ public class Check {
 
                 // If super()/this() isn't first, require flexible constructors feature
                 if (!firstStatement)
-                    preview.checkSourceLevel(apply.pos(), Feature.SUPER_INIT);
+                    preview.checkSourceLevel(apply.pos(), Feature.FLEXIBLE_CONSTRUCTORS);
 
                 // We found a legitimate super()/this() call; remember it
                 initCall = methodName;

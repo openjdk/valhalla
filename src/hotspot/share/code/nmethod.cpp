@@ -4044,9 +4044,7 @@ void nmethod::print_statistics() {
 #endif
   unknown_java_nmethod_stats.print_nmethod_stats("Unknown");
   DebugInformationRecorder::print_statistics();
-#ifndef PRODUCT
   pc_nmethod_stats.print_pc_stats();
-#endif
   Dependencies::print_statistics();
   if (xtty != nullptr)  xtty->tail("statistics");
 }

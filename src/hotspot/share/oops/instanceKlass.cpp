@@ -3818,7 +3818,9 @@ void InstanceKlass::print_on(outputStream* st) const {
   st->print(BULLET"arrays:            "); Metadata::print_value_on_maybe_null(st, array_klasses()); st->cr();
   st->print(BULLET"methods:           "); print_array_on(st, methods());
   st->print(BULLET"method ordering:   "); print_array_on(st, method_ordering());
-  st->print(BULLET"default_methods:   "); print_array_on(st, default_methods());
+  if (default_methods() != nullptr) {
+    st->print(BULLET"default_methods:   "); print_array_on(st, default_methods());
+  }
   if (default_vtable_indices() != nullptr) {
     st->print(BULLET"default vtable indices:   "); print_array_on(st, default_vtable_indices());
   }
