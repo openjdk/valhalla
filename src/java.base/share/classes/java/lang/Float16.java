@@ -444,7 +444,9 @@ public final class Float16
      * @see Double#isNaN(double)
      */
     public static boolean isNaN(Float16 f16) {
-        return Float.isNaN(f16.floatValue());
+        final short bits = float16ToRawShortBits(f16);
+        // A NaN value has all ones in its exponent and a non-zero significand
+        return ((bits & 0x7c00) == 0x7c00 && (bits & 0x03ff) != 0);
     }
 
     /**
@@ -463,7 +465,7 @@ public final class Float16
      * @see Double#isInfinite(double)
      */
     public static boolean isInfinite(Float16 f16) {
-        return Float.isInfinite(f16.floatValue());
+        return ((float16ToRawShortBits(f16) ^ float16ToRawShortBits(POSITIVE_INFINITY)) & 0x7fff) == 0;
     }
 
     /**
@@ -483,12 +485,8 @@ public final class Float16
      * @see Double#isFinite(double)
      */
     public static boolean isFinite(Float16 f16) {
-        return Float.isFinite(f16.floatValue());
+        return (float16ToRawShortBits(f16) & (short)0x0000_7FFF) <= float16ToRawShortBits(MAX_VALUE);
      }
-
-    // Skipping for now
-    // public boolean isNaN()
-    // public boolean isInfinite() {
 
     /**
      * {@return the value of this {@code Float16} as a {@code byte} after
