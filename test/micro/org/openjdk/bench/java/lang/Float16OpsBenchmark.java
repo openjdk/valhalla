@@ -34,7 +34,6 @@ public class Float16OpsBenchmark {
     int vectorDim;
 
     int     [] rexp;
-
     Float16 [] vectorRes;
     Float16 [] vector1;
     Float16 [] vector2;
@@ -42,10 +41,11 @@ public class Float16OpsBenchmark {
 
     @Setup(Level.Trial)
     public void BmSetup() {
-        vectorRes  = new Float16[vectorDim];
-        vector1 = new Float16[vectorDim];
-        vector2 = new Float16[vectorDim];
-        vector3 = new Float16[vectorDim];
+        rexp      = new int[vectorDim];
+        vectorRes = new Float16[vectorDim];
+        vector1   = new Float16[vectorDim];
+        vector2   = new Float16[vectorDim];
+        vector3   = new Float16[vectorDim];
 
         IntStream.range(0, vectorDim).forEach(i -> {vector1[i] = Float16.valueOf((short)i);});
         IntStream.range(0, vectorDim).forEach(i -> {vector2[i] = Float16.valueOf((short)i);});
