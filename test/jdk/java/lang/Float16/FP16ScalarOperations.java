@@ -84,8 +84,8 @@ public class FP16ScalarOperations {
     public static void validate(String oper, Float16... input) {
         int arity = input.length;
 
-        short actual = Float16.float16ToRawShortBits(actual_value(oper, input));
-        short expected = Float16.float16ToRawShortBits(expected_value(oper, input));
+        Float16 actual = actual_value(oper, input);
+        Float16 expected = expected_value(oper, input);
 
         if (actual != expected) {
             switch (arity) {
