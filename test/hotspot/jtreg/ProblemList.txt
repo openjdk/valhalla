@@ -83,6 +83,8 @@ compiler/c2/irTests/scalarReplacement/AllocationMergesTests.java 8315003 generic
 
 compiler/rangechecks/TestArrayAccessAboveRCAfterRCCastIIEliminated.java 8332369 generic-all
 
+compiler/codecache/CodeCacheFullCountTest.java 8332954 generic-all
+
 #############################################################################
 
 # :hotspot_gc

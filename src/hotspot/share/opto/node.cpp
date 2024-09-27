@@ -614,7 +614,7 @@ void Node::destruct(PhaseValues* phase) {
   if (is_expensive()) {
     compile->remove_expensive_node(this);
   }
-  if (Opcode() == Op_Opaque4) {
+  if (is_Opaque4()) {
     compile->remove_template_assertion_predicate_opaq(this);
   }
   if (is_ParsePredicate()) {
@@ -2885,15 +2885,6 @@ void Node::ensure_control_or_add_prec(Node* c) {
   }
 }
 
-void Node::add_prec_from(Node* n) {
-  for (uint i = n->req(); i < n->len(); i++) {
-    Node* prec = n->in(i);
-    if (prec != nullptr) {
-      add_prec(prec);
-    }
-  }
-}
-
 bool Node::is_dead_loop_safe() const {
   if (is_Phi()) {
     return true;
@@ -2916,9 +2907,6 @@ bool Node::is_dead_loop_safe() const {
   }
   return false;
 }
-
-bool Node::is_div_or_mod(BasicType bt) const { return Opcode() == Op_Div(bt) || Opcode() == Op_Mod(bt) ||
-                                                      Opcode() == Op_UDiv(bt) || Opcode() == Op_UMod(bt); }
 
 //=============================================================================
 //------------------------------yank-------------------------------------------
