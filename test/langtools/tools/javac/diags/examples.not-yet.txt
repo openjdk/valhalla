@@ -220,3 +220,7 @@ compiler.err.annotation.unrecognized.attribute.name
 compiler.warn.restricted.method
 # Value Objects
 compiler.misc.feature.value.classes
+
+# Pending removal
+compiler.note.implicit.annotation.processing
+compiler.warn.proc.use.proc.or.implicit

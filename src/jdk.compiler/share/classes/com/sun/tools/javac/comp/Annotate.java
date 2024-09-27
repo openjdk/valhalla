@@ -1179,6 +1179,15 @@ public class Annotate {
             scan(tree.args);
             // the anonymous class instantiation if any will be visited separately.
         }
+
+        @Override
+        public void visitErroneous(JCErroneous tree) {
+            if (tree.errs != null) {
+                for (JCTree err : tree.errs) {
+                    scan(err);
+                }
+            }
+        }
     }
 
     /* *******************
