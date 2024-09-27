@@ -173,6 +173,13 @@ public class TransTypes extends TreeTranslator {
         return tree;
     }
 
+    JCExpression generateNullCheckIfNeeded(JCExpression tree) {
+        if (expectedNullness == JCNullableTypeExpression.NullMarker.NOT_NULL && !types.isNonNullable(tree.type)) {
+            return attr.makeNullCheck(tree);
+        }
+        return tree;
+    }
+
     /** Translate method argument list, casting each argument
      *  to its corresponding type in a list of target types.
      *  @param _args               The method argument list.
@@ -203,12 +210,11 @@ public class TransTypes extends TreeTranslator {
         if (erasedParameterTypes.isEmpty()) return _args;
         List<T> args = _args;
         while (erasedParameterTypes.tail.nonEmpty()) {
-            if (!unerasedParamTypes.isEmpty() && unerasedParamTypes.head != null) {
-                if (types.isNonNullable(unerasedParamTypes.head) && !types.isNonNullable(args.head.type)) {
-                    args.head = (T)attr.makeNullCheck((JCExpression)args.head);
-                }
-            }
-            args.head = translate(args.head, erasedParameterTypes.head);
+            args.head = translate(args.head, erasedParameterTypes.head,
+                    (!unerasedParamTypes.isEmpty() && unerasedParamTypes.head != null) ?
+                        unerasedParamTypes.head.getNullMarker() :
+                        JCNullableTypeExpression.NullMarker.UNSPECIFIED
+                    );
             args = args.tail;
             erasedParameterTypes = erasedParameterTypes.tail;
             if (!unerasedParamTypes.isEmpty()) {
@@ -219,19 +225,15 @@ public class TransTypes extends TreeTranslator {
         Assert.check(varargsElement != null || args.length() == 1);
         if (varargsElement != null) {
             while (args.nonEmpty()) {
-                if (types.isNonNullable(originalVarargsElement) && !types.isNonNullable(args.head.type)) {
-                    args.head = (T)attr.makeNullCheck((JCExpression)args.head);
-                }
-                args.head = translate(args.head, varargsElement);
+                args.head = translate(args.head, varargsElement, originalVarargsElement.getNullMarker());
                 args = args.tail;
             }
         } else {
-            if (!unerasedParamTypes.isEmpty() && unerasedParamTypes.head != null) {
-                if (types.isNonNullable(unerasedParamTypes.head) && !types.isNonNullable(args.head.type)) {
-                    args.head = (T)attr.makeNullCheck((JCExpression)args.head);
-                }
-            }
-            args.head = translate(args.head, parameter);
+            args.head = translate(args.head, parameter,
+                    (!unerasedParamTypes.isEmpty() && unerasedParamTypes.head != null) ?
+                            unerasedParamTypes.head.getNullMarker() :
+                            JCNullableTypeExpression.NullMarker.UNSPECIFIED
+            );
         }
         return _args;
     }
@@ -467,28 +469,44 @@ public class TransTypes extends TreeTranslator {
      */
     private Type pt;
 
+    private JCNullableTypeExpression.NullMarker expectedNullness = JCNullableTypeExpression.NullMarker.UNSPECIFIED;
+
     /** Visitor method: perform a type translation on tree.
      */
     public <T extends JCTree> T translate(T tree, Type pt) {
+        return translate(tree, pt, JCNullableTypeExpression.NullMarker.UNSPECIFIED);
+    }
+
+    public <T extends JCTree> T translate(T tree, Type pt, JCNullableTypeExpression.NullMarker expectedNullness) {
         Type prevPt = this.pt;
+        JCNullableTypeExpression.NullMarker prevExpectedNullness = this.expectedNullness;
         try {
             this.pt = pt;
+            this.expectedNullness = expectedNullness;
             return translate(tree);
         } finally {
             this.pt = prevPt;
+            this.expectedNullness = prevExpectedNullness;
         }
     }
 
     /** Visitor method: perform a type translation on list of trees.
      */
     public <T extends JCTree> List<T> translate(List<T> trees, Type pt) {
+        return translate(trees, pt, JCNullableTypeExpression.NullMarker.UNSPECIFIED);
+    }
+
+    public <T extends JCTree> List<T> translate(List<T> trees, Type pt, JCNullableTypeExpression.NullMarker expectedNullness) {
         Type prevPt = this.pt;
+        JCNullableTypeExpression.NullMarker prevExpectedNullness = this.expectedNullness;
         List<T> res;
         try {
             this.pt = pt;
+            this.expectedNullness = expectedNullness;
             res = translate(trees);
         } finally {
             this.pt = prevPt;
+            this.expectedNullness = prevExpectedNullness;
         }
         return res;
     }
@@ -518,12 +536,7 @@ public class TransTypes extends TreeTranslator {
 
     public void visitVarDef(JCVariableDecl tree) {
         tree.vartype = translate(tree.vartype, null);
-        if (tree.init != null) {
-            if (types.isNonNullable(tree.type) && !types.isNonNullable(tree.init.type)) {
-                tree.init = attr.makeNullCheck(tree.init);
-            }
-        }
-        tree.init = translate(tree.init, tree.sym.erasure(types));
+        tree.init = translate(tree.init, tree.sym.erasure(types), tree.type.getNullMarker());
         tree.type = erasure(tree.type);
         result = tree;
     }
@@ -625,6 +638,7 @@ public class TransTypes extends TreeTranslator {
         tree.cases = translate(tree.cases, tree.type);
         tree.type = erasure(tree.type);
         result = retype(tree, tree.type, pt);
+        result = generateNullCheckIfNeeded((JCExpression)result);
     }
 
     public void visitRecordPattern(JCRecordPattern tree) {
@@ -655,6 +669,7 @@ public class TransTypes extends TreeTranslator {
         tree.falsepart = translate(tree.falsepart, erasure(tree.type));
         tree.type = erasure(tree.type);
         result = retype(tree, tree.type, pt);
+        result = generateNullCheckIfNeeded((JCExpression)result);
     }
 
    public void visitIf(JCIf tree) {
@@ -685,6 +700,7 @@ public class TransTypes extends TreeTranslator {
         tree.value = translate(tree.value, erasure(tree.value.type));
         tree.value.type = erasure(tree.value.type);
         tree.value = retype(tree.value, tree.value.type, pt);
+        result = generateNullCheckIfNeeded((JCExpression)result);
         result = tree;
     }
 
@@ -728,6 +744,7 @@ public class TransTypes extends TreeTranslator {
         tree.type = types.erasure(tree.type);
         // Insert casts of method invocation results as needed.
         result = retype(tree, mt.getReturnType(), pt);
+        result = generateNullCheckIfNeeded((JCExpression)result);
     }
 
     public void visitNewClass(JCNewClass tree) {
@@ -775,7 +792,7 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitParens(JCParens tree) {
-        tree.expr = translate(tree.expr, pt);
+        tree.expr = translate(tree.expr, pt, expectedNullness);
         tree.type = erasure(tree.expr.type);
         result = tree;
     }
@@ -788,6 +805,7 @@ public class TransTypes extends TreeTranslator {
         tree.rhs = translate(tree.rhs, erasure(tree.lhs.type));
         tree.type = erasure(tree.lhs.type);
         result = retype(tree, tree.type, pt);
+        result = generateNullCheckIfNeeded((JCExpression)result);
     }
 
     public void visitAssignop(JCAssignOp tree) {
@@ -845,6 +863,7 @@ public class TransTypes extends TreeTranslator {
             }
         }
         result = retype(tree, tree.type, pt);
+        result = generateNullCheckIfNeeded((JCExpression)result);
     }
 
     public void visitTypeTest(JCInstanceOf tree) {
@@ -859,6 +878,7 @@ public class TransTypes extends TreeTranslator {
 
         // Insert casts of indexed expressions as needed.
         result = retype(tree, types.elemtype(tree.indexed.type), pt);
+        result = generateNullCheckIfNeeded((JCExpression)result);
     }
 
     // There ought to be nothing to rewrite here;
@@ -881,6 +901,7 @@ public class TransTypes extends TreeTranslator {
         // Insert casts of variable uses as needed.
         else if (tree.sym.kind == VAR) {
             result = retype(tree, et, pt);
+            result = generateNullCheckIfNeeded((JCExpression)result);
         }
         else {
             tree.type = erasure(tree.type);
@@ -911,7 +932,8 @@ public class TransTypes extends TreeTranslator {
         }
         // Insert casts of variable uses as needed.
         else if (tree.sym.kind == VAR) {
-            result = retype(tree, tree.sym.erasure(types), pt);
+            result = generateNullCheckIfNeeded(tree);
+            result = retype((JCExpression) result, tree.sym.erasure(types), pt);
         }
         else {
             tree.type = erasure(tree.type);
