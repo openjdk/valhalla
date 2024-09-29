@@ -615,7 +615,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     public Type              getUpperBound()     { return null; }
     public Type              getLowerBound()     { return null; }
 
-    /** Navigation methods, these will work for classes, type variables,
+    /* Navigation methods, these will work for classes, type variables,
      *  foralls, but will return null for arrays and methods.
      */
 
@@ -1135,6 +1135,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                         s += String.valueOf(sym.hashCode());
                     return s;
                 } else if (longform) {
+                    sym.apiComplete();
                     return sym.getQualifiedName().toString();
                 } else {
                     return sym.name.toString();

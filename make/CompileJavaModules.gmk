@@ -31,6 +31,8 @@ include MakeBase.gmk
 include Modules.gmk
 include JavaCompilation.gmk
 
+include CopyFiles.gmk
+
 ################################################################################
 # If this is an imported module that has prebuilt classes, only compile
 # module-info.java.

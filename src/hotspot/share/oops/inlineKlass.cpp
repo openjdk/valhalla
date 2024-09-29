@@ -243,10 +243,13 @@ Klass* InlineKlass::value_array_klass_or_null() {
 // T_METADATA, drop everything until and including the closing
 // T_VOID) or the compiler point of view (each field of the inline
 // types is an argument: drop all T_METADATA/T_VOID from the list).
+//
+// Value classes could also have fields in abstract super value classes.
+// Use a HierarchicalFieldStream to get them as well.
 int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   int count = 0;
   SigEntry::add_entry(sig, T_METADATA, name(), base_off);
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (HierarchicalFieldStream<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention

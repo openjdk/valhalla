@@ -220,7 +220,6 @@ class ClassFileParser {
   // precomputed flags
   bool _has_finalizer;
   bool _has_empty_finalizer;
-  bool _has_vanilla_constructor;
   int _max_bootstrap_specifier_index;  // detects BSS values
 
   bool is_jdk_internal_class_sig(const char* sig) const;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -180,7 +180,7 @@ class SharedRuntime: AllStatic {
   static address exception_handler_for_return_address(JavaThread* current, address return_address);
 
   // exception handling and implicit exceptions
-  static address compute_compiled_exc_handler(CompiledMethod* nm, address ret_pc, Handle& exception,
+  static address compute_compiled_exc_handler(nmethod* nm, address ret_pc, Handle& exception,
                                               bool force_unwind, bool top_frame_only, bool& recursive_exception_occurred);
   enum ImplicitExceptionKind {
     IMPLICIT_NULL,
@@ -329,7 +329,7 @@ class SharedRuntime: AllStatic {
   // deopt blob
   static void generate_deopt_blob(void);
 
-  static bool handle_ic_miss_helper_internal(Handle receiver, CompiledMethod* caller_nm, const frame& caller_frame,
+  static bool handle_ic_miss_helper_internal(Handle receiver, nmethod* caller_nm, const frame& caller_frame,
                                              methodHandle callee_method, Bytecodes::Code bc, CallInfo& call_info,
                                              bool& needs_ic_stub_refill, bool& is_optimized, bool caller_is_c1, TRAPS);
 
@@ -350,18 +350,8 @@ class SharedRuntime: AllStatic {
 
   static void monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
-  static address entry_for_handle_wrong_method(methodHandle callee_method, bool is_static_call, bool is_optimized, bool caller_is_c1) {
-    assert(callee_method->verified_code_entry() != nullptr, "Jump to zero!");
-    assert(callee_method->verified_inline_code_entry() != nullptr, "Jump to zero!");
-    assert(callee_method->verified_inline_ro_code_entry() != nullptr, "Jump to zero!");
-    if (caller_is_c1) {
-      return callee_method->verified_inline_code_entry();
-    } else if (is_static_call || is_optimized) {
-      return callee_method->verified_code_entry();
-    } else {
-      return callee_method->verified_inline_ro_code_entry();
-    }
-  }
+  // Issue UL warning for unlocked JNI monitor on virtual thread termination
+  static void log_jni_monitor_still_held();
 
  private:
   static Handle find_callee_info(Bytecodes::Code& bc, CallInfo& callinfo, TRAPS);
@@ -522,6 +512,8 @@ class SharedRuntime: AllStatic {
   static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
   // Resolving of calls
+  static address get_resolved_entry        (JavaThread* current, methodHandle callee_method,
+                                            bool is_static_call, bool is_optimized, bool caller_is_c1);
   static address resolve_static_call_C     (JavaThread* current);
   static address resolve_virtual_call_C    (JavaThread* current);
   static address resolve_opt_virtual_call_C(JavaThread* current);
@@ -573,6 +565,8 @@ class SharedRuntime: AllStatic {
   static uint _unsafe_array_copy_ctr;      // Slow-path includes alignment checks
   static uint _generic_array_copy_ctr;     // Slow-path includes type decoding
   static uint _slow_array_copy_ctr;        // Slow-path failed out to a method call
+
+  static uint _unsafe_set_memory_ctr;      // Slow-path includes alignment checks
 
   static uint _new_instance_ctr;           // 'new' object requires GC
   static uint _new_array_ctr;              // 'new' array requires GC
