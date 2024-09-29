@@ -53,15 +53,14 @@ class InstanceKlassFlags {
     flag(has_contended_annotations          , 1 << 10) /* has @Contended annotation */ \
     flag(has_localvariable_table            , 1 << 11) /* has localvariable information */ \
     flag(has_miranda_methods                , 1 << 12) /* True if this class has miranda methods in it's vtable */ \
-    flag(has_vanilla_constructor            , 1 << 13) /* True if klass has a vanilla default constructor */ \
-    flag(has_final_method                   , 1 << 14) /* True if klass has final method */ \
-    flag(has_inline_type_fields             , 1 << 15) /* has inline fields and related embedded section is not empty */ \
-    flag(is_empty_inline_type               , 1 << 16) /* empty inline type (*) */ \
-    flag(is_naturally_atomic                , 1 << 17) /* loaded/stored in one instruction */ \
-    flag(must_be_atomic                     , 1 << 18) /* doesn't allow tearing */ \
-    flag(has_loosely_consistent_annotation  , 1 << 19) /* the class has the LooselyConsistentValue annotation WARNING: it doesn't automatically mean that the class allows tearing */ \
-    flag(is_implicitly_constructible        , 1 << 20) /* the class has the ImplicitlyConstrutible annotation */ \
-    flag(has_null_restricted_array          , 1 << 21) /* the class has the NullRestrictedArray annotation */
+    flag(has_final_method                   , 1 << 13) /* True if klass has final method */ \
+    flag(has_inline_type_fields             , 1 << 14) /* has inline fields and related embedded section is not empty */ \
+    flag(is_empty_inline_type               , 1 << 15) /* empty inline type (*) */ \
+    flag(is_naturally_atomic                , 1 << 16) /* loaded/stored in one instruction */ \
+    flag(must_be_atomic                     , 1 << 17) /* doesn't allow tearing */ \
+    flag(has_loosely_consistent_annotation  , 1 << 18) /* the class has the LooselyConsistentValue annotation WARNING: it doesn't automatically mean that the class allows tearing */ \
+    flag(is_implicitly_constructible        , 1 << 19) /* the class has the ImplicitlyConstrutible annotation */ \
+    flag(has_null_restricted_array          , 1 << 20) /* the class has the NullRestrictedArray annotation */
     /* end of list */
 
   /* (*) An inline type is considered empty if it contains no non-static fields or

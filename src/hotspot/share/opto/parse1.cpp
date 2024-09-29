@@ -623,7 +623,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_abstract() && !method()->holder()->is_java_lang_Object();
+      bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_java_lang_Object();
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
       replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
@@ -1086,7 +1086,8 @@ void Parse::do_exits() {
        (wrote_final() ||
          (AlwaysSafeConstructors && wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
-    _exits.insert_mem_bar(Op_MemBarRelease, alloc_with_final());
+    _exits.insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease,
+                          alloc_with_final());
 
     // If Memory barrier is created for final fields write
     // and allocation node does not escape the initialize method,
@@ -2394,8 +2395,7 @@ void Parse::rtm_deopt() {
 //------------------------------return_current---------------------------------
 // Append current _map to _exit_return
 void Parse::return_current(Node* value) {
-  if (RegisterFinalizersAtInit &&
-      method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+  if (method()->intrinsic_id() == vmIntrinsics::_Object_init) {
     call_register_finalizer();
   }
 

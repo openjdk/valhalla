@@ -192,7 +192,6 @@ public class AArch64 extends Architecture {
      */
     public enum Flag {
         UseCRC32,
-        UseNeon,
         UseSIMDForMemoryOps,
         AvoidUnalignedAccesses,
         UseLSE,

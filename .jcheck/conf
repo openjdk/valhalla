@@ -5,6 +5,7 @@ version=23
 
 [checks]
 error=author,committer,executable,symlink,whitespace
+warning=issuestitle
 
 [census]
 version=0

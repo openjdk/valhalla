@@ -332,10 +332,10 @@ public class InlineTypesTest {
                     }
                     CODE
                     .iconst_1()
-                    .returnInstruction(TypeKind.BooleanType)
+                    .return_(TypeKind.BooleanType)
                     .labelBinding(endLabel)
                     .iconst_0()
-                    .returnInstruction(TypeKind.BooleanType);
+                    .return_(TypeKind.BooleanType);
                 });
         boolean result = (boolean) fromExecStackToLocalVar.invokeExact();
         System.out.println(result);
@@ -408,10 +408,10 @@ public class InlineTypesTest {
                     .goto_(loop)
                     .labelBinding(end)
                     .iconst_1()
-                    .returnInstruction(TypeKind.BooleanType)
+                    .return_(TypeKind.BooleanType)
                     .labelBinding(failed)
                     .iconst_0()
-                    .returnInstruction(TypeKind.BooleanType);
+                    .return_(TypeKind.BooleanType);
                 });
         boolean result = (boolean) fromExecStackToFields.invokeExact();
         System.out.println(result);
@@ -491,10 +491,10 @@ public class InlineTypesTest {
                     .goto_(loop2)
                     .labelBinding(end2)
                     .iconst_1()
-                    .returnInstruction(TypeKind.BooleanType)
+                    .return_(TypeKind.BooleanType)
                     .labelBinding(failed)
                     .iconst_0()
-                    .returnInstruction(TypeKind.BooleanType);
+                    .return_(TypeKind.BooleanType);
                 });
         boolean result = (boolean) fromExecStackToInlineArray.invokeExact();
         System.out.println(result);
