@@ -154,7 +154,7 @@ abstract class ToDecimalChecker extends BasicChecker {
                 return conversionError("no fraction");
             }
             l = p > i ? x - i - 1 : x - f;
-            if (l > h()) {
+            if (!(f - fz == 1 && x - f == 0 && l == h() + 1) && l > h()) {
                 return conversionError("significand with more than " + h() + " digits");
             }
             if (x - fz > 1 && c % 10 == 0) {

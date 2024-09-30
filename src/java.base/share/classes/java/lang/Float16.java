@@ -214,8 +214,7 @@ public final class Float16
      * @see java.lang.Float#toString(float)
      */
     public static String toString(Float16 f16) {
-        // FIXME -- update for Float16 precision
-        return FloatToDecimal.toString(f16.floatValue());
+        return Float16ToDecimal.toString(f16);
     }
 
     /**
@@ -409,8 +408,7 @@ public final class Float16
      * @see    java.lang.Float#valueOf(String)
      */
     public static Float16 valueOf(String s) throws NumberFormatException {
-        // TOOD: adjust precision of parsing if needed
-        return valueOf(Double.parseDouble(s));
+        return valueOf(new BigDecimal(s));
     }
 
     /**
