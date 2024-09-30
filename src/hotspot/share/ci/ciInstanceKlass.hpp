@@ -68,8 +68,9 @@ private:
   ciInstance*            _java_mirror;
 
   ciConstantPoolCache*   _field_cache;  // cached map index->field
+ public:
   GrowableArray<ciField*>* _nonstatic_fields;
-
+ private:
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.
 
   // The possible values of the _implementor fall into following three cases:

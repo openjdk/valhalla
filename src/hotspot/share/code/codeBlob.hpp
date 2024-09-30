@@ -92,8 +92,8 @@ enum class CodeBlobKind : u1 {
   Number_Of_Kinds
 };
 
-class UpcallStub; // for as_upcall_stub()
-class RuntimeStub; // for as_runtime_stub()
+class UpcallStub;      // for as_upcall_stub()
+class RuntimeStub;     // for as_runtime_stub()
 class JavaFrameAnchor; // for UpcallStub::jfa_for_frame
 
 class CodeBlob {
@@ -103,43 +103,39 @@ class CodeBlob {
 
 protected:
   // order fields from large to small to minimize padding between fields
-  ImmutableOopMapSet* _oop_maps;                 // OopMap for this CodeBlob
+  ImmutableOopMapSet* _oop_maps;   // OopMap for this CodeBlob
   const char*         _name;
 
-  int        _size;                              // total size of CodeBlob in bytes
-  int        _header_size;                       // size of header (depends on subclass)
-  int        _relocation_size;                   // size of relocation
-  int        _content_offset;                    // offset to where content region begins (this includes consts, insts, stubs)
-  int        _code_offset;                       // offset to where instructions region begins (this includes insts, stubs)
-  int        _frame_complete_offset;             // instruction offsets in [0.._frame_complete_offset) have
-                                                 // not finished setting up their frame. Beware of pc's in
-                                                 // that range. There is a similar range(s) on returns
-                                                 // which we don't detect.
-  int        _data_offset;                       // offset to where data region begins
-  int        _frame_size;                        // size of stack frame in words (NOT slots. On x64 these are 64bit words)
+  int      _size;                  // total size of CodeBlob in bytes
+  int      _relocation_size;       // size of relocation (could be bigger than 64Kb)
+  int      _content_offset;        // offset to where content region begins (this includes consts, insts, stubs)
+  int      _code_offset;           // offset to where instructions region begins (this includes insts, stubs)
 
-  S390_ONLY(int       _ctable_offset;)
+  int      _data_offset;           // offset to where data region begins
+  int      _frame_size;            // size of stack frame in words (NOT slots. On x64 these are 64bit words)
 
-  CodeBlobKind        _kind;                     // Kind of this code blob
+  S390_ONLY(int _ctable_offset;)
 
-  bool                _caller_must_gc_arguments;
+  uint16_t _header_size;           // size of header (depends on subclass)
+  int16_t  _frame_complete_offset; // instruction offsets in [0.._frame_complete_offset) have
+                                   // not finished setting up their frame. Beware of pc's in
+                                   // that range. There is a similar range(s) on returns
+                                   // which we don't detect.
+
+  CodeBlobKind _kind;              // Kind of this code blob
+
+  bool _caller_must_gc_arguments;
 
 #ifndef PRODUCT
   AsmRemarks _asm_remarks;
   DbgStrings _dbg_strings;
-#endif // not PRODUCT
+#endif
 
-  DEBUG_ONLY( void verify_parameters() );
-
-  CodeBlob(const char* name, CodeBlobKind kind, int size, int header_size, int relocation_size,
-           int content_offset, int code_offset, int data_offset, int frame_complete_offset,
-           int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments);
-
-  CodeBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, int header_size,
-           int frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments);
+  CodeBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, uint16_t header_size,
+           int16_t frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments);
 
   // Simple CodeBlob used for simple BufferBlob.
-  CodeBlob(const char* name, CodeBlobKind kind, int size, int header_size);
+  CodeBlob(const char* name, CodeBlobKind kind, int size, uint16_t header_size);
 
   void operator delete(void* p) { }
 
@@ -154,7 +150,7 @@ public:
   static unsigned int align_code_offset(int offset);
 
   // Deletion
-  virtual void purge(bool free_code_cache_data, bool unregister_nmethod);
+  void purge();
 
   // Typing
   bool is_nmethod() const                     { return _kind == CodeBlobKind::Nmethod; }
@@ -228,7 +224,6 @@ public:
 
   const ImmutableOopMap* oop_map_for_slot(int slot, address return_address) const;
   const ImmutableOopMap* oop_map_for_return_address(address return_address) const;
-  virtual void preserve_callee_argument_oops(frame fr, const RegisterMap* reg_map, OopClosure* f) = 0;
 
   // Frame support. Sizes are in word units.
   int  frame_size() const                        { return _frame_size; }
@@ -276,7 +271,7 @@ class RuntimeBlob : public CodeBlob {
 
   // Creation
   // a) simple CodeBlob
-  RuntimeBlob(const char* name, CodeBlobKind kind, int size, int header_size)
+  RuntimeBlob(const char* name, CodeBlobKind kind, int size, uint16_t header_size)
     : CodeBlob(name, kind, size, header_size)
   {}
 
@@ -288,8 +283,8 @@ class RuntimeBlob : public CodeBlob {
     CodeBlobKind kind,
     CodeBuffer* cb,
     int         size,
-    int         header_size,
-    int         frame_complete,
+    uint16_t    header_size,
+    int16_t     frame_complete,
     int         frame_size,
     OopMapSet*  oop_maps,
     bool        caller_must_gc_arguments = false
@@ -329,10 +324,9 @@ class BufferBlob: public RuntimeBlob {
 
   static void free(BufferBlob* buf);
 
-  // GC/Verification support
-  void preserve_callee_argument_oops(frame fr, const RegisterMap* reg_map, OopClosure* f) override { /* nothing to do */ }
-
+  // Verification support
   void verify() override;
+
   void print_on(outputStream* st) const override;
   void print_value_on(outputStream* st) const override;
 };
@@ -411,7 +405,7 @@ class RuntimeStub: public RuntimeBlob {
     const char* name,
     CodeBuffer* cb,
     int         size,
-    int         frame_complete,
+    int16_t     frame_complete,
     int         frame_size,
     OopMapSet*  oop_maps,
     bool        caller_must_gc_arguments
@@ -424,7 +418,7 @@ class RuntimeStub: public RuntimeBlob {
   static RuntimeStub* new_runtime_stub(
     const char* stub_name,
     CodeBuffer* cb,
-    int         frame_complete,
+    int16_t     frame_complete,
     int         frame_size,
     OopMapSet*  oop_maps,
     bool        caller_must_gc_arguments,
@@ -435,10 +429,9 @@ class RuntimeStub: public RuntimeBlob {
 
   address entry_point() const                    { return code_begin(); }
 
-  // GC/Verification support
-  void preserve_callee_argument_oops(frame fr, const RegisterMap *reg_map, OopClosure* f) override { /* nothing to do */ }
-
+  // Verification support
   void verify() override;
+
   void print_on(outputStream* st) const override;
   void print_value_on(outputStream* st) const override;
 };
@@ -459,7 +452,7 @@ class SingletonBlob: public RuntimeBlob {
      CodeBlobKind kind,
      CodeBuffer*  cb,
      int          size,
-     int          header_size,
+     uint16_t     header_size,
      int          frame_size,
      OopMapSet*   oop_maps
    )
@@ -468,9 +461,9 @@ class SingletonBlob: public RuntimeBlob {
 
   address entry_point()                          { return code_begin(); }
 
-  // GC/Verification support
-  void preserve_callee_argument_oops(frame fr, const RegisterMap *reg_map, OopClosure* f) override { /* nothing to do */ }
+  // Verification support
   void verify() override; // does nothing
+
   void print_on(outputStream* st) const override;
   void print_value_on(outputStream* st) const override;
 };
@@ -662,7 +655,6 @@ class UpcallStub: public RuntimeBlob {
 
   // GC/Verification support
   void oops_do(OopClosure* f, const frame& frame);
-  void preserve_callee_argument_oops(frame fr, const RegisterMap* reg_map, OopClosure* f) override;
   void verify() override;
 
   // Misc.
