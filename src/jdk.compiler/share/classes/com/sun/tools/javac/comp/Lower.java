@@ -159,7 +159,7 @@ public class Lower extends TreeTranslator {
      */
     EndPosTable endPosTable;
 
-/**************************************************************************
+/* ************************************************************************
  * Global mappings
  *************************************************************************/
 
@@ -657,7 +657,7 @@ public class Lower extends TreeTranslator {
     }
 
 
-/**************************************************************************
+/* ************************************************************************
  * Tree building blocks
  *************************************************************************/
 
@@ -794,7 +794,7 @@ public class Lower extends TreeTranslator {
         return cdef;
     }
 
-/**************************************************************************
+/* ************************************************************************
  * Symbol manipulation utilities
  *************************************************************************/
 
@@ -949,7 +949,7 @@ public class Lower extends TreeTranslator {
         }
     }
 
-/**************************************************************************
+/* ************************************************************************
  * Access methods
  *************************************************************************/
 
@@ -1525,7 +1525,7 @@ public class Lower extends TreeTranslator {
         return md;
     }
 
-/**************************************************************************
+/* ************************************************************************
  * Free variables proxies and this$n
  *************************************************************************/
 
@@ -1959,7 +1959,7 @@ public class Lower extends TreeTranslator {
                     make.Ident(rhs)).setType(lhs.erasure(types)));
     }
 
-/**************************************************************************
+/* ************************************************************************
  * Code for .class
  *************************************************************************/
 
@@ -2019,7 +2019,7 @@ public class Lower extends TreeTranslator {
         }
     }
 
-/**************************************************************************
+/* ************************************************************************
  * Code for enabling/disabling assertions.
  *************************************************************************/
 
@@ -2089,7 +2089,7 @@ public class Lower extends TreeTranslator {
     }
 
 
-/**************************************************************************
+/* ************************************************************************
  * Building blocks for let expressions
  *************************************************************************/
 
@@ -2183,7 +2183,7 @@ public class Lower extends TreeTranslator {
         return res;
     }
 
-/**************************************************************************
+/* ************************************************************************
  * Translation methods
  *************************************************************************/
 
@@ -2991,10 +2991,10 @@ public class Lower extends TreeTranslator {
             // preserving the side effects of the value
             VarSymbol dollar_s = new VarSymbol(FINAL | SYNTHETIC,
                     names.fromString("tmp" + tree.pos + this.target.syntheticNameChar()),
-                    tree.expr.type,
+                    types.erasure(tree.expr.type),
                     currentMethodSym);
             JCStatement var = make.at(tree.pos())
-                    .VarDef(dollar_s, instanceOfExpr).setType(dollar_s.type);
+                    .VarDef(dollar_s, instanceOfExpr);
 
             if (types.isUnconditionallyExact(tree.expr.type, tree.pattern.type)) {
                 exactnessCheck = make.Literal(BOOLEAN, 1).setType(syms.booleanType.constType(1));
@@ -4498,7 +4498,7 @@ public class Lower extends TreeTranslator {
         super.visitTry(tree);
     }
 
-/**************************************************************************
+/* ************************************************************************
  * main method
  *************************************************************************/
 
