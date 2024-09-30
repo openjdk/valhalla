@@ -50,8 +50,9 @@
 //------------------------------split_thru_phi---------------------------------
 // Split Node 'n' through merge point if there is enough win.
 Node* PhaseIdealLoop::split_thru_phi(Node* n, Node* region, int policy) {
-  if (n->Opcode() == Op_ConvI2L && n->bottom_type() != TypeLong::LONG) {
-    // ConvI2L may have type information on it which is unsafe to push up
+  if ((n->Opcode() == Op_ConvI2L && n->bottom_type() != TypeLong::LONG) ||
+      (n->Opcode() == Op_ConvL2I && n->bottom_type() != TypeInt::INT)) {
+    // ConvI2L/ConvL2I may have type information on it which is unsafe to push up
     // so disable this for now
     return nullptr;
   }
@@ -474,7 +475,7 @@ Node* PhaseIdealLoop::remix_address_expressions_add_left_shift(Node* n, IdealLoo
       Node* zero = _igvn.integercon(0, bt);
       set_ctrl(zero, C->root());
       Node* neg = SubNode::make(zero, add->in(2), bt);
-      register_new_node(neg, get_ctrl(add->in(2)));
+      register_new_node_with_ctrl_of(neg, add->in(2));
       add = AddNode::make(add->in(1), neg, bt);
       register_new_node(add, add_ctrl);
     }
@@ -661,13 +662,13 @@ Node *PhaseIdealLoop::convert_add_to_muladd(Node* n) {
             if ((adr1->in(AddPNode::Base) == adr3->in(AddPNode::Base)) &&
                 (adr2->in(AddPNode::Base) == adr4->in(AddPNode::Base))) {
               nn = new MulAddS2INode(mul_in1, mul_in2, mul_in3, mul_in4);
-              register_new_node(nn, get_ctrl(n));
+              register_new_node_with_ctrl_of(nn, n);
               _igvn.replace_node(n, nn);
               return nn;
             } else if ((adr1->in(AddPNode::Base) == adr4->in(AddPNode::Base)) &&
                        (adr2->in(AddPNode::Base) == adr3->in(AddPNode::Base))) {
               nn = new MulAddS2INode(mul_in1, mul_in2, mul_in4, mul_in3);
-              register_new_node(nn, get_ctrl(n));
+              register_new_node_with_ctrl_of(nn, n);
               _igvn.replace_node(n, nn);
               return nn;
             }
@@ -789,8 +790,12 @@ Node *PhaseIdealLoop::conditional_move( Node *region ) {
     }
   }//for
   Node* bol = iff->in(1);
-  if (bol->Opcode() == Op_Opaque4) {
-    return nullptr; // Ignore loop predicate checks (the Opaque4 ensures they will go away)
+  assert(!bol->is_OpaqueInitializedAssertionPredicate(), "Initialized Assertion Predicates cannot form a diamond with Halt");
+  if (bol->is_Opaque4()) {
+    // Ignore Template Assertion Predicates with Opaque4 nodes.
+    assert(assertion_predicate_has_loop_opaque_node(iff),
+           "must be Template Assertion Predicate, non-null-check with Opaque4 cannot form a diamond with Halt");
+    return nullptr;
   }
   assert(bol->Opcode() == Op_Bool, "Unexpected node");
   int cmp_op = bol->in(1)->Opcode();
@@ -1834,7 +1839,8 @@ void PhaseIdealLoop::try_sink_out_of_loop(Node* n) {
       !n->is_Proj() &&
       !n->is_MergeMem() &&
       !n->is_CMove() &&
-      n->Opcode() != Op_Opaque4 &&
+      !n->is_Opaque4() &&
+      !n->is_OpaqueInitializedAssertionPredicate() &&
       !n->is_Type()) {
     Node *n_ctrl = get_ctrl(n);
     IdealLoopTree *n_loop = get_loop(n_ctrl);
@@ -2147,18 +2153,18 @@ Node* PhaseIdealLoop::clone_iff(PhiNode* phi) {
   // Convert this Phi into a Phi merging Bools
   uint i;
   for (i = 1; i < phi->req(); i++) {
-    Node *b = phi->in(i);
+    Node* b = phi->in(i);
     if (b->is_Phi()) {
       _igvn.replace_input_of(phi, i, clone_iff(b->as_Phi()));
     } else {
-      assert(b->is_Bool() || b->Opcode() == Op_Opaque4, "");
+      assert(b->is_Bool() || b->is_Opaque4() || b->is_OpaqueInitializedAssertionPredicate(),
+             "bool, non-null check with Opaque4 node or Initialized Assertion Predicate with its Opaque node");
     }
   }
-
   Node* n = phi->in(1);
   Node* sample_opaque = nullptr;
   Node *sample_bool = nullptr;
-  if (n->Opcode() == Op_Opaque4) {
+  if (n->is_Opaque4() || n->is_OpaqueInitializedAssertionPredicate()) {
     sample_opaque = n;
     sample_bool = n->in(1);
     assert(sample_bool->is_Bool(), "wrong type");
@@ -2339,7 +2345,7 @@ void PhaseIdealLoop::clone_loop_handle_data_uses(Node* old, Node_List &old_new,
       // make sure the Bool/Cmp input is cloned down to avoid a Phi between
       // the AllocateArray node and its ValidLengthTest input that could cause
       // split if to break.
-      if (use->is_If() || use->is_CMove() || use->Opcode() == Op_Opaque4 ||
+      if (use->is_If() || use->is_CMove() || use->is_Opaque4() ||
           (use->Opcode() == Op_AllocateArray && use->in(AllocateNode::ValidLengthTest) == old)) {
         // Since this code is highly unlikely, we lazily build the worklist
         // of such Nodes to go split.
@@ -2448,7 +2454,7 @@ void PhaseIdealLoop::clone_loop_handle_data_uses(Node* old, Node_List &old_new,
           // that access. If that condition is replaced by an identical dominating one, then an unpinned load would risk
           // floating above its range check.
           pinned_clone->set_req(0, phi);
-          register_new_node(pinned_clone, get_ctrl(use));
+          register_new_node_with_ctrl_of(pinned_clone, use);
           _igvn.replace_node(use, pinned_clone);
           continue;
         }
@@ -4094,7 +4100,7 @@ bool PhaseIdealLoop::partial_peel( IdealLoopTree *loop, Node_List &old_new ) {
         // floating above its range check.
         Node* pinned_clone = n_clone->pin_array_access_node();
         if (pinned_clone != nullptr) {
-          register_new_node(pinned_clone, get_ctrl(n_clone));
+          register_new_node_with_ctrl_of(pinned_clone, n_clone);
           old_new.map(n->_idx, pinned_clone);
           _igvn.replace_node(n_clone, pinned_clone);
           n_clone = pinned_clone;
