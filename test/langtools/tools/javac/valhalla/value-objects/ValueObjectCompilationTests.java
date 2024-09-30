@@ -26,7 +26,7 @@
  *
  * @test
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
- *      8329345
+ *      8329345 8341061
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
@@ -741,14 +741,18 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testConstruction() throws Exception {
-        record Data(String src, boolean isRecord) {}
+        record Data(String src, boolean isRecord) {
+            Data(String src) {
+                this(src, false);
+            }
+        }
         for (Data data : List.of(
                 new Data(
                     """
                     value class Test {
                         int i = 100;
                     }
-                    """, false),
+                    """),
                 new Data(
                     """
                     value class Test {
@@ -757,7 +761,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             i = 100;
                         }
                     }
-                    """, false),
+                    """),
                 new Data(
                     """
                     value class Test {
@@ -767,7 +771,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             super();
                         }
                     }
-                    """, false),
+                    """),
                 new Data(
                     """
                     value class Test {
@@ -777,7 +781,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             super();
                         }
                     }
-                    """, false),
+                    """),
                 new Data(
                     """
                     value record Test(int i) {}
@@ -809,13 +813,13 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """
                 value class Test {
                     int i = 100;
-                    int j;
+                    int j = 0;
                     {
-                        j = 200;
+                        System.out.println(j);
                     }
                 }
                 """;
-        String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,aload_0,sipush,putfield,return,";
+        String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,iconst_0,putfield,aload_0,invokespecial,getstatic,iconst_0,invokevirtual,return,";
         File dir = assertOK(true, source);
         for (final File fileEntry : dir.listFiles()) {
             ClassFile classFile = ClassFile.read(fileEntry);
@@ -826,7 +830,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     for (Instruction inst: code.getInstructions()) {
                         foundCodeSequence += inst.getMnemonic() + ",";
                     }
-                    Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                    Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
                 }
             }
         }
@@ -871,6 +875,16 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 value class Test {
                     Test t = null;
                     Runnable r = () -> { System.err.println(t); };
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.after.ctor.called",
+                """
+                value class Test {
+                    int f;
+                    {
+                        f = 1;
+                    }
                 }
                 """
         );
