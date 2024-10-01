@@ -5493,14 +5493,35 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   // r0 = input (float16)
-  // v0 = result (float)
+  // v0 = result (float or double)
   // v1 = temporary float register
-  address generate_float16ToFloat() {
+  address generate_float16ToFP(BasicType bt) {
     __ align(CodeEntryAlignment);
-    StubCodeMark mark(this, "StubRoutines", "float16ToFloat");
+    StubCodeMark mark(this, "StubRoutines", "float16 to float/double");
     address entry = __ pc();
     BLOCK_COMMENT("Entry:");
-    __ flt16_to_flt(v0, r0, v1);
+    switch (bt) {
+      case T_FLOAT:  __ flt16_to_flt(v0, r0, v1, T_FLOAT);  break;
+      case T_DOUBLE: __ flt16_to_flt(v0, r0, v1, T_DOUBLE); break;
+      default: ShouldNotReachHere();
+    }
+    __ ret(lr);
+    return entry;
+  }
+
+  // r1 = input (float16)
+  // r0 = result (int or long)
+  // v1 = temporary float register
+  address generate_float16ToIntegral(BasicType bt) {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "float16 to int/long");
+    address entry = __ pc();
+    BLOCK_COMMENT("Entry:");
+    switch (bt) {
+      case T_INT:  __ flt16_to_int(r1, r0, v0, T_INT);  break;
+      case T_LONG: __ flt16_to_int(r1, r0, v0, T_LONG); break;
+      default: ShouldNotReachHere();
+    }
     __ ret(lr);
     return entry;
   }
@@ -8548,8 +8569,20 @@ class StubGenerator: public StubCodeGenerator {
 
     if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_float16ToFloat) &&
         vmIntrinsics::is_intrinsic_available(vmIntrinsics::_floatToFloat16)) {
-      StubRoutines::_hf2f = generate_float16ToFloat();
+      StubRoutines::_hf2f = generate_float16ToFP(T_FLOAT);
       StubRoutines::_f2hf = generate_floatToFloat16();
+    }
+
+    if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_float16ToInt)) {
+      StubRoutines::_hf2i = generate_float16ToIntegral(T_INT);
+    }
+
+    if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_float16ToDouble)) {
+      StubRoutines::_hf2d = generate_float16ToFP(T_DOUBLE);
+    }
+
+    if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_float16ToLong)) {
+      StubRoutines::_hf2l = generate_float16ToIntegral(T_LONG);
     }
 
     if (InlineTypeReturnedAsFields) {

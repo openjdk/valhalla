@@ -1696,7 +1696,7 @@ bool Matcher::match_rule_supported(int opcode) {
       }
       break;
     case Op_VectorCastF2HF:
-    case Op_VectorCastHF2F:
+    case Op_VectorCastHF2X:
       if (!VM_Version::supports_f16c() && !VM_Version::supports_evex()) {
         return false;
       }
@@ -1915,10 +1915,16 @@ bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType bt) {
       }
       break;
     case Op_VectorCastF2HF:
-    case Op_VectorCastHF2F:
       if (!VM_Version::supports_f16c() &&
          ((!VM_Version::supports_evex() ||
          ((size_in_bits != 512) && !VM_Version::supports_avx512vl())))) {
+        return false;
+      }
+      break;
+    case Op_VectorCastHF2X:
+      if (bt != T_FLOAT && (!VM_Version::supports_f16c() &&
+         ((!VM_Version::supports_evex() ||
+         ((size_in_bits != 512) && !VM_Version::supports_avx512vl()))))) {
         return false;
       }
       break;
@@ -3749,22 +3755,28 @@ instruct convHF2F_reg_reg(vlRegF dst, rRegI src) %{
 %}
 
 instruct vconvHF2F_reg_mem(vec dst, memory mem) %{
-  match(Set dst (VectorCastHF2F (LoadVector mem)));
+  match(Set dst (VectorCastHF2X (LoadVector mem)));
   format %{ "vcvtph2ps $dst,$mem" %}
   ins_encode %{
+    BasicType bt = Matcher::vector_element_basic_type(this);
     int vlen_enc = vector_length_encoding(this);
-    __ vcvtph2ps($dst$$XMMRegister, $mem$$Address, vlen_enc);
+    if (bt == T_FLOAT) {
+      __ vcvtph2ps($dst$$XMMRegister, $mem$$Address, vlen_enc);
+    }
   %}
   ins_pipe( pipe_slow );
 %}
 
 instruct vconvHF2F(vec dst, vec src) %{
-  match(Set dst (VectorCastHF2F src));
+  match(Set dst (VectorCastHF2X src));
   ins_cost(125);
-  format %{ "vector_conv_HF2F $dst,$src" %}
+  format %{ "vector_conv_HF2X $dst,$src" %}
   ins_encode %{
+    BasicType bt = Matcher::vector_element_basic_type(this);
     int vlen_enc = vector_length_encoding(this);
-    __ vcvtph2ps($dst$$XMMRegister, $src$$XMMRegister, vlen_enc);
+    if (bt == T_FLOAT) {
+      __ vcvtph2ps($dst$$XMMRegister, $src$$XMMRegister, vlen_enc);
+    }
   %}
   ins_pipe( pipe_slow );
 %}

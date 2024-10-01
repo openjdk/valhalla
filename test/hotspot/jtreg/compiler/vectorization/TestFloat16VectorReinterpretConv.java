@@ -55,7 +55,7 @@ public class TestFloat16VectorReinterpretConv {
     }
 
     // When auto-vectorizing a sequence like - "dst (ConvHF2F (ReinterpretHF2S src))", the compilation
-    // fails due to an assertion error when testing for the source type in vectorCastNode::opcode() for
+    // fails due to an assertion error when testing for the source type in VectorCastNode::opcode() for
     // Op_ConvHF2F. The input passed to ConvHF2F is of type T_INT but is supposed to be of type T_SHORT. It is
     // because the container type for ReinterpretHF2S is computed as T_INT instead of T_SHORT. Fix for this
     // is part of JDK-8330021 and this test makes sure the compilation does not fail and vectorization of both

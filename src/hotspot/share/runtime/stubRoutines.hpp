@@ -260,6 +260,9 @@ class StubRoutines: AllStatic {
 
   static address _f2hf;
   static address _hf2f;
+  static address _hf2d;
+  static address _hf2i;
+  static address _hf2l;
 
   static address _method_entry_barrier;
 
@@ -468,6 +471,9 @@ class StubRoutines: AllStatic {
   //
   static address f2hf_adr()            { return _f2hf; }
   static address hf2f_adr()            { return _hf2f; }
+  static address hf2d_adr()            { return _hf2d; }
+  static address hf2i_adr()            { return _hf2i; }
+  static address hf2l_adr()            { return _hf2l; }
 
   static jshort f2hf(jfloat x) {
     assert(_f2hf != nullptr, "stub is not implemented on this platform");
@@ -480,6 +486,27 @@ class StubRoutines: AllStatic {
     MACOS_AARCH64_ONLY(ThreadWXEnable wx(WXExec, Thread::current());) // About to call into code cache
     typedef jfloat (*hf2f_stub_t)(jshort x);
     return ((hf2f_stub_t)_hf2f)(x);
+  }
+
+  static jdouble hf2d(jshort x) {
+    assert(_hf2d != nullptr, "stub is not implemented on this platform");
+    MACOS_AARCH64_ONLY(ThreadWXEnable wx(WXExec, Thread::current());) // About to call into code cache
+    typedef jdouble (*hf2d_stub_t)(jshort x);
+    return ((hf2d_stub_t)_hf2d)(x);
+  }
+
+  static jint hf2i(jshort x) {
+    assert(_hf2i != nullptr, "stub is not implemented on this platform");
+    MACOS_AARCH64_ONLY(ThreadWXEnable wx(WXExec, Thread::current());) // About to call into code cache
+    typedef jint (*hf2i_stub_t)(jshort x);
+    return ((hf2i_stub_t)_hf2i)(x);
+  }
+
+  static jlong hf2l(jshort x) {
+    assert(_hf2l != nullptr, "stub is not implemented on this platform");
+    MACOS_AARCH64_ONLY(ThreadWXEnable wx(WXExec, Thread::current());) // About to call into code cache
+    typedef jlong (*hf2l_stub_t)(jshort x);
+    return ((hf2l_stub_t)_hf2l)(x);
   }
 
   static address method_entry_barrier() { return _method_entry_barrier; }

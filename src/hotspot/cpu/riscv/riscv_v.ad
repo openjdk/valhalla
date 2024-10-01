@@ -1,6 +1,6 @@
 //
 // Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
-// Copyright (c) 2020, 2023, Arm Limited. All rights reserved.
+// Copyright (c) 2020, 2024, Arm Limited. All rights reserved.
 // Copyright (c) 2020, 2022, Huawei Technologies Co., Ltd. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
@@ -87,7 +87,8 @@ source %{
           return false;
         }
         break;
-      case Op_VectorCastHF2F:
+      case Op_VectorCastHF2X:
+        return bt == T_FLOAT && UseZvfh;
       case Op_VectorCastF2HF:
         return UseZvfh;
       case Op_VectorLoadShuffle:
@@ -4447,9 +4448,9 @@ instruct vreverse_bytes(vReg dst, vReg src) %{
 
 // half precision -> single
 
-instruct vconvHF2F(vReg dst, vReg src, vRegMask_V0 v0) %{
+instruct vconvHF2X(vReg dst, vReg src, vRegMask_V0 v0) %{
   predicate(Matcher::vector_element_basic_type(n) == T_FLOAT);
-  match(Set dst (VectorCastHF2F src));
+  match(Set dst (VectorCastHF2X src));
   effect(TEMP_DEF dst, TEMP v0);
   format %{ "vfwcvt.f.f.v $dst, $src\t# convert half to single precision" %}
   ins_encode %{
