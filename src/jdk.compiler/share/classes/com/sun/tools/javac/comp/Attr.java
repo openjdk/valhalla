@@ -327,7 +327,6 @@ public class Attr extends JCTree.Visitor {
 
         if (!env.info.ctorPrologue &&
                 v.owner.isValueClass() &&
-                !env.info.instanceInitializerBlock && // it is OK instance initializer blocks will go after super() anyways
                 v.owner.kind == TYP &&
                 v.owner == env.enclClass.sym &&
                 (v.flags() & STATIC) == 0 &&
