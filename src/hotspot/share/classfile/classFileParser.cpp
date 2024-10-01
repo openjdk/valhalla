@@ -153,9 +153,11 @@
 
 #define JAVA_22_VERSION                   66
 
-#define CONSTANT_CLASS_DESCRIPTORS        67
-
 #define JAVA_23_VERSION                   67
+
+#define CONSTANT_CLASS_DESCRIPTORS        68
+
+#define JAVA_24_VERSION                   68
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -4355,9 +4357,9 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 67.65535 and later
-  return _major_version > JAVA_23_VERSION ||
-         (_major_version == JAVA_23_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  // Inline types are only supported by class file version 68.65535 and later
+  return _major_version > JAVA_24_VERSION ||
+         (_major_version == JAVA_24_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
@@ -5169,7 +5171,7 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
       }
     } else if ((_major_version >= CONSTANT_CLASS_DESCRIPTORS || _class_name->starts_with("jdk/internal/reflect/"))
                    && bytes[length - 1] == ';' ) {
-      // Support for L...; and Q...; descriptors
+      // Support for L...; descriptors
       legal = verify_unqualified_name(bytes + 1, length - 2, LegalClass);
     } else {
       // 4900761: relax the constraints based on JSR202 spec
