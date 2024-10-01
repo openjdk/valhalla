@@ -408,7 +408,8 @@ public final class Float16
      * @see    java.lang.Float#valueOf(String)
      */
     public static Float16 valueOf(String s) throws NumberFormatException {
-        return valueOf(new BigDecimal(s));
+        // TOOD: adjust precision of parsing if needed
+        return valueOf(Double.parseDouble(s));
     }
 
     /**
