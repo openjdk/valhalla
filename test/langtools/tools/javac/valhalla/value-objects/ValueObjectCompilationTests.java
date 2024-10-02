@@ -26,7 +26,7 @@
  *
  * @test
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
- *      8329345 8341061
+ *      8329345 8341061 8340984
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
@@ -884,6 +884,54 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     int f;
                     {
                         f = 1;
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.before.ctor.called",
+                """
+                value class V {
+                    int x;
+                    int y = x + 1; // allowed
+                    V1() {
+                        x = 12;
+                        // super();
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.var.might.already.be.assigned",
+                """
+                value class V2 {
+                    int x;
+                    V2() { this(x = 3); } // error
+                    V2(int i) { x = 4; }
+                }
+                """
+        );
+        assertOK(
+                """
+                abstract value class AV1 {
+                    AV1(int i) {}
+                }
+                value class V3 extends AV1 {
+                    int x;
+                    V3() {
+                        super(x = 3); // ok
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.before.ctor.called",
+                """
+                value class V4 {
+                    int x;
+                    int y = x + 1;
+                    V4() {
+                        x = 12;
+                    }
+                    V4(int i) {
+                        x = i;
                     }
                 }
                 """
