@@ -213,9 +213,7 @@ public class TransTypes extends TreeTranslator {
             args.head = translate(args.head, parameters.head, paramsNullMarkers.head);
             args = args.tail;
             parameters = parameters.tail;
-            if (!paramsNullMarkers.isEmpty()) {
-                paramsNullMarkers = paramsNullMarkers.tail;
-            }
+            paramsNullMarkers = paramsNullMarkers.tail;
         }
         Type parameter = parameters.head;
         Assert.check(varargsElement != null || args.length() == 1);
