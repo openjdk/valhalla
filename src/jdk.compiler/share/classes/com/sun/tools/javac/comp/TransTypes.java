@@ -190,48 +190,48 @@ public class TransTypes extends TreeTranslator {
     <T extends JCTree> List<T> translateArgs(List<T> _args,
                                              List<Type> parameters,
                                              Type varargsElement) {
-        return translateArgs(_args, parameters, List.nil(), varargsElement, varargsElement);
+        return translateArgs(_args, parameters, List.nil(), varargsElement, JCNullableTypeExpression.NullMarker.UNSPECIFIED);
     }
 
     /** Translate method argument list, casting each argument
      *  to its corresponding type in a list of target types.
      *  @param _args                      The method argument list.
-     *  @param erasedParameterTypes       The list of target types (after erasure).
-     *  @param unerasedParamTypes         The list of target original parameter types.
+     *  @param parameters                 The list of target types (after erasure).
+     *  @param paramsNullMarkers      The list of target original parameter types.
      *  @param varargsElement             The erasure of the varargs element type,
      *                                    or null if translating a non-varargs invocation
      */
     @SuppressWarnings("unchecked")
     <T extends JCTree> List<T> translateArgs(List<T> _args,
-                                           List<Type> erasedParameterTypes,
-                                           List<Type> unerasedParamTypes,
+                                           List<Type> parameters,
+                                           List<JCNullableTypeExpression.NullMarker> paramsNullMarkers,
                                            Type varargsElement,
-                                           Type originalVarargsElement) {
-        if (erasedParameterTypes.isEmpty()) return _args;
+                                           JCNullableTypeExpression.NullMarker varargsElementNullMarker) {
+        if (parameters.isEmpty()) return _args;
         List<T> args = _args;
-        while (erasedParameterTypes.tail.nonEmpty()) {
-            args.head = translate(args.head, erasedParameterTypes.head,
-                    (!unerasedParamTypes.isEmpty() && unerasedParamTypes.head != null) ?
-                        unerasedParamTypes.head.getNullMarker() :
-                        JCNullableTypeExpression.NullMarker.UNSPECIFIED
+        while (parameters.tail.nonEmpty()) {
+            args.head = translate(args.head, parameters.head,
+                    (!paramsNullMarkers.isEmpty() && paramsNullMarkers.head != null) ?
+                            paramsNullMarkers.head :
+                            JCNullableTypeExpression.NullMarker.UNSPECIFIED
                     );
             args = args.tail;
-            erasedParameterTypes = erasedParameterTypes.tail;
-            if (!unerasedParamTypes.isEmpty()) {
-                unerasedParamTypes = unerasedParamTypes.tail;
+            parameters = parameters.tail;
+            if (!paramsNullMarkers.isEmpty()) {
+                paramsNullMarkers = paramsNullMarkers.tail;
             }
         }
-        Type parameter = erasedParameterTypes.head;
+        Type parameter = parameters.head;
         Assert.check(varargsElement != null || args.length() == 1);
         if (varargsElement != null) {
             while (args.nonEmpty()) {
-                args.head = translate(args.head, varargsElement, originalVarargsElement.getNullMarker());
+                args.head = translate(args.head, varargsElement, varargsElementNullMarker);
                 args = args.tail;
             }
         } else {
             args.head = translate(args.head, parameter,
-                    (!unerasedParamTypes.isEmpty() && unerasedParamTypes.head != null) ?
-                            unerasedParamTypes.head.getNullMarker() :
+                    (!paramsNullMarkers.isEmpty() && paramsNullMarkers.head != null) ?
+                            paramsNullMarkers.head :
                             JCNullableTypeExpression.NullMarker.UNSPECIFIED
             );
         }
@@ -720,8 +720,8 @@ public class TransTypes extends TreeTranslator {
         tree.meth = translate(tree.meth, null);
         Symbol meth = TreeInfo.symbol(tree.meth);
         Type mt = meth.erasure(types);
-        List<Type> unerasedParamTypes = meth.type.getParameterTypes();
-        Type originalVarargsElement = tree.varargsElement;
+        List<JCNullableTypeExpression.NullMarker> paramsNullMarkers = meth.type.getParameterTypes().map(t->t.getNullMarker());
+        JCNullableTypeExpression.NullMarker varargsElementNullMarker = tree.varargsElement != null ? tree.varargsElement.getNullMarker() : null;
         boolean useInstantiatedPtArgs = !types.isSignaturePolymorphic((MethodSymbol)meth.baseSymbol());
         List<Type> argtypes = useInstantiatedPtArgs ?
                 tree.meth.type.getParameterTypes() :
@@ -730,7 +730,6 @@ public class TransTypes extends TreeTranslator {
             // this is special case code only for j.l.Enum constructor and will effectively
             // set the argtypes to an empty list making the invocation to translateArgs a no-op
             argtypes = argtypes.tail.tail;
-            unerasedParamTypes = unerasedParamTypes.tail.tail;
         }
         if (tree.varargsElement != null)
             tree.varargsElement = types.erasure(tree.varargsElement);
@@ -739,7 +738,7 @@ public class TransTypes extends TreeTranslator {
                 Assert.error(String.format("Incorrect number of arguments; expected %d, found %d",
                         tree.args.length(), argtypes.length()));
             }
-        tree.args = translateArgs(tree.args, argtypes, unerasedParamTypes, tree.varargsElement, originalVarargsElement);
+        tree.args = translateArgs(tree.args, argtypes, paramsNullMarkers, tree.varargsElement, varargsElementNullMarker);
 
         tree.type = types.erasure(tree.type);
         // Insert casts of method invocation results as needed.
@@ -766,11 +765,11 @@ public class TransTypes extends TreeTranslator {
                 tree.constructor.erasure(types).getParameterTypes();
 
         tree.clazz = translate(tree.clazz, null);
-        Type originalVarargsElement = tree.varargsElement;
+        JCNullableTypeExpression.NullMarker varargsElementNullMarker = tree.varargsElement != null ? tree.varargsElement.getNullMarker() : null;
         if (tree.varargsElement != null)
             tree.varargsElement = types.erasure(tree.varargsElement);
         tree.args = translateArgs(
-            tree.args, argtypes, tree.constructor.type.getParameterTypes(), tree.varargsElement, originalVarargsElement);
+            tree.args, argtypes, tree.constructor.type.getParameterTypes().map(t->t.getNullMarker()), tree.varargsElement, varargsElementNullMarker);
         tree.def = translate(tree.def, null);
         if (erasedConstructorType != null)
             tree.constructorType = erasedConstructorType;
