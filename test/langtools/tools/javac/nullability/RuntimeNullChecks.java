@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @enablePreview
  * @summary test runtime null checks
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -32,7 +33,6 @@
  *          jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run main RuntimeNullChecks
- * @ignore
  */
 
 import java.util.*;
@@ -76,59 +76,264 @@ public class RuntimeNullChecks extends TestRunner {
 
     @Test
     public void testRuntimeChecks(Path base) throws Exception {
+        int i = 0;
         for (String code: new String[] {
                 """
-                value class Point { public implicit Point(); }
                 class Test {
                     public static void main(String... args) {
-                        Point s = null;
-                        Point! o = s; // NPE at runtime, variable initialization
+                        String s = null;
+                        String! o = s; // NPE at runtime, variable initialization
                     }
                 }
                 """,
                 """
-                value class Point { public implicit Point(); }
                 class Test {
                     public static void main(String... args) {
-                        Point s = null;
-                        Point! o;
+                        String s = null;
+                        String! o;
                         o = s; // NPE at runtime, assignment, it doesn't stress the same code path as the case above
                     }
                 }
                 """,
                 """
-                value class Point { public implicit Point(); }
-                class Test {
+                class Test {//
                     public static void main(String... args) {
-                        Point s = null;
-                        Point![] sr = new Point![10];
+                        String s = null;
+                        String![] sr = new String![10];
                         sr[0] = s; // NPE at runtime, assignment
                     }
                 }
                 """,
                 """
-                value class Point { public implicit Point(); }
                 class Test {
-                    static Point id(Point! arg) { return arg; }
+                    static String id(String! arg) { return arg; }
                     public static void main(String... args) {
-                        Point s = null;
+                        String s = null;
                         Object o = id(s); // NPE at runtime, method invocation
                     }
                 }
                 """,
                 """
-                value class Point { public implicit Point(); }
+                class Test {
+                    static String id(int i, String!... arg) { return ""; }
+                    public static void main(String... args) {
+                        String s1 = null;
+                        String s2 = "";
+                        Object o = id(1, s1, s2); // NPE at runtime, method invocation
+                    }
+                }
+                """,
+                """
+                class Test {
+                    static String id(int i, String!... arg) { return ""; }
+                    public static void main(String... args) {
+                        String s1 = "";
+                        String s2 = null;
+                        Object o = id(1, s1, s2); // NPE at runtime, method invocation
+                    }
+                }
+                """,
+                """
                 class Test {
                     public static void main(String... args) {
-                        Point s = null;
-                        Object o = (Point!) s; // NPE, cast
+                        String s = null;
+                        Object o = (String!) s; // NPE, cast
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        class MyPrivilegedAction<T> {
+                            MyPrivilegedAction(Object! o) {}
+                            T run() {
+                                return null;
+                            }
+                        }
+                    }
+                    public <T> T doPrivileged(Inner.MyPrivilegedAction<T> action) {
+                        return action.run();
+                    }
+                    boolean isSystemProperty(String key, String value, String def, Object? o) {
+                        return doPrivileged(
+                            new Inner().new MyPrivilegedAction<Boolean>(o) {
+                                @Override
+                                public Boolean run() {
+                                    return value.equals(System.getProperty(key, def));
+                                }
+                            });
+                    }
+                    public static void main(String... args) {
+                        Test test = new Test();
+                        test.isSystemProperty("1", "2", "3", null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        class MyPrivilegedAction<T> {
+                            MyPrivilegedAction(String s, Object!... o) {}
+                        }
+                    }
+                    public <T> T doPrivileged(Inner.MyPrivilegedAction<T> action) { return null; }
+                    boolean isSystemProperty(Inner inner, Object o) {
+                        return doPrivileged( inner.new MyPrivilegedAction<Boolean>("", o) {} );
+                    }
+                    void doTest() {
+                        Inner inner = new Inner();
+                        isSystemProperty(inner, null);
+                    }
+                    public static void main(String... args) {
+                        Test test = new Test();
+                        test.doTest();
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        class MyPrivilegedAction<T> {
+                            MyPrivilegedAction(String s, Object!... o) {}
+                        }
+                    }
+                    public <T> T doPrivileged(Inner.MyPrivilegedAction<T> action) { return null; }
+                    boolean isSystemProperty(Inner inner, Object o) {
+                        return doPrivileged( inner.new MyPrivilegedAction<Boolean>("", o, o) {} );
+                    }
+                    void doTest() {
+                        Inner inner = new Inner();
+                        isSystemProperty(inner, null);
+                    }
+                    public static void main(String... args) {
+                        Test test = new Test();
+                        test.doTest();
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        class MyPrivilegedAction<T> {
+                            MyPrivilegedAction(String s, Object!... o) {}
+                        }
+                    }
+                    public <T> T doPrivileged(Inner.MyPrivilegedAction<T> action) { return null; }
+                    boolean isSystemProperty(Inner inner, Object o) {
+                        return doPrivileged( inner.new MyPrivilegedAction<Boolean>("", new Object(), o) {} );
+                    }
+                    void doTest() {
+                        Inner inner = new Inner();
+                        isSystemProperty(inner, null);
+                    }
+                    public static void main(String... args) {
+                        Test test = new Test();
+                        test.doTest();
                     }
                 }
                 """
         }) {
+            System.err.println("executing test " + i++);
             testHelper(base, code, true, NullPointerException.class);
         }
+
+        // enums are a bit special as the NPE happens inside a static initializer and ExceptionInInitializerError is thrown
+        testHelper(base,
+                """
+                class Test {
+                    static Object s = null;
+                    enum E {
+                        A(s);
+                        E(Object! o) {}
+                    }
+                    public static void main(String... args) {
+                        Test.E a = E.A;
+                    }
+                }
+                """, true, ExceptionInInitializerError.class);
+
+        // similar test cases as above but without null markers, should trivially pass
+        i = 0;
+        for (String code: new String[] {
+                """
+                class Test {
+                    public static void main(String... args) {
+                        String s = null;
+                        String o = s;
+                    }
+                }
+                """,
+                """
+                class Test {
+                    public static void main(String... args) {
+                        String s = null;
+                        String o;
+                        o = s;
+                    }
+                }
+                """,
+                """
+                class Test {
+                    public static void main(String... args) {
+                        String s = null;
+                        String[] sr = new String[10];
+                        sr[0] = s;
+                    }
+                }
+                """,
+                """
+                class Test {
+                    static String id(String arg) { return arg; }
+                    public static void main(String... args) {
+                        String s = null;
+                        Object o = id(s);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    public static void main(String... args) {
+                        String s = null;
+                        Object o = (String) s;
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        class MyPrivilegedAction<T> {
+                            MyPrivilegedAction(Object o) {}
+                            T run() {
+                                return null;
+                            }
+                        }
+                    }
+                    public <T> T doPrivileged(Inner.MyPrivilegedAction<T> action) {
+                        return action.run();
+                    }
+                    boolean isSystemProperty(String key, String value, String def, Object o) {
+                        return doPrivileged(
+                            new Inner().new MyPrivilegedAction<Boolean>(o) {
+                                @Override
+                                public Boolean run() {
+                                    return value.equals(System.getProperty(key, def));
+                                }
+                            });
+                    }
+                    public static void main(String... args) {
+                        Test test = new Test();
+                        test.isSystemProperty("1", "2", "3", null);
+                    }
+                }
+                """
+        }) {
+            System.err.println("executing test " + i++);
+            testHelper(base, code, false, null);
+        }
     }
+
+    private static String[] PREVIEW_OPTIONS = {
+            "--enable-preview", "-source", Integer.toString(Runtime.version().feature())};
 
     private void testHelper(Path base, String testCode, boolean shouldFail, Class<?> expectedError) throws Exception {
         Path src = base.resolve("src");
@@ -141,6 +346,7 @@ public class RuntimeNullChecks extends TestRunner {
 
         new JavacTask(tb)
                 .outdir(out)
+                .options(PREVIEW_OPTIONS)
                 .files(findJavaFiles(src))
                 .run();
 
@@ -149,6 +355,7 @@ public class RuntimeNullChecks extends TestRunner {
             String output = new JavaTask(tb)
                     .classpath(out.toString())
                     .classArgs("Test")
+                    .vmOptions("--enable-preview")
                     .run(Task.Expect.FAIL)
                     .writeAll()
                     .getOutput(Task.OutputKind.STDERR);
@@ -158,6 +365,7 @@ public class RuntimeNullChecks extends TestRunner {
         } else {
             new JavaTask(tb)
                     .classpath(out.toString())
+                    .vmOptions("--enable-preview")
                     .classArgs("Test")
                     .run(Task.Expect.SUCCESS);
         }
