@@ -1003,38 +1003,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     @Test
-    void testAnonymousValue() throws Exception {
-        assertOK(
-                """
-                class Test {
-                    void m() {
-                        Object o = new value Comparable<String>() {
-                            @Override
-                            public int compareTo(String o) {
-                                return 0;
-                            }
-                        };
-                    }
-                }
-                """
-        );
-        assertOK(
-                """
-                class Test {
-                    void m() {
-                        Object o = new value Comparable<>() {
-                            @Override
-                            public int compareTo(Object o) {
-                                return 0;
-                            }
-                        };
-                    }
-                }
-                """
-        );
-    }
-
-    @Test
     void testNullAssigment() throws Exception {
         assertOK(
                 """
