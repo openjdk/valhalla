@@ -34,7 +34,7 @@ import static java.lang.Math.multiplyHigh;
 import static jdk.internal.math.MathUtils.*;
 
 /**
- * This class exposes a method to render a {@code float} as a string.
+ * This class exposes a method to render a {@code Float16} as a string.
  */
 public final class Float16ToDecimal {
     /*
@@ -121,12 +121,12 @@ public final class Float16ToDecimal {
     }
 
     /**
-     * Returns a string representation of the {@code float}
+     * Returns a string representation of the {@code Float16}
      * argument. All characters mentioned below are ASCII characters.
      *
-     * @param   v   the {@code float} to be converted.
+     * @param   v   the {@code Float16} to be converted.
      * @return a string representation of the argument.
-     * @see Float#toString(float)
+     * @see Float16#toString(Float16)
      */
     public static String toString(Float16 v) {
         return new Float16ToDecimal().toDecimalString(v);
@@ -139,7 +139,7 @@ public final class Float16ToDecimal {
      * {@link #toString(Float16) rendered} and the resulting string were then
      * {@link Appendable#append(CharSequence) appended} to {@code app}.
      *
-     * @param v the {@code float} whose rendering is appended.
+     * @param v the {@code Float16} whose rendering is appended.
      * @param app the {@link Appendable} to append to.
      * @throws IOException If an I/O error occurs
      */

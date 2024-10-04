@@ -35,7 +35,7 @@ import jdk.internal.math.Float16ToDecimalChecker;
 public class Float16ToDecimalTest {
 
     public static void main(String[] args) {
-        Float16ToDecimalChecker.test();
+        Float16ToDecimalChecker.testAll();
     }
 
 }

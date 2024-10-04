@@ -123,9 +123,8 @@ public class Float16ToDecimalChecker extends ToDecimalChecker {
         new Float16ToDecimalChecker(v).check();
     }
 
-    public static void test() {
-        int bits = Short.MIN_VALUE;
-        for (; bits <= Short.MAX_VALUE; ++bits) {
+    public static void testAll() {
+        for (int bits = Short.MIN_VALUE; bits <= Short.MAX_VALUE; ++bits) {
             testDec(shortBitsToFloat16((short) bits));
         }
         throwOnErrors("Float16ToDecimalChecker");
