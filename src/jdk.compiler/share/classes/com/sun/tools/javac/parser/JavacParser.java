@@ -2564,14 +2564,11 @@ public class JavacParser implements Parser {
     /** Creator = [Annotations] Qualident [TypeArguments] ( ArrayCreatorRest | ClassCreatorRest )
      */
     JCExpression creator(int newpos, List<JCExpression> typeArgs) {
-        final JCModifiers mods = modifiersOpt();
-        List<JCAnnotation> newAnnotations = mods.annotations;
+        List<JCAnnotation> newAnnotations = typeAnnotationsOpt();
+
         switch (token.kind) {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
-            if (mods.flags != 0) {
-                log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(mods.flags)));
-            }
             if (typeArgs == null) {
                 if (newAnnotations.isEmpty()) {
                     return arrayCreatorRest(newpos, basicType());
@@ -2644,11 +2641,7 @@ public class JavacParser implements Parser {
             if (newAnnotations.nonEmpty()) {
                 t = insertAnnotationsToMostInner(t, newAnnotations, false);
             }
-            JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t, mods.flags);
-            if ((newClass.def == null) && (mods.flags != 0)) {
-                log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(mods.flags)));
-            }
-            return newClass;
+            return classCreatorRest(newpos, null, typeArgs, t);
         } else {
             setErrorEndPos(token.pos);
             reportSyntaxError(token.pos, Errors.Expected2(LPAREN, LBRACKET));
@@ -2673,7 +2666,7 @@ public class JavacParser implements Parser {
             t = typeArguments(t, true);
             setMode(prevmode);
         }
-        return classCreatorRest(newpos, encl, typeArgs, t, 0);
+        return classCreatorRest(newpos, encl, typeArgs, t);
     }
 
     /** ArrayCreatorRest = [Annotations] "[" ( "]" BracketsOpt ArrayInitializer
@@ -2751,8 +2744,7 @@ public class JavacParser implements Parser {
     JCNewClass classCreatorRest(int newpos,
                                   JCExpression encl,
                                   List<JCExpression> typeArgs,
-                                  JCExpression t,
-                                  long flags)
+                                  JCExpression t)
     {
         List<JCExpression> args = arguments();
         JCClassDecl body = null;
@@ -2760,7 +2752,7 @@ public class JavacParser implements Parser {
             ignoreDanglingComments(); // ignore any comments from before the '{'
             int pos = token.pos;
             List<JCTree> defs = classInterfaceOrRecordBody(names.empty, false, false);
-            JCModifiers mods = F.at(Position.NOPOS).Modifiers(flags);
+            JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
             body = toP(F.at(pos).AnonymousClassDef(mods, defs));
         }
         return toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body));
@@ -3505,10 +3497,7 @@ public class JavacParser implements Parser {
         } else {
             JCExpression t = term(EXPR | TYPE);
             if (wasTypeMode() && LAX_IDENTIFIER.test(token.kind)) {
-                pos = token.pos;
-                JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
-                F.at(pos);
-                return variableDeclarators(mods, t, stats, true).toList();
+                return variableDeclarators(modifiersOpt(), t, stats, true).toList();
             } else if (wasTypeMode() && token.kind == COLON) {
                 log.error(DiagnosticFlag.SYNTAX, pos, Errors.BadInitializer("for-loop"));
                 return List.of((JCStatement)F.at(pos).VarDef(modifiersOpt(), names.error, t, null));
