@@ -260,6 +260,8 @@ public record ParserVerifier(ClassModel classModel) {
             }
             case LineNumberTableAttribute lta ->
                 2 + 4 * lta.lineNumbers().size();
+            case LoadableDescriptorsAttribute lda ->
+                2 + 2 * lda.loadableDescriptors().size();
             case LocalVariableTableAttribute lvta ->
                 2 + 10 * lvta.localVariables().size();
             case LocalVariableTypeTableAttribute lvta ->
