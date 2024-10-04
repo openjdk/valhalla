@@ -64,20 +64,6 @@ public class DoubleFloatValueTests {
         return bv.subtract(ulp.multiply(HALF));
     }
 
-    /*
-     * Not a fully fledged implementation, only for finite positive values.
-     */
-    private static Float16 nextUp(Float16 v) {
-        return Float16.shortBitsToFloat16((short) (Float16.float16ToRawShortBits(v) + 1));
-    }
-
-    /*
-     * Not a fully fledged implementation, only for finite positive values.
-     */
-    private static Float16 nextDown(Float16 v) {
-        return Float16.shortBitsToFloat16((short) (Float16.float16ToRawShortBits(v) - 1));
-    }
-
     private static BigDecimal nextHalfUp(Float16 v) {
         BigDecimal bv = new BigDecimal(v.doubleValue());
         BigDecimal ulp = new BigDecimal(Float16.ulp(v).doubleValue());
@@ -86,7 +72,7 @@ public class DoubleFloatValueTests {
 
     private static BigDecimal nextHalfDown(Float16 v) {
         BigDecimal bv = new BigDecimal(v.doubleValue());
-        BigDecimal ulp = new BigDecimal(v.doubleValue() - nextDown(v).doubleValue());
+        BigDecimal ulp = new BigDecimal(v.doubleValue() - Float16.nextDown(v).doubleValue());
         return bv.subtract(ulp.multiply(HALF));
     }
 
@@ -202,18 +188,18 @@ public class DoubleFloatValueTests {
         Float16 v = Float16.MIN_NORMAL;
         for (int n = 0; n < 100; ++n) {
             BigDecimal bv = nextHalfDown(v);
-            checkFloat16(bv, isOdd(n) ? nextDown(v) : v);
-            checkFloat16(bv.subtract(EPS), nextDown(v));
+            checkFloat16(bv, isOdd(n) ? Float16.nextDown(v) : v);
+            checkFloat16(bv.subtract(EPS), Float16.nextDown(v));
             checkFloat16(bv.add(EPS), v);
-            v = nextDown(v);
+            v = Float16.nextDown(v);
         }
         v = Float16.MIN_NORMAL;
         for (int n = 0; n < 100; ++n) {
             BigDecimal bv = nextHalfUp(v);
-            checkFloat16(bv, isOdd(n) ? nextUp(v) : v);
+            checkFloat16(bv, isOdd(n) ? Float16.nextUp(v) : v);
             checkFloat16(bv.subtract(EPS), v);
-            checkFloat16(bv.add(EPS), nextUp(v));
-            v = nextUp(v);
+            checkFloat16(bv.add(EPS), Float16.nextUp(v));
+            v = Float16.nextUp(v);
         }
     }
 
@@ -251,10 +237,10 @@ public class DoubleFloatValueTests {
         Float16 v = Float16.MAX_VALUE;
         for (int n = 0; n < 100; ++n) {
             BigDecimal bv = nextHalfDown(v);
-            checkFloat16(bv, isOdd(n) ? v : nextDown(v));
-            checkFloat16(bv.subtract(EPS), nextDown(v));
+            checkFloat16(bv, isOdd(n) ? v : Float16.nextDown(v));
+            checkFloat16(bv.subtract(EPS), Float16.nextDown(v));
             checkFloat16(bv.add(EPS), v);
-            v = nextDown(v);
+            v = Float16.nextDown(v);
         }
         BigDecimal bv = nextHalfUp(Float16.MAX_VALUE);
         checkFloat16(bv, Float16.POSITIVE_INFINITY);
