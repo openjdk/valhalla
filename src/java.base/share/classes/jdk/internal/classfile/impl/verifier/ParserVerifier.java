@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -260,6 +260,8 @@ public record ParserVerifier(ClassModel classModel) {
             }
             case LineNumberTableAttribute lta ->
                 2 + 4 * lta.lineNumbers().size();
+            case LoadableDescriptorsAttribute lda ->
+                2 + 2 * lda.loadableDescriptors().size();
             case LocalVariableTableAttribute lvta ->
                 2 + 10 * lvta.localVariables().size();
             case LocalVariableTypeTableAttribute lvta ->
