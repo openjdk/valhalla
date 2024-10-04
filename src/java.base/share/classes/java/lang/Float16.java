@@ -78,8 +78,6 @@ public final class Float16
     // Functionality for future consideration:
     // float16ToShortBits that normalizes NaNs, c.f. floatToIntBits vs floatToRawIntBits
     // copysign
-    // scalb
-    // nextUp / nextDown
     // IEEEremainder / remainder operator remainder
     // signum
 
@@ -1189,7 +1187,7 @@ public final class Float16
             assert exp <= MAX_EXPONENT && exp >= MIN_EXPONENT;
             // ulp(x) is usually 2^(SIGNIFICAND_WIDTH-1)*(2^ilogb(x))
             // Let float -> float16 conversion handle encoding issues.
-            yield valueOf(Math.scalb(1.0f, exp - (PRECISION - 1)));
+            yield scalb(valueOf(1), exp - (PRECISION - 1));
         }
         };
     }
