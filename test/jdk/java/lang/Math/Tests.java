@@ -501,6 +501,21 @@ public class Tests {
     }
 
     public static int test(String testName,
+            Float16 input1, Float16 input2,
+            Float16 result, Float16 expected) {
+        if (Float16.compare(expected, result ) != 0) {
+            System.err.println("Failure for "  + testName + ":\n" +
+                    "\tFor inputs " + input1   + "\t(" + toHexString(input1) + ") and "
+                    + input2   + "\t(" + toHexString(input2) + ")\n" +
+                    "\texpected  "  + expected + "\t(" + toHexString(expected) + ")\n" +
+                    "\tgot       "  + result   + "\t(" + toHexString(result) + ").");
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    public static int test(String testName,
                            double input1, int input2,
                            double result, double expected) {
         if (Double.compare(expected, result ) != 0) {
