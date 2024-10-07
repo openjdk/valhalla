@@ -871,6 +871,69 @@ public class IeeeRecommendedTests {
 
     /* ******************** copySign tests******************************** */
 
+    public static int testFloat16CopySign() {
+        int failures = 0;
+
+        // testCases[0] are logically positive numbers;
+        // testCases[1] are negative numbers.
+        float testCases [][] = {
+                {+0.0f,
+                        Float16.MIN_VALUE.floatValue(),
+                        Float16_MAX_SUBNORMALmm.floatValue(),
+                        Float16_MAX_SUBNORMAL.floatValue(),
+                        Float16.MIN_NORMAL.floatValue(),
+                        1.0f,
+                        3.0f,
+                        Float16_MAX_VALUEmm.floatValue(),
+                        Float16.MAX_VALUE.floatValue(),
+                        infinityF16.floatValue(),
+                },
+                {-infinityF16.floatValue(),
+                        -Float16.MAX_VALUE.floatValue(),
+                        -3.0f,
+                        -1.0f,
+                        -Float16.MIN_NORMAL.floatValue(),
+                        -Float16_MAX_SUBNORMALmm.floatValue(),
+                        -Float16_MAX_SUBNORMAL.floatValue(),
+                        -Float16.MIN_VALUE.floatValue(),
+                        -0.0f}
+        };
+
+        float NaNs[] = {Float16.shortBitsToFloat16((short) 0x7e00).floatValue(),       // "positive" NaN
+                Float16.shortBitsToFloat16((short) 0xfe00).floatValue()};      // "negative" NaN
+
+        // Tests shared between raw and non-raw versions
+        for(int i = 0; i < 2; i++) {
+            for(int j = 0; j < 2; j++) {
+                for(int m = 0; m < testCases[i].length; m++) {
+                    for(int n = 0; n < testCases[j].length; n++) {
+                        // copySign(magnitude, sign)
+                        failures+=Tests.test("Float16.copySign(Float16,Float16)",
+                                Float16.valueOf(testCases[i][m]),Float16.valueOf(testCases[j][n]),
+                                Float16.copySign(Float16.valueOf(testCases[i][m]), Float16.valueOf(testCases[j][n])),
+                                Float16.valueOf((j==0?1.0f:-1.0f)*Math.abs(testCases[i][m])) );
+                    }
+                }
+            }
+        }
+
+        // For rawCopySign, NaN may effectively have either sign bit
+        // while for copySign NaNs are treated as if they always have
+        // a zero sign bit (i.e. as positive numbers)
+        for(int i = 0; i < 2; i++) {
+            for(int j = 0; j < NaNs.length; j++) {
+                for(int m = 0; m < testCases[i].length; m++) {
+                    // copySign(magnitude, sign)
+
+                    failures += (Float16.abs(Float16.copySign(Float16.valueOf(testCases[i][m]), Float16.valueOf(NaNs[j]))).floatValue() ==
+                            Float16.abs(Float16.valueOf(testCases[i][m])).floatValue()) ? 0:1;
+                }
+            }
+        }
+
+        return failures;
+    }
+
     public static int testFloatCopySign() {
         int failures = 0;
 
@@ -1892,6 +1955,38 @@ public class IeeeRecommendedTests {
         return failures;
     }
 
+    public static int testFloat16Signum() {
+        int failures = 0;
+        float testCases [][] = {
+                {NaNf16.floatValue(),                      NaNf16.floatValue()},
+                {-infinityF16.floatValue(),                -1.0f},
+                {-Float16.MAX_VALUE.floatValue(),          -1.0f},
+                {-Float16.MIN_NORMAL.floatValue(),         -1.0f},
+                {-1.0f,                                    -1.0f},
+                {-2.0f,                                    -1.0f},
+                {-Float16_MAX_SUBNORMAL.floatValue(),      -1.0f},
+                {-Float16.MIN_VALUE.floatValue(),          -1.0f},
+                {-0.0f,                                    -0.0f},
+                {+0.0f,                                    +0.0f},
+                {Float16.MIN_VALUE.floatValue(),            1.0f},
+                {Float16_MAX_SUBNORMALmm.floatValue(),      1.0f},
+                {Float16_MAX_SUBNORMAL.floatValue(),        1.0f},
+                {Float16.MIN_NORMAL.floatValue(),           1.0f},
+                {1.0f,                                      1.0f},
+                {2.0f,                                      1.0f},
+                {Float16_MAX_VALUEmm.floatValue(),          1.0f},
+                {Float16.MAX_VALUE.floatValue(),            1.0f},
+                {infinityF16.floatValue(),                  1.0f}
+        };
+
+        for(int i = 0; i < testCases.length; i++) {
+            failures+=Tests.test("Float16.signum(Float16)",
+                    Float16.valueOf(testCases[i][0]), Float16.signum(Float16.valueOf(testCases[i][0])), Float16.valueOf(testCases[i][1]));
+        }
+
+        return failures;
+    }
+
     public static int testFloatSignum() {
         int failures = 0;
         float testCases [][] = {
@@ -1981,6 +2076,7 @@ public class IeeeRecommendedTests {
         failures += testFloatBooleanMethods();
         failures += testDoubleBooleanMethods();
 
+        failures += testFloat16CopySign();
         failures += testFloatCopySign();
         failures += testDoubleCopySign();
 
@@ -1991,6 +2087,7 @@ public class IeeeRecommendedTests {
         failures += testFloatUlp();
         failures += testDoubleUlp();
 
+        failures += testFloat16Signum();
         failures += testFloatSignum();
         failures += testDoubleSignum();
 
