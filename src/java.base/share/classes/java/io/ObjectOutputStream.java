@@ -1068,7 +1068,7 @@ public class ObjectOutputStream
          *         calling the {@link java.io.ObjectOutputStream#writeFields()}
          *         method.
          */
-        @Deprecated
+        @Deprecated(forRemoval = true, since = "1.4")
         public abstract void write(ObjectOutput out) throws IOException;
     }
 

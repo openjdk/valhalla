@@ -22,7 +22,6 @@
  */
 
 /**
- * @ignore Fix JDK-8328461
  * @test
  * @summary Tests that all FieldAccess and FieldModification notifications
             are generated for value classes.

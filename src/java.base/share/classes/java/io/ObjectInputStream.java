@@ -2455,8 +2455,11 @@ public class ObjectInputStream
     }
 
     /**
-     * Reads a record.
-     * The record is set in the handle table only after the constructor returns.
+     * Reads and returns a record.
+     * If an exception is marked for any of the fields, the dependency
+     * mechanism marks the record as having an exception.
+     * Null is returned from readRecord and later the exception is thrown at
+     * the exit of {@link #readObject(Class)}.
      */
     private Object readRecord(ObjectStreamClass desc, boolean unshared) throws IOException {
         TRACE("invoking readRecord: %s", desc.getName());
@@ -2471,6 +2474,9 @@ public class ObjectInputStream
         }
 
         FieldValues fieldValues = new FieldValues(desc, true);
+        if (handles.lookupException(passHandle) != null) {
+            return null;     // slot marked with exception, don't create record
+        }
 
         // get canonical record constructor adapted to take two arguments:
         // - byte[] primValues
@@ -2529,6 +2535,10 @@ public class ObjectInputStream
                         return values;
                     })
                     .toList();
+
+            if (handles.lookupException(passHandle) != null) {
+                return null;    // some exception for a class, do not return the object
+            }
 
             // Check that the types are assignable for all slots before assigning.
             slotValues.forEach(v -> v.defaultCheckFieldValues(obj));

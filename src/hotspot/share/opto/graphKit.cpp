@@ -1531,6 +1531,9 @@ Node* GraphKit::must_be_not_null(Node* value, bool do_replace_in_map) {
   Node* opaq = _gvn.transform(new Opaque4Node(C, tst, intcon(1)));
   IfNode *iff = new IfNode(control(), opaq, PROB_MAX, COUNT_UNKNOWN);
   _gvn.set_type(iff, iff->Value(&_gvn));
+  if (!tst->is_Con()) {
+    record_for_igvn(iff);
+  }
   Node *if_f = _gvn.transform(new IfFalseNode(iff));
   Node *frame = _gvn.transform(new ParmNode(C->start(), TypeFunc::FramePtr));
   Node* halt = _gvn.transform(new HaltNode(if_f, frame, "unexpected null in intrinsic"));
@@ -2885,7 +2888,6 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
     // Here, the type of 'fa' is often exact, so the store check
     // of fa[1]=x will fold up, without testing the nullness of x.
     //
-
     // At macro expansion, we would have already folded the SubTypeCheckNode
     // being expanded here because we always perform the static sub type
     // check in SubTypeCheckNode::sub() regardless of whether
@@ -3893,9 +3895,6 @@ FastLockNode* GraphKit::shared_lock(Node* obj) {
 
   FastLockNode * flock = _gvn.transform(new FastLockNode(0, obj, box) )->as_FastLock();
 
-  // Create the rtm counters for this fast lock if needed.
-  flock->create_rtm_lock_counter(sync_jvms()); // sync_jvms used to get current bci
-
   // Add monitor to debug info for the slow path.  If we block inside the
   // slow path and de-opt, we need the monitor hanging around
   map()->push_monitor( flock );
@@ -4753,4 +4752,18 @@ Node* GraphKit::load_mirror_from_klass(Node* klass) {
   Node* load = make_load(nullptr, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
   // mirror = ((OopHandle)mirror)->resolve();
   return access_load(load, TypeInstPtr::MIRROR, T_OBJECT, IN_NATIVE);
+}
+
+Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {
+  const Type* obj_type = obj->bottom_type();
+  const TypeOopPtr* sig_type = TypeOopPtr::make_from_klass(type);
+  if (obj_type->isa_oopptr() && sig_type->is_loaded() && !obj_type->higher_equal(sig_type)) {
+    const Type* narrow_obj_type = obj_type->filter_speculative(sig_type); // keep speculative part
+    Node* casted_obj = gvn().transform(new CheckCastPPNode(control(), obj, narrow_obj_type));
+    obj = casted_obj;
+  }
+  if (sig_type->is_inlinetypeptr()) {
+    obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass(), !gvn().type(obj)->maybe_null());
+  }
+  return obj;
 }

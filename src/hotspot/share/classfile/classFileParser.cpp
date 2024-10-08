@@ -153,9 +153,11 @@
 
 #define JAVA_22_VERSION                   66
 
-#define CONSTANT_CLASS_DESCRIPTORS        67
-
 #define JAVA_23_VERSION                   67
+
+#define CONSTANT_CLASS_DESCRIPTORS        68
+
+#define JAVA_24_VERSION                   68
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -2929,11 +2931,6 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       _has_finalizer = true;
     }
   }
-  if (name == vmSymbols::object_initializer_name() &&
-      signature == vmSymbols::void_method_signature() &&
-      m->is_vanilla_constructor()) {
-    _has_vanilla_constructor = true;
-  }
 
   NOT_PRODUCT(m->verify());
   return m;
@@ -4347,29 +4344,6 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
     }
   }
 
-  // Check if this klass has a vanilla default constructor
-  if (super == nullptr) {
-    // java.lang.Object has empty default constructor
-    ik->set_has_vanilla_constructor();
-  } else {
-    if (super->has_vanilla_constructor() &&
-        _has_vanilla_constructor) {
-      ik->set_has_vanilla_constructor();
-    }
-#ifdef ASSERT
-    bool v = false;
-    if (super->has_vanilla_constructor()) {
-      const Method* const constructor =
-        ik->find_method(vmSymbols::object_initializer_name(),
-                       vmSymbols::void_method_signature());
-      if (constructor != nullptr && constructor->is_vanilla_constructor()) {
-        v = true;
-      }
-    }
-    assert(v == ik->has_vanilla_constructor(), "inconsistent has_vanilla_constructor");
-#endif
-  }
-
   // If it cannot be fast-path allocated, set a bit in the layout helper.
   // See documentation of InstanceKlass::can_be_fastpath_allocated().
   assert(ik->size_helper() > 0, "layout_helper is initialized");
@@ -4383,9 +4357,9 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 67.65535 and later
-  return _major_version > JAVA_23_VERSION ||
-         (_major_version == JAVA_23_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  // Inline types are only supported by class file version 68.65535 and later
+  return _major_version > JAVA_24_VERSION ||
+         (_major_version == JAVA_24_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
@@ -5197,7 +5171,7 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
       }
     } else if ((_major_version >= CONSTANT_CLASS_DESCRIPTORS || _class_name->starts_with("jdk/internal/reflect/"))
                    && bytes[length - 1] == ';' ) {
-      // Support for L...; and Q...; descriptors
+      // Support for L...; descriptors
       legal = verify_unqualified_name(bytes + 1, length - 2, LegalClass);
     } else {
       // 4900761: relax the constraints based on JSR202 spec
@@ -5676,7 +5650,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     ik->set_has_contended_annotations(true);
   }
 
-  // Fill in has_finalizer, has_vanilla_constructor, and layout_helper
+  // Fill in has_finalizer and layout_helper
   set_precomputed_flags(ik);
 
   // check if this class can access its super class
@@ -5902,7 +5876,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_implicitly_constructible_annotation(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
-  _has_vanilla_constructor(false),
   _max_bootstrap_specifier_index(-1) {
 
   _class_name = name != nullptr ? name : vmSymbols::unknown_class_name();

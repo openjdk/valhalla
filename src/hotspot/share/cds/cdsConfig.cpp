@@ -76,7 +76,7 @@ void CDSConfig::initialize() {
   // This must be after set_ergonomics_flags() called so flag UseCompressedOops is set properly.
   //
   // UseSharedSpaces may be disabled if -XX:SharedArchiveFile is invalid.
-  if (is_dumping_static_archive() || UseSharedSpaces) {
+  if (is_dumping_static_archive() || is_using_archive()) {
     init_shared_archive_paths();
   }
 
@@ -322,7 +322,7 @@ void CDSConfig::check_unsupported_dumping_module_options() {
 }
 
 bool CDSConfig::has_unsupported_runtime_module_options() {
-  assert(UseSharedSpaces, "this function is only used with -Xshare:{on,auto}");
+  assert(is_using_archive(), "this function is only used with -Xshare:{on,auto}");
   if (ArchiveClassesAtExit != nullptr) {
     // dynamic dumping, just return false for now.
     // check_unsupported_dumping_properties() will be called later to check the same set of
@@ -397,10 +397,10 @@ bool CDSConfig::check_vm_args_consistency(bool mode_flag_cmd_line) {
     }
   }
 
-  if (UseSharedSpaces && java_base_module_patching_disables_cds() && module_patching_disables_cds()) {
+  if (is_using_archive() && java_base_module_patching_disables_cds() && module_patching_disables_cds()) {
     Arguments::no_shared_spaces("CDS is disabled when " JAVA_BASE_NAME " module is patched.");
   }
-  if (UseSharedSpaces && has_unsupported_runtime_module_options()) {
+  if (is_using_archive() && has_unsupported_runtime_module_options()) {
     UseSharedSpaces = false;
   }
 
@@ -416,7 +416,7 @@ bool CDSConfig::check_vm_args_consistency(bool mode_flag_cmd_line) {
 }
 
 bool CDSConfig::is_using_archive() {
-  return UseSharedSpaces; // TODO: UseSharedSpaces will be eventually replaced by CDSConfig::is_using_archive()
+  return UseSharedSpaces;
 }
 
 bool CDSConfig::is_logging_lambda_form_invokers() {
@@ -448,7 +448,7 @@ bool CDSConfig::is_using_full_module_graph() {
     return false;
   }
 
-  if (UseSharedSpaces && ArchiveHeapLoader::can_use()) {
+  if (is_using_archive() && ArchiveHeapLoader::can_use()) {
     // Classes used by the archived full module graph are loaded in JVMTI early phase.
     assert(!(JvmtiExport::should_post_class_file_load_hook() && JvmtiExport::has_early_class_hook_env()),
            "CDS should be disabled if early class hooks are enabled");
