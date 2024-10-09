@@ -1111,7 +1111,7 @@ class CompileReplay : public StackObj {
       int length = parse_int("array length");
       oop value = nullptr;
 
-      if (field_signature[1] == JVM_SIGNATURE_ARRAY) {
+      if (length != -1) {
         // multi dimensional array
         Klass* k = resolve_klass(field_signature, CHECK_(true));
         ArrayKlass* kelem = (ArrayKlass *)k;
@@ -1144,8 +1144,8 @@ class CompileReplay : public StackObj {
           value = oopFactory::new_longArray(length, CHECK_(true));
         } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
                    field_signature[1] == JVM_SIGNATURE_CLASS) {
-          Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
-          parse_klass(CHECK_(true)); // eat up the array class name
+          Klass* actual_array_klass = parse_klass(CHECK_(true));
+          Klass* kelem = ObjArrayKlass::cast(actual_array_klass)->element_klass();
           value = oopFactory::new_objArray(kelem, length, CHECK_(true));
         } else if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
