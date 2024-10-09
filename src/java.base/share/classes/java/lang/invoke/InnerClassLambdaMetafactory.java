@@ -39,12 +39,15 @@ import java.lang.classfile.FieldBuilder;
 import java.lang.classfile.MethodBuilder;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.TypeKind;
+
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.DynamicConstantDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.AccessFlag;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -53,16 +56,18 @@ import java.util.function.Consumer;
 
 import static java.lang.classfile.ClassFile.*;
 import java.lang.classfile.attribute.ExceptionsAttribute;
+import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.classfile.constantpool.MethodRefEntry;
+import java.lang.classfile.constantpool.Utf8Entry;
 import static java.lang.constant.ConstantDescs.*;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.NESTMATE;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.STRONG;
 import static java.lang.invoke.MethodType.methodType;
 import jdk.internal.constant.ConstantUtils;
 import jdk.internal.constant.MethodTypeDescImpl;
-import jdk.internal.constant.ReferenceClassDescImpl;
+import jdk.internal.constant.ClassDescImpl;
 import sun.invoke.util.Wrapper;
 
 /**
@@ -324,14 +329,21 @@ import sun.invoke.util.Wrapper;
         final byte[] classBytes = ClassFile.of().build(lambdaClassDesc, new Consumer<ClassBuilder>() {
             @Override
             public void accept(ClassBuilder clb) {
-                clb.withVersion(CLASSFILE_VERSION, (PreviewFeatures.isEnabled() ? 0xFFFF0000 : 0))
+                clb.withVersion(ClassFileFormatVersion.latest().major(), (PreviewFeatures.isEnabled() ? 0xFFFF0000 : 0))
                    .withFlags(ACC_SUPER | ACC_FINAL | ACC_SYNTHETIC)
                    .withInterfaceSymbols(interfaces);
+
+                // generate LoadableDescriptors attribute if it references any value class
+                if (PreviewFeatures.isEnabled()) {
+                    generateLoadableDescriptors(clb);
+                }
+
                 // Generate final fields to be filled in by constructor
                 for (int i = 0; i < argDescs.length; i++) {
                     clb.withField(argNames[i], argDescs[i], new FieldFlags(ACC_PRIVATE | ACC_FINAL));
                 }
 
+                generateConstructor(clb);
 
                 if (factoryType.parameterCount() == 0 && disableEagerInitialization) {
                     generateClassInitializer(clb);
@@ -357,19 +369,6 @@ import sun.invoke.util.Wrapper;
                     generateSerializationFriendlyMethods(clb);
                 else if (finalAccidentallySerializable)
                     generateSerializationHostileMethods(clb);
-
-                // generate LoadableDescriptors attribute if it references any value class
-                if (PreviewFeatures.isEnabled()) {
-                  generateLoadableDescriptors(clb);
-                  LoadableDescriptorsAttributeBuilder builder = new LoadableDescriptorsAttributeBuilder(targetClass);
-                  builder.add(factoryType)
-                    .add(interfaceMethodType)
-                    .add(implMethodType)
-                    .add(dynamicMethodType)
-                    .add(altMethods);
-                  if (!builder.isEmpty())
-                    cw.visitAttribute(builder.build());
-                }
             }
         });
 
@@ -434,9 +433,9 @@ import sun.invoke.util.Wrapper;
 
     private static class SerializationSupport {
         // Serialization support
-        private static final ClassDesc CD_SerializedLambda = ReferenceClassDescImpl.ofValidated("Ljava/lang/invoke/SerializedLambda;");
-        private static final ClassDesc CD_ObjectOutputStream = ReferenceClassDescImpl.ofValidated("Ljava/io/ObjectOutputStream;");
-        private static final ClassDesc CD_ObjectInputStream = ReferenceClassDescImpl.ofValidated("Ljava/io/ObjectInputStream;");
+        private static final ClassDesc CD_SerializedLambda = ClassDescImpl.ofValidated("Ljava/lang/invoke/SerializedLambda;");
+        private static final ClassDesc CD_ObjectOutputStream = ClassDescImpl.ofValidated("Ljava/io/ObjectOutputStream;");
+        private static final ClassDesc CD_ObjectInputStream = ClassDescImpl.ofValidated("Ljava/io/ObjectInputStream;");
         private static final MethodTypeDesc MTD_Object = MethodTypeDescImpl.ofValidated(CD_Object);
         private static final MethodTypeDesc MTD_void_ObjectOutputStream = MethodTypeDescImpl.ofValidated(CD_void, CD_ObjectOutputStream);
         private static final MethodTypeDesc MTD_void_ObjectInputStream = MethodTypeDescImpl.ofValidated(CD_void, CD_ObjectInputStream);
@@ -445,10 +444,10 @@ import sun.invoke.util.Wrapper;
         private static final String NAME_METHOD_READ_OBJECT = "readObject";
         private static final String NAME_METHOD_WRITE_OBJECT = "writeObject";
 
-        static final ClassDesc CD_NotSerializableException = ReferenceClassDescImpl.ofValidated("Ljava/io/NotSerializableException;");
+        static final ClassDesc CD_NotSerializableException = ClassDescImpl.ofValidated("Ljava/io/NotSerializableException;");
         static final MethodTypeDesc MTD_CTOR_NOT_SERIALIZABLE_EXCEPTION = MethodTypeDescImpl.ofValidated(CD_void, CD_String);
         static final MethodTypeDesc MTD_CTOR_SERIALIZED_LAMBDA = MethodTypeDescImpl.ofValidated(CD_void,
-                CD_Class, CD_String, CD_String, CD_String, CD_int, CD_String, CD_String, CD_String, CD_String, ReferenceClassDescImpl.ofValidated("[Ljava/lang/Object;"));
+                CD_Class, CD_String, CD_String, CD_String, CD_int, CD_String, CD_String, CD_String, CD_String, ClassDescImpl.ofValidated("[Ljava/lang/Object;"));
 
     }
 
@@ -579,7 +578,7 @@ import sun.invoke.util.Wrapper;
         private final Set<String> loadableDescriptors = new HashSet<>();
         LoadableDescriptorsAttributeBuilder(Class<?> targetClass) {
             if (requiresLoadableDescriptors(targetClass)) {
-                loadableDescriptors.add(Type.getDescriptor(targetClass));
+                loadableDescriptors.add(targetClass.descriptorString());
             }
         }
 
@@ -590,12 +589,12 @@ import sun.invoke.util.Wrapper;
             // parameter types
             for (Class<?> paramType : mt.ptypes()) {
                 if (requiresLoadableDescriptors(paramType)) {
-                    loadableDescriptors.add(Type.getDescriptor(paramType));
+                    loadableDescriptors.add(paramType.descriptorString());
                 }
             }
             // return type
             if (requiresLoadableDescriptors(mt.returnType())) {
-                loadableDescriptors.add(Type.getDescriptor(mt.returnType()));
+                loadableDescriptors.add(mt.returnType().descriptorString());
             }
             return this;
         }
@@ -615,34 +614,29 @@ import sun.invoke.util.Wrapper;
             return loadableDescriptors.isEmpty();
         }
 
-        Attribute build() {
-            return new Attribute("LoadableDescriptors") {
-                @Override
-                protected ByteVector write(ClassWriter cw,
-                                           byte[] code,
-                                           int len,
-                                           int maxStack,
-                                           int maxLocals) {
-                    ByteVector attr = new ByteVector();
-                    attr.putShort(loadableDescriptors.size());
-                    for (String s : loadableDescriptors) {
-                        attr.putShort(cw.newUTF8(s));
-                    }
-                    return attr;
+        void build(ClassBuilder clb) {
+            if (!isEmpty()) {
+                List<Utf8Entry> lds = new ArrayList<Utf8Entry>(loadableDescriptors.size());
+                for (String ld : loadableDescriptors) {
+                    lds.add(clb.constantPool().utf8Entry(ld));
                 }
-            };
+                clb.with(LoadableDescriptorsAttribute.of(lds));
+            }
         }
     }
 
-                    generateLoadableDescriptors(clb);
-                  LoadableDescriptorsAttributeBuilder builder = new LoadableDescriptorsAttributeBuilder(targetClass);
-                  builder.add(factoryType)
-                    .add(interfaceMethodType)
-                    .add(implMethodType)
-                    .add(dynamicMethodType)
-                    .add(altMethods);
-                  if (!builder.isEmpty())
-                    cw.visitAttribute(builder.build());
+    /**
+     * Generate LoadableDescriptors attribute if it references any value class
+     */
+    private void generateLoadableDescriptors(ClassBuilder clb) {
+        LoadableDescriptorsAttributeBuilder builder = new LoadableDescriptorsAttributeBuilder(targetClass);
+        builder.add(factoryType)
+               .add(interfaceMethodType)
+               .add(implMethodType)
+               .add(dynamicMethodType)
+               .add(altMethods)
+          .build(clb);
+    }
 
     private Opcode invocationOpcode() throws InternalError {
         return switch (implKind) {
@@ -656,12 +650,12 @@ import sun.invoke.util.Wrapper;
     }
 
     static ClassDesc implClassDesc(Class<?> cls) {
-        return cls.isHidden() ? null : ReferenceClassDescImpl.ofValidated(cls.descriptorString());
+        return cls.isHidden() ? null : ClassDescImpl.ofValidated(cls.descriptorString());
     }
 
     static ClassDesc classDesc(Class<?> cls) {
         return cls.isPrimitive() ? Wrapper.forPrimitiveType(cls).basicClassDescriptor()
-                                 : ReferenceClassDescImpl.ofValidated(cls.descriptorString());
+                                 : ClassDescImpl.ofValidated(cls.descriptorString());
     }
 
     static MethodTypeDesc methodDesc(MethodType mt) {
