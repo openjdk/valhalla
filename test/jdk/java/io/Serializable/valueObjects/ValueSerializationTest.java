@@ -96,6 +96,9 @@ public class ValueSerializationTest {
             this.x = x;
             this.y = y;
         }
+        @Override public String toString() {
+            return "[NonSerializablePoint x=" + x + " y=" + y + "]";
+        }
     }
 
     /* Non-Serializable point, because it does not have an @DeserializeConstructor constructor. */
@@ -107,6 +110,9 @@ public class ValueSerializationTest {
         public NonSerializablePointNoCons(int x, int y) {
             this.x = x;
             this.y = y;
+        }
+        @Override public String toString() {
+            return "[NonSerializablePointNoCons x=" + x + " y=" + y + "]";
         }
     }
 
@@ -159,7 +165,8 @@ public class ValueSerializationTest {
         private SerializablePoint(int x, int y) { this.x = x; this.y = y; }
 
         @Override public String toString() {
-            return "[SerializablePoint x=" + x + " y=" + y + "]"; }
+            return "[SerializablePoint x=" + x + " y=" + y + "]";
+        }
     }
 
     /* A Serializable Foo, with a serial proxy */

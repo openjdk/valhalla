@@ -268,13 +268,12 @@ public class ObjectInputStream
     extends InputStream implements ObjectInput, ObjectStreamConstants
 {
     private static final String TRACE_DEST =
-            GetPropertyAction.privilegedGetProperty("TRACE", "NONE");
+            GetPropertyAction.privilegedGetProperty("TRACE");
 
     static void TRACE(String format, Object... args) {
-        switch (TRACE_DEST.toUpperCase(Locale.ROOT)) {
-            case "ERR" -> System.err.println(("TRACE " + format).formatted(args));
-            case "OUT" -> System.out.println(("TRACE " + format).formatted(args));
-            default -> {}
+        if (TRACE_DEST != null) {
+            var ps = "OUT".equals(TRACE_DEST.toUpperCase(Locale.ROOT)) ? System.out : System.err;
+            ps.println(("TRACE " + format).formatted(args));
         }
     }
 

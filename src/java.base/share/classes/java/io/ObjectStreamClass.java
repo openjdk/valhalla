@@ -1573,7 +1573,7 @@ public final class ObjectStreamClass implements Serializable {
     private static MethodHandle getDeserializingValueCons(Class<?> clazz,
                                                           ObjectStreamField[] fields) {
         // Search for annotated static factory in methods or constructors
-        MethodHandles.Lookup lookup = MethodHandles.lookup();   // TBD: access control per class
+        MethodHandles.Lookup lookup = MethodHandles.lookup();
         MethodHandle mh = Stream.concat(
                 Arrays.stream(clazz.getDeclaredMethods()).filter(m -> Modifier.isStatic(m.getModifiers())),
                 Arrays.stream(clazz.getDeclaredConstructors()))
@@ -1585,8 +1585,7 @@ public final class ObjectStreamClass implements Serializable {
                                 ? lookup.unreflectConstructor(cons)
                                 : lookup.unreflect(((Method) m));
                     } catch (IllegalAccessException iae) {
-                        iae.printStackTrace();
-                        return null;
+                        throw new InternalError(iae);   // should not occur after setAccessible
                     }})
                 .filter(m -> matchFactoryParamTypes(clazz, m, fields))
                 .findFirst().orElse(null);
@@ -1890,8 +1889,7 @@ public final class ObjectStreamClass implements Serializable {
         ArrayList<ObjectStreamField> list = new ArrayList<>();
         int mask = Modifier.STATIC | Modifier.TRANSIENT;
 
-        int argIndex = 0;
-        for (int i = 0; i < clFields.length; i++) {
+        for (int i = 0, argIndex = 0; i < clFields.length; i++) {
             if ((clFields[i].getModifiers() & mask) == 0) {
                 list.add(new ObjectStreamField(clFields[i], false, true, argIndex++));
             }
