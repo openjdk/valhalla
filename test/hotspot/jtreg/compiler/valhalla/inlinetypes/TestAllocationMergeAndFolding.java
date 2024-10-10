@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8315003
- * @summary Test that removing allocation merges of non-value and value types at EA is working properly.
+ * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
  * @library /test/lib /
  * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding
