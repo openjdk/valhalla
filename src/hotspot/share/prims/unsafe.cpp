@@ -61,6 +61,7 @@
 #include "runtime/threadSMR.hpp"
 #include "runtime/vmOperations.hpp"
 #include "runtime/vm_version.hpp"
+#include "sanitizers/ub.hpp"
 #include "services/threadService.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
@@ -247,6 +248,9 @@ public:
     return normalize_for_read(*addr());
   }
 
+  // we use this method at some places for writing to 0 e.g. to cause a crash;
+  // ubsan does not know that this is the desired behavior
+  ATTRIBUTE_NO_UBSAN
   void put(T x) {
     GuardUnsafeAccess guard(_thread);
     assert(_obj == nullptr || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");

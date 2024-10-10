@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
  */
 
 #include "precompiled.hpp"
-#include "resolvedFieldEntry.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "oops/instanceOop.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "cds/archiveBuilder.hpp"
 
 void ResolvedFieldEntry::print_on(outputStream* st) const {
   st->print_cr("Field Entry:");
@@ -57,8 +58,14 @@ bool ResolvedFieldEntry::is_valid() const {
     (put_code() == 0 || put_code() == Bytecodes::_putstatic || put_code() == Bytecodes::_putfield);
 }
 
+#if INCLUDE_CDS
 void ResolvedFieldEntry::remove_unshareable_info() {
   u2 saved_cpool_index = _cpool_index;
   memset(this, 0, sizeof(*this));
   _cpool_index = saved_cpool_index;
 }
+
+void ResolvedFieldEntry::mark_and_relocate() {
+  ArchiveBuilder::current()->mark_and_relocate_to_buffered_addr(&_field_holder);
+}
+#endif
