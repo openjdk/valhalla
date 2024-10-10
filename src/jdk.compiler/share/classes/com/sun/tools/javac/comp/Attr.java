@@ -2379,6 +2379,18 @@ public class Attr extends JCTree.Visitor {
         //see Infer.instantiatePolymorphicSignatureInstance()
         Env<AttrContext> localEnv = env.dup(tree);
         attribExpr(tree.expr, localEnv);
+        // Check if a returned value is a "MustUse"
+        // TODO: Should likely do more more inference
+        if (tree.expr instanceof JCMethodInvocation invocation) {
+            if (invocation.meth instanceof JCFieldAccess select) {
+                if (select.sym != null && select.sym.kind == MTH) {
+                    if (select.sym.isPrecious()) {
+                        log.error(invocation.meth.pos(), Errors.MethodReturnedMustUseValue(select.selected.type.tsym, select.sym));
+                    }
+                }
+            }
+        }
+
         result = null;
     }
 

@@ -1,0 +1,6 @@
+MustUseValueTest.java:14:10: compiler.err.method.returned.must.use.value: MustUseValueTest.Cursor, next()
+- compiler.note.unchecked.filename: MustUseValueTest.java
+- compiler.note.unchecked.recompile
+- compiler.note.preview.filename: MustUseValueTest.java, DEFAULT
+- compiler.note.preview.recompile
+1 error
