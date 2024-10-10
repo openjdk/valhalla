@@ -262,6 +262,7 @@ public:
   }
 
   Node* try_push_inline_types_down(PhaseGVN* phase, bool can_reshape);
+  DEBUG_ONLY(bool can_push_inline_types_down(PhaseGVN* phase);)
 
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
