@@ -26,6 +26,7 @@
 #define SHARE_VM_OOPS_FLATARRAYOOP_HPP
 
 #include "oops/arrayOop.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/klass.hpp"
 #include "runtime/handles.hpp"
 
@@ -40,8 +41,8 @@ class flatArrayOopDesc : public arrayOopDesc {
 
   // Return a buffered element from index
   static oop value_alloc_copy_from_index(flatArrayHandle vah, int index, TRAPS);
-  void value_copy_from_index(int index, oop dst) const;
-  void value_copy_to_index(oop src, int index) const;
+  void value_copy_from_index(int index, oop dst, LayoutKind lk) const;
+  void value_copy_to_index(oop src, int index, LayoutKind lk) const;
 
   // Sizing
   static size_t element_size(int lh, int nof_elements) {

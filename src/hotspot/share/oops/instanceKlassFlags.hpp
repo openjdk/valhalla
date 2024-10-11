@@ -57,10 +57,10 @@ class InstanceKlassFlags {
     flag(has_final_method                   , 1 << 14) /* True if klass has final method */ \
     flag(has_inline_type_fields             , 1 << 15) /* has inline fields and related embedded section is not empty */ \
     flag(is_empty_inline_type               , 1 << 16) /* empty inline type (*) */ \
-    flag(is_naturally_atomic                , 1 << 17) /* loaded/stored in one instruction */ \
+    flag(is_naturally_atomic                , 1 << 17) /* loaded/stored in one instruction*/ \
     flag(must_be_atomic                     , 1 << 18) /* doesn't allow tearing */ \
     flag(has_loosely_consistent_annotation  , 1 << 19) /* the class has the LooselyConsistentValue annotation WARNING: it doesn't automatically mean that the class allows tearing */ \
-    flag(is_implicitly_constructible        , 1 << 20) /* the class has the ImplicitlyConstrutible annotation */
+    flag(is_implicitly_constructible        , 1 << 20) /* the class has the ImplicitlyConstrutible annotation */ \
     /* end of list */
 
   /* (*) An inline type is considered empty if it contains no non-static fields or

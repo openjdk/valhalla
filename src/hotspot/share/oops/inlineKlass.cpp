@@ -74,6 +74,14 @@ void InlineKlass::init_fixed_block() {
   assert(pack_handler() == nullptr, "pack handler not null");
   *((int*)adr_default_value_offset()) = 0;
   *((address*)adr_value_array_klasses()) = nullptr;
+  *((int*)adr_first_field_offset()) = -1;
+  *((int*)adr_payload_size_in_bytes()) = -1;
+  *((int*)adr_payload_alignment()) = -1;
+  *((int*)adr_non_atomic_size_in_bytes()) = -1;
+  *((int*)adr_non_atomic_alignment()) = -1;
+  *((int*)adr_atomic_size_in_bytes()) = -1;
+  *((int*)adr_nullable_size_in_bytes()) = -1;
+  *((int*)adr_null_marker_offset()) = -1;
 }
 
 oop InlineKlass::default_value() {
@@ -128,7 +136,60 @@ int InlineKlass::nonstatic_oop_count() {
   return oops;
 }
 
-oop InlineKlass::read_flat_field(oop obj, int offset, TRAPS) {
+int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
+  switch(kind) {
+    case LayoutKind::NON_ATOMIC_FLAT:
+      assert(has_non_atomic_layout(), "Layout not available");
+      return non_atomic_size_in_bytes();
+      break;
+    case LayoutKind::ATOMIC_FLAT:
+      assert(has_atomic_layout(), "Layout not available");
+      return atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULLABLE_FLAT:
+      assert(has_nullable_layout(), "Layout not available");
+      return nullable_size_in_bytes();
+      break;
+    case PAYLOAD:
+      return payload_size_in_bytes();
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+}
+
+int InlineKlass::layout_alignment(LayoutKind kind) const {
+  switch(kind) {
+    case LayoutKind::NON_ATOMIC_FLAT:
+      assert(has_non_atomic_layout(), "Layout not available");
+      return non_atomic_alignment();
+      break;
+    case LayoutKind::ATOMIC_FLAT:
+      assert(has_atomic_layout(), "Layout not available");
+      return atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULLABLE_FLAT:
+      assert(has_nullable_layout(), "Layout not available");
+      return nullable_size_in_bytes();
+      break;
+    case LayoutKind::PAYLOAD:
+      return payload_alignment();
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+}
+
+oop InlineKlass::read_flat_field(oop obj, int offset, LayoutKind lk, TRAPS) {
+
+  if (lk == LayoutKind::NULLABLE_FLAT) {
+    InstanceKlass* recv = InstanceKlass::cast(obj->klass());
+    int nm_offset = offset + (null_marker_offset() - first_field_offset());
+    jbyte nm = obj->byte_field(nm_offset);
+    if (nm_offset == 0) {
+      return nullptr;
+    }
+  }
   oop res = nullptr;
   assert(is_initialized() || is_being_initialized()|| is_in_error_state(),
         "Must be initialized, initializing or in a corner case of an escaped instance of a class that failed its initialization");
@@ -137,24 +198,18 @@ oop InlineKlass::read_flat_field(oop obj, int offset, TRAPS) {
   } else {
     Handle obj_h(THREAD, obj);
     res = allocate_instance_buffer(CHECK_NULL);
-    inline_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res);
+    inline_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res, lk);
   }
   assert(res != nullptr, "Must be set in one of two paths above");
   return res;
 }
 
-void InlineKlass::write_flat_field(oop obj, int offset, oop value, TRAPS) {
-  if (value == nullptr) {
+void InlineKlass::write_flat_field(oop obj, int offset, oop value, bool is_null_free, LayoutKind lk, TRAPS) {
+  if (is_null_free && value == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
-  write_non_null_flat_field(obj, offset, value);
-}
-
-void InlineKlass::write_non_null_flat_field(oop obj, int offset, oop value) {
-  assert(value != nullptr, "");
-  if (!is_empty_inline_type()) {
-    inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
-  }
+  assert(!is_null_free || (lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::REFERENCE || lk == LayoutKind::PAYLOAD), "Consistency check");
+  inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset, lk);
 }
 
 // Arrays of...
@@ -164,7 +219,7 @@ bool InlineKlass::flat_array() {
     return false;
   }
   // Too big
-  int elem_bytes = get_payload_size_in_bytes();
+  int elem_bytes = payload_size_in_bytes();
   if ((FlatArrayElementMaxSize >= 0) && (elem_bytes > FlatArrayElementMaxSize)) {
     return false;
   }

@@ -916,6 +916,7 @@ public:
                        Register tmp1, Register tmp2, Register tmp3);
 
   void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register inline_klass);
+  void flat_field_copy(DecoratorSet decorators, Register src, Register dst, Register inline_layout_info);
 
   // inline type data payload offsets...
   void first_field_offset(Register inline_klass, Register offset);
@@ -1007,6 +1008,8 @@ public:
 
   // For field "index" within "klass", return inline_klass ...
   void get_inline_type_field_klass(Register klass, Register index, Register inline_klass);
+  void inline_layout_info(Register holder_klass, Register index, Register layout_info);
+
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,

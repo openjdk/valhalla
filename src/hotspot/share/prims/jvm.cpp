@@ -435,11 +435,14 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   if (klass->is_identity_class()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
   }
-  InstanceKlass* ik = InstanceKlass::cast(klass);
-  if (!ik->is_implicitly_constructible()) {
+  if (klass->is_abstract()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is abstract");
+  }
+  InlineKlass* vk = InlineKlass::cast(klass);
+  if (!vk->is_implicitly_constructible()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
   }
-  oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
+  oop array = oopFactory::new_valueArray(vk, len, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
@@ -2559,7 +2562,7 @@ JVM_ENTRY(jboolean, JVM_ArrayIsAccessAtomic(JNIEnv *env, jclass unused, jobject 
   if ((o == nullptr) || (!k->is_array_klass())) {
     THROW_0(vmSymbols::java_lang_IllegalArgumentException());
   }
-  return ArrayKlass::cast(k)->element_access_is_atomic();
+  return ArrayKlass::cast(k)->element_access_must_be_atomic();
 JVM_END
 
 JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobject array))
@@ -2570,7 +2573,7 @@ JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobje
   }
   if (k->is_flatArray_klass()) {
     FlatArrayKlass* vk = FlatArrayKlass::cast(k);
-    if (!vk->element_access_is_atomic()) {
+    if (!vk->element_access_must_be_atomic()) {
       /**
        * Need to decide how to implement:
        *

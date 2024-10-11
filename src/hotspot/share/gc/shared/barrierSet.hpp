@@ -318,8 +318,8 @@ public:
       Raw::clone(src, dst, size);
     }
 
-    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md) {
-      Raw::value_copy(src, dst, md);
+    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+      Raw::value_copy(src, dst, md, lk);
     }
 
   };

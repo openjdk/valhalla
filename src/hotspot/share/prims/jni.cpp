@@ -1835,8 +1835,9 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
     InstanceKlass* holder = fd.field_holder();
-    InlineKlass* field_vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
-    res = field_vklass->read_flat_field(o, ik->field_offset(fd.index()), CHECK_NULL);
+    InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
+    InlineKlass* field_vklass = li->klass();
+    res = field_vklass->read_flat_field(o, ik->field_offset(fd.index()), li->kind(), CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(THREAD, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
@@ -1938,9 +1939,10 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
     InstanceKlass* holder = fd.field_holder();
-    InlineKlass* vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
+    InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
+    InlineKlass* vklass = li->klass();
     oop v = JNIHandles::resolve_non_null(value);
-    vklass->write_flat_field(o, offset, v, CHECK);
+    vklass->write_flat_field(o, offset, v, fd.is_null_free_inline_type(), li->kind(), CHECK);
   }
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
@@ -2398,7 +2400,7 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
        FlatArrayKlass* vaklass = FlatArrayKlass::cast(a->klass());
        InlineKlass* element_vklass = vaklass->element_klass();
        if (v != nullptr && v->is_a(element_vklass)) {
-         a->value_copy_to_index(v, index);
+         a->value_copy_to_index(v, index, LayoutKind::PAYLOAD);  // Temporary hack for the transition
        } else {
          ResourceMark rm(THREAD);
          stringStream ss;

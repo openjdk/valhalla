@@ -5052,6 +5052,12 @@ void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Re
   bs->value_copy(this, decorators, src, dst, inline_klass);
 }
 
+void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Register dst,
+                                     Register inline_layout_info) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->flat_field_copy(this, decorators, src, dst, inline_layout_info);
+}
+
 void MacroAssembler::first_field_offset(Register inline_klass, Register offset) {
   ldr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
   ldrw(offset, Address(offset, InlineKlass::first_field_offset_offset()));
@@ -5297,18 +5303,24 @@ void MacroAssembler::verify_tlab() {
 #endif
 }
 
-void MacroAssembler::get_inline_type_field_klass(Register klass, Register index, Register inline_klass) {
-  ldr(inline_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
-#ifdef ASSERT
-  {
-    Label done;
-    cbnz(inline_klass, done);
-    stop("get_inline_type_field_klass contains no inline klass");
-    bind(done);
+void MacroAssembler::get_inline_type_field_klass(Register holder_klass, Register index, Register inline_klass) {
+  inline_layout_info(holder_klass, index, inline_klass);
+  ldr(inline_klass, Address(inline_klass, InlineLayoutInfo::klass_offset()));
+}
+
+void MacroAssembler::inline_layout_info(Register holder_klass, Register index, Register layout_info) {
+  assert_different_registers(holder_klass, index, layout_info);
+  InlineLayoutInfo array[2];
+  int size = (char*)&array[1] - (char*)&array[0]; // computing size of array elements
+  if (is_power_of_2(size)) {
+    lsl(index, index, log2i_exact(size)); // Scale index by power of 2
+  } else {
+    mov(layout_info, size);
+    mul(index, index, layout_info); // Scale the index to be the entry index * array_element_size
   }
-#endif
-  lea(inline_klass, Address(inline_klass, Array<InlineKlass*>::base_offset_in_bytes()));
-  ldr(inline_klass, Address(inline_klass, index, Address::lsl(3)));
+  ldr(layout_info, Address(holder_klass, InstanceKlass::inline_layout_info_array_offset()));
+  add(layout_info, layout_info, Array<InlineLayoutInfo>::base_offset_in_bytes());
+  lea(layout_info, Address(layout_info, index));
 }
 
 // Writes to stack successive pages until offset reached to check for

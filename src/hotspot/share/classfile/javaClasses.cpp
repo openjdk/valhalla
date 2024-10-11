@@ -3782,11 +3782,11 @@ int java_lang_boxing_object::_value_offset;
 int java_lang_boxing_object::_long_value_offset;
 
 #define BOXING_FIELDS_DO(macro) \
-  macro(_value_offset,      integerKlass, "value", int_signature, false); \
+  macro(_value_offset,      byteKlass, "value", byte_signature, false); \
   macro(_long_value_offset, longKlass, "value", long_signature, false);
 
 void java_lang_boxing_object::compute_offsets() {
-  InstanceKlass* integerKlass = vmClasses::Integer_klass();
+  InstanceKlass* byteKlass = vmClasses::Byte_klass();
   InstanceKlass* longKlass = vmClasses::Long_klass();
   BOXING_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
@@ -5441,11 +5441,19 @@ void JavaClasses::check_offsets() {
 
   CHECK_OFFSET("java/lang/Boolean",   java_lang_boxing_object, value, "Z");
   CHECK_OFFSET("java/lang/Character", java_lang_boxing_object, value, "C");
-  CHECK_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
+  if (Arguments::enable_preview() && NullableFieldFlattening && (InlineFieldMaxFlatSize >= 64 || InlineFieldMaxFlatSize < 0)) {
+    CHECK_LONG_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
+  } else {
+    CHECK_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
+  }
   CHECK_LONG_OFFSET("java/lang/Double", java_lang_boxing_object, value, "D");
   CHECK_OFFSET("java/lang/Byte",      java_lang_boxing_object, value, "B");
   CHECK_OFFSET("java/lang/Short",     java_lang_boxing_object, value, "S");
-  CHECK_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
+  if (Arguments::enable_preview() && NullableFieldFlattening && (InlineFieldMaxFlatSize >= 64 || InlineFieldMaxFlatSize < 0)) {
+    CHECK_LONG_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
+  } else {
+    CHECK_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
+  }
   CHECK_LONG_OFFSET("java/lang/Long", java_lang_boxing_object, value, "J");
 
   if (!valid) vm_exit_during_initialization("Field offset verification failed");

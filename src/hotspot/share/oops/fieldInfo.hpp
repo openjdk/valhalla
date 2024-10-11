@@ -34,6 +34,14 @@ static constexpr u4 flag_mask(int pos) {
   return (u4)1 << pos;
 }
 
+enum LayoutKind {
+  REFERENCE,               // indirection to a heap allocated instance
+  PAYLOAD,                 // layout used in heap allocated standalone instances, probably temporary for the transition
+  NON_ATOMIC_FLAT,         // flat, no guarantee of atomic updates, no null marker
+  ATOMIC_FLAT,             // flat, size compatible with atomic updates, alignment requirement is equal to the size
+  NULLABLE_FLAT,           // flat, include a null marker, plus same properties as ATOMIC layout
+  UNKNOWN                  // used for uninitialized fields of type LayoutKind
+};
 
 // Helper class for access to the underlying Array<u1> used to
 // store the compressed stream of FieldInfo
@@ -73,14 +81,13 @@ class FieldInfo {
     // earlier ones compress better.
     enum FieldFlagBitPosition {
       _ff_null_free_inline_type,  // field's type is an inline type and the field is null free
-      _ff_flat,         // field is a flat field
+      _ff_flat,         // field is a flat field, optional section includes a layout kind
+      _ff_null_marker,  // field has a null marker, optional section includes the null marker offset
       _ff_initialized,  // has ConstantValue initializer attribute
       _ff_injected,     // internal field injected by the JVM
       _ff_generic,      // has a generic signature
       _ff_stable,       // trust as stable b/c declared as @Stable
-      _ff_contended,    // is contended, may have contention-group
-      _ff_null_marker,  // field has a null marker, optional section include the null marker offset
-      _ff_internal_null_marker // null marker is internal (inside the layout of a flat field)
+      _ff_contended    // is contended, may have contention-group
     };
 
     // Some but not all of the flag bits signal the presence of an
@@ -89,6 +96,7 @@ class FieldInfo {
       flag_mask((int)_ff_initialized) |
       flag_mask((int)_ff_generic)     |
       flag_mask((int)_ff_contended)   |
+      flag_mask((int)_ff_flat)        |
       flag_mask((int)_ff_null_marker);
 
     // boilerplate:
@@ -119,7 +127,6 @@ class FieldInfo {
     bool is_stable() const          { return test_flag(_ff_stable); }
     bool is_contended() const       { return test_flag(_ff_contended); }
     bool has_null_marker() const    { return test_flag(_ff_null_marker); }
-    bool is_null_marker_internal() const {return test_flag(_ff_internal_null_marker); }
 
     void update_initialized(bool z) { update_flag(_ff_initialized, z); }
     void update_null_free_inline_type(bool z) { update_flag(_ff_null_free_inline_type, z); }
@@ -129,7 +136,6 @@ class FieldInfo {
     void update_stable(bool z)      { update_flag(_ff_stable, z); }
     void update_contended(bool z)   { update_flag(_ff_contended, z); }
     void update_null_marker(bool z) { update_flag(_ff_null_marker, z); }
-    void update_internal_null_marker(bool z) { update_flag(_ff_internal_null_marker, z); }
   };
 
  private:
@@ -145,6 +151,7 @@ class FieldInfo {
   u4 _offset;                   // offset in object layout
   AccessFlags _access_flags;    // access flags (JVM spec)
   FieldFlags _field_flags;      // VM defined flags (not JVM spec)
+  LayoutKind _layout_kind;              // LayoutKind if the field is flat
   u4 _null_marker_offset;       // null marker offset for this field in the object layout
   u2 _initializer_index;        // index from ConstantValue attr (or 0)
   u2 _generic_signature_index;  // index from GenericSignature attr (or 0)
@@ -157,6 +164,7 @@ class FieldInfo {
                 _offset(0),
                 _access_flags(AccessFlags(0)),
                 _field_flags(FieldFlags(0)),
+                _layout_kind(LayoutKind::UNKNOWN),
                 _null_marker_offset(0),
                 _initializer_index(0),
                 _generic_signature_index(0),
@@ -168,6 +176,7 @@ class FieldInfo {
             _offset(0),
             _access_flags(access_flags),
             _field_flags(fflags),
+            _layout_kind(LayoutKind::UNKNOWN),
             _null_marker_offset(0),
             _initializer_index(initval_index),
             _generic_signature_index(0),
@@ -188,8 +197,16 @@ class FieldInfo {
   AccessFlags access_flags() const           { return _access_flags; }
   FieldFlags field_flags() const             { return _field_flags; }
   FieldFlags* field_flags_addr()             { return &_field_flags; }
+  LayoutKind layout_kind() const             { return _layout_kind; }
+  void set_layout_kind(LayoutKind lk) {
+    assert(_field_flags.is_flat(), "Must be");
+    _layout_kind = lk;
+  }
   u4 null_marker_offset() const              { return _null_marker_offset; }
-  void set_null_marker_offset(u4 offset)     { _null_marker_offset = offset; }
+  void set_null_marker_offset(u4 offset) {
+    _field_flags.update_null_marker(true);
+    _null_marker_offset = offset;
+  }
   u2 initializer_index() const               { return _initializer_index; }
   void set_initializer_index(u2 index)       { _initializer_index = index; }
   u2 generic_signature_index() const         { return _generic_signature_index; }
