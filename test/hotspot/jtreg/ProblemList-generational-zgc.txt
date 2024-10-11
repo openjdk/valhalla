@@ -135,3 +135,14 @@ compiler/valhalla/inlinetypes/TestLWorld.java                 8341848   generic-
 compiler/valhalla/inlinetypes/TestIntrinsics.java             8341849   generic-all
 
 compiler/valhalla/inlinetypes/TestNullableArrays.java         8341850   generic-all
+
+compiler/valhalla/inlinetypes/TestBufferTearing.java          8341947   generic-aarch64
+compiler/valhalla/inlinetypes/TestC1.java                     8341947   generic-aarch64
+compiler/valhalla/inlinetypes/TestGetfieldChains.java         8341947   generic-aarch64
+compiler/valhalla/inlinetypes/TestUnloadedInlineTypeField.java 8341947   generic-aarch64
+runtime/valhalla/inlinetypes/CircularityTest.java             8341947   generic-aarch64
+runtime/valhalla/inlinetypes/EmptyInlineTest.java             8341947   generic-aarch64
+runtime/valhalla/inlinetypes/FlattenableSemanticTest.java     8341947   generic-aarch64
+runtime/valhalla/inlinetypes/QuickeningTest.java              8341947   generic-aarch64
+runtime/valhalla/inlinetypes/UninitializedInlineFieldsTest.java 8341947   generic-aarch64
+runtime/valhalla/inlinetypes/ValueTearing.java                 8341947   generic-aarch64

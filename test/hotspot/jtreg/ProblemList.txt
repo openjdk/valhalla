@@ -71,6 +71,7 @@ compiler/c2/irTests/scalarReplacement/AllocationMergesTests.java 8315003 generic
 
 compiler/codecache/CodeCacheFullCountTest.java 8332954 generic-all
 
+compiler/valhalla/inlinetypes/TestMethodHandles.java 8341949 generic-all
 #############################################################################
 
 # :hotspot_gc
