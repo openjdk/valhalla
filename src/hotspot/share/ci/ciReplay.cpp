@@ -1111,61 +1111,66 @@ class CompileReplay : public StackObj {
       int length = parse_int("array length");
       oop value = nullptr;
 
-      if (field_signature[1] == JVM_SIGNATURE_ARRAY) {
-        // multi dimensional array
-        Klass* k = resolve_klass(field_signature, CHECK_(true));
-        ArrayKlass* kelem = (ArrayKlass *)k;
-        int rank = 0;
-        while (field_signature[rank] == JVM_SIGNATURE_ARRAY) {
-          rank++;
-        }
-        jint* dims = NEW_RESOURCE_ARRAY(jint, rank);
-        dims[0] = length;
-        for (int i = 1; i < rank; i++) {
-          dims[i] = 1; // These aren't relevant to the compiler
-        }
-        value = kelem->multi_allocate(rank, dims, CHECK_(true));
-      } else {
-        if (strcmp(field_signature, "[B") == 0) {
-          value = oopFactory::new_byteArray(length, CHECK_(true));
-        } else if (strcmp(field_signature, "[Z") == 0) {
-          value = oopFactory::new_boolArray(length, CHECK_(true));
-        } else if (strcmp(field_signature, "[C") == 0) {
-          value = oopFactory::new_charArray(length, CHECK_(true));
-        } else if (strcmp(field_signature, "[S") == 0) {
-          value = oopFactory::new_shortArray(length, CHECK_(true));
-        } else if (strcmp(field_signature, "[F") == 0) {
-          value = oopFactory::new_floatArray(length, CHECK_(true));
-        } else if (strcmp(field_signature, "[D") == 0) {
-          value = oopFactory::new_doubleArray(length, CHECK_(true));
-        } else if (strcmp(field_signature, "[I") == 0) {
-          value = oopFactory::new_intArray(length, CHECK_(true));
-        } else if (strcmp(field_signature, "[J") == 0) {
-          value = oopFactory::new_longArray(length, CHECK_(true));
-        } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
-                   field_signature[1] == JVM_SIGNATURE_CLASS) {
-          Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
-          parse_klass(CHECK_(true)); // eat up the array class name
-          value = oopFactory::new_objArray(kelem, length, CHECK_(true));
-        } else if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
-          Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
-          parse_klass(CHECK_(true)); // eat up the array class name
-          value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
+      if (length != -1) {
+        if (field_signature[1] == JVM_SIGNATURE_ARRAY) {
+          // multi dimensional array
+          Klass* k = resolve_klass(field_signature, CHECK_(true));
+          ArrayKlass* kelem = (ArrayKlass *)k;
+          int rank = 0;
+          while (field_signature[rank] == JVM_SIGNATURE_ARRAY) {
+            rank++;
+          }
+          jint* dims = NEW_RESOURCE_ARRAY(jint, rank);
+          dims[0] = length;
+          for (int i = 1; i < rank; i++) {
+            dims[i] = 1; // These aren't relevant to the compiler
+          }
+          value = kelem->multi_allocate(rank, dims, CHECK_(true));
         } else {
-          report_error("unhandled array staticfield");
+          if (strcmp(field_signature, "[B") == 0) {
+            value = oopFactory::new_byteArray(length, CHECK_(true));
+          } else if (strcmp(field_signature, "[Z") == 0) {
+            value = oopFactory::new_boolArray(length, CHECK_(true));
+          } else if (strcmp(field_signature, "[C") == 0) {
+            value = oopFactory::new_charArray(length, CHECK_(true));
+          } else if (strcmp(field_signature, "[S") == 0) {
+            value = oopFactory::new_shortArray(length, CHECK_(true));
+          } else if (strcmp(field_signature, "[F") == 0) {
+            value = oopFactory::new_floatArray(length, CHECK_(true));
+          } else if (strcmp(field_signature, "[D") == 0) {
+            value = oopFactory::new_doubleArray(length, CHECK_(true));
+          } else if (strcmp(field_signature, "[I") == 0) {
+            value = oopFactory::new_intArray(length, CHECK_(true));
+          } else if (strcmp(field_signature, "[J") == 0) {
+            value = oopFactory::new_longArray(length, CHECK_(true));
+          } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
+                     field_signature[1] == JVM_SIGNATURE_CLASS) {
+            Klass* actual_array_klass = parse_klass(CHECK_(true));
+            Klass* kelem = ObjArrayKlass::cast(actual_array_klass)->element_klass();
+            value = oopFactory::new_objArray(kelem, length, CHECK_(true));
+          } else if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
+            Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
+            parse_klass(CHECK_(true)); // eat up the array class name
+            value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
+          } else {
+            report_error("unhandled array staticfield");
+          }
         }
+        java_mirror->obj_field_put(fd->offset(), value);
+        return true;
       }
-      java_mirror->obj_field_put(fd->offset(), value);
-      return true;
     } else if (strcmp(field_signature, "Ljava/lang/String;") == 0) {
       const char* string_value = parse_escaped_string();
       Handle value = java_lang_String::create_from_str(string_value, CHECK_(true));
       java_mirror->obj_field_put(fd->offset(), value());
       return true;
-    } else if (field_signature[0] == 'L') {
+    } else if (field_signature[0] == JVM_SIGNATURE_CLASS) {
       const char* instance = parse_escaped_string();
-      Klass* k = resolve_klass(instance, CHECK_(true));
-      oop value = InstanceKlass::cast(k)->allocate_instance(CHECK_(true));
+      oop value = nullptr;
+      if (instance != nullptr) {
+        Klass* k = resolve_klass(instance, CHECK_(true));
+        value = InstanceKlass::cast(k)->allocate_instance(CHECK_(true));
+      }
       java_mirror->obj_field_put(fd->offset(), value);
       return true;
     }

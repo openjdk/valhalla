@@ -117,3 +117,32 @@ serviceability/sa/sadebugd/SADebugDTest.java                  8307393   generic-
 vmTestbase/gc/gctests/MemoryEaterMT/MemoryEaterMT.java        8289582   windows-x64
 
 vmTestbase/nsk/sysdict/vm/stress/chain/chain007/chain007.java 8298991 linux-x64
+
+
+# Valhalla...
+compiler/valhalla/inlinetypes/TestArrayCopyWithOops.java      8341844   generic-all
+compiler/valhalla/inlinetypes/TestCallingConvention.java      8341844   generic-all
+compiler/valhalla/inlinetypes/TestNullableInlineTypes.java    8341844   generic-all
+runtime/valhalla/inlinetypes/InlineTypesTest.java             8341844   generic-all
+
+compiler/valhalla/inlinetypes/TestStressReturnBuffering.java  8341846   generic-all
+
+compiler/valhalla/inlinetypes/TestUnloadedInlineTypeArray.java   8341848 generic-all
+compiler/valhalla/inlinetypes/TestArrays.java                 8341848   generic-all
+compiler/valhalla/inlinetypes/TestBasicFunctionality.java     8341848   generic-all
+compiler/valhalla/inlinetypes/TestLWorld.java                 8341848   generic-all
+
+compiler/valhalla/inlinetypes/TestIntrinsics.java             8341849   generic-all
+
+compiler/valhalla/inlinetypes/TestNullableArrays.java         8341850   generic-all
+
+compiler/valhalla/inlinetypes/TestBufferTearing.java          8341947   generic-aarch64
+compiler/valhalla/inlinetypes/TestC1.java                     8341947   generic-aarch64
+compiler/valhalla/inlinetypes/TestGetfieldChains.java         8341947   generic-aarch64
+compiler/valhalla/inlinetypes/TestUnloadedInlineTypeField.java 8341947   generic-aarch64
+runtime/valhalla/inlinetypes/CircularityTest.java             8341947   generic-aarch64
+runtime/valhalla/inlinetypes/EmptyInlineTest.java             8341947   generic-aarch64
+runtime/valhalla/inlinetypes/FlattenableSemanticTest.java     8341947   generic-aarch64
+runtime/valhalla/inlinetypes/QuickeningTest.java              8341947   generic-aarch64
+runtime/valhalla/inlinetypes/UninitializedInlineFieldsTest.java 8341947   generic-aarch64
+runtime/valhalla/inlinetypes/ValueTearing.java                 8341947   generic-aarch64
