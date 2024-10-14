@@ -723,6 +723,7 @@ public:
 
   void copy_values(GrowableArray<jobject>* oops);
   void copy_values(GrowableArray<Metadata*>* metadata);
+  void copy_values(GrowableArray<address>* metadata) {} // Nothing to do
 
   // Relocation support
 private:

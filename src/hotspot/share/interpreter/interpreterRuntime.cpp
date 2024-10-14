@@ -250,7 +250,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   u2 index = entry->field_index();
   assert(klass == java_lang_Class::as_Klass(mirror), "Not the field holder klass");
   assert(klass->field_is_null_free_inline_type(index), "Sanity check");
-  if (klass->is_being_initialized() && klass->is_init_thread(THREAD)) {
+  if (klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD)) {
     int offset = klass->field_offset(index);
     Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
     if (field_k == nullptr) {
