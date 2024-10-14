@@ -44,7 +44,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import jdk.internal.constant.MethodTypeDescImpl;
-import jdk.internal.constant.ClassDescImpl;
+import jdk.internal.constant.ReferenceClassDescImpl;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.BytecodeName;
@@ -66,8 +66,8 @@ import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
 /*non-public*/
 abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesData> {
 
-    private static final ClassDesc CD_LambdaForm = ClassDescImpl.ofValidated("Ljava/lang/invoke/LambdaForm;");
-    private static final ClassDesc CD_BoundMethodHandle = ClassDescImpl.ofValidated("Ljava/lang/invoke/BoundMethodHandle;");
+    private static final ClassDesc CD_LambdaForm = ReferenceClassDescImpl.ofValidated("Ljava/lang/invoke/LambdaForm;");
+    private static final ClassDesc CD_BoundMethodHandle = ReferenceClassDescImpl.ofValidated("Ljava/lang/invoke/BoundMethodHandle;");
     private static final Consumer<FieldBuilder> STATIC_FIELD_FLAGS = new InnerClassLambdaMetafactory.FieldFlags(ACC_STATIC);
     private static final Consumer<FieldBuilder> FINAL_FIELD_FLAGS = new InnerClassLambdaMetafactory.FieldFlags(ACC_FINAL);
 
@@ -977,7 +977,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
              : cls == MethodType.class ? CD_MethodType
              : cls == LambdaForm.class ? CD_LambdaForm
              : cls == BoundMethodHandle.class ? CD_BoundMethodHandle
-             : ClassDescImpl.ofValidated(cls.descriptorString());
+             : ReferenceClassDescImpl.ofValidated(cls.descriptorString());
     }
 
     static MethodTypeDesc methodDesc(MethodType mt) {

@@ -64,7 +64,7 @@ public final class ConstantUtils {
      * @param binaryName a binary name
      */
     public static ClassDesc binaryNameToDesc(String binaryName) {
-        return ClassDescImpl.ofValidated("L" + binaryToInternal(binaryName) + ";");
+        return ReferenceClassDescImpl.ofValidated("L" + binaryToInternal(binaryName) + ";");
     }
 
     /**
@@ -85,7 +85,7 @@ public final class ConstantUtils {
      * class or interface or an array type with a non-hidden component type.
      */
     public static ClassDesc referenceClassDesc(Class<?> type) {
-        return ClassDescImpl.ofValidated(type.descriptorString());
+        return ReferenceClassDescImpl.ofValidated(type.descriptorString());
     }
 
     /**
@@ -309,7 +309,7 @@ public final class ConstantUtils {
             return Wrapper.forPrimitiveType(descriptor.charAt(start)).basicClassDescriptor();
         }
         // Pre-verified in parseMethodDescriptor; avoid redundant verification
-        return ClassDescImpl.ofValidated(descriptor.substring(start, start + len));
+        return ReferenceClassDescImpl.ofValidated(descriptor.substring(start, start + len));
     }
 
     private static final char JVM_SIGNATURE_ARRAY = '[';
