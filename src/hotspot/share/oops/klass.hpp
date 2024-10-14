@@ -161,11 +161,6 @@ class Klass : public Metadata {
   // Provide access the corresponding instance java.lang.ClassLoader.
   ClassLoaderData* _class_loader_data;
 
-  // Bitmap and hash code used by hashed secondary supers.
-  uintx    _bitmap;
-  uint8_t  _hash_slot;
-
-  static uint8_t compute_hash_slot(Symbol* s);
 
   int _vtable_len;              // vtable length. This field may be read very often when we
                                 // have lots of itable dispatches (e.g., lambdas and streams).
@@ -176,6 +171,10 @@ class Klass : public Metadata {
   JFR_ONLY(DEFINE_TRACE_ID_FIELD;)
 
   markWord _prototype_header;  // inline type and inline array mark patterns
+  // Bitmap and hash code used by hashed secondary supers.
+  uintx    _bitmap;
+  uint8_t  _hash_slot;
+
 private:
   // This is an index into FileMapHeader::_shared_path_table[], to
   // associate this class with the JAR file where it's loaded from during
@@ -395,6 +394,7 @@ protected:
   void     set_next_sibling(Klass* s);
 
  private:
+  static uint8_t compute_hash_slot(Symbol* s);
   static void  hash_insert(Klass* klass, GrowableArray<Klass*>* secondaries, uintx& bitmap);
   static uintx hash_secondary_supers(Array<Klass*>* secondaries, bool rewrite);
 
