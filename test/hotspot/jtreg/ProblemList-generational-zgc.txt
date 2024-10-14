@@ -116,9 +116,6 @@ serviceability/sa/sadebugd/SADebugDTest.java                  8307393   generic-
 
 vmTestbase/gc/gctests/MemoryEaterMT/MemoryEaterMT.java        8289582   windows-x64
 
-vmTestbase/nsk/sysdict/vm/stress/chain/chain007/chain007.java 8298991 linux-x64
-
-
 # Valhalla...
 compiler/valhalla/inlinetypes/TestArrayCopyWithOops.java      8341844   generic-all
 compiler/valhalla/inlinetypes/TestCallingConvention.java      8341844   generic-all

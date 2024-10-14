@@ -668,7 +668,12 @@ Node* ConnectionGraph::specialize_cmp(Node* base, Node* curr_ctrl) {
   if (curr_ctrl == nullptr || curr_ctrl->is_Region()) {
     con = _igvn->zerocon(t->basic_type());
   } else {
-    Node* curr_cmp = curr_ctrl->in(0)->in(1)->in(1); // true/false -> if -> bool -> cmp
+    // can_reduce_check_users() verified graph: true/false -> if -> bool -> cmp
+    assert(curr_ctrl->in(0)->Opcode() == Op_If, "unexpected node %s", curr_ctrl->in(0)->Name());
+    Node* bol = curr_ctrl->in(0)->in(1);
+    assert(bol->is_Bool(), "unexpected node %s", bol->Name());
+    Node* curr_cmp = bol->in(1);
+    assert(curr_cmp->Opcode() == Op_CmpP || curr_cmp->Opcode() == Op_CmpN, "unexpected node %s", curr_cmp->Name());
     con = curr_cmp->in(1)->is_Con() ? curr_cmp->in(1) : curr_cmp->in(2);
   }
 
@@ -3582,12 +3587,11 @@ bool ConnectionGraph::not_global_escape(Node *n) {
 // and locked code region (identified by BoxLockNode) is balanced:
 // all compiled code paths have corresponding Lock/Unlock pairs.
 bool ConnectionGraph::can_eliminate_lock(AbstractLockNode* alock) {
-  BoxLockNode* box = alock->box_node()->as_BoxLock();
-  if (!box->is_unbalanced() && not_global_escape(alock->obj_node())) {
+  if (alock->is_balanced() && not_global_escape(alock->obj_node())) {
     if (EliminateNestedLocks) {
       // We can mark whole locking region as Local only when only
       // one object is used for locking.
-      box->set_local();
+      alock->box_node()->as_BoxLock()->set_local();
     }
     return true;
   }

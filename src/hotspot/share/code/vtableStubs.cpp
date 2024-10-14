@@ -259,6 +259,18 @@ inline uint VtableStubs::hash(bool is_vtable_stub, int vtable_index, bool caller
 }
 
 
+inline uint VtableStubs::unsafe_hash(address entry_point, bool caller_is_c1) {
+  // The entrypoint may or may not be a VtableStub. Generate a hash as if it was.
+  address vtable_stub_addr = entry_point - VtableStub::entry_offset();
+  assert(CodeCache::contains(vtable_stub_addr), "assumed to always be the case");
+  address vtable_type_addr = vtable_stub_addr + offset_of(VtableStub, _type);
+  address vtable_index_addr = vtable_stub_addr + offset_of(VtableStub, _index);
+  bool is_vtable_stub = *vtable_type_addr == static_cast<uint8_t>(VtableStub::Type::vtable_stub);
+  int vtable_index;
+  memcpy(&vtable_index, vtable_index_addr, sizeof(vtable_index));
+  return hash(is_vtable_stub, vtable_index, caller_is_c1);
+}
+
 VtableStub* VtableStubs::lookup(bool is_vtable_stub, int vtable_index, bool caller_is_c1) {
   assert_lock_strong(VtableStubs_lock);
   unsigned hash = VtableStubs::hash(is_vtable_stub, vtable_index, caller_is_c1);
@@ -279,12 +291,16 @@ void VtableStubs::enter(bool is_vtable_stub, int vtable_index, bool caller_is_c1
 }
 
 VtableStub* VtableStubs::entry_point(address pc) {
+  // The pc may or may not be the entry point for a VtableStub. Use unsafe_hash
+  // to generate the hash that would have been used if it was. The lookup in the
+  // _table will only succeed if there is a VtableStub with an entry point at
+  // the pc.
   MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
   VtableStub* stub = (VtableStub*)(pc - VtableStub::entry_offset());
-  uint hash = VtableStubs::hash(stub->is_vtable_stub(), stub->index(), stub->caller_is_c1());
+  uint hash = VtableStubs::unsafe_hash(pc, stub->caller_is_c1());
   VtableStub* s;
-  for (s = Atomic::load(&_table[hash]); s != nullptr && s != stub; s = s->next()) {}
-  return (s == stub) ? s : nullptr;
+  for (s = Atomic::load(&_table[hash]); s != nullptr && s->entry_point() != pc; s = s->next()) {}
+  return (s != nullptr && s->entry_point() == pc) ? s : nullptr;
 }
 
 bool VtableStubs::contains(address pc) {
