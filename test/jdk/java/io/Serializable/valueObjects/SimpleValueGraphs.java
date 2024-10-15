@@ -27,6 +27,7 @@
  * @summary Serialize and deserialize value objects
  * @enablePreview
  * @modules java.base/jdk.internal
+ * @modules java.base/jdk.internal.value
  * @run testng/othervm SimpleValueGraphs
  */
 
@@ -40,7 +41,6 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.io.InvalidClassException;
-import java.io.NotSerializableException;
 
 import java.util.Arrays;
 import java.util.function.BiFunction;
@@ -48,6 +48,7 @@ import java.util.Objects;
 
 import java.nio.charset.StandardCharsets;
 
+import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.MigratedValueClass;
 
 import org.testng.Assert;
@@ -60,7 +61,7 @@ import jdk.test.lib.hexdump.ObjectStreamPrinter;
 @Test
 public class SimpleValueGraphs implements Serializable {
 
-    private static boolean DEBUG = false;
+    private static boolean DEBUG = true;
 
     private static SimpleValue foo1 = new SimpleValue("One", 1);
     private static SimpleValue foo2 = new SimpleValue("Two", 2);
@@ -109,7 +110,7 @@ public class SimpleValueGraphs implements Serializable {
     }
 
     /**
-     * Test serializing a object graph, and deserialize with a modification of the serialized form.
+     * Test serializing an object graph, and deserialize with a modification of the serialized form.
      * The modifications to the stream change the class name being deserialized.
      * The cases include serializing an identity class and deserialize the corresponding
      * value class.
@@ -129,7 +130,7 @@ public class SimpleValueGraphs implements Serializable {
         }
 
         // Modify the serialized bytes to change a class name from the serialized name
-        // to a different class. The replacement name must be the same length as thr original name.
+        // to a different class. The replacement name must be the same length as the original name.
         byte[] replBytes = patchBytes(bytes, origName, replName);
         if (DEBUG) {
             System.out.println("Modified serialized " + origObj.getClass().getName());
@@ -145,8 +146,9 @@ public class SimpleValueGraphs implements Serializable {
                     "Resulting object not equals: " + actual.getClass().getName());
 
         } catch (Exception ex) {
-            Assert.assertEquals(ex.getClass(), expectedObject.getClass(), "exception type");
-            Assert.assertEquals(ex.getMessage(), ((Exception)expectedObject).getMessage(), "exception message");
+            ex.printStackTrace();
+            Assert.assertEquals(ex.getClass(), expectedObject.getClass(), ex.toString());
+            Assert.assertEquals(ex.getMessage(), ((Exception)expectedObject).getMessage(), ex.toString());
         }
     }
 
@@ -178,7 +180,7 @@ public class SimpleValueGraphs implements Serializable {
     }
 
     /**
-     * Replace every occurence of the string in the byte array with the replacement.
+     * Replace every occurrence of the string in the byte array with the replacement.
      * The strings are US_ASCII only.
      * @param bytes a byte array
      * @param orig a string, converted to bytes using US_ASCII, originally exists in the bytes
@@ -193,7 +195,7 @@ public class SimpleValueGraphs implements Serializable {
     }
 
     /**
-     * Replace every occurence of the original bytes in the byte array with the replacement bytes.
+     * Replace every occurrence of the original bytes in the byte array with the replacement bytes.
      * @param bytes a byte array
      * @param orig a byte array containing existing bytes in the byte array
      * @param repl a byte array to replace the original bytes
@@ -287,7 +289,6 @@ public class SimpleValueGraphs implements Serializable {
         }
 
         public boolean equals(Object other) {
-            // avoid ==, is substutible check causes stack overflow.
             if (other instanceof TreeV tree) {
                 boolean leftEq = (this.left == null && tree.left == null) ||
                         left.equals(tree.left);
@@ -309,13 +310,14 @@ public class SimpleValueGraphs implements Serializable {
         }
     }
 
-    @jdk.internal.MigratedValueClass
+    @MigratedValueClass
     static value class TreeV implements Tree, Serializable {
 
         private static final long serialVersionUID = 2L;
         private TreeV left;
         private TreeV right;
 
+        @DeserializeConstructor
         TreeV(TreeV left, TreeV right) {
             this.left = left;
             this.right = right;
@@ -336,7 +338,7 @@ public class SimpleValueGraphs implements Serializable {
             return false;
         }
 
-        // Compare references but don't use ==; isSubstutitable may recurse
+        // Compare references but don't use ==; isSubstitutable may recurse
         private static boolean compRef(Object o1, Object o2) {
             if (o1 == null && o2 == null)
                 return true;
@@ -360,8 +362,9 @@ public class SimpleValueGraphs implements Serializable {
     @Test
     void testExternalizableNotSer() {
         var obj = new ValueExt();
-        var ex = Assert.expectThrows(NotSerializableException.class, () -> serialize(obj));
-        Assert.assertEquals(ex.getMessage(), ValueExt.class.getName());
+        var ex = Assert.expectThrows(InvalidClassException.class, () -> serialize(obj));
+        Assert.assertEquals(ex.getMessage(),
+                "SimpleValueGraphs$ValueExt; Externalizable not valid for value class");
     }
 
     @Test
@@ -386,6 +389,7 @@ public class SimpleValueGraphs implements Serializable {
         private static final long serialVersionUID = 3L;
     }
 
+    // Not Desrializable or Deserializable, no writeable fields
     static value class ValueExt implements Externalizable {
         public void writeExternal(ObjectOutput is) {
 
