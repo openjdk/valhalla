@@ -1026,7 +1026,7 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
                 name.equalsString(NAME_INNER_CLASSES) ? innerClasses() : null;
             case 0x653f0551 ->
                 name.equalsString(NAME_LINE_NUMBER_TABLE) ? lineNumberTable() : null;
-           case 0x4d56b212 -> // NEEDS RECOMPUTE
+           case 0x5f348b64 ->
                 name.equalsString(NAME_LOADABLE_DESCRIPTORS) ? loadableDescriptors() : null;
             case 0x64c75927 ->
                 name.equalsString(NAME_LOCAL_VARIABLE_TABLE) ? localVariableTable() : null;
