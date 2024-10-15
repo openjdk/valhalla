@@ -31,13 +31,13 @@ import static jdk.internal.constant.ConstantUtils.*;
 
 /**
  * A <a href="package-summary.html#nominal">nominal descriptor</a> for a class,
- * interface, or array type.  A {@linkplain ClassDescImpl} corresponds to a
+ * interface, or array type.  A {@linkplain ReferenceClassDescImpl} corresponds to a
  * {@code Constant_Class_info} entry in the constant pool of a classfile.
  */
-public final class ClassDescImpl implements ClassDesc {
+public final class ReferenceClassDescImpl implements ClassDesc {
     private final String descriptor;
 
-    private ClassDescImpl(String descriptor) {
+    private ReferenceClassDescImpl(String descriptor) {
         this.descriptor = descriptor;
     }
 
@@ -50,12 +50,12 @@ public final class ClassDescImpl implements ClassDesc {
      * field descriptor string, or does not describe a class or interface type
      * @jvms 4.3.2 Field Descriptors
      */
-    public static ClassDescImpl of(String descriptor) {
+    public static ReferenceClassDescImpl of(String descriptor) {
         int dLen = descriptor.length();
         int len = ConstantUtils.skipOverFieldSignature(descriptor, 0, dLen, false);
         if (len <= 1 || len != dLen)
             throw new IllegalArgumentException(String.format("not a valid reference type descriptor: %s", descriptor));
-        return new ClassDescImpl(descriptor);
+        return new ReferenceClassDescImpl(descriptor);
     }
 
     /**
@@ -65,10 +65,10 @@ public final class ClassDescImpl implements ClassDesc {
      * @param descriptor a field descriptor string for a class or interface type
      * @jvms 4.3.2 Field Descriptors
      */
-    public static ClassDescImpl ofValidated(String descriptor) {
+    public static ReferenceClassDescImpl ofValidated(String descriptor) {
         assert ConstantUtils.skipOverFieldSignature(descriptor, 0, descriptor.length(), false)
                 == descriptor.length() : descriptor;
-        return new ClassDescImpl(descriptor);
+        return new ReferenceClassDescImpl(descriptor);
     }
 
     @Override
@@ -104,8 +104,8 @@ public final class ClassDescImpl implements ClassDesc {
     }
 
     /**
-     * Returns {@code true} if this {@linkplain ClassDescImpl} is
-     * equal to another {@linkplain ClassDescImpl}.  Equality is
+     * Returns {@code true} if this {@linkplain ReferenceClassDescImpl} is
+     * equal to another {@linkplain ReferenceClassDescImpl}.  Equality is
      * determined by the two class descriptors having equal class descriptor
      * strings.
      *
@@ -117,7 +117,7 @@ public final class ClassDescImpl implements ClassDesc {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o instanceof ClassDescImpl constant) {
+        if (o instanceof ReferenceClassDescImpl constant) {
             return descriptor.equals(constant.descriptor);
         }
         return false;

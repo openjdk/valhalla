@@ -31,7 +31,7 @@ import java.lang.classfile.TypeKind;
 import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.classfile.constantpool.MethodRefEntry;
 import jdk.internal.constant.MethodTypeDescImpl;
-import jdk.internal.constant.ClassDescImpl;
+import jdk.internal.constant.ReferenceClassDescImpl;
 import sun.invoke.util.Wrapper;
 
 import static java.lang.constant.ConstantDescs.*;
@@ -202,6 +202,6 @@ class TypeConvertingMethodAdapter {
         return cls.isPrimitive() ? Wrapper.forPrimitiveType(cls).basicClassDescriptor()
              : cls == Object.class ? CD_Object
              : cls == String.class ? CD_String
-             : ClassDescImpl.ofValidated(cls.descriptorString());
+             : ReferenceClassDescImpl.ofValidated(cls.descriptorString());
     }
 }

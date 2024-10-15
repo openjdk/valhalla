@@ -29,7 +29,7 @@ import java.lang.invoke.TypeDescriptor;
 import java.util.stream.Stream;
 
 import jdk.internal.constant.PrimitiveClassDescImpl;
-import jdk.internal.constant.ClassDescImpl;
+import jdk.internal.constant.ReferenceClassDescImpl;
 import sun.invoke.util.Wrapper;
 
 import static java.util.stream.Collectors.joining;
@@ -62,7 +62,7 @@ public sealed interface ClassDesc
         extends ConstantDesc,
                 TypeDescriptor.OfField<ClassDesc>
         permits PrimitiveClassDescImpl,
-                ClassDescImpl {
+                ReferenceClassDescImpl {
 
     /**
      * Returns a {@linkplain ClassDesc} for a class or interface type,
@@ -166,7 +166,7 @@ public sealed interface ClassDesc
         return (descriptor.length() == 1)
                ? Wrapper.forPrimitiveType(descriptor.charAt(0)).basicClassDescriptor()
                // will throw IAE on descriptor.length == 0 or if array dimensions too long
-               : ClassDescImpl.of(descriptor);
+               : ReferenceClassDescImpl.of(descriptor);
     }
 
     /**
@@ -190,7 +190,7 @@ public sealed interface ClassDesc
         if (desc.length() == 1 && desc.charAt(0) == 'V') {
             throw new IllegalArgumentException("not a valid reference type descriptor: " + newDesc);
         }
-        return ClassDescImpl.ofValidated(newDesc);
+        return ReferenceClassDescImpl.ofValidated(newDesc);
     }
 
     /**
@@ -220,7 +220,7 @@ public sealed interface ClassDesc
         if (desc.length() == 1 && desc.charAt(0) == 'V') {
             throw new IllegalArgumentException("not a valid reference type descriptor: " + newDesc);
         }
-        return ClassDescImpl.ofValidated(newDesc);
+        return ReferenceClassDescImpl.ofValidated(newDesc);
     }
 
     /**
@@ -247,7 +247,7 @@ public sealed interface ClassDesc
         String desc = descriptorString();
         StringBuilder sb = new StringBuilder(desc.length() + nestedName.length() + 1);
         sb.append(desc, 0, desc.length() - 1).append('$').append(nestedName).append(';');
-        return ClassDescImpl.ofValidated(sb.toString());
+        return ReferenceClassDescImpl.ofValidated(sb.toString());
     }
 
     /**
@@ -316,7 +316,7 @@ public sealed interface ClassDesc
             if (desc.length() == 2) {
                 return Wrapper.forBasicType(desc.charAt(1)).basicClassDescriptor();
             } else {
-                return ClassDescImpl.ofValidated(desc.substring(1));
+                return ReferenceClassDescImpl.ofValidated(desc.substring(1));
             }
         }
         return null;

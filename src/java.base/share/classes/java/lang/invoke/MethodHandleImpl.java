@@ -28,7 +28,7 @@ package java.lang.invoke;
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.constant.MethodTypeDescImpl;
-import jdk.internal.constant.ClassDescImpl;
+import jdk.internal.constant.ReferenceClassDescImpl;
 import jdk.internal.foreign.abi.NativeEntryPoint;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
@@ -1040,7 +1040,7 @@ abstract class MethodHandleImpl {
     // That way we can lazily load the code and set up the constants.
     private static class BindCaller {
 
-        private static final ClassDesc CD_Object_array = ClassDescImpl.ofValidated("[Ljava/lang/Object;");
+        private static final ClassDesc CD_Object_array = ReferenceClassDescImpl.ofValidated("[Ljava/lang/Object;");
         private static final MethodType INVOKER_MT = MethodType.methodType(Object.class, MethodHandle.class, Object[].class);
         private static final MethodType REFLECT_INVOKER_MT = MethodType.methodType(Object.class, MethodHandle.class, Object.class, Object[].class);
 
@@ -1269,7 +1269,7 @@ abstract class MethodHandleImpl {
             //     }
             // }
             // }
-            return ClassFile.of().build(ClassDescImpl.ofValidated("LInjectedInvoker;"), clb -> clb
+            return ClassFile.of().build(ReferenceClassDescImpl.ofValidated("LInjectedInvoker;"), clb -> clb
                     .withFlags(ACC_PRIVATE | ACC_SUPER)
                     .withMethodBody(
                         "invoke_V",

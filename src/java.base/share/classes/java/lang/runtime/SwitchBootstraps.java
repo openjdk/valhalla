@@ -49,7 +49,7 @@ import java.lang.classfile.ClassFile;
 import java.lang.classfile.Label;
 import java.lang.classfile.instruction.SwitchCase;
 
-import jdk.internal.constant.ClassDescImpl;
+import jdk.internal.constant.ReferenceClassDescImpl;
 import jdk.internal.constant.ConstantUtils;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.vm.annotation.Stable;
@@ -92,7 +92,7 @@ public class SwitchBootstraps {
     private static final MethodTypeDesc CHECK_INDEX_DESCRIPTOR =
             MethodTypeDesc.ofDescriptor("(II)I");
 
-    private static final ClassDesc CD_Objects = ClassDescImpl.ofValidated("Ljava/util/Objects;");
+    private static final ClassDesc CD_Objects = ReferenceClassDescImpl.ofValidated("Ljava/util/Objects;");
 
     private static class StaticHolders {
         private static final MethodHandle NULL_CHECK;
