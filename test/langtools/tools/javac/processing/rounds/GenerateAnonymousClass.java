@@ -26,6 +26,7 @@
  * @bug 8204630
  * @summary generating an anonymous class with Filer#createClassFile causes an NPE in
  * JavacProcessingEnvironment
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib/
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main

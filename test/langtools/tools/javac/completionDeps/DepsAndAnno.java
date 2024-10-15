@@ -25,6 +25,7 @@
  * @test
  * @bug 8078600
  * @summary Make sure -XDcompletionDeps does not cause an infinite loop.
+ * @nablePreview
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
