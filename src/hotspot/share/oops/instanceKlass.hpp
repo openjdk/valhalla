@@ -144,6 +144,7 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
+  int* _reset_value_offset;
   ArrayKlass** _null_free_inline_array_klasses;
   int _first_field_offset;
   int _payload_size_in_bytes;   // size of payload layout

@@ -1360,6 +1360,22 @@ void InstanceKlass::initialize_impl(TRAPS) {
           THROW_OOP(e());
       }
       vk->set_default_value(val);
+      if (vk->has_nullable_layout()) {
+        val = vk->allocate_instance(THREAD);
+        if (HAS_PENDING_EXCEPTION) {
+            Handle e(THREAD, PENDING_EXCEPTION);
+            CLEAR_PENDING_EXCEPTION;
+            {
+                EXCEPTION_MARK;
+                add_initialization_error(THREAD, e);
+                // Locks object, set state, and notify all waiting threads
+                set_initialization_state_and_notify(initialization_error, THREAD);
+                CLEAR_PENDING_EXCEPTION;
+            }
+            THROW_OOP(e());
+        }
+        vk->set_reset_value(val);
+      }
   }
 
   // Step 7

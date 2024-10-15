@@ -1560,9 +1560,21 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                  (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)),
                  0,
                  fflags);
-      int idx = _temp_field_info->append(fi);
-      _temp_field_info->adr_at(idx)->set_index(idx);
-      _static_oop_count++;
+    int idx = _temp_field_info->append(fi);
+    _temp_field_info->adr_at(idx)->set_index(idx);
+    _static_oop_count++;
+    // Inject static ".reset" field
+    FieldInfo::FieldFlags fflags2(0);
+    fflags2.update_injected(true);
+    AccessFlags aflags2(JVM_ACC_STATIC);
+    FieldInfo fi2(aflags2,
+                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(reset_value_name)),
+                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)),
+                 0,
+                 fflags2);
+    int idx2 = _temp_field_info->append(fi2);
+    _temp_field_info->adr_at(idx2)->set_index(idx2);
+    _static_oop_count++;
   }
 
   if (_need_verify && length > 1) {
@@ -5608,6 +5620,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_nullable_size_in_bytes(_layout_info->_nullable_layout_size_in_bytes);
     vk->set_null_marker_offset(_layout_info->_null_marker_offset);
     vk->set_default_value_offset(_layout_info->_default_value_offset);
+    vk->set_reset_value_offset(_layout_info->_reset_value_offset);
     if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();
     vk->initialize_calling_convention(CHECK);
   }

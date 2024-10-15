@@ -73,6 +73,7 @@ void InlineKlass::init_fixed_block() {
   *((address*)adr_unpack_handler()) = nullptr;
   assert(pack_handler() == nullptr, "pack handler not null");
   *((int*)adr_default_value_offset()) = 0;
+  *((int*)adr_reset_value_offset()) = 0;
   *((address*)adr_value_array_klasses()) = nullptr;
   *((int*)adr_first_field_offset()) = -1;
   *((int*)adr_payload_size_in_bytes()) = -1;
@@ -84,28 +85,20 @@ void InlineKlass::init_fixed_block() {
   *((int*)adr_null_marker_offset()) = -1;
 }
 
-oop InlineKlass::default_value() {
-  assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
-  oop val = java_mirror()->obj_field_acquire(default_value_offset());
+void InlineKlass::set_default_value(oop val) {
   assert(val != nullptr, "Sanity check");
   assert(oopDesc::is_oop(val), "Sanity check");
   assert(val->is_inline_type(), "Sanity check");
   assert(val->klass() == this, "sanity check");
-  return val;
+  java_mirror()->obj_field_put(default_value_offset(), val);
 }
 
-int InlineKlass::first_field_offset_old() {
-#ifdef ASSERT
-  int first_offset = INT_MAX;
-  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-    if (fs.offset() < first_offset) first_offset= fs.offset();
-  }
-#endif
-  int base_offset = instanceOopDesc::base_offset_in_bytes();
-  // The first field of line types is aligned on a long boundary
-  base_offset = align_up(base_offset, BytesPerLong);
-  assert(base_offset == first_offset, "inconsistent offsets");
-  return base_offset;
+void InlineKlass::set_reset_value(oop val) {
+  assert(val != nullptr, "Sanity check");
+  assert(oopDesc::is_oop(val), "Sanity check");
+  assert(val->is_inline_type(), "Sanity check");
+  assert(val->klass() == this, "sanity check");
+  java_mirror()->obj_field_put(reset_value_offset(), val);
 }
 
 instanceOop InlineKlass::allocate_instance(TRAPS) {

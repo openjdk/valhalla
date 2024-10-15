@@ -199,6 +199,7 @@ FieldLayout::FieldLayout(GrowableArray<FieldInfo>* field_info, Array<InlineLayou
   _super_alignment(-1),
   _super_min_align_required(-1),
   _default_value_offset(-1),
+  _reset_value_offset(-1),
   _super_has_fields(false),
   _has_inherited_fields(false) {}
 
@@ -390,6 +391,9 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
     _field_info->adr_at(block->field_index())->set_offset(block->offset());
     if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::default_value_name()) {
       _default_value_offset = block->offset();
+    }
+    if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::reset_value_name()) {
+      _reset_value_offset = block->offset();
     }
   }
   if (block->block_kind() == LayoutRawBlock::FLAT && block->layout_kind() == LayoutKind::NULLABLE_FLAT) {
@@ -1133,8 +1137,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     if (AtomicFieldFlattening) {
       int atomic_size = _payload_size_in_bytes == 0 ? 0 : round_up_power_of_2(_payload_size_in_bytes);
       if (  atomic_size <= (int)MAX_ATOMIC_OP_SIZE
-          && (InlineFieldMaxFlatSize < 0 || atomic_size * BitsPerByte <= InlineFieldMaxFlatSize)
-          && _nonstatic_oopmap_count == 0) {
+          && (InlineFieldMaxFlatSize < 0 || atomic_size * BitsPerByte <= InlineFieldMaxFlatSize)) {
         _atomic_layout_size_in_bytes = atomic_size;
       }
     }
@@ -1176,8 +1179,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       int new_raw_size = _layout->last_block()->offset() - _layout->first_field_block()->offset();
       int nullable_size = round_up_power_of_2(new_raw_size);
       if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE
-        && (InlineFieldMaxFlatSize < 0 || nullable_size * BitsPerByte <= InlineFieldMaxFlatSize)
-        && _nonstatic_oopmap_count == 0) {
+        && (InlineFieldMaxFlatSize < 0 || nullable_size * BitsPerByte <= InlineFieldMaxFlatSize)) {
         _nullable_layout_size_in_bytes = nullable_size;
         _null_marker_offset = null_marker_offset;
       } else {
@@ -1321,6 +1323,7 @@ void FieldLayoutBuilder::epilogue() {
     _info->_nullable_layout_size_in_bytes = _nullable_layout_size_in_bytes;
     _info->_null_marker_offset = _null_marker_offset;
     _info->_default_value_offset = _static_layout->default_value_offset();
+    _info->_reset_value_offset = _static_layout->reset_value_offset();
     _info->_is_empty_inline_klass = _is_empty_inline_class;
   }
 

@@ -80,6 +80,11 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
+  address adr_reset_value_offset() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(reset_value_offset_offset());
+  }
+
   ArrayKlass* volatile* adr_value_array_klasses() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return (ArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_inline_array_klasses));
@@ -166,8 +171,6 @@ class InlineKlass: public InstanceKlass {
 
   int layout_alignment(LayoutKind kind) const;
   int layout_size_in_bytes(LayoutKind kind) const;
-
-  int first_field_offset_old();
 
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
@@ -291,6 +294,10 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(InlineKlassFixedBlock, _default_value_offset);
   }
 
+  static ByteSize reset_value_offset_offset() {
+    return byte_offset_of(InlineKlassFixedBlock, _reset_value_offset);
+  }
+
   static ByteSize first_field_offset_offset() {
     return byte_offset_of(InlineKlassFixedBlock, _first_field_offset);
   }
@@ -309,11 +316,34 @@ class InlineKlass: public InstanceKlass {
     return offset;
   }
 
-  void set_default_value(oop val) {
-    java_mirror()->obj_field_put(default_value_offset(), val);
+  void set_default_value(oop val);
+
+  oop default_value() {
+    assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
+    oop val = java_mirror()->obj_field_acquire(default_value_offset());
+    assert(val != nullptr, "Sanity check");
+    return val;
   }
 
-  oop default_value();
+  void set_reset_value_offset(int offset) {
+    *((int*)adr_reset_value_offset()) = offset;
+  }
+
+  int reset_value_offset() {
+    int offset = *((int*)adr_reset_value_offset());
+    assert(offset != 0, "must not be called if not initialized");
+    return offset;
+  }
+
+  void set_reset_value(oop val);
+
+  oop reset_value() {
+    assert(is_initialized() || is_being_initialized() || is_in_error_state(), "reset value is set at the beginning of initialization");
+    oop val = java_mirror()->obj_field_acquire(reset_value_offset());
+    assert(val != nullptr, "Sanity check");
+    return val;
+  }
+
   void deallocate_contents(ClassLoaderData* loader_data);
   static void cleanup(InlineKlass* ik) ;
 

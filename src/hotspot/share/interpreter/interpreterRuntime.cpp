@@ -347,16 +347,23 @@ JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* curren
 
   InstanceKlass* holder = entry->field_holder();
   InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
+  InlineKlass* vk = li->klass();
   assert(li->kind() == LayoutKind::NULLABLE_FLAT, "Must be");
   int nm_offset = li->null_marker_offset();
 
   if (val_h() == nullptr) {
-    assert(li->klass()->nonstatic_oop_count() == 0, "Code below is valid only if flat field contains no oops");
-    obj_h()->byte_field_put(nm_offset, (jbyte)0);
+    if(li->klass()->nonstatic_oop_count() == 0) {
+      // No embedded oops, just reset the null marker
+      obj_h()->byte_field_put(nm_offset, (jbyte)0);
+    } else {
+      // Has embedded oops, using the reset value to rewrite all fields to null/zeros
+      assert(li->klass()->reset_value()->byte_field(vk->null_marker_offset()) == 0, "reset value must always have a null marker set to 0");
+      vk->inline_copy_oop_to_payload(vk->reset_value(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind());
+    }
     return;
   }
 
-  InlineKlass* vk = InlineKlass::cast(val_h()->klass());
+  assert(val_h()->klass() == vk, "Must match because flat fields are monomorphic");
   // The interpreter copies values with a bulk operation
   // To avoid accidentally setting the null marker to "null" during
   // the copying, the null marker is set to non zero in the source object

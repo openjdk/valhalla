@@ -203,6 +203,7 @@ class FieldLayout : public ResourceObj {
   int _super_alignment;
   int _super_min_align_required;
   int _default_value_offset;  // offset of the default value in class mirror, only for static layout of inline classes
+  int _reset_value_offset;    // offset of the reset value in class mirror, only for static layout of inline classes
   bool _super_has_fields;
   bool _has_inherited_fields;
 
@@ -230,6 +231,10 @@ class FieldLayout : public ResourceObj {
   int default_value_offset() const {
     assert(_default_value_offset != -1, "Must have been set");
     return _default_value_offset;
+  }
+  int reset_value_offset() const {
+    assert(_reset_value_offset != -1, "Must have been set");
+    return _reset_value_offset;
   }
   bool super_has_fields() const { return _super_has_fields; }
   bool has_inherited_fields() const { return _has_inherited_fields; }
@@ -341,7 +346,6 @@ class FieldLayoutBuilder : public ResourceObj {
 
   int null_marker_offset() const { return _null_marker_offset; }
   bool is_empty_inline_class() const { return _is_empty_inline_class; }
-  int default_value_offset() const { return _static_layout->default_value_offset(); }
 
   void build_layout();
   void compute_regular_layout();
