@@ -110,7 +110,8 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
   ciEnv *env = CURRENT_ENV;
   if (env->jvmti_can_hotswap_or_post_breakpoint()) {
     // 6328518 check hotswap conditions under the right lock.
-    MutexLocker locker(Compile_lock);
+    bool should_take_Compile_lock = !Compile_lock->owned_by_self();
+    ConditionalMutexLocker locker(Compile_lock, should_take_Compile_lock, Mutex::_safepoint_check_flag);
     if (Dependencies::check_evol_method(h_m()) != nullptr) {
       _is_c1_compilable = false;
       _is_c2_compilable = false;
@@ -1015,6 +1016,14 @@ bool ciMethod::is_object_constructor() const {
            && signature()->return_type()->is_void());
    // Note:  We can't test is_static, because that would
    // require the method to be loaded.  Sometimes it isn't.
+}
+
+// ------------------------------------------------------------------
+// ciMethod::is_scoped
+//
+// Return true for methods annotated with @Scoped
+bool ciMethod::is_scoped() const {
+   return get_Method()->is_scoped();
 }
 
 // ------------------------------------------------------------------

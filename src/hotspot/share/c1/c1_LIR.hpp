@@ -528,44 +528,44 @@ class LIR_Address: public LIR_OprPtr {
  private:
   LIR_Opr   _base;
   LIR_Opr   _index;
-  Scale     _scale;
   intx      _disp;
+  Scale     _scale;
   BasicType _type;
 
  public:
   LIR_Address(LIR_Opr base, LIR_Opr index, BasicType type):
        _base(base)
      , _index(index)
-     , _scale(times_1)
      , _disp(0)
+     , _scale(times_1)
      , _type(type) { verify(); }
 
   LIR_Address(LIR_Opr base, intx disp, BasicType type):
        _base(base)
      , _index(LIR_Opr::illegalOpr())
-     , _scale(times_1)
      , _disp(disp)
+     , _scale(times_1)
      , _type(type) { verify(); }
 
   LIR_Address(LIR_Opr base, BasicType type):
        _base(base)
      , _index(LIR_Opr::illegalOpr())
-     , _scale(times_1)
      , _disp(0)
+     , _scale(times_1)
      , _type(type) { verify(); }
 
   LIR_Address(LIR_Opr base, LIR_Opr index, intx disp, BasicType type):
        _base(base)
      , _index(index)
-     , _scale(times_1)
      , _disp(disp)
+     , _scale(times_1)
      , _type(type) { verify(); }
 
   LIR_Address(LIR_Opr base, LIR_Opr index, Scale scale, intx disp, BasicType type):
        _base(base)
      , _index(index)
-     , _scale(scale)
      , _disp(disp)
+     , _scale(scale)
      , _type(type) { verify(); }
 
   LIR_Opr base()  const                          { return _base;  }
@@ -1568,13 +1568,13 @@ class LIR_OpTypeCheck: public LIR_Op {
   LIR_Opr       _tmp1;
   LIR_Opr       _tmp2;
   LIR_Opr       _tmp3;
-  bool          _fast_check;
   CodeEmitInfo* _info_for_patch;
   CodeEmitInfo* _info_for_exception;
   CodeStub*     _stub;
   ciMethod*     _profiled_method;
   int           _profiled_bci;
   bool          _should_profile;
+  bool          _fast_check;
   bool          _need_null_check;
 
 public:
@@ -1694,13 +1694,13 @@ class LIR_Op2: public LIR_Op {
  protected:
   LIR_Opr   _opr1;
   LIR_Opr   _opr2;
-  BasicType _type;
   LIR_Opr   _tmp1;
   LIR_Opr   _tmp2;
   LIR_Opr   _tmp3;
   LIR_Opr   _tmp4;
   LIR_Opr   _tmp5;
   LIR_Condition _condition;
+  BasicType _type;
 
   void verify() const;
 
@@ -1710,13 +1710,13 @@ class LIR_Op2: public LIR_Op {
     , _fpu_stack_size(0)
     , _opr1(opr1)
     , _opr2(opr2)
-    , _type(type)
     , _tmp1(LIR_OprFact::illegalOpr)
     , _tmp2(LIR_OprFact::illegalOpr)
     , _tmp3(LIR_OprFact::illegalOpr)
     , _tmp4(LIR_OprFact::illegalOpr)
     , _tmp5(LIR_OprFact::illegalOpr)
-    , _condition(condition) {
+    , _condition(condition)
+    , _type(type) {
     assert(code == lir_cmp || code == lir_branch || code == lir_cond_float_branch || code == lir_assert, "code check");
   }
 
@@ -1725,13 +1725,13 @@ class LIR_Op2: public LIR_Op {
     , _fpu_stack_size(0)
     , _opr1(opr1)
     , _opr2(opr2)
-    , _type(type)
     , _tmp1(LIR_OprFact::illegalOpr)
     , _tmp2(LIR_OprFact::illegalOpr)
     , _tmp3(LIR_OprFact::illegalOpr)
     , _tmp4(LIR_OprFact::illegalOpr)
     , _tmp5(LIR_OprFact::illegalOpr)
-    , _condition(condition) {
+    , _condition(condition)
+    , _type(type) {
     assert(code == lir_cmove, "code check");
     assert(type != T_ILLEGAL, "cmove should have type");
   }
@@ -1742,13 +1742,13 @@ class LIR_Op2: public LIR_Op {
     , _fpu_stack_size(0)
     , _opr1(opr1)
     , _opr2(opr2)
-    , _type(type)
     , _tmp1(LIR_OprFact::illegalOpr)
     , _tmp2(LIR_OprFact::illegalOpr)
     , _tmp3(LIR_OprFact::illegalOpr)
     , _tmp4(LIR_OprFact::illegalOpr)
     , _tmp5(LIR_OprFact::illegalOpr)
-    , _condition(lir_cond_unknown) {
+    , _condition(lir_cond_unknown)
+    , _type(type) {
     assert(code != lir_cmp && code != lir_branch && code != lir_cond_float_branch && is_in_range(code, begin_op2, end_op2), "code check");
   }
 
@@ -1758,13 +1758,13 @@ class LIR_Op2: public LIR_Op {
     , _fpu_stack_size(0)
     , _opr1(opr1)
     , _opr2(opr2)
-    , _type(T_ILLEGAL)
     , _tmp1(tmp1)
     , _tmp2(tmp2)
     , _tmp3(tmp3)
     , _tmp4(tmp4)
     , _tmp5(tmp5)
-    , _condition(lir_cond_unknown) {
+    , _condition(lir_cond_unknown)
+    , _type(T_ILLEGAL)    {
     assert(code != lir_cmp && code != lir_branch && code != lir_cond_float_branch && is_in_range(code, begin_op2, end_op2), "code check");
   }
 
@@ -1849,8 +1849,8 @@ class LIR_OpAllocArray : public LIR_Op {
   LIR_Opr   _tmp2;
   LIR_Opr   _tmp3;
   LIR_Opr   _tmp4;
-  BasicType _type;
   CodeStub* _stub;
+  BasicType _type;
   bool      _zero_array;
   bool      _is_null_free;
 
@@ -1863,8 +1863,8 @@ class LIR_OpAllocArray : public LIR_Op {
     , _tmp2(t2)
     , _tmp3(t3)
     , _tmp4(t4)
-    , _type(type)
     , _stub(stub)
+    , _type(type)
     , _zero_array(zero_array)
     , _is_null_free(is_null_free) {}
 
@@ -1915,13 +1915,13 @@ class LIR_Op4: public LIR_Op {
   LIR_Opr   _opr2;
   LIR_Opr   _opr3;
   LIR_Opr   _opr4;
-  BasicType _type;
   LIR_Opr   _tmp1;
   LIR_Opr   _tmp2;
   LIR_Opr   _tmp3;
   LIR_Opr   _tmp4;
   LIR_Opr   _tmp5;
   LIR_Condition _condition;
+  BasicType _type;
 
  public:
   LIR_Op4(LIR_Code code, LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr opr3, LIR_Opr opr4,
@@ -1931,13 +1931,13 @@ class LIR_Op4: public LIR_Op {
     , _opr2(opr2)
     , _opr3(opr3)
     , _opr4(opr4)
-    , _type(type)
     , _tmp1(LIR_OprFact::illegalOpr)
     , _tmp2(LIR_OprFact::illegalOpr)
     , _tmp3(LIR_OprFact::illegalOpr)
     , _tmp4(LIR_OprFact::illegalOpr)
     , _tmp5(LIR_OprFact::illegalOpr)
-    , _condition(condition) {
+    , _condition(condition)
+    , _type(type) {
     assert(code == lir_cmove, "code check");
     assert(type != T_ILLEGAL, "cmove should have type");
   }

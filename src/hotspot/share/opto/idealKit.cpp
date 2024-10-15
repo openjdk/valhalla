@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ IdealKit::IdealKit(GraphKit* gkit, bool delay_all_transforms, bool has_declarati
   // We can go memory state free or else we need the entire memory state
   assert(_initial_memory == nullptr || _initial_memory->Opcode() == Op_MergeMem, "memory must be pre-split");
   int init_size = 5;
-  _pending_cvstates = new (C->node_arena()) GrowableArray<Node*>(C->node_arena(), init_size, 0, 0);
+  _pending_cvstates = new (C->node_arena()) GrowableArray<Node*>(C->node_arena(), init_size, 0, nullptr);
   DEBUG_ONLY(_state = new (C->node_arena()) GrowableArray<int>(C->node_arena(), init_size, 0, 0));
   if (!has_declarations) {
      declarations_done();
