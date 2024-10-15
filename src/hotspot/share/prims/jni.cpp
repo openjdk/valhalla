@@ -1182,7 +1182,7 @@ JNI_ENTRY(ResultType, \
           jni_Call##Result##Method(JNIEnv *env, jobject obj, jmethodID methodID, ...)) \
 \
   EntryProbe; \
-  ResultType ret = 0;\
+  ResultType ret{}; \
   DT_RETURN_MARK_FOR(Result, Call##Result##Method, ResultType, \
                      (const ResultType&)ret);\
 \
@@ -1237,7 +1237,7 @@ JNI_ENTRY(ResultType, \
           jni_Call##Result##MethodV(JNIEnv *env, jobject obj, jmethodID methodID, va_list args)) \
 \
   EntryProbe;\
-  ResultType ret = 0;\
+  ResultType ret{}; \
   DT_RETURN_MARK_FOR(Result, Call##Result##MethodV, ResultType, \
                      (const ResultType&)ret);\
 \
@@ -1288,7 +1288,7 @@ DEFINE_CALLMETHODV(jdouble,  Double,  T_DOUBLE
 JNI_ENTRY(ResultType, \
           jni_Call##Result##MethodA(JNIEnv *env, jobject obj, jmethodID methodID, const jvalue *args)) \
   EntryProbe; \
-  ResultType ret = 0;\
+  ResultType ret{}; \
   DT_RETURN_MARK_FOR(Result, Call##Result##MethodA, ResultType, \
                      (const ResultType&)ret);\
 \
@@ -1580,7 +1580,7 @@ JNI_ENTRY(ResultType, \
           jni_CallStatic##Result##Method(JNIEnv *env, jclass cls, jmethodID methodID, ...)) \
 \
   EntryProbe; \
-  ResultType ret = 0;\
+  ResultType ret{}; \
   DT_RETURN_MARK_FOR(Result, CallStatic##Result##Method, ResultType, \
                      (const ResultType&)ret);\
 \
@@ -1635,7 +1635,7 @@ JNI_ENTRY(ResultType, \
           jni_CallStatic##Result##MethodV(JNIEnv *env, jclass cls, jmethodID methodID, va_list args)) \
 \
   EntryProbe; \
-  ResultType ret = 0;\
+  ResultType ret{}; \
   DT_RETURN_MARK_FOR(Result, CallStatic##Result##MethodV, ResultType, \
                      (const ResultType&)ret);\
 \
@@ -1691,7 +1691,7 @@ JNI_ENTRY(ResultType, \
           jni_CallStatic##Result##MethodA(JNIEnv *env, jclass cls, jmethodID methodID, const jvalue *args)) \
 \
   EntryProbe; \
-  ResultType ret = 0;\
+  ResultType ret{}; \
   DT_RETURN_MARK_FOR(Result, CallStatic##Result##MethodA, ResultType, \
                      (const ResultType&)ret);\
 \
@@ -1784,7 +1784,7 @@ DT_RETURN_MARK_DECL(GetFieldID, jfieldID
 JNI_ENTRY(jfieldID, jni_GetFieldID(JNIEnv *env, jclass clazz,
           const char *name, const char *sig))
   HOTSPOT_JNI_GETFIELDID_ENTRY(env, clazz, (char *) name, (char *) sig);
-  jfieldID ret = 0;
+  jfieldID ret = nullptr;
   DT_RETURN_MARK(GetFieldID, jfieldID, (const jfieldID&)ret);
 
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
@@ -3129,12 +3129,12 @@ extern "C" void* JNICALL jni_GetDirectBufferAddress(JNIEnv *env, jobject buf)
 
   if (!directBufferSupportInitializeEnded) {
     if (!initializeDirectBufferSupport(env, thread)) {
-      return 0;
+      return nullptr;
     }
   }
 
   if ((buf != nullptr) && (!env->IsInstanceOf(buf, directBufferClass))) {
-    return 0;
+    return nullptr;
   }
 
   ret = (void*)(intptr_t)env->GetLongField(buf, directBufferAddressField);
@@ -3741,8 +3741,8 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
     }
 
     // Creation failed. We must reset vm_created
-    *vm = 0;
-    *(JNIEnv**)penv = 0;
+    *vm = nullptr;
+    *(JNIEnv**)penv = nullptr;
     // reset vm_created last to avoid race condition. Use OrderAccess to
     // control both compiler and architectural-based reordering.
     assert(vm_created == IN_PROGRESS, "must be");

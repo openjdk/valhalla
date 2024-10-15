@@ -2092,7 +2092,7 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
     size  += ent_size;
   }
   printf("Cpool size: %d\n", size);
-  fflush(0);
+  fflush(nullptr);
   return;
 } /* end print_cpool_bytes */
 
