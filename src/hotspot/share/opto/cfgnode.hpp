@@ -461,6 +461,10 @@ public:
   bool is_flat_array_check(PhaseTransform* phase, Node** array = nullptr);
 
 #ifndef PRODUCT
+  AssertionPredicateType assertion_predicate_type() const {
+    return _assertion_predicate_type;
+  }
+
   virtual void dump_spec(outputStream *st) const;
 #endif
 

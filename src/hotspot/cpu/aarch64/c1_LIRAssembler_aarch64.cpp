@@ -683,7 +683,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
   case T_ARRAY:
     // Non-null case is not handled on aarch64 but handled on x86
     // FIXME: do we need to add it here?
-    assert(c->as_jobject() == 0, "should be");
+    assert(c->as_jobject() == nullptr, "should be");
     if (UseCompressedOops && !wide) {
       insn = &Assembler::strw;
     } else {
