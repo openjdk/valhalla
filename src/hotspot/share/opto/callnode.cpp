@@ -1284,7 +1284,7 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
   // Remove membar preceding the call
   membar->remove(igvn);
 
-  address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
+  address call_addr = OptoRuntime::uncommon_trap_blob()->entry_point();
   CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap", nullptr);
   unc->init_req(TypeFunc::Control, call->in(0));
   unc->init_req(TypeFunc::I_O, call->in(TypeFunc::I_O));
