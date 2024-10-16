@@ -190,6 +190,11 @@ inline int StackChunkFrameStream<frame_kind>::stack_argsize() const {
   assert(cb() != nullptr, "");
   assert(cb()->is_compiled(), "");
   assert(cb()->as_compiled_method()->method() != nullptr, "");
+
+  if (cb()->as_compiled_method()->needs_stack_repair()) {
+    return to_frame().compiled_frame_stack_argsize();
+  }
+
   return (cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
 

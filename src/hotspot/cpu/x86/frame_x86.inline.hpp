@@ -236,8 +236,7 @@ inline int frame::compiled_frame_stack_argsize() const {
      intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
      sender_sp = repair_sender_sp(sender_sp, fp_addr);
      // -2 to account for the return address and the return address copy, see MacroAssembler::extend_stack_for_inline_args
-     int argsize = (sender_sp - (intptr_t*)fp_addr - 2);
-     return argsize;
+     return (sender_sp - (intptr_t*)fp_addr - 2);
    }
 
   return (cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;

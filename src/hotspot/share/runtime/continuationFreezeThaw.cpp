@@ -1154,24 +1154,13 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
                                                         bool callee_interpreted) {
   // The frame's top never includes the stack arguments to the callee
   intptr_t* const stack_frame_top = ContinuationHelper::CompiledFrame::frame_top(f, callee_argsize, callee_interpreted);
-  intptr_t* stack_frame_bottom = ContinuationHelper::CompiledFrame::frame_bottom(f);
+  intptr_t* const stack_frame_bottom = ContinuationHelper::CompiledFrame::frame_bottom(f);
+  // including metadata between f and its stackargs
+  const int argsize = ContinuationHelper::CompiledFrame::stack_argsize(f) + frame::metadata_words_at_top;
+  const int fsize = pointer_delta_as_int(stack_frame_bottom + argsize, stack_frame_top);
 
   tty->print_cr("recurse_freeze_compiled_frame");
   print_frame_layout(f, false, tty);
-
-  // Repair the sender sp if this is a method with scalarized inline type args
-  int stack_argsize = ContinuationHelper::CompiledFrame::stack_argsize(f);
-  if (f.needs_stack_repair()) {
-    intptr_t** saved_fp_addr = (intptr_t**) (stack_frame_bottom - frame::sender_sp_offset);
-    stack_frame_bottom = f.repair_sender_sp(stack_frame_bottom, saved_fp_addr);
-    stack_argsize = (int)(stack_frame_bottom-(intptr_t*)saved_fp_addr - 2); // Account for fp and ret
-    stack_frame_bottom -= stack_argsize;
-    tty->print_cr("REPAIR stack_frame_bottom = " INTPTR_FORMAT " saved_fp_addr = " INTPTR_FORMAT, p2i(stack_frame_bottom), p2i(saved_fp_addr));
-  }
-  // including metadata between f and its stackargs
-  int argsize = stack_argsize + frame::metadata_words_at_top;
-  int fsize = pointer_delta_as_int(stack_frame_bottom + argsize, stack_frame_top);
-
   tty->print_cr("fsize (with args) = %d, argsize = %d stack_frame_top = " INTPTR_FORMAT " stack_frame_bottom = " INTPTR_FORMAT, fsize, argsize, p2i(stack_frame_top), p2i(stack_frame_bottom));
 
   log_develop_trace(continuations)("recurse_freeze_compiled_frame %s _size: %d fsize: %d argsize: %d",
@@ -2109,22 +2098,7 @@ bool ThawBase::recurse_thaw_java_frame(frame& caller, int num_frames) {
 
   DEBUG_ONLY(_frames++;)
 
-  // TODO might need repair
   int argsize = _stream.stack_argsize();
-  if (_stream.cb() != nullptr && _stream.cb()->as_compiled_method()->needs_stack_repair()) {
-    tty->print_cr("REPAIR");
-
-    intptr_t* sender_sp = _stream.unextended_sp() + _stream.frame_size();
-    intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
-
-  // Repair the sender sp if this is a method with scalarized inline type args
-    sender_sp = _stream.to_frame().repair_sender_sp(sender_sp, fp_addr);
-
-    argsize = (int)(sender_sp-(intptr_t*)fp_addr)-2;
-
-    tty->print_cr("argsize = %d", argsize);
-  }
-
   _stream.next(SmallRegisterMap::instance);
   assert(_stream.to_frame().is_empty() == _stream.is_done(), "");
 
@@ -2388,6 +2362,7 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     _cont.tail()->fix_thawed_frame(caller, SmallRegisterMap::instance);
   } else if (_cont.tail()->has_bitmap() && added_argsize > 0) {
     // TODO?
+    assert(!f.cb()->as_compiled_method()->needs_stack_repair(), "FIXME");
     address start = (address)(heap_frame_top + ContinuationHelper::CompiledFrame::size(hf) + frame::metadata_words_at_top);
     int stack_args_slots = f.cb()->as_compiled_method()->method()->num_stack_arg_slots(false /* rounded */);
     int argsize_in_bytes = stack_args_slots * VMRegImpl::stack_slot_size;
