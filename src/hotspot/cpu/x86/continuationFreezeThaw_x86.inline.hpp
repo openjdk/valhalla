@@ -108,15 +108,6 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
       // If the caller is interpreted, our stackargs are not supposed to overlap with it
       // so we make more room by moving sp down by argsize
       int argsize = FKind::stack_argsize(f);
-      if (f.needs_stack_repair()) {
-        tty->print_cr("new_heap_frame: Re-computing argsize");
-
-        intptr_t* sender_sp = f.unextended_sp() + fsize;
-        intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
-        sender_sp = f.repair_sender_sp(sender_sp, fp_addr);
-
-        argsize = (sender_sp - (intptr_t*)fp_addr) - 2; // -2 to account for the return address and the return address copy, see MacroAssembler::extend_stack_for_inline_args
-      }
       sp -= argsize;
     }
     caller.set_sp(sp + fsize);
@@ -235,16 +226,6 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
     intptr_t* frame_sp = caller.unextended_sp() - fsize;
     if (bottom || caller.is_interpreted_frame()) {
       int argsize = hf.compiled_frame_stack_argsize();
-
-      if (hf.needs_stack_repair()) {
-        intptr_t* sender_sp = hf.unextended_sp() + fsize;
-        intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
-        sender_sp = hf.repair_sender_sp(sender_sp, fp_addr);
-        // -2 to account for the return address and the return address copy, see MacroAssembler::extend_stack_for_inline_args
-        argsize = (sender_sp - (intptr_t*)fp_addr - 2);
-        argsize += 4; // TODO account for the args pushed by the interpreter and the return address copy (?)
-        tty->print_cr("ThawBase::new_stack_frame sender_sp = " INTPTR_FORMAT " frame_sp = " INTPTR_FORMAT " argsize = %d", p2i(sender_sp), p2i(frame_sp), argsize);
-      }
 
       fsize += argsize;
       frame_sp -= argsize;

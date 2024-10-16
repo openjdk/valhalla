@@ -248,7 +248,7 @@ public class Test {
 
 FAILS:
 ../build/fastdebug/jdk/bin/java --enable-preview -Xcomp -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,Test*::* Test.java
-../build/fastdebug/jdk/bin/java --enable-preview -Xcomp -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge* -XX:+TraceDeoptimization Test.java
+../build/fastdebug/jdk/bin/java --enable-preview -Xcomp -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge* Test.java
 ../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java
 
 WORKS:
@@ -267,13 +267,14 @@ WORKS:
         Thread.ofVirtual().name("vt1").start(() -> {
             // Trigger compilation
             for (int i = 0; i < 500_000; i++) {
-                testSmall(new SmallValue(i), i, (i % 1000) == 0).verify("return", i);
+                SmallValue val = new SmallValue(i);
+                testSmall(val, i, (i % 1000) == 0).verify("return", i);
                 testLargeHelper(i, (i % 1000) == 0).verify("return", i);
                 testLarge2Helper(i, (i % 1000) == 0).verify("return", i + 4);
 
                 // TODO enable
-                // testLargeWithOopsHelper(new SmallValue(i), (i % 1000) == 0).verify("return", obj);
-                // testLargeWithOops2Helper(new SmallValue(i), (i % 1000) == 0).verify("return", obj);
+                //testLargeWithOopsHelper(val, (i % 1000) == 0).verify("return", val);
+                //testLargeWithOops2Helper(val, (i % 1000) == 0).verify("return", val);
 
                 //testLargeHelperPOJO(i, (i % 1000) == 0);//.verify("return", i);
             }

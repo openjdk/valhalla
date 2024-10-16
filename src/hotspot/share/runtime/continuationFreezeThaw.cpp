@@ -2341,7 +2341,7 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     intptr_t* real_frame_size_addr = (intptr_t*) (fp_addr - 1);
     int real_frame_size = ((*real_frame_size_addr) + wordSize) / wordSize;
     assert(real_frame_size >= hf.cb()->frame_size() && real_frame_size <= 1000000, "invalid frame size");
-    sz = real_frame_size + frame::metadata_words_at_bottom + 4;
+    sz = real_frame_size + frame::metadata_words_at_bottom;
   }
 
   tty->print_cr("recurse_thaw_compiled_frame sz = %d, from = "  INTPTR_FORMAT " to "  INTPTR_FORMAT " entrySP " INTPTR_FORMAT, sz, p2i(from), p2i(to), p2i(_cont.entrySP()));
