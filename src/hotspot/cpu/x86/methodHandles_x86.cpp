@@ -163,7 +163,7 @@ void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register meth
   __ jmp(Address(method, entry_offset));
 
   __ bind(L_no_such_method);
-  __ jump(RuntimeAddress(StubRoutines::throw_AbstractMethodError_entry()));
+  __ jump(RuntimeAddress(SharedRuntime::throw_AbstractMethodError_entry()));
 }
 
 void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
@@ -514,7 +514,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
 
     if (iid == vmIntrinsics::_linkToInterface) {
       __ bind(L_incompatible_class_change_error);
-      __ jump(RuntimeAddress(StubRoutines::throw_IncompatibleClassChangeError_entry()));
+      __ jump(RuntimeAddress(SharedRuntime::throw_IncompatibleClassChangeError_entry()));
     }
   }
 }
