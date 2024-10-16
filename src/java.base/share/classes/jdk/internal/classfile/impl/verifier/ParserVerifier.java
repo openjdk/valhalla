@@ -395,7 +395,7 @@ public record ParserVerifier(ClassModel classModel) {
     private static int typeAnnotationsSize(List<TypeAnnotation> ans) {
         int l = 2;
         for (var an : ans) {
-            l += 2 + an.targetInfo().size() + 2 * an.targetPath().size() + annotationSize(an);
+            l += 2 + an.targetInfo().size() + 2 * an.targetPath().size() + annotationSize(an.annotation());
         }
         return l;
     }

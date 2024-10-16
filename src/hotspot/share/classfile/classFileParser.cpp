@@ -6269,7 +6269,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         guarantee_property(unresolved_klass->char_at(0) != JVM_SIGNATURE_ARRAY,
                             "Bad interface name in class file %s", CHECK);
 
-        // Call resolve_super so class circularity is checked
+        // Call resolve on the interface class name with class circularity checking
         interf = SystemDictionary::resolve_with_circularity_detection_or_fail(
                                                   _class_name,
                                                   unresolved_klass,
