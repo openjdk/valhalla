@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,7 +119,7 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
     default:                                                     break;
   }
   // tail call
-  __ jump (ExternalAddress(slow_case_addr), rscratch1);
+  __ jump (RuntimeAddress(slow_case_addr), rscratch1);
 
   __ flush ();
 
@@ -207,7 +207,7 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
     default:                                                      break;
   }
   // tail call
-  __ jump (ExternalAddress(slow_case_addr), rscratch1);
+  __ jump (RuntimeAddress(slow_case_addr), rscratch1);
 
   __ flush ();
 

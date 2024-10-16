@@ -1205,7 +1205,7 @@ void TemplateTable::aastore() {
     __ jmp(store_null);
 
     __ bind(is_null_into_value_array_npe);
-    __ jump(ExternalAddress(Interpreter::_throw_NullPointerException_entry));
+    __ jump(RuntimeAddress(Interpreter::_throw_NullPointerException_entry));
 
     __ bind(store_null);
   }
@@ -1228,7 +1228,7 @@ void TemplateTable::aastore() {
     __ cmpptr(rax, rbx);
     __ jccb(Assembler::equal, is_type_ok);
 
-    __ jump(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
+    __ jump(RuntimeAddress(Interpreter::_throw_ArrayStoreException_entry));
 
     __ bind(is_type_ok);
     // rbx: value's klass
