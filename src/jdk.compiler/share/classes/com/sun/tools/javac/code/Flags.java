@@ -339,6 +339,11 @@ public class Flags {
     public static final long MIGRATED_VALUE_CLASS = 1L<<57; //ClassSymbols only
 
     /**
+     * Flag to indicate the given MethodSymbol returns a value which should be used.
+     */
+    public static final long MUST_USE = 1L<<53; //MethodSymbols only
+
+    /**
      * Flag to indicate the given symbol has a @Deprecated annotation.
      */
     public static final long DEPRECATED_ANNOTATION = 1L<<54;
@@ -563,6 +568,7 @@ public class Flags {
         MODULE(Flags.MODULE),
         AUTOMATIC_MODULE(Flags.AUTOMATIC_MODULE),
         SYSTEM_MODULE(Flags.SYSTEM_MODULE),
+        MUST_USE(Flags.MUST_USE),
         DEPRECATED_ANNOTATION(Flags.DEPRECATED_ANNOTATION),
         DEPRECATED_REMOVAL(Flags.DEPRECATED_REMOVAL),
         HAS_RESOURCE(Flags.HAS_RESOURCE),
