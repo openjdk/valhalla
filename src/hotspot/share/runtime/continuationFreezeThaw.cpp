@@ -866,6 +866,8 @@ inline freeze_result FreezeBase::recurse_freeze_java_frame(const frame& f, frame
   _freeze_size += fsize;
   NOT_PRODUCT(_frames++;)
 
+  // TODO check why frame_bottom is okay here
+
   assert(FKind::frame_bottom(f) <= _bottom_address, "");
 
   // We don't use FKind::frame_bottom(f) == _bottom_address because on x64 there's sometimes an extra word between
@@ -1154,6 +1156,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
                                                         bool callee_interpreted) {
   // The frame's top never includes the stack arguments to the callee
   intptr_t* const stack_frame_top = ContinuationHelper::CompiledFrame::frame_top(f, callee_argsize, callee_interpreted);
+  // TODO check why frame_bottom is okay here
   intptr_t* const stack_frame_bottom = ContinuationHelper::CompiledFrame::frame_bottom(f);
   // including metadata between f and its stackargs
   const int argsize = ContinuationHelper::CompiledFrame::stack_argsize(f) + frame::metadata_words_at_top;
@@ -2099,6 +2102,7 @@ bool ThawBase::recurse_thaw_java_frame(frame& caller, int num_frames) {
   DEBUG_ONLY(_frames++;)
 
   int argsize = _stream.stack_argsize();
+
   _stream.next(SmallRegisterMap::instance);
   assert(_stream.to_frame().is_empty() == _stream.is_done(), "");
 
@@ -2304,7 +2308,8 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
   // copy metadata, except the metadata at the top of the (unextended) entry frame
   int sz = fsize + frame::metadata_words_at_bottom + (is_bottom_frame && added_argsize == 0 ? 0 : frame::metadata_words_at_top);
 
-  if (hf.needs_stack_repair()) {
+  // TODO is this needed?
+  if (hf.needs_stack_repair() && false) {
     //assert(!is_bottom_frame, "handle this");
 // TODO what about is_bottom_frame?
     intptr_t* sender_sp = hf.unextended_sp() + ContinuationHelper::CompiledFrame::size(hf);
@@ -2361,7 +2366,7 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     // can only fix caller once this frame is thawed (due to callee saved regs); this happens on the stack
     _cont.tail()->fix_thawed_frame(caller, SmallRegisterMap::instance);
   } else if (_cont.tail()->has_bitmap() && added_argsize > 0) {
-    // TODO?
+    // TODO? ContinuationHelper::CompiledFrame::size(hf) is not correct and stack slots neither if repair is needed
     assert(!f.cb()->as_compiled_method()->needs_stack_repair(), "FIXME");
     address start = (address)(heap_frame_top + ContinuationHelper::CompiledFrame::size(hf) + frame::metadata_words_at_top);
     int stack_args_slots = f.cb()->as_compiled_method()->method()->num_stack_arg_slots(false /* rounded */);
@@ -2520,8 +2525,7 @@ static inline intptr_t* thaw_internal(JavaThread* thread, const Continuation::th
   if (LoomVerifyAfterThaw) {
     assert(do_verify_after_thaw(thread, cont.tail(), tty), "");
   }
-  // TODO fix
-  //assert(ContinuationEntry::assert_entry_frame_laid_out(thread), "");
+  assert(ContinuationEntry::assert_entry_frame_laid_out(thread), "");
   clear_anchor(thread);
 
   LogTarget(Trace, continuations) lt;
