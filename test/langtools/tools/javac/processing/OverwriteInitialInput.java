@@ -26,7 +26,6 @@
  * @bug 8067747
  * @summary Verify the correct Filer behavior w.r.t. initial inputs
  *          (should throw FilerException when overwriting initial inputs).
- * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
