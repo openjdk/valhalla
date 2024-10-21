@@ -144,7 +144,7 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
-  int* _reset_value_offset;
+  int* _null_reset_value_offset;
   ArrayKlass** _null_free_inline_array_klasses;
   int _first_field_offset;
   int _payload_size_in_bytes;   // size of payload layout
@@ -161,7 +161,7 @@ class InlineKlassFixedBlock {
 class InlineLayoutInfo : public MetaspaceObj {
   InlineKlass* _klass;
   LayoutKind _kind;
-  int _null_marker_offset; // mull marker offset for this field, relative to the beginning of the current container
+  int _null_marker_offset; // null marker offset for this field, relative to the beginning of the current container
 
  public:
   InlineLayoutInfo(): _klass(nullptr), _kind(LayoutKind::UNKNOWN), _null_marker_offset(-1)  {}
@@ -188,8 +188,6 @@ class InlineLayoutInfo : public MetaspaceObj {
 
   static ByteSize klass_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _klass)); }
   static ByteSize null_marker_offset_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _null_marker_offset)); }
-
-
 };
 
 class InstanceKlass: public Klass {

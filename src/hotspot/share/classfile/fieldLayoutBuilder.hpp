@@ -52,7 +52,7 @@
 //  the number of allocation required during the computation of a layout.
 //
 
-#define MAX_ATOMIC_OP_SIZE sizeof(jlong)
+#define MAX_ATOMIC_OP_SIZE sizeof(uint64_t)
 
 class LayoutRawBlock : public ResourceObj {
  public:
@@ -203,7 +203,7 @@ class FieldLayout : public ResourceObj {
   int _super_alignment;
   int _super_min_align_required;
   int _default_value_offset;  // offset of the default value in class mirror, only for static layout of inline classes
-  int _reset_value_offset;    // offset of the reset value in class mirror, only for static layout of inline classes
+  int _null_reset_value_offset;    // offset of the reset value in class mirror, only for static layout of inline classes
   bool _super_has_fields;
   bool _has_inherited_fields;
 
@@ -232,9 +232,9 @@ class FieldLayout : public ResourceObj {
     assert(_default_value_offset != -1, "Must have been set");
     return _default_value_offset;
   }
-  int reset_value_offset() const {
-    assert(_reset_value_offset != -1, "Must have been set");
-    return _reset_value_offset;
+  int null_reset_value_offset() const {
+    assert(_null_reset_value_offset != -1, "Must have been set");
+    return _null_reset_value_offset;
   }
   bool super_has_fields() const { return _super_has_fields; }
   bool has_inherited_fields() const { return _has_inherited_fields; }
@@ -287,7 +287,6 @@ class FieldLayoutBuilder : public ResourceObj {
   ConstantPool* _constant_pool;
   GrowableArray<FieldInfo>* _field_info;
   FieldLayoutInfo* _info;
-  // Array<InlineKlass*>* _inline_type_field_klasses;
   Array<InlineLayoutInfo>* _inline_layout_info_array;
   FieldGroup* _root_group;
   GrowableArray<FieldGroup*> _contended_groups;
@@ -323,29 +322,18 @@ class FieldLayoutBuilder : public ResourceObj {
                      GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, bool is_abstract_value,
                      bool must_be_atomic, FieldLayoutInfo* info, Array<InlineLayoutInfo>* inline_layout_info_array);
 
-  int first_field_offset() const {
-    assert(_first_field_offset != -1, "Uninitialized");
-    return _first_field_offset;
-  }
-
-  int payload_layout_size_in_bytes() const { return _payload_size_in_bytes; }
-  int payload_layout_alignment() const {
-    assert(_payload_alignment != -1, "Uninitialized");
-    return _payload_alignment;
-  }
-
-  bool has_non_atomic_flat_layout() const { return _non_atomic_layout_size_in_bytes != -1; }
-  int non_atomic_layout_size_in_bytes() const { return _non_atomic_layout_size_in_bytes; }
-  int non_atomic_layout_alignment() const { return _non_atomic_layout_alignment; }
-
-  bool has_atomic_layout() const { return _atomic_layout_size_in_bytes != -1; }
-  int atomic_layout_size_in_bytes() const { return _atomic_layout_size_in_bytes; }
-
-  bool has_nullable_layout() const { return _nullable_layout_size_in_bytes != -1; }
-  int nullable_layout_size_in_bytes() const { return _nullable_layout_size_in_bytes; }
-
-  int null_marker_offset() const { return _null_marker_offset; }
-  bool is_empty_inline_class() const { return _is_empty_inline_class; }
+  int first_field_offset() const               { assert(_first_field_offset != -1, "Uninitialized"); return _first_field_offset; }
+  int  payload_layout_size_in_bytes() const    { return _payload_size_in_bytes; }
+  int  payload_layout_alignment() const        { assert(_payload_alignment != -1, "Uninitialized"); return _payload_alignment; }
+  bool has_non_atomic_flat_layout() const      { return _non_atomic_layout_size_in_bytes != -1; }
+  int  non_atomic_layout_size_in_bytes() const { return _non_atomic_layout_size_in_bytes; }
+  int  non_atomic_layout_alignment() const     { return _non_atomic_layout_alignment; }
+  bool has_atomic_layout() const               { return _atomic_layout_size_in_bytes != -1; }
+  int  atomic_layout_size_in_bytes() const     { return _atomic_layout_size_in_bytes; }
+  bool has_nullable_layout() const             { return _nullable_layout_size_in_bytes != -1; }
+  int  nullable_layout_size_in_bytes() const   { return _nullable_layout_size_in_bytes; }
+  int  null_marker_offset() const              { return _null_marker_offset; }
+  bool is_empty_inline_class() const           { return _is_empty_inline_class; }
 
   void build_layout();
   void compute_regular_layout();

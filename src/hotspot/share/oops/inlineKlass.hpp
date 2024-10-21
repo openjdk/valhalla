@@ -80,9 +80,9 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
-  address adr_reset_value_offset() const {
+  address adr_null_reset_value_offset() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(reset_value_offset_offset());
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(null_reset_value_offset_offset());
   }
 
   ArrayKlass* volatile* adr_value_array_klasses() const {
@@ -197,7 +197,6 @@ class InlineKlass: public InstanceKlass {
     assert(k->is_inline_klass(), "cast to InlineKlass");
     return static_cast<const InlineKlass*>(k);
   }
-  // static InlineKlass* cast(Klass* k);
 
   // Use this to return the size of an instance in heap words.
   // Note that this size only applies to heap allocated stand-alone instances.
@@ -294,8 +293,8 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(InlineKlassFixedBlock, _default_value_offset);
   }
 
-  static ByteSize reset_value_offset_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _reset_value_offset);
+  static ByteSize null_reset_value_offset_offset() {
+    return byte_offset_of(InlineKlassFixedBlock, _null_reset_value_offset);
   }
 
   static ByteSize first_field_offset_offset() {
@@ -325,21 +324,21 @@ class InlineKlass: public InstanceKlass {
     return val;
   }
 
-  void set_reset_value_offset(int offset) {
-    *((int*)adr_reset_value_offset()) = offset;
+  void set_null_reset_value_offset(int offset) {
+    *((int*)adr_null_reset_value_offset()) = offset;
   }
 
-  int reset_value_offset() {
-    int offset = *((int*)adr_reset_value_offset());
+  int null_reset_value_offset() {
+    int offset = *((int*)adr_null_reset_value_offset());
     assert(offset != 0, "must not be called if not initialized");
     return offset;
   }
 
-  void set_reset_value(oop val);
+  void set_null_reset_value(oop val);
 
-  oop reset_value() {
-    assert(is_initialized() || is_being_initialized() || is_in_error_state(), "reset value is set at the beginning of initialization");
-    oop val = java_mirror()->obj_field_acquire(reset_value_offset());
+  oop null_reset_value() {
+    assert(is_initialized() || is_being_initialized() || is_in_error_state(), "null reset value is set at the beginning of initialization");
+    oop val = java_mirror()->obj_field_acquire(null_reset_value_offset());
     assert(val != nullptr, "Sanity check");
     return val;
   }

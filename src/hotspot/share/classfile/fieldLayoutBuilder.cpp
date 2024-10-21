@@ -62,7 +62,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
     }
   } else {
     if (NullableFieldFlattening && vk->has_nullable_layout()) {
-      return LayoutKind::NULLABLE_FLAT;
+      return LayoutKind::NULLABLE_ATOMIC_FLAT;
     } else {
       return LayoutKind::REFERENCE;
     }
@@ -79,7 +79,7 @@ static void get_size_and_alignment(InlineKlass* vk, LayoutKind kind, int* size, 
       *size = vk->atomic_size_in_bytes();
       *alignment = *size;
       break;
-    case LayoutKind::NULLABLE_FLAT:
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
       *size = vk->nullable_size_in_bytes();
       *alignment = *size;
     break;
@@ -199,7 +199,7 @@ FieldLayout::FieldLayout(GrowableArray<FieldInfo>* field_info, Array<InlineLayou
   _super_alignment(-1),
   _super_min_align_required(-1),
   _default_value_offset(-1),
-  _reset_value_offset(-1),
+  _null_reset_value_offset(-1),
   _super_has_fields(false),
   _has_inherited_fields(false) {}
 
@@ -392,11 +392,11 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
     if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::default_value_name()) {
       _default_value_offset = block->offset();
     }
-    if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::reset_value_name()) {
-      _reset_value_offset = block->offset();
+    if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::null_reset_value_name()) {
+      _null_reset_value_offset = block->offset();
     }
   }
-  if (block->block_kind() == LayoutRawBlock::FLAT && block->layout_kind() == LayoutKind::NULLABLE_FLAT) {
+  if (block->block_kind() == LayoutRawBlock::FLAT && block->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
     int nm_offset = block->inline_klass()->null_marker_offset() - block->inline_klass()->first_field_offset() + block->offset();
     _field_info->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
     _inline_layout_info_array->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
@@ -614,8 +614,8 @@ static const char* layout_kind_to_string(LayoutKind lk) {
       return "NON_ATOMIC_FLAT";
     case LayoutKind::ATOMIC_FLAT:
       return "ATOMIC_FLAT";
-    case LayoutKind::NULLABLE_FLAT:
-      return "NULLABLE_FLAT";
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      return "NULLABLE_ATOMIC_FLAT";
     case LayoutKind::UNKNOWN:
       return "UNKNOWN";
     default:
@@ -720,7 +720,6 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData*
   _constant_pool(constant_pool),
   _field_info(field_info),
   _info(info),
-  // _inline_type_field_klasses(inline_type_field_klasses),
   _inline_layout_info_array(inline_layout_info_array),
   _root_group(nullptr),
   _contended_groups(GrowableArray<FieldGroup*>(8)),
@@ -1194,7 +1193,8 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // could remain  simple (single instruction without intermediate copy). This might required
     // to shift all fields in the raw layout, but this operation is possible only if the class
     // doesn't have inherited fields (offsets of inherited fields cannot be changed). If a
-    // field shift is needed but not possible, atomic layouts are disabled.
+    // field shift is needed but not possible, all atomic layouts are disabled and only reference
+    // and loosely consistent are supported.
     int required_alignment = _payload_alignment;
     if (has_atomic_layout() && _payload_alignment < atomic_layout_size_in_bytes()) {
       required_alignment = atomic_layout_size_in_bytes();
@@ -1323,7 +1323,7 @@ void FieldLayoutBuilder::epilogue() {
     _info->_nullable_layout_size_in_bytes = _nullable_layout_size_in_bytes;
     _info->_null_marker_offset = _null_marker_offset;
     _info->_default_value_offset = _static_layout->default_value_offset();
-    _info->_reset_value_offset = _static_layout->reset_value_offset();
+    _info->_null_reset_value_offset = _static_layout->null_reset_value_offset();
     _info->_is_empty_inline_klass = _is_empty_inline_class;
   }
 

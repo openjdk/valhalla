@@ -180,7 +180,6 @@ bool InstanceKlass::field_is_null_free_inline_type(int index) const {
 bool InstanceKlass::is_class_in_loadable_descriptors_attribute(Symbol* name) const {
   if (_loadable_descriptors == nullptr) return false;
   for (int i = 0; i < _loadable_descriptors->length(); i++) {
-        // Symbol* class_name = _constants->klass_at_noresolve(_loadable_descriptors->at(i));
         Symbol* class_name = _constants->symbol_at(_loadable_descriptors->at(i));
         if (class_name == name) return true;
   }
@@ -1374,7 +1373,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
             }
             THROW_OOP(e());
         }
-        vk->set_reset_value(val);
+        vk->set_null_reset_value(val);
       }
   }
 

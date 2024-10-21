@@ -72,17 +72,17 @@ void InlineKlass::init_fixed_block() {
   *((address*)adr_pack_handler_jobject()) = nullptr;
   *((address*)adr_unpack_handler()) = nullptr;
   assert(pack_handler() == nullptr, "pack handler not null");
-  *((int*)adr_default_value_offset()) = 0;
-  *((int*)adr_reset_value_offset()) = 0;
   *((address*)adr_value_array_klasses()) = nullptr;
-  *((int*)adr_first_field_offset()) = -1;
-  *((int*)adr_payload_size_in_bytes()) = -1;
-  *((int*)adr_payload_alignment()) = -1;
-  *((int*)adr_non_atomic_size_in_bytes()) = -1;
-  *((int*)adr_non_atomic_alignment()) = -1;
-  *((int*)adr_atomic_size_in_bytes()) = -1;
-  *((int*)adr_nullable_size_in_bytes()) = -1;
-  *((int*)adr_null_marker_offset()) = -1;
+  set_default_value_offset(0);
+  set_null_reset_value_offset(0);
+  set_first_field_offset(-1);
+  set_payload_size_in_bytes(-1);
+  set_payload_alignment(-1);
+  set_non_atomic_size_in_bytes(-1);
+  set_non_atomic_alignment(-1);
+  set_atomic_size_in_bytes(-1);
+  set_nullable_size_in_bytes(-1);
+  set_null_marker_offset(-1);
 }
 
 void InlineKlass::set_default_value(oop val) {
@@ -93,12 +93,12 @@ void InlineKlass::set_default_value(oop val) {
   java_mirror()->obj_field_put(default_value_offset(), val);
 }
 
-void InlineKlass::set_reset_value(oop val) {
+void InlineKlass::set_null_reset_value(oop val) {
   assert(val != nullptr, "Sanity check");
   assert(oopDesc::is_oop(val), "Sanity check");
   assert(val->is_inline_type(), "Sanity check");
   assert(val->klass() == this, "sanity check");
-  java_mirror()->obj_field_put(reset_value_offset(), val);
+  java_mirror()->obj_field_put(null_reset_value_offset(), val);
 }
 
 instanceOop InlineKlass::allocate_instance(TRAPS) {
@@ -139,7 +139,7 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
       assert(has_atomic_layout(), "Layout not available");
       return atomic_size_in_bytes();
       break;
-    case LayoutKind::NULLABLE_FLAT:
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
       assert(has_nullable_layout(), "Layout not available");
       return nullable_size_in_bytes();
       break;
@@ -161,7 +161,7 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
       assert(has_atomic_layout(), "Layout not available");
       return atomic_size_in_bytes();
       break;
-    case LayoutKind::NULLABLE_FLAT:
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
       assert(has_nullable_layout(), "Layout not available");
       return nullable_size_in_bytes();
       break;
@@ -175,7 +175,7 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
 
 oop InlineKlass::read_flat_field(oop obj, int offset, LayoutKind lk, TRAPS) {
 
-  if (lk == LayoutKind::NULLABLE_FLAT) {
+  if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
     InstanceKlass* recv = InstanceKlass::cast(obj->klass());
     int nm_offset = offset + (null_marker_offset() - first_field_offset());
     jbyte nm = obj->byte_field(nm_offset);

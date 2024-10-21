@@ -35,12 +35,12 @@ static constexpr u4 flag_mask(int pos) {
 }
 
 enum LayoutKind {
-  REFERENCE,               // indirection to a heap allocated instance
-  PAYLOAD,                 // layout used in heap allocated standalone instances, probably temporary for the transition
-  NON_ATOMIC_FLAT,         // flat, no guarantee of atomic updates, no null marker
-  ATOMIC_FLAT,             // flat, size compatible with atomic updates, alignment requirement is equal to the size
-  NULLABLE_FLAT,           // flat, include a null marker, plus same properties as ATOMIC layout
-  UNKNOWN                  // used for uninitialized fields of type LayoutKind
+  REFERENCE            = 0,    // indirection to a heap allocated instance
+  PAYLOAD              = 1,    // layout used in heap allocated standalone instances, probably temporary for the transition
+  NON_ATOMIC_FLAT      = 2,    // flat, no guarantee of atomic updates, no null marker
+  ATOMIC_FLAT          = 3,    // flat, size compatible with atomic updates, alignment requirement is equal to the size
+  NULLABLE_ATOMIC_FLAT = 4,    // flat, include a null marker, plus same properties as ATOMIC layout
+  UNKNOWN              = 5     // used for uninitialized fields of type LayoutKind
 };
 
 // Helper class for access to the underlying Array<u1> used to
@@ -151,7 +151,7 @@ class FieldInfo {
   u4 _offset;                   // offset in object layout
   AccessFlags _access_flags;    // access flags (JVM spec)
   FieldFlags _field_flags;      // VM defined flags (not JVM spec)
-  LayoutKind _layout_kind;              // LayoutKind if the field is flat
+  LayoutKind _layout_kind;      // LayoutKind if the field is flat
   u4 _null_marker_offset;       // null marker offset for this field in the object layout
   u2 _initializer_index;        // index from ConstantValue attr (or 0)
   u2 _generic_signature_index;  // index from GenericSignature attr (or 0)

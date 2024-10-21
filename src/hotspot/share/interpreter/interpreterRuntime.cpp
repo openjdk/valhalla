@@ -334,7 +334,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current
     current->set_vm_result(nullptr);
   } else {
     InlineKlass* field_vklass = InlineKlass::cast(li->klass());
-    oop res = field_vklass->read_flat_field(obj_h(), entry->field_offset(), LayoutKind::NULLABLE_FLAT, CHECK);
+    oop res = field_vklass->read_flat_field(obj_h(), entry->field_offset(), LayoutKind::NULLABLE_ATOMIC_FLAT, CHECK);
     current->set_vm_result(res);
   }
 JRT_END
@@ -348,7 +348,7 @@ JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* curren
   InstanceKlass* holder = entry->field_holder();
   InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
   InlineKlass* vk = li->klass();
-  assert(li->kind() == LayoutKind::NULLABLE_FLAT, "Must be");
+  assert(li->kind() == LayoutKind::NULLABLE_ATOMIC_FLAT, "Must be");
   int nm_offset = li->null_marker_offset();
 
   if (val_h() == nullptr) {
@@ -357,8 +357,8 @@ JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* curren
       obj_h()->byte_field_put(nm_offset, (jbyte)0);
     } else {
       // Has embedded oops, using the reset value to rewrite all fields to null/zeros
-      assert(li->klass()->reset_value()->byte_field(vk->null_marker_offset()) == 0, "reset value must always have a null marker set to 0");
-      vk->inline_copy_oop_to_payload(vk->reset_value(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind());
+      assert(li->klass()->null_reset_value()->byte_field(vk->null_marker_offset()) == 0, "reset value must always have a null marker set to 0");
+      vk->inline_copy_oop_to_payload(vk->null_reset_value(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind());
     }
     return;
   }

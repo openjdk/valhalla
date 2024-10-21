@@ -518,7 +518,7 @@ JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
     assert(array->klass()->is_flatArray_klass(), "should not be called");
-    array->value_copy_to_index(value, index, LayoutKind::PAYLOAD); // Non atomic is currently the only layout supported by flt arrays
+    array->value_copy_to_index(value, index, LayoutKind::PAYLOAD); // Non atomic is currently the only layout supported by flat arrays
   }
 JRT_END
 
