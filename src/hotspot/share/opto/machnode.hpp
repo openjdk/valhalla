@@ -903,6 +903,10 @@ public:
     assert(verify_jvms(jvms), "jvms must match");
     return in(_jvmadj + jvms->monitor_box_offset(idx));
   }
+  Node* scalarized_obj(const JVMState* jvms, uint idx) const {
+    assert(verify_jvms(jvms), "jvms must match");
+    return in(_jvmadj + jvms->scloff() + idx);
+  }
   void  set_local(const JVMState* jvms, uint idx, Node *c) {
     assert(verify_jvms(jvms), "jvms must match");
     set_req(_jvmadj + jvms->locoff() + idx, c);
@@ -1121,7 +1125,7 @@ public:
 
   uint _block_num;
 
-  labelOper() : _label(0), _block_num(0) {}
+  labelOper() : _label(nullptr), _block_num(0) {}
 
   labelOper(Label* label, uint block_num) : _label(label), _block_num(block_num) {}
 

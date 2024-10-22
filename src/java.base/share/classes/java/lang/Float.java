@@ -309,6 +309,23 @@ public final class Float extends Number
      * <p>To create localized string representations of a floating-point
      * value, use subclasses of {@link java.text.NumberFormat}.
      *
+     * @apiNote
+     * This method corresponds to the general functionality of the
+     * convertToDecimalCharacter operation defined in IEEE 754;
+     * however, that operation is defined in terms of specifying the
+     * number of significand digits used in the conversion.
+     * Code to do such a conversion in the Java platform includes
+     * converting the {@code float} to a {@link java.math.BigDecimal
+     * BigDecimal} exactly and then rounding the {@code BigDecimal} to
+     * the desired number of digits; sample code:
+     * {@snippet lang=java :
+     * floatf = 0.1f;
+     * int digits = 15;
+     * BigDecimal bd = new BigDecimal(f);
+     * String result = bd.round(new MathContext(digits,  RoundingMode.HALF_UP));
+     * // 0.100000001490116
+     * }
+     *
      * @param   f   the {@code float} to be converted.
      * @return a string representation of the argument.
      */
@@ -389,6 +406,11 @@ public final class Float extends Number
      *     <td>{@code 0x0.000002p-126}</td>
      * </tbody>
      * </table>
+     *
+     * @apiNote
+     * This method corresponds to the convertToHexCharacter operation
+     * defined in IEEE 754.
+     *
      * @param   f   the {@code float} to be converted.
      * @return a hex string representation of the argument.
      * @since 1.5
@@ -525,6 +547,10 @@ public final class Float extends Number
      * }
      * where {@code l} is the desired locale, or
      * {@link java.util.Locale#ROOT} if locale insensitive.
+     *
+     * @apiNote
+     * This method corresponds to the convertFromDecimalCharacter and
+     * convertFromHexCharacter operations defined in IEEE 754.
      *
      * @param   s   the string to be parsed.
      * @return  a {@code Float} object holding the value
@@ -732,6 +758,7 @@ public final class Float extends Number
      *          converted to type {@code byte}
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
+    @Override
     public byte byteValue() {
         return (byte)value;
     }
@@ -745,6 +772,7 @@ public final class Float extends Number
      * @jls 5.1.3 Narrowing Primitive Conversion
      * @since 1.1
      */
+    @Override
     public short shortValue() {
         return (short)value;
     }
@@ -753,10 +781,15 @@ public final class Float extends Number
      * Returns the value of this {@code Float} as an {@code int} after
      * a narrowing primitive conversion.
      *
+     * @apiNote
+     * This method corresponds to the convertToIntegerTowardZero
+     * operation defined in IEEE 754.
+     *
      * @return  the {@code float} value represented by this object
      *          converted to type {@code int}
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
+    @Override
     public int intValue() {
         return (int)value;
     }
@@ -765,10 +798,15 @@ public final class Float extends Number
      * Returns value of this {@code Float} as a {@code long} after a
      * narrowing primitive conversion.
      *
+     * @apiNote
+     * This method corresponds to the convertToIntegerTowardZero
+     * operation defined in IEEE 754.
+     *
      * @return  the {@code float} value represented by this object
      *          converted to type {@code long}
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
+    @Override
     public long longValue() {
         return (long)value;
     }
@@ -778,6 +816,7 @@ public final class Float extends Number
      *
      * @return the {@code float} value represented by this object
      */
+    @Override
     @IntrinsicCandidate
     public float floatValue() {
         return value;
@@ -795,6 +834,7 @@ public final class Float extends Number
      *         object converted to type {@code double}
      * @jls 5.1.2 Widening Primitive Conversion
      */
+    @Override
     public double doubleValue() {
         return (double)value;
     }
@@ -842,9 +882,8 @@ public final class Float extends Number
      * {@code float} values since the {@code ==} operator does
      * <em>not</em> define an equivalence relation and to satisfy the
      * {@linkplain Object#equals equals contract} an equivalence
-     * relation must be implemented; see <a
-     * href="Double.html#equivalenceRelation">this discussion</a> for
-     * details of floating-point equality and equivalence.
+     * relation must be implemented; see {@linkplain Double##equivalenceRelation
+     * this discussion for details of floating-point equality and equivalence}.
      *
      * @param obj the object to be compared
      * @return  {@code true} if the objects are the same;
@@ -1095,7 +1134,7 @@ public final class Float extends Number
      * <li> If the argument is a NaN, the result is a NaN.
      * </ul>
      *
-     * The <a href="#binary16Format">binary16 format</a> is discussed in
+     * The {@linkplain ##binary16Format binary16 format} is discussed in
      * more detail in the {@link #float16ToFloat} method.
      *
      * @apiNote
@@ -1211,9 +1250,9 @@ public final class Float extends Number
      *
      * This ensures that the <i>natural ordering</i> of {@code Float}
      * objects imposed by this method is <i>consistent with
-     * equals</i>; see <a href="Double.html#equivalenceRelation">this
-     * discussion</a> for details of floating-point comparison and
-     * ordering.
+     * equals</i>; see {@linkplain Double##equivalenceRelation this
+     * discussion for details of floating-point comparison and
+     * ordering}.
      *
      *
      * @param   anotherFloat   the {@code Float} to be compared.
@@ -1228,6 +1267,7 @@ public final class Float extends Number
      * @jls 15.20.1 Numerical Comparison Operators {@code <}, {@code <=}, {@code >}, and {@code >=}
      * @since   1.2
      */
+    @Override
     public int compareTo(Float anotherFloat) {
         return Float.compare(value, anotherFloat.value);
     }

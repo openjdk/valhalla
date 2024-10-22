@@ -866,8 +866,6 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     }
 
     if (res->bottom_type()->is_inlinetypeptr()) {
-      // TODO 8315003 This starts to fail after JDK-8316991. Fix and re-enable.
-      // assert(C->has_circular_inline_type(), "non-circular inline types should have been replaced earlier");
       // Nullable inline types have an IsInit field which is added to the safepoint when scalarizing them (see
       // InlineTypeNode::make_scalar_in_safepoint()). When having circular inline types, we stop scalarizing at depth 1
       // to avoid an endless recursion. Therefore, we do not have a SafePointScalarObjectNode node here, yet.
@@ -2224,7 +2222,7 @@ void PhaseMacroExpand::mark_eliminated_box(Node* box, Node* obj) {
 
 //-----------------------mark_eliminated_locking_nodes-----------------------
 void PhaseMacroExpand::mark_eliminated_locking_nodes(AbstractLockNode *alock) {
-  if (alock->box_node()->as_BoxLock()->is_unbalanced()) {
+  if (!alock->is_balanced()) {
     return; // Can't do any more elimination for this locking region
   }
   if (EliminateNestedLocks) {

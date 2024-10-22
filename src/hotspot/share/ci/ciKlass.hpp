@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,6 +132,9 @@ public:
   jint                   access_flags();
 
   markWord prototype_header() const;
+
+  // Fetch Klass::misc_flags.
+  klass_flags_t          misc_flags();
 
   // What kind of ciObject is this?
   bool is_klass() const { return true; }

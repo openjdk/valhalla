@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -2320,9 +2320,9 @@ void TemplateTable::_return(TosState state)
 
     __ ldr(c_rarg1, aaddress(0));
     __ load_klass(r3, c_rarg1);
-    __ ldrw(r3, Address(r3, Klass::access_flags_offset()));
+    __ ldrb(r3, Address(r3, Klass::misc_flags_offset()));
     Label skip_register_finalizer;
-    __ tbz(r3, exact_log2(JVM_ACC_HAS_FINALIZER), skip_register_finalizer);
+    __ tbz(r3, exact_log2(KlassFlags::_misc_has_finalizer), skip_register_finalizer);
 
     __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::register_finalizer), c_rarg1);
 
@@ -3913,6 +3913,14 @@ void TemplateTable::_new() {
   __ clinit_barrier(r4, rscratch1, nullptr /*L_fast_path*/, &slow_case);
 
   __ allocate_instance(r4, r0, r3, r1, true, slow_case);
+    if (DTraceAllocProbes) {
+      // Trigger dtrace event for fastpath
+      __ push(atos); // save the return value
+      __ call_VM_leaf(
+           CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), r0);
+      __ pop(atos); // restore the return value
+
+    }
   __ b(done);
 
   // slow case

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -843,7 +844,9 @@ private:
   juint _class_id;
   juint _flags;
 
+#ifdef ASSERT
   static juint max_flags();
+#endif
 
 protected:
   // These methods should be called from constructors only.
@@ -1119,8 +1122,14 @@ public:
   // Skip Proj and CatchProj nodes chains. Check for Null and Top.
   Node* find_exact_control(Node* ctrl);
 
+  // Results of the dominance analysis.
+  enum class DomResult {
+    NotDominate,         // 'this' node does not dominate 'sub'.
+    Dominate,            // 'this' node dominates or is equal to 'sub'.
+    EncounteredDeadCode  // Result is undefined due to encountering dead code.
+  };
   // Check if 'this' node dominates or equal to 'sub'.
-  bool dominates(Node* sub, Node_List &nlist);
+  DomResult dominates(Node* sub, Node_List &nlist);
 
 protected:
   bool remove_dead_region(PhaseGVN *phase, bool can_reshape);
@@ -1610,6 +1619,8 @@ protected:
   Arena* _a;                    // Arena to allocate in
   uint   _max;
   Node** _nodes;
+  ReallocMark _nesting;         // Safety checks for arena reallocation
+
   void   grow( uint i );        // Grow array node to fit
 public:
   Node_Array(Arena* a, uint max = OptoNodeListSize) : _a(a), _max(max) {
@@ -1628,7 +1639,7 @@ public:
   Node* at(uint i) const { assert(i<_max,"oob"); return _nodes[i]; }
   Node** adr() { return _nodes; }
   // Extend the mapping: index i maps to Node *n.
-  void map( uint i, Node *n ) { if( i>=_max ) grow(i); _nodes[i] = n; }
+  void map( uint i, Node *n ) { grow(i); _nodes[i] = n; }
   void insert( uint i, Node *n );
   void remove( uint i );        // Remove, preserving order
   // Clear all entries in _nodes to null but keep storage
@@ -1858,6 +1869,7 @@ protected:
   INode *_inode_max; // End of _inodes == _inodes + _max
   INode *_inodes;    // Array storage for the stack
   Arena *_a;         // Arena to allocate in
+  ReallocMark _nesting; // Safety checks for arena reallocation
   void grow();
 public:
   Node_Stack(int size) {
@@ -1881,7 +1893,7 @@ public:
   }
   void push(Node *n, uint i) {
     ++_inode_top;
-    if (_inode_top >= _inode_max) grow();
+    grow();
     INode *top = _inode_top; // optimization
     top->node = n;
     top->indx = i;
