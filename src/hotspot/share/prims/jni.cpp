@@ -104,7 +104,7 @@
 #include "jfr/jfr.hpp"
 #endif
 
-static jint CurrentVersion = JNI_VERSION_21;
+static jint CurrentVersion = JNI_VERSION_24;
 
 #if defined(_WIN32) && !defined(USE_VECTORED_EXCEPTION_HANDLING)
 extern LONG WINAPI topLevelExceptionFilter(_EXCEPTION_POINTERS* );
@@ -1108,7 +1108,7 @@ static jmethodID get_method_id(JNIEnv *env, jclass clazz, const char *name_str,
   TempNewSymbol signature = SymbolTable::probe(sig, (int)strlen(sig));
 
   if (name == nullptr || signature == nullptr) {
-    THROW_MSG_0(vmSymbols::java_lang_NoSuchMethodError(), name_str);
+    THROW_MSG_NULL(vmSymbols::java_lang_NoSuchMethodError(), name_str);
   }
 
   oop mirror = JNIHandles::resolve_non_null(clazz);
@@ -1118,7 +1118,7 @@ static jmethodID get_method_id(JNIEnv *env, jclass clazz, const char *name_str,
   // primitive java.lang.Class
   if (java_lang_Class::is_primitive(mirror)) {
     ResourceMark rm(THREAD);
-    THROW_MSG_0(vmSymbols::java_lang_NoSuchMethodError(), err_msg("%s%s.%s%s", is_static ? "static " : "", klass->signature_name(), name_str, sig));
+    THROW_MSG_NULL(vmSymbols::java_lang_NoSuchMethodError(), err_msg("%s%s.%s%s", is_static ? "static " : "", klass->signature_name(), name_str, sig));
   }
 
   // Make sure class is linked and initialized before handing id's out to
@@ -1142,7 +1142,7 @@ static jmethodID get_method_id(JNIEnv *env, jclass clazz, const char *name_str,
   }
   if (m == nullptr || (m->is_static() != is_static)) {
     ResourceMark rm(THREAD);
-    THROW_MSG_0(vmSymbols::java_lang_NoSuchMethodError(), err_msg("%s%s.%s%s", is_static ? "static " : "", klass->signature_name(), name_str, sig));
+    THROW_MSG_NULL(vmSymbols::java_lang_NoSuchMethodError(), err_msg("%s%s.%s%s", is_static ? "static " : "", klass->signature_name(), name_str, sig));
   }
   return m->jmethod_id();
 }
@@ -1190,7 +1190,7 @@ JNI_ENTRY(ResultType, \
   va_start(args, methodID); \
   JavaValue jvalue(Tag); \
   JNI_ArgumentPusherVaArg ap(methodID, args); \
-  jni_invoke_nonstatic(env, &jvalue, obj, JNI_VIRTUAL, methodID, &ap, CHECK_0); \
+  jni_invoke_nonstatic(env, &jvalue, obj, JNI_VIRTUAL, methodID, &ap, CHECK_(ResultType{})); \
   va_end(args); \
   ret = jvalue.get_##ResultType(); \
   return ret;\
@@ -1243,7 +1243,7 @@ JNI_ENTRY(ResultType, \
 \
   JavaValue jvalue(Tag); \
   JNI_ArgumentPusherVaArg ap(methodID, args); \
-  jni_invoke_nonstatic(env, &jvalue, obj, JNI_VIRTUAL, methodID, &ap, CHECK_0); \
+  jni_invoke_nonstatic(env, &jvalue, obj, JNI_VIRTUAL, methodID, &ap, CHECK_(ResultType{})); \
   ret = jvalue.get_##ResultType(); \
   return ret;\
 JNI_END
@@ -1294,7 +1294,7 @@ JNI_ENTRY(ResultType, \
 \
   JavaValue jvalue(Tag); \
   JNI_ArgumentPusherArray ap(methodID, args); \
-  jni_invoke_nonstatic(env, &jvalue, obj, JNI_VIRTUAL, methodID, &ap, CHECK_0); \
+  jni_invoke_nonstatic(env, &jvalue, obj, JNI_VIRTUAL, methodID, &ap, CHECK_(ResultType{})); \
   ret = jvalue.get_##ResultType(); \
   return ret;\
 JNI_END
@@ -1387,7 +1387,7 @@ JNI_ENTRY(ResultType, \
   va_start(args, methodID); \
   JavaValue jvalue(Tag); \
   JNI_ArgumentPusherVaArg ap(methodID, args); \
-  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_0); \
+  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_(ResultType{})); \
   va_end(args); \
   ret = jvalue.get_##ResultType(); \
   return ret;\
@@ -1440,7 +1440,7 @@ JNI_ENTRY(ResultType, \
 \
   JavaValue jvalue(Tag); \
   JNI_ArgumentPusherVaArg ap(methodID, args); \
-  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_0); \
+  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_(ResultType{})); \
   ret = jvalue.get_##ResultType(); \
   return ret;\
 JNI_END
@@ -1492,7 +1492,7 @@ JNI_ENTRY(ResultType, \
 \
   JavaValue jvalue(Tag); \
   JNI_ArgumentPusherArray ap(methodID, args); \
-  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_0); \
+  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_(ResultType{})); \
   ret = jvalue.get_##ResultType(); \
   return ret;\
 JNI_END
@@ -1588,7 +1588,7 @@ JNI_ENTRY(ResultType, \
   va_start(args, methodID); \
   JavaValue jvalue(Tag); \
   JNI_ArgumentPusherVaArg ap(methodID, args); \
-  jni_invoke_static(env, &jvalue, nullptr, JNI_STATIC, methodID, &ap, CHECK_0); \
+  jni_invoke_static(env, &jvalue, nullptr, JNI_STATIC, methodID, &ap, CHECK_(ResultType{})); \
   va_end(args); \
   ret = jvalue.get_##ResultType(); \
   return ret;\
@@ -1643,8 +1643,8 @@ JNI_ENTRY(ResultType, \
   JNI_ArgumentPusherVaArg ap(methodID, args); \
   /* Make sure class is initialized before trying to invoke its method */ \
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls)); \
-  k->initialize(CHECK_0); \
-  jni_invoke_static(env, &jvalue, nullptr, JNI_STATIC, methodID, &ap, CHECK_0); \
+  k->initialize(CHECK_(ResultType{})); \
+  jni_invoke_static(env, &jvalue, nullptr, JNI_STATIC, methodID, &ap, CHECK_(ResultType{})); \
   va_end(args); \
   ret = jvalue.get_##ResultType(); \
   return ret;\
@@ -1697,7 +1697,7 @@ JNI_ENTRY(ResultType, \
 \
   JavaValue jvalue(Tag); \
   JNI_ArgumentPusherArray ap(methodID, args); \
-  jni_invoke_static(env, &jvalue, nullptr, JNI_STATIC, methodID, &ap, CHECK_0); \
+  jni_invoke_static(env, &jvalue, nullptr, JNI_STATIC, methodID, &ap, CHECK_(ResultType{})); \
   ret = jvalue.get_##ResultType(); \
   return ret;\
 JNI_END
@@ -1796,7 +1796,7 @@ JNI_ENTRY(jfieldID, jni_GetFieldID(JNIEnv *env, jclass clazz,
   TempNewSymbol signame = SymbolTable::probe(sig, (int)strlen(sig));
   if (fieldname == nullptr || signame == nullptr) {
     ResourceMark rm;
-    THROW_MSG_0(vmSymbols::java_lang_NoSuchFieldError(), err_msg("%s.%s %s", k->external_name(), name, sig));
+    THROW_MSG_NULL(vmSymbols::java_lang_NoSuchFieldError(), err_msg("%s.%s %s", k->external_name(), name, sig));
   }
 
   // Make sure class is initialized before handing id's out to fields
@@ -1806,7 +1806,7 @@ JNI_ENTRY(jfieldID, jni_GetFieldID(JNIEnv *env, jclass clazz,
   if (!k->is_instance_klass() ||
       !InstanceKlass::cast(k)->find_field(fieldname, signame, false, &fd)) {
     ResourceMark rm;
-    THROW_MSG_0(vmSymbols::java_lang_NoSuchFieldError(), err_msg("%s.%s %s", k->external_name(), name, sig));
+    THROW_MSG_NULL(vmSymbols::java_lang_NoSuchFieldError(), err_msg("%s.%s %s", k->external_name(), name, sig));
   }
 
   // A jfieldID for a non-static field is simply the offset of the field within the instanceOop
@@ -2042,7 +2042,7 @@ JNI_ENTRY(jfieldID, jni_GetStaticFieldID(JNIEnv *env, jclass clazz,
   TempNewSymbol fieldname = SymbolTable::probe(name, (int)strlen(name));
   TempNewSymbol signame = SymbolTable::probe(sig, (int)strlen(sig));
   if (fieldname == nullptr || signame == nullptr) {
-    THROW_MSG_0(vmSymbols::java_lang_NoSuchFieldError(), (char*) name);
+    THROW_MSG_NULL(vmSymbols::java_lang_NoSuchFieldError(), (char*) name);
   }
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
   // Make sure class is initialized before handing id's out to static fields
@@ -2051,7 +2051,7 @@ JNI_ENTRY(jfieldID, jni_GetStaticFieldID(JNIEnv *env, jclass clazz,
   fieldDescriptor fd;
   if (!k->is_instance_klass() ||
       !InstanceKlass::cast(k)->find_field(fieldname, signame, true, &fd)) {
-    THROW_MSG_0(vmSymbols::java_lang_NoSuchFieldError(), (char*) name);
+    THROW_MSG_NULL(vmSymbols::java_lang_NoSuchFieldError(), (char*) name);
   }
 
   // A jfieldID for a static field is a JNIid specifying the field holder and the offset within the Klass*
@@ -2277,11 +2277,19 @@ JNI_END
 
 
 JNI_ENTRY(jsize, jni_GetStringUTFLength(JNIEnv *env, jstring string))
- HOTSPOT_JNI_GETSTRINGUTFLENGTH_ENTRY(env, string);
+  HOTSPOT_JNI_GETSTRINGUTFLENGTH_ENTRY(env, string);
   oop java_string = JNIHandles::resolve_non_null(string);
-  jsize ret = java_lang_String::utf8_length(java_string);
+  jsize ret = java_lang_String::utf8_length_as_int(java_string);
   HOTSPOT_JNI_GETSTRINGUTFLENGTH_RETURN(ret);
   return ret;
+JNI_END
+
+JNI_ENTRY(jlong, jni_GetStringUTFLengthAsLong(JNIEnv *env, jstring string))
+  HOTSPOT_JNI_GETSTRINGUTFLENGTHASLONG_ENTRY(env, string);
+  oop java_string = JNIHandles::resolve_non_null(string);
+  size_t ret = java_lang_String::utf8_length(java_string);
+  HOTSPOT_JNI_GETSTRINGUTFLENGTHASLONG_RETURN(ret);
+return checked_cast<jlong>(ret);
 JNI_END
 
 
@@ -2292,10 +2300,11 @@ JNI_ENTRY(const char*, jni_GetStringUTFChars(JNIEnv *env, jstring string, jboole
   typeArrayOop s_value = java_lang_String::value(java_string);
   if (s_value != nullptr) {
     size_t length = java_lang_String::utf8_length(java_string, s_value);
-    /* JNI Specification states return null on OOM */
+    // JNI Specification states return null on OOM.
+    // The resulting sequence doesn't have to be NUL-terminated but we do.
     result = AllocateHeap(length + 1, mtInternal, AllocFailStrategy::RETURN_NULL);
     if (result != nullptr) {
-      java_lang_String::as_utf8_string(java_string, s_value, result, (int) length + 1);
+      java_lang_String::as_utf8_string(java_string, s_value, result, length + 1);
       if (isCopy != nullptr) {
         *isCopy = JNI_TRUE;
       }
@@ -2374,7 +2383,7 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
     ResourceMark rm(THREAD);
     stringStream ss;
     ss.print("Index %d out of bounds for length %d", index,arr->length());
-    THROW_MSG_0(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
+    THROW_MSG_NULL(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
   ret = JNIHandles::make_local(THREAD, res);
   return ret;
@@ -3491,7 +3500,11 @@ struct JNINativeInterface_ jni_NativeInterface = {
 
     // Virtual threads
 
-    jni_IsVirtualThread
+    jni_IsVirtualThread,
+
+    // Large UTF8 support
+
+    jni_GetStringUTFLengthAsLong
 };
 
 

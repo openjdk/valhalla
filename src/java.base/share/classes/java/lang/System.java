@@ -70,6 +70,7 @@ import java.util.function.Supplier;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
+import jdk.internal.javac.Restricted;
 import jdk.internal.logger.LoggerFinderLoader.TemporaryLoggerFinder;
 import jdk.internal.misc.Blocker;
 import jdk.internal.misc.CarrierThreadLocal;
@@ -356,7 +357,7 @@ public final class System {
             = Collections.synchronizedMap(new WeakHashMap<>());
     }
 
-    private static URL codeSource(Class<?> clazz) {
+    static URL codeSource(Class<?> clazz) {
         PrivilegedAction<ProtectionDomain> pa = clazz::getProtectionDomain;
         @SuppressWarnings("removal")
         CodeSource cs = AccessController.doPrivileged(pa).getCodeSource();
@@ -2018,14 +2019,19 @@ public final class System {
      *             linked with the VM, or the library cannot be mapped to
      *             a native library image by the host system.
      * @throws     NullPointerException if {@code filename} is {@code null}
+     * @throws     IllegalCallerException if the caller is in a module that
+     *             does not have native access enabled.
      *
      * @spec jni/index.html Java Native Interface Specification
      * @see        java.lang.Runtime#load(java.lang.String)
      * @see        java.lang.SecurityManager#checkLink(java.lang.String)
      */
     @CallerSensitive
+    @Restricted
     public static void load(String filename) {
-        Runtime.getRuntime().load0(Reflection.getCallerClass(), filename);
+        Class<?> caller = Reflection.getCallerClass();
+        Reflection.ensureNativeAccess(caller, System.class, "load", false);
+        Runtime.getRuntime().load0(caller, filename);
     }
 
     /**
@@ -2056,14 +2062,19 @@ public final class System {
      *             linked with the VM,  or the library cannot be mapped to a
      *             native library image by the host system.
      * @throws     NullPointerException if {@code libname} is {@code null}
+     * @throws     IllegalCallerException if the caller is in a module that
+     *             does not have native access enabled.
      *
      * @spec jni/index.html Java Native Interface Specification
      * @see        java.lang.Runtime#loadLibrary(java.lang.String)
      * @see        java.lang.SecurityManager#checkLink(java.lang.String)
      */
     @CallerSensitive
+    @Restricted
     public static void loadLibrary(String libname) {
-        Runtime.getRuntime().loadLibrary0(Reflection.getCallerClass(), libname);
+        Class<?> caller = Reflection.getCallerClass();
+        Reflection.ensureNativeAccess(caller, System.class, "loadLibrary", false);
+        Runtime.getRuntime().loadLibrary0(caller, libname);
     }
 
     /**
@@ -2540,8 +2551,8 @@ public final class System {
             public void addEnableNativeAccessToAllUnnamed() {
                 Module.implAddEnableNativeAccessToAllUnnamed();
             }
-            public void ensureNativeAccess(Module m, Class<?> owner, String methodName, Class<?> currentClass) {
-                m.ensureNativeAccess(owner, methodName, currentClass);
+            public void ensureNativeAccess(Module m, Class<?> owner, String methodName, Class<?> currentClass, boolean jni) {
+                m.ensureNativeAccess(owner, methodName, currentClass, jni);
             }
             public ServicesCatalog getServicesCatalog(ModuleLayer layer) {
                 return layer.getServicesCatalog();
@@ -2624,6 +2635,10 @@ public final class System {
                 return StringConcatHelper.mix(lengthCoder, value);
             }
 
+            public Object stringConcat1(String[] constants) {
+                return new StringConcatHelper.Concat1(constants);
+            }
+
             public int getCharsLatin1(long i, int index, byte[] buf) {
                 return StringLatin1.getChars(i, index, buf);
             }
@@ -2636,13 +2651,17 @@ public final class System {
                 return String.join(prefix, suffix, delimiter, elements, size);
             }
 
+            public String concat(String prefix, Object value, String suffix) {
+                return StringConcatHelper.concat(prefix, value, suffix);
+            }
+
             public Object classData(Class<?> c) {
                 return c.getClassData();
             }
 
             @Override
             public long findNative(ClassLoader loader, String entry) {
-                return ClassLoader.findNative(loader, entry);
+                return ClassLoader.findNativeInternal(loader, entry);
             }
 
             @Override
