@@ -101,6 +101,7 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
     // We need to re-read fp out of the frame because it may be an oop and we might have
     // had a safepoint in finalize_freeze, after constructing f.
     fp = *(intptr_t**)(f.sp() - frame::sender_sp_offset);
+
     int fsize = FKind::size(f);
     sp = caller.unextended_sp() - fsize;
     if (caller.is_interpreted_frame()) {
@@ -229,6 +230,7 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
     intptr_t* frame_sp = caller.unextended_sp() - fsize;
     if (bottom || caller.is_interpreted_frame()) {
       int argsize = hf.compiled_frame_stack_argsize();
+
       fsize += argsize;
       frame_sp -= argsize;
       caller.set_sp(caller.sp() - argsize);
@@ -254,7 +256,7 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
 inline intptr_t* ThawBase::align(const frame& hf, intptr_t* frame_sp, frame& caller, bool bottom) {
 #ifdef _LP64
   if (((intptr_t)frame_sp & 0xf) != 0) {
-//    assert(caller.is_interpreted_frame() || (bottom && hf.compiled_frame_stack_argsize() % 2 != 0), "");
+    assert(caller.is_interpreted_frame() || (bottom && hf.compiled_frame_stack_argsize() % 2 != 0), "");
     frame_sp--;
     caller.set_sp(caller.sp() - 1);
   }

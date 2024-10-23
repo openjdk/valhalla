@@ -175,8 +175,6 @@ inline bool StackChunkFrameStream<ChunkFrames::CompiledOnly>::is_interpreted() c
 //
 template <ChunkFrames frame_kind>
 inline int StackChunkFrameStream<frame_kind>::frame_size() const {
-  // TODO might need stack repair, right? Is this method even used?
-  assert(false, "unused");
   return is_interpreted() ? interpreter_frame_size()
                           : cb()->frame_size() + stack_argsize() + frame::metadata_words_at_top;
 }

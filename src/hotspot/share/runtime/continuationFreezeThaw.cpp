@@ -2318,27 +2318,12 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
   // copy metadata, except the metadata at the top of the (unextended) entry frame
   int sz = fsize + frame::metadata_words_at_bottom + (is_bottom_frame && added_argsize == 0 ? 0 : frame::metadata_words_at_top);
 
-  // TODO is this needed?
-  if (hf.needs_stack_repair() && false) {
-    //assert(!is_bottom_frame, "handle this");
-// TODO what about is_bottom_frame?
-    intptr_t* sender_sp = hf.unextended_sp() + ContinuationHelper::CompiledFrame::size(hf);
-    intptr_t** fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
-    tty->print_cr("Needs repair " INTPTR_FORMAT " " INTPTR_FORMAT, p2i(sender_sp), p2i(fp_addr));
-
-    // Repair the sender sp if this is a method with scalarized inline type args
-    intptr_t* real_frame_size_addr = (intptr_t*) (fp_addr - 1);
-    int real_frame_size = ((*real_frame_size_addr) + wordSize) / wordSize;
-    assert(real_frame_size >= hf.cb()->frame_size() && real_frame_size <= 1000000, "invalid frame size");
-    sz = real_frame_size + frame::metadata_words_at_bottom;
-  }
-
   tty->print_cr("sz = %d, from = "  INTPTR_FORMAT " to "  INTPTR_FORMAT " entrySP " INTPTR_FORMAT, sz, p2i(from), p2i(to), p2i(_cont.entrySP()));
 
   // If we're the bottom-most thawed frame, we're writing to within one word from entrySP
   // (we might have one padding word for alignment)
   assert(!is_bottom_frame || (_cont.entrySP() - 1 <= to + sz && to + sz <= _cont.entrySP()), "");
- // assert(!is_bottom_frame || hf.compiled_frame_stack_argsize() != 0 || (to + sz && to + sz == _cont.entrySP()), "");
+  assert(!is_bottom_frame || hf.compiled_frame_stack_argsize() != 0 || (to + sz && to + sz == _cont.entrySP()), "");
 
   copy_from_chunk(from, to, sz); // copying good oops because we invoked barriers above
 
