@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -232,6 +232,15 @@ markWord ciKlass::prototype_header() const {
   assert(is_loaded(), "not loaded");
   GUARDED_VM_ENTRY(
     return get_Klass()->prototype_header();
+  )
+}
+
+// ------------------------------------------------------------------
+// ciKlass::misc_flags
+klass_flags_t ciKlass::misc_flags() {
+  assert(is_loaded(), "not loaded");
+  GUARDED_VM_ENTRY(
+    return get_Klass()->misc_flags();
   )
 }
 

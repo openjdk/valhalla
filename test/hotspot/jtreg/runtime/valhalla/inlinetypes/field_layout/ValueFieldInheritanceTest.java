@@ -28,7 +28,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm -Xint ValueFieldInheritanceTest 0
+ * @run main/othervm ValueFieldInheritanceTest 0
  */
 
 /*
@@ -38,7 +38,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm -Xint ValueFieldInheritanceTest 1
+ * @run main/othervm ValueFieldInheritanceTest 1
  */
 
 /*
@@ -48,7 +48,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm -Xint ValueFieldInheritanceTest 2
+ * @run main/othervm ValueFieldInheritanceTest 2
  */
 
 /*
@@ -58,7 +58,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm -Xint ValueFieldInheritanceTest 3
+ * @run main/othervm ValueFieldInheritanceTest 3
  */
 
 import java.util.ArrayList;

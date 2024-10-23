@@ -228,9 +228,8 @@ void FieldLayout::initialize_instance_layout(const InstanceKlass* super_klass) {
   } else {
     _super_has_fields = reconstruct_layout(super_klass);
     fill_holes(super_klass);
-    if ((UseEmptySlotsInSupers && !super_klass->has_contended_annotations()) || !_super_has_fields) {
-      _start = _blocks; // Setting _start to _blocks instead of _last would allow subclasses
-      // to allocate fields in empty slots of their super classes
+    if ((!super_klass->has_contended_annotations()) || !_super_has_fields) {
+      _start = _blocks;  // start allocating fields from the first empty block
     } else {
       _start = _last;    // append fields at the end of the reconstructed layout
     }
@@ -491,19 +490,7 @@ void FieldLayout::fill_holes(const InstanceKlass* super_klass) {
     p->set_prev_block(b);
     b = p;
   }
-  if (!UseEmptySlotsInSupers) {
-    // Add an empty slots to align fields of the subclass on a heapOopSize boundary
-    // in order to emulate the behavior of the previous algorithm
-    int align = (b->offset() + b->size()) % heapOopSize;
-    if (align != 0) {
-      int sz = heapOopSize - align;
-      LayoutRawBlock* p = new LayoutRawBlock(LayoutRawBlock::EMPTY, sz);
-      p->set_offset(b->offset() + b->size());
-      b->set_next_block(p);
-      p->set_prev_block(b);
-      b = p;
-    }
-  }
+
   LayoutRawBlock* last = new LayoutRawBlock(LayoutRawBlock::EMPTY, INT_MAX);
   last->set_offset(b->offset() + b->size());
   assert(last->offset() > 0, "Sanity check");

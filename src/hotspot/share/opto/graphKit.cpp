@@ -990,8 +990,9 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
       for (j = 0; j < l; j++) {
         Node* val = in_map->in(k + j);
         // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee_jvms != nullptr &&
-            callee_jvms->method()->is_object_constructor() && callee_jvms->method()->holder()->is_inlinetype() && val == in_map->argument(in_jvms, 0)) {
+        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
+            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
+            val->bottom_type()->is_inlinetypeptr()) {
           val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
         }
         call->set_req(p++, val);
@@ -1008,8 +1009,9 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
       for (j = 0; j < l; j++) {
         Node* val = in_map->in(k + j);
         // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (val->is_InlineType() && val->isa_InlineType()->is_larval() && callee_jvms != nullptr &&
-            callee_jvms->method()->is_object_constructor() && callee_jvms->method()->holder()->is_inlinetype() && val == in_map->argument(in_jvms, 0)) {
+        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
+            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
+            val->bottom_type()->is_inlinetypeptr()) {
           val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
         }
         call->set_req(p++, val);
@@ -1238,7 +1240,7 @@ Node* GraphKit::load_array_length(Node* array) {
   Node *alen;
   if (alloc == nullptr) {
     Node *r_adr = basic_plus_adr(array, arrayOopDesc::length_offset_in_bytes());
-    alen = _gvn.transform( new LoadRangeNode(0, immutable_memory(), r_adr, TypeInt::POS));
+    alen = _gvn.transform( new LoadRangeNode(nullptr, immutable_memory(), r_adr, TypeInt::POS));
   } else {
     alen = array_ideal_length(alloc, _gvn.type(array)->is_oopptr(), false);
   }
@@ -1529,6 +1531,9 @@ Node* GraphKit::must_be_not_null(Node* value, bool do_replace_in_map) {
   Node* opaq = _gvn.transform(new Opaque4Node(C, tst, intcon(1)));
   IfNode *iff = new IfNode(control(), opaq, PROB_MAX, COUNT_UNKNOWN);
   _gvn.set_type(iff, iff->Value(&_gvn));
+  if (!tst->is_Con()) {
+    record_for_igvn(iff);
+  }
   Node *if_f = _gvn.transform(new IfFalseNode(iff));
   Node *frame = _gvn.transform(new ParmNode(C->start(), TypeFunc::FramePtr));
   Node* halt = _gvn.transform(new HaltNode(if_f, frame, "unexpected null in intrinsic"));
@@ -1892,7 +1897,28 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       continue;
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
-      arg = arg->as_InlineType()->buffer(this);
+      InlineTypeNode* inline_type = arg->as_InlineType();
+      const ciMethod* method = call->method();
+      ciInstanceKlass* holder = method->holder();
+      const bool is_receiver = (i == TypeFunc::Parms);
+      const bool is_abstract_or_object_klass_constructor = method->is_object_constructor() &&
+                                                           (holder->is_abstract() || holder->is_java_lang_Object());
+      const bool is_larval_receiver_on_super_constructor = is_receiver && is_abstract_or_object_klass_constructor;
+      bool must_init_buffer = true;
+      // We always need to buffer inline types when they are escaping. However, we can skip the actual initialization
+      // of the buffer if the inline type is a larval because we are going to update the buffer anyway which requires
+      // us to create a new one. But there is one special case where we are still required to initialize the buffer:
+      // When we have a larval receiver invoked on an abstract (value class) constructor or the Object constructor (that
+      // is not going to be inlined). After this call, the larval is completely initialized and thus not a larval anymore.
+      // We therefore need to force an initialization of the buffer to not lose all the field writes so far in case the
+      // buffer needs to be used (e.g. to read from when deoptimizing at runtime) or further updated in abstract super
+      // value class constructors which could have more fields to be initialized. Note that we do not need to
+      // initialize the buffer when invoking another constructor in the same class on a larval receiver because we
+      // have not initialized any fields, yet (this is done completely by the other constructor call).
+      if (inline_type->is_larval() && !is_larval_receiver_on_super_constructor) {
+        must_init_buffer = false;
+      }
+      arg = inline_type->buffer(this, true, must_init_buffer);
     }
     if (t != Type::HALF) {
       arg_num++;
@@ -1970,13 +1996,17 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   }
 
   // We just called the constructor on a value type receiver. Reload it from the buffer
-  if (call->method()->is_object_constructor() && call->method()->holder()->is_inlinetype()) {
-    InlineTypeNode* receiver = call->in(TypeFunc::Parms)->as_InlineType();
-    assert(receiver->is_larval(), "must be larval");
-    assert(receiver->is_allocated(&gvn()), "larval must be buffered");
-    InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, receiver->get_oop(), receiver->bottom_type()->inline_klass(), true);
-    assert(!reloaded->is_larval(), "should not be larval anymore");
-    replace_in_map(receiver, reloaded);
+  ciMethod* method = call->method();
+  if (method->is_object_constructor() && !method->holder()->is_java_lang_Object()) {
+    InlineTypeNode* inline_type_receiver = call->in(TypeFunc::Parms)->isa_InlineType();
+    if (inline_type_receiver != nullptr) {
+      assert(inline_type_receiver->is_larval(), "must be larval");
+      assert(inline_type_receiver->is_allocated(&gvn()), "larval must be buffered");
+      InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, inline_type_receiver->get_oop(),
+                                                               inline_type_receiver->bottom_type()->inline_klass(), true);
+      assert(!reloaded->is_larval(), "should not be larval anymore");
+      replace_in_map(inline_type_receiver, reloaded);
+    }
   }
 
   return ret;
@@ -2284,7 +2314,7 @@ Node* GraphKit::uncommon_trap(int trap_request,
   kill_dead_locals();
 
   // Now insert the uncommon trap subroutine call
-  address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
+  address call_addr = OptoRuntime::uncommon_trap_blob()->entry_point();
   const TypePtr* no_memory_effects = nullptr;
   // Pass the index of the class to be loaded
   Node* call = make_runtime_call(RC_NO_LEAF | RC_UNCOMMON |
@@ -2529,7 +2559,7 @@ Node* GraphKit::precision_rounding(Node* n) {
   if (Matcher::strict_fp_requires_explicit_rounding) {
 #ifdef IA32
     if (UseSSE == 0) {
-      return _gvn.transform(new RoundFloatNode(0, n));
+      return _gvn.transform(new RoundFloatNode(nullptr, n));
     }
 #else
     Unimplemented();
@@ -2543,7 +2573,7 @@ Node* GraphKit::dprecision_rounding(Node *n) {
   if (Matcher::strict_fp_requires_explicit_rounding) {
 #ifdef IA32
     if (UseSSE < 2) {
-      return _gvn.transform(new RoundDoubleNode(0, n));
+      return _gvn.transform(new RoundDoubleNode(nullptr, n));
     }
 #else
     Unimplemented();
@@ -2858,7 +2888,6 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
     // Here, the type of 'fa' is often exact, so the store check
     // of fa[1]=x will fold up, without testing the nullness of x.
     //
-
     // At macro expansion, we would have already folded the SubTypeCheckNode
     // being expanded here because we always perform the static sub type
     // check in SubTypeCheckNode::sub() regardless of whether
@@ -3864,10 +3893,7 @@ FastLockNode* GraphKit::shared_lock(Node* obj) {
   box = _gvn.transform(box);
   Node* mem = reset_memory();
 
-  FastLockNode * flock = _gvn.transform(new FastLockNode(0, obj, box) )->as_FastLock();
-
-  // Create the rtm counters for this fast lock if needed.
-  flock->create_rtm_lock_counter(sync_jvms()); // sync_jvms used to get current bci
+  FastLockNode * flock = _gvn.transform(new FastLockNode(nullptr, obj, box) )->as_FastLock();
 
   // Add monitor to debug info for the slow path.  If we block inside the
   // slow path and de-opt, we need the monitor hanging around
@@ -4726,4 +4752,18 @@ Node* GraphKit::load_mirror_from_klass(Node* klass) {
   Node* load = make_load(nullptr, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
   // mirror = ((OopHandle)mirror)->resolve();
   return access_load(load, TypeInstPtr::MIRROR, T_OBJECT, IN_NATIVE);
+}
+
+Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {
+  const Type* obj_type = obj->bottom_type();
+  const TypeOopPtr* sig_type = TypeOopPtr::make_from_klass(type);
+  if (obj_type->isa_oopptr() && sig_type->is_loaded() && !obj_type->higher_equal(sig_type)) {
+    const Type* narrow_obj_type = obj_type->filter_speculative(sig_type); // keep speculative part
+    Node* casted_obj = gvn().transform(new CheckCastPPNode(control(), obj, narrow_obj_type));
+    obj = casted_obj;
+  }
+  if (sig_type->is_inlinetypeptr()) {
+    obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass(), !gvn().type(obj)->maybe_null());
+  }
+  return obj;
 }

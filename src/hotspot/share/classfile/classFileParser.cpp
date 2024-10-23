@@ -153,9 +153,11 @@
 
 #define JAVA_22_VERSION                   66
 
-#define CONSTANT_CLASS_DESCRIPTORS        67
-
 #define JAVA_23_VERSION                   67
+
+#define CONSTANT_CLASS_DESCRIPTORS        68
+
+#define JAVA_24_VERSION                   68
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -1228,12 +1230,8 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
   bool is_synthetic = false;
   const u1* runtime_visible_annotations = nullptr;
   int runtime_visible_annotations_length = 0;
-  const u1* runtime_invisible_annotations = nullptr;
-  int runtime_invisible_annotations_length = 0;
   const u1* runtime_visible_type_annotations = nullptr;
   int runtime_visible_type_annotations_length = 0;
-  const u1* runtime_invisible_type_annotations = nullptr;
-  int runtime_invisible_type_annotations_length = 0;
   bool runtime_invisible_annotations_exists = false;
   bool runtime_invisible_type_annotations_exists = false;
   const ConstantPool* const cp = _cp;
@@ -1316,11 +1314,6 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
           return;
         }
         runtime_invisible_annotations_exists = true;
-        if (PreserveAllAnnotations) {
-          runtime_invisible_annotations_length = attribute_length;
-          runtime_invisible_annotations = cfs->current();
-          assert(runtime_invisible_annotations != nullptr, "null invisible annotations");
-        }
         cfs->skip_u1(attribute_length, CHECK);
       } else if (attribute_name == vmSymbols::tag_runtime_visible_type_annotations()) {
         if (runtime_visible_type_annotations != nullptr) {
@@ -1340,11 +1333,6 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
         } else {
           runtime_invisible_type_annotations_exists = true;
         }
-        if (PreserveAllAnnotations) {
-          runtime_invisible_type_annotations_length = attribute_length;
-          runtime_invisible_type_annotations = cfs->current();
-          assert(runtime_invisible_type_annotations != nullptr, "null invisible type annotations");
-        }
         cfs->skip_u1(attribute_length, CHECK);
       } else {
         cfs->skip_u1(attribute_length, CHECK);  // Skip unknown attributes
@@ -1357,16 +1345,12 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
   *constantvalue_index_addr = constantvalue_index;
   *is_synthetic_addr = is_synthetic;
   *generic_signature_index_addr = generic_signature_index;
-  AnnotationArray* a = assemble_annotations(runtime_visible_annotations,
+  AnnotationArray* a = allocate_annotations(runtime_visible_annotations,
                                             runtime_visible_annotations_length,
-                                            runtime_invisible_annotations,
-                                            runtime_invisible_annotations_length,
                                             CHECK);
   parsed_annotations->set_field_annotations(a);
-  a = assemble_annotations(runtime_visible_type_annotations,
+  a = allocate_annotations(runtime_visible_type_annotations,
                            runtime_visible_type_annotations_length,
-                           runtime_invisible_type_annotations,
-                           runtime_invisible_type_annotations_length,
                            CHECK);
   parsed_annotations->set_field_type_annotations(a);
   return;
@@ -2133,57 +2117,40 @@ void ClassFileParser::copy_localvariable_table(const ConstMethod* cm,
 void ClassFileParser::copy_method_annotations(ConstMethod* cm,
                                        const u1* runtime_visible_annotations,
                                        int runtime_visible_annotations_length,
-                                       const u1* runtime_invisible_annotations,
-                                       int runtime_invisible_annotations_length,
                                        const u1* runtime_visible_parameter_annotations,
                                        int runtime_visible_parameter_annotations_length,
-                                       const u1* runtime_invisible_parameter_annotations,
-                                       int runtime_invisible_parameter_annotations_length,
                                        const u1* runtime_visible_type_annotations,
                                        int runtime_visible_type_annotations_length,
-                                       const u1* runtime_invisible_type_annotations,
-                                       int runtime_invisible_type_annotations_length,
                                        const u1* annotation_default,
                                        int annotation_default_length,
                                        TRAPS) {
 
   AnnotationArray* a;
 
-  if (runtime_visible_annotations_length +
-      runtime_invisible_annotations_length > 0) {
-     a = assemble_annotations(runtime_visible_annotations,
+  if (runtime_visible_annotations_length > 0) {
+     a = allocate_annotations(runtime_visible_annotations,
                               runtime_visible_annotations_length,
-                              runtime_invisible_annotations,
-                              runtime_invisible_annotations_length,
                               CHECK);
      cm->set_method_annotations(a);
   }
 
-  if (runtime_visible_parameter_annotations_length +
-      runtime_invisible_parameter_annotations_length > 0) {
-    a = assemble_annotations(runtime_visible_parameter_annotations,
+  if (runtime_visible_parameter_annotations_length > 0) {
+    a = allocate_annotations(runtime_visible_parameter_annotations,
                              runtime_visible_parameter_annotations_length,
-                             runtime_invisible_parameter_annotations,
-                             runtime_invisible_parameter_annotations_length,
                              CHECK);
     cm->set_parameter_annotations(a);
   }
 
   if (annotation_default_length > 0) {
-    a = assemble_annotations(annotation_default,
+    a = allocate_annotations(annotation_default,
                              annotation_default_length,
-                             nullptr,
-                             0,
                              CHECK);
     cm->set_default_annotations(a);
   }
 
-  if (runtime_visible_type_annotations_length +
-      runtime_invisible_type_annotations_length > 0) {
-    a = assemble_annotations(runtime_visible_type_annotations,
+  if (runtime_visible_type_annotations_length > 0) {
+    a = allocate_annotations(runtime_visible_type_annotations,
                              runtime_visible_type_annotations_length,
-                             runtime_invisible_type_annotations,
-                             runtime_invisible_type_annotations_length,
                              CHECK);
     cm->set_type_annotations(a);
   }
@@ -2276,7 +2243,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
   u2 max_stack = 0;
   u2 max_locals = 0;
   u4 code_length = 0;
-  const u1* code_start = 0;
+  const u1* code_start = nullptr;
   u2 exception_table_length = 0;
   const unsafe_u2* exception_table_start = nullptr; // (potentially unaligned) pointer to array of u2 elements
   Array<int>* exception_handlers = Universe::the_empty_int_array();
@@ -2307,16 +2274,10 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
   MethodAnnotationCollector parsed_annotations;
   const u1* runtime_visible_annotations = nullptr;
   int runtime_visible_annotations_length = 0;
-  const u1* runtime_invisible_annotations = nullptr;
-  int runtime_invisible_annotations_length = 0;
   const u1* runtime_visible_parameter_annotations = nullptr;
   int runtime_visible_parameter_annotations_length = 0;
-  const u1* runtime_invisible_parameter_annotations = nullptr;
-  int runtime_invisible_parameter_annotations_length = 0;
   const u1* runtime_visible_type_annotations = nullptr;
   int runtime_visible_type_annotations_length = 0;
-  const u1* runtime_invisible_type_annotations = nullptr;
-  int runtime_invisible_type_annotations_length = 0;
   bool runtime_invisible_annotations_exists = false;
   bool runtime_invisible_type_annotations_exists = false;
   bool runtime_invisible_parameter_annotations_exists = false;
@@ -2587,11 +2548,6 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
           return nullptr;
         }
         runtime_invisible_annotations_exists = true;
-        if (PreserveAllAnnotations) {
-          runtime_invisible_annotations_length = method_attribute_length;
-          runtime_invisible_annotations = cfs->current();
-          assert(runtime_invisible_annotations != nullptr, "null invisible annotations");
-        }
         cfs->skip_u1(method_attribute_length, CHECK_NULL);
       } else if (method_attribute_name == vmSymbols::tag_runtime_visible_parameter_annotations()) {
         if (runtime_visible_parameter_annotations != nullptr) {
@@ -2612,12 +2568,6 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
           return nullptr;
         }
         runtime_invisible_parameter_annotations_exists = true;
-        if (PreserveAllAnnotations) {
-          runtime_invisible_parameter_annotations_length = method_attribute_length;
-          runtime_invisible_parameter_annotations = cfs->current();
-          assert(runtime_invisible_parameter_annotations != nullptr,
-            "null invisible parameter annotations");
-        }
         cfs->skip_u1(method_attribute_length, CHECK_NULL);
       } else if (method_attribute_name == vmSymbols::tag_annotation_default()) {
         if (annotation_default != nullptr) {
@@ -2648,14 +2598,8 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
             "Multiple RuntimeInvisibleTypeAnnotations attributes for method in class file %s",
             THREAD);
           return nullptr;
-        } else {
-          runtime_invisible_type_annotations_exists = true;
         }
-        if (PreserveAllAnnotations) {
-          runtime_invisible_type_annotations_length = method_attribute_length;
-          runtime_invisible_type_annotations = cfs->current();
-          assert(runtime_invisible_type_annotations != nullptr, "null invisible type annotations");
-        }
+        runtime_invisible_type_annotations_exists = true;
         cfs->skip_u1(method_attribute_length, CHECK_NULL);
       } else {
         // Skip unknown attributes
@@ -2689,12 +2633,9 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       checked_exceptions_length,
       method_parameters_length,
       generic_signature_index,
-      runtime_visible_annotations_length +
-           runtime_invisible_annotations_length,
-      runtime_visible_parameter_annotations_length +
-           runtime_invisible_parameter_annotations_length,
-      runtime_visible_type_annotations_length +
-           runtime_invisible_type_annotations_length,
+      runtime_visible_annotations_length,
+      runtime_visible_parameter_annotations_length,
+      runtime_visible_type_annotations_length,
       annotation_default_length,
       0);
 
@@ -2786,16 +2727,10 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
   copy_method_annotations(m->constMethod(),
                           runtime_visible_annotations,
                           runtime_visible_annotations_length,
-                          runtime_invisible_annotations,
-                          runtime_invisible_annotations_length,
                           runtime_visible_parameter_annotations,
                           runtime_visible_parameter_annotations_length,
-                          runtime_invisible_parameter_annotations,
-                          runtime_invisible_parameter_annotations_length,
                           runtime_visible_type_annotations,
                           runtime_visible_type_annotations_length,
-                          runtime_invisible_type_annotations,
-                          runtime_invisible_type_annotations_length,
                           annotation_default,
                           annotation_default_length,
                           CHECK_NULL);
@@ -2808,11 +2743,6 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
     } else {
       _has_finalizer = true;
     }
-  }
-  if (name == vmSymbols::object_initializer_name() &&
-      signature == vmSymbols::void_method_signature() &&
-      m->is_vanilla_constructor()) {
-    _has_vanilla_constructor = true;
   }
 
   NOT_PRODUCT(m->verify());
@@ -3339,13 +3269,9 @@ u4 ClassFileParser::parse_classfile_record_attribute(const ClassFileStream* cons
     u2 generic_sig_index = 0;
     const u1* runtime_visible_annotations = nullptr;
     int runtime_visible_annotations_length = 0;
-    const u1* runtime_invisible_annotations = nullptr;
-    int runtime_invisible_annotations_length = 0;
     bool runtime_invisible_annotations_exists = false;
     const u1* runtime_visible_type_annotations = nullptr;
     int runtime_visible_type_annotations_length = 0;
-    const u1* runtime_invisible_type_annotations = nullptr;
-    int runtime_invisible_type_annotations_length = 0;
     bool runtime_invisible_type_annotations_exists = false;
 
     // Expected attributes for record components are Signature, Runtime(In)VisibleAnnotations,
@@ -3396,11 +3322,6 @@ u4 ClassFileParser::parse_classfile_record_attribute(const ClassFileStream* cons
           return 0;
         }
         runtime_invisible_annotations_exists = true;
-        if (PreserveAllAnnotations) {
-          runtime_invisible_annotations_length = attribute_length;
-          runtime_invisible_annotations = cfs->current();
-          assert(runtime_invisible_annotations != nullptr, "null record component invisible annotation");
-        }
         cfs->skip_u1(attribute_length, CHECK_0);
 
       } else if (attribute_name == vmSymbols::tag_runtime_visible_type_annotations()) {
@@ -3423,11 +3344,6 @@ u4 ClassFileParser::parse_classfile_record_attribute(const ClassFileStream* cons
           return 0;
         }
         runtime_invisible_type_annotations_exists = true;
-        if (PreserveAllAnnotations) {
-          runtime_invisible_type_annotations_length = attribute_length;
-          runtime_invisible_type_annotations = cfs->current();
-          assert(runtime_invisible_type_annotations != nullptr, "null record component invisible type annotation");
-        }
         cfs->skip_u1(attribute_length, CHECK_0);
 
       } else {
@@ -3437,15 +3353,11 @@ u4 ClassFileParser::parse_classfile_record_attribute(const ClassFileStream* cons
       calculate_attr_size += attribute_length;
     } // End of attributes For loop
 
-    AnnotationArray* annotations = assemble_annotations(runtime_visible_annotations,
+    AnnotationArray* annotations = allocate_annotations(runtime_visible_annotations,
                                                         runtime_visible_annotations_length,
-                                                        runtime_invisible_annotations,
-                                                        runtime_invisible_annotations_length,
                                                         CHECK_0);
-    AnnotationArray* type_annotations = assemble_annotations(runtime_visible_type_annotations,
+    AnnotationArray* type_annotations = allocate_annotations(runtime_visible_type_annotations,
                                                              runtime_visible_type_annotations_length,
-                                                             runtime_invisible_type_annotations,
-                                                             runtime_invisible_type_annotations_length,
                                                              CHECK_0);
 
     RecordComponent* record_component =
@@ -3585,12 +3497,8 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   bool parsed_bootstrap_methods_attribute = false;
   const u1* runtime_visible_annotations = nullptr;
   int runtime_visible_annotations_length = 0;
-  const u1* runtime_invisible_annotations = nullptr;
-  int runtime_invisible_annotations_length = 0;
   const u1* runtime_visible_type_annotations = nullptr;
   int runtime_visible_type_annotations_length = 0;
-  const u1* runtime_invisible_type_annotations = nullptr;
-  int runtime_invisible_type_annotations_length = 0;
   bool runtime_invisible_type_annotations_exists = false;
   bool runtime_invisible_annotations_exists = false;
   bool parsed_source_debug_ext_annotations_exist = false;
@@ -3705,11 +3613,6 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
           return;
         }
         runtime_invisible_annotations_exists = true;
-        if (PreserveAllAnnotations) {
-          runtime_invisible_annotations_length = attribute_length;
-          runtime_invisible_annotations = cfs->current();
-          assert(runtime_invisible_annotations != nullptr, "null invisible annotations");
-        }
         cfs->skip_u1(attribute_length, CHECK);
       } else if (tag == vmSymbols::tag_enclosing_method()) {
         if (parsed_enclosingmethod_attribute) {
@@ -3761,14 +3664,8 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
           classfile_parse_error(
             "Multiple RuntimeInvisibleTypeAnnotations attributes in class file %s", THREAD);
           return;
-        } else {
-          runtime_invisible_type_annotations_exists = true;
         }
-        if (PreserveAllAnnotations) {
-          runtime_invisible_type_annotations_length = attribute_length;
-          runtime_invisible_type_annotations = cfs->current();
-          assert(runtime_invisible_type_annotations != nullptr, "null invisible type annotations");
-        }
+        runtime_invisible_type_annotations_exists = true;
         cfs->skip_u1(attribute_length, CHECK);
       } else if (_major_version >= JAVA_11_VERSION) {
         if (tag == vmSymbols::tag_nest_members()) {
@@ -3857,15 +3754,11 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
       cfs->skip_u1(attribute_length, CHECK);
     }
   }
-  _class_annotations = assemble_annotations(runtime_visible_annotations,
+  _class_annotations = allocate_annotations(runtime_visible_annotations,
                                             runtime_visible_annotations_length,
-                                            runtime_invisible_annotations,
-                                            runtime_invisible_annotations_length,
                                             CHECK);
-  _class_type_annotations = assemble_annotations(runtime_visible_type_annotations,
+  _class_type_annotations = allocate_annotations(runtime_visible_type_annotations,
                                                  runtime_visible_type_annotations_length,
-                                                 runtime_invisible_type_annotations,
-                                                 runtime_invisible_type_annotations_length,
                                                  CHECK);
 
   if (parsed_innerclasses_attribute || parsed_enclosingmethod_attribute) {
@@ -4015,28 +3908,16 @@ void ClassFileParser::apply_parsed_class_metadata(
   clear_class_metadata();
 }
 
-AnnotationArray* ClassFileParser::assemble_annotations(const u1* const runtime_visible_annotations,
-                                                       int runtime_visible_annotations_length,
-                                                       const u1* const runtime_invisible_annotations,
-                                                       int runtime_invisible_annotations_length,
+AnnotationArray* ClassFileParser::allocate_annotations(const u1* const anno,
+                                                       int anno_length,
                                                        TRAPS) {
   AnnotationArray* annotations = nullptr;
-  if (runtime_visible_annotations != nullptr ||
-      runtime_invisible_annotations != nullptr) {
+  if (anno != nullptr) {
     annotations = MetadataFactory::new_array<u1>(_loader_data,
-                                          runtime_visible_annotations_length +
-                                          runtime_invisible_annotations_length,
-                                          CHECK_(annotations));
-    if (runtime_visible_annotations != nullptr) {
-      for (int i = 0; i < runtime_visible_annotations_length; i++) {
-        annotations->at_put(i, runtime_visible_annotations[i]);
-      }
-    }
-    if (runtime_invisible_annotations != nullptr) {
-      for (int i = 0; i < runtime_invisible_annotations_length; i++) {
-        int append = runtime_visible_annotations_length+i;
-        annotations->at_put(append, runtime_invisible_annotations[i]);
-      }
+                                                 anno_length,
+                                                 CHECK_(annotations));
+    for (int i = 0; i < anno_length; i++) {
+      annotations->at_put(i, anno[i]);
     }
   }
   return annotations;
@@ -4226,34 +4107,10 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
     }
   }
 
-  // Check if this klass has a vanilla default constructor
-  if (super == nullptr) {
-    // java.lang.Object has empty default constructor
-    ik->set_has_vanilla_constructor();
-  } else {
-    if (super->has_vanilla_constructor() &&
-        _has_vanilla_constructor) {
-      ik->set_has_vanilla_constructor();
-    }
-#ifdef ASSERT
-    bool v = false;
-    if (super->has_vanilla_constructor()) {
-      const Method* const constructor =
-        ik->find_method(vmSymbols::object_initializer_name(),
-                       vmSymbols::void_method_signature());
-      if (constructor != nullptr && constructor->is_vanilla_constructor()) {
-        v = true;
-      }
-    }
-    assert(v == ik->has_vanilla_constructor(), "inconsistent has_vanilla_constructor");
-#endif
-  }
-
   // If it cannot be fast-path allocated, set a bit in the layout helper.
   // See documentation of InstanceKlass::can_be_fastpath_allocated().
   assert(ik->size_helper() > 0, "layout_helper is initialized");
-  if ((!RegisterFinalizersAtInit && ik->has_finalizer())
-      || ik->is_abstract() || ik->is_interface()
+  if (ik->is_abstract() || ik->is_interface()
       || (ik->name() == vmSymbols::java_lang_Class() && ik->class_loader() == nullptr)
       || ik->size_helper() >= FastAllocateSizeLimit) {
     // Forbid fast-path allocation.
@@ -4263,9 +4120,9 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 67.65535 and later
-  return _major_version > JAVA_23_VERSION ||
-         (_major_version == JAVA_23_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  // Inline types are only supported by class file version 68.65535 and later
+  return _major_version > JAVA_24_VERSION ||
+         (_major_version == JAVA_24_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
@@ -4849,7 +4706,8 @@ void ClassFileParser::verify_legal_utf8(const unsigned char* buffer,
                                         int length,
                                         TRAPS) const {
   assert(_need_verify, "only called when _need_verify is true");
-  if (!UTF8::is_legal_utf8(buffer, length, _major_version <= 47)) {
+  // Note: 0 <= length < 64K, as it comes from a u2 entry in the CP.
+  if (!UTF8::is_legal_utf8(buffer, static_cast<size_t>(length), _major_version <= 47)) {
     classfile_parse_error("Illegal UTF8 string in constant pool in class file %s", THREAD);
   }
 }
@@ -5077,7 +4935,7 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
       }
     } else if ((_major_version >= CONSTANT_CLASS_DESCRIPTORS || _class_name->starts_with("jdk/internal/reflect/"))
                    && bytes[length - 1] == ';' ) {
-      // Support for L...; and Q...; descriptors
+      // Support for L...; descriptors
       legal = verify_unqualified_name(bytes + 1, length - 2, LegalClass);
     } else {
       // 4900761: relax the constraints based on JSR202 spec
@@ -5503,9 +5361,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   ik->set_has_nonstatic_concrete_methods(_has_nonstatic_concrete_methods);
   ik->set_declares_nonstatic_concrete_methods(_declares_nonstatic_concrete_methods);
 
-  if (_is_hidden) {
-    ik->set_is_hidden();
-  }
+  assert(!_is_hidden || ik->is_hidden(), "must be set already");
 
   // Set PackageEntry for this_klass
   oop cl = ik->class_loader();
@@ -5557,7 +5413,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     ik->set_has_contended_annotations(true);
   }
 
-  // Fill in has_finalizer, has_vanilla_constructor, and layout_helper
+  // Fill in has_finalizer and layout_helper
   set_precomputed_flags(ik);
 
   // check if this class can access its super class
@@ -5769,7 +5625,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_implicitly_constructible_annotation(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
-  _has_vanilla_constructor(false),
   _max_bootstrap_specifier_index(-1) {
 
   _class_name = name != nullptr ? name : vmSymbols::unknown_class_name();
@@ -6281,7 +6136,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         guarantee_property(unresolved_klass->char_at(0) != JVM_SIGNATURE_ARRAY,
                             "Bad interface name in class file %s", CHECK);
 
-        // Call resolve_super so class circularity is checked
+        // Call resolve on the interface class name with class circularity checking
         interf = SystemDictionary::resolve_with_circularity_detection_or_fail(
                                                   _class_name,
                                                   unresolved_klass,

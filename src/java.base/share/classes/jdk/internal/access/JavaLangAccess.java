@@ -26,6 +26,7 @@
 package jdk.internal.access;
 
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.lang.annotation.Annotation;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
@@ -42,7 +43,6 @@ import java.security.ProtectionDomain;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.Stream;
@@ -282,10 +282,14 @@ public interface JavaLangAccess {
     void addEnableNativeAccessToAllUnnamed();
 
     /**
-     * Ensure that the given module has native access. If not, warn or
-     * throw exception depending on the configuration.
+     * Ensure that the given module has native access. If not, warn or throw exception depending on the configuration.
+     * @param m the module in which native access occurred
+     * @param owner the owner of the restricted method being called (or the JNI method being bound)
+     * @param methodName the name of the restricted method being called (or the JNI method being bound)
+     * @param currentClass the class calling the restricted method (for JNI, this is the same as {@code owner})
+     * @param jni {@code true}, if this event is related to a JNI method being bound
      */
-    void ensureNativeAccess(Module m, Class<?> owner, String methodName, Class<?> currentClass);
+    void ensureNativeAccess(Module m, Class<?> owner, String methodName, Class<?> currentClass, boolean jni);
 
     /**
      * Returns the ServicesCatalog for the given Layer.
@@ -366,6 +370,15 @@ public interface JavaLangAccess {
     char getUTF16Char(byte[] bytes, int index);
 
     /**
+     * Put the char at index in a byte[] in internal UTF-16 representation,
+     * with no bounds checks.
+     *
+     * @param bytes the UTF-16 encoded bytes
+     * @param index of the char to retrieve, 0 <= index < (bytes.length >> 1)
+     */
+    void putCharUTF16(byte[] bytes, int index, int ch);
+
+    /**
      * Encode the given string into a sequence of bytes using utf8.
      *
      * @param s the string to encode
@@ -392,6 +405,11 @@ public interface JavaLangAccess {
      * with `System.setIn(newIn)` method
      */
     InputStream initialSystemIn();
+
+    /**
+     * Returns the initial value of System.err.
+     */
+    PrintStream initialSystemErr();
 
     /**
      * Encodes ASCII codepoints as possible from the source array into
@@ -428,25 +446,22 @@ public interface JavaLangAccess {
      */
     long stringConcatMix(long lengthCoder, String constant);
 
-   /**
-    * Get the coder for the supplied character.
-    */
-   long stringConcatCoder(char value);
-
-   /**
-    * Update lengthCoder for StringBuilder.
-    */
-   long stringBuilderConcatMix(long lengthCoder, StringBuilder sb);
-
     /**
-     * Prepend StringBuilder content.
-    */
-   long stringBuilderConcatPrepend(long lengthCoder, byte[] buf, StringBuilder sb);
+     * Mix value length and coder into current length and coder.
+     */
+    long stringConcatMix(long lengthCoder, char value);
+
+    Object stringConcat1(String[] constants);
 
     /**
      * Join strings
      */
     String join(String prefix, String suffix, String delimiter, String[] elements, int size);
+
+    /**
+     * Concatenation of prefix and suffix characters to a String for early bootstrap
+     */
+    String concat(String prefix, Object value, String suffix);
 
     /*
      * Get the class data associated with the given class.
@@ -454,6 +469,10 @@ public interface JavaLangAccess {
      * @see java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
      */
     Object classData(Class<?> c);
+
+    int getCharsLatin1(long i, int index, byte[] buf);
+
+    int getCharsUTF16(long i, int index, byte[] buf);
 
     long findNative(ClassLoader loader, String entry);
 
@@ -493,11 +512,6 @@ public interface JavaLangAccess {
      * current thread is a virtual thread then this method returns the carrier.
      */
     Thread currentCarrierThread();
-
-    /**
-     * Executes the given value returning task on the current carrier thread.
-     */
-    <V> V executeOnCarrierThread(Callable<V> task) throws Exception;
 
     /**
      * Returns the value of the current carrier thread's copy of a thread-local.

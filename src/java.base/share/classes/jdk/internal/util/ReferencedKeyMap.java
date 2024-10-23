@@ -101,6 +101,21 @@ public final class ReferencedKeyMap<K, V> implements Map<K, V> {
     private final ReferenceQueue<K> stale;
 
     /**
+     * @return a supplier to create a {@code ConcurrentHashMap} appropriate for use in the
+     *         create methods.
+     * @param <K> the type of keys maintained by the new map
+     * @param <V> the type of mapped values
+     */
+    public static <K, V> Supplier<Map<ReferenceKey<K>, V>> concurrentHashMapSupplier() {
+        return new Supplier<>() {
+            @Override
+            public Map<ReferenceKey<K>, V> get() {
+                return new ConcurrentHashMap<>();
+            }
+        };
+    }
+
+    /**
      * Private constructor.
      *
      * @param isSoft          true if {@link SoftReference} keys are to
@@ -205,8 +220,14 @@ public final class ReferencedKeyMap<K, V> implements Map<K, V> {
 
     @Override
     public V get(Object key) {
-        Objects.requireNonNull(key, "key must not be null");
         removeStaleReferences();
+        return getNoCheckStale(key);
+    }
+
+    // Internal get(key) without removing stale references that would modify the keyset.
+    // Use when iterating or streaming over the keys to avoid ConcurrentModificationException.
+    private V getNoCheckStale(Object key) {
+        Objects.requireNonNull(key, "key must not be null");
         return map.get(lookupKey(key));
     }
 
@@ -277,7 +298,7 @@ public final class ReferencedKeyMap<K, V> implements Map<K, V> {
     public Set<Entry<K, V>> entrySet() {
         removeStaleReferences();
         return filterKeySet()
-                .map(k -> new AbstractMap.SimpleEntry<>(k, get(k)))
+                .map(k -> new AbstractMap.SimpleEntry<>(k, getNoCheckStale(k)))
                 .collect(Collectors.toSet());
     }
 
@@ -321,7 +342,7 @@ public final class ReferencedKeyMap<K, V> implements Map<K, V> {
     public String toString() {
         removeStaleReferences();
         return filterKeySet()
-                .map(k -> k + "=" + get(k))
+                .map(k -> k + "=" + getNoCheckStale(k))
                 .collect(Collectors.joining(", ", "{", "}"));
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -222,12 +222,14 @@ public class Symtab {
     public final Type previewFeatureType;
     public final Type previewFeatureInternalType;
     public final Type restrictedType;
+    public final Type restrictedInternalType;
     public final Type typeDescriptorType;
     public final Type recordType;
     public final Type switchBootstrapsType;
     public final Type constantBootstrapsType;
     public final Type classDescType;
     public final Type enumDescType;
+    public final Type ioType;
 
     // For serialization lint checking
     public final Type objectStreamFieldType;
@@ -239,12 +241,6 @@ public class Symtab {
     public final Type externalizableType;
     public final Type objectInputType;
     public final Type objectOutputType;
-
-    // For string templates
-    public final Type stringTemplateType;
-    public final Type templateRuntimeType;
-    public final Type processorType;
-    public final Type linkageType;
 
     // valhalla
     public final Type valueBasedType;
@@ -627,6 +623,7 @@ public class Symtab {
         previewFeatureType = enterClass("jdk.internal.javac.PreviewFeature");
         previewFeatureInternalType = enterSyntheticAnnotation("jdk.internal.PreviewFeature+Annotation");
         restrictedType = enterClass("jdk.internal.javac.Restricted");
+        restrictedInternalType = enterSyntheticAnnotation("jdk.internal.javac.Restricted+Annotation");
         typeDescriptorType = enterClass("java.lang.invoke.TypeDescriptor");
         recordType = enterClass("java.lang.Record");
         switchBootstrapsType = enterClass("java.lang.runtime.SwitchBootstraps");
@@ -638,6 +635,7 @@ public class Symtab {
         migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         classDescType = enterClass("java.lang.constant.ClassDesc");
         enumDescType = enterClass("java.lang.Enum$EnumDesc");
+        ioType = enterClass("java.io.IO");
         // For serialization lint checking
         objectStreamFieldType = enterClass("java.io.ObjectStreamField");
         objectInputStreamType = enterClass("java.io.ObjectInputStream");
@@ -656,12 +654,6 @@ public class Symtab {
         synthesizeBoxTypeIfMissing(doubleType);
         synthesizeBoxTypeIfMissing(floatType);
         synthesizeBoxTypeIfMissing(voidType);
-
-        // For string templates
-        stringTemplateType = enterClass("java.lang.StringTemplate");
-        templateRuntimeType = enterClass("java.lang.runtime.TemplateRuntime");
-        processorType = enterClass("java.lang.StringTemplate$Processor");
-        linkageType = enterClass("java.lang.StringTemplate$Processor$Linkage");
 
         numberType = enterClass("java.lang.Number");
 

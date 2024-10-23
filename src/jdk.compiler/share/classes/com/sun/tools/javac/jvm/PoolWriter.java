@@ -104,7 +104,7 @@ public class PoolWriter {
     public PoolWriter(Types types, Names names) {
         this.types = types;
         this.names = names;
-        this.signatureGen = new SharedSignatureGenerator(types);
+        this.signatureGen = new SharedSignatureGenerator();
         this.pool = new WriteablePoolHelper();
     }
 
@@ -292,8 +292,8 @@ public class PoolWriter {
          */
         ByteBuffer sigbuf = new ByteBuffer();
 
-        SharedSignatureGenerator(Types types) {
-            super(types);
+        SharedSignatureGenerator() {
+            types.super();
         }
 
         /**

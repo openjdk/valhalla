@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,11 +64,18 @@ class SharedRuntime: AllStatic {
   static SafepointBlob*      _polling_page_safepoint_handler_blob;
   static SafepointBlob*      _polling_page_return_handler_blob;
 
-#ifdef COMPILER2
-  static UncommonTrapBlob*   _uncommon_trap_blob;
-#endif // COMPILER2
-
   static nmethod*            _cont_doYield_stub;
+
+  static RuntimeStub*        _throw_AbstractMethodError_blob;
+  static RuntimeStub*        _throw_IncompatibleClassChangeError_blob;
+  static RuntimeStub*        _throw_NullPointerException_at_call_blob;
+  static RuntimeStub*        _throw_StackOverflowError_blob;
+  static RuntimeStub*        _throw_delayed_StackOverflowError_blob;
+
+#if INCLUDE_JFR
+  static RuntimeStub*        _jfr_write_checkpoint_blob;
+  static RuntimeStub*        _jfr_return_lease_blob;
+#endif
 
 #ifndef PRODUCT
   // Counters
@@ -79,8 +86,19 @@ class SharedRuntime: AllStatic {
   enum { POLL_AT_RETURN,  POLL_AT_LOOP, POLL_AT_VECTOR_LOOP };
   static SafepointBlob* generate_handler_blob(address call_ptr, int poll_type);
   static RuntimeStub*   generate_resolve_blob(address destination, const char* name);
+  static RuntimeStub*   generate_throw_exception(const char* name, address runtime_entry);
  public:
+  static void generate_initial_stubs(void);
   static void generate_stubs(void);
+#if INCLUDE_JFR
+  static void generate_jfr_stubs(void);
+  // For c2: c_rarg0 is junk, call to runtime to write a checkpoint.
+  // It returns a jobject handle to the event writer.
+  // The handle is dereferenced and the return value is the event writer oop.
+  static RuntimeStub* generate_jfr_write_checkpoint();
+  // For c2: call to runtime to return a buffer lease.
+  static RuntimeStub* generate_jfr_return_lease();
+#endif
 
   // max bytes for each dtrace string parameter
   enum { max_dtrace_string_size = 256 };
@@ -180,7 +198,7 @@ class SharedRuntime: AllStatic {
   static address exception_handler_for_return_address(JavaThread* current, address return_address);
 
   // exception handling and implicit exceptions
-  static address compute_compiled_exc_handler(CompiledMethod* nm, address ret_pc, Handle& exception,
+  static address compute_compiled_exc_handler(nmethod* nm, address ret_pc, Handle& exception,
                                               bool force_unwind, bool top_frame_only, bool& recursive_exception_occurred);
   enum ImplicitExceptionKind {
     IMPLICIT_NULL,
@@ -224,11 +242,6 @@ class SharedRuntime: AllStatic {
     return _wrong_method_abstract_blob->entry_point();
   }
 
-#ifdef COMPILER2
-  static void generate_uncommon_trap_blob(void);
-  static UncommonTrapBlob* uncommon_trap_blob()                  { return _uncommon_trap_blob; }
-#endif // COMPILER2
-
   static address get_resolve_opt_virtual_call_stub() {
     assert(_resolve_opt_virtual_call_blob != nullptr, "oops");
     return _resolve_opt_virtual_call_blob->entry_point();
@@ -250,6 +263,18 @@ class SharedRuntime: AllStatic {
     assert(_cont_doYield_stub != nullptr, "oops");
     return _cont_doYield_stub;
   }
+
+  // Implicit exceptions
+  static address throw_AbstractMethodError_entry()          { return _throw_AbstractMethodError_blob->entry_point(); }
+  static address throw_IncompatibleClassChangeError_entry() { return _throw_IncompatibleClassChangeError_blob->entry_point(); }
+  static address throw_NullPointerException_at_call_entry() { return _throw_NullPointerException_at_call_blob->entry_point(); }
+  static address throw_StackOverflowError_entry()           { return _throw_StackOverflowError_blob->entry_point(); }
+  static address throw_delayed_StackOverflowError_entry()   { return _throw_delayed_StackOverflowError_blob->entry_point(); }
+
+#if INCLUDE_JFR
+  static address jfr_write_checkpoint() { return _jfr_write_checkpoint_blob->entry_point(); }
+  static address jfr_return_lease()     { return _jfr_return_lease_blob->entry_point(); }
+#endif
 
   // Counters
 #ifndef PRODUCT
@@ -329,7 +354,7 @@ class SharedRuntime: AllStatic {
   // deopt blob
   static void generate_deopt_blob(void);
 
-  static bool handle_ic_miss_helper_internal(Handle receiver, CompiledMethod* caller_nm, const frame& caller_frame,
+  static bool handle_ic_miss_helper_internal(Handle receiver, nmethod* caller_nm, const frame& caller_frame,
                                              methodHandle callee_method, Bytecodes::Code bc, CallInfo& call_info,
                                              bool& needs_ic_stub_refill, bool& is_optimized, bool caller_is_c1, TRAPS);
 
@@ -350,18 +375,8 @@ class SharedRuntime: AllStatic {
 
   static void monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
-  static address entry_for_handle_wrong_method(methodHandle callee_method, bool is_static_call, bool is_optimized, bool caller_is_c1) {
-    assert(callee_method->verified_code_entry() != nullptr, "Jump to zero!");
-    assert(callee_method->verified_inline_code_entry() != nullptr, "Jump to zero!");
-    assert(callee_method->verified_inline_ro_code_entry() != nullptr, "Jump to zero!");
-    if (caller_is_c1) {
-      return callee_method->verified_inline_code_entry();
-    } else if (is_static_call || is_optimized) {
-      return callee_method->verified_code_entry();
-    } else {
-      return callee_method->verified_inline_ro_code_entry();
-    }
-  }
+  // Issue UL warning for unlocked JNI monitor on virtual thread termination
+  static void log_jni_monitor_still_held();
 
  private:
   static Handle find_callee_info(Bytecodes::Code& bc, CallInfo& callinfo, TRAPS);
@@ -522,6 +537,8 @@ class SharedRuntime: AllStatic {
   static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
   // Resolving of calls
+  static address get_resolved_entry        (JavaThread* current, methodHandle callee_method,
+                                            bool is_static_call, bool is_optimized, bool caller_is_c1);
   static address resolve_static_call_C     (JavaThread* current);
   static address resolve_virtual_call_C    (JavaThread* current);
   static address resolve_opt_virtual_call_C(JavaThread* current);
@@ -573,6 +590,8 @@ class SharedRuntime: AllStatic {
   static uint _unsafe_array_copy_ctr;      // Slow-path includes alignment checks
   static uint _generic_array_copy_ctr;     // Slow-path includes type decoding
   static uint _slow_array_copy_ctr;        // Slow-path failed out to a method call
+
+  static uint _unsafe_set_memory_ctr;      // Slow-path includes alignment checks
 
   static uint _new_instance_ctr;           // 'new' object requires GC
   static uint _new_array_ctr;              // 'new' array requires GC

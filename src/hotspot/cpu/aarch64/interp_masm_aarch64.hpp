@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -35,8 +35,6 @@
 typedef ByteSize (*OffsetFunction)(uint);
 
 class InterpreterMacroAssembler: public MacroAssembler {
- protected:
-
  protected:
   // Interpreter specific version of call_VM_base
   using MacroAssembler::call_VM_leaf_base;
@@ -111,8 +109,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
   check_extended_sp("SP does not match extended SP in frame at " __FILE__ ":" XSTR(__LINE__))
 
   void get_dispatch();
-
-  // Helpers for runtime call arguments/results
 
   // Helpers for runtime call arguments/results
   void get_method(Register reg) {
@@ -203,7 +199,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void load_ptr(int n, Register val);
   void store_ptr(int n, Register val);
 
-// Load float value from 'address'. The value is loaded onto the FPU register v0.
+  // Load float value from 'address'. The value is loaded onto the FPU register v0.
   void load_float(Address src);
   void load_double(Address src);
 
