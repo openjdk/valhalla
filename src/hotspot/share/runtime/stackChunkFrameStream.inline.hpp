@@ -175,6 +175,8 @@ inline bool StackChunkFrameStream<ChunkFrames::CompiledOnly>::is_interpreted() c
 //
 template <ChunkFrames frame_kind>
 inline int StackChunkFrameStream<frame_kind>::frame_size() const {
+  // TODO might need stack repair, right? Is this method even used?
+  assert(false, "unused");
   return is_interpreted() ? interpreter_frame_size()
                           : cb()->frame_size() + stack_argsize() + frame::metadata_words_at_top;
 }
@@ -190,11 +192,6 @@ inline int StackChunkFrameStream<frame_kind>::stack_argsize() const {
   assert(cb() != nullptr, "");
   assert(cb()->is_compiled(), "");
   assert(cb()->as_compiled_method()->method() != nullptr, "");
-
-  if (cb()->as_compiled_method()->needs_stack_repair()) {
-    return to_frame().compiled_frame_stack_argsize();
-  }
-
   return (cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
 

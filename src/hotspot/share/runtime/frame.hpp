@@ -214,7 +214,7 @@ class frame {
   inline int frame_size() const;
 
   // the size, in words, of stack-passed arguments
-  inline int compiled_frame_stack_argsize() const;
+  inline int compiled_frame_stack_argsize(bool scalarized = true) const;
 
   inline void interpreted_frame_oop_map(InterpreterOopMap* mask) const;
 

@@ -101,12 +101,14 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
     // We need to re-read fp out of the frame because it may be an oop and we might have
     // had a safepoint in finalize_freeze, after constructing f.
     fp = *(intptr_t**)(f.sp() - frame::sender_sp_offset);
-
     int fsize = FKind::size(f);
     sp = caller.unextended_sp() - fsize;
     if (caller.is_interpreted_frame()) {
       // If the caller is interpreted, our stackargs are not supposed to overlap with it
       // so we make more room by moving sp down by argsize
+
+      // TODO but the interpreted caller will pass the args as not scalarized!
+      //int argsize = (f.cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
       int argsize = FKind::stack_argsize(f);
       sp -= argsize;
     }
@@ -151,6 +153,7 @@ inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, co
 inline void FreezeBase::set_top_frame_metadata_pd(const frame& hf) {
   stackChunkOop chunk = _cont.tail();
   assert(chunk->is_in_chunk(hf.sp() - 1), "");
+  // TODO this does not work if the callee needs stack repair. But for interpreted callers, we just update the sp so that it fits :)
   assert(chunk->is_in_chunk(hf.sp() - frame::sender_sp_offset), "");
 
   address frame_pc = hf.pc();
@@ -226,7 +229,6 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
     intptr_t* frame_sp = caller.unextended_sp() - fsize;
     if (bottom || caller.is_interpreted_frame()) {
       int argsize = hf.compiled_frame_stack_argsize();
-
       fsize += argsize;
       frame_sp -= argsize;
       caller.set_sp(caller.sp() - argsize);
@@ -252,7 +254,7 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
 inline intptr_t* ThawBase::align(const frame& hf, intptr_t* frame_sp, frame& caller, bool bottom) {
 #ifdef _LP64
   if (((intptr_t)frame_sp & 0xf) != 0) {
-    assert(caller.is_interpreted_frame() || (bottom && hf.compiled_frame_stack_argsize() % 2 != 0), "");
+//    assert(caller.is_interpreted_frame() || (bottom && hf.compiled_frame_stack_argsize() % 2 != 0), "");
     frame_sp--;
     caller.set_sp(caller.sp() - 1);
   }

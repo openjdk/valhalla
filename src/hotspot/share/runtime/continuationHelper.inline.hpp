@@ -149,7 +149,7 @@ inline int ContinuationHelper::NonInterpretedFrame::size(const frame& f) {
 }
 
 inline int ContinuationHelper::NonInterpretedFrame::stack_argsize(const frame& f) {
-  return f.compiled_frame_stack_argsize();
+  return f.compiled_frame_stack_argsize(false);
 }
 
 inline bool ContinuationHelper::CompiledFrame::is_instance(const frame& f) {

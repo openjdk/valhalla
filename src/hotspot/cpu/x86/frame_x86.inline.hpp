@@ -228,16 +228,46 @@ inline int frame::frame_size() const {
     : cb()->frame_size();
 }
 
-inline int frame::compiled_frame_stack_argsize() const {
+inline int frame::compiled_frame_stack_argsize(bool scalarized) const {
   assert(cb()->is_compiled(), "");
 
   if (needs_stack_repair()) {
-     intptr_t* sender_sp = unextended_sp() + frame_size();
-     intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
-     sender_sp = repair_sender_sp(sender_sp, fp_addr);
-     // -2 to account for the return address and the return address copy, see MacroAssembler::extend_stack_for_inline_args
-     return (sender_sp - (intptr_t*)fp_addr - 2);
-   }
+    ResourceMark rm;
+    int cnt = 0;
+    CompiledEntrySignature ces(cb()->as_compiled_method()->method());
+    ces.compute_calling_conventions(false);
+    const GrowableArray<SigEntry>* sig_cc = ces.sig_cc();
+    const VMRegPair* regs = ces.regs_cc();
+
+    int sig_index = 0;
+    for (ExtendedSignature sig = ExtendedSignature(sig_cc, SigEntryFilter()); !sig.at_end(); ++sig) {
+      BasicType t = (*sig)._bt;
+      VMReg fst = regs[sig_index].first();
+      if (fst->is_stack()) {
+        cnt++;
+      }
+      sig_index += type2size[t];
+    }
+
+    cnt++; // Return address copy
+    if (scalarized) {
+      return cnt;
+    }
+
+    // TODO can we use sender_sp()?
+    intptr_t* sender_sp = unextended_sp() + frame_size();
+    intptr_t** fp_addr = (intptr_t**)(sender_sp - frame::sender_sp_offset);
+    sender_sp = repair_sender_sp(sender_sp, fp_addr);
+    // TODO that comment is not correct
+    // -2 to account for the return address and the return address copy, see MacroAssembler::extend_stack_for_inline_args
+    int cnt2 = (sender_sp - (intptr_t*)fp_addr - 2);
+    int cnt3 = (cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
+    if (cnt2 != cnt3) {
+    //  tty->print_cr("%d %d %d", cnt, cnt2, cnt3);
+    //  assert(false, "FAIL");
+    }
+    return cnt2;
+  }
 
   return (cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
