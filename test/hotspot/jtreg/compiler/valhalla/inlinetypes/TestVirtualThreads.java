@@ -1,10 +1,106 @@
+/*
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
+/**
+ * @test
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   TestVirtualThreads
+*
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xbatch -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xbatch -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xbatch -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xbatch -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::test*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::*Helper
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=exclude,*::*Helper
+*                   TestVirtualThreads
+*
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xcomp -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xcomp -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::test*
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::*Helper
+*                   TestVirtualThreads
+* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+*                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=exclude,*::*Helper
+*                   TestVirtualThreads
+**/
+
+// TODO RUN WITH -XX:-TieredCompilation -XX:+PreserveFramePointer -XX:-UseOnStackReplacement -XX:+DeoptimizeALot -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
+// TODO add runs with Virtual Calls to exercise computation of stack args
+// TODO need more variants with interpreted and C1 compiled callers, deopts (including ), etc.
+
+// TODO clean up includes
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+
+import jdk.test.lib.Asserts;
+import jdk.test.lib.Utils;
+
+import jdk.test.whitebox.WhiteBox;
+
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.CountDownLatch;
 import java.util.Random;
 
-public class Test {
-    // TODO use version from test library
-    static final Random RAND = new Random();
+public class TestVirtualThreads {
+    static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+    static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
+    static final Random RAND = Utils.getRandomInstance();
+    // TODO reduce?
+    static final int PARK_DURATION = 1000;
 
     static value class SmallValue {
         int x1;
@@ -184,7 +280,7 @@ public class Test {
     public static SmallValue testSmall(SmallValue val, int i, boolean useNull, boolean park) {
         SmallValue.verify(val, "entry", i, useNull);
         if (park) {
-            LockSupport.parkNanos(1000);
+            LockSupport.parkNanos(PARK_DURATION);
         }
         SmallValue.verify(val, "exit", i, useNull);
         return val;
@@ -200,7 +296,7 @@ public class Test {
     public static LargeValue testLarge(LargeValue val, int i, boolean useNull, boolean park) {
         LargeValue.verify(val, "entry", i, useNull);
         if (park) {
-            LockSupport.parkNanos(1000);
+            LockSupport.parkNanos(PARK_DURATION);
         }
         dontInline(); // Prevent C2 from optimizing out below checks
         LargeValue.verify(val, "exit", i, useNull);
@@ -228,7 +324,7 @@ public class Test {
         LargeValue.verify(val9, "entry", i + 8, useNull);
         LargeValue.verify(val10, "entry", i + 9, useNull);
         if (park) {
-            LockSupport.parkNanos(1000);
+            LockSupport.parkNanos(PARK_DURATION);
         }
         dontInline(); // Prevent C2 from optimizing out below checks
         LargeValue.verify(val1, "exit", i, useNull);
@@ -264,7 +360,7 @@ public class Test {
     public static LargeValue2 testLarge2(LargeValue2 val, int i, boolean useNull, boolean park) {
         LargeValue2.verify(val, "entry", i, useNull);
         if (park) {
-            LockSupport.parkNanos(1000);
+            LockSupport.parkNanos(PARK_DURATION);
         }
         dontInline(); // Prevent C2 from optimizing out below checks
         LargeValue2.verify(val, "exit", i, useNull);
@@ -292,7 +388,7 @@ public class Test {
         LargeValue2.verify(val9, "entry", i + 8, useNull);
         LargeValue2.verify(val10, "entry", i + 9, useNull);
         if (park) {
-            LockSupport.parkNanos(1000);
+            LockSupport.parkNanos(PARK_DURATION);
         }
         dontInline(); // Prevent C2 from optimizing out below checks
         LargeValue2.verify(val1, "exit", i, useNull);
@@ -328,7 +424,7 @@ public class Test {
     public static LargeValueWithOops testLargeValueWithOops(LargeValueWithOops val, Object obj, boolean useNull, boolean park) {
         LargeValueWithOops.verify(val, "entry", obj, useNull);
         if (park) {
-            LockSupport.parkNanos(1000);
+            LockSupport.parkNanos(PARK_DURATION);
         }
         dontInline(); // Prevent C2 from optimizing out below checks
         LargeValueWithOops.verify(val, "exit", obj, useNull);
@@ -355,7 +451,7 @@ public class Test {
         LargeValueWithOops.verify(val8, "entry", obj, useNull);
         LargeValueWithOops.verify(val9, "entry", obj, useNull);
         if (park) {
-            LockSupport.parkNanos(1000);
+            LockSupport.parkNanos(PARK_DURATION);
         }
         dontInline(); // Prevent C2 from optimizing out below checks
         LargeValueWithOops.verify(val1, "exit", obj, useNull);
@@ -386,43 +482,25 @@ public class Test {
         return val;
     }
 
-/*
-// TODO add runs with Virtual Calls to exercise computation of stack args
-// TODO run with and without PreserveFramePointer
-// TODO run with -XX:CompileCommand=dontinline,*::*verify
-// TODO need more variants with interpreted and C1 compiled callers, deopts (including -XX:+DeoptimizeALot), etc.
-// TODO test with OSR
-// More -Xcomp variants
-// Variants of -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
-
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=dontinline,*::* Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,Test*::* Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xcomp  -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,Test*::* Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xcomp  -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=compileonly,*::testLarge* Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement -XX:CompileCommand=dontinline,*::*Helper Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLarge -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLargeManyArgs -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLarge2 -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLarge2ManyArgs -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLargeValueWithOops -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:-TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLargeValueWithOops2 -XX:-UseOnStackReplacement Test.java &&
-
-../build/fastdebug/jdk/bin/java --enable-preview -Xcomp  -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=compileonly,Test*::* Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xcomp  -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=compileonly,*::testLarge* Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=dontinline,*::dontinline Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=dontinline,*::*Helper -XX:CompileCommand=compileonly,*::test* -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLarge -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLargeManyArgs -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLarge2 -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLarge2ManyArgs -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLargeValueWithOops -XX:-UseOnStackReplacement Test.java &&
-../build/fastdebug/jdk/bin/java --enable-preview -Xbatch -XX:CompileCommand=quiet -XX:+TieredCompilation -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,*::testLargeValueWithOops2 -XX:-UseOnStackReplacement Test.java
-*/
-
     public static void main(String[] args) throws Exception {
+        /* TODO enable
+        // Sometimes, exclude some methods from compilation with C2 to stress test the calling convention
+        if (Utils.getRandomInstance().nextBoolean()) {
+            ArrayList<Method> methods = new ArrayList<Method>();
+            Collections.addAll(methods, SmallValue.class.getDeclaredMethods());
+            Collections.addAll(methods, LargeValue.class.getDeclaredMethods());
+            Collections.addAll(methods, LargeValue2.class.getDeclaredMethods());
+            Collections.addAll(methods, LargeValueWithOops.class.getDeclaredMethods());
+            Collections.addAll(methods, TestVirtualThreads.class.getDeclaredMethods());
+            System.out.println("Excluding methods from C2 compilation:");
+            for (Method m : methods) {
+                if (Utils.getRandomInstance().nextBoolean()) {
+                    System.out.println(m);
+                    WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
+                }
+            }
+        }
+        */
         CountDownLatch cdl = new CountDownLatch(1);
         Thread.ofVirtual().name("vt1").start(() -> {
             // Trigger compilation
@@ -443,3 +521,4 @@ public class Test {
         cdl.await();
     }
 }
+
