@@ -140,13 +140,47 @@ public:
 };
 
 //------------------------------ConvHF2FNode------------------------------------
-// Convert Halffloat to float
+// Convert half-precision float to float
 class ConvHF2FNode : public ConvertNode {
 public:
   ConvHF2FNode(Node* in1) : ConvertNode(Type::FLOAT, in1) {}
   virtual int Opcode() const;
   virtual const Type* in_type() const { return TypeInt::SHORT; }
   virtual const Type* Value(PhaseGVN* phase) const;
+  virtual const Type* bottom_type() const { return Type::FLOAT; }
+};
+
+//------------------------------ConvHF2DNode------------------------------------
+// Convert half-precision float to double
+class ConvHF2DNode : public ConvertNode {
+public:
+  ConvHF2DNode(Node* in1) : ConvertNode(Type::DOUBLE, in1) {}
+  virtual int Opcode() const;
+  virtual const Type* in_type() const { return TypeInt::SHORT; }
+  virtual const Type* Value(PhaseGVN* phase) const;
+  virtual const Type* bottom_type() const { return Type::DOUBLE; }
+};
+
+//------------------------------ConvHF2INode-----------------------------------
+// Convert half-precision float to integer
+class ConvHF2INode : public ConvertNode {
+public:
+  ConvHF2INode(Node* in1) : ConvertNode(TypeInt::INT, in1) {}
+  virtual int Opcode() const;
+  virtual const Type* in_type() const { return TypeInt::SHORT; }
+  virtual const Type* Value(PhaseGVN* phase) const;
+  virtual const Type* bottom_type() const { return TypeInt::INT; }
+};
+
+//------------------------------ConvHF2LNode-----------------------------------
+// Convert half-precision float to long
+class ConvHF2LNode : public ConvertNode {
+public:
+  ConvHF2LNode(Node* in1) : ConvertNode(TypeLong::LONG, in1) {}
+  virtual int Opcode() const;
+  virtual const Type* in_type() const { return TypeInt::SHORT; }
+  virtual const Type* Value(PhaseGVN* phase) const;
+  virtual const Type* bottom_type() const { return TypeLong::LONG; }
 };
 
 //------------------------------ConvI2DNode------------------------------------

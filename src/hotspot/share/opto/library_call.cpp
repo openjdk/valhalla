@@ -556,6 +556,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_max_float16:
   case vmIntrinsics::_min_float16:              return inline_fp16_operations(intrinsic_id(), 2);
   case vmIntrinsics::_fma_float16:              return inline_fp16_operations(intrinsic_id(), 3);
+  case vmIntrinsics::_float16ToDouble:
+  case vmIntrinsics::_float16ToInt:
+  case vmIntrinsics::_float16ToLong:            return inline_fp16_conversions(intrinsic_id());
   case vmIntrinsics::_floatIsFinite:
   case vmIntrinsics::_floatIsInfinite:
   case vmIntrinsics::_doubleIsFinite:
@@ -5135,6 +5138,26 @@ bool LibraryCallKit::inline_fp16_operations(vmIntrinsics::ID id, int num_args) {
   Node* short_result  = _gvn.transform(new ReinterpretHF2SNode(result));
   box->set_field_value(0, short_result);
   set_result(_gvn.transform(box));
+  return true;
+}
+
+bool LibraryCallKit::inline_fp16_conversions(vmIntrinsics::ID id) {
+  Node* arg = argument(0);
+  if (!arg->is_InlineType()) {
+    return false;
+  }
+
+  Node* result = nullptr;
+
+  switch (id) {
+  case vmIntrinsics::_float16ToDouble:  result = _gvn.transform(new ConvHF2DNode(arg->as_InlineType()->field_value(0))); break;
+  case vmIntrinsics::_float16ToInt:     result = _gvn.transform(new ConvHF2INode(arg->as_InlineType()->field_value(0))); break;
+  case vmIntrinsics::_float16ToLong:    result = _gvn.transform(new ConvHF2LNode(arg->as_InlineType()->field_value(0))); break;
+  default:
+    fatal_unexpected_iid(id);
+    break;
+  }
+  set_result(_gvn.transform(result));
   return true;
 }
 

@@ -138,6 +138,12 @@ Node* ConvertNode::create_convert(BasicType source, BasicType target, Node* inpu
   } else if (source == T_SHORT) {
     if (target == T_FLOAT) {
       return new ConvHF2FNode(input);
+    } else if (target == T_DOUBLE) {
+      return new ConvHF2DNode(input);
+    } else if (target == T_INT) {
+      return new ConvHF2INode(input);
+    } else if (target == T_LONG) {
+      return new ConvHF2LNode(input);
     }
   }
 
@@ -350,6 +356,54 @@ const Type* ConvHF2FNode::Value(PhaseGVN* phase) const {
   }
   return Type::FLOAT;
 }
+
+//=============================================================================
+//------------------------------Value------------------------------------------
+const Type* ConvHF2DNode::Value(PhaseGVN* phase) const {
+  const Type *t = phase->type(in(1));
+  if (t == Type::TOP) return Type::TOP;
+  if (t == TypeInt::SHORT || StubRoutines::hf2d_adr() == nullptr) {
+    return Type::DOUBLE;
+  }
+
+  const TypeInt *ti = t->is_int();
+  if (ti->is_con()) {
+    return TypeD::make(StubRoutines::hf2d(ti->get_con()));
+  }
+  return Type::DOUBLE;
+}
+
+//=============================================================================
+//------------------------------Value------------------------------------------
+const Type* ConvHF2INode::Value(PhaseGVN* phase) const {
+  const Type *t = phase->type(in(1));
+  if (t == Type::TOP) return Type::TOP;
+  if (t == TypeInt::SHORT || StubRoutines::hf2i_adr() == nullptr) {
+    return TypeInt::INT;
+  }
+
+  const TypeInt *ti = t->is_int();
+  if (ti->is_con()) {
+    return TypeInt::make(StubRoutines::hf2i(ti->get_con()));
+  }
+  return TypeInt::INT;
+}
+
+//=============================================================================
+//------------------------------Value------------------------------------------
+const Type* ConvHF2LNode::Value(PhaseGVN* phase) const {
+  const Type *t = phase->type(in(1));
+  if (t == Type::TOP) return Type::TOP;
+  if (t == TypeInt::SHORT || StubRoutines::hf2l_adr() == nullptr) {
+    return TypeLong::LONG;
+  }
+
+  const TypeInt *ti = t->is_int();
+  if (ti->is_con()) {
+    return TypeLong::make(StubRoutines::hf2l(ti->get_con()));
+  }
+  return TypeLong::LONG;
+ }
 
 //=============================================================================
 //------------------------------Value------------------------------------------

@@ -39,6 +39,10 @@ public class Float16OpsBenchmark {
     Float16 [] vector2;
     Float16 [] vector3;
 
+    double  [] dres;
+    int     [] ires;
+    long    [] lres;
+
     @Setup(Level.Trial)
     public void BmSetup() {
         rexp      = new int[vectorDim];
@@ -46,6 +50,10 @@ public class Float16OpsBenchmark {
         vector1   = new Float16[vectorDim];
         vector2   = new Float16[vectorDim];
         vector3   = new Float16[vectorDim];
+
+        dres      = new double[vectorDim];
+        ires      = new int[vectorDim];
+        lres      = new long[vectorDim];
 
         IntStream.range(0, vectorDim).forEach(i -> {vector1[i] = Float16.valueOf((short)i);});
         IntStream.range(0, vectorDim).forEach(i -> {vector2[i] = Float16.valueOf((short)i);});
@@ -231,5 +239,26 @@ public class Float16OpsBenchmark {
             distRes = distRes + squareRes * squareRes;
         }
         return Float16.sqrt(Float16.valueOf(distRes));
+    }
+
+    @Benchmark
+    public void fp16ToDouble() {
+        for (int i = 0; i < vectorDim; i++) {
+            dres[i] = vector1[i].doubleValue();
+        }
+    }
+
+    @Benchmark
+    public void fp16ToInt() {
+        for (int i = 0; i < vectorDim; i++) {
+            ires[i] = vector1[i].intValue();
+        }
+    }
+
+    @Benchmark
+    public void fp16ToLong() {
+        for (int i = 0; i < vectorDim; i++) {
+            lres[i] = vector1[i].longValue();
+        }
     }
 }

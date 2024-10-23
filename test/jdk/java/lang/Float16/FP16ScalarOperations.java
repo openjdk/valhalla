@@ -146,6 +146,44 @@ public class FP16ScalarOperations {
         }
     }
 
+    public static void test_fp16ToInt(Float16 fp16) {
+        int expected, actual;
+        actual = fp16.intValue();
+        expected = Float.valueOf(fp16.floatValue()).intValue();
+
+        if (expected != actual) {
+            System.out.println("Incorrest result for FP16 to int conversion. Expected value:" + expected + " Actual value: " + actual);
+        }
+    }
+
+    public static void test_fp16ToLong(Float16 fp16) {
+        long expected, actual;
+        actual = fp16.longValue();
+        expected = Float.valueOf(fp16.floatValue()).longValue();
+
+        if (expected != actual) {
+            System.out.println("Incorrest result for FP16 to long conversion. Expected value:" + expected + " Actual value: " + actual);
+        }
+    }
+
+    public static void test_fp16ToDouble(Float16 fp16) {
+        double expected, actual;
+        actual = fp16.doubleValue();
+        expected = Float.valueOf(fp16.floatValue()).doubleValue();
+
+        if (expected != actual) {
+            System.out.println("Incorrest result for FP16 to double conversion. Expected value:" + expected + " Actual value: " + actual);
+        }
+    }
+
+    public static void test_conversions(Float16 inp []) {
+        for (int i = 0; i < inp.length; i++) {
+            test_fp16ToInt(inp[i]);
+            test_fp16ToLong(inp[i]);
+            test_fp16ToDouble(inp[i]);
+        }
+    }
+
     public static void main(String [] args) {
         Float16 [] input1 = new Float16[SIZE];
         Float16 [] input2 = new Float16[SIZE];
@@ -176,6 +214,10 @@ public class FP16ScalarOperations {
             // The above functions test isFinite, isInfinite and isNaN for all possible finite FP16 values
             // and infinite values. The below method tests these functions for all possible NaN values as well.
             test_fin_inf_nan();
+
+            // Test conversions from FP16 to int/long/double
+            test_conversions(input1);
+            test_conversions(special_values);
         }
         System.out.println("PASS");
     }

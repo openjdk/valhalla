@@ -2019,6 +2019,7 @@ void mvnw(Register Rd, Register Rm,
   INSN(fnegh,  0b11, 0b000010);
   INSN(fsqrth, 0b11, 0b000011);
   INSN(fcvths, 0b11, 0b000100);   // Half-precision to single-precision
+  INSN(fcvthd, 0b11, 0b000101);   // Half-precision to double-precision
 
 private:
   void _fcvt_narrow_extend(FloatRegister Vd, SIMD_Arrangement Ta,
@@ -2168,10 +2169,12 @@ public:
     float_int_convert(sflag, ftype, rmode, opcode, Rd, as_Register(Vn)); \
   }
 
-  INSN(fcvtzsw, 0b0, 0b00, 0b11, 0b000);
-  INSN(fcvtzs,  0b1, 0b00, 0b11, 0b000);
-  INSN(fcvtzdw, 0b0, 0b01, 0b11, 0b000);
-  INSN(fcvtzd,  0b1, 0b01, 0b11, 0b000);
+  INSN(fcvtzsw,  0b0, 0b00, 0b11, 0b000);
+  INSN(fcvtzs,   0b1, 0b00, 0b11, 0b000);
+  INSN(fcvtzdw,  0b0, 0b01, 0b11, 0b000);
+  INSN(fcvtzd,   0b1, 0b01, 0b11, 0b000);
+  INSN(fcvtzshw, 0b0, 0b11, 0b11, 0b000);  // half-precision -> 32-bit
+  INSN(fcvtzshx, 0x1, 0b11, 0b11, 0b000);  // half-precision -> 64-bit
 
   // RoundToNearestTiesAway
   INSN(fcvtassw, 0b0, 0b00, 0b00, 0b100);  // float -> signed word
@@ -3170,15 +3173,19 @@ public:
   // parameter "tmask" is a 2-bit mask used to indicate which bits in the size
   // field are determined by the SIMD_Arrangement. The bit of "tmask" should be
   // set to 1 if corresponding bit marked as "x" in the ArmARM.
-#define INSN(NAME, U, size, tmask, opcode)                                         \
-  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn) {              \
-       starti;                                                                     \
-       assert((ASSERTION), MSG);                                                   \
-       int op23 = (T == T4H || T == T8H) ? 0b11 : ((int)(T >> 1) & tmask);         \
-       int op20 = (T == T4H || T == T8H) ? 0b11 : 0b00;                            \
-       f(0, 31), f((int)T & 1, 30), f(U, 29), f(0b01110, 28, 24);                  \
-       f(size | op23, 23, 22), f(1, 21), f(op20, 20, 19), f(0b00, 18, 17);         \
-       f(opcode, 16, 12), f(0b10, 11, 10), rf(Vn, 5), rf(Vd, 0);                   \
+#define INSN(NAME, U, size, tmask, opcode)                                      \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn) {           \
+    starti;                                                                     \
+    assert((ASSERTION), MSG);                                                   \
+    int op22 = (int)(T >> 1) & tmask;                                           \
+    int op19 = 0b00;                                                            \
+    if (tmask == 0b01 && (T == T4H || T == T8H)) {                              \
+      op22 = 0b1;                                                               \
+      op19 = 0b11;                                                              \
+    }                                                                           \
+    f(0, 31), f((int)T & 1, 30), f(U, 29), f(0b01110, 28, 24);                  \
+    f(size | op22, 23, 22), f(1, 21), f(op19, 20, 19), f(0b00, 18, 17);         \
+    f(opcode, 16, 12), f(0b10, 11, 10), rf(Vn, 5), rf(Vd, 0);                   \
  }
 
 #define MSG "invalid arrangement"
