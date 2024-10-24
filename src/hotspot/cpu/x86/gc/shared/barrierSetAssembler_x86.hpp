@@ -50,6 +50,8 @@ public:
 
   virtual void value_copy(MacroAssembler* masm, DecoratorSet decorators,
                           Register src, Register dst, Register value_klass);
+  virtual void flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
+                          Register src, Register dst, Register inline_layout_info);
 
   // The copy_[load/store]_at functions are used by arraycopy stubs. Be careful to only use
   // r10 (aka rscratch1) in a context where restore_arg_regs_using_thread has been used instead

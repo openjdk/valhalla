@@ -45,10 +45,10 @@ import jdk.test.whitebox.WhiteBox;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                    -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI InlineTypeDensity
  * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                    -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI InlineTypeDensity
  * @run main/othervm -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI InlineTypeDensity

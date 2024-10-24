@@ -149,9 +149,9 @@ class InterpreterMacroAssembler: public MacroAssembler {
   //   - input holder object via "obj", which must be r0,
   //     will return new instance via the same reg
   //   - assumes holder_klass and valueKlass field klass have both been resolved
-  void read_flat_field(Register holder_klass,
+  void read_flat_field(Register entry,
                        Register field_index, Register field_offset,
-                       Register temp,  Register obj = r0);
+                       Register temp, Register obj = r0);
 
   // Allocate value buffer in "obj" and read in flat element at the given index
   // NOTES:

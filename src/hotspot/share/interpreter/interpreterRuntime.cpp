@@ -259,7 +259,14 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
           Handle(THREAD, klass->protection_domain()),
           true, CHECK);
       assert(field_k != nullptr, "Should have been loaded or an exception thrown above");
-      klass->set_inline_type_field_klass(index, InlineKlass::cast(field_k));
+      if (!field_k->is_inline_klass()) {
+        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                  err_msg("class %s expects class %s to be a concrete value class but it is not",
+                  klass->name()->as_C_string(), field_k->external_name()));
+      }
+      InlineLayoutInfo* li = klass->inline_layout_info_adr(index);
+      li->set_klass(InlineKlass::cast(field_k));
+      li->set_kind(LayoutKind::REFERENCE);
     }
     field_k->initialize(CHECK);
     oop defaultvalue = InlineKlass::cast(field_k)->default_value();
@@ -285,76 +292,71 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   }
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, int index, Klass* field_holder))
+JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
+  assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
 
-  assert(oopDesc::is_oop(obj), "Sanity check");
+  InstanceKlass* holder = InstanceKlass::cast(entry->field_holder());
+  assert(entry->field_holder()->field_is_flat(entry->field_index()), "Sanity check");
 
-  assert(field_holder->is_instance_klass(), "Sanity check");
-  InstanceKlass* klass = InstanceKlass::cast(field_holder);
+  InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(entry->field_index());
+  InlineKlass* field_vklass = layout_info->klass();
 
-  assert(klass->field_is_flat(index), "Sanity check");
-
-  InlineKlass* field_vklass = InlineKlass::cast(klass->get_inline_type_field_klass(index));
-
-  oop res = field_vklass->read_flat_field(obj_h(), klass->field_offset(index), CHECK);
+  oop res = field_vklass->read_flat_field(obj_h(), entry->field_offset(), layout_info->kind(), CHECK);
   current->set_vm_result(res);
 JRT_END
 
-// The protocol to read a nullable flat field is:
-// Step 1: read the null marker with an load_acquire barrier to ensure that
-//         reordered loads won't try to load the value before the null marker is read
-// Step 2: if the null marker value is zero, the field's value is null
-//         otherwise the flat field value can be read like a regular flat field
 JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   assert(entry->has_null_marker(), "Otherwise should not get there");
   Handle obj_h(THREAD, obj);
 
-  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
+  InstanceKlass* holder = entry->field_holder();
   int field_index = entry->field_index();
-  int nm_offset = ik->null_marker_offsets_array()->at(field_index);
+  InlineLayoutInfo* li= holder->inline_layout_info_adr(field_index);
+
+  int nm_offset = li->null_marker_offset();
   if (obj_h()->byte_field_acquire(nm_offset) == 0) {
     current->set_vm_result(nullptr);
   } else {
-    InlineKlass* field_vklass = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
-    oop res = field_vklass->read_flat_field(obj_h(), ik->field_offset(field_index), CHECK);
+    InlineKlass* field_vklass = InlineKlass::cast(li->klass());
+    oop res = field_vklass->read_flat_field(obj_h(), entry->field_offset(), LayoutKind::NULLABLE_ATOMIC_FLAT, CHECK);
     current->set_vm_result(res);
   }
 JRT_END
 
-// The protocol to write a nullable flat field is:
-// If the new field value is null, just write zero to the null marker
-// Otherwise:
-// Step 1: write the field value like a regular flat field
-// Step 2: have a memory barrier to ensure that the whole value content is visible
-// Step 3: update the null marker to a non zero value
 JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
   assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
   Handle val_h(THREAD, value);
 
-  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
-  int nm_offset = ik->null_marker_offsets_array()->at(entry->field_index());
+  InstanceKlass* holder = entry->field_holder();
+  InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
+  InlineKlass* vk = li->klass();
+  assert(li->kind() == LayoutKind::NULLABLE_ATOMIC_FLAT, "Must be");
+  int nm_offset = li->null_marker_offset();
+
   if (val_h() == nullptr) {
-    obj_h()->byte_field_put(nm_offset, (jbyte)0);
+    if(li->klass()->nonstatic_oop_count() == 0) {
+      // No embedded oops, just reset the null marker
+      obj_h()->byte_field_put(nm_offset, (jbyte)0);
+    } else {
+      // Has embedded oops, using the reset value to rewrite all fields to null/zeros
+      assert(li->klass()->null_reset_value()->byte_field(vk->null_marker_offset()) == 0, "reset value must always have a null marker set to 0");
+      vk->inline_copy_oop_to_payload(vk->null_reset_value(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind());
+    }
     return;
   }
-  InlineKlass* vk = InlineKlass::cast(val_h()->klass());
-  if (entry->has_internal_null_marker()) {
-    // The interpreter copies values with a bulk operation
-    // To avoid accidently setting the null marker to "null" during
-    // the copying, the null marker is set to non zero in the source object
-    if (val_h()->byte_field(vk->get_internal_null_marker_offset()) == 0) {
-      val_h()->byte_field_put(vk->get_internal_null_marker_offset(), (jbyte)1);
-    }
-    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
-  } else {
-    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
-    OrderAccess::release();
-    obj_h()->byte_field_put(nm_offset, (jbyte)1);
+
+  assert(val_h()->klass() == vk, "Must match because flat fields are monomorphic");
+  // The interpreter copies values with a bulk operation
+  // To avoid accidentally setting the null marker to "null" during
+  // the copying, the null marker is set to non zero in the source object
+  if (val_h()->byte_field(vk->null_marker_offset()) == 0) {
+    val_h()->byte_field_put(vk->null_marker_offset(), (jbyte)1);
   }
+  vk->inline_copy_oop_to_payload(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind());
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
@@ -377,7 +379,7 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* current, void* val, arrayOopDesc* array, int index))
   assert(val != nullptr, "can't store null into flat array");
-  ((flatArrayOop)array)->value_copy_to_index(cast_to_oop(val), index);
+  ((flatArrayOop)array)->value_copy_to_index(cast_to_oop(val), index, LayoutKind::PAYLOAD); // Non atomic is the only layout currently supported by flat arrays
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* first_size_address))
@@ -882,7 +884,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
   entry->set_flags(info.access_flags().is_final(), info.access_flags().is_volatile(),
                    info.is_flat(), info.is_null_free_inline_type(),
-                   info.has_null_marker(), info.has_internal_null_marker());
+                   info.has_null_marker());
 
   entry->fill_in(info.field_holder(), info.offset(),
                  checked_cast<u2>(info.index()), checked_cast<u1>(state),

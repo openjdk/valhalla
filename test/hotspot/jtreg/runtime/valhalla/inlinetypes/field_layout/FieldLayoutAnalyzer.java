@@ -27,6 +27,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import javax.management.RuntimeErrorException;
+
 import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
@@ -57,8 +59,7 @@ public class FieldLayoutAnalyzer {
     REGULAR,
     PADDING,
     FLAT,
-    NULL_MARKER,
-    INHERITED_NULL_MARKER;
+    NULL_MARKER;
 
     static BlockType parseType(String s) {
       switch(s) {
@@ -69,9 +70,26 @@ public class FieldLayoutAnalyzer {
         case "PADDING"     : return PADDING;
         case "FLAT"        : return FLAT;
         case "NULL_MARKER" : return NULL_MARKER;
-        case "INHERITED_NULL_MARKER" : return INHERITED_NULL_MARKER;
         default:
           throw new RuntimeException("Unknown block type: " + s);
+      }
+    }
+  }
+
+  static enum LayoutKind {
+    NON_FLAT,
+    NON_ATOMIC_FLAT,
+    ATOMIC_FLAT,
+    NULLABLE_FLAT;
+
+    static LayoutKind parseLayoutKind(String s) {
+      switch(s) {
+        case ""                : return NON_FLAT;
+        case "NON_ATOMIC_FLAT" : return NON_ATOMIC_FLAT;
+        case "ATOMIC_FLAT"     : return ATOMIC_FLAT;
+        case "NULLABLE_FLAT"   : return NULLABLE_FLAT;
+        default:
+          throw new RuntimeException("Unknown layout kind: " + s);
       }
     }
   }
@@ -83,17 +101,14 @@ public class FieldLayoutAnalyzer {
                             String name,
                             String signature,
                             String fieldClass,
-                            int nullMarkerOffset,
-                            boolean hasInternalNullMarker,
-                            int referenceFieldOffset) { // for null marker blocks, gives the offset of the field they refer to
+                            LayoutKind layoutKind) {
 
-
-    static FieldBlock createSpecialBlock(int offset, BlockType type, int size, int alignment, int referenceFieldOffset) {
-      return new FieldBlock(offset, type, size, alignment, null, null, null, -1, false, referenceFieldOffset);
+    static FieldBlock createSpecialBlock(int offset, BlockType type, int size, int alignment) {
+      return new FieldBlock(offset, type, size, alignment, null, null, null, LayoutKind.NON_FLAT);
     }
 
-    static FieldBlock createJavaFieldBlock(int offset, BlockType type, int size, int alignment, String name, String signature, String fieldClass, int nullMarkerOffset, boolean hasInternalNullMarker) {
-      return new FieldBlock(offset, type, size, alignment, name, signature, fieldClass, nullMarkerOffset, hasInternalNullMarker, -1);
+    static FieldBlock createJavaFieldBlock(int offset, BlockType type, int size, int alignment, String name, String signature, String fieldClass, LayoutKind layoutKind) {
+      return new FieldBlock(offset, type, size, alignment, name, signature, fieldClass, layoutKind);
     }
 
     void print(PrintStream out) {
@@ -107,7 +122,6 @@ public class FieldLayoutAnalyzer {
     }
 
     boolean isFlat() { return type == BlockType.FLAT; } // Warning: always return false for inherited fields, even flat ones
-    boolean hasNullMarker() {return nullMarkerOffset != -1; }
 
     static FieldBlock parseField(String line) {
       String[] fieldLine = line.split("\\s+");
@@ -129,9 +143,8 @@ public class FieldLayoutAnalyzer {
       switch(type) {
         case BlockType.RESERVED:
         case BlockType.EMPTY:
-        case BlockType.PADDING:
-        case BlockType.INHERITED_NULL_MARKER: {
-            block = FieldBlock.createSpecialBlock(offset, type, size, alignment, 0);
+        case BlockType.PADDING: {
+            block = FieldBlock.createSpecialBlock(offset, type, size, alignment);
             break;
         }
         case BlockType.REGULAR:
@@ -140,48 +153,89 @@ public class FieldLayoutAnalyzer {
             String name = fieldLine[4];
             String signature = fieldLine[5];
             String fieldClass = "";
+            String layoutKind = "";
             int nullMarkerOffset = -1;
-            boolean hasInternalNullMarker = false;
             if (type == BlockType.FLAT) {
               fieldClass = fieldLine[6];
-              if (fieldLine.length >= 11) {
-                nullMarkerOffset = Integer.parseInt(fieldLine[10]);
-              }
-              if (fieldLine.length >= 12 ) {
-                Asserts.assertEquals(fieldLine[11], "(internal)");
-                hasInternalNullMarker = true;
-              }
+              layoutKind = fieldLine[7];
             }
-            block = FieldBlock.createJavaFieldBlock(offset, type, size, alignment, name, signature, fieldClass, nullMarkerOffset, hasInternalNullMarker);
+            block = FieldBlock.createJavaFieldBlock(offset, type, size, alignment, name, signature, fieldClass, LayoutKind.parseLayoutKind(layoutKind));
             break;
           }
         case BlockType.NULL_MARKER: {
-          int referenceFieldOffset = Integer.parseInt(fieldLine[10]);
-          block = FieldBlock.createSpecialBlock(offset, type, size, alignment, referenceFieldOffset);
+          block = FieldBlock.createSpecialBlock(offset, type, size, alignment);
           break;
         }
       }
       Asserts.assertNotNull(block);
       return block;
     }
+
   }
 
   static class ClassLayout {
     String name;
     String superName;
     boolean isValue;
-    int size;
+    int instanceSize;
+    int payloadSize;
+    int payloadAlignment;
     int firstFieldOffset;
-    int alignment;
-    int exactSize;
+    int nonAtomicLayoutSize;         // -1 if no non-nullable layout
+    int nonAtomicLayoutAlignment;    // -1 if no non-nullable layout
+    int atomicLayoutSize;            // -1 if no atomic layout
+    int atomicLayoutAlignment;       // -1 if no atomic layout
+    int nullableLayoutSize;          // -1 if no nullable layout
+    int nullableLayoutAlignment;     // -1 if no nullable layout
+    int nullMarkerOffset;            // -1 if no nullable layout
     String[] lines;
     ArrayList<FieldBlock> staticFields;
     ArrayList<FieldBlock> nonStaticFields;
-    int internalNullMarkerOffset; // -1 if no internal null marker
 
     private ClassLayout() {
       staticFields = new ArrayList<FieldBlock>();
       nonStaticFields = new ArrayList<FieldBlock>();
+    }
+
+    boolean hasNonAtomicLayout() { return nonAtomicLayoutSize != -1; }
+    boolean hasAtomicLayout() { return atomicLayoutSize != -1; }
+    boolean hasNullableLayout() { return nullableLayoutSize != -1; }
+    boolean hasNullMarker() {return nullMarkerOffset != -1; }
+
+    int getSize(LayoutKind layoutKind) {
+      switch(layoutKind) {
+        case NON_FLAT:
+          throw new RuntimeException("Should not be called on non-flat fields");
+        case NON_ATOMIC_FLAT:
+          Asserts.assertTrue(nonAtomicLayoutSize != -1);
+          return nonAtomicLayoutSize;
+        case ATOMIC_FLAT:
+          Asserts.assertTrue(atomicLayoutSize != -1);
+          return atomicLayoutSize;
+        case NULLABLE_FLAT:
+          Asserts.assertTrue(nullableLayoutSize != -1);
+          return nullableLayoutSize;
+        default:
+          throw new RuntimeException("Unknown LayoutKind " + layoutKind);
+      }
+    }
+
+    int getAlignment(LayoutKind layoutKind) {
+      switch(layoutKind) {
+        case NON_FLAT:
+          throw new RuntimeException("Should not be called on non-flat fields");
+        case NON_ATOMIC_FLAT:
+          Asserts.assertTrue(nonAtomicLayoutSize != -1);
+          return nonAtomicLayoutAlignment;
+        case ATOMIC_FLAT:
+          Asserts.assertTrue(atomicLayoutSize != -1);
+          return atomicLayoutAlignment;
+        case NULLABLE_FLAT:
+          Asserts.assertTrue(nullableLayoutSize != -1);
+          return nullableLayoutAlignment;
+        default:
+          throw new RuntimeException("Unknown LayoutKind " + layoutKind);
+      }
     }
 
     void processField(String line, boolean isStatic) {
@@ -224,26 +278,69 @@ public class FieldLayoutAnalyzer {
       }
       Asserts.assertTrue(lo.getCurrentLine().startsWith("Instance size ="), lo.getCurrentLine());
       String[] sizeLine = lo.getCurrentLine().split("\\s+");
-      cl.size = Integer.parseInt(sizeLine[3]);
+      cl.instanceSize = Integer.parseInt(sizeLine[3]);
       lo.moveToNextLine();
       if (lo.getCurrentLine().startsWith("First field offset =")) {
         // The class is a value class, more lines to parse
         cl.isValue = true;
+        // First field offset = xx
         String[] firstOffsetLine = lo.getCurrentLine().split("\\s+");
         cl.firstFieldOffset = Integer.parseInt(firstOffsetLine[4]);
         lo.moveToNextLine();
-        String[] alignmentLine = lo.getCurrentLine().split("\\s+");
-        cl.alignment = Integer.parseInt(alignmentLine[2]);
+        // Payload layout: x/y
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("Payload layout"));
+        String[] payloadLayoutLine = lo.getCurrentLine().split("\\s+");
+        String[] size_align = payloadLayoutLine[2].split("/");
+        cl.payloadSize = Integer.parseInt(size_align[0]);
+        cl.payloadAlignment = Integer.parseInt(size_align[1]);
         lo.moveToNextLine();
-        String[] exactSizeLine = lo.getCurrentLine().split("\\s+");
-        cl.exactSize = Integer.parseInt(exactSizeLine[3]);
+        // Non atomic flat layout: x/y
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("Non atomic flat layout"));
+        String[] nonAtomicLayoutLine = lo.getCurrentLine().split("\\s+");
+        size_align = nonAtomicLayoutLine[4].split("/");
+        if (size_align[0].contentEquals("-")) {
+          Asserts.assertTrue(size_align[1].contentEquals("-"), "Size/Alignment mismatch");
+          cl.nonAtomicLayoutSize = -1;
+          cl.nonAtomicLayoutAlignment = -1;
+        } else {
+          cl.nonAtomicLayoutSize = Integer.parseInt(size_align[0]);
+          cl.nonAtomicLayoutAlignment = Integer.parseInt(size_align[1]);
+        }
         lo.moveToNextLine();
-        if (lo.getCurrentLine().startsWith("Null marker offset")) {
+        // Atomic flat layout: x/y
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("Atomic flat layout"));
+        String[] atomicLayoutLine = lo.getCurrentLine().split("\\s+");
+        size_align = atomicLayoutLine[3].split("/");
+        if (size_align[0].contentEquals("-")) {
+          Asserts.assertTrue(size_align[1].contentEquals("-"), "Size/Alignment mismatch");
+          cl.atomicLayoutSize = -1;
+          cl.atomicLayoutAlignment = -1;
+        } else {
+          cl.atomicLayoutSize = Integer.parseInt(size_align[0]);
+          cl.atomicLayoutAlignment = Integer.parseInt(size_align[1]);
+        }
+        lo.moveToNextLine();
+        // Nullable flat layout: x/y
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("Nullable flat layout"));
+        String[] nullableLayoutLine = lo.getCurrentLine().split("\\s+");
+        size_align = nullableLayoutLine[3].split("/");
+        if (size_align[0].contentEquals("-")) {
+          Asserts.assertTrue(size_align[1].contentEquals("-"), "Size/Alignment mismatch");
+          cl.nullableLayoutSize = -1;
+          cl.nullableLayoutAlignment = -1;
+        } else {
+          cl.nullableLayoutSize = Integer.parseInt(size_align[0]);
+          cl.nullableLayoutAlignment = Integer.parseInt(size_align[1]);
+        }
+        lo.moveToNextLine();
+        // Null marker offset = 15 (if class has a nullable flat layout)
+        if (cl.nullableLayoutSize != -1) {
+          Asserts.assertTrue(lo.getCurrentLine().startsWith("Null marker offset"));
           String[] nullMarkerLine = lo.getCurrentLine().split("\\s+");
-          cl.internalNullMarkerOffset = Integer.parseInt(nullMarkerLine[4]);
+          cl.nullMarkerOffset = Integer.parseInt(nullMarkerLine[4]);
           lo.moveToNextLine();
         } else {
-          cl.internalNullMarkerOffset = -1;
+          cl.nullMarkerOffset = -1;
         }
       } else {
         cl.isValue = false;
@@ -263,6 +360,14 @@ public class FieldLayoutAnalyzer {
     }
 
     FieldBlock getFieldFromName(String fieldName, boolean isStatic) {
+      FieldBlock block = getFieldFromName(fieldName, isStatic);
+      if (block == null) {
+        throw new RuntimeException("No " + (isStatic ? "static" : "nonstatic") + " field found with name "+ fieldName);
+      }
+      return block;
+    }
+
+    FieldBlock getFieldFromNameOrNull(String fieldName, boolean isStatic) {
       Asserts.assertTrue(fieldName != null);
       ArrayList<FieldBlock> fields = isStatic ? staticFields : nonStaticFields;
       for (FieldBlock block : fields) {
@@ -270,7 +375,7 @@ public class FieldLayoutAnalyzer {
         String n = block.name().substring(1, block.name().length() - 1); // in the log, name is surrounded by double quotes
         if (fieldName.equals(n)) return block;
       }
-      throw new RuntimeException("No " + (isStatic ? "static" : "nonstatic") + " field found with name "+ fieldName);
+      return null;
     }
 
   }
@@ -360,7 +465,7 @@ public class FieldLayoutAnalyzer {
       return;
     }
     if (block.type == BlockType.EMPTY || block.type == BlockType.PADDING
-        || block.type == BlockType.NULL_MARKER || block.type == BlockType.INHERITED_NULL_MARKER) {
+        || block.type == BlockType.NULL_MARKER) {
       Asserts.assertTrue(block.alignment == 1, "alignment = " + block.alignment);
       return;
     }
@@ -386,7 +491,7 @@ public class FieldLayoutAnalyzer {
         if (block.signature().startsWith("[")) {
           Asserts.assertEquals(oopSize, block.size());
         } else if (block.signature().startsWith("L")) {
-          if (block.type == BlockType.INHERITED || block.type == BlockType.INHERITED_NULL_MARKER) {
+          if (block.type == BlockType.INHERITED) {
             // Skip for now, will be verified when checking the class declaring the field
           } else if (block.type == BlockType.REGULAR) {
             Asserts.assertEquals(oopSize, block.size());
@@ -394,8 +499,8 @@ public class FieldLayoutAnalyzer {
             Asserts.assertEquals(BlockType.FLAT, block.type);
             ClassLayout fcl = getClassLayout(block.fieldClass);
             Asserts.assertNotNull(fcl);
-            Asserts.assertEquals(block.size(), fcl.exactSize);
-            Asserts.assertEquals(block.alignment(), fcl.alignment);
+            Asserts.assertEquals(block.size(), fcl.getSize(block.layoutKind));
+            Asserts.assertEquals(block.alignment(), fcl.getAlignment(block.layoutKind));
           }
         } else {
           throw new RuntimeException("Unknown signature type: " + block.signature);
@@ -507,6 +612,7 @@ public class FieldLayoutAnalyzer {
         if (block.offset() == 0) continue; // Skip object header
         if (block.type() == BlockType.EMPTY) continue; // Empty spaces can be used by subclasses
         if (block.type() == BlockType.PADDING) continue; // PADDING should have a finer inspection, preserved for @Contended and other imperative padding, and relaxed for abstract value conservative padding
+        if (block.type() == BlockType.NULL_MARKER) continue;
         // A special case for PADDING might be needed too => must NOT be used in subclasses
         for (Node subnode : node.subClasses) {
           try {
@@ -522,8 +628,7 @@ public class FieldLayoutAnalyzer {
 
   void checkFieldInClass(FieldBlock block, Node node) {
     FieldBlock b = node.classLayout.getFieldAtOffset(block.offset, false);
-    Asserts.assertTrue((block.type != BlockType.NULL_MARKER && block.type != BlockType.INHERITED_NULL_MARKER && b.type == BlockType.INHERITED)
-                       || ((block.type == BlockType.NULL_MARKER || block.type == BlockType.INHERITED_NULL_MARKER) && b.type == BlockType.INHERITED_NULL_MARKER));
+    Asserts.assertTrue(b.type == BlockType.INHERITED);
     Asserts.assertEquals(b.signature(), block.signature());
     Asserts.assertEquals(b.name(), block.name());
     Asserts.assertEquals(b.size(), block.size());
@@ -540,19 +645,10 @@ public class FieldLayoutAnalyzer {
         boolean has_empty_slot = false;
         for (FieldBlock block : layout.nonStaticFields) {
           last_type = block.type;
-          if (block.type() == BlockType.FLAT && block.nullMarkerOffset() != -1) {
-            if (block.hasInternalNullMarker()) {
-              Asserts.assertTrue(block.nullMarkerOffset() > block.offset());
-              Asserts.assertTrue(block.nullMarkerOffset() < block.offset() + block.size());
-            } else {
-              FieldBlock marker = layout.getFieldAtOffset(block.nullMarkerOffset(), false);
-              Asserts.assertEquals(block.nullMarkerOffset(), marker.offset());
-            }
-          }
           if (block.type() == BlockType.NULL_MARKER) {
-            FieldBlock flatField = layout.getFieldAtOffset(block.referenceFieldOffset(), false);
-            Asserts.assertEquals(flatField.type(), BlockType.FLAT);
-            Asserts.assertEquals(flatField.nullMarkerOffset(), block.offset());
+            Asserts.assertTrue(layout.hasNullMarker());
+            Asserts.assertTrue(layout.hasNullableLayout());
+            Asserts.assertEQ(block.offset(), layout.nullMarkerOffset);
           }
           if (block.type() == BlockType.EMPTY) has_empty_slot = true;
         }
@@ -562,9 +658,7 @@ public class FieldLayoutAnalyzer {
         // static layout => must not have NULL_MARKERS because static fields are never flat
         for (FieldBlock block : layout.staticFields) {
           Asserts.assertNotEquals(block.type(), BlockType.NULL_MARKER);
-          if (block.type() == BlockType.FLAT) {
-            Asserts.assertEquals(block.nullMarkerOffset(), -1); // -1 means no null marker
-          }
+          Asserts.assertNotEquals(block.type(), BlockType.FLAT);
         }
       } catch(Throwable t) {
         System.out.println("Unexpected exception while checking null markers in class " + layout.name);
@@ -583,19 +677,24 @@ public class FieldLayoutAnalyzer {
   }
 
   private void generate(LogOutput lo) {
-    while (lo.hasMoreLines()) {
-      if (lo.getCurrentLine().startsWith("Heap oop size = ")) {
-        String[] oopSizeLine = lo.getCurrentLine().split("\\s+");
-        oopSize = Integer.parseInt(oopSizeLine[4]);
-        Asserts.assertTrue(oopSize == 4 || oopSize == 8);
+    try {
+      while (lo.hasMoreLines()) {
+        if (lo.getCurrentLine().startsWith("Heap oop size = ")) {
+          String[] oopSizeLine = lo.getCurrentLine().split("\\s+");
+          oopSize = Integer.parseInt(oopSizeLine[4]);
+          Asserts.assertTrue(oopSize == 4 || oopSize == 8);
+        }
+        if (lo.getCurrentLine().startsWith("Layout of class")) {
+          ClassLayout cl = ClassLayout.parseClassLayout(lo);
+          layouts.add(cl);
+        } else {
+          lo.moveToNextLine(); // skipping line
+        }
       }
-      if (lo.getCurrentLine().startsWith("Layout of class")) {
-        ClassLayout cl = ClassLayout.parseClassLayout(lo);
-        layouts.add(cl);
-      } else {
-        lo.moveToNextLine(); // skipping line
-      }
+      Asserts.assertTrue(oopSize != 0);
+    } catch (Throwable t) {
+      System.out.println("Error while processing line: " + lo.getCurrentLine());
+      throw t;
     }
-    Asserts.assertTrue(oopSize != 0);
   }
  }

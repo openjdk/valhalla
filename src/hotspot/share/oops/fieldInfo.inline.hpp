@@ -29,6 +29,7 @@
 
 #include "memory/metadataFactory.hpp"
 #include "oops/constantPool.hpp"
+#include "oops/instanceKlass.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/checkedCast.hpp"
@@ -85,6 +86,10 @@ inline void Mapper<CON>::map_field_info(const FieldInfo& fi) {
     if (fi.field_flags().is_contended()) {
       _consumer->accept_uint(fi.contention_group());
     }
+    if (fi.field_flags().is_flat()) {
+      assert(fi.layout_kind() != LayoutKind::UNKNOWN, "Must be set");
+      _consumer->accept_uint(fi.layout_kind());
+    }
     if (fi.field_flags().has_null_marker()) {
       _consumer->accept_uint(fi.null_marker_offset());
     }
@@ -123,6 +128,9 @@ inline void FieldInfoReader::read_field_info(FieldInfo& fi) {
   } else {
     fi._contention_group = 0;
   }
+  if (fi._field_flags.is_flat()) {
+    fi._layout_kind = static_cast<LayoutKind>(next_uint());
+  }
   if (fi._field_flags.has_null_marker()) {
     fi._null_marker_offset = next_uint();
   } else {
@@ -139,6 +147,7 @@ inline FieldInfoReader&  FieldInfoReader::skip_field_info() {
     const int init_gen_cont = (ff.is_initialized() +
                                 ff.is_generic() +
                                 ff.is_contended() +
+                                ff.is_flat() +
                                 ff.has_null_marker());
     skip(init_gen_cont);  // up to three items
   }

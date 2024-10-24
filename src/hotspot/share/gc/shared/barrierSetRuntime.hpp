@@ -38,7 +38,9 @@ class BarrierSetRuntime: public AllStatic {
 public:
   // Template interpreter...
   static void value_copy(void* src, void* dst, InlineKlass* md);
+  static void value_copy2(void* src, void* dst, InlineLayoutInfo* layout_info);
   static void value_copy_is_dest_uninitialized(void* src, void* dst, InlineKlass* md);
+  static void value_copy_is_dest_uninitialized2(void* src, void* dst, InlineLayoutInfo* layout_info);
 };
 
 #endif // SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP

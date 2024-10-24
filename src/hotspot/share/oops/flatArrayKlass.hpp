@@ -77,8 +77,8 @@ class FlatArrayKlass : public ArrayKlass {
   }
 
   // Override.
-  bool element_access_is_atomic() {
-    return element_klass()->is_atomic();
+  bool element_access_must_be_atomic() {
+    return element_klass()->must_be_atomic();
   }
 
   oop protection_domain() const;

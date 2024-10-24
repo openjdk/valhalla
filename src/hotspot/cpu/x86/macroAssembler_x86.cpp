@@ -4574,18 +4574,31 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
   bind(done);
 }
 
-void MacroAssembler::get_inline_type_field_klass(Register klass, Register index, Register inline_klass) {
-  movptr(inline_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
+void MacroAssembler::get_inline_type_field_klass(Register holder_klass, Register index, Register inline_klass) {
+  inline_layout_info(holder_klass, index, inline_klass);
+  movptr(inline_klass, Address(inline_klass, InlineLayoutInfo::klass_offset()));
+}
+
+void MacroAssembler::inline_layout_info(Register holder_klass, Register index, Register layout_info) {
+  movptr(layout_info, Address(holder_klass, InstanceKlass::inline_layout_info_array_offset()));
 #ifdef ASSERT
   {
     Label done;
-    cmpptr(inline_klass, 0);
+    cmpptr(layout_info, 0);
     jcc(Assembler::notEqual, done);
-    stop("get_inline_type_field_klass contains no inline klass");
+    stop("inline_layout_info_array is null");
     bind(done);
   }
 #endif
-  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr, Array<InlineKlass*>::base_offset_in_bytes()));
+
+  InlineLayoutInfo array[2];
+  int size = (char*)&array[1] - (char*)&array[0]; // computing size of array elements
+  if (is_power_of_2(size)) {
+    shll(index, log2i_exact(size)); // Scale index by power of 2
+  } else {
+    imull(index, index, size); // Scale the index to be the entry index * array_element_size
+  }
+  lea(layout_info, Address(layout_info, index, Address::times_1, Array<InlineLayoutInfo>::base_offset_in_bytes()));
 }
 
 void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
@@ -6046,6 +6059,12 @@ void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Re
                                        Register inline_klass) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->value_copy(this, decorators, src, dst, inline_klass);
+}
+
+void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Register dst,
+                                     Register inline_layout_info) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->flat_field_copy(this, decorators, src, dst, inline_layout_info);
 }
 
 void MacroAssembler::first_field_offset(Register inline_klass, Register offset) {

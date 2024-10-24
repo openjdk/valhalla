@@ -53,26 +53,27 @@ inline oop flatArrayOopDesc::value_alloc_copy_from_index(flatArrayHandle vah, in
     return vklass->default_value();
   } else {
     oop buf = vklass->allocate_instance_buffer(CHECK_NULL);
-    vklass->inline_copy_payload_to_new_oop(vah->value_at_addr(index, vaklass->layout_helper()), buf);
+    vklass->inline_copy_payload_to_new_oop(vah->value_at_addr(index, vaklass->layout_helper()),
+                                           buf, LayoutKind::PAYLOAD); // temporary hack for the transition
     return buf;
   }
 }
 
-inline void flatArrayOopDesc::value_copy_from_index(int index, oop dst) const {
+inline void flatArrayOopDesc::value_copy_from_index(int index, oop dst, LayoutKind lk) const {
   FlatArrayKlass* vaklass = FlatArrayKlass::cast(klass());
   InlineKlass* vklass = vaklass->element_klass();
   void* src = value_at_addr(index, vaklass->layout_helper());
-  return vklass->inline_copy_payload_to_new_oop(src, dst);
+  return vklass->inline_copy_payload_to_new_oop(src, dst, lk);
 }
 
-inline void flatArrayOopDesc::value_copy_to_index(oop src, int index) const {
+inline void flatArrayOopDesc::value_copy_to_index(oop src, int index, LayoutKind lk) const {
   FlatArrayKlass* vaklass = FlatArrayKlass::cast(klass());
   InlineKlass* vklass = vaklass->element_klass();
   if (vklass->is_empty_inline_type()) {
     return;
   }
   void* dst = value_at_addr(index, vaklass->layout_helper());
-  vklass->inline_copy_oop_to_payload(src, dst);
+  vklass->inline_copy_oop_to_payload(src, dst, lk);
 }
 
 

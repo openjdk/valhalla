@@ -22,12 +22,17 @@
  */
 
 import jdk.test.lib.Asserts;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
+import java.util.List;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
+
+
 
 
 
@@ -46,8 +51,12 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  public class AnnotationsTests {
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
+    static boolean nullableLayoutEnabled;
 
     public static void main(String[] args) {
+        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+        List<String> arguments = runtimeMxBean.getInputArguments();
+        nullableLayoutEnabled = arguments.contains("-XX:+NullableFieldFlattening");
         AnnotationsTests tests = new AnnotationsTests();
         Class c = tests.getClass();
         for (Method m : c.getDeclaredMethods()) {
@@ -162,6 +171,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
     // Test field flattening of @NullRestricted annotated fields
 
     @ImplicitlyConstructible
+    @LooselyConsistentValue
     static value class ValueClass5 {
       int i = 0;
     }
@@ -178,7 +188,11 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         try {
             GoodClass5 vc = new GoodClass5();
             Field f0 = vc.getClass().getDeclaredField("f0");
-            Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
+            if (nullableLayoutEnabled) {
+                Asserts.assertTrue(UNSAFE.isFlatField(f0), "Flat field expected, but field is not flat");
+            } else {
+                Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
+            }
             Field f1 = vc.getClass().getDeclaredField("f1");
             Asserts.assertTrue(UNSAFE.isFlatField(f1), "Flat field expected, but field is not flat");
         } catch (IncompatibleClassChangeError e) {

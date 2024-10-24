@@ -34,7 +34,7 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile Point.java UnsafeTest.java
- * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 -XX:+EnableNullableFieldFlattening runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 import jdk.internal.misc.Unsafe;
@@ -201,7 +201,7 @@ public class UnsafeTest {
 
     public static void main(String[] args) throws Throwable {
         test0();
-        test1();
+        // test1();  // test1 is about nullable flat fields which are not fully supported yet
     }
 
 }
