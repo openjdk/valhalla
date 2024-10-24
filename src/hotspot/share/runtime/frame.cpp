@@ -1447,7 +1447,6 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
     // For now just label the frame
     values.describe(-1, info_address, err_msg("#%d entry frame", frame_no), 2);
   } else if (cb()->is_nmethod()) {
-    // TODO add printing here
     // For now just label the frame
     nmethod* nm = cb()->as_nmethod();
     values.describe(-1, info_address,

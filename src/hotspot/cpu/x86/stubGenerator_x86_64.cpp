@@ -3803,7 +3803,6 @@ address StubGenerator::generate_cont_thaw() {
   return generate_cont_thaw("Cont thaw", Continuation::thaw_top);
 }
 
-// ???
 // TODO: will probably need multiple return barriers depending on return type
 
 address StubGenerator::generate_cont_returnBarrier() {

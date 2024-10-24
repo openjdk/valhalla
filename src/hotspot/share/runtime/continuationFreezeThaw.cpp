@@ -857,8 +857,6 @@ inline freeze_result FreezeBase::recurse_freeze_java_frame(const frame& f, frame
   _freeze_size += fsize;
   NOT_PRODUCT(_frames++;)
 
-  // TODO check why frame_bottom is okay here
-
   assert(FKind::frame_bottom(f) <= _bottom_address, "");
 
   // We don't use FKind::frame_bottom(f) == _bottom_address because on x64 there's sometimes an extra word between
@@ -1144,13 +1142,11 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
                                                         bool callee_interpreted) {
   // The frame's top never includes the stack arguments to the callee
   intptr_t* const stack_frame_top = ContinuationHelper::CompiledFrame::frame_top(f, callee_argsize, callee_interpreted);
-  // TODO check why frame_bottom is okay here
   intptr_t* const stack_frame_bottom = ContinuationHelper::CompiledFrame::frame_bottom(f);
   // including metadata between f and its stackargs
 
-  frame senderf = sender<ContinuationHelper::CompiledFrame>(f);
-
-  const int argsize = ContinuationHelper::CompiledFrame::stack_argsize(f, senderf.is_interpreted_frame()) + frame::metadata_words_at_top;
+  frame sender_f = sender<ContinuationHelper::CompiledFrame>(f);
+  const int argsize = ContinuationHelper::CompiledFrame::stack_argsize(f, sender_f.is_interpreted_frame()) + frame::metadata_words_at_top;
   const int fsize = pointer_delta_as_int(stack_frame_bottom + argsize, stack_frame_top);
 
   log_develop_trace(continuations)("recurse_freeze_compiled_frame %s _size: %d fsize: %d argsize: %d",
