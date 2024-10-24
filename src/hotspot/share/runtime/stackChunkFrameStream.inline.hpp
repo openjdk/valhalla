@@ -213,12 +213,6 @@ inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop
       next_for_interpreter_frame();
     } else {
       _sp = _unextended_sp + cb()->frame_size();
-      if (false && cb() != nullptr && cb()->is_compiled() && cb()->as_compiled_method()->needs_stack_repair()) {
-        // TODO Why is this not needed?
-        intptr_t** saved_fp_addr = (intptr_t**) (_sp - frame::sender_sp_offset);
-        // Repair the sender sp if this is a method with scalarized inline type args
-        _sp = to_frame().repair_sender_sp(_sp, saved_fp_addr);
-      }
       if (_sp >= _end - frame::metadata_words) {
         _sp = _end;
       }
@@ -226,8 +220,6 @@ inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop
     }
     assert(_unextended_sp >= _sp - frame::metadata_words, "");
   } else {
-    // TODO
-    assert(!cb()->is_compiled() || !cb()->as_compiled_method()->needs_stack_repair(), "needs stack repair");
     _sp += cb()->frame_size();
   }
   assert(!is_interpreted() || _unextended_sp == unextended_sp_for_interpreter_frame(), "");

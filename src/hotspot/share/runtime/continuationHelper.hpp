@@ -90,7 +90,7 @@ public:
   static inline intptr_t* frame_top(const frame& f, int callee_argsize, bool callee_interpreted);
   static inline intptr_t* frame_bottom(const frame& f);
   static inline intptr_t* callers_sp(const frame& f);
-  static inline int stack_argsize(const frame& f);
+  static inline int stack_argsize(const frame& f, bool scalarized = false);
 
   static inline address* return_pc_address(const frame& f);
   static address return_pc(const frame& f);
@@ -115,7 +115,7 @@ public:
   static inline intptr_t* frame_bottom(const frame& f);
 
   static inline int size(const frame& f);
-  static inline int stack_argsize(const frame& f);
+  static inline int stack_argsize(const frame& f, bool scalarized = true);
 };
 
 class ContinuationHelper::NonInterpretedUnknownFrame : public ContinuationHelper::NonInterpretedFrame  {

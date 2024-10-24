@@ -97,7 +97,7 @@ inline int ContinuationHelper::InterpretedFrame::size(const frame&f) {
   return pointer_delta_as_int(InterpretedFrame::frame_bottom(f), InterpretedFrame::frame_top(f));
 }
 
-inline int ContinuationHelper::InterpretedFrame::stack_argsize(const frame& f) {
+inline int ContinuationHelper::InterpretedFrame::stack_argsize(const frame& f, bool scalarized) {
   return f.interpreter_frame_method()->size_of_parameters();
 }
 
@@ -148,8 +148,8 @@ inline int ContinuationHelper::NonInterpretedFrame::size(const frame& f) {
   return f.cb()->frame_size();
 }
 
-inline int ContinuationHelper::NonInterpretedFrame::stack_argsize(const frame& f) {
-  return f.compiled_frame_stack_argsize(false);
+inline int ContinuationHelper::NonInterpretedFrame::stack_argsize(const frame& f, bool scalarized) {
+  return f.compiled_frame_stack_argsize(scalarized);
 }
 
 inline bool ContinuationHelper::CompiledFrame::is_instance(const frame& f) {

@@ -1159,7 +1159,10 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
   // TODO check why frame_bottom is okay here
   intptr_t* const stack_frame_bottom = ContinuationHelper::CompiledFrame::frame_bottom(f);
   // including metadata between f and its stackargs
-  const int argsize = ContinuationHelper::CompiledFrame::stack_argsize(f) + frame::metadata_words_at_top;
+
+  frame senderf = sender<ContinuationHelper::CompiledFrame>(f);
+
+  const int argsize = ContinuationHelper::CompiledFrame::stack_argsize(f, senderf.is_interpreted_frame()) + frame::metadata_words_at_top;
   const int fsize = pointer_delta_as_int(stack_frame_bottom + argsize, stack_frame_top);
 
   log_develop_trace(continuations)("recurse_freeze_compiled_frame %s _size: %d fsize: %d argsize: %d",
