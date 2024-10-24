@@ -316,7 +316,7 @@ public class ReflectionFactory {
      */
     public final Constructor<?> newConstructorForSerialization(Class<?> cl) {
         if (cl.isValue()) {
-            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes");
+            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes: " + cl);
         }
 
         Class<?> initCl = cl;

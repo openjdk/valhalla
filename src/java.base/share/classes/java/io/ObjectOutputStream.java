@@ -36,6 +36,8 @@ import java.util.StringJoiner;
 import jdk.internal.util.ByteArray;
 import sun.reflect.misc.ReflectUtil;
 
+import static java.io.ObjectInputStream.TRACE;
+
 /**
  * An ObjectOutputStream writes primitive data types and graphs of Java objects
  * to an OutputStream.  The objects can be read (reconstituted) using an
@@ -158,8 +160,35 @@ import sun.reflect.misc.ReflectUtil;
  * defaultWriteObject and writeFields initially terminate any existing
  * block-data record.
  *
+ * <a id="record-serialization"></a>
  * <p>Records are serialized differently than ordinary serializable or externalizable
  * objects, see <a href="ObjectInputStream.html#record-serialization">record serialization</a>.
+ *
+ * <a id="valueclass-serialization"></a>
+ * <p>Value classes are {@linkplain Serializable} through the use of the serialization proxy pattern.
+ * The serialization protocol does not support a standard serialized form for value classes.
+ * The value class delegates to a serialization proxy by supplying an alternate
+ * record or object to be serialized instead of the value class.
+ * When the proxy is deserialized it re-constructs the value object and returns the value object.
+ * For example,
+ * {@snippet lang="java" :
+ * value class ZipCode implements Serializable {    // @highlight substring="value class"
+ *     private static final long serialVersionUID = 1L;
+ *     private int zipCode;
+ *     public ZipCode(int zip) { this.zipCode = zip; }
+ *     public int zipCode() { return zipCode; }
+ *
+ *     public Object writeReplace() {    // @highlight substring="writeReplace"
+ *         return new ZipCodeProxy(zipCode);
+ *     }
+ *
+ *     private record ZipCodeProxy(int zipCode) implements Serializable {
+ *         public Object readResolve() {    // @highlight substring="readResolve"
+ *             return new ZipCode(zipCode);
+ *         }
+ *     }
+ * }
+ * }
  *
  * @spec serialization/index.html Java Object Serialization Specification
  * @author      Mike Warres
@@ -344,6 +373,9 @@ public class ObjectOutputStream
      * object are written transitively so that a complete equivalent graph of
      * objects can be reconstructed by an ObjectInputStream.
      *
+     * <p>Serialization and deserialization of value classes is described in
+     * {@linkplain ObjectOutputStream##valueclass-serialization value class serialization}.
+     *
      * <p>Exceptions are thrown for problems with the OutputStream and for
      * classes that should not be serialized.  All exceptions are fatal to the
      * OutputStream, which is left in an indeterminate state, and it is up to
@@ -412,6 +444,9 @@ public class ObjectOutputStream
      * rules described above only apply to the base-level object written with
      * writeUnshared, and not to any transitively referenced sub-objects in the
      * object graph to be serialized.
+     *
+     * <p>Serialization and deserialization of value classes is described in
+     * {@linkplain ObjectOutputStream##valueclass-serialization value class serialization}.
      *
      * <p>ObjectOutputStream subclasses which override this method can only be
      * constructed in security contexts possessing the
@@ -1198,9 +1233,6 @@ public class ObjectOutputStream
             } else if (obj instanceof Enum) {
                 writeEnum((Enum<?>) obj, desc, unshared);
             } else if (obj instanceof Serializable) {
-                if (cl.isValue() && !desc.isInstantiable()) {
-                    throw new NotSerializableException(cl.getName());
-                }
                 writeOrdinaryObject(obj, desc, unshared);
             } else {
                 if (extendedDebugInfo) {
@@ -1456,8 +1488,8 @@ public class ObjectOutputStream
             if (desc.isRecord()) {
                 writeRecordData(obj, desc);
             } else if (desc.isExternalizable() && !desc.isProxy()) {
-                if (desc.forClass().isValue())
-                    throw new NotSerializableException("Externalizable not valid for value class "
+                if (desc.isValue())
+                    throw new InvalidClassException("Externalizable not valid for value class "
                             + desc.forClass().getName());
                 writeExternalData((Externalizable) obj);
             } else {
@@ -1507,10 +1539,10 @@ public class ObjectOutputStream
         throws IOException
     {
         assert obj.getClass().isRecord();
-        ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
-        if (slots.length != 1) {
+        List<ObjectStreamClass.ClassDataSlot> slots = desc.getClassDataLayout();
+        if (slots.size() != 1) {
             throw new InvalidClassException(
-                    "expected a single record slot length, but found: " + slots.length);
+                    "expected a single record slot length, but found: " + slots.size());
         }
 
         defaultWriteFields(obj, desc);  // #### seems unnecessary to use the accessors
@@ -1523,9 +1555,9 @@ public class ObjectOutputStream
     private void writeSerialData(Object obj, ObjectStreamClass desc)
         throws IOException
     {
-        ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
-        for (int i = 0; i < slots.length; i++) {
-            ObjectStreamClass slotDesc = slots[i].desc;
+       List<ObjectStreamClass.ClassDataSlot> slots = desc.getClassDataLayout();
+        for (int i = 0; i < slots.size(); i++) {
+            ObjectStreamClass slotDesc = slots.get(i).desc;
             if (slotDesc.hasWriteObjectMethod()) {
                 PutFieldImpl oldPut = curPut;
                 curPut = null;

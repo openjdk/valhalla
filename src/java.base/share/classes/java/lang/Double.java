@@ -33,6 +33,7 @@ import java.util.Optional;
 import jdk.internal.math.FloatingDecimal;
 import jdk.internal.math.DoubleConsts;
 import jdk.internal.math.DoubleToDecimal;
+import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
@@ -949,6 +950,7 @@ public final class Double extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
+    @DeserializeConstructor
     public static Double valueOf(double d) {
         return new Double(d);
     }
