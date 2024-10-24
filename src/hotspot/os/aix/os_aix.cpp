@@ -23,10 +23,6 @@
  *
  */
 
-// According to the AIX OS doc #pragma alloca must be used
-// with C++ compiler before referencing the function alloca()
-#pragma alloca
-
 // no precompiled headers
 #include "classfile/vmSymbols.hpp"
 #include "code/vtableStubs.hpp"
@@ -73,6 +69,7 @@
 #include "signals_posix.hpp"
 #include "utilities/align.hpp"
 #include "utilities/checkedCast.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/decoder.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/events.hpp"
@@ -100,6 +97,12 @@
 #include <sys/ioctl.h>
 #include <sys/ipc.h>
 #include <sys/mman.h>
+// sys/mman.h defines MAP_ANON_64K beginning with AIX7.3 TL1
+#ifndef MAP_ANON_64K
+  #define MAP_ANON_64K 0x400
+#else
+  STATIC_ASSERT(MAP_ANON_64K == 0x400);
+#endif
 #include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/shm.h>
@@ -221,21 +224,22 @@ static address g_brk_at_startup = nullptr;
 //   http://publib.boulder.ibm.com/infocenter/aix/v6r1/index.jsp?topic=/com.ibm.aix.prftungd/doc/prftungd/multiple_page_size_app_support.htm
 //
 static struct {
-  size_t pagesize;            // sysconf _SC_PAGESIZE (4K)
-  size_t datapsize;           // default data page size (LDR_CNTRL DATAPSIZE)
-  size_t shmpsize;            // default shared memory page size (LDR_CNTRL SHMPSIZE)
-  size_t pthr_stack_pagesize; // stack page size of pthread threads
-  size_t textpsize;           // default text page size (LDR_CNTRL STACKPSIZE)
-  bool can_use_64K_pages;     // True if we can alloc 64K pages dynamically with Sys V shm.
-  bool can_use_16M_pages;     // True if we can alloc 16M pages dynamically with Sys V shm.
-  int error;                  // Error describing if something went wrong at multipage init.
+  size_t pagesize;             // sysconf _SC_PAGESIZE (4K)
+  size_t datapsize;            // default data page size (LDR_CNTRL DATAPSIZE)
+  size_t shmpsize;             // default shared memory page size (LDR_CNTRL SHMPSIZE)
+  size_t pthr_stack_pagesize;  // stack page size of pthread threads
+  size_t textpsize;            // default text page size (LDR_CNTRL STACKPSIZE)
+  bool can_use_64K_pages;      // True if we can alloc 64K pages dynamically with Sys V shm.
+  bool can_use_16M_pages;      // True if we can alloc 16M pages dynamically with Sys V shm.
+  bool can_use_64K_mmap_pages; // True if we can alloc 64K pages dynamically with mmap.
+  int error;                   // Error describing if something went wrong at multipage init.
 } g_multipage_support = {
   (size_t) -1,
   (size_t) -1,
   (size_t) -1,
   (size_t) -1,
   (size_t) -1,
-  false, false,
+  false, false, false,
   0
 };
 
@@ -291,45 +295,7 @@ julong os::physical_memory() {
   return Aix::physical_memory();
 }
 
-// Helper function, emulates disclaim64 using multiple 32bit disclaims
-// because we cannot use disclaim64() on old AIX releases.
-static bool my_disclaim64(char* addr, size_t size) {
-
-  if (size == 0) {
-    return true;
-  }
-
-  // Maximum size 32bit disclaim() accepts. (Theoretically 4GB, but I just do not trust that.)
-  const unsigned int maxDisclaimSize = 0x40000000;
-
-  const unsigned int numFullDisclaimsNeeded = (size / maxDisclaimSize);
-  const unsigned int lastDisclaimSize = (size % maxDisclaimSize);
-
-  char* p = addr;
-
-  for (unsigned int i = 0; i < numFullDisclaimsNeeded; i ++) {
-    if (::disclaim(p, maxDisclaimSize, DISCLAIM_ZEROMEM) != 0) {
-      ErrnoPreserver ep;
-      log_trace(os, map)("disclaim failed: " RANGEFMT " errno=(%s)",
-                         RANGEFMTARGS(p, maxDisclaimSize),
-                         os::strerror(ep.saved_errno()));
-      return false;
-    }
-    p += maxDisclaimSize;
-  }
-
-  if (lastDisclaimSize > 0) {
-    if (::disclaim(p, lastDisclaimSize, DISCLAIM_ZEROMEM) != 0) {
-      ErrnoPreserver ep;
-      log_trace(os, map)("disclaim failed: " RANGEFMT " errno=(%s)",
-                         RANGEFMTARGS(p, lastDisclaimSize),
-                         os::strerror(ep.saved_errno()));
-      return false;
-    }
-  }
-
-  return true;
-}
+size_t os::rss() { return (size_t)0; }
 
 // Cpu architecture string
 #if defined(PPC32)
@@ -347,7 +313,7 @@ size_t os::Aix::query_pagesize(void* addr) {
   if (::vmgetinfo(&pi, VM_PAGE_INFO, sizeof(pi)) == 0) {
     return pi.pagesize;
   } else {
-    trcVerbose("vmgetinfo(VM_PAGE_INFO) failed (errno: %d)", errno);
+    log_warning(pagesize)("vmgetinfo(VM_PAGE_INFO) failed (errno: %d)", errno);
     assert(false, "vmgetinfo failed to retrieve page size");
     return 4*K;
   }
@@ -408,12 +374,16 @@ static void query_multipage_support() {
   // our own page size after allocated.
   {
     const int shmid = ::shmget(IPC_PRIVATE, 1, IPC_CREAT | S_IRUSR | S_IWUSR);
-    guarantee(shmid != -1, "shmget failed");
-    void* p = ::shmat(shmid, nullptr, 0);
-    ::shmctl(shmid, IPC_RMID, nullptr);
-    guarantee(p != (void*) -1, "shmat failed");
-    g_multipage_support.shmpsize = os::Aix::query_pagesize(p);
-    ::shmdt(p);
+    assert(shmid != -1, "shmget failed");
+    if (shmid != -1) {
+      void* p = ::shmat(shmid, nullptr, 0);
+      ::shmctl(shmid, IPC_RMID, nullptr);
+      assert(p != (void*) -1, "shmat failed");
+      if (p != (void*) -1) {
+        g_multipage_support.shmpsize = os::Aix::query_pagesize(p);
+        ::shmdt(p);
+      }
+    }
   }
 
   // Before querying the stack page size, make sure we are not running as primordial
@@ -442,14 +412,13 @@ static void query_multipage_support() {
     psize_t sizes[MAX_PAGE_SIZES];
     const int num_psizes = ::vmgetinfo(sizes, VMINFO_GETPSIZES, MAX_PAGE_SIZES);
     if (num_psizes == -1) {
-      trcVerbose("vmgetinfo(VMINFO_GETPSIZES) failed (errno: %d)", errno);
-      trcVerbose("disabling multipage support.");
+      log_warning(pagesize)("vmgetinfo(VMINFO_GETPSIZES) failed (errno: %d), disabling multipage support.", errno);
       g_multipage_support.error = ERROR_MP_VMGETINFO_FAILED;
       goto query_multipage_support_end;
     }
     guarantee(num_psizes > 0, "vmgetinfo(.., VMINFO_GETPSIZES, ...) failed.");
     assert(num_psizes <= MAX_PAGE_SIZES, "Surprise! more than 4 page sizes?");
-    trcVerbose("vmgetinfo(.., VMINFO_GETPSIZES, ...) returns %d supported page sizes: ", num_psizes);
+    log_info(pagesize)("vmgetinfo(.., VMINFO_GETPSIZES, ...) returns %d supported page sizes: ", num_psizes);
     for (int i = 0; i < num_psizes; i ++) {
       trcVerbose(" %s ", describe_pagesize(sizes[i]));
     }
@@ -464,32 +433,46 @@ static void query_multipage_support() {
       trcVerbose("Probing support for %s pages...", describe_pagesize(pagesize));
       const int shmid = ::shmget(IPC_PRIVATE, pagesize,
         IPC_CREAT | S_IRUSR | S_IWUSR);
-      guarantee0(shmid != -1); // Should always work.
-      // Try to set pagesize.
-      struct shmid_ds shm_buf = { };
-      shm_buf.shm_pagesize = pagesize;
-      if (::shmctl(shmid, SHM_PAGESIZE, &shm_buf) != 0) {
-        const int en = errno;
-        ::shmctl(shmid, IPC_RMID, nullptr); // As early as possible!
-        trcVerbose("shmctl(SHM_PAGESIZE) failed with errno=%d", errno);
-      } else {
-        // Attach and double check pageisze.
-        void* p = ::shmat(shmid, nullptr, 0);
-        ::shmctl(shmid, IPC_RMID, nullptr); // As early as possible!
-        guarantee0(p != (void*) -1); // Should always work.
-        const size_t real_pagesize = os::Aix::query_pagesize(p);
-        if (real_pagesize != pagesize) {
-          trcVerbose("real page size (" SIZE_FORMAT_X ") differs.", real_pagesize);
+      assert(shmid != -1, "shmget failed");
+      if (shmid != -1) {
+        // Try to set pagesize.
+        struct shmid_ds shm_buf = { };
+        shm_buf.shm_pagesize = pagesize;
+        if (::shmctl(shmid, SHM_PAGESIZE, &shm_buf) != 0) {
+          const int en = errno;
+          ::shmctl(shmid, IPC_RMID, nullptr); // As early as possible!
+          log_warning(pagesize)("shmctl(SHM_PAGESIZE) failed with errno=%d", errno);
         } else {
-          can_use = true;
+          // Attach and double check pageisze.
+          void* p = ::shmat(shmid, nullptr, 0);
+          ::shmctl(shmid, IPC_RMID, nullptr); // As early as possible!
+          assert(p != (void*) -1, "shmat failed");
+          if (p != (void*) -1) {
+            const size_t real_pagesize = os::Aix::query_pagesize(p);
+            if (real_pagesize != pagesize) {
+              log_warning(pagesize)("real page size (" SIZE_FORMAT_X ") differs.", real_pagesize);
+            } else {
+              can_use = true;
+            }
+            ::shmdt(p);
+          }
         }
-        ::shmdt(p);
       }
       trcVerbose("Can use: %s", (can_use ? "yes" : "no"));
       if (pagesize == 64*K) {
         g_multipage_support.can_use_64K_pages = can_use;
       } else if (pagesize == 16*M) {
         g_multipage_support.can_use_16M_pages = can_use;
+      }
+    }
+
+    // Can we use mmap with 64K pages? (Should be available with AIX7.3 TL1)
+    {
+      void* p = mmap(NULL, 64*K, PROT_READ | PROT_WRITE, MAP_ANON_64K | MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+      assert(p != (void*) -1, "mmap failed");
+      if (p != (void*) -1) {
+        g_multipage_support.can_use_64K_mmap_pages = (64*K == os::Aix::query_pagesize(p));
+        munmap(p, 64*K);
       }
     }
 
@@ -505,6 +488,8 @@ query_multipage_support_end:
       describe_pagesize(g_multipage_support.textpsize));
   trcVerbose("Thread stack page size (pthread): %s",
       describe_pagesize(g_multipage_support.pthr_stack_pagesize));
+  trcVerbose("Can use 64K pages with mmap memory: %s",
+      (g_multipage_support.can_use_64K_mmap_pages ? "yes" :"no"));
   trcVerbose("Default shared memory page size: %s",
       describe_pagesize(g_multipage_support.shmpsize));
   trcVerbose("Can use 64K pages dynamically with shared memory: %s",
@@ -609,7 +594,7 @@ bool os::Aix::get_meminfo(meminfo_t* pmi) {
   memset (&psmt, '\0', sizeof(psmt));
   const int rc = libperfstat::perfstat_memory_total(nullptr, &psmt, sizeof(psmt), 1);
   if (rc == -1) {
-    trcVerbose("perfstat_memory_total() failed (errno=%d)", errno);
+    log_warning(os)("perfstat_memory_total() failed (errno=%d)", errno);
     assert(0, "perfstat_memory_total() failed");
     return false;
   }
@@ -647,8 +632,8 @@ static void *thread_native_entry(Thread *thread) {
     address low_address = thread->stack_end();
     address high_address = thread->stack_base();
     lt.print("Thread is alive (tid: " UINTX_FORMAT ", kernel thread id: " UINTX_FORMAT
-             ", stack [" PTR_FORMAT " - " PTR_FORMAT " (" SIZE_FORMAT "k using %uk pages)).",
-             os::current_thread_id(), (uintx) kernel_thread_id, low_address, high_address,
+             ", stack [" PTR_FORMAT " - " PTR_FORMAT " (" SIZE_FORMAT "k using %luk pages)).",
+             os::current_thread_id(), (uintx) kernel_thread_id, p2i(low_address), p2i(high_address),
              (high_address - low_address) / K, os::Aix::query_pagesize(low_address) / K);
   }
 
@@ -1031,7 +1016,7 @@ bool os::dll_address_to_library_name(address addr, char* buf,
   return true;
 }
 
-static void* dll_load_library(const char *filename, char *ebuf, int ebuflen) {
+static void* dll_load_library(const char *filename, int *eno, char *ebuf, int ebuflen) {
 
   log_info(os)("attempting shared library load of %s", filename);
   if (ebuf && ebuflen > 0) {
@@ -1059,7 +1044,7 @@ static void* dll_load_library(const char *filename, char *ebuf, int ebuflen) {
   void* result;
   const char* error_report = nullptr;
   JFR_ONLY(NativeLibraryLoadEvent load_event(filename, &result);)
-  result = Aix_dlopen(filename, dflags, &error_report);
+  result = Aix_dlopen(filename, dflags, eno, &error_report);
   if (result != nullptr) {
     Events::log_dll_message(nullptr, "Loaded shared library %s", filename);
     // Reload dll cache. Don't do this in signal handling.
@@ -1091,12 +1076,13 @@ void *os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   const char new_extension[] = ".a";
   STATIC_ASSERT(sizeof(old_extension) >= sizeof(new_extension));
   // First try to load the existing file.
-  result = dll_load_library(filename, ebuf, ebuflen);
+  int eno=0;
+  result = dll_load_library(filename, &eno, ebuf, ebuflen);
   // If the load fails,we try to reload by changing the extension to .a for .so files only.
   // Shared object in .so format dont have braces, hence they get removed for archives with members.
-  if (result == nullptr && pointer_to_dot != nullptr && strcmp(pointer_to_dot, old_extension) == 0) {
+  if (result == nullptr && eno == ENOENT && pointer_to_dot != nullptr && strcmp(pointer_to_dot, old_extension) == 0) {
     snprintf(pointer_to_dot, sizeof(old_extension), "%s", new_extension);
-    result = dll_load_library(file_path, ebuf, ebuflen);
+    result = dll_load_library(file_path, &eno, ebuf, ebuflen);
   }
   FREE_C_HEAP_ARRAY(char, file_path);
   return result;
@@ -1176,6 +1162,8 @@ void os::print_memory_info(outputStream* st) {
     describe_pagesize(g_multipage_support.textpsize));
   st->print_cr("  Thread stack page size (pthread):       %s",
     describe_pagesize(g_multipage_support.pthr_stack_pagesize));
+  st->print_cr("  Can use 64K pages with mmap memory:     %s",
+    (g_multipage_support.can_use_64K_mmap_pages ? "yes" :"no"));
   st->print_cr("  Default shared memory page size:        %s",
     describe_pagesize(g_multipage_support.shmpsize));
   st->print_cr("  Can use 64K pages dynamically with shared memory:  %s",
@@ -1395,8 +1383,8 @@ struct vmembk_t {
 
   void print_on(outputStream* os) const {
     os->print("[" PTR_FORMAT " - " PTR_FORMAT "] (" UINTX_FORMAT
-      " bytes, %d %s pages), %s",
-      addr, addr + size - 1, size, size / pagesize, describe_pagesize(pagesize),
+      " bytes, %ld %s pages), %s",
+      p2i(addr), p2i(addr) + size - 1, size, size / pagesize, describe_pagesize(pagesize),
       (type == VMEM_SHMATED ? "shmat" : "mmap")
     );
   }
@@ -1598,10 +1586,11 @@ static bool uncommit_shmated_memory(char* addr, size_t size) {
   trcVerbose("uncommit_shmated_memory [" PTR_FORMAT " - " PTR_FORMAT "].",
     p2i(addr), p2i(addr + size - 1));
 
-  const bool rc = my_disclaim64(addr, size);
+  const int rc = disclaim64(addr, size, DISCLAIM_ZEROMEM);
 
-  if (!rc) {
-    trcVerbose("my_disclaim64(" PTR_FORMAT ", " UINTX_FORMAT ") failed.\n", p2i(addr), size);
+  if (rc != 0) {
+    ErrnoPreserver ep;
+    log_warning(os)("disclaim64(" PTR_FORMAT ", " UINTX_FORMAT ") failed, %s\n", p2i(addr), size, os::strerror(ep.saved_errno()));
     return false;
   }
   return true;
@@ -1654,6 +1643,10 @@ static char* reserve_mmaped_memory(size_t bytes, char* requested_addr) {
   // later use msync(MS_INVALIDATE) (see os::uncommit_memory).
   int flags = MAP_ANONYMOUS | MAP_SHARED;
 
+  if (os::vm_page_size() == 64*K && g_multipage_support.can_use_64K_mmap_pages) {
+    flags |= MAP_ANON_64K;
+  }
+
   // MAP_FIXED is needed to enforce requested_addr - manpage is vague about what
   // it means if wishaddress is given but MAP_FIXED is not set.
   //
@@ -1703,7 +1696,11 @@ static char* reserve_mmaped_memory(size_t bytes, char* requested_addr) {
     p2i(addr), p2i(addr + bytes), bytes);
 
   // bookkeeping
-  vmembk_add(addr, size, 4*K, VMEM_MAPPED);
+  if (os::vm_page_size() == 64*K && g_multipage_support.can_use_64K_mmap_pages) {
+    vmembk_add(addr, size, 64*K, VMEM_MAPPED);
+  } else {
+    vmembk_add(addr, size, 4*K, VMEM_MAPPED);
+  }
 
   // Test alignment, see above.
   assert0(is_aligned_to(addr, os::vm_page_size()));
@@ -1791,7 +1788,7 @@ bool os::pd_commit_memory(char* addr, size_t size, bool exec) {
   guarantee0(vmi);
   vmi->assert_is_valid_subrange(addr, size);
 
-  trcVerbose("commit_memory [" PTR_FORMAT " - " PTR_FORMAT "].", p2i(addr), p2i(addr + size - 1));
+  log_info(os)("commit_memory [" PTR_FORMAT " - " PTR_FORMAT "].", p2i(addr), p2i(addr + size - 1));
 
   if (UseExplicitCommit) {
     // AIX commits memory on touch. So, touch all pages to be committed.
@@ -1849,7 +1846,7 @@ bool os::remove_stack_guard_pages(char* addr, size_t size) {
 void os::pd_realign_memory(char *addr, size_t bytes, size_t alignment_hint) {
 }
 
-void os::pd_free_memory(char *addr, size_t bytes, size_t alignment_hint) {
+void os::pd_disclaim_memory(char *addr, size_t bytes) {
 }
 
 size_t os::pd_pretouch_memory(void* first, void* last, size_t page_size) {
@@ -1896,8 +1893,8 @@ char* os::pd_reserve_memory(size_t bytes, bool exec) {
   bytes = align_up(bytes, os::vm_page_size());
 
   // In 4K mode always use mmap.
-  // In 64K mode allocate small sizes with mmap, large ones with 64K shmatted.
-  if (os::vm_page_size() == 4*K) {
+  // In 64K mode allocate with mmap if it supports 64K pages, otherwise use 64K shmatted.
+  if (os::vm_page_size() == 4*K || g_multipage_support.can_use_64K_mmap_pages) {
     return reserve_mmaped_memory(bytes, nullptr /* requested_addr */);
   } else {
     return reserve_shmated_memory(bytes, nullptr /* requested_addr */);
@@ -1974,12 +1971,12 @@ static bool checked_mprotect(char* addr, size_t size, int prot) {
   //
   // See http://publib.boulder.ibm.com/infocenter/pseries/v5r3/index.jsp?topic=/com.ibm.aix.basetechref/doc/basetrf1/mprotect.htm
 
-  Events::log(nullptr, "Protecting memory [" INTPTR_FORMAT "," INTPTR_FORMAT "] with protection modes %x", p2i(addr), p2i(addr+size), prot);
+  Events::log_memprotect(nullptr, "Protecting memory [" INTPTR_FORMAT "," INTPTR_FORMAT "] with protection modes %x", p2i(addr), p2i(addr+size), prot);
   bool rc = ::mprotect(addr, size, prot) == 0 ? true : false;
 
   if (!rc) {
     const char* const s_errno = os::errno_name(errno);
-    warning("mprotect(" PTR_FORMAT "-" PTR_FORMAT ", 0x%X) failed (%s).", addr, addr + size, prot, s_errno);
+    warning("mprotect(" PTR_FORMAT "-" PTR_FORMAT ", 0x%X) failed (%s).", p2i(addr), p2i(addr) + size, prot, s_errno);
     return false;
   }
 
@@ -2084,8 +2081,8 @@ char* os::pd_attempt_reserve_memory_at(char* requested_addr, size_t bytes, bool 
   bytes = align_up(bytes, os::vm_page_size());
 
   // In 4K mode always use mmap.
-  // In 64K mode allocate small sizes with mmap, large ones with 64K shmatted.
-  if (os::vm_page_size() == 4*K) {
+  // In 64K mode allocate with mmap if it supports 64K pages, otherwise use 64K shmatted.
+  if (os::vm_page_size() == 4*K || g_multipage_support.can_use_64K_mmap_pages) {
     return reserve_mmaped_memory(bytes, requested_addr);
   } else {
     return reserve_shmated_memory(bytes, requested_addr);
@@ -2101,15 +2098,6 @@ size_t os::vm_min_address() {
   // address here.
   assert(is_aligned(_vm_min_address_default, os::vm_allocation_granularity()), "Sanity");
   return _vm_min_address_default;
-}
-
-// Used to convert frequent JVM_Yield() to nops
-bool os::dont_yield() {
-  return DontYieldALot;
-}
-
-void os::naked_yield() {
-  sched_yield();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2171,7 +2159,7 @@ OSReturn os::set_native_priority(Thread* thread, int newpri) {
   int ret = pthread_setschedparam(thr, policy, &param);
 
   if (ret != 0) {
-    trcVerbose("Could not change priority for thread %d to %d (error %d, %s)",
+    log_warning(os)("Could not change priority for thread %d to %d (error %d, %s)",
         (int)thr, newpri, ret, os::errno_name(ret));
   }
   return (ret == 0) ? OS_OK : OS_ERR;
@@ -2234,18 +2222,18 @@ void os::init(void) {
   //    and should be allocated with 64k pages.
   //
   // So, we do the following:
-  // LDR_CNTRL    can_use_64K_pages_dynamically       what we do                      remarks
-  // 4K           no                                  4K                              old systems (aix 5.2) or new systems with AME activated
-  // 4k           yes                                 64k (treat 4k stacks as 64k)    different loader than java and standard settings
+  // LDR_CNTRL    can_use_64K_pages_dynamically(mmap or shm)       what we do                      remarks
+  // 4K           no                                               4K                              old systems (aix 5.2) or new systems with AME activated
+  // 4k           yes                                              64k (treat 4k stacks as 64k)    different loader than java and standard settings
   // 64k          no              --- AIX 5.2 ? ---
-  // 64k          yes                                 64k                             new systems and standard java loader (we set datapsize=64k when linking)
+  // 64k          yes                                              64k                             new systems and standard java loader (we set datapsize=64k when linking)
 
   // We explicitly leave no option to change page size, because only upgrading would work,
   // not downgrading (if stack page size is 64k you cannot pretend its 4k).
 
   if (g_multipage_support.datapsize == 4*K) {
     // datapsize = 4K. Data segment, thread stacks are 4K paged.
-    if (g_multipage_support.can_use_64K_pages) {
+    if (g_multipage_support.can_use_64K_pages || g_multipage_support.can_use_64K_mmap_pages) {
       // .. but we are able to use 64K pages dynamically.
       // This would be typical for java launchers which are not linked
       // with datapsize=64K (like, any other launcher but our own).
@@ -2275,7 +2263,7 @@ void os::init(void) {
     // This normally means that we can allocate 64k pages dynamically.
     // (There is one special case where this may be false: EXTSHM=on.
     // but we decided to not support that mode).
-    assert0(g_multipage_support.can_use_64K_pages);
+    assert0(g_multipage_support.can_use_64K_pages || g_multipage_support.can_use_64K_mmap_pages);
     set_page_size(64*K);
     trcVerbose("64K page mode");
     FLAG_SET_ERGO(Use64KPages, true);
@@ -2396,7 +2384,7 @@ void os::set_native_thread_name(const char *name) {
 
 bool os::find(address addr, outputStream* st) {
 
-  st->print(PTR_FORMAT ": ", addr);
+  st->print(PTR_FORMAT ": ", p2i(addr));
 
   loaded_module_t lm;
   if (LoadedLibraries::find_for_text_address(addr, &lm) ||
@@ -2493,13 +2481,6 @@ int os::open(const char *path, int oflag, int mode) {
   }
 
   return fd;
-}
-
-// create binary file, rewriting existing file if required
-int os::create_binary_file(const char* path, bool rewrite_existing) {
-  int oflags = O_WRONLY | O_CREAT;
-  oflags |= rewrite_existing ? O_TRUNC : O_EXCL;
-  return ::open(path, oflags, S_IREAD | S_IWRITE);
 }
 
 // return current position of file pointer
@@ -2664,10 +2645,10 @@ void os::Aix::initialize_os_info() {
   memset(&uts, 0, sizeof(uts));
   strcpy(uts.sysname, "?");
   if (::uname(&uts) == -1) {
-    trcVerbose("uname failed (%d)", errno);
+    log_warning(os)("uname failed (%d)", errno);
     guarantee(0, "Could not determine uname information");
   } else {
-    trcVerbose("uname says: sysname \"%s\" version \"%s\" release \"%s\" "
+    log_info(os)("uname says: sysname \"%s\" version \"%s\" release \"%s\" "
                "node \"%s\" machine \"%s\"\n",
                uts.sysname, uts.version, uts.release, uts.nodename, uts.machine);
     const int major = atoi(uts.version);
@@ -2683,7 +2664,7 @@ void os::Aix::initialize_os_info() {
       // Determine detailed AIX version: Version, Release, Modification, Fix Level.
       odmWrapper::determine_os_kernel_version(&_os_version);
       if (os_version_short() < 0x0701) {
-        trcVerbose("AIX releases older than AIX 7.1 are not supported.");
+        log_warning(os)("AIX releases older than AIX 7.1 are not supported.");
         assert(false, "AIX release too old.");
       }
       name_str = "AIX";
@@ -2692,7 +2673,7 @@ void os::Aix::initialize_os_info() {
     } else {
       assert(false, "%s", name_str);
     }
-    trcVerbose("We run on %s %s", name_str, ver_str);
+    log_info(os)("We run on %s %s", name_str, ver_str);
   }
 
   guarantee(_os_version, "Could not determine AIX release");
@@ -2717,7 +2698,7 @@ void os::Aix::scan_environment() {
   trcVerbose("EXTSHM=%s.", p ? p : "<unset>");
   if (p && strcasecmp(p, "ON") == 0) {
     _extshm = 1;
-    trcVerbose("*** Unsupported mode! Please remove EXTSHM from your environment! ***");
+    log_warning(os)("*** Unsupported mode! Please remove EXTSHM from your environment! ***");
     if (!AllowExtshm) {
       // We allow under certain conditions the user to continue. However, we want this
       // to be a fatal error by default. On certain AIX systems, leaving EXTSHM=ON means
@@ -2741,7 +2722,7 @@ void os::Aix::scan_environment() {
   trcVerbose("XPG_SUS_ENV=%s.", p ? p : "<unset>");
   if (p && strcmp(p, "ON") == 0) {
     _xpg_sus_mode = 1;
-    trcVerbose("Unsupported setting: XPG_SUS_ENV=ON");
+    log_warning(os)("Unsupported setting: XPG_SUS_ENV=ON");
     // This is not supported. Worst of all, it changes behaviour of mmap MAP_FIXED to
     // clobber address ranges. If we ever want to support that, we have to do some
     // testing first.
@@ -2760,11 +2741,15 @@ void os::Aix::scan_environment() {
 
 void os::Aix::initialize_libperfstat() {
   if (!libperfstat::init()) {
-    trcVerbose("libperfstat initialization failed.");
+    log_warning(os)("libperfstat initialization failed.");
     assert(false, "libperfstat initialization failed");
   } else {
     trcVerbose("libperfstat initialized.");
   }
+}
+
+bool os::Aix::supports_64K_mmap_pages() {
+  return g_multipage_support.can_use_64K_mmap_pages;
 }
 
 /////////////////////////////////////////////////////////////////////////////

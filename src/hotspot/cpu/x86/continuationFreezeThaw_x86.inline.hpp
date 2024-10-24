@@ -107,9 +107,6 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
     if (caller.is_interpreted_frame()) {
       // If the caller is interpreted, our stackargs are not supposed to overlap with it
       // so we make more room by moving sp down by argsize
-
-      // TODO but the interpreted caller will pass the args as not scalarized!
-      //int argsize = (f.cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
       int argsize = FKind::stack_argsize(f);
       sp -= argsize;
     }

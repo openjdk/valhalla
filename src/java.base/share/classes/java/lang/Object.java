@@ -241,6 +241,10 @@ public class Object {
 
     /**
      * {@return a string representation of the object}
+     *
+     * Satisfying this method's contract implies a non-{@code null}
+     * result must be returned.
+     *
      * @apiNote
      * In general, the
      * {@code toString} method returns a string that
@@ -374,16 +378,21 @@ public class Object {
      * @see    #wait(long, int)
      */
     public final void wait(long timeoutMillis) throws InterruptedException {
-        long comp = Blocker.begin();
+        if (!Thread.currentThread().isVirtual()) {
+            wait0(timeoutMillis);
+            return;
+        }
+
+        // virtual thread waiting
+        boolean attempted = Blocker.begin();
         try {
             wait0(timeoutMillis);
         } catch (InterruptedException e) {
-            Thread thread = Thread.currentThread();
-            if (thread.isVirtual())
-                thread.getAndClearInterrupt();
+            // virtual thread's interrupt status needs to be cleared
+            Thread.currentThread().getAndClearInterrupt();
             throw e;
         } finally {
-            Blocker.end(comp);
+            Blocker.end(attempted);
         }
     }
 

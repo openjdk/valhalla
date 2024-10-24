@@ -30,11 +30,19 @@
 
 int ciInlineKlass::compute_nonstatic_fields() {
   int result = ciInstanceKlass::compute_nonstatic_fields();
-  assert(super() == nullptr || !super()->has_nonstatic_fields(), "an inline type must not inherit fields from its superclass");
+
+  // Abstract value classes can also have declared fields.
+  ciInstanceKlass* super_klass = super();
+  GrowableArray<ciField*>* super_klass_fields = nullptr;
+  if (super_klass != nullptr && super_klass->has_nonstatic_fields()) {
+    int super_flen = super_klass->nof_nonstatic_fields();
+    super_klass_fields = super_klass->_nonstatic_fields;
+    assert(super_flen == 0 || super_klass_fields != nullptr, "first get nof_fields");
+  }
 
   // Compute declared non-static fields (without flattening of inline type fields)
   GrowableArray<ciField*>* fields = nullptr;
-  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(nullptr, false /* no flattening */);)
+  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(super_klass_fields, false /* no flattening */);)
   Arena* arena = CURRENT_ENV->arena();
   _declared_nonstatic_fields = (fields != nullptr) ? fields : new (arena) GrowableArray<ciField*>(arena, 0, 0, 0);
   return result;

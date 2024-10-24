@@ -132,7 +132,8 @@ jdk_lang = \
 # valhalla lworld tests
 jdk_valhalla = \
     java/lang/invoke \
-    valhalla
+    valhalla \
+    java/lang/instrument/valhalla
 
 
 # All of the java.util package
@@ -258,6 +259,8 @@ jdk_security = \
     :jdk_security3 \
     :jdk_security4
 
+# Tests in this group are manual as they depend on external infra
+# and may fail with external reasons, for instance - change in CA test portal.
 jdk_security_infra = \
     security/infra
 
@@ -625,11 +628,9 @@ jdk_core_manual_no_input = \
     javax/xml/jaxp/datatype/8033980/GregorianCalAndDurSerDataUtil.java
 
 jdk_security_manual_no_input = \
-    com/sun/crypto/provider/Cipher/DES/PerformanceTest.java \
+    :jdk_security_infra \
     com/sun/crypto/provider/Cipher/AEAD/GCMIncrementByte4.java \
     com/sun/crypto/provider/Cipher/AEAD/GCMIncrementDirect4.java \
-    com/sun/security/auth/callback/TextCallbackHandler/Default.java \
-    com/sun/security/auth/callback/TextCallbackHandler/Password.java \
     com/sun/security/sasl/gsskerb/AuthOnly.java \
     com/sun/security/sasl/gsskerb/ConfSecurityLayer.java \
     com/sun/security/sasl/gsskerb/NoSecurityLayer.java \
@@ -658,6 +659,7 @@ jdk_core_manual_interactive = \
 jdk_security_manual_interactive = \
     sun/security/tools/keytool/i18n.java \
     java/security/Policy/Root/Root.java \
+    com/sun/security/auth/callback/TextCallbackHandler/Password.java \
     sun/security/krb5/config/native/TestDynamicStore.java
 
 # Test sets for running inside container environment

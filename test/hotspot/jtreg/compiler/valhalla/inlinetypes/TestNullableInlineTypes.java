@@ -2207,6 +2207,8 @@ public class TestNullableInlineTypes {
         }
     }
 
+// TODO 8325632 Fails with -XX:+UnlockExperimentalVMOptions -XX:PerMethodSpecTrapLimit=0 -XX:PerMethodTrapLimit=0
+/*
     @ForceInline
     public Object test80_helper(Object obj, int i) {
         if ((i % 2) == 0) {
@@ -2235,9 +2237,6 @@ public class TestNullableInlineTypes {
         }
         Asserts.assertEquals(test80(), test80Result);
     }
-
-// TODO 8325632 Fails with -XX:+UnlockExperimentalVMOptions -XX:PerMethodSpecTrapLimit=0 -XX:PerMethodTrapLimit=0
-/*
 
     @ForceInline
     public Object test81_helper(Object obj, int i) {
@@ -3287,4 +3286,62 @@ public class TestNullableInlineTypes {
             // Expected
         }
     }
+
+    static value class CircularValue7 {
+        CircularValue7 v;
+        int i;
+
+        public CircularValue7(int i) {
+            this.v = new CircularValue7(); // When <init> is incrementally inlined: StoreN into object
+            dontInline(); // Not inlined -> safepoint which also saves StoreN.
+            this.i = i;
+        }
+
+        public CircularValue7(boolean ignored) {
+            this.v = new CircularValue7();
+            this.i = 23;
+        }
+
+        public CircularValue7() {
+            this.v = null;
+            this.i = 34;
+        }
+
+        @DontInline
+        static void dontInline() {}
+    }
+
+    @Test
+    @IR(failOn = ALLOC_G)
+    int testCircularSafepointUse() {
+        CircularValue7 v = new CircularValue7(true);  // v is non escaping -> EA can remove allocation
+        dontInline(); // Not inlined -> safepoint
+        return v.i; // Use v such that it is still required in the safepoint at dontInline()
+    }
+
+    @DontInline
+    void dontInline() {}
+
+    @Run(test = "testCircularSafepointUse")
+    public void testCircularSafepointUse_verifier() {
+        Asserts.assertEQ(testCircularSafepointUse(), new CircularValue7(true).i);
+    }
+
+
+    @Test
+    @IR(failOn = ALLOC_G)
+    int testCircularSafepointUse2(int i) {
+        // With AlwaysIncrementalInline:
+        // We allocate here because <init> is not inlined at parsing.
+        // At late inline: The store of v.v is done with a StoreN into the allocation to make the effect visible.
+        CircularValue7 v = new CircularValue7(i);
+        return v.i;
+    }
+
+    @Run(test = "testCircularSafepointUse2")
+    public void testCircularSafepointUse2_verifier() {
+        int rand = rI;
+        Asserts.assertEQ(testCircularSafepointUse2(rand), new CircularValue7(rand).i);
+    }
+
 }

@@ -47,14 +47,13 @@
   template(ZombieAll)                             \
   template(Verify)                                \
   template(HeapDumper)                            \
-  template(HeapDumpMerge)                         \
   template(CollectForMetadataAllocation)          \
   template(CollectForCodeCacheAllocation)         \
   template(GC_HeapInspection)                     \
-  template(GenCollectFull)                        \
-  template(GenCollectForAllocation)               \
-  template(ParallelGCFailedAllocation)            \
-  template(ParallelGCSystemGC)                    \
+  template(SerialCollectForAllocation)            \
+  template(SerialGCCollect)                       \
+  template(ParallelCollectForAllocation)          \
+  template(ParallelGCCollect)                     \
   template(G1CollectForAllocation)                \
   template(G1CollectFull)                         \
   template(G1PauseRemark)                         \
@@ -83,13 +82,13 @@
   template(ChangeBreakpoints)                     \
   template(GetOrSetLocal)                         \
   template(VirtualThreadGetOrSetLocal)            \
-  template(VirtualThreadGetCurrentLocation)       \
   template(ChangeSingleStep)                      \
   template(SetNotifyJvmtiEventsMode)              \
   template(HeapWalkOperation)                     \
   template(HeapIterateOperation)                  \
   template(ReportJavaOutOfMemory)                 \
-  template(JFRCheckpoint)                         \
+  template(JFRSafepointClear)                     \
+  template(JFRSafepointWrite)                     \
   template(ShenandoahFullGC)                      \
   template(ShenandoahInitMark)                    \
   template(ShenandoahFinalMarkStartEvac)          \

@@ -53,7 +53,13 @@ import javax.security.auth.x500.X500Principal;
     within that package; the object implementing that interface is
     provided through a third package to which access is restricted.
     This framework avoids the primary disadvantage of using reflection
-    for this purpose, namely the loss of compile-time checking. */
+    for this purpose, namely the loss of compile-time checking.
+ * <p><strong>
+ * Usage of these APIs often means bad encapsulation designs,
+ * increased complexity and lack of sustainability.
+ * Use this only as a last resort!
+ * </strong>
+ */
 
 public class SharedSecrets {
     private static JavaAWTAccess javaAWTAccess;
@@ -91,7 +97,6 @@ public class SharedSecrets {
     private static JavaxCryptoSealedObjectAccess javaxCryptoSealedObjectAccess;
     private static JavaxCryptoSpecAccess javaxCryptoSpecAccess;
     private static JavaxSecurityAccess javaxSecurityAccess;
-    private static JavaTemplateAccess javaTemplateAccess;
 
     public static void setJavaUtilCollectionAccess(JavaUtilCollectionAccess juca) {
         javaUtilCollectionAccess = juca;
@@ -528,21 +533,6 @@ public class SharedSecrets {
         if (access == null) {
             ensureClassInitialized(X500Principal.class);
             access = javaxSecurityAccess;
-        }
-        return access;
-    }
-
-    public static void setJavaTemplateAccess(JavaTemplateAccess jta) {
-        javaTemplateAccess = jta;
-    }
-
-    public static JavaTemplateAccess getJavaTemplateAccess() {
-        var access = javaTemplateAccess;
-        if (access == null) {
-            try {
-                Class.forName("java.lang.runtime.TemplateSupport", true, null);
-                access = javaTemplateAccess;
-            } catch (ClassNotFoundException e) {}
         }
         return access;
     }

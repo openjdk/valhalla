@@ -112,18 +112,18 @@ class ArchiveHeapWriter : AllStatic {
 public:
   static const intptr_t NOCOOPS_REQUESTED_BASE = 0x10000000;
 
+  // The minimum region size of all collectors that are supported by CDS in
+  // ArchiveHeapLoader::can_map() mode. Currently only G1 is supported. G1's region size
+  // depends on -Xmx, but can never be smaller than 1 * M.
+  // (TODO: Perhaps change to 256K to be compatible with Shenandoah)
+  static constexpr int MIN_GC_REGION_ALIGNMENT = 1 * M;
+
 private:
   class EmbeddedOopRelocator;
   struct NativePointerInfo {
     oop _src_obj;
     int _field_offset;
   };
-
-  // The minimum region size of all collectors that are supported by CDS in
-  // ArchiveHeapLoader::can_map() mode. Currently only G1 is supported. G1's region size
-  // depends on -Xmx, but can never be smaller than 1 * M.
-  // (TODO: Perhaps change to 256K to be compatible with Shenandoah)
-  static constexpr int MIN_GC_REGION_ALIGNMENT = 1 * M;
 
   static GrowableArrayCHeap<u1, mtClassShared>* _buffer;
 
@@ -140,10 +140,21 @@ private:
 
   static GrowableArrayCHeap<NativePointerInfo, mtClassShared>* _native_pointers;
   static GrowableArrayCHeap<oop, mtClassShared>* _source_objs;
-  static GrowableArrayCHeap<int, mtClassShared>* _source_objs_order;
 
-  typedef ResourceHashtable<size_t, oop,
-      36137, // prime number
+  // We sort _source_objs_order to minimize the number of bits in ptrmap and oopmap.
+  // See comments near the body of ArchiveHeapWriter::compare_objs_by_oop_fields().
+  // The objects will be written in the order of:
+  //_source_objs->at(_source_objs_order->at(0)._index)
+  // source_objs->at(_source_objs_order->at(1)._index)
+  // source_objs->at(_source_objs_order->at(2)._index)
+  // ...
+  struct HeapObjOrder {
+    int _index;    // The location of this object in _source_objs
+    int _rank;     // A lower rank means the object will be written at a lower location.
+  };
+  static GrowableArrayCHeap<HeapObjOrder, mtClassShared>* _source_objs_order;
+
+  typedef ResizeableResourceHashtable<size_t, oop,
       AnyObj::C_HEAP,
       mtClassShared> BufferOffsetToSourceObjectTable;
   static BufferOffsetToSourceObjectTable* _buffer_offset_to_source_obj_table;
@@ -212,7 +223,7 @@ private:
 
   static void update_header_for_requested_obj(oop requested_obj, oop src_obj, Klass* src_klass);
 
-  static int compare_objs_by_oop_fields(int* a, int* b);
+  static int compare_objs_by_oop_fields(HeapObjOrder* a, HeapObjOrder* b);
   static void sort_source_objs();
 
 public:

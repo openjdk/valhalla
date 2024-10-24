@@ -69,11 +69,11 @@ inline void frame::init(intptr_t* sp, intptr_t* fp, address pc) {
 inline void frame::setup(address pc) {
   adjust_unextended_sp();
 
-  address original_pc = CompiledMethod::get_deopt_original_pc(this);
+  address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
     _pc = original_pc;
     _deopt_state = is_deoptimized;
-    assert(_cb == nullptr || _cb->as_compiled_method()->insts_contains_inclusive(_pc),
+    assert(_cb == nullptr || _cb->as_nmethod()->insts_contains_inclusive(_pc),
            "original PC must be in the main code section of the compiled method (or must be immediately following it)");
   } else {
     if (_cb == SharedRuntime::deopt_blob()) {
@@ -167,7 +167,7 @@ inline frame::frame(intptr_t* sp, intptr_t* fp) {
   _cb = CodeCache::find_blob(_pc);
   adjust_unextended_sp();
 
-  address original_pc = CompiledMethod::get_deopt_original_pc(this);
+  address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
     _pc = original_pc;
     _deopt_state = is_deoptimized;
@@ -229,12 +229,12 @@ inline int frame::frame_size() const {
 }
 
 inline int frame::compiled_frame_stack_argsize(bool scalarized) const {
-  assert(cb()->is_compiled(), "");
+  assert(cb()->is_nmethod(), "");
 
   if (needs_stack_repair() && scalarized) {
     // TODO this should be cached!
     ResourceMark rm;
-    CompiledEntrySignature ces(cb()->as_compiled_method()->method());
+    CompiledEntrySignature ces(cb()->as_nmethod()->method());
     ces.compute_calling_conventions(false);
 
     const GrowableArray<SigEntry>* sig_cc = ces.sig_cc();
@@ -251,7 +251,7 @@ inline int frame::compiled_frame_stack_argsize(bool scalarized) const {
     }
     return cnt;
   }
-  return (cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
+  return (cb()->as_nmethod()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
 
 inline void frame::interpreted_frame_oop_map(InterpreterOopMap* mask) const {
@@ -455,7 +455,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 #endif
     }
 #endif
-    if (!_cb->is_compiled() || c1_buffering) { // compiled frames do not use callee-saved registers
+    if (!_cb->is_nmethod() || c1_buffering) { // compiled frames do not use callee-saved registers
       bool caller_args = _cb->caller_must_gc_arguments(map->thread()) || c1_buffering;
       map->set_include_argument_oops(caller_args);
       if (oop_map() != nullptr) {

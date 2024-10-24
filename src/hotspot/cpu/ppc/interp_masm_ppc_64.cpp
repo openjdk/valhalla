@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2023 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -444,8 +444,6 @@ void InterpreterMacroAssembler::get_cache_index_at_bcp(Register Rdst, int bcp_of
     } else {
       lwa(Rdst, bcp_offset, R14_bcp);
     }
-    assert(ConstantPool::decode_invokedynamic_index(~123) == 123, "else change next line");
-    nand(Rdst, Rdst, Rdst); // convert to plain index
   } else if (index_size == sizeof(u1)) {
     lbz(Rdst, bcp_offset, R14_bcp);
   } else {
@@ -972,8 +970,8 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 
     if (DiagnoseSyncOnValueBasedClasses != 0) {
       load_klass(tmp, object);
-      lwz(tmp, in_bytes(Klass::access_flags_offset()), tmp);
-      testbitdi(CCR0, R0, tmp, exact_log2(JVM_ACC_IS_VALUE_BASED_CLASS));
+      lbz(tmp, in_bytes(Klass::misc_flags_offset()), tmp);
+      testbitdi(CCR0, R0, tmp, exact_log2(KlassFlags::_misc_is_value_based_class));
       bne(CCR0, slow_case);
     }
 
@@ -1045,11 +1043,7 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
     // None of the above fast optimizations worked so we have to get into the
     // slow case of monitor enter.
     bind(slow_case);
-    if (LockingMode == LM_LIGHTWEIGHT) {
-      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter_obj), object);
-    } else {
-      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter), monitor);
-    }
+    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter), monitor);
     b(done);
     // }
     align(32, 12);

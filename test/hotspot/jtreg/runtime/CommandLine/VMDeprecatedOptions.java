@@ -57,6 +57,8 @@ public class VMDeprecatedOptions {
           Arrays.asList(new String[][] {
             // deprecated non-alias flags:
             {"AllowRedefinitionToAddDeleteMethods", "true"},
+            {"ZGenerational", "false"},
+            {"LockingMode", "1"},
 
             // deprecated alias flags (see also aliased_jvm_flags):
             {"CreateMinidumpOnCrash", "false"}
@@ -65,11 +67,11 @@ public class VMDeprecatedOptions {
         if (Platform.isX86() || Platform.isX64()) {
           deprecated.addAll(
             Arrays.asList(new String[][] {
-              {"UseRTMLocking",         "false"},
-              {"UseRTMDeopt",           "false"},
-              {"RTMRetryCount",         "5"}
             })
           );
+        }
+        if (Platform.isLinux()) {
+            deprecated.add(new String[] { "UseLinuxPosixThreadCPUClocks", "true" });
         }
         if (wb.isJFRIncluded()) {
             deprecated.add(new String[] {"FlightRecorder", "false"});

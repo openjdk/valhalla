@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -164,6 +164,7 @@ module java.base {
         java.desktop,
         java.logging,
         java.management,
+        java.management.rmi,
         java.naming,
         java.rmi,
         jdk.charsets,
@@ -254,7 +255,8 @@ module java.base {
         jdk.internal.jvmstat,
         jdk.management,
         jdk.management.agent,
-        jdk.internal.vm.ci;
+        jdk.internal.vm.ci,
+        jdk.jfr;
     exports jdk.internal.vm.annotation to
         java.instrument,
         jdk.internal.vm.ci,
@@ -267,8 +269,6 @@ module java.base {
         jdk.jfr;
     exports jdk.internal.util.xml.impl to
         jdk.jfr;
-    exports jdk.internal.util.random to
-        jdk.random;
     exports jdk.internal.value to  // Needed by Unsafe
         jdk.unsupported;
     exports jdk.internal.util to
@@ -397,7 +397,6 @@ module java.base {
     uses java.time.chrono.AbstractChronology;
     uses java.time.chrono.Chronology;
     uses java.time.zone.ZoneRulesProvider;
-    uses java.util.random.RandomGenerator;
     uses java.util.spi.CalendarDataProvider;
     uses java.util.spi.CalendarNameProvider;
     uses java.util.spi.CurrencyNameProvider;
@@ -422,10 +421,5 @@ module java.base {
 
     provides java.nio.file.spi.FileSystemProvider with
         jdk.internal.jrtfs.JrtFileSystemProvider;
-
-    provides java.util.random.RandomGenerator with
-        java.security.SecureRandom,
-        java.util.Random,
-        java.util.SplittableRandom;
 
 }

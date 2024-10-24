@@ -159,7 +159,7 @@ static char* reserve_memory(char* requested_address, const size_t size,
   // If the memory was requested at a particular address, use
   // os::attempt_reserve_memory_at() to avoid mapping over something
   // important.  If the reservation fails, return null.
-  if (requested_address != 0) {
+  if (requested_address != nullptr) {
     assert(is_aligned(requested_address, alignment),
            "Requested address " PTR_FORMAT " must be aligned to " SIZE_FORMAT,
            p2i(requested_address), alignment);
@@ -314,15 +314,18 @@ ReservedSpace ReservedSpace::first_part(size_t partition_size, size_t alignment)
   return result;
 }
 
-
-ReservedSpace
-ReservedSpace::last_part(size_t partition_size, size_t alignment) {
+ReservedSpace ReservedSpace::last_part(size_t partition_size, size_t alignment) {
   assert(partition_size <= size(), "partition failed");
   ReservedSpace result(base() + partition_size, size() - partition_size,
                        alignment, page_size(), special(), executable());
   return result;
 }
 
+ReservedSpace ReservedSpace::partition(size_t offset, size_t partition_size, size_t alignment) {
+  assert(offset + partition_size <= size(), "partition failed");
+  ReservedSpace result(base() + offset, partition_size, alignment, page_size(), special(), executable());
+  return result;
+}
 
 size_t ReservedSpace::page_align_size_up(size_t size) {
   return align_up(size, os::vm_page_size());
@@ -377,7 +380,7 @@ void ReservedHeapSpace::establish_noaccess_prefix() {
   if (base() && base() + _size > (char *)OopEncodingHeapMax) {
     if (true
         WIN64_ONLY(&& !UseLargePages)
-        AIX_ONLY(&& os::vm_page_size() != 64*K)) {
+        AIX_ONLY(&& (os::Aix::supports_64K_mmap_pages() || os::vm_page_size() == 4*K))) {
       // Protect memory at the base of the allocated region.
       // If special, the page was committed (only matters on windows)
       if (!os::protect_memory(_base, _noaccess_prefix, os::MEM_PROT_NONE, _special)) {

@@ -32,7 +32,7 @@
  * @modules java.instrument
  *          java.compiler
  * @run main RedefineClassHelper
- * @run main/othervm/timeout=6000 -javaagent:redefineagent.jar -XX:MetaspaceSize=23m -XX:MaxMetaspaceSize=23m RedefineLeakThrowable
+ * @run main/othervm/timeout=6000 -javaagent:redefineagent.jar -XX:MetaspaceSize=25m -XX:MaxMetaspaceSize=25m RedefineLeakThrowable
  */
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2763,6 +2763,17 @@ bool PhiNode::can_push_inline_types_down(PhaseGVN* phase, const bool can_reshape
   return true;
 }
 
+#ifdef ASSERT
+bool PhiNode::can_push_inline_types_down(PhaseGVN* phase) {
+  if (!can_be_inline_type()) {
+    return false;
+  }
+
+  ciInlineKlass* inline_klass;
+  return can_push_inline_types_down(phase, true, inline_klass);
+}
+#endif // ASSERT
+
 static int compare_types(const Type* const& e1, const Type* const& e2) {
   return (intptr_t)e1 - (intptr_t)e2;
 }
@@ -2880,10 +2891,10 @@ Node* PhiNode::merge_through_phi(Node* root_phi, PhaseIterGVN* igvn) {
           cached_vbox = vbox;
         } else if (vbox->vec_type() != cached_vbox->vec_type()) {
           // TODO: vector type mismatch can be handled with additional reinterpret casts
-          assert(Type::cmp(vbox->vec_type(), cached_vbox->vec_type()) != 0, "inconsistent");
+          assert(!Type::equals(vbox->vec_type(), cached_vbox->vec_type()), "inconsistent");
           return nullptr; // not optimizable: vector type mismatch
         } else if (vbox->box_type() != cached_vbox->box_type()) {
-          assert(Type::cmp(vbox->box_type(), cached_vbox->box_type()) != 0, "inconsistent");
+          assert(!Type::equals(vbox->box_type(), cached_vbox->box_type()), "inconsistent");
           return nullptr; // not optimizable: box type mismatch
         }
       } else {

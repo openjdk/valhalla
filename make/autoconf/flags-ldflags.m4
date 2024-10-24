@@ -31,22 +31,11 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS],
   FLAGS_SETUP_LDFLAGS_HELPER
 
   # Setup the target toolchain
-
-  # The target dir matches the name of VM variant
-  TARGET_JVM_VARIANT_PATH=$JVM_VARIANT_MAIN
-
-  # On some platforms (mac) the linker warns about non existing -L dirs.
   FLAGS_SETUP_LDFLAGS_CPU_DEP([TARGET])
 
   # Setup the build toolchain
-
-  # When building a buildjdk, it's always only the server variant
-  BUILD_JVM_VARIANT_PATH=server
-
   FLAGS_SETUP_LDFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_])
 
-  LDFLAGS_TESTEXE="${TARGET_LDFLAGS_JDK_LIBPATH}"
-  AC_SUBST(LDFLAGS_TESTEXE)
   AC_SUBST(ADLC_LDFLAGS)
 ])
 
@@ -82,7 +71,9 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
     LDFLAGS_CXX_PARTIAL_LINKING="$MACHINE_FLAG -r"
 
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
-      BASIC_LDFLAGS="-Wl,--exclude-libs,ALL"
+      # Clang needs the lld linker to work correctly
+      BASIC_LDFLAGS="-fuse-ld=lld -Wl,--exclude-libs,ALL"
+      UTIL_REQUIRE_PROGS(LLD, lld)
     fi
     if test "x$OPENJDK_TARGET_OS" = xaix; then
       BASIC_LDFLAGS="-Wl,-b64 -Wl,-brtl -Wl,-bnorwexec -Wl,-bnolibpath -Wl,-bnoexpall \
@@ -129,7 +120,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
 
   # Setup LDFLAGS for linking executables
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    EXECUTABLE_LDFLAGS="$EXECUTABLE_LDFLAGS -Wl,--allow-shlib-undefined"
     # Enabling pie on 32 bit builds prevents the JVM from allocating a continuous
     # java heap.
     if test "x$OPENJDK_TARGET_CPU_BITS" != "x32"; then
@@ -155,7 +145,7 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
   fi
 
   # Export some intermediate variables for compatibility
-  LDFLAGS_CXX_JDK="$BASIC_LDFLAGS_ONLYCXX $BASIC_LDFLAGS_ONLYCXX_JDK_ONLY $DEBUGLEVEL_LDFLAGS_JDK_ONLY"
+  LDFLAGS_CXX_JDK="$DEBUGLEVEL_LDFLAGS_JDK_ONLY"
   AC_SUBST(LDFLAGS_CXX_JDK)
   AC_SUBST(LDFLAGS_CXX_PARTIAL_LINKING)
 ])
@@ -178,9 +168,9 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_CPU_DEP],
 
     # MIPS ABI does not support GNU hash style
     if test "x${OPENJDK_$1_CPU}" = xmips ||
-       test "x${OPENJDK_$1_CPU}" = xmipsel ||
-       test "x${OPENJDK_$1_CPU}" = xmips64 ||
-       test "x${OPENJDK_$1_CPU}" = xmips64el; then
+        test "x${OPENJDK_$1_CPU}" = xmipsel ||
+        test "x${OPENJDK_$1_CPU}" = xmips64 ||
+        test "x${OPENJDK_$1_CPU}" = xmips64el; then
       $1_CPU_LDFLAGS="${$1_CPU_LDFLAGS} -Wl,--hash-style=sysv"
     else
       $1_CPU_LDFLAGS="${$1_CPU_LDFLAGS} -Wl,--hash-style=gnu"
@@ -197,20 +187,11 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_CPU_DEP],
     fi
   fi
 
-  # JVM_VARIANT_PATH depends on if this is build or target...
-  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    $1_LDFLAGS_JDK_LIBPATH="-libpath:\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base"
-  else
-    $1_LDFLAGS_JDK_LIBPATH="-L\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base \
-        -L\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base/${$1_JVM_VARIANT_PATH}"
-  fi
-
   # Export variables according to old definitions, prefix with $2 if present.
   LDFLAGS_JDK_COMMON="$BASIC_LDFLAGS $BASIC_LDFLAGS_JDK_ONLY \
       $OS_LDFLAGS $DEBUGLEVEL_LDFLAGS_JDK_ONLY ${$2EXTRA_LDFLAGS}"
   $2LDFLAGS_JDKLIB="$LDFLAGS_JDK_COMMON $BASIC_LDFLAGS_JDK_LIB_ONLY \
-      ${$1_LDFLAGS_JDK_LIBPATH} $SHARED_LIBRARY_FLAGS \
-      $REPRODUCIBLE_LDFLAGS $FILE_MACRO_LDFLAGS"
+      $SHARED_LIBRARY_FLAGS $REPRODUCIBLE_LDFLAGS $FILE_MACRO_LDFLAGS"
   $2LDFLAGS_JDKEXE="$LDFLAGS_JDK_COMMON $EXECUTABLE_LDFLAGS \
       ${$1_CPU_EXECUTABLE_LDFLAGS} $REPRODUCIBLE_LDFLAGS $FILE_MACRO_LDFLAGS"
 

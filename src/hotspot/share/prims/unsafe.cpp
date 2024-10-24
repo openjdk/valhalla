@@ -61,6 +61,7 @@
 #include "runtime/threadSMR.hpp"
 #include "runtime/vmOperations.hpp"
 #include "runtime/vm_version.hpp"
+#include "sanitizers/ub.hpp"
 #include "services/threadService.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
@@ -160,13 +161,9 @@ static inline void assert_field_offset_sane(oop p, jlong field_offset) {
 
 static inline void* index_oop_from_field_offset_long(oop p, jlong field_offset) {
   assert_field_offset_sane(p, field_offset);
-  jlong byte_offset = field_offset_to_byte_offset(field_offset);
-
-  if (sizeof(char*) == sizeof(jint)) {   // (this constant folds!)
-    return cast_from_oop<address>(p) + (jint) byte_offset;
-  } else {
-    return cast_from_oop<address>(p) +        byte_offset;
-  }
+  uintptr_t base_address = cast_from_oop<uintptr_t>(p);
+  uintptr_t byte_offset  = (uintptr_t)field_offset_to_byte_offset(field_offset);
+  return (void*)(base_address + byte_offset);
 }
 
 // Externally callable versions:
@@ -251,6 +248,9 @@ public:
     return normalize_for_read(*addr());
   }
 
+  // we use this method at some places for writing to 0 e.g. to cause a crash;
+  // ubsan does not know that this is the desired behavior
+  ATTRIBUTE_NO_UBSAN
   void put(T x) {
     GuardUnsafeAccess guard(_thread);
     assert(_obj == nullptr || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
@@ -540,7 +540,12 @@ UNSAFE_ENTRY_SCOPED(void, Unsafe_SetMemory0(JNIEnv *env, jobject unsafe, jobject
 
   {
     GuardUnsafeAccess guard(thread);
-    Copy::fill_to_memory_atomic(p, sz, value);
+    if (StubRoutines::unsafe_setmemory() != nullptr) {
+      MACOS_AARCH64_ONLY(ThreadWXEnable wx(WXExec, thread));
+      StubRoutines::UnsafeSetMemory_stub()(p, sz, value);
+    } else {
+      Copy::fill_to_memory_atomic(p, sz, value);
+    }
   }
 } UNSAFE_END
 
@@ -694,7 +699,7 @@ UNSAFE_ENTRY(jobject, Unsafe_StaticFieldBase0(JNIEnv *env, jobject unsafe, jobje
   int modifiers   = java_lang_reflect_Field::modifiers(reflected);
 
   if ((modifiers & JVM_ACC_STATIC) == 0) {
-    THROW_0(vmSymbols::java_lang_IllegalArgumentException());
+    THROW_NULL(vmSymbols::java_lang_IllegalArgumentException());
   }
 
   return JNIHandles::make_local(THREAD, mirror);
@@ -805,7 +810,7 @@ static jclass Unsafe_DefineClass_impl(JNIEnv *env, jstring name, jbyteArray data
 
   jbyte *body;
   char *utfName = nullptr;
-  jclass result = 0;
+  jclass result = nullptr;
   char buf[128];
 
   assert(data != nullptr, "Class bytes must not be null");
@@ -818,7 +823,7 @@ static jclass Unsafe_DefineClass_impl(JNIEnv *env, jstring name, jbyteArray data
   body = NEW_C_HEAP_ARRAY_RETURN_NULL(jbyte, length, mtInternal);
   if (body == nullptr) {
     throw_new(env, "java/lang/OutOfMemoryError");
-    return 0;
+    return nullptr;
   }
 
   env->GetByteArrayRegion(data, offset, length, body);
