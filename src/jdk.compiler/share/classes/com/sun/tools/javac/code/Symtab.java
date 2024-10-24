@@ -205,6 +205,7 @@ public class Symtab {
     public final Type overrideType;
     public final Type retentionType;
     public final Type deprecatedType;
+    public final Type mustUseType;
     public final Type suppressWarningsType;
     public final Type supplierType;
     public final Type inheritedType;
@@ -602,6 +603,7 @@ public class Symtab {
         overrideType = enterClass("java.lang.Override");
         retentionType = enterClass("java.lang.annotation.Retention");
         deprecatedType = enterClass("java.lang.Deprecated");
+        mustUseType = enterClass("java.lang.MustUse");
         suppressWarningsType = enterClass("java.lang.SuppressWarnings");
         supplierType = enterClass("java.util.function.Supplier");
         inheritedType = enterClass("java.lang.annotation.Inherited");
