@@ -1176,6 +1176,7 @@ void MacroAssembler::check_and_handle_earlyret(Register java_thread) { }
 void MacroAssembler::check_and_handle_popframe(Register java_thread) { }
 
 void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
+  assert_different_registers(inline_klass, temp_reg, obj, rscratch2);
 #ifdef ASSERT
   {
     Label done_check;
@@ -1187,11 +1188,11 @@ void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_
   Register offset = temp_reg;
   // Getting the offset of the pre-allocated default value
   ldr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
-  ldr(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
+  load_sized_value(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())), sizeof(int), true /*is_signed*/);
 
   // Getting the mirror
   ldr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, inline_klass, temp_reg);
+  resolve_oop_handle(obj, inline_klass, rscratch2);
 
   // Getting the pre-allocated default value from the mirror
   Address field(obj, offset);
