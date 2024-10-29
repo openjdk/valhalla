@@ -1185,6 +1185,16 @@ public:
   }
   Node *dom_lca_internal( Node *n1, Node *n2 ) const;
 
+  Node* dominated_node(Node* c1, Node* c2) {
+    assert(is_dominator(c1, c2) || is_dominator(c2, c1), "nodes must be related");
+    return is_dominator(c1, c2) ? c2 : c1;
+  }
+
+  // Return control node that's dominated by the 2 others
+  Node* dominated_node(Node* c1, Node* c2, Node* c3) {
+    return dominated_node(c1, dominated_node(c2, c3));
+  }
+
   // Build and verify the loop tree without modifying the graph.  This
   // is useful to verify that all inputs properly dominate their uses.
   static void verify(PhaseIterGVN& igvn) {
@@ -1791,6 +1801,8 @@ public:
   void pin_array_access_nodes_dependent_on(Node* ctrl);
 
   void collect_flat_array_checks(const IdealLoopTree* loop, Node_List& flat_array_checks) const;
+
+  Node* ensure_node_and_inputs_are_above_pre_end(CountedLoopEndNode* pre_end, Node* node);
 };
 
 

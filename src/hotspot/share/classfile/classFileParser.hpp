@@ -591,6 +591,7 @@ class ClassFileParser {
   bool has_inline_fields() const { return _has_inline_type_fields; }
 
   u2 java_fields_count() const { return _java_fields_count; }
+  bool is_abstract() const { return _access_flags.is_abstract(); }
 
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }

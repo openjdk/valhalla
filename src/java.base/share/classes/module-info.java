@@ -171,6 +171,7 @@ module java.base {
         jdk.jartool,
         jdk.jlink,
         jdk.jfr,
+        jdk.management,
         jdk.net,
         jdk.sctp,
         jdk.crypto.cryptoki;
