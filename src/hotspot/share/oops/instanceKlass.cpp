@@ -149,6 +149,11 @@
 
 #endif //  ndef DTRACE_ENABLED
 
+void InlineLayoutInfo::metaspace_pointers_do(MetaspaceClosure* it) {
+  log_trace(cds)("Iter(InlineFieldInfo): %p", this);
+  it->push(&_klass);
+}
+
 bool InstanceKlass::_finalization_enabled = true;
 
 static inline bool is_class_loader(const Symbol* class_name,
@@ -177,7 +182,7 @@ bool InstanceKlass::field_is_null_free_inline_type(int index) const {
 bool InstanceKlass::is_class_in_loadable_descriptors_attribute(Symbol* name) const {
   if (_loadable_descriptors == nullptr) return false;
   for (int i = 0; i < _loadable_descriptors->length(); i++) {
-        Symbol* class_name = _constants->klass_at_noresolve(_loadable_descriptors->at(i));
+        Symbol* class_name = _constants->symbol_at(_loadable_descriptors->at(i));
         if (class_name == name) return true;
   }
   return false;
@@ -570,8 +575,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
   _init_state(allocated),
   _reference_type(reference_type),
   _init_thread(nullptr),
-  _inline_type_field_klasses(nullptr),
-  _null_marker_offsets(nullptr),
+  _inline_layout_info_array(nullptr),
   _loadable_descriptors(nullptr),
   _adr_inlineklass_fixed_block(nullptr)
 {
@@ -722,15 +726,10 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_fields_status(nullptr);
 
-  if (inline_type_field_klasses_array() != nullptr) {
-    MetadataFactory::free_array<InlineKlass*>(loader_data, inline_type_field_klasses_array());
-    set_inline_type_field_klasses_array(nullptr);
+  if (inline_layout_info_array() != nullptr) {
+    MetadataFactory::free_array<InlineLayoutInfo>(loader_data, inline_layout_info_array());
   }
-
-  if (null_marker_offsets_array() != nullptr) {
-    MetadataFactory::free_array<int>(loader_data, null_marker_offsets_array());
-    set_null_marker_offsets_array(nullptr);
-  }
+  set_inline_layout_info_array(nullptr);
 
   // If a method from a redefined class is using this constant pool, don't
   // delete it, yet.  The new class's previous version will point to this.
@@ -973,31 +972,35 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           log_info(class, preload)("Preloading of class %s during linking of class %s (cause: null-free static field) succeeded",
                                    s->as_C_string(), name()->as_C_string());
           assert(klass != nullptr, "Sanity check");
-          if (!klass->is_inline_klass()) {
-            THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                       err_msg("class %s expects class %s to be a value class but it is an identity class",
-                       name()->as_C_string(), klass->external_name()), false);
-          }
           if (klass->is_abstract()) {
             THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
                       err_msg("Class %s expects class %s to be concrete value class, but it is an abstract class",
                       name()->as_C_string(),
                       InstanceKlass::cast(klass)->external_name()), false);
           }
-          InstanceKlass* ik = InstanceKlass::cast(klass);
-          if (!ik->is_implicitly_constructible()) {
+          if (!klass->is_inline_klass()) {
+            THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                       err_msg("class %s expects class %s to be a value class but it is an identity class",
+                       name()->as_C_string(), klass->external_name()), false);
+          }
+          InlineKlass* vk = InlineKlass::cast(klass);
+          if (!vk->is_implicitly_constructible()) {
              THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
                         err_msg("class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
                         klass->external_name()), false);
           }
           // the inline_type_field_klasses_array might have been loaded with CDS, so update only if not already set and check consistency
-          if (inline_type_field_klasses_array()->at(fs.index()) == nullptr) {
-            set_inline_type_field_klass(fs.index(), InlineKlass::cast(ik));
+          InlineLayoutInfo* li = inline_layout_info_adr(fs.index());
+          if (li->klass() == nullptr) {
+            li->set_klass(InlineKlass::cast(vk));
+            li->set_kind(LayoutKind::REFERENCE);
           }
-          assert(get_inline_type_field_klass(fs.index()) == ik, "Must match");
+          assert(get_inline_type_field_klass(fs.index()) == vk, "Must match");
         } else {
-          if (inline_type_field_klasses_array()->at(fs.index()) == nullptr) {
-            set_inline_type_field_klass(fs.index(), InlineKlass::cast(this));
+          InlineLayoutInfo* li = inline_layout_info_adr(fs.index());
+          if (li->klass() == nullptr) {
+            li->set_klass(InlineKlass::cast(this));
+            li->set_kind(LayoutKind::REFERENCE);
           }
           assert(get_inline_type_field_klass(fs.index()) == this, "Must match");
         }
@@ -1354,6 +1357,22 @@ void InstanceKlass::initialize_impl(TRAPS) {
           THROW_OOP(e());
       }
       vk->set_default_value(val);
+      if (vk->has_nullable_layout()) {
+        val = vk->allocate_instance(THREAD);
+        if (HAS_PENDING_EXCEPTION) {
+            Handle e(THREAD, PENDING_EXCEPTION);
+            CLEAR_PENDING_EXCEPTION;
+            {
+                EXCEPTION_MARK;
+                add_initialization_error(THREAD, e);
+                // Locks object, set state, and notify all waiting threads
+                set_initialization_state_and_notify(initialization_error, THREAD);
+                CLEAR_PENDING_EXCEPTION;
+            }
+            THROW_OOP(e());
+        }
+        vk->set_null_reset_value(val);
+      }
   }
 
   // Step 7
@@ -1937,7 +1956,7 @@ Klass* InstanceKlass::find_field(Symbol* name, Symbol* sig, bool is_static, fiel
 bool InstanceKlass::contains_field_offset(int offset) {
   if (this->is_inline_klass()) {
     InlineKlass* vk = InlineKlass::cast(this);
-    return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_payload_size_in_bytes());
+    return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->payload_size_in_bytes());
   } else {
     fieldDescriptor fd;
     return find_field_from_offset(offset, false, &fd);
@@ -2735,9 +2754,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_permitted_subclasses);
   it->push(&_loadable_descriptors);
   it->push(&_record_components);
-
-  it->push(&_inline_type_field_klasses, MetaspaceClosure::_writable);
-  it->push(&_null_marker_offsets);
+  it->push(&_inline_layout_info_array, MetaspaceClosure::_writable);
 }
 
 #if INCLUDE_CDS

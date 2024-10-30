@@ -74,10 +74,21 @@ class FieldLayoutInfo : public ResourceObj {
   int _instance_size;
   int _nonstatic_field_size;
   int _static_field_size;
+  int _payload_alignment;
+  int _first_field_offset;
+  int _payload_size_in_bytes;
+  int _non_atomic_size_in_bytes;
+  int _non_atomic_alignment;
+  int _atomic_layout_size_in_bytes;
+  int _nullable_layout_size_in_bytes;
+  int _null_marker_offset;
+  int _default_value_offset;
+  int _null_reset_value_offset;
   bool _has_nonstatic_fields;
   bool _is_naturally_atomic;
+  bool _must_be_atomic;
   bool _has_inline_fields;
-  bool _has_null_marker_offsets;
+  bool _is_empty_inline_klass;
 };
 
 // Parser for for .class files
@@ -146,9 +157,8 @@ class ClassFileParser {
   InstanceKlass* _klass_to_deallocate; // an InstanceKlass* to be destroyed
 
   ClassAnnotationCollector* _parsed_annotations;
-  FieldLayoutInfo* _field_info;
-  Array<InlineKlass*>* _inline_type_field_klasses;
-  Array<int>* _null_marker_offsets;
+  FieldLayoutInfo* _layout_info;
+  Array<InlineLayoutInfo>* _inline_layout_info_array;
   GrowableArray<FieldInfo>* _temp_field_info;
   const intArray* _method_ordering;
   GrowableArray<Method*>* _all_mirandas;
@@ -162,10 +172,6 @@ class ClassFileParser {
 
   int _num_miranda_methods;
 
-  int _alignment;
-  int _first_field_offset;
-  int _payload_size_in_bytes;
-  int _internal_null_marker_offset;
 
   Handle _protection_domain;
   AccessFlags _access_flags;
@@ -207,8 +213,6 @@ class ClassFileParser {
 
   bool _has_inline_type_fields;
   bool _has_null_marker_offsets;
-  bool _has_nonstatic_fields;
-  bool _is_empty_inline_type;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _is_implicitly_constructible;

@@ -71,7 +71,7 @@ class ArrayKlass: public Klass {
 
   // Are loads and stores to this concrete array type atomic?
   // Note that Object[] is naturally atomic, but its subtypes may not be.
-  virtual bool element_access_is_atomic() { return true; }
+  virtual bool element_access_must_be_atomic() { return true; }
 
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })

@@ -1197,50 +1197,53 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
   }
 }
 
-
-void InterpreterMacroAssembler::read_flat_field(Register holder_klass,
-                                                Register field_index, Register field_offset,
-                                                Register obj) {
+void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, Register tmp2, Register obj) {
   Label alloc_failed, empty_value, done;
-  const Register src = field_offset;
   const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
   const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
-  assert_different_registers(obj, holder_klass, field_index, field_offset, dst_temp);
+  assert_different_registers(obj, entry, tmp1, tmp2, dst_temp, r8, r9);
+
+  // FIXME: code below could be re-written to better use InlineLayoutInfo data structure
+  // see aarch64 version
 
   // Grap the inline field klass
-  push(holder_klass);
-  const Register field_klass = holder_klass;
-  get_inline_type_field_klass(holder_klass, field_index, field_klass);
+  const Register field_klass = tmp1;
+  load_unsigned_short(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
+  movptr(tmp1, Address(entry, ResolvedFieldEntry::field_holder_offset()));
+  get_inline_type_field_klass(tmp1, tmp2, field_klass);
 
-  //check for empty value klass
+    //check for empty value klass
   test_klass_is_empty_inline_type(field_klass, dst_temp, empty_value);
 
   // allocate buffer
-  push(obj); // save holder
+  push(obj);  // push object being read from     // FIXME spilling on stack could probably be avoided by using tmp2
   allocate_instance(field_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
 
   // Have an oop instance buffer, copy into it
+  load_unsigned_short(r9, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
+  movptr(r8, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())));
+  inline_layout_info(r8, r9, r8); // holder, index, info => InlineLayoutInfo into r8
+
   data_for_oop(obj, dst_temp, field_klass);
-  pop(alloc_temp);             // restore holder
-  lea(src, Address(alloc_temp, field_offset));
+  pop(alloc_temp);             // restore object being read from
+  load_sized_value(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_offset_offset())), sizeof(int), true /*is_signed*/);
+  lea(tmp2, Address(alloc_temp, tmp2));
   // call_VM_leaf, clobbers a few regs, save restore new obj
   push(obj);
-  access_value_copy(IS_DEST_UNINITIALIZED, src, dst_temp, field_klass);
+  // access_value_copy(IS_DEST_UNINITIALIZED, tmp2, dst_temp, field_klass);
+  flat_field_copy(IS_DEST_UNINITIALIZED, tmp2, dst_temp, r8);
   pop(obj);
-  pop(holder_klass);
   jmp(done);
 
   bind(empty_value);
   get_empty_inline_type_oop(field_klass, dst_temp, obj);
-  pop(holder_klass);
   jmp(done);
 
   bind(alloc_failed);
   pop(obj);
-  pop(holder_klass);
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
-          obj, field_index, holder_klass);
-
+  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
+          obj, entry);
+  get_vm_result(obj, r15_thread);
   bind(done);
 }
 

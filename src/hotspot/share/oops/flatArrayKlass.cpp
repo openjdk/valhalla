@@ -94,7 +94,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
-  assert(element_klass->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
+  assert(element_klass->must_be_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
 
   /*
    *  MVT->LWorld, now need to allocate secondaries array types, just like objArrayKlass...
@@ -158,7 +158,7 @@ oop FlatArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
 
 jint FlatArrayKlass::array_layout_helper(InlineKlass* vk) {
   BasicType etype = T_PRIMITIVE_OBJECT;
-  int esize = log2i_exact(round_up_power_of_2(vk->get_payload_size_in_bytes()));
+  int esize = log2i_exact(round_up_power_of_2(vk->payload_size_in_bytes()));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
 
   int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, true, hsize, etype, esize);
@@ -269,12 +269,12 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
            do {
              src -= elem_incr;
              dst -= elem_incr;
-             HeapAccess<>::value_copy(src, dst, s_elem_vklass);
+             HeapAccess<>::value_copy(src, dst, s_elem_vklass, LayoutKind::PAYLOAD); // Temporary hack for the transition
            } while (src > src_end);
          } else {
            address src_end = src + (length << log2_element_size());
            while (src < src_end) {
-             HeapAccess<>::value_copy(src, dst, s_elem_vklass);
+             HeapAccess<>::value_copy(src, dst, s_elem_vklass, LayoutKind::PAYLOAD); // Temporary hack for the transition
              src += elem_incr;
              dst += elem_incr;
            }
@@ -317,7 +317,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
        if (se->klass() != d_elem_klass) {
          THROW(vmSymbols::java_lang_ArrayStoreException());
        }
-       d_elem_vklass->inline_copy_oop_to_payload(se, dst);
+       d_elem_vklass->inline_copy_oop_to_payload(se, dst, LayoutKind::PAYLOAD); // Temporary hack for the transition
        dst += delem_incr;
        src_pos++;
      }

@@ -145,13 +145,50 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
+  int* _null_reset_value_offset;
   ArrayKlass** _null_free_inline_array_klasses;
-  int _alignment;
   int _first_field_offset;
-  int _payload_size_in_bytes;
-  int _internal_null_marker_offset; // -1 if none
+  int _payload_size_in_bytes;   // size of payload layout
+  int _payload_alignment;       // alignment required for payload
+  int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
+  int _non_atomic_alignment;    // alignment requirement for null-free non-atomic layout
+  int _atomic_size_in_bytes;    // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
+  int _nullable_size_in_bytes;  // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
+  int _null_marker_offset;
 
   friend class InlineKlass;
+};
+
+class InlineLayoutInfo : public MetaspaceObj {
+  InlineKlass* _klass;
+  LayoutKind _kind;
+  int _null_marker_offset; // null marker offset for this field, relative to the beginning of the current container
+
+ public:
+  InlineLayoutInfo(): _klass(nullptr), _kind(LayoutKind::UNKNOWN), _null_marker_offset(-1)  {}
+  InlineLayoutInfo(InlineKlass* ik, LayoutKind kind, int size, int nm_offset):
+    _klass(ik), _kind(kind), _null_marker_offset(nm_offset) {}
+
+  InlineKlass* klass() const { return _klass; }
+  void set_klass(InlineKlass* k) { _klass = k; }
+
+  LayoutKind kind() const {
+    assert(_kind != LayoutKind::UNKNOWN, "Not set");
+    return _kind;
+  }
+  void set_kind(LayoutKind lk) { _kind = lk; }
+
+  int null_marker_offset() const {
+    assert(_null_marker_offset != -1, "Not set");
+    return _null_marker_offset;
+  }
+  void set_null_marker_offset(int o) { _null_marker_offset = o; }
+
+  void metaspace_pointers_do(MetaspaceClosure* it);
+  MetaspaceObj::Type type() const { return InlineLayoutInfoType; }
+
+  static ByteSize klass_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _klass)); }
+  static ByteSize null_marker_offset_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _null_marker_offset)); }
 };
 
 class InstanceKlass: public Klass {
@@ -302,8 +339,7 @@ class InstanceKlass: public Klass {
   Array<u1>*          _fieldinfo_stream;
   Array<FieldStatus>* _fields_status;
 
-  Array<InlineKlass*>* _inline_type_field_klasses; // For "inline class" fields, null if none present
-  Array<int>* _null_marker_offsets; // for flat fields with a null marker
+  Array<InlineLayoutInfo>* _inline_layout_info_array;
   Array<u2>* _loadable_descriptors;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
@@ -363,24 +399,21 @@ class InstanceKlass: public Klass {
   bool has_inline_type_fields() const { return _misc_flags.has_inline_type_fields(); }
   void set_has_inline_type_fields()   { _misc_flags.set_has_inline_type_fields(true); }
 
-  bool is_empty_inline_type() const   { return _misc_flags.is_empty_inline_type(); }
-  void set_is_empty_inline_type()     { _misc_flags.set_is_empty_inline_type(true); }
-
-  // Note:  The naturally_atomic property only applies to
-  // inline classes; it is never true on identity classes.
-  // The bit is placed on instanceKlass for convenience.
-
-  // Query if h/w provides atomic load/store for instances.
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 
-  // Query if this class is mentioned in the JVM option ForceNonTearable.
+  // Query if this class has atomicity requirements (default is yes)
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
   // It inherits from supers.
+  // Its value depends on the ForceNonTearable VM option, the LooselyConsistentValue annotation
+  // and the presence of flat fields with atomicity requirements
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
+  // Query if this class can be implicitly constructed, meaning the VM is allowed
+  // to create instances without calling a constructor
+  // Applies to inline classes and their super types
   bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
   void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
@@ -916,8 +949,7 @@ public:
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
-  static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
-  static ByteSize null_marker_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _null_marker_offsets)); }
+  static ByteSize inline_layout_info_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_layout_info_array)); }
   static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
 
   // subclass/subinterface checks
@@ -1005,16 +1037,23 @@ public:
 
   inline InstanceKlass* volatile* adr_implementor() const;
 
-  Array<InlineKlass*>* inline_type_field_klasses_array() const { return _inline_type_field_klasses; }
-  void set_inline_type_field_klasses_array(Array<InlineKlass*>* array) { _inline_type_field_klasses = array; }
+  void set_inline_layout_info_array(Array<InlineLayoutInfo>* array) { _inline_layout_info_array = array; }
+  Array<InlineLayoutInfo>* inline_layout_info_array() const { return _inline_layout_info_array; }
+  void set_inline_layout_info(int index, InlineLayoutInfo *info) {
+    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    _inline_layout_info_array->at_put(index, *info);
+  }
+  InlineLayoutInfo inline_layout_info(int index) const {
+    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    return _inline_layout_info_array->at(index);
+  }
+  InlineLayoutInfo* inline_layout_info_adr(int index) {
+    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    return _inline_layout_info_array->adr_at(index);
+  }
 
-  Array<int>* null_marker_offsets_array() const { return _null_marker_offsets; }
-  void set_null_marker_offsets_array(Array<int>* array) { _null_marker_offsets = array; }
-
-  inline InlineKlass* get_inline_type_field_klass(int idx) const;
+  inline InlineKlass* get_inline_type_field_klass(int idx) const ;
   inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;
-  inline void set_inline_type_field_klass(int idx, InlineKlass* k);
-  inline void reset_inline_type_field_klass(int idx);
 
   // Use this to return the size of an instance in heap words:
   virtual int size_helper() const {
