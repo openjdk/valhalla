@@ -3221,8 +3221,6 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(rewrite_inline);
         __ bind(is_flat);
           pop_and_check_object(rax);
-          __ load_unsigned_short(rdx, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
-          __ movptr(rcx, Address(cache, ResolvedFieldEntry::field_holder_offset()));
           __ read_flat_field(rcx, rdx, rbx, rax);
           __ verify_oop(rax);
           __ push(atos);
@@ -3546,12 +3544,15 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
           __ jmp(rewrite_inline);
           __ bind(is_flat);
             // field is flat
-            pop_and_check_object(obj);
-            assert_different_registers(rax, rdx, obj, off);
-            __ load_klass(rdx, rax, rscratch1);
-            __ data_for_oop(rax, rax, rdx);
+            __ load_unsigned_short(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_index_offset())));
+            __ movptr(r9, Address(rcx, in_bytes(ResolvedFieldEntry::field_holder_offset())));
+            pop_and_check_object(obj);  // obj = rcx
+            __ load_klass(r8, rax, rscratch1);
+            __ data_for_oop(rax, rax, r8);
             __ addptr(obj, off);
-            __ access_value_copy(IN_HEAP, rax, obj, rdx);
+            __ inline_layout_info(r9, rdx, rbx);
+            // because we use InlineLayoutInfo, we need special value access code specialized for fields (arrays will need a different API)
+            __ flat_field_copy(IN_HEAP, rax, obj, rbx);
             __ jmp(rewrite_inline);
         __ bind(has_null_marker); // has null marker means the field is flat with a null marker
           pop_and_check_object(rbx);
@@ -3797,11 +3798,14 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
         do_oop_store(_masm, field, rax);
         __ jmp(done);
       __ bind(is_flat);
-        // field is flat
+        __ load_field_entry(r8, r9);
+        __ load_unsigned_short(r9, Address(r8, in_bytes(ResolvedFieldEntry::field_index_offset())));
+        __ movptr(r8, Address(r8, in_bytes(ResolvedFieldEntry::field_holder_offset())));
+        __ inline_layout_info(r8, r9, r8);
         __ load_klass(rdx, rax, rscratch1);
         __ data_for_oop(rax, rax, rdx);
         __ lea(rcx, field);
-        __ access_value_copy(IN_HEAP, rax, rcx, rdx);
+        __ flat_field_copy(IN_HEAP, rax, rcx, r8);
         __ jmp(done);
       __ bind(has_null_marker); // has null marker means the field is flat with a null marker
         __ movptr(rbx, rcx);
@@ -3903,10 +3907,6 @@ void TemplateTable::fast_accessfield(TosState state) {
         __ jmp(Done);
       __ bind(is_flat);
       // field is flat
-        __ push(rdx); // save offset
-        __ load_unsigned_short(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_index_offset())));
-        __ movptr(rcx, Address(rcx, ResolvedFieldEntry::field_holder_offset()));
-        __ pop(rbx); // restore offset
         __ read_flat_field(rcx, rdx, rbx, rax);
         __ jmp(Done);
       __ bind(has_null_marker);

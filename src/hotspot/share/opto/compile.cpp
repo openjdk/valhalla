@@ -767,14 +767,14 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
       init_tf(TypeFunc::make(method(), /* is_osr_compilation = */ true));
       StartNode* s = new StartOSRNode(root(), tf()->domain_sig());
       initial_gvn()->set_type_bottom(s);
-      init_start(s);
+      verify_start(s);
       cg = CallGenerator::for_osr(method(), entry_bci());
     } else {
       // Normal case.
       init_tf(TypeFunc::make(method()));
       StartNode* s = new StartNode(root(), tf()->domain_cc());
       initial_gvn()->set_type_bottom(s);
-      init_start(s);
+      verify_start(s);
       if (method()->intrinsic_id() == vmIntrinsics::_Reference_get) {
         // With java.lang.ref.reference.get() we must go through the
         // intrinsic - even when get() is the root
@@ -1133,13 +1133,12 @@ void Compile::Init(bool aliasing) {
   probe_alias_cache(nullptr)->_index = AliasIdxTop;
 }
 
-//---------------------------init_start----------------------------------------
-// Install the StartNode on this compile object.
-void Compile::init_start(StartNode* s) {
-  if (failing())
-    return; // already failing
-  assert(s == start(), "");
+#ifdef ASSERT
+// Verify that the current StartNode is valid.
+void Compile::verify_start(StartNode* s) const {
+  assert(failing() || s == start(), "should be StartNode");
 }
+#endif
 
 /**
  * Return the 'StartNode'. We must not have a pending failure, since the ideal graph
@@ -5747,7 +5746,20 @@ void Compile::print_method(CompilerPhaseType cpt, int level, Node* n) {
     ss.print(" %d", iter);
   }
   if (n != nullptr) {
-    ss.print(": %d %s ", n->_idx, NodeClassNames[n->Opcode()]);
+    ss.print(": %d %s", n->_idx, NodeClassNames[n->Opcode()]);
+    if (n->is_Call()) {
+      CallNode* call = n->as_Call();
+      if (call->_name != nullptr) {
+        // E.g. uncommon traps etc.
+        ss.print(" - %s", call->_name);
+      } else if (call->is_CallJava()) {
+        CallJavaNode* call_java = call->as_CallJava();
+        if (call_java->method() != nullptr) {
+          ss.print(" -");
+          call_java->method()->print_short_name(&ss);
+        }
+      }
+    }
   }
 
   const char* name = ss.as_string();
