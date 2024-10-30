@@ -26,6 +26,7 @@
 package java.lang;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 
@@ -34,7 +35,6 @@ import java.lang.constant.DynamicConstantDesc;
 import java.util.Optional;
 
 import static java.lang.constant.ConstantDescs.BSM_EXPLICIT_CAST;
-import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.CD_short;
 import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
 
@@ -274,6 +274,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @since  1.5
      */
     @IntrinsicCandidate
+    @DeserializeConstructor
     public static Short valueOf(short s) {
         final int offset = 128;
         int sAsInt = s;

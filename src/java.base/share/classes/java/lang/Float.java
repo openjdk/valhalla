@@ -33,6 +33,7 @@ import java.util.Optional;
 import jdk.internal.math.FloatConsts;
 import jdk.internal.math.FloatingDecimal;
 import jdk.internal.math.FloatToDecimal;
+import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
@@ -576,6 +577,7 @@ public final class Float extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
+    @DeserializeConstructor
     public static Float valueOf(float f) {
         return new Float(f);
     }

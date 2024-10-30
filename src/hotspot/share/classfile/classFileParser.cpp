@@ -1356,6 +1356,7 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
   return;
 }
 
+
 // Side-effects: populates the _fields, _fields_annotations,
 // _fields_type_annotations fields
 void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
@@ -1481,13 +1482,16 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       }
     }
 
+    if (is_null_restricted) {
+      fieldFlags.update_null_free_inline_type(true);
+    }
+
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
+    // Update number of static oop fields.
     if (is_static && is_reference_type(type)) {
       _static_oop_count++;
     }
-
-    if (is_null_restricted) fieldFlags.update_null_free_inline_type(true);
 
     FieldInfo fi(access_flags, name_index, signature_index, constantvalue_index, fieldFlags);
     fi.set_index(n);

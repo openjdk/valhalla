@@ -33,6 +33,7 @@ import java.util.Optional;
 import jdk.internal.math.FloatingDecimal;
 import jdk.internal.math.DoubleConsts;
 import jdk.internal.math.DoubleToDecimal;
+import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
@@ -344,8 +345,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * 754 floating-point arithmetic follows a principled design and its
  * behavior is predictable on the Java platform.
  *
- * @jls 4.2.3 Floating-Point Types, Formats, and Values
- * @jls 4.2.4. Floating-Point Operations
+ * @jls 4.2.3 Floating-Point Types and Values
+ * @jls 4.2.4 Floating-Point Operations
  * @jls 15.21.1 Numerical Equality Operators == and !=
  * @jls 15.20.1 Numerical Comparison Operators {@code <}, {@code <=}, {@code >}, and {@code >=}
  *
@@ -949,6 +950,7 @@ public final class Double extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
+    @DeserializeConstructor
     public static Double valueOf(double d) {
         return new Double(d);
     }
