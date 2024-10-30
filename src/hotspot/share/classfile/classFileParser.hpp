@@ -159,7 +159,6 @@ class ClassFileParser {
   ClassAnnotationCollector* _parsed_annotations;
   FieldLayoutInfo* _layout_info;
   Array<InlineLayoutInfo>* _inline_layout_info_array;
-  Array<int>* _null_marker_offsets;
   GrowableArray<FieldInfo>* _temp_field_info;
   const intArray* _method_ordering;
   GrowableArray<Method*>* _all_mirandas;

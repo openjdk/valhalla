@@ -5592,7 +5592,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _parsed_annotations(nullptr),
   _layout_info(nullptr),
   _inline_layout_info_array(nullptr),
-  _null_marker_offsets(nullptr),
   _temp_field_info(nullptr),
   _method_ordering(nullptr),
   _all_mirandas(nullptr),
@@ -5682,7 +5681,6 @@ void ClassFileParser::clear_class_metadata() {
   _fields_annotations = _fields_type_annotations = nullptr;
   _record_components = nullptr;
   _inline_layout_info_array = nullptr;
-  _null_marker_offsets = nullptr;
 }
 
 // Destructor to clean up
@@ -5703,10 +5701,6 @@ ClassFileParser::~ClassFileParser() {
 
   if (_inline_layout_info_array != nullptr) {
     MetadataFactory::free_array<InlineLayoutInfo>(_loader_data, _inline_layout_info_array);
-  }
-
-  if (_null_marker_offsets != nullptr) {
-     MetadataFactory::free_array<int>(_loader_data, _null_marker_offsets);
   }
 
   if (_methods != nullptr) {
