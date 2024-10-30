@@ -89,7 +89,6 @@ class ClassFileParser {
   friend class FieldLayout;
 
   class ClassAnnotationCollector;
-  class FieldAllocationCount;
   class FieldAnnotationCollector;
 
  public:
@@ -119,6 +118,7 @@ class ClassFileParser {
   const bool _is_hidden;
   const bool _can_access_vm_annotations;
   int _orig_cp_size;
+  unsigned int _static_oop_count;
 
   // Metadata created before the instance klass is created.  Must be deallocated
   // if not transferred to the InstanceKlass upon successful class loading
@@ -146,7 +146,6 @@ class ClassFileParser {
   InstanceKlass* _klass_to_deallocate; // an InstanceKlass* to be destroyed
 
   ClassAnnotationCollector* _parsed_annotations;
-  FieldAllocationCount* _fac;
   FieldLayoutInfo* _field_info;
   Array<InlineKlass*>* _inline_type_field_klasses;
   Array<int>* _null_marker_offsets;
@@ -282,7 +281,6 @@ class ClassFileParser {
 
   void parse_fields(const ClassFileStream* const cfs,
                     AccessFlags class_access_flags,
-                    FieldAllocationCount* const fac,
                     ConstantPool* cp,
                     const int cp_size,
                     u2* const java_fields_count_ptr,
@@ -593,6 +591,7 @@ class ClassFileParser {
   bool has_inline_fields() const { return _has_inline_type_fields; }
 
   u2 java_fields_count() const { return _java_fields_count; }
+  bool is_abstract() const { return _access_flags.is_abstract(); }
 
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }

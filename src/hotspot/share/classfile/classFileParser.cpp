@@ -1357,112 +1357,16 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
 }
 
 
-// Field allocation types. Used for computing field offsets.
-
-enum FieldAllocationType {
-  STATIC_OOP,           // Oops
-  STATIC_BYTE,          // Boolean, Byte, char
-  STATIC_SHORT,         // shorts
-  STATIC_WORD,          // ints
-  STATIC_DOUBLE,        // aligned long or double
-  STATIC_INLINE,        // inline type field
-  NONSTATIC_OOP,
-  NONSTATIC_BYTE,
-  NONSTATIC_SHORT,
-  NONSTATIC_WORD,
-  NONSTATIC_DOUBLE,
-  NONSTATIC_INLINE,
-  MAX_FIELD_ALLOCATION_TYPE,
-  BAD_ALLOCATION_TYPE = -1
-};
-
-static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
-  BAD_ALLOCATION_TYPE, // 0
-  BAD_ALLOCATION_TYPE, // 1
-  BAD_ALLOCATION_TYPE, // 2
-  BAD_ALLOCATION_TYPE, // 3
-  NONSTATIC_BYTE ,     // T_BOOLEAN     =  4,
-  NONSTATIC_SHORT,     // T_CHAR        =  5,
-  NONSTATIC_WORD,      // T_FLOAT       =  6,
-  NONSTATIC_DOUBLE,    // T_DOUBLE      =  7,
-  NONSTATIC_BYTE,      // T_BYTE        =  8,
-  NONSTATIC_SHORT,     // T_SHORT       =  9,
-  NONSTATIC_WORD,      // T_INT         = 10,
-  NONSTATIC_DOUBLE,    // T_LONG        = 11,
-  NONSTATIC_OOP,       // T_OBJECT      = 12,
-  NONSTATIC_OOP,       // T_ARRAY       = 13,
-  NONSTATIC_OOP,       // T_PRIMITIVE_OBJECT = 14,
-  BAD_ALLOCATION_TYPE, // T_VOID        = 15,
-  BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
-  BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
-  BAD_ALLOCATION_TYPE, // T_METADATA    = 18,
-  BAD_ALLOCATION_TYPE, // T_NARROWKLASS = 19,
-  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 20,
-  BAD_ALLOCATION_TYPE, // 0
-  BAD_ALLOCATION_TYPE, // 1
-  BAD_ALLOCATION_TYPE, // 2
-  BAD_ALLOCATION_TYPE, // 3
-  STATIC_BYTE ,        // T_BOOLEAN     =  4,
-  STATIC_SHORT,        // T_CHAR        =  5,
-  STATIC_WORD,         // T_FLOAT       =  6,
-  STATIC_DOUBLE,       // T_DOUBLE      =  7,
-  STATIC_BYTE,         // T_BYTE        =  8,
-  STATIC_SHORT,        // T_SHORT       =  9,
-  STATIC_WORD,         // T_INT         = 10,
-  STATIC_DOUBLE,       // T_LONG        = 11,
-  STATIC_OOP,          // T_OBJECT      = 12,
-  STATIC_OOP,          // T_ARRAY       = 13,
-  STATIC_OOP,          // T_PRIMITIVE_OBJECT = 14,
-  BAD_ALLOCATION_TYPE, // T_VOID        = 15,
-  BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
-  BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
-  BAD_ALLOCATION_TYPE, // T_METADATA    = 18,
-  BAD_ALLOCATION_TYPE, // T_NARROWKLASS = 19,
-  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 20
-};
-
-static FieldAllocationType basic_type_to_atype(bool is_static, BasicType type, bool is_inline_type) {
-  assert(type >= T_BOOLEAN && type < T_VOID, "only allowable values");
-  FieldAllocationType result = _basic_type_to_atype[type + (is_static ? (T_CONFLICT + 1) : 0)];
-  assert(result != BAD_ALLOCATION_TYPE, "bad type");
-  if (is_inline_type) {
-    result = is_static ? STATIC_INLINE : NONSTATIC_INLINE;
-  }
-  return result;
-}
-
-class ClassFileParser::FieldAllocationCount : public ResourceObj {
- public:
-  u2 count[MAX_FIELD_ALLOCATION_TYPE];
-
-  FieldAllocationCount() {
-    for (int i = 0; i < MAX_FIELD_ALLOCATION_TYPE; i++) {
-      count[i] = 0;
-    }
-  }
-
-  void update(bool is_static, BasicType type, bool is_inline_type) {
-    FieldAllocationType atype = basic_type_to_atype(is_static, type, is_inline_type);
-    if (atype != BAD_ALLOCATION_TYPE) {
-      // Make sure there is no overflow with injected fields.
-      assert(count[atype] < 0xFFFF, "More than 65535 fields");
-      count[atype]++;
-    }
-  }
-};
-
 // Side-effects: populates the _fields, _fields_annotations,
 // _fields_type_annotations fields
 void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                    AccessFlags class_access_flags,
-                                   FieldAllocationCount* const fac,
                                    ConstantPool* cp,
                                    const int cp_size,
                                    u2* const java_fields_count_ptr,
                                    TRAPS) {
 
   assert(cfs != nullptr, "invariant");
-  assert(fac != nullptr, "invariant");
   assert(cp != nullptr, "invariant");
   assert(java_fields_count_ptr != nullptr, "invariant");
 
@@ -1578,13 +1482,16 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       }
     }
 
+    if (is_null_restricted) {
+      fieldFlags.update_null_free_inline_type(true);
+    }
+
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
-    // Update FieldAllocationCount for this kind of field
-    // This use of T_PRIMITIVE_OBJECT is not valid anymore => FIXME (relate to cleanup (removal?) of FiedAllocationCount
-    fac->update(is_static, type, type == T_PRIMITIVE_OBJECT);
-
-    if (is_null_restricted) fieldFlags.update_null_free_inline_type(true);
+    // Update number of static oop fields.
+    if (is_static && is_reference_type(type)) {
+      _static_oop_count++;
+    }
 
     FieldInfo fi(access_flags, name_index, signature_index, constantvalue_index, fieldFlags);
     fi.set_index(n);
@@ -1629,10 +1536,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       FieldInfo fi(aflags, (u2)(injected[n].name_index), (u2)(injected[n].signature_index), 0, fflags);
       fi.set_index(index);
       _temp_field_info->append(fi);
-
-      // Update FieldAllocationCount for this kind of field
-      const BasicType type = Signature::basic_type(injected[n].signature());
-      fac->update(false, type, false);
       index++;
     }
   }
@@ -1647,11 +1550,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                  (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)),
                  0,
                  fflags);
-      fi.set_index(index);
-      _temp_field_info->append(fi);
-
-    const BasicType type = Signature::basic_type(vmSymbols::object_signature());
-    fac->update(true, type, false);
+    fi.set_index(index);
+    _temp_field_info->append(fi);
+    _static_oop_count++;
     index++;
   }
 
@@ -1670,8 +1571,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     fi.set_index(index);
     _temp_field_info->append(fi);
 
-    const BasicType type = Signature::basic_type(vmSymbols::byte_signature());
-    fac->update(false, type, false);
     index++;
   }
 
@@ -5413,8 +5312,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     ik->set_is_naturally_atomic();
   }
 
-  assert(_fac != nullptr, "invariant");
-  ik->set_static_oop_field_count(_fac->count[STATIC_OOP] + _fac->count[STATIC_INLINE]);
+  ik->set_static_oop_field_count(_static_oop_count);
 
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*
@@ -5695,6 +5593,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _is_hidden(cl_info->is_hidden()),
   _can_access_vm_annotations(cl_info->can_access_vm_annotations()),
   _orig_cp_size(0),
+  _static_oop_count(0),
   _super_klass(),
   _cp(nullptr),
   _fieldinfo_stream(nullptr),
@@ -5717,7 +5616,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _klass(nullptr),
   _klass_to_deallocate(nullptr),
   _parsed_annotations(nullptr),
-  _fac(nullptr),
   _field_info(nullptr),
   _inline_type_field_klasses(nullptr),
   _null_marker_offsets(nullptr),
@@ -6078,10 +5976,8 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                    CHECK);
 
   // Fields (offsets are filled in later)
-  _fac = new FieldAllocationCount();
   parse_fields(stream,
                _access_flags,
-               _fac,
                cp,
                cp_size,
                &_java_fields_count,
@@ -6329,7 +6225,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _itable_size = is_interface() ? 0 :
     klassItable::compute_itable_size(_transitive_interfaces);
 
-  assert(_fac != nullptr, "invariant");
   assert(_parsed_annotations != nullptr, "invariant");
 
   if (EnableValhalla) {

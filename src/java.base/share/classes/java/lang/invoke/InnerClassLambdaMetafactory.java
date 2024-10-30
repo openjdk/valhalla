@@ -106,7 +106,8 @@ import sun.invoke.util.Wrapper;
     private final String[] argNames;                 // Generated names for the constructor arguments
     private final ClassDesc[] argDescs;              // Type descriptors for the constructor arguments
     private final String lambdaClassName;            // Generated name for the generated class "X$$Lambda$1"
-    private final ClassDesc lambdaClassDesc;         // Type descriptor for the generated class "X$$Lambda$1"
+    private final ConstantPoolBuilder pool = ConstantPoolBuilder.of();
+    private final ClassEntry lambdaClassEntry;       // Class entry for the generated class "X$$Lambda$1"
     private final boolean useImplMethodHandle;       // use MethodHandle invocation instead of symbolic bytecode invocation
 
     /**
@@ -166,9 +167,8 @@ import sun.invoke.util.Wrapper;
         implMethodName = implInfo.getName();
         implMethodDesc = methodDesc(implInfo.getMethodType());
         constructorType = factoryType.changeReturnType(Void.TYPE);
-        constructorTypeDesc = methodDesc(constructorType);
         lambdaClassName = lambdaClassName(targetClass);
-        lambdaClassDesc = ClassDesc.ofInternalName(lambdaClassName);
+        lambdaClassEntry = pool.classEntry(ReferenceClassDescImpl.ofValidated(ConstantUtils.concat("L", lambdaClassName, ";")));
         // If the target class invokes a protected method inherited from a
         // superclass in a different package, or does 'invokespecial', the
         // lambda class has no access to the resolved method, or does
@@ -192,6 +192,7 @@ import sun.invoke.util.Wrapper;
             argNames = EMPTY_STRING_ARRAY;
             argDescs = EMPTY_CLASSDESC_ARRAY;
         }
+        constructorTypeDesc = MethodTypeDescImpl.ofValidated(CD_void, argDescs);
     }
 
     private static String lambdaClassName(Class<?> targetClass) {
@@ -200,7 +201,7 @@ import sun.invoke.util.Wrapper;
             // use the original class name
             name = name.replace('/', '_');
         }
-        return name.replace('.', '/') + "$$Lambda";
+        return name.replace('.', '/').concat("$$Lambda");
     }
 
     /**
@@ -230,7 +231,7 @@ import sun.invoke.util.Wrapper;
                 MethodHandle mh = caller.findConstructor(innerClass, constructorType);
                 if (factoryType.parameterCount() == 0) {
                     // In the case of a non-capturing lambda, we optimize linkage by pre-computing a single instance
-                    Object inst = mh.asType(methodType(Object.class)).invokeExact();
+                    Object inst = mh.invokeBasic();
                     return new ConstantCallSite(MethodHandles.constant(interfaceClass, inst));
                 } else {
                     return new ConstantCallSite(mh.asType(factoryType));
@@ -312,7 +313,7 @@ import sun.invoke.util.Wrapper;
             interfaces = List.copyOf(itfs);
         }
         final boolean finalAccidentallySerializable = accidentallySerializable;
-        final byte[] classBytes = ClassFile.of().build(lambdaClassDesc, new Consumer<ClassBuilder>() {
+        final byte[] classBytes = ClassFile.of().build(lambdaClassEntry, pool, new Consumer<ClassBuilder>() {
             @Override
             public void accept(ClassBuilder clb) {
                 clb.withVersion(ClassFileFormatVersion.latest().major(), (PreviewFeatures.isEnabled() ? 0xFFFF0000 : 0))
@@ -385,10 +386,10 @@ import sun.invoke.util.Wrapper;
             @Override
             public void accept(CodeBuilder cob) {
                 assert factoryType.parameterCount() == 0;
-                cob.new_(lambdaClassDesc)
+                cob.new_(lambdaClassEntry)
                    .dup()
-                   .invokespecial(lambdaClassDesc, INIT_NAME, constructorTypeDesc)
-                   .putstatic(lambdaClassDesc, LAMBDA_INSTANCE_FIELD, lambdaTypeDescriptor)
+                   .invokespecial(pool.methodRefEntry(lambdaClassEntry, pool.nameAndTypeEntry(INIT_NAME, constructorTypeDesc)))
+                   .putstatic(pool.fieldRefEntry(lambdaClassEntry, pool.nameAndTypeEntry(LAMBDA_INSTANCE_FIELD, lambdaTypeDescriptor)))
                    .return_();
             }
         });
@@ -410,7 +411,7 @@ import sun.invoke.util.Wrapper;
                             cob.aload(0);
                             Class<?> argType = factoryType.parameterType(i);
                             cob.loadLocal(TypeKind.from(argType), cob.parameterSlot(i));
-                            cob.putfield(lambdaClassDesc, argNames[i], argDescs[i]);
+                            cob.putfield(pool.fieldRefEntry(lambdaClassEntry, pool.nameAndTypeEntry(argNames[i], argDescs[i])));
                         }
                         cob.return_();
                     }
@@ -462,7 +463,7 @@ import sun.invoke.util.Wrapper;
                             cob.dup()
                                .loadConstant(i)
                                .aload(0)
-                               .getfield(lambdaClassDesc, argNames[i], argDescs[i]);
+                               .getfield(pool.fieldRefEntry(lambdaClassEntry, pool.nameAndTypeEntry(argNames[i], argDescs[i])));
                             TypeConvertingMethodAdapter.boxIfTypePrimitive(cob, TypeKind.from(argDescs[i]));
                             cob.aastore();
                         }
@@ -521,7 +522,7 @@ import sun.invoke.util.Wrapper;
                 }
                 for (int i = 0; i < argNames.length; i++) {
                     cob.aload(0)
-                       .getfield(lambdaClassDesc, argNames[i], argDescs[i]);
+                       .getfield(pool.fieldRefEntry(lambdaClassEntry, pool.nameAndTypeEntry(argNames[i], argDescs[i])));
                 }
 
                 convertArgumentTypes(cob, methodType);
