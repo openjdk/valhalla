@@ -150,7 +150,7 @@ void Parse::array_load(BasicType bt) {
           inc_sp(2);
           kill_dead_locals();
           call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
-                                   OptoRuntime::load_unknown_inline_type(),
+                                   OptoRuntime::load_unknown_inline_Type(),
                                    OptoRuntime::load_unknown_inline_Java(),
                                    nullptr, TypeRawPtr::BOTTOM,
                                    ary, idx);
@@ -306,8 +306,8 @@ void Parse::array_store(BasicType bt) {
           insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
           make_runtime_call(RC_LEAF,
-                            OptoRuntime::store_unknown_inline_type(),
-                            CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline),
+                            OptoRuntime::store_unknown_inline_Type(),
+                            CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline_C),
                             "store_unknown_inline", TypeRawPtr::BOTTOM,
                             val, casted_ary, idx);
 
