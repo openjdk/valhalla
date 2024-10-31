@@ -160,6 +160,8 @@ namespace AccessInternal {
   void arraycopy_arrayof_conjoint(T* src, T* dst, size_t length);
   template<typename T>
   void arraycopy_conjoint_atomic(T* src, T* dst, size_t length);
+
+  void value_copy_internal(void* src, void* dst, size_t length);
 }
 
 // This mask specifies what decorators are relevant for raw accesses. When passing
