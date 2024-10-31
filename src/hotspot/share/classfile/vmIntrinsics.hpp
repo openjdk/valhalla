@@ -220,10 +220,6 @@ class methodHandle;
   do_intrinsic(_sqrt_float16,             java_lang_Float16,      sqrt_name,  float16_float16_signature,         F_S)   \
   /* Float16 intrinsics for ternary operations */                                                                       \
   do_intrinsic(_fma_float16,              java_lang_Float16,      fma_name,   float16_3_float16_signature,       F_S)   \
-  /* Float16 conversion intrinsics */                                                                                   \
-  do_intrinsic(_float16ToDouble,          java_lang_Float16,      doubleValue_name, void_double_signature,       F_R)   \
-  do_intrinsic(_float16ToInt,             java_lang_Float16,      intValue_name,    void_int_signature,          F_R)   \
-  do_intrinsic(_float16ToLong,            java_lang_Float16,      longValue_name,   void_long_signature,         F_R)   \
   /* StrictMath intrinsics, similar to what we have in Math. */                                                         \
   do_intrinsic(_min_strict,               java_lang_StrictMath,   min_name,           int2_int_signature,        F_S)   \
   do_intrinsic(_max_strict,               java_lang_StrictMath,   max_name,           int2_int_signature,        F_S)   \

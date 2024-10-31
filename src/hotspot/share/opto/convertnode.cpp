@@ -250,6 +250,17 @@ const Type* ConvF2DNode::Value(PhaseGVN* phase) const {
   return TypeD::make( (double)tf->getf() );
 }
 
+//------------------------------Ideal------------------------------------------
+Node* ConvF2DNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  // Optimize ConvHF2F->ConvF2D sequence to ConvHF2D
+  if (in(1)->Opcode() == Op_ConvHF2F &&
+      Matcher::match_rule_supported(Op_ConvHF2D)) {
+    Node* inp = in(1)->in(1);
+    return new ConvHF2DNode(inp);
+  }
+  return nullptr;
+}
+
 //=============================================================================
 //------------------------------Value------------------------------------------
 const Type* ConvF2HFNode::Value(PhaseGVN* phase) const {
@@ -265,19 +276,21 @@ const Type* ConvF2HFNode::Value(PhaseGVN* phase) const {
 
 //------------------------------Ideal------------------------------------------
 Node* ConvF2HFNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  // Optimize pattern - ConvHF2F (SqrtF) ConvF2HF ==> ReinterpretS2HF (SqrtHF) ReinterpretHF2S.
+  // Optimize pattern - ConvHF2D->SqrtD->ConvD2F->ConvF2HF ==> ReinterpretS2HF (SqrtHF) ReinterpretHF2S.
   // It is safe to do so as we do not lose any precision bits during ConvHF2F and ConvF2HF conversions.
   // Eventually if the loop is vectorizable, ReinterpretS2HF/HF2S will be optimized away as they are
   // of the same size and only the vectorized sqrt nodes for half-precision floats will be generated.
   Node* hf2f; Node* sqrthf;
-  if (in(1)->Opcode() == Op_SqrtF && in(1)->in(1)->Opcode() == Op_ConvHF2F) {
-    Node* sqrtf = in(1);
-    Node* convhf2f = sqrtf->in(1);
+  if (in(1)->Opcode() == Op_ConvD2F && in(1)->in(1)->Opcode() == Op_SqrtD &&
+      in(1)->in(1)->in(1)->Opcode() == Op_ConvHF2D) {
+    Node* in1 = in(1);
+    Node* in2 = in1->in(1);
+    Node* in3 = in2->in(1);
     if (Matcher::match_rule_supported(Op_SqrtHF) &&
         Matcher::match_rule_supported(Op_ReinterpretS2HF) &&
         Matcher::match_rule_supported(Op_ReinterpretHF2S)) {
-      hf2f = phase->transform(new ReinterpretS2HFNode(convhf2f->in(1)));
-      sqrthf = phase->transform(new SqrtHFNode(phase->C, sqrtf->in(0), hf2f));
+      hf2f = phase->transform(new ReinterpretS2HFNode(in3->in(1)));
+      sqrthf = phase->transform(new SqrtHFNode(phase->C, in2->in(0), hf2f));
       return new ReinterpretHF2SNode(sqrthf);
     }
   }
@@ -309,6 +322,13 @@ Node *ConvF2INode::Ideal(PhaseGVN *phase, bool can_reshape) {
     set_req(1, in(1)->in(1));
     return this;
   }
+
+  // Optimize ConvHF2F->ConvF2I sequence to ConvHF2I
+  if (in(1)->Opcode() == Op_ConvHF2F &&
+      Matcher::match_rule_supported(Op_ConvHF2I)) {
+    Node* inp = in(1)->in(1);
+    return new ConvHF2INode(inp);
+  }
   return nullptr;
 }
 
@@ -337,6 +357,12 @@ Node *ConvF2LNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (in(1)->Opcode() == Op_RoundFloat) {
     set_req(1, in(1)->in(1));
     return this;
+  }
+  // Optimize ConvHF2F->ConvF2L sequence to ConvHF2L
+  if (in(1)->Opcode() == Op_ConvHF2F &&
+      Matcher::match_rule_supported(Op_ConvHF2L)) {
+    Node* inp = in(1)->in(1);
+    return new ConvHF2LNode(inp);
   }
   return nullptr;
 }

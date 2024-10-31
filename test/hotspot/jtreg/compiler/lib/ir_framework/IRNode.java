@@ -477,6 +477,21 @@ public class IRNode {
         beforeMatchingNameRegex(CONV_F2HF, "ConvF2HF");
     }
 
+    public static final String CONV_F2I = PREFIX + "CONV_F2I" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_F2I, "ConvF2I");
+    }
+
+    public static final String CONV_F2L = PREFIX + "CONV_F2L" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_F2L, "ConvF2L");
+    }
+
+    public static final String CONV_F2D = PREFIX + "CONV_F2D" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_F2D, "ConvF2D");
+    }
+
     public static final String CONV_I2L = PREFIX + "CONV_I2L" + POSTFIX;
     static {
         beforeMatchingNameRegex(CONV_I2L, "ConvI2L");

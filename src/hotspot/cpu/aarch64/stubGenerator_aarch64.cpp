@@ -8573,15 +8573,15 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_f2hf = generate_floatToFloat16();
     }
 
-    if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_float16ToInt)) {
+    if (Matcher::match_rule_supported(Op_ConvHF2I)) {
       StubRoutines::_hf2i = generate_float16ToIntegral(T_INT);
     }
 
-    if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_float16ToDouble)) {
+    if (Matcher::match_rule_supported(Op_ConvHF2D)) {
       StubRoutines::_hf2d = generate_float16ToFP(T_DOUBLE);
     }
 
-    if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_float16ToLong)) {
+    if (Matcher::match_rule_supported(Op_ConvHF2L)) {
       StubRoutines::_hf2l = generate_float16ToIntegral(T_LONG);
     }
 

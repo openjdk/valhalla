@@ -102,6 +102,7 @@ class ConvF2DNode : public ConvertNode {
   virtual int Opcode() const;
   virtual const Type* in_type() const { return Type::FLOAT; }
   virtual const Type* Value(PhaseGVN* phase) const;
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };
 
 //------------------------------ConvF2HFNode------------------------------------

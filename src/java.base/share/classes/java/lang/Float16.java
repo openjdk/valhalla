@@ -638,7 +638,6 @@ public final class Float16
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
-    @IntrinsicCandidate
     public int intValue() {
         return (int)floatValue();
     }
@@ -650,7 +649,6 @@ public final class Float16
      * @jls 5.1.3 Narrowing Primitive Conversion
      */
     @Override
-    @IntrinsicCandidate
     public long longValue() {
         return (long)floatValue();
     }
@@ -681,7 +679,6 @@ public final class Float16
      * @jls 5.1.2 Widening Primitive Conversion
      */
     @Override
-    @IntrinsicCandidate
     public double doubleValue() {
         return (double)floatValue();
     }
