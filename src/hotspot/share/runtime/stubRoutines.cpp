@@ -171,6 +171,7 @@ address StubRoutines::_dlibm_sin_cos_huge = nullptr;
 address StubRoutines::_dlibm_reduce_pi04l = nullptr;
 address StubRoutines::_dlibm_tan_cot_huge = nullptr;
 address StubRoutines::_dtan = nullptr;
+address StubRoutines::_dtanh = nullptr;
 
 address StubRoutines::_load_inline_type_fields_in_regs = nullptr;
 address StubRoutines::_store_inline_type_fields_to_buf = nullptr;

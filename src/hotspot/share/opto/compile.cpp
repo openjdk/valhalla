@@ -734,6 +734,11 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
     method()->ensure_method_data();
   }
 
+  if (StressLCM || StressGCM || StressIGVN || StressCCP ||
+      StressIncrementalInlining || StressMacroExpansion || StressUnstableIfTraps) {
+    initialize_stress_seed(directive);
+  }
+
   Init(/*do_aliasing=*/ true);
 
   print_compile_messages();
@@ -855,11 +860,6 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
 
   if (failing())  return;
   NOT_PRODUCT( verify_graph_edges(); )
-
-  if (StressLCM || StressGCM || StressIGVN || StressCCP ||
-      StressIncrementalInlining || StressMacroExpansion) {
-    initialize_stress_seed(directive);
-  }
 
   // Now optimize
   Optimize();
