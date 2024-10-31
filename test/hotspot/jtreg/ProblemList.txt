@@ -129,7 +129,6 @@ containers/docker/TestJFREvents.java 8327723 linux-x64
 
 # Valhalla
 runtime/AccModule/ConstModule.java 8294051 generic-all
-runtime/valhalla/inlinetypes/InlineOops.java#ZGen 8313607 linux-aarch64,macosx-aarch64
 
 #############################################################################
 
