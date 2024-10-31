@@ -191,6 +191,8 @@ private:
   static void register_finalizer_C(oopDesc* obj, JavaThread* current);
 
  public:
+  static void load_unknown_inline_C(flatArrayOopDesc* array, int index, JavaThread* current);
+  static void store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index);
 
   static bool is_callee_saved_register(MachRegisterNumbers reg);
 
@@ -223,7 +225,7 @@ private:
 
   static address slow_arraycopy_Java()                   { return _slow_arraycopy_Java; }
   static address register_finalizer_Java()               { return _register_finalizer_Java; }
-  static address load_unknown_inline_Java()              { return _load_unknown_inline; }
+  static address load_unknown_inline_Java()              { return _load_unknown_inline_Java; }
 #if INCLUDE_JVMTI
   static address notify_jvmti_vthread_start()            { return _notify_jvmti_vthread_start; }
   static address notify_jvmti_vthread_end()              { return _notify_jvmti_vthread_end; }
@@ -326,6 +328,12 @@ private:
 
   static const TypeFunc* register_finalizer_Type();
 
+  static const TypeFunc* load_unknown_inline_Type();
+  static const TypeFunc* store_unknown_inline_Type();
+
+  static const TypeFunc* store_inline_type_fields_Type();
+  static const TypeFunc* pack_inline_type_Type();
+
   JFR_ONLY(static const TypeFunc* class_id_load_barrier_Type();)
 #if INCLUDE_JVMTI
   static const TypeFunc* notify_jvmti_vthread_Type();
@@ -334,14 +342,6 @@ private:
   // Dtrace support
   static const TypeFunc* dtrace_method_entry_exit_Type();
   static const TypeFunc* dtrace_object_alloc_Type();
-
-  static const TypeFunc* store_inline_type_fields_Type();
-  static const TypeFunc* pack_inline_type_Type();
-
-  static void load_unknown_inline(flatArrayOopDesc* array, int index, JavaThread* current);
-  static const TypeFunc* load_unknown_inline_type();
-  static void store_unknown_inline(instanceOopDesc* buffer, flatArrayOopDesc* array, int index);
-  static const TypeFunc* store_unknown_inline_type();
 
  private:
  static NamedCounter * volatile _named_counters;

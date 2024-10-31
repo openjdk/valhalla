@@ -419,9 +419,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   movptr(rbx, (intptr_t)(ces->method()));
   if (is_inline_ro_entry) {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id)));
+    call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_no_receiver_id)));
   } else {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_id)));
+    call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_id)));
   }
   int rt_call_offset = offset();
 

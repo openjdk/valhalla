@@ -312,9 +312,9 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   assert(_length->as_register() == rbx, "length must in rbx,");
   assert(_klass_reg->as_register() == rdx, "klass_reg must in rdx");
   if (_is_null_free) {
-    __ call(RuntimeAddress(Runtime1::entry_for((C1StubId::new_null_free_array_id)));
+    __ call(RuntimeAddress(Runtime1::entry_for(C1StubId::new_null_free_array_id)));
   } else {
-    __ call(RuntimeAddress(Runtime1::entry_for((C1StubId::new_object_array_id)));
+    __ call(RuntimeAddress(Runtime1::entry_for(C1StubId::new_object_array_id)));
   }
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);

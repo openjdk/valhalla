@@ -1809,7 +1809,6 @@ bool OptoRuntime::is_deoptimized_caller_frame(JavaThread *thread) {
   return caller_frame.is_deoptimized_frame();
 }
 
-
 const TypeFunc *OptoRuntime::register_finalizer_Type() {
   // create input type (domain)
   const Type **fields = TypeTuple::fields(1);
@@ -2038,7 +2037,7 @@ const TypeFunc *OptoRuntime::pack_inline_type_Type() {
   return TypeFunc::make(domain, range);
 }
 
-JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline(flatArrayOopDesc* array, int index, JavaThread* current))
+JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline_C(flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
   flatArrayHandle vah(current, array);
   oop buffer = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, THREAD);
@@ -2047,7 +2046,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline(flatArrayOopDesc* array, 
   JRT_BLOCK_END;
 JRT_END
 
-const TypeFunc* OptoRuntime::load_unknown_inline_type() {
+const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
   // create input type (domain)
   const Type** fields = TypeTuple::fields(2);
   fields[TypeFunc::Parms] = TypeOopPtr::NOTNULL;
@@ -2064,14 +2063,14 @@ const TypeFunc* OptoRuntime::load_unknown_inline_type() {
   return TypeFunc::make(domain, range);
 }
 
-JRT_LEAF(void, OptoRuntime::store_unknown_inline(instanceOopDesc* buffer, flatArrayOopDesc* array, int index))
+JRT_LEAF(void, OptoRuntime::store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index))
 {
   assert(buffer != nullptr, "can't store null into flat array");
   array->value_copy_to_index(buffer, index);
 }
 JRT_END
 
-const TypeFunc* OptoRuntime::store_unknown_inline_type() {
+const TypeFunc* OptoRuntime::store_unknown_inline_Type() {
   // create input type (domain)
   const Type** fields = TypeTuple::fields(3);
   fields[TypeFunc::Parms] = TypeInstPtr::NOTNULL;
