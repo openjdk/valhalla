@@ -1506,7 +1506,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   }
   assert(_temp_field_info->length() == length, "Must be");
 
-  int index = length;
   if (num_injected != 0) {
     for (int n = 0; n < num_injected; n++) {
       // Check for duplicates
@@ -1534,9 +1533,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       fflags.update_injected(true);
       AccessFlags aflags;
       FieldInfo fi(aflags, (u2)(injected[n].name_index), (u2)(injected[n].signature_index), 0, fflags);
-      fi.set_index(index);
-      _temp_field_info->append(fi);
-      index++;
+      int idx = _temp_field_info->append(fi);
+      _temp_field_info->adr_at(idx)->set_index(idx);
     }
   }
 
@@ -1550,35 +1548,22 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                  (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)),
                  0,
                  fflags);
-    fi.set_index(index);
-    _temp_field_info->append(fi);
+    int idx = _temp_field_info->append(fi);
+    _temp_field_info->adr_at(idx)->set_index(idx);
     _static_oop_count++;
-    index++;
-  }
-
-  if (is_inline_type && instance_fields_count == 0) {
-    // Inject ".empty" dummy field
-    _is_empty_inline_type = true;
-
-    FieldInfo::FieldFlags fflags(0);
-    fflags.update_injected(true);
-    AccessFlags aflags;
-    FieldInfo fi(aflags,
-                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(empty_marker_name)),
-                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(byte_signature)),
+    // Inject static ".null_reset" field. This is the same as the .default field but will never have its null-channel set to non-zero.
+    FieldInfo::FieldFlags fflags2(0);
+    fflags2.update_injected(true);
+    AccessFlags aflags2(JVM_ACC_STATIC);
+    FieldInfo fi2(aflags2,
+                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(null_reset_value_name)),
+                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)),
                  0,
-                 fflags);
-    fi.set_index(index);
-    _temp_field_info->append(fi);
-
-    index++;
+                 fflags2);
+    int idx2 = _temp_field_info->append(fi2);
+    _temp_field_info->adr_at(idx2)->set_index(idx2);
+    _static_oop_count++;
   }
-
-  if (instance_fields_count > 0) {
-    _has_nonstatic_fields = true;
-  }
-
-  assert(_temp_field_info->length() == index, "Must be");
 
   if (_need_verify && length > 1) {
     // Check duplicated fields
@@ -3914,8 +3899,7 @@ void ClassFileParser::apply_parsed_class_metadata(
   this_klass->set_annotations(_combined_annotations);
   this_klass->set_permitted_subclasses(_permitted_subclasses);
   this_klass->set_record_components(_record_components);
-  this_klass->set_inline_type_field_klasses_array(_inline_type_field_klasses);
-  this_klass->set_null_marker_offsets_array(_null_marker_offsets);
+  this_klass->set_inline_layout_info_array(_inline_layout_info_array);
   // Delay the setting of _local_interfaces and _transitive_interfaces until after
   // initialize_supers() in fill_instance_klass(). It is because the _local_interfaces could
   // be shared with _transitive_interfaces and _transitive_interfaces may be shared with
@@ -5147,18 +5131,18 @@ int ClassFileParser::verify_legal_method_signature(const Symbol* name,
 }
 
 int ClassFileParser::static_field_size() const {
-  assert(_field_info != nullptr, "invariant");
-  return _field_info->_static_field_size;
+  assert(_layout_info != nullptr, "invariant");
+  return _layout_info->_static_field_size;
 }
 
 int ClassFileParser::total_oop_map_count() const {
-  assert(_field_info != nullptr, "invariant");
-  return _field_info->oop_map_blocks->_nonstatic_oop_map_count;
+  assert(_layout_info != nullptr, "invariant");
+  return _layout_info->oop_map_blocks->_nonstatic_oop_map_count;
 }
 
 jint ClassFileParser::layout_size() const {
-  assert(_field_info != nullptr, "invariant");
-  return _field_info->_instance_size;
+  assert(_layout_info != nullptr, "invariant");
+  return _layout_info->_instance_size;
 }
 
 static void check_methods_for_intrinsics(const InstanceKlass* ik,
@@ -5294,22 +5278,30 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   set_klass_to_deallocate(ik);
 
-  assert(_field_info != nullptr, "invariant");
-  assert(ik->static_field_size() == _field_info->_static_field_size, "sanity");
-  assert(ik->nonstatic_oop_map_count() == _field_info->oop_map_blocks->_nonstatic_oop_map_count,
+  assert(_layout_info != nullptr, "invariant");
+  assert(ik->static_field_size() == _layout_info->_static_field_size, "sanity");
+  assert(ik->nonstatic_oop_map_count() == _layout_info->oop_map_blocks->_nonstatic_oop_map_count,
          "sanity");
 
   assert(ik->is_instance_klass(), "sanity");
-  assert(ik->size_helper() == _field_info->_instance_size, "sanity");
+  assert(ik->size_helper() == _layout_info->_instance_size, "sanity");
 
   // Fill in information already parsed
   ik->set_should_verify_class(_need_verify);
 
   // Not yet: supers are done below to support the new subtype-checking fields
-  ik->set_nonstatic_field_size(_field_info->_nonstatic_field_size);
-  ik->set_has_nonstatic_fields(_field_info->_has_nonstatic_fields);
-  if (_field_info->_is_naturally_atomic && ik->is_inline_klass()) {
+  ik->set_nonstatic_field_size(_layout_info->_nonstatic_field_size);
+  ik->set_has_nonstatic_fields(_layout_info->_has_nonstatic_fields);
+
+  if (_layout_info->_is_naturally_atomic) {
     ik->set_is_naturally_atomic();
+  }
+
+  if (_layout_info->_must_be_atomic) {
+    ik->set_must_be_atomic();
+  }
+  if (_is_implicitly_constructible) {
+    ik->set_is_implicitly_constructible();
   }
 
   ik->set_static_oop_field_count(_static_oop_count);
@@ -5337,7 +5329,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   assert(nullptr == _combined_annotations, "invariant");
   assert(nullptr == _record_components, "invariant");
   assert(nullptr == _permitted_subclasses, "invariant");
-  assert(nullptr == _inline_type_field_klasses, "invariant");
+  assert(nullptr == _inline_layout_info_array, "invariant");
 
   if (_has_localvariable_table) {
     ik->set_has_localvariable_table(true);
@@ -5373,12 +5365,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   ik->set_has_nonstatic_concrete_methods(_has_nonstatic_concrete_methods);
   ik->set_declares_nonstatic_concrete_methods(_declares_nonstatic_concrete_methods);
 
-  if (_must_be_atomic) {
-    ik->set_must_be_atomic();
-  }
-  if (_is_implicitly_constructible) {
-    ik->set_is_implicitly_constructible();
-  }
   assert(!_is_hidden || ik->is_hidden(), "must be set already");
 
   // Set PackageEntry for this_klass
@@ -5421,7 +5407,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   // Compute transitive closure of interfaces this class implements
   // Do final class setup
-  OopMapBlocksBuilder* oop_map_blocks = _field_info->oop_map_blocks;
+  OopMapBlocksBuilder* oop_map_blocks = _layout_info->oop_map_blocks;
   if (oop_map_blocks->_nonstatic_oop_map_count > 0) {
     oop_map_blocks->copy(ik->start_of_nonstatic_oop_maps());
   }
@@ -5483,32 +5469,20 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     }
   }
 
-  bool all_fields_empty = true;
-  for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-    if (!fs.access_flags().is_static()) {
-      if (fs.field_descriptor().is_null_free_inline_type()) {
-        Klass* k = ik->inline_type_field_klasses_array()->at(fs.index());
-        assert(k->is_inline_klass(), "must be");
-        if (!InlineKlass::cast(k)->is_empty_inline_type()) { all_fields_empty = false; }
-      } else {
-        all_fields_empty = false;
-      }
-    } else if (is_inline_type() && (fs.name() == vmSymbols::default_value_name())) {
-      InlineKlass::cast(ik)->set_default_value_offset(ik->field_offset(fs.index()));
-    }
-  }
-
-  if (_is_empty_inline_type || (is_inline_type() && all_fields_empty)) {
-    ik->set_is_empty_inline_type();
-  }
-
   if (is_inline_type()) {
     InlineKlass* vk = InlineKlass::cast(ik);
-    vk->set_alignment(_alignment);
-    vk->set_first_field_offset(_first_field_offset);
-    vk->set_payload_size_in_bytes(_payload_size_in_bytes);
-    vk->set_internal_null_marker_offset(_internal_null_marker_offset);
-    InlineKlass::cast(ik)->initialize_calling_convention(CHECK);
+    vk->set_payload_alignment(_layout_info->_payload_alignment);
+    vk->set_first_field_offset(_layout_info->_first_field_offset);
+    vk->set_payload_size_in_bytes(_layout_info->_payload_size_in_bytes);
+    vk->set_non_atomic_size_in_bytes(_layout_info->_non_atomic_size_in_bytes);
+    vk->set_non_atomic_alignment(_layout_info->_non_atomic_alignment);
+    vk->set_atomic_size_in_bytes(_layout_info->_atomic_layout_size_in_bytes);
+    vk->set_nullable_size_in_bytes(_layout_info->_nullable_layout_size_in_bytes);
+    vk->set_null_marker_offset(_layout_info->_null_marker_offset);
+    vk->set_default_value_offset(_layout_info->_default_value_offset);
+    vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);
+    if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();
+    vk->initialize_calling_convention(CHECK);
   }
 
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);
@@ -5616,9 +5590,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _klass(nullptr),
   _klass_to_deallocate(nullptr),
   _parsed_annotations(nullptr),
-  _field_info(nullptr),
-  _inline_type_field_klasses(nullptr),
-  _null_marker_offsets(nullptr),
+  _layout_info(nullptr),
+  _inline_layout_info_array(nullptr),
   _temp_field_info(nullptr),
   _method_ordering(nullptr),
   _all_mirandas(nullptr),
@@ -5648,8 +5621,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_final_method(false),
   _has_contended_fields(false),
   _has_inline_type_fields(false),
-  _has_nonstatic_fields(false),
-  _is_empty_inline_type(false),
   _is_naturally_atomic(false),
   _must_be_atomic(true),
   _is_implicitly_constructible(false),
@@ -5709,8 +5680,7 @@ void ClassFileParser::clear_class_metadata() {
   _class_annotations = _class_type_annotations = nullptr;
   _fields_annotations = _fields_type_annotations = nullptr;
   _record_components = nullptr;
-  _inline_type_field_klasses = nullptr;
-  _null_marker_offsets = nullptr;
+  _inline_layout_info_array = nullptr;
 }
 
 // Destructor to clean up
@@ -5729,12 +5699,8 @@ ClassFileParser::~ClassFileParser() {
     MetadataFactory::free_array<FieldStatus>(_loader_data, _fields_status);
   }
 
-  if (_inline_type_field_klasses != nullptr) {
-     MetadataFactory::free_array<InlineKlass*>(_loader_data, _inline_type_field_klasses);
-  }
-
-  if (_null_marker_offsets != nullptr) {
-     MetadataFactory::free_array<int>(_loader_data, _null_marker_offsets);
+  if (_inline_layout_info_array != nullptr) {
+    MetadataFactory::free_array<InlineLayoutInfo>(_loader_data, _inline_layout_info_array);
   }
 
   if (_methods != nullptr) {
@@ -6128,10 +6094,14 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   }
 
   // Determining is the class allows tearing or not (default is not)
-  // Test might need extensions when field inheritance is added for value classes
   if (EnableValhalla && !_access_flags.is_identity_class()) {
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
         && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
+      // Conditions above are not sufficient to determine atomicity requirements,
+      // the presence of fields with atomic requirements could force the current class to have atomicy requirements too
+      // Marking as not needing atomicity for now, can be updated when computing the fields layout
+      // The InstanceKlass must be filled with the value from the FieldLayoutInfo returned by
+      // the FieldLayoutBuilder, not with this _must_be_atomic field.
       _must_be_atomic = false;
     }
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible)
@@ -6228,9 +6198,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_parsed_annotations != nullptr, "invariant");
 
   if (EnableValhalla) {
-    _inline_type_field_klasses = MetadataFactory::new_array<InlineKlass*>(_loader_data,
+    _inline_layout_info_array = MetadataFactory::new_array<InlineLayoutInfo>(_loader_data,
                                                    java_fields_count(),
-                                                   nullptr,
                                                    CHECK);
     for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it) {
       FieldInfo fieldinfo = *it;
@@ -6272,7 +6241,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                     err_msg("class %s is not implicitly constructible and it is used in a null restricted non-static field (not supported)",
                     klass->name()->as_C_string()));
         }
-        _inline_type_field_klasses->at_put(fieldinfo.index(), vk);
+        _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(vk);
         log_info(class, preload)("Preloading of class %s during loading of class %s (cause: null-free non-static field) succeeded", s->as_C_string(), _class_name->as_C_string());
       } else if (Signature::has_envelope(sig)) {
         // Preloading classes for nullable fields that are listed in the LoadableDescriptors attribute
@@ -6284,7 +6253,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, name, Handle(THREAD, loader), _protection_domain, false, THREAD);
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
-              _inline_type_field_klasses->at_put(fieldinfo.index(), InlineKlass::cast(klass));
+              _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
               log_info(class, preload)("Preloading of class %s during loading of class %s (cause: field type in LoadableDescriptors attribute) succeeded", name->as_C_string(), _class_name->as_C_string());
             } else {
               // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
@@ -6303,19 +6272,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
   }
 
-  _field_info = new FieldLayoutInfo();
+  _layout_info = new FieldLayoutInfo();
   FieldLayoutBuilder lb(class_name(), loader_data(), super_klass(), _cp, /*_fields*/ _temp_field_info,
       _parsed_annotations->is_contended(), is_inline_type(),
       access_flags().is_abstract() && !access_flags().is_identity_class() && !access_flags().is_interface(),
-      _field_info, _inline_type_field_klasses);
+      _must_be_atomic, _layout_info, _inline_layout_info_array);
   lb.build_layout();
-  if (is_inline_type()) {
-    _alignment = lb.get_alignment();
-    _first_field_offset = lb.get_first_field_offset();
-    _payload_size_in_bytes = lb.get_payload_size_in_byte();
-    _internal_null_marker_offset = lb.get_internal_null_marker_offset();
-  }
-  _has_inline_type_fields = _field_info->_has_inline_fields;
+  _has_inline_type_fields = _layout_info->_has_inline_fields;
 
   int injected_fields_count = _temp_field_info->length() - _java_fields_count;
   _fieldinfo_stream =
@@ -6325,17 +6288,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _fields_status =
     MetadataFactory::new_array<FieldStatus>(_loader_data, _temp_field_info->length(),
                                             FieldStatus(0), CHECK);
-  if (_field_info->_has_null_marker_offsets) {
-    int idx = 0;
-    _null_marker_offsets = MetadataFactory::new_array<int>(_loader_data, _temp_field_info->length(), 0, CHECK);
-    for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it, ++idx) {
-      FieldInfo fieldinfo = *it;
-      if (fieldinfo.field_flags().has_null_marker()) {
-        assert(fieldinfo.null_marker_offset() != 0, "Invalid value");
-        _null_marker_offsets->at_put(idx, fieldinfo.null_marker_offset());
-      }
-    }
-  }
 }
 
 void ClassFileParser::set_klass(InstanceKlass* klass) {

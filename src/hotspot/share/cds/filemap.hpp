@@ -182,7 +182,9 @@ public:
   f(FlatArrayElementMaxSize) \
   f(InlineFieldMaxFlatSize) \
   f(InlineTypePassFieldsAsArgs) \
-  f(InlineTypeReturnedAsFields)
+  f(InlineTypeReturnedAsFields) \
+  f(AtomicFieldFlattening) \
+  f(NullableFieldFlattening)
 
 class CDSMustMatchFlags {
 private:

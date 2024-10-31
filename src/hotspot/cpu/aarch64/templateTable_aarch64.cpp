@@ -2843,7 +2843,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         __ bind(is_flat);
         // field is flat
           __ mov(r0, obj);
-          __ read_flat_field(klass, field_index, off, inline_klass /* temp */, r0);
+          __ read_flat_field(cache, field_index, off, inline_klass /* temp */, r0);
           __ verify_oop(r0);
           __ push(atos);
           __ b(rewrite_inline);
@@ -3119,13 +3119,16 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         do_oop_store(_masm, field, r0, IN_HEAP);
         __ b(rewrite_inline);
         __ bind(is_flat);
-        // field is flat
+        __ load_field_entry(cache, index); // reload field entry (cache) because it was erased by tos_state
+        __ load_unsigned_short(index, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
+        __ ldr(r2, Address(cache, in_bytes(ResolvedFieldEntry::field_holder_offset())));
+        __ inline_layout_info(r2, index, r6);
         pop_and_check_object(obj);
-        assert_different_registers(r0, inline_klass, obj, off);
         __ load_klass(inline_klass, r0);
         __ data_for_oop(r0, r0, inline_klass);
         __ add(obj, obj, off);
-        __ access_value_copy(IN_HEAP, r0, obj, inline_klass);
+        // because we use InlineLayoutInfo, we need special value access code specialized for fields (arrays will need a different API)
+        __ flat_field_copy(IN_HEAP, r0, obj, r6);
         __ b(rewrite_inline);
         __ bind(has_null_marker);
         assert_different_registers(r0, cache, r19);
@@ -3361,10 +3364,14 @@ void TemplateTable::fast_storefield(TosState state)
       __ b(done);
       __ bind(is_flat);
       // field is flat
+      __ load_field_entry(r4, r3);
+      __ load_unsigned_short(r3, Address(r4, in_bytes(ResolvedFieldEntry::field_index_offset())));
+      __ ldr(r4, Address(r4, in_bytes(ResolvedFieldEntry::field_holder_offset())));
+      __ inline_layout_info(r4, r3, r5);
       __ load_klass(r4, r0);
       __ data_for_oop(r0, r0, r4);
       __ lea(rscratch1, field);
-      __ access_value_copy(IN_HEAP, r0, rscratch1, r4);
+      __ flat_field_copy(IN_HEAP, r0, rscratch1, r5);
       __ b(done);
       __ bind(has_null_marker);
       __ load_field_entry(r4, r1);
@@ -3484,8 +3491,7 @@ void TemplateTable::fast_accessfield(TosState state)
       __ bind(is_flat);
       // field is flat
         __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
-        __ ldr(klass, Address(r2, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-        __ read_flat_field(klass, index, r1, tmp /* temp */, r0);
+        __ read_flat_field(r2, index, r1, tmp /* temp */, r0);
         __ verify_oop(r0);
         __ b(Done);
       __ bind(has_null_marker);

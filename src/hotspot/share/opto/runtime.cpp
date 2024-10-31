@@ -2066,7 +2066,7 @@ const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
 JRT_LEAF(void, OptoRuntime::store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index))
 {
   assert(buffer != nullptr, "can't store null into flat array");
-  array->value_copy_to_index(buffer, index);
+  array->value_copy_to_index(buffer, index, LayoutKind::PAYLOAD); // Temporary hack for the transition
 }
 JRT_END
 

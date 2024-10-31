@@ -158,9 +158,9 @@ clone_in_heap(oop src, oop dst, size_t size) {
 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT>::
-value_copy_in_heap(void* src, void* dst, InlineKlass* md) {
+value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
   if (HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value || (!md->contains_oops())) {
-    Raw::value_copy(src, dst, md);
+    Raw::value_copy(src, dst, md, lk);
   } else {
     BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
     // src/dst aren't oops, need offset to adjust oop map offset
@@ -176,7 +176,7 @@ value_copy_in_heap(void* src, void* dst, InlineKlass* md) {
       map++;
     }
 
-    Raw::value_copy(src, dst, md);
+    Raw::value_copy(src, dst, md, lk);
 
     // Post-barriers...
     map = md->start_of_nonstatic_oop_maps();
