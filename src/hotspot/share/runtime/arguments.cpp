@@ -337,6 +337,11 @@ bool Arguments::is_internal_module_property(const char* property) {
   return false;
 }
 
+// Return true if the key matches the --module-path property name ("jdk.module.path").
+bool Arguments::is_module_path_property(const char* key) {
+  return (strcmp(key, MODULE_PROPERTY_PREFIX PATH) == 0);
+}
+
 // Process java launcher properties.
 void Arguments::process_sun_java_launcher_properties(JavaVMInitArgs* args) {
   // See if sun.java.launcher or sun.java.launcher.is_altjvm is defined.
@@ -1814,27 +1819,6 @@ bool Arguments::check_vm_args_consistency() {
   if (StackReservedPages != 0) {
     FLAG_SET_CMDLINE(StackReservedPages, 0);
     warning("Reserved Stack Area not supported on this platform");
-  }
-#endif
-
-  if (AMD64_ONLY(false &&) AARCH64_ONLY(false &&) !FLAG_IS_DEFAULT(InlineTypePassFieldsAsArgs)) {
-    FLAG_SET_CMDLINE(InlineTypePassFieldsAsArgs, false);
-    warning("InlineTypePassFieldsAsArgs is not supported on this platform");
-  }
-
-  if (AMD64_ONLY(false &&) AARCH64_ONLY(false &&) !FLAG_IS_DEFAULT(InlineTypeReturnedAsFields)) {
-    FLAG_SET_CMDLINE(InlineTypeReturnedAsFields, false);
-    warning("InlineTypeReturnedAsFields is not supported on this platform");
-  }
-
-#if !defined(X86) && !defined(AARCH64) && !defined(RISCV64) && !defined(ARM) && !defined(PPC64) && !defined(S390)
-  if (LockingMode == LM_LIGHTWEIGHT) {
-    FLAG_SET_CMDLINE(LockingMode, LM_LEGACY);
-    warning("New lightweight locking not supported on this platform");
-  }
-  if (UseObjectMonitorTable) {
-    FLAG_SET_CMDLINE(UseObjectMonitorTable, false);
-    warning("UseObjectMonitorTable not supported on this platform");
   }
 #endif
 
