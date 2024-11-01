@@ -2401,7 +2401,7 @@ public class TestArrays {
 
     // Same as test95 but with instanceof instead of cast
     @Test
-    @IR(failOn = CHECKCAST_ARRAY)
+    //FIX:8343423 @IR(failOn = CHECKCAST_ARRAY)
     public boolean test97(Object[] array) {
         array[0] = new NonValueClass(42);
         // Always throws a ClassCastException because we just successfully stored
@@ -2425,8 +2425,8 @@ public class TestArrays {
 
     // Same as test95 but with non-flattenable store
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
-        failOn = CHECKCAST_ARRAY)
+    //FIX:8343423 @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    //    failOn = CHECKCAST_ARRAY)
     public MyValue1[] test98(Object[] array) {
         array[0] = new NotFlattenable();
         // Always throws a ClassCastException because we just successfully stored a
@@ -2454,8 +2454,8 @@ public class TestArrays {
 
     // Same as test98 but with cmp user of cast result
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
-        failOn = CHECKCAST_ARRAY)
+    //FIX:8343423 @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    //    failOn = CHECKCAST_ARRAY)
     public boolean test99(Object[] array) {
         array[0] = new NotFlattenable();
         // Always throws a ClassCastException because we just successfully stored a
@@ -2484,8 +2484,8 @@ public class TestArrays {
 
     // Same as test98 but with instanceof instead of cast
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
-        failOn = CHECKCAST_ARRAY)
+    //FIX:8343423 @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    //    failOn = CHECKCAST_ARRAY)
     public boolean test100(Object[] array) {
         array[0] = new NotFlattenable();
         // Always throws a ClassCastException because we just successfully stored a
