@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,8 +52,19 @@ class ResolvedFieldEntry {
   u2 _field_index;              // Index into field information in holder InstanceKlass
   u2 _cpool_index;              // Constant pool index
   u1 _tos_state;                // TOS state
-  u1 _flags;                    // Flags: [00|has_internal_null_marker|has_null_marker|is_null_free_inline_type|is_flat|is_final|is_volatile]
+  u1 _flags;                    // Flags: [000|has_null_marker|is_null_free_inline_type|is_flat|is_final|is_volatile]
   u1 _get_code, _put_code;      // Get and Put bytecodes of the field
+
+  void copy_from(const ResolvedFieldEntry& other) {
+    _field_holder = other._field_holder;
+    _field_offset = other._field_offset;
+    _field_index = other._field_index;
+    _cpool_index = other._cpool_index;
+    _tos_state = other._tos_state;
+    _flags = other._flags;
+    _get_code = other._get_code;
+    _put_code = other._put_code;
+  }
 
 public:
   ResolvedFieldEntry(u2 cpi) :
@@ -65,8 +76,18 @@ public:
     _flags(0),
     _get_code(0),
     _put_code(0) {}
+
   ResolvedFieldEntry() :
     ResolvedFieldEntry(0) {}
+
+  ResolvedFieldEntry(const ResolvedFieldEntry& other) {
+    copy_from(other);
+  }
+
+  ResolvedFieldEntry& operator=(const ResolvedFieldEntry& other) {
+    copy_from(other);
+    return *this;
+  }
 
   // Bit shift to get flags
   // Note: Only two flags exists at the moment but more could be added
@@ -76,8 +97,7 @@ public:
       is_flat_shift         = 2,
       is_null_free_inline_type_shift = 3,
       has_null_marker_shift = 4,
-      has_internal_null_marker_shift = 5,
-      max_flag_shift = has_internal_null_marker_shift
+      max_flag_shift = has_null_marker_shift
   };
 
   // Getters
@@ -93,7 +113,6 @@ public:
   bool is_flat()                const { return (_flags & (1 << is_flat_shift))     != 0; }
   bool is_null_free_inline_type() const { return (_flags & (1 << is_null_free_inline_type_shift)) != 0; }
   bool has_null_marker()        const { return (_flags & (1 << has_null_marker_shift)) != 0; }
-  bool has_internal_null_marker() const { return (_flags & (1 << has_internal_null_marker_shift)) != 0; }
   bool is_resolved(Bytecodes::Code code) const {
     switch(code) {
     case Bytecodes::_getstatic:
@@ -112,19 +131,17 @@ public:
   void print_on(outputStream* st) const;
 
   void set_flags(bool is_final_flag, bool is_volatile_flag, bool is_flat_flag, bool is_null_free_inline_type_flag,
-                 bool has_null_marker_flag, bool has_internal_null_marker_flag) {
+                 bool has_null_marker_flag) {
     u1 new_flags = ((is_final_flag ? 1 : 0) << is_final_shift) | static_cast<int>(is_volatile_flag) |
       ((is_flat_flag ? 1 : 0) << is_flat_shift) |
       ((is_null_free_inline_type_flag ? 1 : 0) << is_null_free_inline_type_shift) |
-      ((has_null_marker_flag ? 1 : 0) << has_null_marker_shift) |
-      ((has_internal_null_marker_flag ? 1 : 0) << has_internal_null_marker_shift);
+      ((has_null_marker_flag ? 1 : 0) << has_null_marker_shift);
     _flags = checked_cast<u1>(new_flags);
     assert(is_final() == is_final_flag, "Must be");
     assert(is_volatile() == is_volatile_flag, "Must be");
     assert(is_flat() == is_flat_flag, "Must be");
     assert(is_null_free_inline_type() == is_null_free_inline_type_flag, "Must be");
     assert(has_null_marker() == has_null_marker_flag, "Must be");
-    assert(has_internal_null_marker() == has_internal_null_marker_flag, "Must be");
   }
 
   inline void set_bytecode(u1* code, u1 new_code) {
@@ -150,7 +167,10 @@ public:
   }
 
   // CDS
+#if INCLUDE_CDS
   void remove_unshareable_info();
+  void mark_and_relocate();
+#endif
 
   // Offsets
   static ByteSize field_holder_offset() { return byte_offset_of(ResolvedFieldEntry, _field_holder); }

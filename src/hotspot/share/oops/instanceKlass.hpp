@@ -26,6 +26,7 @@
 #define SHARE_OOPS_INSTANCEKLASS_HPP
 
 #include "code/vmreg.hpp"
+#include "memory/allocation.hpp"
 #include "memory/referenceType.hpp"
 #include "oops/annotations.hpp"
 #include "oops/constMethod.hpp"
@@ -144,13 +145,50 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
+  int* _null_reset_value_offset;
   ArrayKlass** _null_free_inline_array_klasses;
-  int _alignment;
   int _first_field_offset;
-  int _payload_size_in_bytes;
-  int _internal_null_marker_offset; // -1 if none
+  int _payload_size_in_bytes;   // size of payload layout
+  int _payload_alignment;       // alignment required for payload
+  int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
+  int _non_atomic_alignment;    // alignment requirement for null-free non-atomic layout
+  int _atomic_size_in_bytes;    // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
+  int _nullable_size_in_bytes;  // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
+  int _null_marker_offset;
 
   friend class InlineKlass;
+};
+
+class InlineLayoutInfo : public MetaspaceObj {
+  InlineKlass* _klass;
+  LayoutKind _kind;
+  int _null_marker_offset; // null marker offset for this field, relative to the beginning of the current container
+
+ public:
+  InlineLayoutInfo(): _klass(nullptr), _kind(LayoutKind::UNKNOWN), _null_marker_offset(-1)  {}
+  InlineLayoutInfo(InlineKlass* ik, LayoutKind kind, int size, int nm_offset):
+    _klass(ik), _kind(kind), _null_marker_offset(nm_offset) {}
+
+  InlineKlass* klass() const { return _klass; }
+  void set_klass(InlineKlass* k) { _klass = k; }
+
+  LayoutKind kind() const {
+    assert(_kind != LayoutKind::UNKNOWN, "Not set");
+    return _kind;
+  }
+  void set_kind(LayoutKind lk) { _kind = lk; }
+
+  int null_marker_offset() const {
+    assert(_null_marker_offset != -1, "Not set");
+    return _null_marker_offset;
+  }
+  void set_null_marker_offset(int o) { _null_marker_offset = o; }
+
+  void metaspace_pointers_do(MetaspaceClosure* it);
+  MetaspaceObj::Type type() const { return InlineLayoutInfoType; }
+
+  static ByteSize klass_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _klass)); }
+  static ByteSize null_marker_offset_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _null_marker_offset)); }
 };
 
 class InstanceKlass: public Klass {
@@ -166,6 +204,8 @@ class InstanceKlass: public Klass {
  protected:
   InstanceKlass(const ClassFileParser& parser, KlassKind kind = Kind, ReferenceType reference_type = REF_NONE);
 
+  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, bool use_class_space, TRAPS) throw();
+
  public:
   InstanceKlass();
 
@@ -174,7 +214,6 @@ class InstanceKlass: public Klass {
   enum ClassState : u1 {
     allocated,                          // allocated (but not yet linked)
     loaded,                             // loaded and inserted in class hierarchy (but not linked yet)
-    being_linked,                       // currently running verifier and rewriter
     linked,                             // successfully linked/verified (but not initialized yet)
     being_initialized,                  // currently running class initializer
     fully_initialized,                  // initialized (successful final state)
@@ -248,14 +287,16 @@ class InstanceKlass: public Klass {
 
   volatile u2     _idnum_allocated_count;   // JNI/JVMTI: increments with the addition of methods, old ids don't change
 
+  // Class states are defined as ClassState (see above).
+  // Place the _init_state here to utilize the unused 2-byte after
+  // _idnum_allocated_count.
   volatile ClassState _init_state;          // state of class
 
-  u1              _reference_type;          // reference type
+  u1              _reference_type;                // reference type
 
   // State is set either at parse time or while executing, atomically to not disturb other state
   InstanceKlassFlags _misc_flags;
 
-  Monitor*             _init_monitor;       // mutual exclusion to _init_state and _init_thread.
   JavaThread* volatile _init_thread;        // Pointer to current thread doing initialization (to handle recursive initialization)
 
   OopMapCache*    volatile _oop_map_cache;   // OopMapCache for all methods in the klass (allocated lazily)
@@ -298,8 +339,7 @@ class InstanceKlass: public Klass {
   Array<u1>*          _fieldinfo_stream;
   Array<FieldStatus>* _fields_status;
 
-  Array<InlineKlass*>* _inline_type_field_klasses; // For "inline class" fields, null if none present
-  Array<int>* _null_marker_offsets; // for flat fields with a null marker
+  Array<InlineLayoutInfo>* _inline_layout_info_array;
   Array<u2>* _loadable_descriptors;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
@@ -359,24 +399,21 @@ class InstanceKlass: public Klass {
   bool has_inline_type_fields() const { return _misc_flags.has_inline_type_fields(); }
   void set_has_inline_type_fields()   { _misc_flags.set_has_inline_type_fields(true); }
 
-  bool is_empty_inline_type() const   { return _misc_flags.is_empty_inline_type(); }
-  void set_is_empty_inline_type()     { _misc_flags.set_is_empty_inline_type(true); }
-
-  // Note:  The naturally_atomic property only applies to
-  // inline classes; it is never true on identity classes.
-  // The bit is placed on instanceKlass for convenience.
-
-  // Query if h/w provides atomic load/store for instances.
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 
-  // Query if this class is mentioned in the JVM option ForceNonTearable.
+  // Query if this class has atomicity requirements (default is yes)
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
   // It inherits from supers.
+  // Its value depends on the ForceNonTearable VM option, the LooselyConsistentValue annotation
+  // and the presence of flat fields with atomicity requirements
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
+  // Query if this class can be implicitly constructed, meaning the VM is allowed
+  // to create instances without calling a constructor
+  // Applies to inline classes and their super types
   bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
   void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
@@ -555,40 +592,22 @@ public:
                                        TRAPS);
 
   JavaThread* init_thread()  { return Atomic::load(&_init_thread); }
-  // We can safely access the name as long as we hold the _init_monitor.
   const char* init_thread_name() {
-    assert(_init_monitor->owned_by_self(), "Must hold _init_monitor here");
     return init_thread()->name_raw();
   }
 
  public:
   // initialization state
-  bool is_loaded() const                   { return init_state() >= loaded; }
-  bool is_linked() const                   { return init_state() >= linked; }
-  bool is_being_linked() const             { return init_state() == being_linked; }
-  bool is_initialized() const              { return init_state() == fully_initialized; }
-  bool is_not_initialized() const          { return init_state() <  being_initialized; }
-  bool is_being_initialized() const        { return init_state() == being_initialized; }
-  bool is_in_error_state() const           { return init_state() == initialization_error; }
-  bool is_init_thread(JavaThread *thread)  { return thread == init_thread(); }
-  ClassState  init_state() const           { return Atomic::load(&_init_state); }
+  bool is_loaded() const                   { return _init_state >= loaded; }
+  bool is_linked() const                   { return _init_state >= linked; }
+  bool is_initialized() const              { return _init_state == fully_initialized; }
+  bool is_not_initialized() const          { return _init_state <  being_initialized; }
+  bool is_being_initialized() const        { return _init_state == being_initialized; }
+  bool is_in_error_state() const           { return _init_state == initialization_error; }
+  bool is_reentrant_initialization(Thread *thread)  { return thread == _init_thread; }
+  ClassState  init_state() const           { return _init_state; }
   const char* init_state_name() const;
   bool is_rewritten() const                { return _misc_flags.rewritten(); }
-
-  class LockLinkState : public StackObj {
-    InstanceKlass* _ik;
-    JavaThread*    _current;
-   public:
-    LockLinkState(InstanceKlass* ik, JavaThread* current) : _ik(ik), _current(current) {
-      ik->check_link_state_and_wait(current);
-    }
-    ~LockLinkState() {
-      if (!_ik->is_linked()) {
-        // Reset to loaded if linking failed.
-        _ik->set_initialization_state_and_notify(loaded, _current);
-      }
-    }
-  };
 
   // is this a sealed class
   bool is_sealed() const;
@@ -890,7 +909,7 @@ public:
 
   // initialization
   void call_class_initializer(TRAPS);
-  void set_initialization_state_and_notify(ClassState state, JavaThread* current);
+  void set_initialization_state_and_notify(ClassState state, TRAPS);
 
   // OopMapCache support
   OopMapCache* oop_map_cache()               { return _oop_map_cache; }
@@ -902,6 +921,7 @@ public:
   void set_jni_ids(JNIid* ids)                   { _jni_ids = ids; }
   JNIid* jni_id_for(int offset);
 
+ public:
   // maintenance of deoptimization dependencies
   inline DependencyContext dependencies();
   void mark_dependent_nmethods(DeoptimizationScope* deopt_scope, KlassDepChange& changes);
@@ -929,8 +949,7 @@ public:
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
-  static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
-  static ByteSize null_marker_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _null_marker_offsets)); }
+  static ByteSize inline_layout_info_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_layout_info_array)); }
   static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
 
   // subclass/subinterface checks
@@ -1018,16 +1037,23 @@ public:
 
   inline InstanceKlass* volatile* adr_implementor() const;
 
-  Array<InlineKlass*>* inline_type_field_klasses_array() const { return _inline_type_field_klasses; }
-  void set_inline_type_field_klasses_array(Array<InlineKlass*>* array) { _inline_type_field_klasses = array; }
+  void set_inline_layout_info_array(Array<InlineLayoutInfo>* array) { _inline_layout_info_array = array; }
+  Array<InlineLayoutInfo>* inline_layout_info_array() const { return _inline_layout_info_array; }
+  void set_inline_layout_info(int index, InlineLayoutInfo *info) {
+    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    _inline_layout_info_array->at_put(index, *info);
+  }
+  InlineLayoutInfo inline_layout_info(int index) const {
+    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    return _inline_layout_info_array->at(index);
+  }
+  InlineLayoutInfo* inline_layout_info_adr(int index) {
+    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    return _inline_layout_info_array->adr_at(index);
+  }
 
-  Array<int>* null_marker_offsets_array() const { return _null_marker_offsets; }
-  void set_null_marker_offsets_array(Array<int>* array) { _null_marker_offsets = array; }
-
-  inline InlineKlass* get_inline_type_field_klass(int idx) const;
+  inline InlineKlass* get_inline_type_field_klass(int idx) const ;
   inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;
-  inline void set_inline_type_field_klass(int idx, InlineKlass* k);
-  inline void reset_inline_type_field_klass(int idx);
 
   // Use this to return the size of an instance in heap words:
   virtual int size_helper() const {
@@ -1136,7 +1162,7 @@ public:
  public:
   u2 idnum_allocated_count() const      { return _idnum_allocated_count; }
 
- private:
+private:
   // initialization state
   void set_init_state(ClassState state);
   void set_rewritten()                  { _misc_flags.set_rewritten(true); }
@@ -1153,6 +1179,12 @@ public:
   jmethodID update_jmethod_id(jmethodID* jmeths, Method* method, int idnum);
 
 public:
+  // Lock for (1) initialization; (2) access to the ConstantPool of this class.
+  // Must be one per class and it has to be a VM internal object so java code
+  // cannot lock it (like the mirror).
+  // It has to be an object not a Mutex because it's held through java calls.
+  oop init_lock() const;
+
   // Returns the array class for the n'th dimension
   virtual ArrayKlass* array_klass(int n, TRAPS);
   virtual ArrayKlass* array_klass_or_null(int n);
@@ -1162,10 +1194,9 @@ public:
   virtual ArrayKlass* array_klass_or_null();
 
   static void clean_initialization_error_table();
-
-  Monitor* init_monitor() const { return _init_monitor; }
 private:
-  void check_link_state_and_wait(JavaThread* current);
+  void fence_and_clear_init_lock();
+
   bool link_class_impl                           (TRAPS);
   bool verify_code                               (TRAPS);
   void initialize_impl                           (TRAPS);

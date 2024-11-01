@@ -54,6 +54,46 @@ void Copy::conjoint_memory_atomic(const void* from, void* to, size_t size) {
   }
 }
 
+#define COPY_ALIGNED_SEGMENT(t) \
+  if (bits % sizeof(t) == 0) { \
+    size_t segment = remain / sizeof(t); \
+    if (segment > 0) { \
+      Copy::conjoint_##t##s_atomic((const t*) cursor_from, (t*) cursor_to, segment); \
+      remain -= segment * sizeof(t); \
+      cursor_from = (void*)(((char*)cursor_from) + segment * sizeof(t)); \
+      cursor_to = (void*)(((char*)cursor_to) + segment * sizeof(t)); \
+    } \
+  } \
+
+void Copy::copy_value_content(const void* from, void* to, size_t size) {
+  // Simple cases first
+  uintptr_t bits = (uintptr_t) from | (uintptr_t) to | (uintptr_t) size;
+  if (bits % sizeof(jlong) == 0) {
+    Copy::conjoint_jlongs_atomic((const jlong*) from, (jlong*) to, size / sizeof(jlong));
+    return;
+  } else if (bits % sizeof(jint) == 0) {
+    Copy::conjoint_jints_atomic((const jint*) from, (jint*) to, size / sizeof(jint));
+    return;
+  } else if (bits % sizeof(jshort) == 0) {
+    Copy::conjoint_jshorts_atomic((const jshort*) from, (jshort*) to, size / sizeof(jshort));
+    return;
+  }
+
+  // Complex cases
+  bits = (uintptr_t) from | (uintptr_t) to;
+  const void* cursor_from = from;
+  void* cursor_to = to;
+  size_t remain = size;
+  COPY_ALIGNED_SEGMENT(jlong)
+  COPY_ALIGNED_SEGMENT(jint)
+  COPY_ALIGNED_SEGMENT(jshort)
+  if (remain > 0) {
+    Copy::conjoint_jbytes((const void*) cursor_from, (void*) cursor_to, remain);
+  }
+}
+
+#undef COPY_ALIGNED_SEGMENT
+
 class CopySwap : AllStatic {
 public:
   /**

@@ -41,6 +41,7 @@ compiler.err.signature.doesnt.match.intf                # UNUSED
 compiler.err.signature.doesnt.match.supertype           # UNUSED
 compiler.err.source.cant.overwrite.input.file
 compiler.err.stack.sim.error
+compiler.err.cant.attach.type.annotations               # bad class file
 compiler.err.type.var.more.than.once                    # UNUSED
 compiler.err.type.var.more.than.once.in.result          # UNUSED
 compiler.err.unexpected.type
@@ -54,7 +55,8 @@ compiler.misc.bad.constant.range                        # bad class file
 compiler.misc.bad.constant.value                        # bad class file
 compiler.misc.bad.enclosing.class                       # bad class file
 compiler.misc.bad.enclosing.method                      # bad class file
-compiler.misc.bad.runtime.invisible.param.annotations   # bad class file
+compiler.warn.runtime.invisible.parameter.annotations   # bad class file
+compiler.warn.runtime.visible.invisible.param.annotations.mismatch   # bad class file
 compiler.misc.bad.signature                             # bad class file
 compiler.misc.bad.requires.flag                         # bad class file
 compiler.misc.bad.access.flags                          # bad class file
@@ -221,6 +223,10 @@ compiler.warn.restricted.method
 
 # Value Objects
 compiler.misc.feature.value.classes
+
+# Pending removal
+compiler.note.implicit.annotation.processing
+compiler.warn.proc.use.proc.or.implicit
 
 #nullable types
 compiler.misc.feature.null.restricted.types

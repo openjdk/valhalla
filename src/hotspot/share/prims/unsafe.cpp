@@ -61,6 +61,7 @@
 #include "runtime/threadSMR.hpp"
 #include "runtime/vmOperations.hpp"
 #include "runtime/vm_version.hpp"
+#include "sanitizers/ub.hpp"
 #include "services/threadService.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
@@ -247,6 +248,9 @@ public:
     return normalize_for_read(*addr());
   }
 
+  // we use this method at some places for writing to 0 e.g. to cause a crash;
+  // ubsan does not know that this is the desired behavior
+  ATTRIBUTE_NO_UBSAN
   void put(T x) {
     GuardUnsafeAccess guard(_thread);
     assert(_obj == nullptr || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
@@ -369,7 +373,7 @@ UNSAFE_ENTRY(jint, Unsafe_NullMarkerOffset(JNIEnv *env, jobject unsage, jobject 
   oop f = JNIHandles::resolve_non_null(o);
   Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
   int slot = java_lang_reflect_Field::slot(f);
-  return InstanceKlass::cast(k)->null_marker_offsets_array()->at(slot);
+  fatal("Not supported yet");
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlatArray(JNIEnv *env, jobject unsafe, jclass c)) {
@@ -390,7 +394,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
   InlineKlass* vk = InlineKlass::cast(k);
   assert_and_log_unsafe_value_access(base, offset, vk);
   Handle base_h(THREAD, base);
-  oop v = vk->read_flat_field(base_h(), offset, CHECK_NULL);
+  oop v = vk->read_flat_field(base_h(), offset, LayoutKind::PAYLOAD, CHECK_NULL);  // TODO FIXME Hard coded layout kind to make the code compile, Unsafe must be upgraded to handle correct layout kind
   return JNIHandles::make_local(THREAD, v);
 } UNSAFE_END
 
@@ -401,7 +405,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   assert(!base->is_inline_type() || base->mark().is_larval_state(), "must be an object instance or a larval inline type");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
-  vk->write_flat_field(base, offset, v, CHECK);
+  vk->write_flat_field(base, offset, v, true /*null free*/, LayoutKind::PAYLOAD, CHECK);  // TODO FIXME Hard coded layout kind to make the code compile, Unsafe must be upgraded to handle correct layout kind
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
@@ -410,7 +414,7 @@ UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobj
   Handle vh(THREAD, v);
   InlineKlass* vk = InlineKlass::cast(v->klass());
   instanceOop new_value = vk->allocate_instance_buffer(CHECK_NULL);
-  vk->inline_copy_oop_to_new_oop(vh(),  new_value);
+  vk->inline_copy_oop_to_new_oop(vh(), new_value, LayoutKind::PAYLOAD);  // FIXME temporary hack for the transition
   markWord mark = new_value->mark();
   new_value->set_mark(mark.enter_larval_state());
   return JNIHandles::make_local(THREAD, new_value);
@@ -695,7 +699,7 @@ UNSAFE_ENTRY(jobject, Unsafe_StaticFieldBase0(JNIEnv *env, jobject unsafe, jobje
   int modifiers   = java_lang_reflect_Field::modifiers(reflected);
 
   if ((modifiers & JVM_ACC_STATIC) == 0) {
-    THROW_0(vmSymbols::java_lang_IllegalArgumentException());
+    THROW_NULL(vmSymbols::java_lang_IllegalArgumentException());
   }
 
   return JNIHandles::make_local(THREAD, mirror);
@@ -806,7 +810,7 @@ static jclass Unsafe_DefineClass_impl(JNIEnv *env, jstring name, jbyteArray data
 
   jbyte *body;
   char *utfName = nullptr;
-  jclass result = 0;
+  jclass result = nullptr;
   char buf[128];
 
   assert(data != nullptr, "Class bytes must not be null");
@@ -819,7 +823,7 @@ static jclass Unsafe_DefineClass_impl(JNIEnv *env, jstring name, jbyteArray data
   body = NEW_C_HEAP_ARRAY_RETURN_NULL(jbyte, length, mtInternal);
   if (body == nullptr) {
     throw_new(env, "java/lang/OutOfMemoryError");
-    return 0;
+    return nullptr;
   }
 
   env->GetByteArrayRegion(data, offset, length, body);

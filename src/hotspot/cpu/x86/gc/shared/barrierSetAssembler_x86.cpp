@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -210,6 +210,19 @@ void BarrierSetAssembler::value_copy(MacroAssembler* masm, DecoratorSet decorato
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, value_klass);
   } else {
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, value_klass);
+  }
+}
+
+void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
+                                     Register src, Register dst, Register inline_layout_info) {
+  // flat_field_copy implementation is fairly complex, and there are not any
+  // "short-cuts" to be made from asm. What there is, appears to have the same
+  // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
+  // of hand-rolled instructions...
+  if (decorators & IS_DEST_UNINITIALIZED) {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized2), src, dst, inline_layout_info);
+  } else {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy2), src, dst, inline_layout_info);
   }
 }
 
@@ -438,7 +451,7 @@ void BarrierSetAssembler::c2i_entry_barrier(MacroAssembler* masm) {
   __ load_method_holder_cld(tmp1, rbx);
 
    // Is it a strong CLD?
-  __ cmpl(Address(tmp1, ClassLoaderData::keep_alive_offset()), 0);
+  __ cmpl(Address(tmp1, ClassLoaderData::keep_alive_ref_count_offset()), 0);
   __ jcc(Assembler::greater, method_live);
 
    // Is it a weak but alive CLD?
@@ -597,6 +610,25 @@ void SaveLiveRegisters::initialize(BarrierStubC2* stub) {
   caller_saved.Insert(OptoReg::as_OptoReg(r9->as_VMReg()));
   caller_saved.Insert(OptoReg::as_OptoReg(r10->as_VMReg()));
   caller_saved.Insert(OptoReg::as_OptoReg(r11->as_VMReg()));
+
+  if (UseAPX) {
+    caller_saved.Insert(OptoReg::as_OptoReg(r16->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r17->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r18->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r19->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r20->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r21->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r22->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r23->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r24->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r25->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r26->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r27->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r28->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r29->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r30->as_VMReg()));
+    caller_saved.Insert(OptoReg::as_OptoReg(r31->as_VMReg()));
+  }
 
   int gp_spill_size = 0;
   int opmask_spill_size = 0;

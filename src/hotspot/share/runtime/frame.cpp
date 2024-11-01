@@ -375,8 +375,8 @@ void frame::deoptimize(JavaThread* thread) {
 #if defined ASSERT && !defined AARCH64   // Stub call site does not look like NativeCall on AArch64
     NativeCall* call = nativeCall_before(this->pc());
     address dest = call->destination();
-    assert(dest == Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id) ||
-           dest == Runtime1::entry_for(Runtime1::buffer_inline_args_id), "unexpected safepoint in entry point");
+    assert(dest == Runtime1::entry_for(C1StubId::buffer_inline_args_no_receiver_id) ||
+           dest == Runtime1::entry_for(C1StubId::buffer_inline_args_id), "unexpected safepoint in entry point");
 #endif
     return;
   }
@@ -534,7 +534,7 @@ const char* frame::print_name() const {
   return "C";
 }
 
-void frame::print_value_on(outputStream* st, JavaThread *thread) const {
+void frame::print_value_on(outputStream* st) const {
   NOT_PRODUCT(address begin = pc()-40;)
   NOT_PRODUCT(address end   = nullptr;)
 
@@ -573,7 +573,7 @@ void frame::print_value_on(outputStream* st, JavaThread *thread) const {
 }
 
 void frame::print_on(outputStream* st) const {
-  print_value_on(st,nullptr);
+  print_value_on(st);
   if (is_interpreted_frame()) {
     interpreter_frame_print_on(st);
   }
@@ -974,7 +974,6 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool quer
   InterpreterFrameClosure blk(this, max_locals, m->max_stack(), f, nullptr);
 
   // process locals & expression stack
-  ResourceMark rm(thread);
   InterpreterOopMap mask;
   if (query_oop_map_cache) {
     m->mask_for(m, bci, &mask);

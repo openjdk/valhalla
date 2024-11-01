@@ -201,7 +201,7 @@ void PlaceholderEntry::set_next_klass_name(Symbol* next_klass_name) {
 // SystemDictionary_lock, so we don't need special precautions
 // on store ordering here.
 static PlaceholderEntry* add_entry(Symbol* class_name, ClassLoaderData* loader_data,
-                            Symbol* next_klass_name){
+                                   Symbol* next_klass_name){
   assert_locked_or_safepoint(SystemDictionary_lock);
   assert(class_name != nullptr, "adding nullptr obj");
 
@@ -258,7 +258,8 @@ PlaceholderEntry* PlaceholderTable::find_and_add(Symbol* name,
                                                  classloadAction action,
                                                  Symbol* next_klass_name,
                                                  JavaThread* thread) {
-  assert(action != DETECT_CIRCULARITY || next_klass_name != nullptr, "must have a super class name");
+  assert(action != DETECT_CIRCULARITY || next_klass_name != nullptr,
+         "must have a class name for the next step in the class resolution recursion");
   PlaceholderEntry* probe = get_entry(name, loader_data);
   if (probe == nullptr) {
     // Nothing found, add place holder
@@ -297,11 +298,11 @@ void PlaceholderTable::find_and_remove(Symbol* name, ClassLoaderData* loader_dat
   assert(probe != nullptr, "must find an entry");
   log(name, probe, "find_and_remove", action);
   probe->remove_seen_thread(thread, action);
-  if (probe->superThreadQ() == nullptr) {
+  if (probe->circularityThreadQ() == nullptr) {
     probe->set_next_klass_name(nullptr);
   }
   // If no other threads using this entry, and this thread is not using this entry for other states
-  if ((probe->superThreadQ() == nullptr) && (probe->loadInstanceThreadQ() == nullptr)
+  if ((probe->circularityThreadQ() == nullptr) && (probe->loadInstanceThreadQ() == nullptr)
       && (probe->defineThreadQ() == nullptr) && (probe->definer() == nullptr)) {
     remove_entry(name, loader_data);
   }
@@ -330,8 +331,8 @@ void PlaceholderEntry::print_on(outputStream* st) const {
   st->print("loadInstanceThreadQ threads:");
   SeenThread::print_action_queue(loadInstanceThreadQ(), st);
   st->cr();
-  st->print("superThreadQ threads:");
-  SeenThread::print_action_queue(superThreadQ(), st);
+  st->print("circularityThreadQ threads:");
+  SeenThread::print_action_queue(circularityThreadQ(), st);
   st->cr();
   st->print("defineThreadQ threads:");
   SeenThread::print_action_queue(defineThreadQ(), st);

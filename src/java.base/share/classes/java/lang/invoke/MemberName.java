@@ -818,7 +818,7 @@ final class MemberName implements Member, Cloneable {
         assert(isResolved() == isResolved);
     }
 
-    void checkForTypeAlias(Class<?> refc) {
+    void ensureTypeVisible(Class<?> refc) {
         if (isInvocable()) {
             MethodType type;
             if (this.type instanceof MethodType mt)
@@ -826,7 +826,7 @@ final class MemberName implements Member, Cloneable {
             else
                 this.type = type = getMethodType();
             if (type.erase() == type)  return;
-            if (VerifyAccess.isTypeVisible(type, refc))  return;
+            if (VerifyAccess.ensureTypeVisible(type, refc))  return;
             throw new LinkageError("bad method type alias: "+type+" not visible from "+refc);
         } else {
             Class<?> type;
@@ -834,7 +834,7 @@ final class MemberName implements Member, Cloneable {
                 type = cl;
             else
                 this.type = type = getFieldType();
-            if (VerifyAccess.isTypeVisible(type, refc))  return;
+            if (VerifyAccess.ensureTypeVisible(type, refc))  return;
             throw new LinkageError("bad field type alias: "+type+" not visible from "+refc);
         }
     }
@@ -976,7 +976,7 @@ final class MemberName implements Member, Cloneable {
                 if (m == null && speculativeResolve) {
                     return null;
                 }
-                m.checkForTypeAlias(m.getDeclaringClass());
+                m.ensureTypeVisible(m.getDeclaringClass());
                 m.resolution = null;
             } catch (ClassNotFoundException | LinkageError ex) {
                 // JVM reports that the "bytecode behavior" would get an error

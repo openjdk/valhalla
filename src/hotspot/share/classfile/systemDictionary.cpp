@@ -142,7 +142,7 @@ void SystemDictionary::compute_java_loaders(TRAPS) {
     _java_system_loader = OopHandle(Universe::vm_global(), system_loader);
   } else {
     // It must have been restored from the archived module graph
-    assert(UseSharedSpaces, "must be");
+    assert(CDSConfig::is_using_archive(), "must be");
     assert(CDSConfig::is_using_full_module_graph(), "must be");
     DEBUG_ONLY(
       oop system_loader = get_system_class_loader_impl(CHECK);
@@ -155,7 +155,7 @@ void SystemDictionary::compute_java_loaders(TRAPS) {
     _java_platform_loader = OopHandle(Universe::vm_global(), platform_loader);
   } else {
     // It must have been restored from the archived module graph
-    assert(UseSharedSpaces, "must be");
+    assert(CDSConfig::is_using_archive(), "must be");
     assert(CDSConfig::is_using_full_module_graph(), "must be");
     DEBUG_ONLY(
       oop platform_loader = get_platform_class_loader_impl(CHECK);
@@ -262,19 +262,33 @@ Handle SystemDictionary::get_loader_lock_or_null(Handle class_loader) {
 
 Symbol* SystemDictionary::class_name_symbol(const char* name, Symbol* exception, TRAPS) {
   if (name == nullptr) {
-    THROW_MSG_0(exception, "No class name given");
+    THROW_MSG_NULL(exception, "No class name given");
   }
-  if ((int)strlen(name) > Symbol::max_length()) {
+  size_t name_len = strlen(name);
+  if (name_len > static_cast<size_t>(Symbol::max_length())) {
     // It's impossible to create this class;  the name cannot fit
-    // into the constant pool.
-    Exceptions::fthrow(THREAD_AND_LOCATION, exception,
-                       "Class name exceeds maximum length of %d: %s",
-                       Symbol::max_length(),
-                       name);
+    // into the constant pool. If necessary report an abridged name
+    // in the exception message.
+    if (name_len > static_cast<size_t>(MaxStringPrintSize)) {
+      Exceptions::fthrow(THREAD_AND_LOCATION, exception,
+                         "Class name exceeds maximum length of %d: %.*s ... (%zu characters omitted) ... %.*s",
+                         Symbol::max_length(),
+                         MaxStringPrintSize / 2,
+                         name,
+                         name_len - 2 * (MaxStringPrintSize / 2), // allows for odd value
+                         MaxStringPrintSize / 2,
+                         name + name_len - MaxStringPrintSize / 2);
+    }
+    else {
+      Exceptions::fthrow(THREAD_AND_LOCATION, exception,
+                         "Class name exceeds maximum length of %d: %s",
+                         Symbol::max_length(),
+                         name);
+    }
     return nullptr;
   }
   // Callers should ensure that the name is never an illegal UTF8 string.
-  assert(UTF8::is_legal_utf8((const unsigned char*)name, (int)strlen(name), false),
+  assert(UTF8::is_legal_utf8((const unsigned char*)name, name_len, false),
          "Class name is not a valid utf8 string.");
 
   // Make a new symbol for the class name.
@@ -402,17 +416,17 @@ static inline void log_circularity_error(Symbol* name, PlaceholderEntry* probe) 
 //      superclass checks on its own thread to catch class circularity and
 //      to avoid deadlock.
 //
-// resolve_with_circularity_detection_or_fail adds a DETECT_CIRCULARITY placeholder to the placeholder table before calling
+// resolve_with_circularity_detection adds a DETECT_CIRCULARITY placeholder to the placeholder table before calling
 // resolve_instance_class_or_null. ClassCircularityError is detected when a DETECT_CIRCULARITY or LOAD_INSTANCE
 // placeholder for the same thread, class, classloader is found.
 // This can be seen with logging option: -Xlog:class+load+placeholders=debug.
 //
-InstanceKlass* SystemDictionary::resolve_with_circularity_detection_or_fail(Symbol* class_name,
-                                                       Symbol* next_name,
-                                                       Handle class_loader,
-                                                       Handle protection_domain,
-                                                       bool is_superclass,
-                                                       TRAPS) {
+InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* class_name,
+                                                                    Symbol* next_name,
+                                                                    Handle class_loader,
+                                                                    Handle protection_domain,
+                                                                    bool is_superclass,
+                                                                    TRAPS) {
 
   assert(next_name != nullptr, "null superclass for resolving");
   assert(!Signature::is_array(next_name), "invalid superclass name");
@@ -427,7 +441,7 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection_or_fail(Symb
   }
 #endif // INCLUDE_CDS
 
-  // If klass is already loaded, just return the superclass or superinterface.
+  // If class_name is already loaded, just return the superclass or superinterface.
   // Make sure there's a placeholder for the class_name before resolving.
   // This is used as a claim that this thread is currently loading superclass/classloader
   // and for ClassCircularity checks.
@@ -445,10 +459,10 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection_or_fail(Symb
     // if the next_name matches class->super()->name() and if the class loaders match.
     // Otherwise, a LinkageError will be thrown later.
     if (klassk != nullptr && is_superclass &&
-        ((quicksuperk = klassk->java_super()) != nullptr) &&
-         ((quicksuperk->name() == next_name) &&
-            (quicksuperk->class_loader() == class_loader()))) {
-           return quicksuperk;
+       ((quicksuperk = klassk->java_super()) != nullptr) &&
+       ((quicksuperk->name() == next_name) &&
+         (quicksuperk->class_loader() == class_loader()))) {
+      return quicksuperk;
     } else {
       // Must check ClassCircularity before checking if superclass is already loaded.
       PlaceholderEntry* probe = PlaceholderTable::get_entry(class_name, loader_data);
@@ -459,7 +473,7 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection_or_fail(Symb
     }
 
     if (!throw_circularity_error) {
-      // Be careful not to exit resolve_super without removing this placeholder.
+      // Be careful not to exit resolve_with_circularity_detection without removing this placeholder.
       PlaceholderEntry* newprobe = PlaceholderTable::find_and_add(class_name,
                                                                   loader_data,
                                                                   PlaceholderTable::DETECT_CIRCULARITY,
@@ -505,13 +519,15 @@ static void handle_parallel_super_load(Symbol* name,
                                        Handle class_loader,
                                        Handle protection_domain, TRAPS) {
 
-  // superk is not used; resolve_super_or_fail is called for circularity check only.
-  Klass* superk = SystemDictionary::resolve_with_circularity_detection_or_fail(name,
-                                                          superclassname,
-                                                          class_loader,
-                                                          protection_domain,
-                                                          false,
-                                                          CHECK);
+  // The result superk is not used; resolve_with_circularity_detection is called for circularity check only.
+  // This passes true to is_superclass even though it might not be the super class in order to perform the
+  // optimization anyway.
+  Klass* superk = SystemDictionary::resolve_with_circularity_detection(name,
+                                                                       superclassname,
+                                                                       class_loader,
+                                                                       protection_domain,
+                                                                       true,
+                                                                       CHECK);
 }
 
 // Bootstrap and non-parallel capable class loaders use the LOAD_INSTANCE placeholder to
@@ -578,6 +594,7 @@ InstanceKlass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
                                                                 Handle protection_domain,
                                                                 TRAPS) {
   // name must be in the form of "java/lang/Object" -- cannot be "Ljava/lang/Object;"
+  DEBUG_ONLY(ResourceMark rm(THREAD));
   assert(name != nullptr && !Signature::is_array(name) &&
          !Signature::has_envelope(name), "invalid class name: %s", name == nullptr ? "nullptr" : name->as_C_string());
 
@@ -1054,8 +1071,8 @@ bool SystemDictionary::check_shared_class_super_type(InstanceKlass* klass, Insta
     }
   }
 
-  Klass *found = resolve_with_circularity_detection_or_fail(klass->name(), super_type->name(),
-                                       class_loader, protection_domain, is_superclass, CHECK_0);
+  Klass *found = resolve_with_circularity_detection(klass->name(), super_type->name(),
+                                                    class_loader, protection_domain, is_superclass, CHECK_false);
   if (found == super_type) {
     return true;
   } else {
@@ -1074,16 +1091,21 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   // If unexpected superclass or interfaces are found, we cannot
   // load <ik> from the shared archive.
 
-  if (ik->super() != nullptr &&
-      !check_shared_class_super_type(ik, InstanceKlass::cast(ik->super()),
-                                     class_loader, protection_domain, true, THREAD)) {
-    return false;
+  if (ik->super() != nullptr) {
+    bool check_super = check_shared_class_super_type(ik, InstanceKlass::cast(ik->super()),
+                                                     class_loader, protection_domain, true,
+                                                     CHECK_false);
+    if (!check_super) {
+      return false;
+    }
   }
 
   Array<InstanceKlass*>* interfaces = ik->local_interfaces();
   int num_interfaces = interfaces->length();
   for (int index = 0; index < num_interfaces; index++) {
-    if (!check_shared_class_super_type(ik, interfaces->at(index), class_loader, protection_domain, false, THREAD)) {
+    bool check_interface = check_shared_class_super_type(ik, interfaces->at(index), class_loader, protection_domain, false,
+                                                         CHECK_false);
+    if (!check_interface) {
       return false;
     }
   }
@@ -1135,10 +1157,13 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   Symbol* class_name = ik->name();
 
   if (!is_shared_class_visible(class_name, ik, pkg_entry, class_loader)) {
+    ik->set_shared_loading_failed();
     return nullptr;
   }
 
-  if (!check_shared_class_super_types(ik, class_loader, protection_domain, THREAD)) {
+  bool check = check_shared_class_super_types(ik, class_loader, protection_domain, CHECK_NULL);
+  if (!check) {
+    ik->set_shared_loading_failed();
     return nullptr;
   }
 
@@ -1297,7 +1322,7 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
     InstanceKlass* k = nullptr;
 
 #if INCLUDE_CDS
-    if (UseSharedSpaces)
+    if (CDSConfig::is_using_archive())
     {
       PerfTraceTime vmtimer(ClassLoader::perf_shared_classload_time());
       InstanceKlass* ik = SystemDictionaryShared::find_builtin_class(class_name);
@@ -1652,7 +1677,7 @@ void SystemDictionary::initialize(TRAPS) {
   // Resolve basic classes
   vmClasses::resolve_all(CHECK);
   // Resolve classes used by archived heap objects
-  if (UseSharedSpaces) {
+  if (CDSConfig::is_using_archive()) {
     HeapShared::resolve_classes(THREAD);
   }
 }

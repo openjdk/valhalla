@@ -23,7 +23,7 @@
 
   /*
  * @test id=32bits
- * @requires vm.bits == 32 & vm.flagless
+ * @requires vm.bits == 32
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -33,7 +33,7 @@
 
 /*
  * @test id=64bitsCompressedOops
- * @requires vm.bits == 64 & vm.flagless
+ * @requires vm.bits == 64
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -43,7 +43,7 @@
 
 /*
  * @test id=64bitsNoCompressedOops
- * @requires vm.bits == 64 & vm.flagless
+ * @requires vm.bits == 64
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -53,7 +53,7 @@
 
 /*
  * @test id=64bitsNoCompressedOopsNoCompressKlassPointers
- * @requires vm.bits == 64 & vm.flagless
+ * @requires vm.bits == 64
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -184,7 +184,7 @@ public class ValueFieldInheritanceTest {
       Collections.addAll(argsList, compressedKlassPointersArg);
     }
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + ":.");
+    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
   }

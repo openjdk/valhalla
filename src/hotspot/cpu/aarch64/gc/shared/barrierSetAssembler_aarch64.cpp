@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -148,6 +148,19 @@ void BarrierSetAssembler::value_copy(MacroAssembler* masm, DecoratorSet decorato
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, value_klass);
   } else {
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, value_klass);
+  }
+}
+
+void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
+                                     Register src, Register dst, Register inline_layout_info) {
+  // flat_field_copy implementation is fairly complex, and there are not any
+  // "short-cuts" to be made from asm. What there is, appears to have the same
+  // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
+  // of hand-rolled instructions...
+  if (decorators & IS_DEST_UNINITIALIZED) {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized2), src, dst, inline_layout_info);
+  } else {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy2), src, dst, inline_layout_info);
   }
 }
 
@@ -403,7 +416,7 @@ void BarrierSetAssembler::c2i_entry_barrier(MacroAssembler* masm) {
   __ load_method_holder_cld(rscratch1, rmethod);
 
   // Is it a strong CLD?
-  __ ldrw(rscratch2, Address(rscratch1, ClassLoaderData::keep_alive_offset()));
+  __ ldrw(rscratch2, Address(rscratch1, ClassLoaderData::keep_alive_ref_count_offset()));
   __ cbnz(rscratch2, method_live);
 
   // Is it a weak but alive CLD?
