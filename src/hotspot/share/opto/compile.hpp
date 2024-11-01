@@ -357,8 +357,8 @@ class Compile : public Phase {
   // JSR 292
   bool                  _has_method_handle_invokes; // True if this method has MethodHandle invokes.
   bool                  _has_monitors;          // Metadata transfered to nmethod to enable Continuations lock-detection fastpath
+  bool                  _has_scoped_access;     // For shared scope closure
   bool                  _clinit_barrier_on_entry; // True if clinit barrier is needed on nmethod entry
-  RTMState              _rtm_state;             // State of Restricted Transactional Memory usage
   int                   _loop_opts_cnt;         // loop opts round
   bool                  _has_flat_accesses;     // Any known flat array accesses?
   bool                  _flat_accesses_share_alias; // Initially all flat array share a single slice
@@ -676,10 +676,6 @@ private:
   void          set_print_inlining(bool z)       { _print_inlining = z; }
   bool              print_intrinsics() const     { return _print_intrinsics; }
   void          set_print_intrinsics(bool z)     { _print_intrinsics = z; }
-  RTMState          rtm_state()  const           { return _rtm_state; }
-  void          set_rtm_state(RTMState s)        { _rtm_state = s; }
-  bool              use_rtm() const              { return (_rtm_state & NoRTM) == 0; }
-  bool          profile_rtm() const              { return _rtm_state == ProfileRTM; }
   uint              max_node_limit() const       { return (uint)_max_node_limit; }
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
   bool              clinit_barrier_on_entry()       { return _clinit_barrier_on_entry; }
@@ -696,6 +692,8 @@ private:
 
   bool              has_monitors() const         { return _has_monitors; }
   void          set_has_monitors(bool v)         { _has_monitors = v; }
+  bool              has_scoped_access() const    { return _has_scoped_access; }
+  void          set_has_scoped_access(bool v)    { _has_scoped_access = v; }
 
   // check the CompilerOracle for special behaviours for this compile
   bool          method_has_option(CompileCommandEnum option) {
@@ -892,7 +890,7 @@ private:
   RootNode*    root() const                { return _root; }
   void         set_root(RootNode* r)       { _root = r; }
   StartNode*   start() const;              // (Derived from root.)
-  void         init_start(StartNode* s);
+  void         verify_start(StartNode* s) const NOT_DEBUG_RETURN;
   Node*        immutable_memory();
 
   Node*        recent_alloc_ctl() const    { return _recent_alloc_ctl; }
@@ -1244,6 +1242,7 @@ private:
   void final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& frc, uint nop, Unique_Node_List& dead_nodes);
   void final_graph_reshaping_walk(Node_Stack& nstack, Node* root, Final_Reshape_Counts& frc, Unique_Node_List& dead_nodes);
   void eliminate_redundant_card_marks(Node* n);
+  void handle_div_mod_op(Node* n, BasicType bt, bool is_unsigned);
 
   // Logic cone optimization.
   void optimize_logic_cones(PhaseIterGVN &igvn);

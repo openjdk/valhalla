@@ -808,6 +808,8 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
 
         /** list of target types inferred for this functional expression. */
         public Type target;
+        /** The owner of this functional expression. */
+        public Symbol owner;
 
         public Type getDescriptorType(Types types) {
             return target != null ? types.findDescriptorType(target) : types.createErrorType(null);
@@ -2017,6 +2019,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public JCTree body;
         public boolean canCompleteNormally = true;
         public ParameterKind paramKind;
+        public boolean wasMethodReference;
 
         public JCLambda(List<JCVariableDecl> params,
                         JCTree body) {

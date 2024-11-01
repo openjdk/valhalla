@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -452,7 +452,7 @@ public:
 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
-  assert_is_valid(to_zaddress(src));
+  check_is_valid_zaddress(src);
 
   if (dst->is_objArray()) {
     // Cloning an object array is similar to performing array copy.
@@ -480,7 +480,7 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(o
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
-inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(void* src, void* dst, InlineKlass* md) {
+inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
   if (md->contains_oops()) {
     // src/dst aren't oops, need offset to adjust oop map offset
     const address src_oop_addr_offset = ((address) src) - md->first_field_offset();
@@ -496,7 +496,7 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
       map++;
     }
   }
-  Raw::value_copy_in_heap(src, dst, md);
+  Raw::value_copy_in_heap(src, dst, md, lk);
 }
 
 //

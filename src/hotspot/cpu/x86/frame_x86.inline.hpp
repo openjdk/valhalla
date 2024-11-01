@@ -429,8 +429,8 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 #ifdef ASSERT
       NativeCall* call = nativeCall_before(pc());
       address dest = call->destination();
-      assert(dest == Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id) ||
-             dest == Runtime1::entry_for(Runtime1::buffer_inline_args_id), "unexpected safepoint in entry point");
+      assert(dest == Runtime1::entry_for(C1StubId::buffer_inline_args_no_receiver_id) ||
+             dest == Runtime1::entry_for(C1StubId::buffer_inline_args_id), "unexpected safepoint in entry point");
 #endif
     }
 #endif

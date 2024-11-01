@@ -27,6 +27,7 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/metaspaceUtils.hpp"
+#include "nmt/mallocLimit.hpp"
 #include "nmt/mallocTracker.hpp"
 #include "nmt/memBaseline.hpp"
 #include "nmt/memReporter.hpp"
@@ -39,7 +40,6 @@
 #include "runtime/orderAccess.hpp"
 #include "runtime/vmOperations.hpp"
 #include "runtime/vmThread.hpp"
-#include "services/mallocLimit.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/vmError.hpp"
@@ -63,10 +63,11 @@ void MemTracker::initialize() {
 
   // Memory type is encoded into tracking header as a byte field,
   // make sure that we don't overflow it.
-  STATIC_ASSERT(mt_number_of_types <= max_jubyte);
+  STATIC_ASSERT(mt_number_of_tags <= max_jubyte);
 
   if (level > NMT_off) {
     if (!MallocTracker::initialize(level) ||
+        !MemoryFileTracker::Instance::initialize(level) ||
         !VirtualMemoryTracker::initialize(level)) {
       assert(false, "NMT initialization failed");
       level = NMT_off;

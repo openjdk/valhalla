@@ -30,7 +30,6 @@
 #include "code/vmreg.inline.hpp"
 #include "compiler/oopMap.hpp"
 #include "utilities/macros.hpp"
-#include "runtime/rtmLocking.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/checkedCast.hpp"
@@ -407,6 +406,9 @@ class MacroAssembler: public Assembler {
                        Register tmp1, Register tmp2, Register tmp3);
 
   void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register inline_klass);
+  void flat_field_copy(DecoratorSet decorators, Register src, Register dst, Register inline_layout_info);
+  // We probably need the following for arrays:    TODO FIXME
+  // void flat_element_copy(DecoratorSet decorators, Register src, Register dst, Register array);
 
   // inline type data payload offsets...
   void first_field_offset(Register inline_klass, Register offset);
@@ -651,6 +653,8 @@ public:
 
   // For field "index" within "klass", return inline_klass ...
   void get_inline_type_field_klass(Register klass, Register index, Register inline_klass);
+
+  void inline_layout_info(Register klass, Register index, Register layout_info);
 
   void population_count(Register dst, Register src, Register scratch1, Register scratch2);
 
@@ -2222,8 +2226,14 @@ public:
 
   void check_stack_alignment(Register sp, const char* msg, unsigned bias = 0, Register tmp = noreg);
 
-  void lightweight_lock(Register obj, Register reg_rax, Register thread, Register tmp, Label& slow);
+  void lightweight_lock(Register basic_lock, Register obj, Register reg_rax, Register thread, Register tmp, Label& slow);
   void lightweight_unlock(Register obj, Register reg_rax, Register thread, Register tmp, Label& slow);
+
+#ifdef _LP64
+  void save_legacy_gprs();
+  void restore_legacy_gprs();
+  void setcc(Assembler::Condition comparison, Register dst);
+#endif
 };
 
 /**

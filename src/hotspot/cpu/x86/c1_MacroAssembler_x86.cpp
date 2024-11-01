@@ -59,19 +59,20 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
 
   if (DiagnoseSyncOnValueBasedClasses != 0) {
     load_klass(hdr, obj, rscratch1);
-    movl(hdr, Address(hdr, Klass::access_flags_offset()));
-    testl(hdr, JVM_ACC_IS_VALUE_BASED_CLASS);
+    testb(Address(hdr, Klass::misc_flags_offset()), KlassFlags::_misc_is_value_based_class);
     jcc(Assembler::notZero, slow_case);
   }
 
   if (LockingMode == LM_LIGHTWEIGHT) {
 #ifdef _LP64
     const Register thread = r15_thread;
+    lightweight_lock(disp_hdr, obj, hdr, thread, tmp, slow_case);
 #else
-    const Register thread = disp_hdr;
-    get_thread(thread);
+    // Implicit null check.
+    movptr(hdr, Address(obj, oopDesc::mark_offset_in_bytes()));
+    // Lacking registers and thread on x86_32. Always take slow path.
+    jmp(slow_case);
 #endif
-    lightweight_lock(obj, hdr, thread, tmp, slow_case);
   } else  if (LockingMode == LM_LEGACY) {
     Label done;
     // Load object header
@@ -144,10 +145,8 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
 #ifdef _LP64
     lightweight_unlock(obj, disp_hdr, r15_thread, hdr, slow_case);
 #else
-    // This relies on the implementation of lightweight_unlock being able to handle
-    // that the reg_rax and thread Register parameters may alias each other.
-    get_thread(disp_hdr);
-    lightweight_unlock(obj, disp_hdr, disp_hdr, hdr, slow_case);
+    // Lacking registers and thread on x86_32. Always take slow path.
+    jmp(slow_case);
 #endif
   } else if (LockingMode == LM_LEGACY) {
     // test if object header is pointing to the displaced header, and if so, restore
@@ -285,7 +284,7 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == rax, "must be");
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::dtrace_object_alloc_id)));
+    call(RuntimeAddress(Runtime1::entry_for(C1StubId::dtrace_object_alloc_id)));
   }
 
   verify_oop(obj);
@@ -323,7 +322,7 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == rax, "must be");
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::dtrace_object_alloc_id)));
+    call(RuntimeAddress(Runtime1::entry_for(C1StubId::dtrace_object_alloc_id)));
   }
 
   verify_oop(obj);
@@ -420,9 +419,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   movptr(rbx, (intptr_t)(ces->method()));
   if (is_inline_ro_entry) {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id)));
+    call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_no_receiver_id)));
   } else {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_id)));
+    call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_id)));
   }
   int rt_call_offset = offset();
 

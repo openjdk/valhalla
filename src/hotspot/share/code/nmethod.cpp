@@ -131,7 +131,6 @@ struct java_nmethod_stats_struct {
   uint relocation_size;
   uint consts_size;
   uint insts_size;
-  uint inline_insts_size;
   uint stub_size;
   uint oops_size;
   uint metadata_size;
@@ -152,7 +151,6 @@ struct java_nmethod_stats_struct {
     relocation_size     += nm->relocation_size();
     consts_size         += nm->consts_size();
     insts_size          += nm->insts_size();
-    inline_insts_size   += nm->inline_insts_size();
     stub_size           += nm->stub_size();
     oops_size           += nm->oops_size();
     metadata_size       += nm->metadata_size();
@@ -186,9 +184,6 @@ struct java_nmethod_stats_struct {
     }
     if (insts_size != 0) {
       tty->print_cr("   main code     = %u (%f%%)", insts_size, (insts_size * 100.0f)/total_nm_size);
-    }
-    if (inline_insts_size != 0) {
-      tty->print_cr("     inline code = %u (%f%%)", inline_insts_size, (inline_insts_size * 100.0f)/total_nm_size);
     }
     if (stub_size != 0) {
       tty->print_cr("   stub code     = %u (%f%%)", stub_size, (stub_size * 100.0f)/total_nm_size);
@@ -860,10 +855,8 @@ void nmethod::run_nmethod_entry_barrier() {
     // By calling this nmethod entry barrier, it plays along and acts
     // like any other nmethod found on the stack of a thread (fewer surprises).
     nmethod* nm = this;
-    if (bs_nm->is_armed(nm)) {
-      bool alive = bs_nm->nmethod_entry_barrier(nm);
-      assert(alive, "should be alive");
-    }
+    bool alive = bs_nm->nmethod_entry_barrier(nm);
+    assert(alive, "should be alive");
   }
 }
 
@@ -1245,9 +1238,6 @@ void nmethod::init_defaults(CodeBuffer *code_buffer, CodeOffsets* offsets) {
   _oops_do_mark_link          = nullptr;
   _compiled_ic_data           = nullptr;
 
-#if INCLUDE_RTM_OPT
-  _rtm_state                  = NoRTM;
-#endif
   _is_unloading_state         = 0;
   _state                      = not_installed;
 
@@ -1255,6 +1245,7 @@ void nmethod::init_defaults(CodeBuffer *code_buffer, CodeOffsets* offsets) {
   _has_method_handle_invokes  = 0;
   _has_wide_vectors           = 0;
   _has_monitors               = 0;
+  _has_scoped_access          = 0;
   _has_flushed_dependencies   = 0;
   _is_unlinked                = 0;
   _load_reported              = 0; // jvmti state
@@ -1270,18 +1261,11 @@ void nmethod::init_defaults(CodeBuffer *code_buffer, CodeOffsets* offsets) {
   CHECKED_CAST(_entry_offset,              uint16_t, (offsets->value(CodeOffsets::Entry)));
   CHECKED_CAST(_verified_entry_offset,     uint16_t, (offsets->value(CodeOffsets::Verified_Entry)));
 
-  int size = code_buffer->main_code_size();
-  assert(size >= 0, "should be initialized");
-  // Use instructions section size if it is 0 (e.g. native wrapper)
-  if (size == 0) size = code_size(); // requires _stub_offset to be set
-  assert(size <= code_size(), "incorrect size: %d > %d", size, code_size());
-  _inline_insts_size = size - _verified_entry_offset
-                     - code_buffer->total_skipped_instructions_size();
-  assert(_inline_insts_size >= 0, "sanity");
-
   _inline_entry_point             = entry_point();
   _verified_inline_entry_point    = verified_entry_point();
   _verified_inline_ro_entry_point = verified_entry_point();
+
+  _skipped_instructions_size = code_buffer->total_skipped_instructions_size();
 }
 
 // Post initialization
@@ -3304,7 +3288,7 @@ void nmethod::print_recorded_oop(int log_n, int i) {
   if (value == Universe::non_oop_word()) {
     tty->print("non-oop word");
   } else {
-    if (value == 0) {
+    if (value == nullptr) {
       tty->print("nullptr-oop");
     } else {
       oop_at(i)->print_value_on(tty);
@@ -3671,10 +3655,22 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
         case relocInfo::poll_type:             return "poll";
         case relocInfo::poll_return_type:      return "poll_return";
         case relocInfo::trampoline_stub_type:  return "trampoline_stub";
+        case relocInfo::entry_guard_type:      return "entry_guard";
+        case relocInfo::post_call_nop_type:    return "post_call_nop";
+        case relocInfo::barrier_type: {
+          barrier_Relocation* const reloc = iter.barrier_reloc();
+          stringStream st;
+          st.print("barrier format=%d", reloc->format());
+          return st.as_string();
+        }
+
         case relocInfo::type_mask:             return "type_bit_mask";
 
-        default:
-          break;
+        default: {
+          stringStream st;
+          st.print("unknown relocInfo=%d", (int) iter.type());
+          return st.as_string();
+        }
     }
   }
   return have_one ? "other" : nullptr;
@@ -4046,6 +4042,7 @@ void nmethod::print_statistics() {
   DebugInformationRecorder::print_statistics();
   pc_nmethod_stats.print_pc_stats();
   Dependencies::print_statistics();
+  ExternalsRecorder::print_statistics();
   if (xtty != nullptr)  xtty->tail("statistics");
 }
 

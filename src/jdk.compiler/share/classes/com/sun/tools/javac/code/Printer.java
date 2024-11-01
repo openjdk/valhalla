@@ -204,8 +204,10 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
         List<Attribute.TypeCompound> annos = t.getAnnotationMirrors();
         if (!annos.isEmpty()) {
             if (prefix) sb.append(' ');
-            sb.append(annos);
-            sb.append(' ');
+            for (Attribute.TypeCompound anno : annos) {
+                sb.append(anno);
+                sb.append(' ');
+            }
         }
         return sb.toString();
     }

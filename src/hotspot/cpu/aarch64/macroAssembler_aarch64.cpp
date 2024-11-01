@@ -219,7 +219,7 @@ public:
           break;
         } else {
           // nothing to do
-          assert(target == 0, "did not expect to relocate target for polling page load");
+          assert(target == nullptr, "did not expect to relocate target for polling page load");
         }
         break;
       }
@@ -740,7 +740,7 @@ void MacroAssembler::reserved_stack_check() {
     br(Assembler::LO, no_reserved_zone_enabling);
 
     enter();   // LR and FP are live.
-    lea(rscratch1, CAST_FROM_FN_PTR(address, SharedRuntime::enable_stack_reserved_zone));
+    lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::enable_stack_reserved_zone)));
     mov(c_rarg0, rthread);
     blr(rscratch1);
     leave();
@@ -748,7 +748,7 @@ void MacroAssembler::reserved_stack_check() {
     // We have already removed our own frame.
     // throw_delayed_StackOverflowError will think that it's been
     // called by our caller.
-    lea(rscratch1, RuntimeAddress(StubRoutines::throw_delayed_StackOverflowError_entry()));
+    lea(rscratch1, RuntimeAddress(SharedRuntime::throw_delayed_StackOverflowError_entry()));
     br(rscratch1);
     should_not_reach_here();
 
@@ -1176,6 +1176,7 @@ void MacroAssembler::check_and_handle_earlyret(Register java_thread) { }
 void MacroAssembler::check_and_handle_popframe(Register java_thread) { }
 
 void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
+  assert_different_registers(inline_klass, temp_reg, obj, rscratch2);
 #ifdef ASSERT
   {
     Label done_check;
@@ -1187,11 +1188,11 @@ void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_
   Register offset = temp_reg;
   // Getting the offset of the pre-allocated default value
   ldr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
-  ldr(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
+  load_sized_value(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())), sizeof(int), true /*is_signed*/);
 
   // Getting the mirror
   ldr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, inline_klass, temp_reg);
+  resolve_oop_handle(obj, inline_klass, rscratch2);
 
   // Getting the pre-allocated default value from the mirror
   Address field(obj, offset);
@@ -1769,8 +1770,8 @@ void MacroAssembler::lookup_secondary_supers_table_slow_path(Register r_super_kl
   // The bitmap is full to bursting.
   // Implicit invariant: BITMAP_FULL implies (length > 0)
   assert(Klass::SECONDARY_SUPERS_BITMAP_FULL == ~uintx(0), "");
-  cmn(r_bitmap, (u1)1);
-  br(EQ, L_huge);
+  cmpw(r_array_length, (u1)(Klass::SECONDARY_SUPERS_TABLE_SIZE - 2));
+  br(GT, L_huge);
 
   // NB! Our caller has checked bits 0 and 1 in the bitmap. The
   // current slot (at secondary_supers[r_array_index]) has not yet
@@ -1922,7 +1923,7 @@ void MacroAssembler::_verify_oop(Register reg, const char* s, const char* file, 
   movptr(rscratch1, (uintptr_t)(address)b);
 
   // call indirectly to solve generation ordering problem
-  lea(rscratch2, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
+  lea(rscratch2, RuntimeAddress(StubRoutines::verify_oop_subroutine_entry_address()));
   ldr(rscratch2, Address(rscratch2));
   blr(rscratch2);
 
@@ -1965,7 +1966,7 @@ void MacroAssembler::_verify_oop_addr(Address addr, const char* s, const char* f
   movptr(rscratch1, (uintptr_t)(address)b);
 
   // call indirectly to solve generation ordering problem
-  lea(rscratch2, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
+  lea(rscratch2, RuntimeAddress(StubRoutines::verify_oop_subroutine_entry_address()));
   ldr(rscratch2, Address(rscratch2));
   blr(rscratch2);
 
@@ -2506,14 +2507,36 @@ void MacroAssembler::membar(Membar_mask_bits order_constraint) {
   address last = code()->last_insn();
   if (last != nullptr && nativeInstruction_at(last)->is_Membar() && prev == last) {
     NativeMembar *bar = NativeMembar_at(prev);
-    // We are merging two memory barrier instructions.  On AArch64 we
-    // can do this simply by ORing them together.
-    bar->set_kind(bar->get_kind() | order_constraint);
-    BLOCK_COMMENT("merged membar");
-  } else {
-    code()->set_last_insn(pc());
-    dmb(Assembler::barrier(order_constraint));
+    if (AlwaysMergeDMB) {
+      bar->set_kind(bar->get_kind() | order_constraint);
+      BLOCK_COMMENT("merged membar(always)");
+      return;
+    }
+    // Don't promote DMB ST|DMB LD to DMB (a full barrier) because
+    // doing so would introduce a StoreLoad which the caller did not
+    // intend
+    if (bar->get_kind() == order_constraint
+        || bar->get_kind() == AnyAny
+        || order_constraint == AnyAny) {
+      // We are merging two memory barrier instructions.  On AArch64 we
+      // can do this simply by ORing them together.
+      bar->set_kind(bar->get_kind() | order_constraint);
+      BLOCK_COMMENT("merged membar");
+      return;
+    } else {
+      // A special case like "DMB ST;DMB LD;DMB ST", the last DMB can be skipped
+      // We need check the last 2 instructions
+      address prev2 = prev - NativeMembar::instruction_size;
+      if (last != code()->last_label() && nativeInstruction_at(prev2)->is_Membar()) {
+        NativeMembar *bar2 = NativeMembar_at(prev2);
+        assert(bar2->get_kind() == order_constraint, "it should be merged before");
+        BLOCK_COMMENT("merged membar(elided)");
+        return;
+      }
+    }
   }
+  code()->set_last_insn(pc());
+  dmb(Assembler::barrier(order_constraint));
 }
 
 bool MacroAssembler::try_merge_ldst(Register rt, const Address &adr, size_t size_in_bytes, bool is_store) {
@@ -3101,7 +3124,7 @@ void MacroAssembler::verify_heapbase(const char* msg) {
   if (CheckCompressedOops) {
     Label ok;
     push(1 << rscratch1->encoding(), sp); // cmpptr trashes rscratch1
-    cmpptr(rheapbase, ExternalAddress(CompressedOops::ptrs_base_addr()));
+    cmpptr(rheapbase, ExternalAddress(CompressedOops::base_addr()));
     br(Assembler::EQ, ok);
     stop(msg);
     bind(ok);
@@ -3267,9 +3290,9 @@ void MacroAssembler::reinit_heapbase()
 {
   if (UseCompressedOops) {
     if (Universe::is_fully_initialized()) {
-      mov(rheapbase, CompressedOops::ptrs_base());
+      mov(rheapbase, CompressedOops::base());
     } else {
-      lea(rheapbase, ExternalAddress(CompressedOops::ptrs_base_addr()));
+      lea(rheapbase, ExternalAddress(CompressedOops::base_addr()));
       ldr(rheapbase, Address(rheapbase));
     }
   }
@@ -5229,8 +5252,8 @@ MacroAssembler::KlassDecodeMode MacroAssembler::klass_decode_mode() {
 
   if (operand_valid_for_logical_immediate(
         /*is32*/false, (uint64_t)CompressedKlassPointers::base())) {
-    const uint64_t range_mask =
-      (1ULL << log2i(CompressedKlassPointers::range())) - 1;
+    const size_t range = CompressedKlassPointers::klass_range_end() - CompressedKlassPointers::base();
+    const uint64_t range_mask = (1ULL << log2i(range)) - 1;
     if (((uint64_t)CompressedKlassPointers::base() & range_mask) == 0) {
       return (_klass_decode_mode = KlassDecodeXor);
     }
@@ -5388,6 +5411,12 @@ void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Re
                                        Register inline_klass) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->value_copy(this, decorators, src, dst, inline_klass);
+}
+
+void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Register dst,
+                                     Register inline_layout_info) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->flat_field_copy(this, decorators, src, dst, inline_layout_info);
 }
 
 void MacroAssembler::first_field_offset(Register inline_klass, Register offset) {
@@ -5635,18 +5664,24 @@ void MacroAssembler::verify_tlab() {
 #endif
 }
 
-void MacroAssembler::get_inline_type_field_klass(Register klass, Register index, Register inline_klass) {
-  ldr(inline_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
-#ifdef ASSERT
-  {
-    Label done;
-    cbnz(inline_klass, done);
-    stop("get_inline_type_field_klass contains no inline klass");
-    bind(done);
+void MacroAssembler::get_inline_type_field_klass(Register holder_klass, Register index, Register inline_klass) {
+  inline_layout_info(holder_klass, index, inline_klass);
+  ldr(inline_klass, Address(inline_klass, InlineLayoutInfo::klass_offset()));
+}
+
+void MacroAssembler::inline_layout_info(Register holder_klass, Register index, Register layout_info) {
+  assert_different_registers(holder_klass, index, layout_info);
+  InlineLayoutInfo array[2];
+  int size = (char*)&array[1] - (char*)&array[0]; // computing size of array elements
+  if (is_power_of_2(size)) {
+    lsl(index, index, log2i_exact(size)); // Scale index by power of 2
+  } else {
+    mov(layout_info, size);
+    mul(index, index, layout_info); // Scale the index to be the entry index * array_element_size
   }
-#endif
-  lea(inline_klass, Address(inline_klass, Array<InlineKlass*>::base_offset_in_bytes()));
-  ldr(inline_klass, Address(inline_klass, index, Address::lsl(3)));
+  ldr(layout_info, Address(holder_klass, InstanceKlass::inline_layout_info_array_offset()));
+  add(layout_info, layout_info, Array<InlineLayoutInfo>::base_offset_in_bytes());
+  lea(layout_info, Address(layout_info, index));
 }
 
 // Writes to stack successive pages until offset reached to check for
@@ -7204,8 +7239,10 @@ void MacroAssembler::cache_wbsync(bool is_pre) {
 }
 
 void MacroAssembler::verify_sve_vector_length(Register tmp) {
+  if (!UseSVE || VM_Version::get_max_supported_sve_vector_length() == FloatRegister::sve_vl_min) {
+    return;
+  }
   // Make sure that native code does not change SVE vector length.
-  if (!UseSVE) return;
   Label verify_ok;
   movw(tmp, zr);
   sve_inc(tmp, B);
@@ -7245,7 +7282,7 @@ void MacroAssembler::verify_cross_modify_fence_not_required() {
     Label fence_not_required;
     cbz(rscratch1, fence_not_required);
     // If it does then fail.
-    lea(rscratch1, CAST_FROM_FN_PTR(address, JavaThread::verify_cross_modify_fence_failure));
+    lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, JavaThread::verify_cross_modify_fence_failure)));
     mov(c_rarg0, rthread);
     blr(rscratch1);
     bind(fence_not_required);
@@ -7541,9 +7578,9 @@ void MacroAssembler::double_move(VMRegPair src, VMRegPair dst, Register tmp) {
 //  - obj: the object to be locked
 //  - t1, t2, t3: temporary registers, will be destroyed
 //  - slow: branched to if locking fails, absolute offset may larger than 32KB (imm14 encoding).
-void MacroAssembler::lightweight_lock(Register obj, Register t1, Register t2, Register t3, Label& slow) {
+void MacroAssembler::lightweight_lock(Register basic_lock, Register obj, Register t1, Register t2, Register t3, Label& slow) {
   assert(LockingMode == LM_LIGHTWEIGHT, "only used with new lightweight locking");
-  assert_different_registers(obj, t1, t2, t3, rscratch1);
+  assert_different_registers(basic_lock, obj, t1, t2, t3, rscratch1);
 
   Label push;
   const Register top = t1;
@@ -7553,6 +7590,11 @@ void MacroAssembler::lightweight_lock(Register obj, Register t1, Register t2, Re
   // Preload the markWord. It is important that this is the first
   // instruction emitted as it is part of C1's null check semantics.
   ldr(mark, Address(obj, oopDesc::mark_offset_in_bytes()));
+
+  if (UseObjectMonitorTable) {
+    // Clear cache in case fast locking succeeds.
+    str(zr, Address(basic_lock, BasicObjectLock::lock_offset() + in_ByteSize((BasicLock::object_monitor_cache_offset_in_bytes()))));
+  }
 
   // Check if the lock-stack is full.
   ldrw(top, Address(rthread, JavaThread::lock_stack_top_offset()));

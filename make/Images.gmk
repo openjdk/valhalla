@@ -135,11 +135,11 @@ CDS_DUMP_FLAGS = -Xmx128M -Xms128M
 # Param2 - _nocoops, or empty
 # Param3 - _valhalla, or empty
 define CreateCDSArchive
-  $1_$2_$3_DUMP_EXTRA_ARG := $(if $(filter _nocoops, $2),-XX:-UseCompressedOops,) $(if $(filter _valhalla, $3),--enable-preview,)
-  $1_$2_$3_DUMP_TYPE      := $(if $(filter _nocoops, $2),-NOCOOPS,)$(if $(filter _valhalla, $3),-VALHALLA,)
+  $1_$2_$3_DUMP_EXTRA_ARG := $(if $(filter _nocoops, $2), -XX:-UseCompressedOops,) $(if $(filter _valhalla, $3), --enable-preview,)
+  $1_$2_$3_DUMP_TYPE      := $(if $(filter _nocoops, $2), -NOCOOPS,)$(if $(filter _valhalla, $3), -VALHALLA,)
 
   # Only G1 supports dumping the shared heap, so explicitly use G1 if the JVM supports it.
-  $1_$2_$3_CDS_DUMP_FLAGS := $(CDS_DUMP_FLAGS) $(if $(filter g1gc, $(JVM_FEATURES_$1)),-XX:+UseG1GC)
+  $1_$2_$3_CDS_DUMP_FLAGS := $(CDS_DUMP_FLAGS) $(if $(filter g1gc, $(JVM_FEATURES_$1)), -XX:+UseG1GC)
 
   ifeq ($(OPENJDK_TARGET_OS), windows)
     $1_$2_$3_CDS_ARCHIVE := bin/$1/classes$2$3.jsa
@@ -238,7 +238,7 @@ endif
 
 ifeq ($(GCOV_ENABLED), true)
 
-  $(eval $(call SetupCopyFiles,COPY_GCOV_GCNO, \
+  $(eval $(call SetupCopyFiles, COPY_GCOV_GCNO, \
       SRC := $(OUTPUTDIR), \
       DEST := $(SYMBOLS_IMAGE_DIR)/gcov, \
       FILES := $(call FindFiles, $(HOTSPOT_OUTPUTDIR) \
