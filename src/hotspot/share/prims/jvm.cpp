@@ -1900,17 +1900,6 @@ JVM_ENTRY(jobjectArray, JVM_GetRecordComponents(JNIEnv* env, jclass ofClass))
 }
 JVM_END
 
-static bool select_method(const methodHandle& method, bool want_constructor) {
-  bool is_ctor = (method->is_object_constructor());
-  if (want_constructor) {
-    return is_ctor;
-  } else {
-    return (!is_ctor &&
-            !method->is_class_initializer() &&
-            !method->is_overpass());
-  }
-}
-
 static jobjectArray get_class_declared_methods_helper(
                                   JNIEnv *env,
                                   jclass ofClass, jboolean publicOnly,
@@ -1943,14 +1932,22 @@ static jobjectArray get_class_declared_methods_helper(
   GrowableArray<int>* idnums = new GrowableArray<int>(methods_length);
   int num_methods = 0;
 
+  // Select methods matching the criteria.
   for (int i = 0; i < methods_length; i++) {
-    methodHandle method(THREAD, methods->at(i));
-    if (select_method(method, want_constructor)) {
-      if (!publicOnly || method->is_public()) {
-        idnums->push(method->method_idnum());
-        ++num_methods;
-      }
+    Method* method = methods->at(i);
+    if (want_constructor && !method->is_object_constructor()) {
+      continue;
     }
+    if (!want_constructor &&
+        (method->is_object_constructor() || method->is_class_initializer() ||
+         method->is_overpass())) {
+      continue;
+    }
+    if (publicOnly && !method->is_public()) {
+      continue;
+    }
+    idnums->push(method->method_idnum());
+    ++num_methods;
   }
 
   // Allocate result

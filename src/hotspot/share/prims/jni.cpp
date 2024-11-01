@@ -450,6 +450,8 @@ JNI_ENTRY(jobject, jni_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID meth
   if (m->is_object_constructor()) {
     reflection_method = Reflection::new_constructor(m, CHECK_NULL);
   } else {
+    // Note: Static initializers can theoretically be here, if JNI users manage
+    // to get their jmethodID. Record them as plain methods.
     reflection_method = Reflection::new_method(m, false, CHECK_NULL);
   }
   ret = JNIHandles::make_local(THREAD, reflection_method);

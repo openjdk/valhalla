@@ -2428,6 +2428,14 @@ class StubGenerator: public StubCodeGenerator {
       __ la(t1, ExternalAddress(bs_asm->patching_epoch_addr()));
       __ lwu(t1, t1);
       __ sw(t1, thread_epoch_addr);
+      // There are two ways this can work:
+      // - The writer did system icache shootdown after the instruction stream update.
+      //   Hence do nothing.
+      // - The writer trust us to make sure our icache is in sync before entering.
+      //   Hence use cmodx fence (fence.i, may change).
+      if (UseCtxFencei) {
+        __ cmodx_fence();
+      }
       __ membar(__ LoadLoad);
     }
 
@@ -5491,9 +5499,7 @@ class StubGenerator: public StubCodeGenerator {
       Register stepSrcM2 = doff;
       Register stepDst   = isURL;
       Register size      = x29;   // t4
-      Register minusOne  = x30;   // t5
 
-      __ mv(minusOne, -1);
       __ mv(size, MaxVectorSize * 2);
       __ mv(stepSrcM1, MaxVectorSize * 4);
       __ slli(stepSrcM2, stepSrcM1, 1);
@@ -5513,7 +5519,8 @@ class StubGenerator: public StubCodeGenerator {
       __ sub(length, length, stepSrcM2);
 
       // error check
-      __ bne(failedIdx, minusOne, Exit);
+      // valid value of failedIdx can only be -1 when < 0
+      __ bgez(failedIdx, Exit);
 
       __ bge(length, stepSrcM2, ProcessM2);
 
@@ -5533,7 +5540,8 @@ class StubGenerator: public StubCodeGenerator {
       __ sub(length, length, stepSrcM1);
 
       // error check
-      __ bne(failedIdx, minusOne, Exit);
+      // valid value of failedIdx can only be -1 when < 0
+      __ bgez(failedIdx, Exit);
 
       __ BIND(ProcessScalar);
       __ beqz(length, Exit);
@@ -6084,26 +6092,17 @@ static const int64_t right_3_bits = right_n_bits(3);
 
     address start = __ pc();
 
+    // input parameters
     const Register crc    = c_rarg0;  // crc
     const Register buf    = c_rarg1;  // source java byte array address
     const Register len    = c_rarg2;  // length
-    const Register table0 = c_rarg3;  // crc_table address
-    const Register table1 = c_rarg4;
-    const Register table2 = c_rarg5;
-    const Register table3 = c_rarg6;
-
-    const Register tmp1 = c_rarg7;
-    const Register tmp2 = t2;
-    const Register tmp3 = x28; // t3
-    const Register tmp4 = x29; // t4
-    const Register tmp5 = x30; // t5
-    const Register tmp6 = x31; // t6
 
     BLOCK_COMMENT("Entry:");
     __ enter(); // required for proper stackwalking of RuntimeStub frame
 
-    __ kernel_crc32(crc, buf, len, table0, table1, table2,
-                    table3, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6);
+    __ kernel_crc32(crc, buf, len,
+                    c_rarg3, c_rarg4, c_rarg5, c_rarg6, // tmp's for tables
+                    c_rarg7, t2, x28, x29, x30, x31);   // misc tmps
 
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ ret();

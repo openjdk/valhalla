@@ -3073,6 +3073,7 @@ static int get_flags(const methodHandle& m) {
   if (m->is_object_constructor()) {
     flags |= java_lang_invoke_MemberName::MN_IS_OBJECT_CONSTRUCTOR;
   } else {
+    // Note: Static initializers can be here. Record them as plain methods.
     flags |= java_lang_invoke_MemberName::MN_IS_METHOD;
   }
   if (m->caller_sensitive()) {
