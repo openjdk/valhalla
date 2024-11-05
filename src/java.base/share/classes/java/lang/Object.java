@@ -35,7 +35,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * <p>
  * Subclasses of {@code java.lang.Object} can be either an {@linkplain Class#isIdentity identity class}
  * or a {@linkplain Class#isValue value class}.
- * See {@jls The Java Language Specification 8.1.1.5 value Classes}.
+ * See {@jls The Java Language Specification 8.1.1.5 Value Classes}.
  *
  * @see     java.lang.Class
  * @since   1.0
