@@ -62,7 +62,6 @@ public class InlineTypeRegexes {
     public static final String UNHANDLED_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*unhandled" + END;
     public static final String PREDICATE_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*predicate" + END;
     public static final String MEMBAR = START + "MemBar" + MID + END;
-    public static final String CHECKCAST_ARRAY = "(((?i:cmp|CLFI|CLR).*" + MYVALUE_ARRAY_KLASS + ".*:|.*(?i:mov|or).*" + MYVALUE_ARRAY_KLASS + ".*:.*\\R(.*(decode|mov|nop).*\\R)*.*(cmp|CMP|CLR))" + END;
     public static final String CHECKCAST_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*checkcast_arraycopy.*" + END;
     public static final String JLONG_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*jlong_disjoint_arraycopy.*" + END;
     public static final String FIELD_ACCESS = "(.*Field: *" + END;

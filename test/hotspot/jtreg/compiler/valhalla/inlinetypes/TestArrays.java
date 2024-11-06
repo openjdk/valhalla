@@ -2344,7 +2344,7 @@ public class TestArrays {
 
     // Test propagation of not null-free/flat information
     @Test
-    @IR(failOn = CHECKCAST_ARRAY)
+    @IR(failOn = IRNode.SUBTYPE_CHECK)
     public MyValue1[] test95(Object[] array) {
         array[0] = null;
         // Always throws a ClassCastException because we just successfully
@@ -2372,7 +2372,7 @@ public class TestArrays {
 
     // Same as test95 but with cmp user of cast result
     @Test
-    @IR(failOn = CHECKCAST_ARRAY)
+    @IR(failOn = IRNode.SUBTYPE_CHECK)
     public boolean test96(Object[] array) {
         array[0] = null;
         // Always throws a ClassCastException because we just successfully
@@ -2401,7 +2401,7 @@ public class TestArrays {
 
     // Same as test95 but with instanceof instead of cast
     @Test
-    //FIX:8343423 @IR(failOn = CHECKCAST_ARRAY)
+    @IR(failOn = IRNode.SUBTYPE_CHECK)
     public boolean test97(Object[] array) {
         array[0] = new NonValueClass(42);
         // Always throws a ClassCastException because we just successfully stored
@@ -2410,6 +2410,13 @@ public class TestArrays {
     }
 
     @Run(test = "test97")
+    // With the default warm-up, we will profile the ArrayStoreException already in the interpreter and pass it in the
+    // MDO to the C2 compiler (see InterpreterRuntime::create_klass_exception). As a result, C2 is not able to propagate
+    // the improved type in the CheckCastPP after the sub type check because we've seen too many traps being taken at
+    // that bci (see Compile::too_many_traps() which checks that zero traps have been taken so far). Thus, the sub type
+    // check for the value class cannot be removed either. Set a warm-up value of zero to avoid that the trap is
+    // observed in the interpreter. Same for test98-100().
+    @Warmup(0)
     public void test97_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         NonValueClass[] array2 = new NonValueClass[1];
@@ -2425,8 +2432,8 @@ public class TestArrays {
 
     // Same as test95 but with non-flattenable store
     @Test
-    //FIX:8343423 @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
-    //    failOn = CHECKCAST_ARRAY)
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = IRNode.SUBTYPE_CHECK)
     public MyValue1[] test98(Object[] array) {
         array[0] = new NotFlattenable();
         // Always throws a ClassCastException because we just successfully stored a
@@ -2435,6 +2442,7 @@ public class TestArrays {
     }
 
     @Run(test = "test98")
+    @Warmup(0) // See test97() for details.
     public void test98_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
@@ -2454,8 +2462,8 @@ public class TestArrays {
 
     // Same as test98 but with cmp user of cast result
     @Test
-    //FIX:8343423 @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
-    //    failOn = CHECKCAST_ARRAY)
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = IRNode.SUBTYPE_CHECK)
     public boolean test99(Object[] array) {
         array[0] = new NotFlattenable();
         // Always throws a ClassCastException because we just successfully stored a
@@ -2465,6 +2473,7 @@ public class TestArrays {
     }
 
     @Run(test = "test99")
+    @Warmup(0) // See test97() for details.
     public void test99_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
@@ -2484,8 +2493,8 @@ public class TestArrays {
 
     // Same as test98 but with instanceof instead of cast
     @Test
-    //FIX:8343423 @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
-    //    failOn = CHECKCAST_ARRAY)
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = IRNode.SUBTYPE_CHECK)
     public boolean test100(Object[] array) {
         array[0] = new NotFlattenable();
         // Always throws a ClassCastException because we just successfully stored a
@@ -2494,6 +2503,7 @@ public class TestArrays {
     }
 
     @Run(test = "test100")
+    @Warmup(0) // See test97() for details.
     public void test100_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
@@ -2507,9 +2517,9 @@ public class TestArrays {
         Asserts.assertFalse(res);
     }
 
-    // Test that CHECKCAST_ARRAY matching works as expected
+    // Test that SUBTYPE_CHECK matching works as expected
     @Test
-    @IR(counts = { CHECKCAST_ARRAY, "= 1" })
+    @IR(counts = { IRNode.SUBTYPE_CHECK, "1" })
     public boolean test101(Object[] array) {
         return array instanceof MyValue1[];
     }
@@ -2524,9 +2534,9 @@ public class TestArrays {
         Asserts.assertTrue(test101(array3));
     }
 
-    // Test that CHECKCAST_ARRAY matching works as expected with null-free arrays
+    // Test that SUBTYPE_CHECK matching works as expected with null-free arrays
     @Test
-    @IR(counts = { CHECKCAST_ARRAY, "= 1" })
+    @IR(counts = { IRNode.SUBTYPE_CHECK, "1" })
     public Object test101NullFree(Object[] array) {
         return nullFreeArray.getClass().cast(array);
     }
