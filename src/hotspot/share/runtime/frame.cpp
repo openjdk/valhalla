@@ -1461,14 +1461,12 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
     { // mark arguments (see nmethod::print_nmethod_labels)
       Method* m = nm->method();
 
-      int stack_slot_offset = nm->frame_size() * wordSize; // offset, in bytes, to caller sp
-
       CompiledEntrySignature ces(m);
       ces.compute_calling_conventions(false);
       const GrowableArray<SigEntry>* sig_cc = nm->is_compiled_by_c2() ? ces.sig_cc() : ces.sig();
       const VMRegPair* regs = nm->is_compiled_by_c2() ? ces.regs_cc() : ces.regs();
 
-    //  assert(stack_arg_slots ==  m->num_stack_arg_slots(false /* rounded */), "");
+      int stack_slot_offset = nm->frame_size() * wordSize; // offset, in bytes, to caller sp
       int out_preserve = SharedRuntime::out_preserve_stack_slots();
       int sig_index = 0;
       int arg_index = (m->is_static() ? 0 : -1);

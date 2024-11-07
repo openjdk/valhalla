@@ -77,8 +77,8 @@
 *                   TestVirtualThreads
 **/
 
-// TODO RUN WITH -XX:-TieredCompilation -XX:+PreserveFramePointer -XX:-UseOnStackReplacement -XX:+DeoptimizeALot -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
-// TODO add runs with Virtual Calls to exercise computation of stack args
+// TODO run with combinations of -XX:-TieredCompilation -XX:+PreserveFramePointer -XX:-UseOnStackReplacement -XX:+DeoptimizeALot -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields
+// TODO add runs with virtual calls to compiled code with scalarized args which use a different entry point
 // TODO add tests where C1 needs stack repair
 
 import java.lang.reflect.Method;
