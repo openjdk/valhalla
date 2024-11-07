@@ -157,7 +157,6 @@ inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, co
 inline void FreezeBase::set_top_frame_metadata_pd(const frame& hf) {
   stackChunkOop chunk = _cont.tail();
   assert(chunk->is_in_chunk(hf.sp() - 1), "");
-  // TODO this does not work if the callee needs stack repair. But for interpreted callers, we just update the sp so that it fits :)
   assert(chunk->is_in_chunk(hf.sp() - frame::sender_sp_offset), "");
 
   address frame_pc = hf.pc();

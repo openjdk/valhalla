@@ -116,15 +116,14 @@ public class TestVirtualThreads {
 
         public void verify(String loc, int i) {
             if (x1 != i || x2 != i) {
-                new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + this).printStackTrace(System.out);
-                System.exit(1);
+                throw new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + this);
             }
         }
 
         public static void verify(SmallValue val, String loc, int i, boolean useNull) {
             if (useNull) {
                 if (val != null) {
-                    new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + val).printStackTrace(System.out);
+                    throw new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + val);
                 }
             } else {
                 val.verify(loc, i);
@@ -160,15 +159,14 @@ public class TestVirtualThreads {
         public void verify(String loc, int i) {
             if (x1 != i || x2 != i || x3 != i || x4 != i || x5 != i ||
                 x6 != i || x7 != i) {
-                new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + this).printStackTrace(System.out);
-                System.exit(1);
+                throw new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + this);
             }
         }
 
         public static void verify(LargeValue val, String loc, int i, boolean useNull) {
             if (useNull) {
                 if (val != null) {
-                    new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + val).printStackTrace(System.out);
+                    throw new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + val);
                 }
             } else {
                 val.verify(loc, i);
@@ -202,15 +200,14 @@ public class TestVirtualThreads {
         public void verify(String loc, int i) {
             if (x1 != (byte)i || x2 != (short)i || x3 != i || x4 != i || x5 != i ||
                 x6 != ((i % 2) == 0)) {
-                new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + this).printStackTrace(System.out);
-                System.exit(1);
+                throw new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + this);
             }
         }
 
         public static void verify(LargeValue2 val, String loc, int i, boolean useNull) {
             if (useNull) {
                 if (val != null) {
-                    new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + val).printStackTrace(System.out);
+                    throw new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + val);
                 }
             } else {
                 val.verify(loc, i);
@@ -240,15 +237,14 @@ public class TestVirtualThreads {
 
         public void verify(String loc, Object obj) {
             if (x1 != obj || x2 != obj || x3 != obj || x4 != obj || x5 != obj) {
-                new RuntimeException("Incorrect result at " + loc + " for obj = " + obj + ": " + this).printStackTrace(System.out);
-                System.exit(1);
+                throw new RuntimeException("Incorrect result at " + loc + " for obj = " + obj + ": " + this);
             }
         }
 
         public static void verify(LargeValueWithOops val, String loc, Object obj, boolean useNull) {
             if (useNull) {
                 if (val != null) {
-                    new RuntimeException("Incorrect result at " + loc + " for obj = " + obj + ": " + val).printStackTrace(System.out);
+                    throw new RuntimeException("Incorrect result at " + loc + " for obj = " + obj + ": " + val);
                 }
             } else {
                 val.verify(loc, obj);
