@@ -2415,16 +2415,17 @@ public class TestArrays {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         NonValueClass[] array2 = new NonValueClass[1];
         // When emitting the array store check "NonValueClass <: Object[]" for "array[0] = new NonValueClass(42)" in
-        // test97(), we speculatively assume that Object[] is exact and emit such a check with an uncommont trap before
+        // test97(), we speculatively assume that Object[] is exact and emit such a check with an uncommon trap before
         // the array store check at the same bci. We propagate that information with an additional CheckCastPP node
-        // feeding into the array store subtype check.
+        // feeding into the array store sub type check.
         // At runtime, we will hit the ArrayStoreException in the first execution when array is a MyValue1[].
-        // With the default IR framework warm-up, we will profile the ArrayStoreException already in the interpreter and
-        // pass it in the MDO to the C2 compiler (see InterpreterRuntime::create_klass_exception). As a result, C2 is
-        // not able to speculatively cast the array of type Object[] to an exact type before the first subtype check
-        // because we've seen too many traps being taken at that bci due to the ArrayStoreException that was hit at the
-        // very same bci (see Compile::too_many_traps() which checks that zero traps have been taken  so far). Thus,
-        // the second subtype check for the value class cannot be removed either.
+        // With the default IR framework warm-up, we will profile the ArrayStoreException in the interpreter and
+        // pass it in the MDO to the C2 compiler which treat these exceptions as traps being hit (see
+        // InterpreterRuntime::create_klass_exception). As a result, C2 is not able to speculatively cast the array of
+        // type Object[] to an exact type before the first sub type check because we've seen too many traps being taken
+        // at that bci due to the ArrayStoreException that was hit at the very same bci (see Compile::too_many_traps()
+        // which checks that zero traps have been taken  so far). Thus, neither the first sub type check for the array
+        // check cast nor the second sub type check for the instanceof can be removed.
         // By not executing test97() with MyValue1[] during warm-up, which would trigger the ArrayStoreException,
         // we will not observe an ArrayStoreException before C2 compilation. Note that C2 also require
         // MonomorphicArrayCheck in order to emit the speculative exactness check.
