@@ -2401,7 +2401,7 @@ public class TestArrays {
 
     // Same as test95 but with instanceof instead of cast
     @Test
-    @IR(failOn = IRNode.SUBTYPE_CHECK)
+    @IR(applyIf = {"MonomorphicArrayCheck", "true"}, failOn = IRNode.SUBTYPE_CHECK)
     public boolean test97(Object[] array) {
         array[0] = new NonValueClass(42);
         // Always throws a ClassCastException because we just successfully stored
@@ -2412,10 +2412,11 @@ public class TestArrays {
     @Run(test = "test97")
     // With the default warm-up, we will profile the ArrayStoreException already in the interpreter and pass it in the
     // MDO to the C2 compiler (see InterpreterRuntime::create_klass_exception). As a result, C2 is not able to propagate
-    // the improved type in the CheckCastPP after the sub type check because we've seen too many traps being taken at
-    // that bci (see Compile::too_many_traps() which checks that zero traps have been taken so far). Thus, the sub type
+    // the improved type in the CheckCastPP after the subtype check because we've seen too many traps being taken at
+    // that bci (see Compile::too_many_traps() which checks that zero traps have been taken so far). Thus, the subtype
     // check for the value class cannot be removed either. Set a warm-up value of zero to avoid that the trap is
-    // observed in the interpreter. Same for test98-100().
+    // observed in the interpreter. Note that C2 also required MonomorphicArrayCheck to be set in order to propagate
+    // the type. Same for test98-100().
     @Warmup(0)
     public void test97_verifier() {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
@@ -2432,7 +2433,7 @@ public class TestArrays {
 
     // Same as test95 but with non-flattenable store
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "MonomorphicArrayCheck", "true"},
         failOn = IRNode.SUBTYPE_CHECK)
     public MyValue1[] test98(Object[] array) {
         array[0] = new NotFlattenable();
@@ -2462,7 +2463,7 @@ public class TestArrays {
 
     // Same as test98 but with cmp user of cast result
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "MonomorphicArrayCheck", "true"},
         failOn = IRNode.SUBTYPE_CHECK)
     public boolean test99(Object[] array) {
         array[0] = new NotFlattenable();
@@ -2493,7 +2494,7 @@ public class TestArrays {
 
     // Same as test98 but with instanceof instead of cast
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "MonomorphicArrayCheck", "true"},
         failOn = IRNode.SUBTYPE_CHECK)
     public boolean test100(Object[] array) {
         array[0] = new NotFlattenable();
