@@ -112,7 +112,7 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
   return *pc_addr;
 }
 
-inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
+inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc, bool needs_stack_repair) {
   address* pc_addr = &(((address*) f.sp())[-1]);
   *pc_addr = pc;
 }

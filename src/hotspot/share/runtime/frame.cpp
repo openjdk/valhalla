@@ -423,6 +423,9 @@ frame frame::real_sender(RegisterMap* map) const {
 }
 
 bool frame::needs_stack_repair() const {
+  if (!is_compiled_frame()) {
+    return false;
+  }
   assert(is_empty() || cb() == get_cb(), "sanity");
   nmethod* nm = cb()->as_nmethod_or_null();
   return nm != nullptr && nm->needs_stack_repair();

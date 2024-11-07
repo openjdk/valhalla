@@ -103,7 +103,7 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
   return nullptr;
 }
 
-inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
+inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc, bool needs_stack_repair) {
   Unimplemented();
 }
 

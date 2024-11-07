@@ -1042,15 +1042,7 @@ void FreezeBase::patch(const frame& f, frame& hf, const frame& caller, bool is_b
     // caller's pc.
     address last_pc = caller.pc();
     assert((last_pc == nullptr) == _cont.tail()->is_empty(), "");
-    ContinuationHelper::Frame::patch_pc(caller, last_pc);
-    // TODO new needed? Add assert
-    if (false && f.needs_stack_repair()) {
-      // We also need to patch the return address copy which is at the expected location just below the unextended caller sp
-      // All other code in this method patches based on the caller sp which we already updated such that the (real) frame pointer is just below
-      address* pc_addr = &(((address*) caller.unextended_sp())[-1]);
-      *pc_addr = last_pc;
-      tty->print_cr("FREEZE PATCHING BOTTOM " PTR_FORMAT, p2i(pc_addr));
-    }
+    ContinuationHelper::Frame::patch_pc(caller, last_pc, f.needs_stack_repair());
   } else {
     assert(!caller.is_empty(), "");
   }
@@ -2203,19 +2195,12 @@ inline void ThawBase::patch(frame& f, const frame& caller, bool bottom) {
   assert(!bottom || caller.fp() == _cont.entryFP(), "");
   if (bottom) {
     ContinuationHelper::Frame::patch_pc(caller, _cont.is_empty() ? caller.pc()
-                                                                 : StubRoutines::cont_returnBarrier());
-    if (f.needs_stack_repair()) {
-      // We also need to patch the return address copy which is at the expected location just below the unextended caller sp
-      // All other code in this method patches based on the caller sp which we already updated such that the (real) frame pointer is just below
-      address* pc_addr = &(((address*) caller.unextended_sp())[-1]);
-      *pc_addr = StubRoutines::cont_returnBarrier();
-    }
+                                                                 : StubRoutines::cont_returnBarrier(),
+                                        f.needs_stack_repair());
   } else {
     // caller might have been deoptimized during thaw but we've overwritten the return address when copying f from the heap.
     // If the caller is not deoptimized, pc is unchanged.
-    // TODO we need a test for this
-    assert(!f.needs_stack_repair(), "f needs repair, we need to patch the return address copy as well");
-    ContinuationHelper::Frame::patch_pc(caller, caller.raw_pc());
+    ContinuationHelper::Frame::patch_pc(caller, caller.raw_pc(), f.needs_stack_repair());
   }
 
   patch_pd(f, caller);
@@ -2391,7 +2376,7 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     assert(_thread->is_interp_only_mode() || stub_caller, "expected a stub-caller");
 
     log_develop_trace(continuations)("Deoptimizing thawed frame");
-    DEBUG_ONLY(ContinuationHelper::Frame::patch_pc(f, nullptr));
+    DEBUG_ONLY(ContinuationHelper::Frame::patch_pc(f, nullptr, false));
 
     f.deoptimize(nullptr); // the null thread simply avoids the assertion in deoptimize which we're not set up for
     assert(f.is_deoptimized_frame(), "");
@@ -2512,7 +2497,7 @@ void ThawBase::push_return_frame(frame& f) { // see generate_cont_thaw
 
   assert(f.sp() - frame::metadata_words_at_bottom >= _top_stack_address, "overwrote past thawing space"
     " to: " INTPTR_FORMAT " top_address: " INTPTR_FORMAT, p2i(f.sp() - frame::metadata_words), p2i(_top_stack_address));
-  ContinuationHelper::Frame::patch_pc(f, f.raw_pc()); // in case we want to deopt the frame in a full transition, this is checked.
+  ContinuationHelper::Frame::patch_pc(f, f.raw_pc(), false); // in case we want to deopt the frame in a full transition, this is checked.
   ContinuationHelper::push_pd(f);
 
   assert(ContinuationHelper::Frame::assert_frame_laid_out(f), "");

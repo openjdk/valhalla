@@ -69,7 +69,7 @@ public:
   static inline intptr_t** callee_link_address(const frame& f);
   static Method* frame_method(const frame& f);
   static inline address real_pc(const frame& f);
-  static inline void patch_pc(const frame& f, address pc);
+  static inline void patch_pc(const frame& f, address pc, bool needs_stack_repair);
   static address* return_pc_address(const frame& f);
   static address return_pc(const frame& f);
   static bool is_stub(CodeBlob* cb);

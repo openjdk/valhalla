@@ -102,7 +102,7 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
   return (address)f.own_abi()->lr;
 }
 
-inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
+inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc, bool needs_stack_repair) {
   f.own_abi()->lr = (uint64_t)pc;
 }
 

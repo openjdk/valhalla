@@ -125,7 +125,8 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
   return pauth_strip_pointer(*pc_addr);
 }
 
-inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
+inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc, bool needs_stack_repair) {
+  // TODO Fix, see x86 version
   address* pc_addr = &(((address*) f.sp())[-1]);
   *pc_addr = pauth_sign_return_address(pc);
 }
