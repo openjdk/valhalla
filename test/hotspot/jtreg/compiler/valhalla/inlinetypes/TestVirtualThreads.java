@@ -80,6 +80,7 @@
 // TODO run with combinations of -XX:-TieredCompilation -XX:+PreserveFramePointer -XX:-UseOnStackReplacement -XX:+DeoptimizeALot -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields
 // TODO add runs with virtual calls to compiled code with scalarized args which use a different entry point
 // TODO add tests where C1 needs stack repair
+// TODO add a stress mode where another thread does some allocations and System.gc() in parallel to trigger GCs while threads are parked
 
 import java.lang.reflect.Method;
 
