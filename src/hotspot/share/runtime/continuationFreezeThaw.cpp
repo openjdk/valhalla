@@ -1174,6 +1174,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
     return result;
   }
 
+#ifdef ASSERT
   if (UseNewCode) {
     tty->print_cr("recurse_freeze_compiled_frame fsize (with args) = %d, argsize = %d stack_frame_top = " INTPTR_FORMAT " stack_frame_bottom = " INTPTR_FORMAT, fsize, argsize, p2i(stack_frame_top), p2i(stack_frame_bottom));
     if (caller.is_empty()) {
@@ -1187,6 +1188,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
     tty->print_cr("-->>");
     print_frame_layout(f, false, tty);
   }
+#endif
 
   bool is_bottom_frame = result == freeze_ok_bottom;
   assert(!caller.is_empty() || is_bottom_frame, "");
@@ -1200,6 +1202,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
   copy_to_chunk(stack_frame_top, heap_frame_top, fsize);
   assert(!is_bottom_frame || !caller.is_compiled_frame() || (heap_frame_top + fsize) == (caller.unextended_sp() + argsize), "");
 
+#ifdef ASSERT
   if (UseNewCode) {
     tty->print_cr("AFTER COPY is_bottom_frame = %d", is_bottom_frame);
     if (caller.is_empty()) {
@@ -1210,6 +1213,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
     tty->print_cr("-->>");
     print_frame_layout(hf, false, tty);
   }
+#endif
 
   if (caller.is_interpreted_frame()) {
     _total_align_size += frame::align_wiggle; // See Thaw::align
@@ -1217,6 +1221,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
 
   patch(f, hf, caller, is_bottom_frame);
 
+#ifdef ASSERT
   if (UseNewCode) {
     tty->print_cr("AFTER PATCH");
     if (caller.is_empty()) {
@@ -1227,6 +1232,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
     tty->print_cr("-->>");
     print_frame_layout(hf, false, tty);
   }
+#endif
 
   assert(is_bottom_frame || Interpreter::contains(ContinuationHelper::CompiledFrame::real_pc(caller)) == caller.is_interpreted_frame(), "");
 
@@ -2317,12 +2323,14 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     _align_size += frame::align_wiggle; // we add one whether or not we've aligned because we add it in freeze_interpreted_frame
   }
 
+#ifdef ASSERT
   if (UseNewCode) {
     tty->print_cr("recurse_thaw_compiled_frame HF %d %d", is_bottom_frame, caller.is_interpreted_frame());
     print_frame_layout(caller, false, tty);
     tty->print_cr("-->>");
     print_frame_layout(hf, false, tty);
   }
+#endif
 
   // new_stack_frame must construct the resulting frame using hf.pc() rather than hf.raw_pc() because the frame is not
   // yet laid out in the stack, and so the original_pc is not stored in it.
@@ -2340,9 +2348,11 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
   // copy metadata, except the metadata at the top of the (unextended) entry frame
   int sz = fsize + frame::metadata_words_at_bottom + (is_bottom_frame && added_argsize == 0 ? 0 : frame::metadata_words_at_top);
 
+#ifdef ASSERT
   if (UseNewCode) {
     tty->print_cr("sz = %d, from = "  INTPTR_FORMAT " to "  INTPTR_FORMAT " entrySP " INTPTR_FORMAT, sz, p2i(from), p2i(to), p2i(_cont.entrySP()));
   }
+#endif
 
   // If we're the bottom-most thawed frame, we're writing to within one word from entrySP
   // (we might have one padding word for alignment)
@@ -2351,20 +2361,24 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
 
   copy_from_chunk(from, to, sz); // copying good oops because we invoked barriers above
 
+#ifdef ASSERT
   if (UseNewCode) {
     print_frame_layout(caller, false, tty);
     tty->print_cr("-->>");
     print_frame_layout(f, false, tty);
   }
+#endif
 
   patch(f, caller, is_bottom_frame);
 
+#ifdef ASSERT
   if (UseNewCode) {
     tty->print_cr("AFTER PATCH");
     print_frame_layout(caller, false, tty);
     tty->print_cr("-->>");
     print_frame_layout(f, false, tty);
   }
+#endif
 
   // f.is_deoptimized_frame() is always false and we must test hf.is_deoptimized_frame() (see comment above)
   assert(!f.is_deoptimized_frame(), "");
@@ -2389,9 +2403,8 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     // can only fix caller once this frame is thawed (due to callee saved regs); this happens on the stack
     _cont.tail()->fix_thawed_frame(caller, SmallRegisterMap::instance());
   } else if (_cont.tail()->has_bitmap() && added_argsize > 0) {
-    // TODO? ContinuationHelper::CompiledFrame::size(hf) is not correct and stack slots neither if repair is needed
-    // I hit this once
-    assert(!f.needs_stack_repair(), "FIXME");
+    // TODO we need a test for this
+    assert(!f.needs_stack_repair(), "f needs repair, frame size and number of stack slots is not correct");
     address start = (address)(heap_frame_top + ContinuationHelper::CompiledFrame::size(hf) + frame::metadata_words_at_top);
     int stack_args_slots = f.cb()->as_nmethod()->num_stack_arg_slots(false /* rounded */);
     int argsize_in_bytes = stack_args_slots * VMRegImpl::stack_slot_size;
