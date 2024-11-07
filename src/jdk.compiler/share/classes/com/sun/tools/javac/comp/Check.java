@@ -1262,7 +1262,7 @@ public class Check {
                 mask = implicit = InterfaceVarFlags;
             else {
                 boolean isInstanceFieldOfValueClass = sym.owner.type.isValueClass() && (flags & STATIC) == 0;
-                mask = !isInstanceFieldOfValueClass ? VarFlags : ExtendedVarFlags;
+                mask = !isInstanceFieldOfValueClass ? VarFlags : ValueFieldFlags;
                 if (isInstanceFieldOfValueClass) {
                     implicit |= FINAL | STRICT;
                 }
@@ -1371,8 +1371,7 @@ public class Check {
                 log.error(pos,
                         Errors.ModNotAllowedHere(asFlagSet(illegal)));
             }
-        }
-        else if ((sym.kind == TYP ||
+        } else if ((sym.kind == TYP ||
                   // ISSUE: Disallowing abstract&private is no longer appropriate
                   // in the presence of inner classes. Should it be deleted here?
                   checkDisjoint(pos, flags,
@@ -1395,7 +1394,8 @@ public class Check {
                                PRIVATE,
                                PUBLIC | PROTECTED)
                  &&
-                 checkDisjoint(pos, flags,
+                 // we are using `implicit` here as instance fields of value classes are implicitly final
+                 checkDisjoint(pos, flags | implicit,
                                FINAL,
                                VOLATILE)
                  &&

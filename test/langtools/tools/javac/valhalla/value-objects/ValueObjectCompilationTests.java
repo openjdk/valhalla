@@ -510,6 +510,14 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """,
                     new String[] {"--source", Integer.toString(Runtime.version().feature())}
+            ),
+            new TestData(
+                    "compiler.err.illegal.combination.of.modifiers", // --enable-preview -source"
+                    """
+                    value class V {
+                        volatile int f = 1;
+                    }
+                    """
             )
     );
 
