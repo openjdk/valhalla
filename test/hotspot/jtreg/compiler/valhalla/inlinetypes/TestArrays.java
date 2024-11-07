@@ -2420,14 +2420,14 @@ public class TestArrays {
         // feeding into the array store sub type check.
         // At runtime, we will hit the ArrayStoreException in the first execution when array is a MyValue1[].
         // With the default IR framework warm-up, we will profile the ArrayStoreException in the interpreter and
-        // pass it in the MDO to the C2 compiler which treat these exceptions as traps being hit (see
+        // pass it in the MDO to the C2 compiler which treats these exceptions as traps being hit (see
         // InterpreterRuntime::create_klass_exception). As a result, C2 is not able to speculatively cast the array of
         // type Object[] to an exact type before the first sub type check because we've seen too many traps being taken
         // at that bci due to the ArrayStoreException that was hit at the very same bci (see Compile::too_many_traps()
-        // which checks that zero traps have been taken  so far). Thus, neither the first sub type check for the array
+        // which checks that zero traps have been taken so far). Thus, neither the first sub type check for the array
         // check cast nor the second sub type check for the instanceof can be removed.
         // By not executing test97() with MyValue1[] during warm-up, which would trigger the ArrayStoreException,
-        // we will not observe an ArrayStoreException before C2 compilation. Note that C2 also require
+        // we will not observe an ArrayStoreException before C2 compilation. Note that C2 also requires
         // MonomorphicArrayCheck in order to emit the speculative exactness check.
         // The same is required for test98-100().
         if (!runInfo.isWarmUp()) {
