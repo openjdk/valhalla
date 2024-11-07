@@ -144,8 +144,6 @@
     return (intptr_t*) addr_at(offset);
   }
 
-  // Support for scalarized inline type calling convention
-  intptr_t* repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const;
 
 #ifdef ASSERT
   // Used in frame::sender_for_{interpreter,compiled}_frame
@@ -154,6 +152,9 @@
 
  public:
   // Constructors
+
+  // Support for scalarized inline type calling convention
+  intptr_t* repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const;
 
   frame(intptr_t* sp, intptr_t* fp, address pc);
 

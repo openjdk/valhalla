@@ -1450,8 +1450,8 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
     // For now just label the frame
     nmethod* nm = cb()->as_nmethod();
     values.describe(-1, info_address,
-                    FormatBuffer<1024>("#%d nmethod " INTPTR_FORMAT " for method J %s%s", frame_no,
-                                       p2i(nm),
+                    FormatBuffer<1024>("#%d nmethod (%s %d) " INTPTR_FORMAT " for method J %s%s", frame_no,
+                                       nm->is_compiled_by_c1() ? "c1" : "c2", nm->frame_size(), p2i(nm),
                                        nm->method()->name_and_sig_as_C_string(),
                                        (_deopt_state == is_deoptimized) ?
                                        " (deoptimized)" :
@@ -1465,8 +1465,8 @@ void frame::describe(FrameValues& values, int frame_no, const RegisterMap* reg_m
 
       CompiledEntrySignature ces(m);
       ces.compute_calling_conventions(false);
-      const GrowableArray<SigEntry>* sig_cc = ces.sig_cc();
-      const VMRegPair* regs = ces.regs_cc();
+      const GrowableArray<SigEntry>* sig_cc = nm->is_compiled_by_c2() ? ces.sig_cc() : ces.sig();
+      const VMRegPair* regs = nm->is_compiled_by_c2() ? ces.regs_cc() : ces.regs();
 
     //  assert(stack_arg_slots ==  m->num_stack_arg_slots(false /* rounded */), "");
       int out_preserve = SharedRuntime::out_preserve_stack_slots();

@@ -60,6 +60,7 @@ inline frame FreezeBase::sender(const frame& f) {
   intptr_t** link_addr = link_address<FKind>(f);
 
   intptr_t* sender_sp = (intptr_t*)(link_addr + frame::sender_sp_offset); //  f.unextended_sp() + (fsize/wordSize); //
+  sender_sp = f.repair_sender_sp(sender_sp, link_addr);
   address sender_pc = (address) *(sender_sp-1);
   assert(sender_sp != f.sp(), "must have changed");
 
@@ -113,6 +114,11 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
     caller.set_sp(sp + fsize);
 
     assert(_cont.tail()->is_in_chunk(sp), "");
+
+    // TODO new
+    if (false && f.cb()->as_nmethod()->is_compiled_by_c2() && f.cb()->as_nmethod()->needs_stack_repair() && (caller.is_interpreted_frame() || (caller.is_compiled_frame() && caller.cb()->as_nmethod()->is_compiled_by_c1()))) {
+      sp -= FKind::stack_argsize(f);
+    }
 
     return frame(sp, sp, fp, f.pc(), nullptr, nullptr, true /* on_heap */);
   }

@@ -191,6 +191,9 @@ inline int StackChunkFrameStream<frame_kind>::stack_argsize() const {
   assert(cb() != nullptr, "");
   assert(cb()->is_nmethod(), "");
   assert(cb()->as_nmethod()->method() != nullptr, "");
+  if (cb()->as_nmethod()->needs_stack_repair()) {
+    return to_frame().compiled_frame_stack_argsize();
+  }
   return (cb()->as_nmethod()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
 
@@ -214,6 +217,12 @@ inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop
       next_for_interpreter_frame();
     } else {
       _sp = _unextended_sp + cb()->frame_size();
+      // TODO new
+      if (false && cb() != nullptr && cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
+        intptr_t** saved_fp_addr = (intptr_t**) (_sp - frame::sender_sp_offset);
+        // Repair the sender sp if this is a method with scalarized inline type args
+        _sp = to_frame().repair_sender_sp(_sp, saved_fp_addr);
+      }
       if (_sp >= _end - frame::metadata_words) {
         _sp = _end;
       }
@@ -221,6 +230,7 @@ inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop
     }
     assert(_unextended_sp >= _sp - frame::metadata_words, "");
   } else {
+    assert(!is_compiled() || !cb()->as_nmethod()->needs_stack_repair(), "needs stack repair");
     _sp += cb()->frame_size();
   }
   assert(!is_interpreted() || _unextended_sp == unextended_sp_for_interpreter_frame(), "");

@@ -232,7 +232,8 @@ inline int frame::compiled_frame_stack_argsize(bool scalarized) const {
   assert(cb()->is_nmethod(), "");
 
   if (needs_stack_repair() && scalarized) {
-    // TODO this should be cached!
+    assert(cb()->as_nmethod()->is_compiled_by_c2(), "Need to add support for C1");
+    // TODO this computation should be cached
     ResourceMark rm;
     CompiledEntrySignature ces(cb()->as_nmethod()->method());
     ces.compute_calling_conventions(false);
@@ -249,7 +250,8 @@ inline int frame::compiled_frame_stack_argsize(bool scalarized) const {
       }
       sig_index += type2size[t];
     }
-    return cnt;
+    // TODO use StackAlignmentInBytes for alignment here
+    return align_up(cnt, 2);
   }
   return (cb()->as_nmethod()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
