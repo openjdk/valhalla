@@ -944,6 +944,38 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+        assertOK(
+                """
+                value class V {
+                    final int x = "abc".length();
+                    { System.out.println(x); }
+                }
+                """
+        );
+        assertFail("compiler.err.illegal.forward.ref",
+                """
+                value class V {
+                    { System.out.println(x); }
+                    final int x = "abc".length();
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.before.ctor.called",
+                """
+                value class V {
+                    int x = "abc".length();
+                    int y = x;
+                }
+                """
+        );
+        assertOK(
+                """
+                value class V {
+                    int x = "abc".length();
+                    { int y = x; }
+                }
+                """
+        );
     }
 
     @Test
