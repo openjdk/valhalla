@@ -27,31 +27,21 @@ package com.sun.tools.javac.jvm;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.comp.UnsetFieldsInfo;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
 import java.util.function.ToIntBiFunction;
-import java.util.function.ToIntFunction;
 
 import static com.sun.tools.javac.code.TypeTag.BOT;
 import static com.sun.tools.javac.code.TypeTag.DOUBLE;
 import static com.sun.tools.javac.code.TypeTag.INT;
 import static com.sun.tools.javac.code.TypeTag.LONG;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Class;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Double;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Fieldref;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Float;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Integer;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_InterfaceMethodref;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Long;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodHandle;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodType;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Methodref;
-import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_String;
 import static com.sun.tools.javac.jvm.UninitializedType.*;
-import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableFrame;
+import static com.sun.tools.javac.jvm.ClassWriter.StackMapTablEntry;
 import java.util.Arrays;
 
 /** An internal structure that corresponds to the code attribute of
@@ -175,6 +165,10 @@ public class Code {
      */
     int pendingStatPos = Position.NOPOS;
 
+    JCTree pendingStatTree;
+
+    java.util.List<VarSymbol> unsetFields = null;
+
     /** Set true when a stackMap is needed at the current PC. */
     boolean pendingStackMap = false;
 
@@ -197,6 +191,8 @@ public class Code {
 
     private int letExprStackPos = 0;
 
+    private UnsetFieldsInfo unsetFieldsInfo;
+
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
      */
@@ -209,7 +205,8 @@ public class Code {
                 CRTable crt,
                 Symtab syms,
                 Types types,
-                PoolWriter poolWriter) {
+                PoolWriter poolWriter,
+                UnsetFieldsInfo unsetFieldsInfo) {
         this.meth = meth;
         this.fatcode = fatcode;
         this.lineMap = lineMap;
@@ -231,6 +228,7 @@ public class Code {
         }
         state = new State();
         lvar = new LocalVar[20];
+        this.unsetFieldsInfo = unsetFieldsInfo;
     }
 
 
@@ -1012,6 +1010,9 @@ public class Code {
     }
 
     public void emitop2(int op, int od, PoolConstant data) {
+        if (op == putfield) {
+            //System.err.println("stop here");
+        }
         emitop(op);
         if (!alive) return;
         emit2(od);
@@ -1056,6 +1057,14 @@ public class Code {
         case putfield:
             state.pop(((Symbol)data).erasure(types));
             state.pop(1); // object ref
+            /*
+             * here using the saved tree we should find if that tree is included in the map of trees with info of
+             * unset fields and extract that info in case a stack map is generated after this instruction
+             */
+            unsetFields = unsetFieldsInfo.getUnsetFields((ClassSymbol) meth.owner, pendingStatTree);
+            if (unsetFields != null && unsetFields.size() == 0) {
+                emitClosingAssertUnsetFields();
+            }
             break;
         case getfield:
             state.pop(1); // object ref
@@ -1234,7 +1243,7 @@ public class Code {
     StackMapFrame[] stackMapBuffer = null;
 
     /** A buffer of compressed StackMapTable entries. */
-    StackMapTableFrame[] stackMapTableBuffer = null;
+    StackMapTablEntry[] stackMapTableBuffer = null;
     int stackMapBufferSize = 0;
 
     /** The last PC at which we generated a stack map. */
@@ -1356,17 +1365,28 @@ public class Code {
         }
 
         if (stackMapTableBuffer == null) {
-            stackMapTableBuffer = new StackMapTableFrame[20];
+            stackMapTableBuffer = new StackMapTablEntry[20];
         } else {
             stackMapTableBuffer = ArrayUtils.ensureCapacity(
                                     stackMapTableBuffer,
                                     stackMapBufferSize);
         }
+        if (unsetFields != null) {
+            stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFields);
+            unsetFields = null;
+        }
         stackMapTableBuffer[stackMapBufferSize++] =
-                StackMapTableFrame.getInstance(frame, lastFrame.pc, lastFrame.locals, types);
+                StackMapTablEntry.getInstance(frame, lastFrame.pc, lastFrame.locals, types);
 
         frameBeforeLast = lastFrame;
         lastFrame = frame;
+    }
+
+    void emitClosingAssertUnsetFields() {
+        // if we have emitted at least one frame
+        if (stackMapBufferSize > 0 && unsetFields != null && unsetFields.size() == 0) {
+            stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFields);
+        }
     }
 
     StackMapFrame getInitialFrame() {
@@ -1631,6 +1651,14 @@ public class Code {
         if (pos != Position.NOPOS) {
             pendingStatPos = pos;
         }
+    }
+
+    /** Keep stat tree
+     */
+    public JCTree statTree(JCTree statTree) {
+        JCTree prevStatTree = pendingStatTree;
+        pendingStatTree = statTree;
+        return prevStatTree;
     }
 
     /** Force stat begin eagerly

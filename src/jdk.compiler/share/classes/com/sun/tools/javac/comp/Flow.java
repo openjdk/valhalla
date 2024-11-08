@@ -27,6 +27,7 @@
 
 package com.sun.tools.javac.comp;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.HashMap;
@@ -218,6 +219,7 @@ public class Flow {
     private Env<AttrContext> attrEnv;
     private       Lint lint;
     private final Infer infer;
+    private final UnsetFieldsInfo unsetFieldsInfo;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -344,7 +346,7 @@ public class Flow {
         infer = Infer.instance(context);
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
-        Source source = Source.instance(context);
+        unsetFieldsInfo = UnsetFieldsInfo.instance(context);
     }
 
     /**
@@ -2283,6 +2285,19 @@ public class Flow {
                 Symbol sym = TreeInfo.symbol(tree);
                 if (sym.kind == VAR) {
                     letInit(tree.pos(), (VarSymbol)sym);
+                    if (isConstructor && sym.isStrict()) {
+                        /* we are initializing a strict field inside of a constructor, we now need to find which fields
+                         * haven't been initialized yet
+                         */
+                        java.util.List<VarSymbol> unsetFields = new ArrayList<>();
+                        for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
+                            JCVariableDecl variableDecl = vardecls[i];
+                            if (variableDecl.sym.isStrict()) {
+                                unsetFields.add(variableDecl.sym);
+                            }
+                        }
+                        unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, tree, unsetFields);
+                    }
                 }
             }
         }

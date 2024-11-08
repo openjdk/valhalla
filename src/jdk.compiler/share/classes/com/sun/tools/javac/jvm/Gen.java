@@ -97,6 +97,8 @@ public class Gen extends JCTree.Visitor {
      */
     final PoolWriter poolWriter;
 
+    private final UnsetFieldsInfo unsetFieldsInfo;
+
     @SuppressWarnings("this-escape")
     protected Gen(Context context) {
         context.put(genKey, this);
@@ -127,6 +129,7 @@ public class Gen extends JCTree.Visitor {
         debugCode = options.isSet("debug.code");
         disableVirtualizedPrivateInvoke = options.isSet("disableVirtualizedPrivateInvoke");
         poolWriter = new PoolWriter(types, names);
+        unsetFieldsInfo = UnsetFieldsInfo.instance(context);
 
         // ignore cldc because we cannot have both stackmap formats
         this.stackMap = StackMapFormat.JSR202;
@@ -665,7 +668,12 @@ public class Gen extends JCTree.Visitor {
     public void genStat(JCTree tree, Env<GenContext> env) {
         if (code.isAlive()) {
             code.statBegin(tree.pos);
-            genDef(tree, env);
+            JCTree prevStatTree = code.statTree(tree);
+            try {
+                genDef(tree, env);
+            } finally {
+                 code.statTree(prevStatTree);
+            }
         } else if (env.info.isSwitch && tree.hasTag(VARDEF)) {
             // variables whose declarations are in a switch
             // can be used even if the decl is unreachable.
@@ -1064,7 +1072,8 @@ public class Gen extends JCTree.Visitor {
                                                : null,
                                         syms,
                                         types,
-                                        poolWriter);
+                                        poolWriter,
+                                        unsetFieldsInfo);
             items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {
                 System.err.println(meth + " for body " + tree);

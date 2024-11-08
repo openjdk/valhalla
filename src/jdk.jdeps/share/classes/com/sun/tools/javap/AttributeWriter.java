@@ -572,7 +572,7 @@ public class AttributeWriter extends BasicWriter {
                         int offsetDelta = lr.labelToBci(frame.target()) - lastOffset - 1;
                         switch (frameType) {
                             case 247 -> {
-                                printHeader(frameType, "/* same_locals_1_stack_item_frame_extended */");
+                                printHeader(frameType, "/* same_locals_1_stack_item_entry_extended */");
                                 indent(+1);
                                 println("offset_delta = " + offsetDelta);
                                 printMap("stack", frame.stack(), lr);
@@ -585,7 +585,7 @@ public class AttributeWriter extends BasicWriter {
                                 indent(-1);
                             }
                             case 251 -> {
-                                printHeader(frameType, "/* same_frame_extended */");
+                                printHeader(frameType, "/* same_entry_extended */");
                                 indent(+1);
                                 println("offset_delta = " + offsetDelta);
                                 indent(-1);
@@ -600,7 +600,7 @@ public class AttributeWriter extends BasicWriter {
                                 indent(-1);
                             }
                             case 255 -> {
-                                printHeader(frameType, "/* full_frame */");
+                                printHeader(frameType, "/* full_entry */");
                                 indent(+1);
                                 println("offset_delta = " + offsetDelta);
                                 printMap("locals", frame.locals(), lr);

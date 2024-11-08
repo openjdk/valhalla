@@ -290,8 +290,13 @@ public final class CodeImpl
                 offsetDelta = frameType & 0x3f;
                 p = adjustForObjectOrUninitialized(p + 1);
             }
-            else
+            else {
+                System.err.println("stop here");
                 switch (frameType) {
+                    /*case 246 -> {
+                        offsetDelta = 0;
+                        p = adjustForObjectOrUninitialized(p + 3);
+                    }*/
                     case 247 -> {
                         offsetDelta = classReader.readU2(p + 1);
                         p = adjustForObjectOrUninitialized(p + 3);
@@ -324,6 +329,7 @@ public final class CodeImpl
                     }
                     default -> throw new IllegalArgumentException("Bad frame type: " + frameType);
                 }
+            }
             bci += offsetDelta + 1;
             inflateLabel(bci);
         }

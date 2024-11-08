@@ -889,6 +889,22 @@ public class TreeInfo {
         return s.result;
     }
 
+    /** Find if a tree contains a subtree. */
+    public static boolean contains(final JCTree tree, final JCTree subTree) {
+        var scanner = new TreeScanner() {
+            boolean result = false;
+            @Override
+            public void scan(JCTree tree) {
+                if (tree == subTree) {
+                    result = true;
+                }
+                super.scan(tree);
+            }
+        };
+        scanner.scan(tree);
+        return scanner.result;
+    }
+
     /** Return the statement referenced by a label.
      *  If the label refers to a loop or switch, return that switch
      *  otherwise return the labelled statement itself
