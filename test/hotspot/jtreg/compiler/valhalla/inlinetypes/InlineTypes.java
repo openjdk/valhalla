@@ -125,7 +125,6 @@ public class InlineTypes {
     };
 
     public static TestFramework getFramework() {
-        InlineTypeIRNode.forceStaticInitialization();
         StackWalker walker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
         return new TestFramework(walker.getCallerClass()).setDefaultWarmup(251);
     }
