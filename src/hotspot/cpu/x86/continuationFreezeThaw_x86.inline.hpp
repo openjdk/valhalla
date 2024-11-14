@@ -115,8 +115,7 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
 
     assert(_cont.tail()->is_in_chunk(sp), "");
 
-    // TODO new
-    if (false && f.cb()->as_nmethod()->is_compiled_by_c2() && f.cb()->as_nmethod()->needs_stack_repair() && (caller.is_interpreted_frame() || (caller.is_compiled_frame() && caller.cb()->as_nmethod()->is_compiled_by_c1()))) {
+    if (f.cb()->as_nmethod()->is_compiled_by_c2() && f.cb()->as_nmethod()->needs_stack_repair() && caller.is_compiled_frame() && caller.cb()->as_nmethod()->is_compiled_by_c1()) {
       sp -= FKind::stack_argsize(f);
     }
 

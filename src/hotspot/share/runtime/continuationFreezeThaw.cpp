@@ -1149,8 +1149,7 @@ freeze_result FreezeBase::recurse_freeze_compiled_frame(frame& f, frame& caller,
   bool scalarized = (f.cb()->as_nmethod()->is_compiled_by_c2() && sender_f.is_interpreted_frame()) || (false && f.cb()->as_nmethod()->is_compiled_by_c2() && sender_f.is_compiled_frame() && sender_f.cb()->as_nmethod()->is_compiled_by_c1());
   const int argsize = ContinuationHelper::CompiledFrame::stack_argsize(f, scalarized) + frame::metadata_words_at_top;
   int fsize = pointer_delta_as_int(stack_frame_bottom + argsize, stack_frame_top);
-  // TODO new
-  if (false && f.cb()->as_nmethod()->is_compiled_by_c2() && f.cb()->as_nmethod()->needs_stack_repair() && (sender_f.is_interpreted_frame() || (sender_f.is_compiled_frame() && sender_f.cb()->as_nmethod()->is_compiled_by_c1()))) {
+  if (f.cb()->as_nmethod()->is_compiled_by_c2() && f.cb()->as_nmethod()->needs_stack_repair() && sender_f.is_compiled_frame() && sender_f.cb()->as_nmethod()->is_compiled_by_c1()) {
     fsize += ContinuationHelper::CompiledFrame::stack_argsize(f, true);
   }
 
@@ -2388,7 +2387,7 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     // can only fix caller once this frame is thawed (due to callee saved regs); this happens on the stack
     _cont.tail()->fix_thawed_frame(caller, SmallRegisterMap::instance());
   } else if (_cont.tail()->has_bitmap() && added_argsize > 0) {
-    // TODO we need a test for this
+    // TODO I hit this once, we need a more reliable test for this
     assert(!f.needs_stack_repair(), "f needs repair, frame size and number of stack slots is not correct");
     address start = (address)(heap_frame_top + ContinuationHelper::CompiledFrame::size(hf) + frame::metadata_words_at_top);
     int stack_args_slots = f.cb()->as_nmethod()->num_stack_arg_slots(false /* rounded */);

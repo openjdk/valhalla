@@ -217,11 +217,14 @@ inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop
       next_for_interpreter_frame();
     } else {
       _sp = _unextended_sp + cb()->frame_size();
-      // TODO new
-      if (false && cb() != nullptr && cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
+      if (cb() != nullptr && cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
         intptr_t** saved_fp_addr = (intptr_t**) (_sp - frame::sender_sp_offset);
         // Repair the sender sp if this is a method with scalarized inline type args
+        intptr_t* old = _sp;
         _sp = to_frame().repair_sender_sp(_sp, saved_fp_addr);
+        if (is_interpreted()) {
+          _sp = old; // Undo
+        }
       }
       if (_sp >= _end - frame::metadata_words) {
         _sp = _end;
