@@ -231,8 +231,7 @@ inline int frame::frame_size() const {
 inline int frame::compiled_frame_stack_argsize(bool scalarized) const {
   assert(cb()->is_nmethod(), "");
 
-  if (needs_stack_repair() && scalarized) {
-    assert(cb()->as_nmethod()->is_compiled_by_c2(), "Need to add support for C1");
+  if (cb()->as_nmethod()->is_compiled_by_c2() && needs_stack_repair() && scalarized) {
     // TODO this computation should be cached
     ResourceMark rm;
     CompiledEntrySignature ces(cb()->as_nmethod()->method());

@@ -30,57 +30,59 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   TestVirtualThreads
-*
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xbatch -XX:CompileCommand=compileonly,TestVirtualThreads*::*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xbatch -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xbatch -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xbatch -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::test*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::*Helper
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=exclude,*::*Helper
-*                   TestVirtualThreads
-*
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xcomp -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xcomp -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::test*
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::*Helper
-*                   TestVirtualThreads
-* @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
-*                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=exclude,*::*Helper
-*                   TestVirtualThreads
-**/
+ *                   TestVirtualThreads
+ *
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::test*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::*Helper
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=exclude,*::*Helper
+ *                   TestVirtualThreads
+ *
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                    -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xcomp -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xcomp -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::test*
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::*Helper
+ *                   TestVirtualThreads
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=exclude,*::*Helper
+ *                   TestVirtualThreads
+ **/
 
-// TODO run with combinations of -XX:-TieredCompilation -XX:+PreserveFramePointer -XX:-UseOnStackReplacement -XX:+DeoptimizeALot -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields
-// TODO add runs with virtual calls to compiled code with scalarized args which use a different entry point
-// TODO add tests where C1 needs stack repair
-// TODO add a stress mode where another thread does some allocations and System.gc() in parallel to trigger GCs while threads are parked
+/*
+ * TODO LIST
+ * - Run with combinations of -XX:-TieredCompilation -XX:+PreserveFramePointer -XX:-UseOnStackReplacement -XX:+DeoptimizeALot -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields
+ * - Add methods invoked via virtual calls exercise the different entry point
+ * - Add a stress mode where another thread does some allocations and System.gc() in parallel to trigger GCs while threads are parked
+ */
 
 import java.lang.reflect.Method;
 
@@ -252,6 +254,34 @@ public class TestVirtualThreads {
         }
     }
 
+    public static value class DoubleValue {
+        double d;
+
+        public DoubleValue(double d) {
+            this.d = d;
+        }
+
+        public String toString() {
+            return "d = " + d;
+        }
+
+        public void verify(String loc, double d) {
+            if (this.d != d) {
+                throw new RuntimeException("Incorrect result at " + loc + " for d = " + d + ": " + this);
+            }
+        }
+
+        public static void verify(DoubleValue val, String loc, double d, boolean useNull) {
+            if (useNull) {
+                if (val != null) {
+                    throw new RuntimeException("Incorrect result at " + loc + " for d = " + d+ ": " + val);
+                }
+            } else {
+                val.verify(loc, d);
+            }
+        }
+    }
+
     public static void dontInline() { }
 
     public static SmallValue testSmall(SmallValue val, int i, boolean useNull, boolean park) {
@@ -404,6 +434,53 @@ public class TestVirtualThreads {
         return val;
     }
 
+    // Pass via fields to not affect number of arguments
+    static double testDoubleValueD;
+    static boolean testDoubleValueUseNull;
+    static boolean testDoubleValuePark;
+
+    // This method needs less stack space when scalarized because (some of) the arguments can then be passed in floating point registers
+    public static DoubleValue testDoubleValue(DoubleValue val1, DoubleValue val2, DoubleValue val3, DoubleValue val4, DoubleValue val5, DoubleValue val6, DoubleValue val7) {
+        double d = testDoubleValueD;
+        boolean useNull = testDoubleValueUseNull;
+        boolean park = testDoubleValuePark;
+        DoubleValue.verify(val1, "entry", d, useNull);
+        DoubleValue.verify(val2, "entry", d + 1, useNull);
+        DoubleValue.verify(val3, "entry", d + 2, useNull);
+        DoubleValue.verify(val4, "entry", d + 3, useNull);
+        DoubleValue.verify(val5, "entry", d + 4, useNull);
+        DoubleValue.verify(val6, "entry", d + 4, useNull);
+        DoubleValue.verify(val7, "entry", d + 4, useNull);
+        if (park) {
+            LockSupport.parkNanos(PARK_DURATION);
+        }
+        DoubleValue.verify(val1, "exit", d, useNull);
+        DoubleValue.verify(val2, "exit", d + 1, useNull);
+        DoubleValue.verify(val3, "exit", d + 2, useNull);
+        DoubleValue.verify(val4, "exit", d + 3, useNull);
+        DoubleValue.verify(val5, "exit", d + 4, useNull);
+        DoubleValue.verify(val6, "exit", d + 4, useNull);
+        DoubleValue.verify(val7, "exit", d + 4, useNull);
+        return val1;
+    }
+
+    public static DoubleValue testDoubleValueHelper(double d, boolean useNull, boolean park) {
+        testDoubleValueD = d;
+        testDoubleValueUseNull = useNull;
+        testDoubleValuePark = park;
+
+        DoubleValue val1 = useNull ? null : new DoubleValue(d);
+        DoubleValue val2 = useNull ? null : new DoubleValue(d + 1);
+        DoubleValue val3 = useNull ? null : new DoubleValue(d + 2);
+        DoubleValue val4 = useNull ? null : new DoubleValue(d + 3);
+        DoubleValue val5 = useNull ? null : new DoubleValue(d + 4);
+        DoubleValue val6 = useNull ? null : new DoubleValue(d + 4);
+        DoubleValue val7 = useNull ? null : new DoubleValue(d + 4);
+        val1 = testDoubleValue(val1, val2, val3, val4, val5, val6, val7);
+        DoubleValue.verify(val1, "helper", d, useNull);
+        return val1;
+    }
+
     public static void main(String[] args) throws Exception {
         // Sometimes, exclude some methods from compilation with C1 and/or C2 to stress test the calling convention
         if (Utils.getRandomInstance().nextBoolean()) {
@@ -412,6 +489,7 @@ public class TestVirtualThreads {
             Collections.addAll(methods, LargeValue.class.getDeclaredMethods());
             Collections.addAll(methods, LargeValue2.class.getDeclaredMethods());
             Collections.addAll(methods, LargeValueWithOops.class.getDeclaredMethods());
+            Collections.addAll(methods, DoubleValue.class.getDeclaredMethods());
             Collections.addAll(methods, TestVirtualThreads.class.getDeclaredMethods());
             System.out.println("Excluding methods from C1 compilation:");
             for (Method m : methods) {
@@ -444,6 +522,7 @@ public class TestVirtualThreads {
                     LargeValue2.verify(testLarge2ManyArgsHelper(i, useNull, park), "return", i + 3, useNull);
                     LargeValueWithOops.verify(testLargeValueWithOopsHelper(val, useNull, park), "return", val, useNull);
                     LargeValueWithOops.verify(testLargeValueWithOops2Helper(val, useNull, park), "return", val, useNull);
+                    DoubleValue.verify(testDoubleValueHelper(i, useNull, park), "return", i, useNull);
                 }
                 cdl.countDown();
             } catch (Exception e) {
