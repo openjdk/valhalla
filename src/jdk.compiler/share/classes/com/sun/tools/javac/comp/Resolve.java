@@ -1861,6 +1861,10 @@ public class Resolve {
                           bestSoFar,
                           allowBoxing,
                           useVarargs);
+        if (bestSoFar.kind == AMBIGUOUS) {
+            AmbiguityError a_err = (AmbiguityError)bestSoFar.baseSymbol();
+            bestSoFar = a_err.mergeAbstracts(site);
+        }
         return bestSoFar;
     }
     // where
@@ -2765,7 +2769,7 @@ public class Resolve {
         return lookupMethod(env, pos, env.enclClass.sym, resolveMethodCheck,
                 new BasicLookupHelper(name, env.enclClass.sym.type, argtypes, typeargtypes) {
                     @Override
-                    Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
+                    Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
                         return findFun(env, name, argtypes, typeargtypes,
                                 phase.isBoxingRequired(),
                                 phase.isVarargsRequired());
@@ -2797,7 +2801,7 @@ public class Resolve {
                                   List<Type> typeargtypes) {
         return lookupMethod(env, pos, location, resolveContext, new BasicLookupHelper(name, site, argtypes, typeargtypes) {
             @Override
-            Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
+            Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
                 return findMethod(env, site, name, argtypes, typeargtypes,
                         phase.isBoxingRequired(),
                         phase.isVarargsRequired());
@@ -2921,7 +2925,7 @@ public class Resolve {
                               List<Type> typeargtypes) {
         return lookupMethod(env, pos, site.tsym, resolveContext, new BasicLookupHelper(names.init, site, argtypes, typeargtypes) {
             @Override
-            Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
+            Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
                 return findConstructor(pos, env, site, argtypes, typeargtypes,
                         phase.isBoxingRequired(),
                         phase.isVarargsRequired());
@@ -2980,7 +2984,7 @@ public class Resolve {
         return lookupMethod(env, pos, site.tsym, resolveMethodCheck,
                 new BasicLookupHelper(names.init, site, argtypes, typeargtypes) {
                     @Override
-                    Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
+                    Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
                         return findDiamond(pos, env, site, argtypes, typeargtypes,
                                 phase.isBoxingRequired(),
                                 phase.isVarargsRequired());
@@ -3512,18 +3516,6 @@ public class Resolve {
         }
 
         @Override
-        final Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
-            Symbol sym = doLookup(env, phase);
-            if (sym.kind == AMBIGUOUS) {
-                AmbiguityError a_err = (AmbiguityError)sym.baseSymbol();
-                sym = a_err.mergeAbstracts(site);
-            }
-            return sym;
-        }
-
-        abstract Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase);
-
-        @Override
         Symbol access(Env<AttrContext> env, DiagnosticPosition pos, Symbol location, Symbol sym) {
             if (sym.kind.isResolutionError()) {
                 //if nothing is found return the 'first' error
@@ -3569,10 +3561,6 @@ public class Resolve {
         abstract JCMemberReference.ReferenceKind referenceKind(Symbol sym);
 
         Symbol access(Env<AttrContext> env, DiagnosticPosition pos, Symbol location, Symbol sym) {
-            if (sym.kind == AMBIGUOUS) {
-                AmbiguityError a_err = (AmbiguityError)sym.baseSymbol();
-                sym = a_err.mergeAbstracts(site);
-            }
             //skip error reporting
             return sym;
         }
