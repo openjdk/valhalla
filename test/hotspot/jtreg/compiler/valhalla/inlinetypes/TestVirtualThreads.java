@@ -80,8 +80,7 @@
 /*
  * TODO LIST
  * - Run with combinations of -XX:-TieredCompilation -XX:+PreserveFramePointer -XX:-UseOnStackReplacement -XX:+DeoptimizeALot -XX:+StressCallingConvention -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields
- * - Add methods invoked via virtual calls exercise the different entry point
- * - Add a stress mode where another thread does some allocations and System.gc() in parallel to trigger GCs while threads are parked
+ * - Add methods invoked via virtual calls to exercise the different entry point
  */
 
 import java.lang.reflect.Method;
@@ -481,6 +480,19 @@ public class TestVirtualThreads {
         return val1;
     }
 
+    static class GarbageProducerThread extends Thread {
+        public void run() {
+            for (;;) {
+                // Produce some garbage and then let the GC do its work
+                Object[] arrays = new Object[1024];
+                for (int i = 0; i < arrays.length; i++) {
+                    arrays[i] = new int[1024];
+                }
+                System.gc();
+            }
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         // Sometimes, exclude some methods from compilation with C1 and/or C2 to stress test the calling convention
         if (Utils.getRandomInstance().nextBoolean()) {
@@ -506,6 +518,12 @@ public class TestVirtualThreads {
                 }
             }
         }
+
+        // Start another thread that does some allocations and calls System.gc()
+        // to trigger GCs while virtual threads are parked.
+        Thread garbage_producer = new GarbageProducerThread();
+        garbage_producer.setDaemon(true);
+        garbage_producer.start();
 
         CountDownLatch cdl = new CountDownLatch(1);
         Thread.ofVirtual().start(() -> {
