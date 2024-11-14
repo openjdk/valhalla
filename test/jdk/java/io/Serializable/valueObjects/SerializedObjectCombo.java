@@ -79,7 +79,7 @@ import jdk.test.lib.hexdump.ObjectStreamPrinter;
  *          jdk.compiler/com.sun.tools.javac.tree
  *          jdk.compiler/com.sun.tools.javac.util
  * @build combo.ComboTestHelper SerializedObjectCombo
- * @run main/othervm --enable-preview  SerializedObjectCombo --everything --no-pre-filter
+ * @run main/othervm --enable-preview  SerializedObjectCombo
  */
 
 

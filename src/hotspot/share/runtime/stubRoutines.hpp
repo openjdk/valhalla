@@ -297,10 +297,11 @@ class StubRoutines: AllStatic {
   static address _store_inline_type_fields_to_buf;
 
   // Vector Math Routines
-  static address _vector_f_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP];
-  static address _vector_d_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP];
+  static address _vector_f_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_VECTOR_OP_MATH];
+  static address _vector_d_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_VECTOR_OP_MATH];
 
   static address _upcall_stub_exception_handler;
+  static address _upcall_stub_load_target;
 
   static address _lookup_secondary_supers_table_stubs[];
   static address _lookup_secondary_supers_table_slow_path_stub;
@@ -507,6 +508,11 @@ class StubRoutines: AllStatic {
   static address upcall_stub_exception_handler() {
     assert(_upcall_stub_exception_handler != nullptr, "not implemented");
     return _upcall_stub_exception_handler;
+  }
+
+  static address upcall_stub_load_target() {
+    assert(_upcall_stub_load_target != nullptr, "not implemented");
+    return _upcall_stub_load_target;
   }
 
   static address lookup_secondary_supers_table_stub(u1 slot) {

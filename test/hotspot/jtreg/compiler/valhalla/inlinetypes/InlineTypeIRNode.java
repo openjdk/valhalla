@@ -187,11 +187,6 @@ public class InlineTypeIRNode {
         IRNode.beforeMatching(MEMBAR, InlineTypeRegexes.MEMBAR);
     }
 
-    public static final String CHECKCAST_ARRAY = PREFIX + "CHECKCAST_ARRAY" + POSTFIX;
-    static {
-        IRNode.optoOnly(CHECKCAST_ARRAY, InlineTypeRegexes.CHECKCAST_ARRAY);
-    }
-
     public static final String CHECKCAST_ARRAYCOPY = PREFIX + "CHECKCAST_ARRAYCOPY" + POSTFIX;
     static {
         IRNode.optoOnly(CHECKCAST_ARRAYCOPY, InlineTypeRegexes.CHECKCAST_ARRAYCOPY);

@@ -1322,7 +1322,7 @@ public class Check {
                 boolean isInstanceFieldOfValueClass =
                         (sym.owner.type.isValueClass() && (flags & STATIC) == 0);
                 boolean isNonNullableFieldOfNonValueClass = !sym.owner.type.isValueClass() && types.isNonNullable(sym.type);
-                mask = isInstanceFieldOfValueClass || isNonNullableFieldOfNonValueClass ? ExtendedVarFlags : VarFlags;
+                mask = isInstanceFieldOfValueClass || isNonNullableFieldOfNonValueClass ? ValueFieldFlags : VarFlags;
                 if (isInstanceFieldOfValueClass) {
                     implicit |= FINAL | STRICT;
                 } else if (isNonNullableFieldOfNonValueClass) {
@@ -1470,7 +1470,8 @@ public class Check {
                                PRIVATE,
                                PUBLIC | PROTECTED)
                  &&
-                 checkDisjoint(pos, (flags | implicit), // complain against volatile & implcitly final entities too.
+                 // we are using `implicit` here as instance fields of value classes are implicitly final
+                 checkDisjoint(pos, flags | implicit,
                                FINAL,
                                VOLATILE)
                  &&

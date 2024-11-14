@@ -86,7 +86,7 @@ class GraphKit : public Phase {
 
 #ifdef ASSERT
   ~GraphKit() {
-    assert(failing() || !has_exceptions(),
+    assert(failing_internal() || !has_exceptions(),
            "unless compilation failed, user must call transfer_exceptions_into_jvms");
 #if 0
     // During incremental inlining, the Node_Array of the C->for_igvn() worklist and the IGVN
@@ -193,6 +193,7 @@ class GraphKit : public Phase {
 
   // Tell if the compilation is failing.
   bool failing() const { return C->failing(); }
+  bool failing_internal() const { return C->failing_internal(); }
 
   // Set _map to null, signalling a stop to further bytecode execution.
   // Preserve the map intact for future use, and return it back to the caller.

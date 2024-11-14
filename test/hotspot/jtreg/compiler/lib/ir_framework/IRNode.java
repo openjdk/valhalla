@@ -28,6 +28,7 @@ import compiler.lib.ir_framework.driver.irmatching.parser.VMInfo;
 import compiler.lib.ir_framework.shared.CheckedTestFrameworkException;
 import compiler.lib.ir_framework.shared.TestFormat;
 import compiler.lib.ir_framework.shared.TestFormatException;
+import compiler.valhalla.inlinetypes.InlineTypeIRNode;
 import jdk.test.lib.Platform;
 import jdk.test.whitebox.WhiteBox;
 
@@ -151,6 +152,12 @@ public class IRNode {
      *    // definitions.
      * }
      */
+
+    // Valhalla: Make sure that all Valhalla specific IR nodes are also properly initialized. Doing it here also
+    //           ensures that the Flag VM is able to pick up the correct compile phases.
+    static {
+        InlineTypeIRNode.forceStaticInitialization();
+    }
 
     public static final String ABS_D = PREFIX + "ABS_D" + POSTFIX;
     static {
@@ -1703,7 +1710,7 @@ public class IRNode {
 
     public static final String SUBTYPE_CHECK = PREFIX + "SUBTYPE_CHECK" + POSTFIX;
     static {
-        beforeMatchingNameRegex(SUBTYPE_CHECK, "SubTypeCheck");
+        macroNodes(SUBTYPE_CHECK, "SubTypeCheck");
     }
 
     public static final String TRAP = PREFIX + "TRAP" + POSTFIX;
@@ -2483,6 +2490,19 @@ public class IRNode {
         IR_NODE_MAPPINGS.put(irNodePlaceholder, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
                                                                           CompilePhase.OPTIMIZE_FINISHED,
                                                                           CompilePhase.BEFORE_MATCHING));
+    }
+
+    /**
+     * Apply a regex that matches a macro node IR node name {@code macroNodeName} exactly on all machine independent
+     * ideal graph phases up to and including {@link CompilePhase#BEFORE_MACRO_EXPANSION}. By default, we match on
+     * {@link CompilePhase#BEFORE_MACRO_EXPANSION} when no {@link CompilePhase} is chosen.
+     */
+    private static void macroNodes(String irNodePlaceholder, String macroNodeName) {
+        String macroNodeRegex = START + macroNodeName + "\\b" + MID + END;
+        IR_NODE_MAPPINGS.put(irNodePlaceholder, new SinglePhaseRangeEntry(CompilePhase.BEFORE_MACRO_EXPANSION,
+                                                                          macroNodeRegex,
+                                                                          CompilePhase.BEFORE_STRINGOPTS,
+                                                                          CompilePhase.BEFORE_MACRO_EXPANSION));
     }
 
     private static void trapNodes(String irNodePlaceholder, String trapReason) {
