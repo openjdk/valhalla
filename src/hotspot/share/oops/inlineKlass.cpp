@@ -179,7 +179,7 @@ oop InlineKlass::read_flat_field(oop obj, int offset, LayoutKind lk, TRAPS) {
     InstanceKlass* recv = InstanceKlass::cast(obj->klass());
     int nm_offset = offset + (null_marker_offset() - first_field_offset());
     jbyte nm = obj->byte_field(nm_offset);
-    if (nm_offset == 0) {
+    if (nm == 0) {
       return nullptr;
     }
   }
