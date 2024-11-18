@@ -1895,8 +1895,7 @@ static Node* split_flow_path(PhaseGVN *phase, PhiNode *phi) {
   return phi;
 }
 
-// Returns the BasicType of a given convert node and a type, with special handling to ensure that conversions to
-// and from half float will return the SHORT basic type, as that wouldn't be returned typically from TypeInt.
+// Returns the BasicType of a given convert node based on its opcode and type
 static BasicType get_convert_type(Node* convert, const Type* type, const bool is_source=false) {
   int convert_op = convert->Opcode();
   if (type->isa_int()) {

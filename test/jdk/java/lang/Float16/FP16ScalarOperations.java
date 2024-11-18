@@ -200,6 +200,9 @@ public class FP16ScalarOperations {
               Float16.NEGATIVE_INFINITY,   // -Inf
               Float16.valueOf(0.0),        // +0.0
               Float16.valueOf(-0.0),       // -0.0
+              Float16.MAX_VALUE,           // FP16 Max value(0x1.ffcp15f)
+              Float16.MIN_VALUE,           // FP16 Min value(0x1.0p-24f)
+              Float16.MIN_NORMAL           // FP16 Min normal value(0x1.0p-14f)
         };
 
         for (int i = 0;  i < 1000; i++) {

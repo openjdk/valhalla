@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,11 +125,31 @@ public class TestPhiDuplicatedConversion {
         return c ? Float.float16ToFloat(a) : Float.float16ToFloat(b);
     }
 
+    @Test
+    @IR(counts = {IRNode.CONV, "1"}, applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public static int halfFloat2Int(boolean c, short a, short b) {
+        return c ? Float16.shortBitsToFloat16(a).intValue() : Float16.shortBitsToFloat16(b).intValue();
+    }
+
+    @Test
+    @IR(counts = {IRNode.CONV, "1"}, applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public static long halfFloat2Long(boolean c, short a, short b) {
+        return c ? Float16.shortBitsToFloat16(a).longValue() : Float16.shortBitsToFloat16(b).longValue();
+    }
+
+    @Test
+    @IR(counts = {IRNode.CONV, "1"}, applyIfCPUFeature = {"asimd", "true"})
+    public static double halfFloat2Double(boolean c, short a, short b) {
+        return c ? Float16.shortBitsToFloat16(a).doubleValue() : Float16.shortBitsToFloat16(b).doubleValue();
+    }
+
     @Run(test = {"int2Float", "int2Double", "int2Long",
                  "float2Int", "float2Double", "float2Long",
                  "double2Int", "double2Float", "double2Long",
                  "long2Float", "long2Double", "long2Int",
-                 "float2HalfFloat", "halfFloat2Float"})
+                 "float2HalfFloat", "halfFloat2Float",
+                 "halfFloat2Int", "halfFloat2Long",
+                 "halfFloat2Double"})
     public void runTests() {
         assertResults(true, 10, 20, 3.14f, -1.6f, 3.1415, -1.618, 30L, 400L, Float.floatToFloat16(10.5f), Float.floatToFloat16(20.5f));
         assertResults(false, 10, 20, 3.14f, -1.6f, 3.1415, -1.618, 30L, 400L, Float.floatToFloat16(10.5f), Float.floatToFloat16(20.5f));
@@ -151,5 +171,8 @@ public class TestPhiDuplicatedConversion {
         Asserts.assertEQ(c ? (int)longA : (int)longB, long2Int(c, longA, longB));
         Asserts.assertEQ(c ? Float.floatToFloat16(floatA) : Float.floatToFloat16(floatB), float2HalfFloat(c, floatA, floatB));
         Asserts.assertEQ(c ? Float.float16ToFloat(halfFloatA) : Float.float16ToFloat(halfFloatB), halfFloat2Float(c, halfFloatA, halfFloatB));
+        Asserts.assertEQ(c ? Float16.shortBitsToFloat16(halfFloatA).intValue() : Float16.shortBitsToFloat16(halfFloatB).intValue(), halfFloat2Int(c, halfFloatA, halfFloatB));
+        Asserts.assertEQ(c ? Float16.shortBitsToFloat16(halfFloatA).longValue() : Float16.shortBitsToFloat16(halfFloatB).longValue(), halfFloat2Long(c, halfFloatA, halfFloatB));
+        Asserts.assertEQ(c ? Float16.shortBitsToFloat16(halfFloatA).doubleValue() : Float16.shortBitsToFloat16(halfFloatB).doubleValue(), halfFloat2Double(c, halfFloatA, halfFloatB));
     }
 }
