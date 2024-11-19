@@ -2179,6 +2179,7 @@ C2V_VMENTRY_NULL(jobjectArray, getDeclaredConstructors, (JNIEnv* env, jobject, A
   for (int i = 0; i < iklass->methods()->length(); i++) {
     Method* m = iklass->methods()->at(i);
     if (m->is_object_constructor()) {
+    if (m->is_object_initializer()) {
       constructors_array.append(m);
     }
   }
@@ -2927,6 +2928,9 @@ C2V_VMENTRY_NULL(jobject, asReflectionExecutable, (JNIEnv* env, jobject, ARGUMEN
   }
   else if (m->is_object_constructor()) {
     executable = Reflection::new_constructor(m, CHECK_NULL);
+  } else if (m->is_static_initializer()) {
+    JVMCI_THROW_MSG_NULL(IllegalArgumentException,
+        "Cannot create java.lang.reflect.Method for class initializer");
   } else {
     executable = Reflection::new_method(m, false, CHECK_NULL);
   }
