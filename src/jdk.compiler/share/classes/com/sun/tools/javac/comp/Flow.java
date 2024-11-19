@@ -2298,7 +2298,7 @@ public class Flow {
                 trackable(sym) &&
                 !inits.isMember(sym.adr) &&
                 (sym.flags_field & CLASH) == 0) {
-                    log.error(pos, errkey);
+                log.error(pos, errkey);
                 inits.incl(sym.adr);
             }
         }
