@@ -560,7 +560,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     false // local sealed classes are not allowed
             ),
             new TestData(
-                    "compiler.err.illegal.combination.of.modifiers",
+                    "compiler.err.non.abstract.value.class.cant.be.sealed.or.non.sealed",
                     """
                     abstract sealed value class SC {}
                     non-sealed value class VC extends SC {}
@@ -568,10 +568,37 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     false
             ),
             new TestData(
-                    "compiler.err.illegal.combination.of.modifiers",
+                    "compiler.err.non.abstract.value.class.cant.be.sealed.or.non.sealed",
                     """
                     sealed value class SI {}
-                    non-sealed value class VC extends SI {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed abstract value class SI {}
+                    value class V extends SI {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed abstract value class SI permits V {}
+                    value class V extends SI {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed interface I {}
+                    non-sealed abstract value class V implements I {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed interface I permits V {}
+                    non-sealed abstract value class V implements I {}
                     """,
                     false
             )
