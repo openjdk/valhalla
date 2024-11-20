@@ -1866,6 +1866,9 @@ void IfNode::dump_spec(outputStream* st) const {
     case AssertionPredicateType::LastValue:
       st->print("#Last Value Assertion Predicate  ");
       break;
+    case AssertionPredicateType::FinalIv:
+      st->print("#Final IV Assertion Predicate  ");
+      break;
     case AssertionPredicateType::None:
       // No Assertion Predicate
       break;
