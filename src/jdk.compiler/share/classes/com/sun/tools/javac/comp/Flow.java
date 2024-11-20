@@ -507,11 +507,10 @@ public class Flow {
                      */
                     boolean isDefStatic = ((TreeInfo.flags(def) | (TreeInfo.symbolFor(def) == null ? 0 : TreeInfo.symbolFor(def).flags_field)) & STATIC) != 0;
                     if (!def.hasTag(METHODDEF) && (isDefStatic == isStatic)) {
-                        if (def.hasTag(VARDEF)) {
-                            JCVariableDecl varDecl = (JCVariableDecl) def;
+                        if (def instanceof JCVariableDecl varDecl) {
                             boolean isEarly = varDecl.init != null &&
-                                    varDecl.sym.owner.kind == TYP &&
-                                    varDecl.sym.owner.isValueClass() && !varDecl.sym.isStatic();
+                                    varDecl.sym.owner.isValueClass() &&
+                                    !varDecl.sym.isStatic();
                             if (isEarly == earlyOnly) {
                                 handler.accept(def);
                             }
