@@ -403,6 +403,10 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
              name != name.table.names._this;
     }
 
+    public boolean isStrict() {
+        return (flags() & STRICT) != 0;
+    }
+
     public boolean isInterface() {
         return (flags_field & INTERFACE) != 0;
     }

@@ -1003,6 +1003,15 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+        assertOK(
+                """
+                value class V {
+                    String s1;
+                    { System.out.println(s1); }
+                    String s2 = (s1 = "abc");
+                }
+                """
+        );
     }
 
     @Test

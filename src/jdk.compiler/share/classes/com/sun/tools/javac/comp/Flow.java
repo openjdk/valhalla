@@ -481,8 +481,18 @@ public class Flow {
             }
         }
 
-        // Do something with all static or non-static field initializers and initialization blocks.
+        // Do something with static or non-static field initializers and initialization blocks.
         protected void forEachInitializer(JCClassDecl classDef, boolean isStatic, Consumer<? super JCTree> handler) {
+            forEachInitializer(classDef, isStatic, false, handler);
+        }
+
+        /* Do something with static or non-static field initializers and initialization blocks.
+         * the `earlyOnly` argument will determine if we will deal or not with early variable instance
+         * initializers we want to process only those before a super() invocation and ignore them after
+         * it.
+         */
+        protected void forEachInitializer(JCClassDecl classDef, boolean isStatic, boolean earlyOnly,
+                                          Consumer<? super JCTree> handler) {
             if (classDef == initScanClass)          // avoid infinite loops
                 return;
             JCClassDecl initScanClassPrev = initScanClass;
@@ -500,8 +510,18 @@ public class Flow {
                      * code
                      */
                     boolean isDefStatic = ((TreeInfo.flags(def) | (TreeInfo.symbolFor(def) == null ? 0 : TreeInfo.symbolFor(def).flags_field)) & STATIC) != 0;
-                    if (!def.hasTag(METHODDEF) && (isDefStatic == isStatic))
-                        handler.accept(def);
+                    if (!def.hasTag(METHODDEF) && (isDefStatic == isStatic)) {
+                        if (def instanceof JCVariableDecl varDecl) {
+                            boolean isEarly = varDecl.init != null &&
+                                    varDecl.sym.owner.isValueClass() &&
+                                    !varDecl.sym.isStatic();
+                            if (isEarly == earlyOnly) {
+                                handler.accept(def);
+                            }
+                        } else if (!earlyOnly) {
+                            handler.accept(def);
+                        }
+                    }
                 }
             } finally {
                 initScanClass = initScanClassPrev;
@@ -2298,7 +2318,7 @@ public class Flow {
                 trackable(sym) &&
                 !inits.isMember(sym.adr) &&
                 (sym.flags_field & CLASH) == 0) {
-                    log.error(pos, errkey);
+                log.error(pos, errkey);
                 inits.incl(sym.adr);
             }
         }
@@ -3032,6 +3052,14 @@ public class Flow {
         }
 
         public void visitApply(JCMethodInvocation tree) {
+            Name name = TreeInfo.name(tree.meth);
+            // let's process early initializers
+            if (name == names._super) {
+                forEachInitializer(classDef, false, true, def -> {
+                    scan(def);
+                    clearPendingExits(false);
+                });
+            }
             scanExpr(tree.meth);
             scanExprs(tree.args);
 
@@ -3039,7 +3067,7 @@ public class Flow {
             if (isConstructor) {
 
                 // If super(): at this point all initialization blocks will execute
-                Name name = TreeInfo.name(tree.meth);
+
                 if (name == names._super) {
                     forEachInitializer(classDef, false, def -> {
                         scan(def);
