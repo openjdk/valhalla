@@ -487,7 +487,7 @@ public class Flow {
         }
 
         /* Do something with static or non-static field initializers and initialization blocks.
-         * the earlyOnly argument will determine if we will deal or not with early variable instance
+         * the `earlyOnly` argument will determine if we will deal or not with early variable instance
          * initializers we want to process only those before a super() invocation and ignore them after
          * it.
          */
