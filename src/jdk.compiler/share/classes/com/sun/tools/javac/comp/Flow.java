@@ -481,12 +481,16 @@ public class Flow {
             }
         }
 
-        // Do something with all static or non-static field initializers and initialization blocks.
+        // Do something with static or non-static field initializers and initialization blocks.
         protected void forEachInitializer(JCClassDecl classDef, boolean isStatic, Consumer<? super JCTree> handler) {
             forEachInitializer(classDef, isStatic, false, handler);
         }
 
-        // Do something with all static or non-static field initializers and initialization blocks.
+        /* Do something with static or non-static field initializers and initialization blocks.
+         * the earlyOnly argument will determine if we will deal or not with early variable instance
+         * initializers we want to process only those before a super() invocation and ignore them after
+         * it.
+         */
         protected void forEachInitializer(JCClassDecl classDef, boolean isStatic, boolean earlyOnly,
                                           Consumer<? super JCTree> handler) {
             if (classDef == initScanClass)          // avoid infinite loops
