@@ -1401,6 +1401,10 @@ public class Check {
             } else {
                 mask = ExtendedClassFlags;
             }
+            if ((flags & (VALUE_CLASS | SEALED | ABSTRACT)) == (VALUE_CLASS | SEALED) ||
+                (flags & (VALUE_CLASS | NON_SEALED | ABSTRACT)) == (VALUE_CLASS | NON_SEALED)) {
+                log.error(pos, Errors.NonAbstractValueClassCantBeSealedOrNonSealed);
+            }
             // Interfaces are always ABSTRACT
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
@@ -1491,9 +1495,6 @@ public class Check {
                 && checkDisjoint(pos, flags,
                                 VALUE_CLASS,
                                 ANNOTATION)
-                && checkDisjoint(pos, flags,
-                                VALUE_CLASS,
-                                NON_SEALED)
                 && checkDisjoint(pos, flags,
                                 VALUE_CLASS,
                                 INTERFACE) ) {

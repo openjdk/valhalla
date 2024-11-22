@@ -380,7 +380,7 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
     LayoutRawBlock* adj = new LayoutRawBlock(LayoutRawBlock::EMPTY, adjustment);
     insert(slot, adj);
   }
-  assert(block->size() >= block->size(), "Enough space must remain afte adjustment");
+  assert(block->size() >= block->size(), "Enough space must remain after adjustment");
   insert(slot, block);
   if (slot->size() == 0) {
     remove(slot);
@@ -557,6 +557,12 @@ void FieldLayout::shift_fields(int shift) {
     b->set_offset(b->offset() + shift);
     if (b->block_kind() == LayoutRawBlock::REGULAR || b->block_kind() == LayoutRawBlock::FLAT) {
       _field_info->adr_at(b->field_index())->set_offset(b->offset());
+      if (b->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+        int new_nm_offset = _field_info->adr_at(b->field_index())->null_marker_offset() + shift;
+        _field_info->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset);
+        _inline_layout_info_array->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset);
+
+      }
     }
     assert(b->block_kind() == LayoutRawBlock::EMPTY || b->offset() % b->alignment() == 0, "Must still be correctly aligned");
     b = b->next_block();
