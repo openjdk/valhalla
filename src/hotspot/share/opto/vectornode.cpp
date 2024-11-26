@@ -574,6 +574,9 @@ bool VectorNode::is_convert_opcode(int opc) {
     case Op_ConvD2I:
     case Op_ConvF2HF:
     case Op_ConvHF2F:
+    case Op_ConvHF2I:
+    case Op_ConvHF2D:
+    case Op_ConvHF2L:
       return true;
     default:
       return false;
@@ -1433,7 +1436,7 @@ VectorCastNode* VectorCastNode::make(int vopc, Node* n1, BasicType bt, uint vlen
     case Op_VectorUCastB2X: return new VectorUCastB2XNode(n1, vt);
     case Op_VectorUCastS2X: return new VectorUCastS2XNode(n1, vt);
     case Op_VectorUCastI2X: return new VectorUCastI2XNode(n1, vt);
-    case Op_VectorCastHF2F: return new VectorCastHF2FNode(n1, vt);
+    case Op_VectorCastHF2X: return new VectorCastHF2XNode(n1, vt);
     case Op_VectorCastF2HF: return new VectorCastF2HFNode(n1, vt);
     default:
       assert(false, "unknown node: %s", NodeClassNames[vopc]);
@@ -1447,8 +1450,11 @@ int VectorCastNode::opcode(int sopc, BasicType bt, bool is_signed) {
   // Handle special case for to/from Half Float conversions
   switch (sopc) {
     case Op_ConvHF2F:
+    case Op_ConvHF2I:
+    case Op_ConvHF2D:
+    case Op_ConvHF2L:
       assert(bt == T_SHORT, "");
-      return Op_VectorCastHF2F;
+      return Op_VectorCastHF2X;
     case Op_ConvF2HF:
       assert(bt == T_FLOAT, "");
       return Op_VectorCastF2HF;

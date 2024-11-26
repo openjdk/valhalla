@@ -194,4 +194,37 @@ public class TestFP16ScalarOps {
             dst[i] = float16ToRawShortBits(res);
         }
     }
+
+    @Test
+    @IR(counts = {IRNode.CONV_HF2I, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testConvHF2I() {
+        int result = 0;
+        for (int i = 0; i < count; i++) {
+            result = shortBitsToFloat16(src[i]).intValue();
+            dst[i] = (short)result;
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.CONV_HF2D, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testConvHF2D() {
+        double result = 0;
+        for (int i = 0; i < count; i++) {
+            result = shortBitsToFloat16(src[i]).doubleValue();
+            dst[i] = Float.floatToFloat16((float)result);
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.CONV_HF2L, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testConvHF2L() {
+        long result = 0;
+        for (int i = 0; i < count; i++) {
+            result = shortBitsToFloat16(src[i]).longValue();
+            dst[i] = (short)result;
+        }
+    }
 }

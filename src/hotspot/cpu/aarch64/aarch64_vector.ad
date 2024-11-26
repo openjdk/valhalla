@@ -248,6 +248,18 @@ source %{
           break;
         }
         return false;
+      case Op_VectorCastHF2X:
+        // Vectorization is not possible for types - T_LONG and T_DOUBLE when vector length <= 16B.
+        if ((bt == T_LONG || bt == T_DOUBLE) && UseSVE > 0 && length_in_bytes > 16) {
+          break;
+        // T_FLOAT type is vectorizable on both Neon and SVE machines and it does not need a FEAT_FP16 check either.
+        } else if (bt == T_FLOAT) {
+          break;
+        // If the type is T_INT, it is vectorizable on both Neon and SVE machines but it needs a FEAT_FP16 check on Neon.
+        } else if (bt == T_INT && (UseSVE > 0 || (VM_Version::supports_fphp() && VM_Version::supports_asimdhp()))) {
+          break;
+        }
+        return false;
       default:
         break;
     }
@@ -4477,20 +4489,43 @@ instruct vcvtDtoF_gt64b(vReg dst, vReg src, vReg tmp) %{
   ins_pipe(pipe_slow);
 %}
 
-// VectorCastHF2F
-
-instruct vcvtHFtoF(vReg dst, vReg src) %{
-  match(Set dst (VectorCastHF2F src));
-  format %{ "vcvtHFtoF $dst, $src" %}
+// VectorCastHF2X
+// Conversions from half-precision float to float/int/long/double.
+// Conversion to double/long is not vectorizable on Neon but is vectorizable on SVE.
+instruct vcvtHFtoX(vReg dst, vReg src) %{
+  match(Set dst (VectorCastHF2X src));
+  format %{ "vcvtHFtoX $dst, $src\t# half float to float/int/long/double" %}
   ins_encode %{
+    BasicType bt = Matcher::vector_element_basic_type(this);
     uint length_in_bytes = Matcher::vector_length_in_bytes(this);
-    if (VM_Version::use_neon_for_vector(length_in_bytes)) {
-      // 4HF to 4F
-      __ fcvtl($dst$$FloatRegister, __ T4S, $src$$FloatRegister, __ T4H);
-    } else {
+    if (bt == T_INT) {
+      if (VM_Version::use_neon_for_vector(length_in_bytes)) {
+        // 4HF to 4I
+        __ fcvtl($dst$$FloatRegister, __ T4S, $src$$FloatRegister, __ T4H);
+        __ fcvtzs($dst$$FloatRegister, __ T4S, $dst$$FloatRegister);
+      } else {
+        assert(UseSVE > 0, "must be sve");
+        __ sve_vector_extend($dst$$FloatRegister, __ S, $src$$FloatRegister, __ H);
+        __ sve_fcvtzs($dst$$FloatRegister, __ S, ptrue, $dst$$FloatRegister, __ H);
+      }
+    } else if (bt == T_FLOAT) {
+      if (VM_Version::use_neon_for_vector(length_in_bytes)) {
+        // 4HF to 4F
+        __ fcvtl($dst$$FloatRegister, __ T4S, $src$$FloatRegister, __ T4H);
+      } else {
+        assert(UseSVE > 0, "must be sve");
+        __ sve_vector_extend($dst$$FloatRegister, __ S, $src$$FloatRegister, __ H);
+        __ sve_fcvt($dst$$FloatRegister, __ S, ptrue, $dst$$FloatRegister, __ H);
+      }
+    } else if (bt == T_LONG) {
       assert(UseSVE > 0, "must be sve");
-      __ sve_vector_extend($dst$$FloatRegister, __ S, $src$$FloatRegister, __ H);
-      __ sve_fcvt($dst$$FloatRegister, __ S, ptrue, $dst$$FloatRegister, __ H);
+      __ sve_vector_extend($dst$$FloatRegister, __ D, $src$$FloatRegister, __ H);
+      __ sve_fcvtzs($dst$$FloatRegister, __ D, ptrue, $dst$$FloatRegister, __ H);
+    } else { // Has to be a double type
+      assert(bt == T_DOUBLE, "unsupported type");
+      assert(UseSVE > 0, "must be sve");
+      __ sve_vector_extend($dst$$FloatRegister, __ D, $src$$FloatRegister, __ H);
+      __ sve_fcvt($dst$$FloatRegister, __ D, ptrue, $dst$$FloatRegister, __ H);
     }
   %}
   ins_pipe(pipe_slow);

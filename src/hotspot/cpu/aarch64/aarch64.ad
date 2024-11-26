@@ -2300,6 +2300,8 @@ bool Matcher::match_rule_supported(int opcode) {
     case Op_NegHF:
     case Op_SqrtHF:
     case Op_FmaHF:
+    case Op_ConvHF2I:
+    case Op_ConvHF2L:
       // Half-precision floating point scalar operations require FEAT_FP16
       // to be available. FEAT_FP16 is enabled if both "fphp" and "asimdhp"
       // features are supported.
@@ -14599,13 +14601,47 @@ instruct convF2HF_reg_reg(iRegINoSp dst, vRegF src, vRegF tmp) %{
 instruct convHF2F_reg_reg(vRegF dst, iRegINoSp src, vRegF tmp) %{
   match(Set dst (ConvHF2F src));
   format %{ "mov $tmp, $src\t# move source from $src to $tmp\n\t"
-            "fcvt $dst, $tmp\t# convert half to single precision"
-  %}
+            "fcvt $dst, $tmp\t# convert half to single precision" %}
   effect(TEMP tmp);
   ins_encode %{
-      __ flt16_to_flt($dst$$FloatRegister, $src$$Register, $tmp$$FloatRegister);
+      __ flt16_to_flt($dst$$FloatRegister, $src$$Register, $tmp$$FloatRegister, T_FLOAT);
   %}
   ins_pipe(pipe_slow);
+%}
+
+instruct convHF2D_reg_reg(vRegD dst, iRegINoSp src, vRegF tmp) %{
+  match(Set dst (ConvHF2D src));
+  format %{"mov $tmp, $src\t# move source from $src to $tmp\n\t"
+           "fcvt $dst, $src\t# convert half to double precision" %}
+  effect(TEMP tmp);
+  ins_encode %{
+    __ flt16_to_flt($dst$$FloatRegister, $src$$Register, $tmp$$FloatRegister, T_DOUBLE);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct convHF2I_reg_reg(iRegINoSp dst, iRegINoSp src, vRegF tmp) %{
+  match(Set dst (ConvHF2I src));
+  format %{"mov $tmp, $src\t# move source from $src to $tmp\n\t"
+           "fcvtzs $dst, $src \t# convert half float to int" %}
+  effect(TEMP tmp);
+  ins_encode %{
+    __ flt16_to_int($dst$$Register, $src$$Register, $tmp$$FloatRegister, T_INT);
+  %}
+
+  ins_pipe(fp_f2i);
+%}
+
+instruct convHF2L_reg_reg(iRegLNoSp dst, iRegINoSp src, vRegF tmp) %{
+  match(Set dst (ConvHF2L src));
+  format %{"mov $tmp, $src\t# move source from $src to $tmp\n\t"
+           "fcvtzs $dst, $src \t# convert half float to long" %}
+  effect(TEMP tmp);
+  ins_encode %{
+    __ flt16_to_int($dst$$Register, $src$$Register, $tmp$$FloatRegister, T_LONG);
+  %}
+
+  ins_pipe(fp_f2l);
 %}
 
 instruct convI2F_reg_reg(vRegF dst, iRegIorL2I src) %{
@@ -17219,8 +17255,7 @@ instruct reinterpretS2HF(vRegF dst, iRegINoSp src) %{
   ins_pipe(pipe_slow);
 %}
 
-instruct convF2HFAndS2HF(vRegF dst, vRegF src)
-%{
+instruct convF2HFAndS2HF(vRegF dst, vRegF src) %{
   match(Set dst (ReinterpretS2HF (ConvF2HF src)));
   format %{ "convF2HFAndS2HF $dst, $src" %}
   ins_encode %{
@@ -17229,14 +17264,45 @@ instruct convF2HFAndS2HF(vRegF dst, vRegF src)
   ins_pipe(pipe_slow);
 %}
 
-instruct reinterpretHF2SAndHF2F(vRegF dst, vRegF src)
-%{
+// Optimize a sequence of ReinterpretHF2S followed by ConvHF2X
+// to do away with redundant mov operations.
+instruct reinterpretHF2SAndHF2F(vRegF dst, vRegF src) %{
   match(Set dst (ConvHF2F (ReinterpretHF2S src)));
   format %{ "reinterpretHF2SAndHF2F $dst, $src" %}
   ins_encode %{
     __ fcvths($dst$$FloatRegister, $src$$FloatRegister);
   %}
   ins_pipe(pipe_slow);
+%}
+
+instruct reinterpretHF2SAndHF2I(iRegINoSp dst, vRegF src) %{
+  match(Set dst (ConvHF2I (ReinterpretHF2S src)));
+  format %{"reinterpretHF2SAndHF2I $dst, $src" %}
+  ins_encode %{
+    __ fcvtzshw($dst$$Register, $src$$FloatRegister);
+  %}
+
+  ins_pipe(fp_f2i);
+%}
+
+instruct reinterpretHF2SAndHF2D(vRegD dst, vRegF src) %{
+  match(Set dst (ConvHF2D (ReinterpretHF2S src)));
+  format %{"reinterpretHF2SAndHF2D $dst, $src" %}
+  ins_encode %{
+    __ fcvthd($dst$$FloatRegister, $src$$FloatRegister);
+  %}
+
+  ins_pipe(pipe_slow);
+%}
+
+instruct reinterpretHF2SAndHF2L(iRegLNoSp dst, vRegF src) %{
+  match(Set dst (ConvHF2L (ReinterpretHF2S src)));
+  format %{"reinterpretHF2SAndHF2L $dst, $src" %}
+  ins_encode %{
+    __ fcvtzshx($dst$$Register, $src$$FloatRegister);
+  %}
+
+  ins_pipe(fp_f2l);
 %}
 // ============================================================================
 // This name is KNOWN by the ADLC and cannot be changed.

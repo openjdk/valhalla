@@ -477,6 +477,21 @@ public class IRNode {
         beforeMatchingNameRegex(CONV_F2HF, "ConvF2HF");
     }
 
+    public static final String CONV_F2I = PREFIX + "CONV_F2I" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_F2I, "ConvF2I");
+    }
+
+    public static final String CONV_F2L = PREFIX + "CONV_F2L" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_F2L, "ConvF2L");
+    }
+
+    public static final String CONV_F2D = PREFIX + "CONV_F2D" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_F2D, "ConvF2D");
+    }
+
     public static final String CONV_I2L = PREFIX + "CONV_I2L" + POSTFIX;
     static {
         beforeMatchingNameRegex(CONV_I2L, "ConvI2L");
@@ -490,6 +505,21 @@ public class IRNode {
     public static final String CONV_HF2F = PREFIX + "CONV_HF2F" + POSTFIX;
     static {
         beforeMatchingNameRegex(CONV_HF2F, "ConvHF2F");
+    }
+
+    public static final String CONV_HF2I = PREFIX + "CONV_HF2I" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_HF2I, "ConvHF2I");
+    }
+
+    public static final String CONV_HF2D = PREFIX + "CONV_HF2D" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_HF2D, "ConvHF2D");
+    }
+
+    public static final String CONV_HF2L = PREFIX + "CONV_HF2L" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_HF2L, "ConvHF2L");
     }
 
     public static final String CON_I = PREFIX + "CON_I" + POSTFIX;
@@ -1984,9 +2014,24 @@ public class IRNode {
         vectorNode(VECTOR_CAST_F2HF, "VectorCastF2HF", TYPE_SHORT);
     }
 
+    public static final String VECTOR_CAST_HF2I = VECTOR_PREFIX + "VECTOR_CAST_HF2I" + POSTFIX;
+    static {
+        vectorNode(VECTOR_CAST_HF2I, "VectorCastHF2X", TYPE_INT);
+    }
+
+    public static final String VECTOR_CAST_HF2L = VECTOR_PREFIX + "VECTOR_CAST_HF2L" + POSTFIX;
+    static {
+        vectorNode(VECTOR_CAST_HF2L, "VectorCastHF2X", TYPE_LONG);
+    }
+
+    public static final String VECTOR_CAST_HF2D = VECTOR_PREFIX + "VECTOR_CAST_HF2D" + POSTFIX;
+    static {
+        vectorNode(VECTOR_CAST_HF2D, "VectorCastHF2X", TYPE_DOUBLE);
+    }
+
     public static final String VECTOR_CAST_HF2F = VECTOR_PREFIX + "VECTOR_CAST_HF2F" + POSTFIX;
     static {
-        vectorNode(VECTOR_CAST_HF2F, "VectorCastHF2F", TYPE_FLOAT);
+        vectorNode(VECTOR_CAST_HF2F, "VectorCastHF2X", TYPE_FLOAT);
     }
 
     public static final String VECTOR_MASK_CAST = PREFIX + "VECTOR_MASK_CAST" + POSTFIX;

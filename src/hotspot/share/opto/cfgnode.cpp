@@ -1895,12 +1895,15 @@ static Node* split_flow_path(PhaseGVN *phase, PhiNode *phi) {
   return phi;
 }
 
-// Returns the BasicType of a given convert node and a type, with special handling to ensure that conversions to
-// and from half float will return the SHORT basic type, as that wouldn't be returned typically from TypeInt.
-static BasicType get_convert_type(Node* convert, const Type* type) {
+// Returns the BasicType of a given convert node based on its opcode and type
+static BasicType get_convert_type(Node* convert, const Type* type, const bool is_source=false) {
   int convert_op = convert->Opcode();
-  if (type->isa_int() && (convert_op == Op_ConvHF2F || convert_op == Op_ConvF2HF)) {
-    return T_SHORT;
+  if (type->isa_int()) {
+    if (is_source && convert_op == Op_ConvHF2I) {
+      return T_SHORT;
+    } else if (convert_op == Op_ConvHF2F || convert_op == Op_ConvF2HF || convert_op == Op_ConvHF2D || convert_op == Op_ConvHF2L) {
+      return T_SHORT;
+    }
   }
 
   return type->basic_type();
@@ -2666,7 +2669,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
         phase->is_IterGVN()->register_new_node_with_optimizer(newphi, this);
 
-        return ConvertNode::create_convert(get_convert_type(convert, source_type), get_convert_type(convert, dest_type), newphi);
+        return ConvertNode::create_convert(get_convert_type(convert, source_type, true), get_convert_type(convert, dest_type), newphi);
       }
     }
   }

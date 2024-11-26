@@ -1735,9 +1735,9 @@ class VectorCastD2XNode : public VectorCastNode {
   virtual int Opcode() const;
 };
 
-class VectorCastHF2FNode : public VectorCastNode {
+class VectorCastHF2XNode : public VectorCastNode {
  public:
-  VectorCastHF2FNode(Node* in, const TypeVect* vt) : VectorCastNode(in, vt) {
+  VectorCastHF2XNode(Node* in, const TypeVect* vt) : VectorCastNode(in, vt) {
     assert(in->bottom_type()->is_vect()->element_basic_type() == T_SHORT, "must be short");
   }
   virtual int Opcode() const;

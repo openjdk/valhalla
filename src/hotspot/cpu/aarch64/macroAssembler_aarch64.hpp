@@ -529,14 +529,30 @@ public:
     orr(Vd, T, Vn, Vn);
   }
 
+  // Convert float to half-precision float
   void flt_to_flt16(Register dst, FloatRegister src, FloatRegister tmp) {
     fcvtsh(tmp, src);
     smov(dst, tmp, H, 0);
   }
 
-  void flt16_to_flt(FloatRegister dst, Register src, FloatRegister tmp) {
+  // Convert half-precision float to float/double
+  void flt16_to_flt(FloatRegister dst, Register src, FloatRegister tmp, BasicType bt) {
     mov(tmp, H, 0, src);
-    fcvths(dst, tmp);
+    switch (bt) {
+    case T_FLOAT:  fcvths(dst, tmp); break;
+    case T_DOUBLE: fcvthd(dst, tmp); break;
+    default: ShouldNotReachHere();
+    }
+  }
+
+  // Convert half-precision float to int/long
+  void flt16_to_int(Register dst, Register src, FloatRegister tmp, BasicType bt) {
+    mov(tmp, H, 0, src);
+    switch (bt) {
+    case T_INT:  fcvtzshw(dst, tmp); break;
+    case T_LONG: fcvtzshx(dst, tmp); break;
+    default: ShouldNotReachHere();
+    }
   }
 
   // Generalized Test Bit And Branch, including a "far" variety which
