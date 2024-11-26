@@ -192,6 +192,32 @@ Node* InlineTypeNode::field_value(uint index) const {
   return in(Values + index);
 }
 
+
+// TODO implement with a worklist
+/*
+static uint helper2(InlineTypeNode* vt, Unique_Node_List& worklist, Node_List& null_markers) {
+  uint cnt = 0;
+  for (uint i = 0; i < vt->field_count(); ++i) {
+    Node* value = vt->field_value(i);
+    if (vt->field_is_flat(i)) {
+      cnt += helper(value->as_InlineType(), worklist, null_markers, sfpt);
+      if (!vt->field_is_null_free(i)) {
+        vt->field_null_marker_offset(i)
+        null_markers.push(value->as_InlineType()->get_is_init());
+      }
+    } else {
+      if (value->is_InlineType()) {
+        // Add inline type field to the worklist to process later
+        worklist.push(value);
+      }
+      sfpt->add_req(value);
+      cnt++;
+    }
+  }
+  return cnt;
+}
+*/
+
 // Get the value of the field at the given offset.
 // If 'recursive' is true, flat inline type fields will be resolved recursively.
 Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
@@ -487,7 +513,7 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
     } else if (field_is_flat(i)) {
       // Recursively load the flat inline type field
       assert(field_is_null_free(i) == (field_null_marker_offset(i) == -1), "inconsistency");
-      value = make_from_flat_impl(kit, ft->as_inline_klass(), base, ptr, holder, offset, field_null_marker_offset(i), decorators, visited);
+      value = make_from_flat_impl(kit, ft->as_inline_klass(), base, ptr, holder, offset, holder_offset + field_null_marker_offset(i), decorators, visited);
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != nullptr);
@@ -540,7 +566,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     holder = inline_klass();
   }
   if (null_marker_offset != -1) {
-    // Nullable flat field, read the null marker
+    // Nullable flat field, store the null marker
     Node* adr = kit->basic_plus_adr(base, null_marker_offset);
     const TypePtr* adr_type = kit->gvn().type(adr)->isa_ptr();
     int alias_idx = kit->C->get_alias_index(adr_type);
@@ -560,7 +586,7 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass
     if (field_is_flat(i)) {
       // Recursively store the flat inline type field
       assert(field_is_null_free(i) == (field_null_marker_offset(i) == -1), "inconsistency");
-      value->as_InlineType()->store_flat(kit, base, ptr, holder, offset, field_null_marker_offset(i), decorators);
+      value->as_InlineType()->store_flat(kit, base, ptr, holder, offset, holder_offset + field_null_marker_offset(i), decorators);
     } else {
       // Store field value to memory
       const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());

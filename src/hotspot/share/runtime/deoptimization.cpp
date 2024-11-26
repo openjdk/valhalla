@@ -1514,7 +1514,9 @@ static int compare(ReassignedField* left, ReassignedField* right) {
 // returned by HotSpotResolvedObjectTypeImpl.getInstanceFields(true)
 static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, GrowableArray<ReassignedField>* null_markers, TRAPS) {
   GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
+  bool doIt = false;
   if (null_markers == nullptr) {
+    doIt = true;
     // Null markers are no real fields..
     null_markers = new GrowableArray<ReassignedField>();
   }
@@ -1638,11 +1640,12 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     }
     svIndex++;
   }
-  if (base_offset == 0) {
+  if (doIt) {
     for (int i = 0; i < null_markers->length(); ++i) {
       int offset = null_markers->at(i)._offset;
+      tty->print_cr("Null marker %d %d", offset, svIndex);
       jbyte is_init = (jbyte)StackValue::create_stack_value(fr, reg_map, sv->field_at(svIndex++))->get_jint();
-      tty->print_cr("NULL MARKER %d %d", offset, is_init);
+      tty->print_cr("Value %d", is_init);
       obj->byte_field_put(offset, is_init);
     }
   }

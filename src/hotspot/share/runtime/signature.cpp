@@ -687,7 +687,7 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
 #endif // ASSERT
 
 // Adds an argument to the signature
-void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol, int offset, int sort_offset) {
+void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol, int offset, float sort_offset) {
   if (sort_offset == -1) {
     sort_offset = offset;
   }

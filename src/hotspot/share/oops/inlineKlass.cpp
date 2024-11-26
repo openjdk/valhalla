@@ -294,49 +294,51 @@ Klass* InlineKlass::value_array_klass_or_null() {
 //
 // Value classes could also have fields in abstract super value classes.
 // Use a HierarchicalFieldStream to get them as well.
-int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int null_marker_offset) {
+int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset, int base_off, int null_marker_offset) {
   int count = 0;
   SigEntry::add_entry(sig, T_METADATA, name(), base_off);
-  int max_offset = 0;
+  max_offset = base_off;
   for (HierarchicalFieldStream<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
-      int null_marker_offset = -1;
+      int field_null_marker_offset = -1;
       if (!fs.is_null_free_inline_type()) {
         // TODO can we use null_marker_offset() instead?
         InlineLayoutInfo* li = inline_layout_info_adr(fs.index());
-        null_marker_offset = li->null_marker_offset();
+        field_null_marker_offset = base_off + li->null_marker_offset() - (base_off > 0 ? first_field_offset() : 0);
       }
       Klass* vk = get_inline_type_field_klass(fs.index());
-      count += InlineKlass::cast(vk)->collect_fields(sig, offset, null_marker_offset);
+      count += InlineKlass::cast(vk)->collect_fields(sig, max_offset, offset, field_null_marker_offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
       SigEntry::add_entry(sig, bt, fs.signature(), offset);
       count += type2size[bt];
     }
-    max_offset = MAX2(max_offset, offset);
+    max_offset = MAX2(max_offset, (float)offset);
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? first_field_offset() : 0);
   // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
   if (null_marker_offset != -1) {
-    tty->print_cr("MARKER %d %d %d", null_marker_offset, offset, max_offset + 1);
-    SigEntry::add_entry(sig, T_BOOLEAN, name(), null_marker_offset, max_offset + 1);
+    max_offset += 0.1f; // We add the markers "in-between" because they are no real fields
+    tty->print_cr("MARKER %d %d %f", null_marker_offset, offset, max_offset);
+    SigEntry::add_entry(sig, T_BOOLEAN, name(), null_marker_offset, max_offset);
     count++;
   }
+  // TODO I think this is incorrect
   SigEntry::add_entry(sig, T_VOID, name(), offset);
   if (base_off == 0) {
     sig->sort(SigEntry::compare);
   }
-  /*
+
   tty->print_cr("##\n");
   print();
   for (int i = 0; i < sig->length(); ++i) {
-    tty->print_cr("%s %d %d", type2name(sig->at(i)._bt), sig->at(i)._offset, sig->at(i)._sort_offset);
+    tty->print_cr("%s %d %f %s", type2name(sig->at(i)._bt), sig->at(i)._offset, sig->at(i)._sort_offset, (sig->at(i)._offset != sig->at(i)._sort_offset) ? " MARKER" : "");
   }
-  */
+
   assert(sig->at(0)._bt == T_METADATA && sig->at(sig->length()-1)._bt == T_VOID, "broken structure");
   return count;
 }
@@ -348,7 +350,8 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
   if (InlineTypeReturnedAsFields || InlineTypePassFieldsAsArgs) {
     ResourceMark rm;
     GrowableArray<SigEntry> sig_vk;
-    int nb_fields = collect_fields(&sig_vk);
+    float max_offset = 0;
+    int nb_fields = collect_fields(&sig_vk, max_offset);
     Array<SigEntry>* extended_sig = MetadataFactory::new_array<SigEntry>(class_loader_data(), sig_vk.length(), CHECK);
     *((Array<SigEntry>**)adr_extended_sig()) = extended_sig;
     for (int i = 0; i < sig_vk.length(); i++) {
