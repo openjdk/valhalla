@@ -185,6 +185,7 @@ public final class Objects {
     *
     * @param obj an object
     * @throws NullPointerException if {@code obj} is {@code null}
+    * @since Valhalla
     */
    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
 //    @IntrinsicCandidate
