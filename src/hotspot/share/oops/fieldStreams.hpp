@@ -297,6 +297,10 @@ class HierarchicalFieldStream : public StackObj  {
   bool is_flat() const {
     return _current_stream.is_flat();
   }
+
+  bool is_null_free_inline_type() {
+    return _current_stream.is_null_free_inline_type();
+  }
 };
 
 #endif // SHARE_OOPS_FIELDSTREAMS_HPP

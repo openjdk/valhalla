@@ -1501,8 +1501,9 @@ public:
   BasicType _type;
   InstanceKlass* _klass;
   bool _is_flat;
+  bool _is_null_free;
 public:
-  ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false) { }
+  ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false), _is_null_free(false) { }
 };
 
 static int compare(ReassignedField* left, ReassignedField* right) {
@@ -1511,21 +1512,28 @@ static int compare(ReassignedField* left, ReassignedField* right) {
 
 // Restore fields of an eliminated instance object using the same field order
 // returned by HotSpotResolvedObjectTypeImpl.getInstanceFields(true)
-static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
+static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, GrowableArray<ReassignedField>* null_markers, TRAPS) {
   GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
+  if (null_markers == nullptr) {
+    // Null markers are no real fields..
+    null_markers = new GrowableArray<ReassignedField>();
+  }
   InstanceKlass* ik = klass;
+  // TODO can we use a hierachical field stream here?
   while (ik != nullptr) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       if (!fs.access_flags().is_static() && (!skip_internal || !fs.field_flags().is_injected())) {
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        if (fs.is_null_free_inline_type()) {
-          if (fs.is_flat()) {
-            field._is_flat = true;
-            // Resolve klass of flat inline type field
-            field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));
-          } else {
+        if (fs.is_flat()) {
+          field._is_flat = true;
+          field._is_null_free = fs.is_null_free_inline_type();
+          // Resolve klass of flat inline type field
+          field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));
+        } else {
+          // TODO?
+          if (fs.is_null_free_inline_type()) {
             field._type = T_OBJECT;  // Can be removed once Q-descriptors have been removed.
           }
         }
@@ -1544,7 +1552,15 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       InstanceKlass* vk = fields->at(i)._klass;
       assert(vk != nullptr, "must be resolved");
       offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
-      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
+      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, null_markers, CHECK_0);
+
+      if (!fields->at(i)._is_null_free) {
+        int nm_offset = offset + InlineKlass::cast(vk)->null_marker_offset();
+        ReassignedField field;
+        field._offset = nm_offset;
+        null_markers->append(field);
+      }
+
       continue; // Continue because we don't need to increment svIndex
     }
     ScopeValue* scope_field = sv->field_at(svIndex);
@@ -1622,6 +1638,14 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     }
     svIndex++;
   }
+  if (base_offset == 0) {
+    for (int i = 0; i < null_markers->length(); ++i) {
+      int offset = null_markers->at(i)._offset;
+      jbyte is_init = (jbyte)StackValue::create_stack_value(fr, reg_map, sv->field_at(svIndex++))->get_jint();
+      tty->print_cr("NULL MARKER %d %d", offset, is_init);
+      obj->byte_field_put(offset, is_init);
+    }
+  }
   return svIndex;
 }
 
@@ -1635,7 +1659,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
-    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, skip_internal, offset, CHECK);
+    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, skip_internal, offset, nullptr, CHECK);
   }
 }
 
@@ -1684,7 +1708,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     }
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
-      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, CHECK);
+      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, nullptr, CHECK);
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* vak = FlatArrayKlass::cast(k);
       reassign_flat_array_elements(fr, reg_map, sv, (flatArrayOop) obj(), vak, skip_internal, CHECK);

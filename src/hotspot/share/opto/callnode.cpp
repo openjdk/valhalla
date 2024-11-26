@@ -524,8 +524,13 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
           fld_node = mcall->in(first_ind+j);
           if (iklass != nullptr) {
             st->print(", [");
-            cifield = iklass->nonstatic_field_at(j);
-            cifield->print_name_on(st);
+            if (j < (uint)iklass->nof_nonstatic_fields()) {
+              cifield = iklass->nonstatic_field_at(j);
+              cifield->print_name_on(st);
+            } else {
+              // Must be a null marker
+              st->print("null marker");
+            }
             format_helper(regalloc, st, fld_node, ":", j, &scobjs);
           } else {
             format_helper(regalloc, st, fld_node, ", [", j, &scobjs);

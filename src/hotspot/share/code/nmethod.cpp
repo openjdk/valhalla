@@ -3812,6 +3812,12 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
       }
       if (!did_name)
         stream->print("%s", type2name(t));
+      if ((*sig)._offset == -1) {
+        // TODO it's also -1 if it's not from a flat field
+        //stream->print(" IS INIT");
+      } else  if ((*sig)._sort_offset != (*sig)._offset) {
+        stream->print(" NULL MARKER");
+      }
     }
     if (at_old_sp) {
       stream->print("  (%s of caller)", spname);

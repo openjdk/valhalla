@@ -2194,13 +2194,21 @@ const TypeTuple *TypeTuple::INT_CC_PAIR;
 const TypeTuple *TypeTuple::LONG_CC_PAIR;
 
 static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, uint& pos) {
-  for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
-    ciField* field = vk->nonstatic_field_at(j);
-    BasicType bt = field->type()->basic_type();
-    const Type* ft = Type::get_const_type(field->type());
-    field_array[pos++] = ft;
-    if (type2size[bt] == 2) {
-      field_array[pos++] = Type::HALF;
+  for (int i = 0; i < vk->nof_declared_nonstatic_fields(); i++) {
+    ciField* field = vk->declared_nonstatic_field_at(i);
+    if (field->is_flat()) {
+      collect_inline_fields(field->type()->as_inline_klass(), field_array, pos);
+      if (!field->is_null_free()) {
+        // TODO add is_init field at the end
+        field_array[pos++] = Type::get_const_basic_type(T_BOOLEAN);
+      }
+    } else {
+      BasicType bt = field->type()->basic_type();
+      const Type* ft = Type::get_const_type(field->type());
+      field_array[pos++] = ft;
+      if (type2size[bt] == 2) {
+        field_array[pos++] = Type::HALF;
+      }
     }
   }
 }
@@ -2230,6 +2238,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
       uint pos = TypeFunc::Parms;
       field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
+      // TODO move this in
       // InlineTypeNode::IsInit field used for null checking
       field_array[pos++] = get_const_basic_type(T_BOOLEAN);
       break;

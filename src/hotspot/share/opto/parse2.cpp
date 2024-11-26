@@ -239,7 +239,7 @@ void Parse::array_store(BasicType bt) {
       PreserveReexecuteState preexecs(this);
       inc_sp(3);
       jvms()->set_should_reexecute(true);
-      cast_val->as_InlineType()->store_flat(this, ary, adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      cast_val->as_InlineType()->store_flat(this, ary, adr, nullptr, 0, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (ary_t->is_null_free()) {
       // Store to non-flat inline type array (elements can never be null)
@@ -297,7 +297,7 @@ void Parse::array_store(BasicType bt) {
           PreserveReexecuteState preexecs(this);
           inc_sp(3);
           jvms()->set_should_reexecute(true);
-          val->as_InlineType()->store_flat(this, casted_ary, casted_adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          val->as_InlineType()->store_flat(this, casted_ary, casted_adr, nullptr, 0, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
         } else if (!stopped()) {
           // Element type is unknown, emit runtime call
 

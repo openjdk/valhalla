@@ -524,7 +524,7 @@ void BranchData::post_initialize(BytecodeStream* stream, MethodData* mdo) {
 void BranchData::print_data_on(outputStream* st, const char* extra) const {
   print_shared(st, "BranchData", extra);
   if (data()->flags()) {
-    tty->cr();
+    st->cr();
     tab(st);
   }
   st->print_cr("taken(%u) displacement(%d)",

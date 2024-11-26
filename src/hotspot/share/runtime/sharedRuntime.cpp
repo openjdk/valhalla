@@ -2588,24 +2588,24 @@ void AdapterHandlerLibrary::initialize() {
     _no_arg_handler = create_adapter(no_arg_blob, no_args, true);
 
     CompiledEntrySignature obj_args;
-    SigEntry::add_entry(obj_args.sig(), T_OBJECT, nullptr);
+    SigEntry::add_entry(obj_args.sig(), T_OBJECT);
     obj_args.compute_calling_conventions();
     _obj_arg_handler = create_adapter(obj_arg_blob, obj_args, true);
 
     CompiledEntrySignature int_args;
-    SigEntry::add_entry(int_args.sig(), T_INT, nullptr);
+    SigEntry::add_entry(int_args.sig(), T_INT);
     int_args.compute_calling_conventions();
     _int_arg_handler = create_adapter(int_arg_blob, int_args, true);
 
     CompiledEntrySignature obj_int_args;
-    SigEntry::add_entry(obj_int_args.sig(), T_OBJECT, nullptr);
-    SigEntry::add_entry(obj_int_args.sig(), T_INT, nullptr);
+    SigEntry::add_entry(obj_int_args.sig(), T_OBJECT);
+    SigEntry::add_entry(obj_int_args.sig(), T_INT);
     obj_int_args.compute_calling_conventions();
     _obj_int_arg_handler = create_adapter(obj_int_arg_blob, obj_int_args, true);
 
     CompiledEntrySignature obj_obj_args;
-    SigEntry::add_entry(obj_obj_args.sig(), T_OBJECT, nullptr);
-    SigEntry::add_entry(obj_obj_args.sig(), T_OBJECT, nullptr);
+    SigEntry::add_entry(obj_obj_args.sig(), T_OBJECT);
+    SigEntry::add_entry(obj_obj_args.sig(), T_OBJECT);
     obj_obj_args.compute_calling_conventions();
     _obj_obj_arg_handler = create_adapter(obj_obj_arg_blob, obj_obj_args, true);
 
@@ -2868,8 +2868,8 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             _sig_cc_ro->appendAll(vk->extended_sig());
             if (bt == T_OBJECT) {
               // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_METADATA delimiter
-              _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr));
-              _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr));
+              _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN));
+              _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN));
             }
           }
         } else {
