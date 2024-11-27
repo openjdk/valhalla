@@ -128,9 +128,39 @@ public class Test {
         }
     }
 
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValueEmpty {
+
+    }
+
+    // Value class with flat field of empty value class
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue6 {
+        MyValueEmpty val;
+
+        public MyValue6(MyValueEmpty val) {
+            this.val = val;
+        }
+    }
+
+    // Same as MyValue6 but one more level of nested flat fields
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue7 {
+        MyValue6 val;
+
+        public MyValue7(MyValue6 val) {
+            this.val = val;
+        }
+    }
+
     MyValue1 field1;
     MyValue4 field2;
     MyValue5 field3;
+    MyValue6 field4;
+    MyValue7 field5;
 
     // Test that the calling convention is keeping track of the null marker
     public MyValue1 testHelper1(MyValue1 val) {
@@ -256,7 +286,64 @@ public class Test {
         }
     }
 
-// TODO add test with empty inline types
+    // Test that the calling convention is keeping track of the null marker
+    public MyValue6 testHelper4(MyValue6 val) {
+        return val;
+    }
+
+    public void testSet4(MyValue6 val) {
+        field4 = testHelper4(val);
+    }
+
+    public MyValue6 testGet4() {
+        return field4;
+    }
+
+    public void testDeopt4(MyValue6 val4, MyValue6 val5, MyValue6 val6, boolean deopt) {
+        MyValue6 val1 = new MyValue6(new MyValueEmpty());
+        MyValue6 val2 = new MyValue6(null);
+        MyValue6 val3 = null;
+        if (deopt) {
+            if (val1.val != new MyValueEmpty()) throw new RuntimeException("FAIL");
+            if (val2.val != null) throw new RuntimeException("FAIL");
+            if (val3 != null) throw new RuntimeException("FAIL");
+
+            if (val4.val != new MyValueEmpty()) throw new RuntimeException("FAIL");
+            if (val5.val != null) throw new RuntimeException("FAIL");
+            if (val6 != null) throw new RuntimeException("FAIL");
+        }
+    }
+
+    // Test that the calling convention is keeping track of the null marker
+    public MyValue7 testHelper5(MyValue7 val) {
+        return val;
+    }
+
+    public void testSet5(MyValue7 val) {
+        field5 = testHelper5(val);
+    }
+
+    public MyValue7 testGet5() {
+        return field5;
+    }
+
+    public void testDeopt5(MyValue7 val5, MyValue7 val6, MyValue7 val7, MyValue7 val8, boolean deopt) {
+        MyValue7 val1 = new MyValue7(new MyValue6(new MyValueEmpty()));
+        MyValue7 val2 = new MyValue7(new MyValue6(null));
+        MyValue7 val3 = new MyValue7(null);
+        MyValue7 val4 = null;
+        if (deopt) {
+            if (val1.val != new MyValue6(new MyValueEmpty())) throw new RuntimeException("FAIL");
+            if (val2.val != new MyValue6(null)) throw new RuntimeException("FAIL");
+            if (val3.val != null) throw new RuntimeException("FAIL");
+            if (val4 != null) throw new RuntimeException("FAIL");
+
+            if (val5.val != new MyValue6(new MyValueEmpty())) throw new RuntimeException("FAIL");
+            if (val6.val != new MyValue6(null)) throw new RuntimeException("FAIL");
+            if (val7.val != null) throw new RuntimeException("FAIL");
+            if (val8 != null) throw new RuntimeException("FAIL");
+        }
+    }
 
     public static void main(String[] args) {
         Test t = new Test();
@@ -295,15 +382,15 @@ public class Test {
             MyValue3 val3 = useNull ? null : new MyValue3((byte)i);
             MyValue4 val4 = new MyValue4(val3, val3);
             t.field2 = val4;
-            if (t.field2.val1 != val3) throw new RuntimeException("FAIL3");
-            if (t.field2.val2 != val3) throw new RuntimeException("FAIL3");
+            if (t.testGet2().val1 != val3) throw new RuntimeException("FAIL3");
+            if (t.testGet2().val2 != val3) throw new RuntimeException("FAIL3");
 
             t.testSet2(null);
-            if (t.field2 != null) throw new RuntimeException("FAIL3");
+            if (t.testGet2() != null) throw new RuntimeException("FAIL3");
 
             t.testSet2(val4);
-            if (t.field2.val1 != val3) throw new RuntimeException("FAIL3");
-            if (t.field2.val2 != val3) throw new RuntimeException("FAIL3");
+            if (t.testGet2().val1 != val3) throw new RuntimeException("FAIL3");
+            if (t.testGet2().val2 != val3) throw new RuntimeException("FAIL3");
 
             t.testDeopt2((byte)i, null, null, false);
 
@@ -318,19 +405,19 @@ public class Test {
             MyValue5_1 val5_1 = useNull_1 ? null : new MyValue5_1((byte)i, val5_2);
             MyValue5 val5 = new MyValue5((byte)i, val5_1);
             t.field3 = val5;
-            if (t.field3.x != val5.x) throw new RuntimeException("FAIL3");
+            if (t.testGet3().x != val5.x) throw new RuntimeException("FAIL3");
             if (useNull_1) {
-                if (t.field3.val != null) throw new RuntimeException("FAIL3");
+                if (t.testGet3().val != null) throw new RuntimeException("FAIL3");
             } else {
-                if (t.field3.val.x != val5_1.x) throw new RuntimeException("FAIL3");
+                if (t.testGet3().val.x != val5_1.x) throw new RuntimeException("FAIL3");
                 if (useNull_2) {
-                    if (t.field3.val.val != null) throw new RuntimeException("FAIL3");
+                    if (t.testGet3().val.val != null) throw new RuntimeException("FAIL3");
                 } else {
-                    if (t.field3.val.val.x != val5_2.x) throw new RuntimeException("FAIL3");
+                    if (t.testGet3().val.val.x != val5_2.x) throw new RuntimeException("FAIL3");
                     if (useNull_3) {
-                        if (t.field3.val.val.val != null) throw new RuntimeException("FAIL3");
+                        if (t.testGet3().val.val.val != null) throw new RuntimeException("FAIL3");
                     } else {
-                        if (t.field3.val.val.val.x != val5_3.x) throw new RuntimeException("FAIL3");
+                        if (t.testGet3().val.val.val.x != val5_3.x) throw new RuntimeException("FAIL3");
                     }
                 }
             }
@@ -339,23 +426,57 @@ public class Test {
             if (t.field3 != null) throw new RuntimeException("FAIL3");
 
             t.testSet3(val5);
-            if (t.field3.x != val5.x) throw new RuntimeException("FAIL3");
+            if (t.testGet3().x != val5.x) throw new RuntimeException("FAIL3");
             if (useNull_1) {
-                if (t.field3.val != null) throw new RuntimeException("FAIL3");
+                if (t.testGet3().val != null) throw new RuntimeException("FAIL3");
             } else {
-                if (t.field3.val.x != val5_1.x) throw new RuntimeException("FAIL3");
+                if (t.testGet3().val.x != val5_1.x) throw new RuntimeException("FAIL3");
                 if (useNull_2) {
-                    if (t.field3.val.val != null) throw new RuntimeException("FAIL3");
+                    if (t.testGet3().val.val != null) throw new RuntimeException("FAIL3");
                 } else {
-                    if (t.field3.val.val.x != val5_2.x) throw new RuntimeException("FAIL3");
+                    if (t.testGet3().val.val.x != val5_2.x) throw new RuntimeException("FAIL3");
                     if (useNull_3) {
-                        if (t.field3.val.val.val != null) throw new RuntimeException("FAIL3");
+                        if (t.testGet3().val.val.val != null) throw new RuntimeException("FAIL3");
                     } else {
-                        if (t.field3.val.val.val.x != val5_3.x) throw new RuntimeException("FAIL3");
+                        if (t.testGet3().val.val.val.x != val5_3.x) throw new RuntimeException("FAIL3");
                     }
                 }
             }
             t.testDeopt3((byte)i, null, null, null, null, false);
+
+            t.field4 = null;
+            if (t.testGet4() != null) throw new RuntimeException("FAIL1");
+
+            MyValueEmpty empty = useNull ? null : new MyValueEmpty();
+            MyValue6 val6 = new MyValue6(empty);
+            t.field4 = val6;
+            if (t.testGet4().val != empty) throw new RuntimeException("FAIL3");
+
+            t.testSet4(null);
+            if (t.testGet4() != null) throw new RuntimeException("FAIL3");
+
+            t.testSet4(val6);
+            if (t.testGet4().val != empty) throw new RuntimeException("FAIL3");
+
+            t.testDeopt4(null, null, null, false);
+
+
+            t.field5 = null;
+            if (t.testGet5() != null) throw new RuntimeException("FAIL1");
+
+            empty = ((i % 3) == 0) ? null : new MyValueEmpty();
+            val6 = ((i % 3) == 1) ? null : new MyValue6(empty);
+            MyValue7 val7 = new MyValue7(val6);
+            t.field5 = val7;
+            if (t.testGet5().val != val6) throw new RuntimeException("FAIL3");
+
+            t.testSet5(null);
+            if (t.testGet5() != null) throw new RuntimeException("FAIL3");
+
+            t.testSet5(val7);
+            if (t.testGet5().val != val6) throw new RuntimeException("FAIL3");
+
+            t.testDeopt5(null, null, null, null, false);
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account
@@ -368,5 +489,16 @@ public class Test {
         MyValue5 val3 = new MyValue5(x, new MyValue5_1(x, null));
         MyValue5 val4 = new MyValue5(x, null);
         t.testDeopt3(x, val1, val2, val3, val4, true);
+
+        MyValue6 val5 = new MyValue6(new MyValueEmpty());
+        MyValue6 val6 = new MyValue6(null);
+        MyValue6 val7 = null;
+        t.testDeopt4(val5, val6, val7, true);
+
+        MyValue7 val8 = new MyValue7(new MyValue6(new MyValueEmpty()));
+        MyValue7 val9 = new MyValue7(new MyValue6(null));
+        MyValue7 val10 = new MyValue7(null);
+        MyValue7 val11 = null;
+        t.testDeopt5(val8, val9, val10, val11, false);
     }
 }

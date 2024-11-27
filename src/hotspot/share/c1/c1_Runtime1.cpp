@@ -378,6 +378,7 @@ static void allocate_instance(JavaThread* current, Klass* klass, TRAPS) {
   // make sure klass is initialized
   h->initialize(CHECK);
   oop obj = nullptr;
+  // TODO is this correct? C2 uses ciInlineKlass::is_empty instead
   if (h->is_inline_klass() &&  InlineKlass::cast(h)->is_empty_inline_type()) {
     obj = InlineKlass::cast(h)->default_value();
     assert(obj != nullptr, "default value must exist");
