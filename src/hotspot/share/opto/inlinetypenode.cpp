@@ -192,37 +192,37 @@ Node* InlineTypeNode::field_value(uint index) const {
   return in(Values + index);
 }
 
-
 // TODO implement with a worklist
-/*
-static uint helper2(InlineTypeNode* vt, Unique_Node_List& worklist, Node_List& null_markers) {
-  uint cnt = 0;
+static Node* helper2(const InlineTypeNode* vt, int search_offset, int holder_offset = 0) {
   for (uint i = 0; i < vt->field_count(); ++i) {
-    Node* value = vt->field_value(i);
     if (vt->field_is_flat(i)) {
-      cnt += helper(value->as_InlineType(), worklist, null_markers, sfpt);
+      InlineTypeNode* value = vt->field_value(i)->as_InlineType();
       if (!vt->field_is_null_free(i)) {
-        vt->field_null_marker_offset(i)
-        null_markers.push(value->as_InlineType()->get_is_init());
+        int offset = holder_offset + vt->field_null_marker_offset(i);
+        if (offset == search_offset) {
+          return value->get_is_init();
+        }
       }
-    } else {
-      if (value->is_InlineType()) {
-        // Add inline type field to the worklist to process later
-        worklist.push(value);
+      Node* ret = helper2(value->as_InlineType(), search_offset, holder_offset + vt->field_offset(i) - value->bottom_type()->inline_klass()->first_field_offset());
+      if (ret != nullptr) {
+        return ret;
       }
-      sfpt->add_req(value);
-      cnt++;
     }
   }
-  return cnt;
+  return nullptr;
 }
-*/
 
 // Get the value of the field at the given offset.
 // If 'recursive' is true, flat inline type fields will be resolved recursively.
-Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
+Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive, bool root) const {
   // If the field at 'offset' belongs to a flat inline type field, 'index' refers to the
-  // corresponding InlineTypeNode input and 'sub_offset' is the offset in flattened inline type.
+  // corresponding InlineTypeNode input and 'sub_offset' is the offset in the flattened inline type.
+  if (root && recursive) {
+    // Check if we are loading a null marker
+    Node* val = helper2(this, offset);
+    if (val != nullptr) return val;
+  }
+
   int index = inline_klass()->field_index_by_offset(offset);
   int sub_offset = offset - field_offset(index);
   Node* value = field_value(index);
@@ -232,7 +232,7 @@ Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
       // Flat inline type field
       InlineTypeNode* vt = value->as_InlineType();
       sub_offset += vt->inline_klass()->first_field_offset(); // Add header size
-      return vt->field_value_by_offset(sub_offset, recursive);
+      return vt->field_value_by_offset(sub_offset, recursive, false);
     } else {
       assert(sub_offset == 0, "should not have a sub offset");
       return value;
