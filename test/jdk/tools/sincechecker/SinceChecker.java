@@ -103,7 +103,7 @@ that were later generified remain the same.
 
 To help projects still in development, unsure of actual `@since` tag value, one may want to use token name instead of continuely
 updating the current version since tags. For example, `@since LongRunningProjectName`. The option `--ignoreSince` maybe used to
-ignore these tags (`-ignoreSince LongRunningProjectName`). Maybe be specified multiple times.
+ignore these tags (`--ignoreSince LongRunningProjectName`). Maybe be specified multiple times.
 
 usage: the checker is run from a module specific test
         `@run main SinceChecker <moduleName> [--ignoreSince <string>] [--exclude package1,package2 | --exclude package1 package2]`
