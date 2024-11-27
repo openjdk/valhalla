@@ -67,7 +67,6 @@ tools/javac/modules/SourceInSymlinkTest.java                                    
 # javap
 
 tools/javap/output/RepeatingTypeAnnotations.java                                8057687    generic-all    emit correct byte code an attributes for type annotations
-tools/javap/UndefinedAccessFlagTest.java                                        8342036    generic-all
 ###########################################################################
 #
 # jdeps
