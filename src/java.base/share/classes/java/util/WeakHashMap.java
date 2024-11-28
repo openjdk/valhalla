@@ -250,6 +250,7 @@ public class WeakHashMap<K,V>
      * @throws IllegalArgumentException if the initial capacity is negative,
      *         or if the load factor is nonpositive.
      * @throws NullPointerException if {@code valuePolicy} is null
+     * @since Valhalla
      */
     public WeakHashMap(int initialCapacity, float loadFactor, ValuePolicy valuePolicy) {
         if (initialCapacity < 0)
@@ -301,6 +302,8 @@ public class WeakHashMap<K,V>
      *
      * @param  valuePolicy     The {@link ValuePolicy} for keys that are value objects; non-null
      * @throws NullPointerException if {@code valuePolicy} is null
+     *
+     * @since Valhalla
      */
     public WeakHashMap(ValuePolicy valuePolicy) {
         this(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, valuePolicy);
@@ -328,6 +331,8 @@ public class WeakHashMap<K,V>
 
     /**
      * {@return the {@link ValuePolicy} for this WeakHashMap.}
+     *
+     * @since Valhalla
      */
     public ValuePolicy valuePolicy() {
         return valuePolicy;
