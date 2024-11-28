@@ -105,19 +105,23 @@ bool ciInlineKlass::is_empty() {
 // When passing an inline type's fields as arguments, count the number
 // of argument slots that are needed
 int ciInlineKlass::inline_arg_slots() {
+  VM_ENTRY_MARK;
+  const Array<SigEntry>* sig_vk = get_InlineKlass()->extended_sig();
   int slots = 0;
-  for (int j = 0; j < nof_nonstatic_fields(); j++) {
-    ciField* field = nonstatic_field_at(j);
-    slots += type2size[field->type()->basic_type()];
+  for (int i = 0; i < sig_vk->length(); i++) {
+    BasicType bt = sig_vk->at(i)._bt;
+    if (bt == T_METADATA || bt == T_VOID) {
+      continue;
+    }
+    slots += type2size[bt];
   }
   return slots;
 }
 
 ciInstance* ciInlineKlass::default_instance() const {
-  GUARDED_VM_ENTRY(
-    oop default_value = to_InlineKlass()->default_value();
-    return CURRENT_ENV->get_instance(default_value);
-  )
+  VM_ENTRY_MARK;
+  oop default_value = to_InlineKlass()->default_value();
+  return CURRENT_ENV->get_instance(default_value);
 }
 
 bool ciInlineKlass::contains_oops() const {

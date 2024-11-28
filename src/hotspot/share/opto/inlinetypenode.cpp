@@ -712,40 +712,45 @@ bool InlineTypeNode::is_allocated(PhaseGVN* phase) const {
   return !oop_type->maybe_null();
 }
 
+// TODO implement with a worklist
+static void helper3(Compile* C, CallNode* call, const InlineTypeNode* vt, uint& proj_idx) {
+  for (uint i = 0; i < vt->field_count(); ++i) {
+    Node* value = vt->field_value(i);
+    if (vt->field_is_flat(i)) {
+      helper3(C, call, value->as_InlineType(), proj_idx);
+      if (!vt->field_is_null_free(i)) {
+        ProjNode* pn = call->proj_out(proj_idx++);
+        C->gvn_replace_by(pn, value->as_InlineType()->get_is_init());
+        C->initial_gvn()->hash_delete(pn);
+        pn->set_req(0, C->top());
+      }
+      continue;
+    }
+    ProjNode* pn = call->proj_out(proj_idx++);
+    C->gvn_replace_by(pn, value);
+    C->initial_gvn()->hash_delete(pn);
+    pn->set_req(0, C->top());
+  }
+}
+
 // When a call returns multiple values, it has several result
 // projections, one per field. Replacing the result of the call by an
 // inline type node (after late inlining) requires that for each result
 // projection, we find the corresponding inline type field.
 void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) {
-  ciInlineKlass* vk = inline_klass();
-  for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
-    ProjNode* pn = call->fast_out(i)->as_Proj();
-    uint con = pn->_con;
-    Node* field = nullptr;
-    if (con == TypeFunc::Parms) {
-      field = get_oop();
-    } else if (con == (call->tf()->range_cc()->cnt() - 1)) {
-      field = get_is_init();
-    } else if (con > TypeFunc::Parms) {
-      uint field_nb = con - (TypeFunc::Parms+1);
-      int extra = 0;
-      for (uint j = 0; j < field_nb - extra; j++) {
-        ciField* f = vk->nonstatic_field_at(j);
-        BasicType bt = f->type()->basic_type();
-        if (bt == T_LONG || bt == T_DOUBLE) {
-          extra++;
-        }
-      }
-      ciField* f = vk->nonstatic_field_at(field_nb - extra);
-      field = field_value_by_offset(f->offset_in_bytes(), true);
-    }
-    if (field != nullptr) {
-      C->gvn_replace_by(pn, field);
-      C->initial_gvn()->hash_delete(pn);
-      pn->set_req(0, C->top());
-      --i; --imax;
-    }
-  }
+  uint proj_idx = TypeFunc::Parms;
+  ProjNode* pn = call->proj_out(proj_idx++);
+  C->gvn_replace_by(pn, get_oop());
+  C->initial_gvn()->hash_delete(pn);
+  pn->set_req(0, C->top());
+
+  helper3(C, call, this, proj_idx);
+
+  pn = call->proj_out(proj_idx++);
+  C->gvn_replace_by(pn, get_is_init());
+  C->initial_gvn()->hash_delete(pn);
+  pn->set_req(0, C->top());
+  assert(proj_idx == call->tf()->range_cc()->cnt(), "missed a projection");
 }
 
 Node* InlineTypeNode::allocate_fields(GraphKit* kit) {
@@ -1263,14 +1268,14 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       InlineTypeNode* vt = make_uninitialized(gvn, type->as_inline_klass(), field_is_null_free(i));
       vt->initialize_fields(kit, multi, base_input, in, true, null_check_region, visited);
       if (!field_is_null_free(i)) {
-        assert(in, "FIXME");
         assert(field_null_marker_offset(i) != -1, "inconsistency");
         Node* is_init = nullptr;
         if (multi->is_Start()) {
           is_init = gvn.transform(new ParmNode(multi->as_Start(), base_input));
-        } else {
-          // TODO add a test for this
+        } else if (in) {
           is_init = multi->as_Call()->in(base_input);
+        } else {
+          is_init = gvn.transform(new ProjNode(multi->as_Call(), base_input));
         }
         vt->set_req(IsInit, is_init);
         base_input++;

@@ -2241,6 +2241,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
       // TODO move this in
       // InlineTypeNode::IsInit field used for null checking
       field_array[pos++] = get_const_basic_type(T_BOOLEAN);
+      assert(pos == (TypeFunc::Parms + arg_cnt), "out of bounds");
       break;
     } else {
       field_array[TypeFunc::Parms] = get_const_type(return_type, interface_handling)->join_speculative(TypePtr::BOTTOM);
