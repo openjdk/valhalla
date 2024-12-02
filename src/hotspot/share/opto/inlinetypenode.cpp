@@ -719,17 +719,21 @@ static void helper3(Compile* C, CallNode* call, const InlineTypeNode* vt, uint& 
     if (vt->field_is_flat(i)) {
       helper3(C, call, value->as_InlineType(), proj_idx);
       if (!vt->field_is_null_free(i)) {
-        ProjNode* pn = call->proj_out(proj_idx++);
-        C->gvn_replace_by(pn, value->as_InlineType()->get_is_init());
-        C->initial_gvn()->hash_delete(pn);
-        pn->set_req(0, C->top());
+        ProjNode* pn = call->proj_out_or_null(proj_idx++);
+        if (pn != nullptr) {
+          C->gvn_replace_by(pn, value->as_InlineType()->get_is_init());
+          C->initial_gvn()->hash_delete(pn);
+          pn->set_req(0, C->top());
+        }
       }
       continue;
     }
-    ProjNode* pn = call->proj_out(proj_idx++);
-    C->gvn_replace_by(pn, value);
-    C->initial_gvn()->hash_delete(pn);
-    pn->set_req(0, C->top());
+    ProjNode* pn = call->proj_out_or_null(proj_idx++);
+    if (pn != nullptr) {
+      C->gvn_replace_by(pn, value);
+      C->initial_gvn()->hash_delete(pn);
+      pn->set_req(0, C->top());
+    }
   }
 }
 
@@ -739,17 +743,21 @@ static void helper3(Compile* C, CallNode* call, const InlineTypeNode* vt, uint& 
 // projection, we find the corresponding inline type field.
 void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) {
   uint proj_idx = TypeFunc::Parms;
-  ProjNode* pn = call->proj_out(proj_idx++);
-  C->gvn_replace_by(pn, get_oop());
-  C->initial_gvn()->hash_delete(pn);
-  pn->set_req(0, C->top());
+  ProjNode* pn = call->proj_out_or_null(proj_idx++);
+  if (pn != nullptr) {
+    C->gvn_replace_by(pn, get_oop());
+    C->initial_gvn()->hash_delete(pn);
+    pn->set_req(0, C->top());
+  }
 
   helper3(C, call, this, proj_idx);
 
-  pn = call->proj_out(proj_idx++);
-  C->gvn_replace_by(pn, get_is_init());
-  C->initial_gvn()->hash_delete(pn);
-  pn->set_req(0, C->top());
+  pn = call->proj_out_or_null(proj_idx++);
+  if (pn != nullptr) {
+    C->gvn_replace_by(pn, get_is_init());
+    C->initial_gvn()->hash_delete(pn);
+    pn->set_req(0, C->top());
+  }
   assert(proj_idx == call->tf()->range_cc()->cnt(), "missed a projection");
 }
 

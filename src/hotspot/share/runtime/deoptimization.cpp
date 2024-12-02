@@ -1643,9 +1643,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   if (doIt) {
     for (int i = 0; i < null_markers->length(); ++i) {
       int offset = null_markers->at(i)._offset;
-      tty->print_cr("Null marker %d %d", offset, svIndex);
       jbyte is_init = (jbyte)StackValue::create_stack_value(fr, reg_map, sv->field_at(svIndex++))->get_jint();
-      tty->print_cr("Value %d", is_init);
       obj->byte_field_put(offset, is_init);
     }
   }

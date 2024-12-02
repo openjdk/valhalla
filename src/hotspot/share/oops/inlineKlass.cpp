@@ -323,7 +323,7 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
   // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
   if (null_marker_offset != -1) {
     max_offset += 0.1f; // We add the markers "in-between" because they are no real fields
-    tty->print_cr("MARKER %d %d %f", null_marker_offset, offset, max_offset);
+    //tty->print_cr("MARKER %d %d %f", null_marker_offset, offset, max_offset);
     SigEntry::add_entry(sig, T_BOOLEAN, name(), null_marker_offset, max_offset);
     count++;
   }
@@ -331,13 +331,14 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
   SigEntry::add_entry(sig, T_VOID, name(), offset);
   if (base_off == 0) {
     sig->sort(SigEntry::compare);
-
+/*
     tty->print_cr("##\n");
     print();
     for (int i = 0; i < sig->length(); ++i) {
       tty->print_cr("%s %d %f %s", type2name(sig->at(i)._bt), sig->at(i)._offset, sig->at(i)._sort_offset, (sig->at(i)._offset != sig->at(i)._sort_offset) ? " MARKER" : "");
     }
     tty->print_cr("##\n");
+*/
   }
 
   assert(sig->at(0)._bt == T_METADATA && sig->at(sig->length()-1)._bt == T_VOID, "broken structure");

@@ -164,12 +164,21 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
     case T_ARRAY:
     case T_OBJECT:
       if (is_flat()) { // only some inline types can be flat
-        assert(is_null_free_inline_type(), "Only null free inline type fields can be flat");
-        // Print fields of flat fields (recursively)
         InlineKlass* vk = InlineKlass::cast(field_holder()->get_inline_type_field_klass(index()));
+        st->print("Flat inline type field '%s':", vk->name()->as_C_string());
+        if (!is_null_free_inline_type()) {
+          assert(has_null_marker(), "should have null marker");
+          InlineLayoutInfo* li = field_holder()->inline_layout_info_adr(index());
+          int nm_offset = li->null_marker_offset();
+          if (obj->byte_field_acquire(nm_offset) == 0) {
+            st->print(" null");
+            return;
+          }
+        }
+        st->cr();
+        // Print fields of flat field (recursively)
         int field_offset = offset() - vk->first_field_offset();
         obj = cast_to_oop(cast_from_oop<address>(obj) + field_offset);
-        st->print_cr("Flat inline type field '%s':", vk->name()->as_C_string());
         FieldPrinter print_field(st, obj);
         vk->do_nonstatic_fields(&print_field);
         return; // Do not print underlying representation
