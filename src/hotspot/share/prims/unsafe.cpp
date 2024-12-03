@@ -827,7 +827,7 @@ static jclass Unsafe_DefineClass_impl(JNIEnv *env, jstring name, jbyteArray data
   }
 
   env->GetByteArrayRegion(data, offset, length, body);
-  if (env->ExceptionOccurred()) {
+  if (env->ExceptionCheck()) {
     goto free_body;
   }
 

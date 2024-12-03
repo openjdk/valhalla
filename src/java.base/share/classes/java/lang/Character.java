@@ -233,8 +233,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      *
      * @since   1.1
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Character> TYPE = (Class<Character>) Class.getPrimitiveClass("char");
+    public static final Class<Character> TYPE = Class.getPrimitiveClass("char");
 
     /*
      * Normative general types
@@ -9068,8 +9067,8 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      *          {@code false} otherwise.
      */
     public boolean equals(Object obj) {
-        if (obj instanceof Character) {
-            return value == ((Character)obj).charValue();
+        if (obj instanceof Character c) {
+            return value == c.charValue();
         }
         return false;
     }
