@@ -105,23 +105,25 @@ bool ciArrayKlass::is_leaf_type() {
 ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
-  } else {
-    ciKlass* klass = element_type->as_klass();
-    if (null_free && klass->is_loaded()) {
-      GUARDED_VM_ENTRY(
-        EXCEPTION_CONTEXT;
-        Klass* ak = InlineKlass::cast(klass->get_Klass())->value_array_klass(THREAD);
-        if (HAS_PENDING_EXCEPTION) {
-          CLEAR_PENDING_EXCEPTION;
-        } else if (ak->is_flatArray_klass()) {
-          return CURRENT_THREAD_ENV->get_flat_array_klass(ak);
-        } else if (ak->is_objArray_klass()) {
-          return CURRENT_THREAD_ENV->get_obj_array_klass(ak);
-        }
-      )
-    }
-    return ciObjArrayKlass::make(klass);
   }
+
+  ciKlass* klass = element_type->as_klass();
+  assert(!null_free || !klass->is_loaded() || klass->is_inlinetype() || klass->is_abstract() ||
+         klass->is_java_lang_Object(), "only value classes are null free");
+  if (null_free && klass->is_loaded() && klass->is_inlinetype()) {
+    GUARDED_VM_ENTRY(
+      EXCEPTION_CONTEXT;
+      Klass* ak = InlineKlass::cast(klass->get_Klass())->value_array_klass(THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        CLEAR_PENDING_EXCEPTION;
+      } else if (ak->is_flatArray_klass()) {
+        return CURRENT_THREAD_ENV->get_flat_array_klass(ak);
+      } else if (ak->is_objArray_klass()) {
+        return CURRENT_THREAD_ENV->get_obj_array_klass(ak);
+      }
+    )
+  }
+  return ciObjArrayKlass::make(klass);
 }
 
 int ciArrayKlass::array_header_in_bytes() {
