@@ -25,12 +25,11 @@
  * @test
  * @bug 8313667
  * @summary Test that GenZ uses correct array copy stub for flat value class arrays when expanding ArrayCopyNode.
- * @requires vm.gc.ZSinglegen
  * @library /test/lib
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xbatch -XX:+UseZGC -XX:-ZGenerational
+ * @run main/othervm -Xbatch -XX:+UseZGC
  *                   -XX:CompileCommand=exclude,compiler.valhalla.inlinetypes.TestWrongFlatArrayCopyStubWithZGC::check
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestWrongFlatArrayCopyStubWithZGC::test*
  *                   compiler.valhalla.inlinetypes.TestWrongFlatArrayCopyStubWithZGC
