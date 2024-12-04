@@ -22,6 +22,7 @@
  *
  */
 
+#include "oops/access.hpp"
 #include "precompiled.hpp"
 #include "cds.h"
 #include "cds/archiveHeapLoader.hpp"
@@ -90,6 +91,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/javaThread.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
+#include "runtime/keepStackGCProcessed.hpp"
 #include "runtime/lockStack.hpp"
 #include "runtime/os.hpp"
 #include "runtime/stackFrameStream.inline.hpp"
@@ -1938,49 +1940,73 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
   return (jobjectArray)JNIHandles::make_local(THREAD, result_array());
 WB_END
 
-class CollectOops : public BasicOopIterateClosure {
- public:
-  GrowableArray<Handle>* array;
+// Collect Object oops but not value objects...loaded from heap
+class CollectObjectOops : public BasicOopIterateClosure {
+  public:
+  GrowableArray<Handle>* _array;
 
-  jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
-    objArrayHandle result_array =
-        oopFactory::new_objArray_handle(vmClasses::Object_klass(), array->length(), CHECK_NULL);
-    for (int i = 0 ; i < array->length(); i++) {
-      result_array->obj_at_put(i, array->at(i)());
-    }
-    return (jobjectArray)JNIHandles::make_local(THREAD, result_array());
+  CollectObjectOops() {
+      _array = new GrowableArray<Handle>(128);
+  }
+
+  void add_oop(Handle oh) {
+
   }
 
   void add_oop(oop o) {
     Handle oh = Handle(Thread::current(), o);
-    // Value might be oop, but JLS can't see as Object, just iterate through it...
     if (oh != nullptr && oh->is_inline_type()) {
       oh->oop_iterate(this);
     } else {
-      array->append(oh);
+      _array->append(oh);
     }
   }
 
   void do_oop(oop* o) { add_oop(HeapAccess<>::oop_load(o)); }
   void do_oop(narrowOop* v) { add_oop(HeapAccess<>::oop_load(v)); }
+
+  jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
+    objArrayHandle result_array =
+        oopFactory::new_objArray_handle(vmClasses::Object_klass(), _array->length(), CHECK_NULL);
+    for (int i = 0 ; i < _array->length(); i++) {
+      result_array->obj_at_put(i, _array->at(i)());
+    }
+    return (jobjectArray)JNIHandles::make_local(THREAD, result_array());
+  }
 };
 
+// Collect Object oops but not value objects...loaded from frames
+class CollectFrameObjectOops : public BasicOopIterateClosure {
+ public:
+  CollectObjectOops _collect;
+
+  void add_oop(oop o) {
+    _collect.add_oop(o);
+  }
+
+  void do_oop(oop* o) { add_oop(*o); }
+  void do_oop(narrowOop* v) { add_oop(CompressedOops::decode(*v)); }
+
+  jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
+    return _collect.create_jni_result(env, THREAD);
+  }
+};
+
+// Collect Object oops for the given oop, iterate through value objects
 WB_ENTRY(jobjectArray, WB_getObjectsViaOopIterator(JNIEnv* env, jobject wb, jobject thing))
   ResourceMark rm(thread);
   Handle objh(thread, JNIHandles::resolve(thing));
-  GrowableArray<Handle>* array = new GrowableArray<Handle>(128);
-  CollectOops collectOops;
-  collectOops.array = array;
+  CollectObjectOops collectOops;
   objh->oop_iterate(&collectOops);
   return collectOops.create_jni_result(env, THREAD);
 WB_END
 
+// Collect Object oops for the given frame deep, iterate through value objects
 WB_ENTRY(jobjectArray, WB_getObjectsViaFrameOopIterator(JNIEnv* env, jobject wb, jint depth))
+  KeepStackGCProcessedMark ksgcpm(THREAD);
   ResourceMark rm(THREAD);
-  GrowableArray<Handle>* array = new GrowableArray<Handle>(128);
-  CollectOops collectOops;
-  collectOops.array = array;
-  StackFrameStream sfs(thread, false /* update */, true /* process_frames */);
+  CollectFrameObjectOops collectOops;
+  StackFrameStream sfs(thread, true /* update */, true /* process_frames */);
   while (depth > 0) { // Skip the native WB API frame
     sfs.next();
     frame* f = sfs.current();
