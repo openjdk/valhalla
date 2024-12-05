@@ -1949,10 +1949,6 @@ class CollectObjectOops : public BasicOopIterateClosure {
       _array = new GrowableArray<Handle>(128);
   }
 
-  void add_oop(Handle oh) {
-
-  }
-
   void add_oop(oop o) {
     Handle oh = Handle(Thread::current(), o);
     if (oh != nullptr && oh->is_inline_type()) {
@@ -1962,8 +1958,9 @@ class CollectObjectOops : public BasicOopIterateClosure {
     }
   }
 
-  void do_oop(oop* o) { add_oop(HeapAccess<>::oop_load(o)); }
-  void do_oop(narrowOop* v) { add_oop(HeapAccess<>::oop_load(v)); }
+  template <class T> inline void add_oop(T* p) { add_oop(HeapAccess<>::oop_load(p)); }
+  void do_oop(oop* o) { add_oop(o); }
+  void do_oop(narrowOop* v) { add_oop(v); }
 
   jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
     objArrayHandle result_array =
@@ -1980,12 +1977,9 @@ class CollectFrameObjectOops : public BasicOopIterateClosure {
  public:
   CollectObjectOops _collect;
 
-  void add_oop(oop o) {
-    _collect.add_oop(o);
-  }
-
-  void do_oop(oop* o) { add_oop(*o); }
-  void do_oop(narrowOop* v) { add_oop(CompressedOops::decode(*v)); }
+  template <class T> inline void add_oop(T* p) { _collect.add_oop(RawAccess<>::oop_load(p)); }
+  void do_oop(oop* o) { add_oop(o); }
+  void do_oop(narrowOop* v) { add_oop(v); }
 
   jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
     return _collect.create_jni_result(env, THREAD);
