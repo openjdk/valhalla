@@ -4567,9 +4567,9 @@ public class TestLWorld {
     static void testFlatArrayInexactObjectStore(Object o, boolean flag) {
         Object[] oArr;
         if (flag) {
-            oArr = VALUE_CLASS_WITH_INT_ARRAY; // EMPTY_VALUE_1_ARRAY is statically known to be flat.
+            oArr = VALUE_CLASS_WITH_INT_ARRAY; // VALUE_CLASS_WITH_INT_ARRAY is statically known to be flat.
         } else {
-            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // EMPTY_VALUE_2_ARRAY is statically known to be flat.
+            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // VALUE_CLASS_WITH_DOUBLE_ARRAY is statically known to be flat.
         }
         // The type of 'oArr' is inexact here because we merge two arrays. Since both arrays are flat, 'oArr' is also flat:
         //     Type: flat:narrowoop: java/lang/Object:NotNull * (flat in array)[int:2]
@@ -4582,9 +4582,9 @@ public class TestLWorld {
     static Object testFlatArrayInexactObjectLoad(boolean flag) {
         Object[] oArr;
         if (flag) {
-            oArr = VALUE_CLASS_WITH_INT_ARRAY; // EMPTY_VALUE_1_ARRAY is statically known to be flat.
+            oArr = VALUE_CLASS_WITH_INT_ARRAY; // VALUE_CLASS_WITH_INT_ARRAY is statically known to be flat.
         } else {
-            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // EMPTY_VALUE_2_ARRAY is statically known to be flat.
+            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // VALUE_CLASS_WITH_DOUBLE_ARRAY is statically known to be flat.
         }
         // The type of 'oArr' is inexact here because we merge two arrays. Since both arrays are flat, 'oArr' is also flat:
         //     Type: flat:narrowoop: java/lang/Object:NotNull * (flat in array)[int:2]
@@ -4603,7 +4603,7 @@ public class TestLWorld {
             avArr = SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY;
         }
         // Same as testFlatArrayInexactObjectStore() but the inexact type is with an abstract value class:
-        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractEmptyValue:NotNull * (flat in array)[int:2]
+        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractValueClassWithByte:NotNull * (flat in array)[int:2]
         avArr[0] = abstractValueClassWithByte;
     }
 
@@ -4616,7 +4616,7 @@ public class TestLWorld {
             avArr = SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY;
         }
         // Same as testFlatArrayInexactObjectLoad() but the inexact type is with an abstract value class:
-        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractEmptyValue:NotNull * (flat in array)[int:2]
+        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractValueClassWithByte:NotNull * (flat in array)[int:2]
         return avArr[0];
     }
 

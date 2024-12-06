@@ -3504,7 +3504,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
   const TypeOopPtr* toop = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
   bool safe_for_replace = (failure_control == nullptr);
-  assert(!null_free || toop->is_inlinetypeptr(), "must be an inline type pointer");
+  assert(!null_free || toop->can_be_inline_type(), "must be an inline type pointer");
 
   // Fast cutout:  Check the case that the cast is vacuously true.
   // This detects the common cases where the test will short-circuit
