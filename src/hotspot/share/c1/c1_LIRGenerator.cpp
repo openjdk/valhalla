@@ -1635,6 +1635,30 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   set_result(x, result);
 }
 
+// Convert size in bytes to corresponding BasicType
+static BasicType size_to_basic_type(int size) {
+  BasicType bt;
+  if (size == sizeof(jlong)) {
+    bt = T_LONG;
+  } else if (size == sizeof(jint)) {
+    bt = T_INT;
+  } else if (size == sizeof(jshort)) {
+    bt = T_SHORT;
+  } else if (size == sizeof(jbyte)) {
+    bt = T_BYTE;
+  } else {
+    assert(false, "unsupported size: %d", size);
+  }
+  return bt;
+}
+
+// Returns a int/long value with the null marker bit set
+static LIR_Opr null_marker_mask(BasicType bt, ciField* field) {
+  int nm_offset = field->null_marker_offset() - field->offset_in_bytes();
+  unsigned long null_marker = 1UL << (nm_offset << LogBitsPerByte);
+  return (bt == T_LONG) ? LIR_OprFact::longConst(null_marker) : LIR_OprFact::intConst(null_marker);
+}
+
 // Comment copied form templateTable_i486.cpp
 // ----------------------------------------------------------------------------
 // Volatile variables demand their effects be made known to all CPU's in
@@ -1664,8 +1688,9 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
 
 
 void LIRGenerator::do_StoreField(StoreField* x) {
+  ciField* field = x->field();
   bool needs_patching = x->needs_patching();
-  bool is_volatile = x->field()->is_volatile();
+  bool is_volatile = field->is_volatile();
   BasicType field_type = x->field_type();
 
   CodeEmitInfo* info = nullptr;
@@ -1696,7 +1721,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
     } else  {
       value.load_item();
     }
-  } else {
+  } else if (!field->is_flat()) {
     value.load_for_store(field_type);
   }
 
@@ -1724,6 +1749,38 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   }
   if (needs_patching) {
     decorators |= C1_NEEDS_PATCHING;
+  }
+
+  if (field->is_flat()) {
+    assert(!field->is_null_free(), "Null free flat fields are handled in high level IR");
+    ciInlineKlass* vk = field->type()->as_inline_klass();
+    BasicType bt = size_to_basic_type(vk->nullable_size_in_bytes());
+
+    // Zero the payload
+    LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
+    LIR_Opr zero = (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0);
+    __ move(zero, payload);
+
+    bool is_constant_null = value.is_constant() && value.value()->is_null_obj();
+    if (!is_constant_null) {
+      LabelObj* L_isNull = new LabelObj();
+      bool needs_null_check = !value.is_constant() || value.value()->is_null_obj();
+      if (needs_null_check) {
+        __ cmp(lir_cond_equal, value.result(), LIR_OprFact::oopConst(nullptr));
+        __ branch(lir_cond_equal, L_isNull->label());
+      }
+      // Load payload (if not empty) and set null marker
+      if (bt != T_BYTE) {
+        access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->first_field_offset()), payload);
+      }
+      __ logical_or(payload, null_marker_mask(bt, field), payload);
+
+      if (needs_null_check) {
+        __ branch_destination(L_isNull->label());
+      }
+    }
+    access_store_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload);
+    return;
   }
 
   access_store_at(decorators, field_type, object, LIR_OprFact::intConst(x->offset()),
@@ -2096,8 +2153,9 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
 }
 
 void LIRGenerator::do_LoadField(LoadField* x) {
+  ciField* field = x->field();
   bool needs_patching = x->needs_patching();
-  bool is_volatile = x->field()->is_volatile();
+  bool is_volatile = field->is_volatile();
   BasicType field_type = x->field_type();
 
   CodeEmitInfo* info = nullptr;
@@ -2148,12 +2206,34 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     decorators |= C1_NEEDS_PATCHING;
   }
 
+  if (field->is_flat()) {
+    assert(!field->is_null_free(), "Null free flat fields are handled in high level IR");
+    assert(x->state_before() != nullptr, "Needs state before");
+    ciInlineKlass* vk = field->type()->as_inline_klass();
+    BasicType bt = size_to_basic_type(vk->nullable_size_in_bytes());
+
+    // Allocate buffer
+    NewInstance* buffer = new NewInstance(vk, x->state_before(), false, true);
+    do_NewInstance(buffer);
+    LIRItem dest(buffer, this);
+
+    // Copy the payload to the buffer
+    LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
+    access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload);
+    access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->first_field_offset()), payload);
+
+    // Check the null marker and set result to null if not set
+    __ logical_and(payload, null_marker_mask(bt, field), payload);
+    __ cmp(lir_cond_notEqual, payload, (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0));
+    __ cmove(lir_cond_notEqual, buffer->operand(), LIR_OprFact::oopConst(nullptr), rlock_result(x), T_OBJECT);
+    return;
+  }
+
   LIR_Opr result = rlock_result(x, field_type);
   access_load_at(decorators, field_type,
                  object, LIR_OprFact::intConst(x->offset()), result,
                  info ? new CodeEmitInfo(info) : nullptr, info);
 
-  ciField* field = x->field();
   if (field->is_null_free()) {
     // Load from non-flat inline type field requires
     // a null check to replace null with the default value.

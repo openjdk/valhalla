@@ -144,3 +144,8 @@ InlineKlass* ciInlineKlass::get_InlineKlass() const {
   GUARDED_VM_ENTRY(return to_InlineKlass();)
 }
 
+int ciInlineKlass::nullable_size_in_bytes() const {
+  VM_ENTRY_MARK
+  assert(get_InlineKlass()->has_nullable_layout(), "Layout not available");
+  return get_InlineKlass()->nullable_size_in_bytes();
+}

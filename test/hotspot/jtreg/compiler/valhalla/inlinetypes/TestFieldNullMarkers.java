@@ -29,6 +29,8 @@ import jdk.internal.vm.annotation.NullRestricted;
 
 import jdk.test.lib.Asserts;
 
+// TODO test with floats/doubles, also add oops
+
 /*
  * @test
  * @key randomness
@@ -37,21 +39,21 @@ import jdk.test.lib.Asserts;
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-TieredCompilation -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -XX:-TieredCompilation -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
  *                   -XX:CompileCommand=dontinline,*::testHelper*
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -XX:-TieredCompilation -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
  *                   -XX:+InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -XX:-TieredCompilation -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
  *                   -XX:-InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -XX:-TieredCompilation -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
  *                   -XX:+InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -XX:-TieredCompilation -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
  *                   -XX:-InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
@@ -217,11 +219,17 @@ public class TestFieldNullMarkers {
         }
     }
 
-    MyValue1 field1;
-    MyValue4 field2;
-    MyValue5 field3;
-    MyValue6 field4;
-    MyValue7 field5;
+    MyValue1 field1; // Flat
+    MyValue4 field2; // Not flat
+    MyValue5 field3; // Not flat
+    MyValue6 field4; // Flat
+    MyValue7 field5; // Flat
+
+    static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
+    static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
+    static final MyValue5 VAL5 = new MyValue5((byte)42, new MyValue5_1((byte)43, new MyValue5_2((byte)44, new MyValue5_3((byte)45))));
+    static final MyValue6 VAL6 = new MyValue6(new MyValueEmpty());
+    static final MyValue7 VAL7 = new MyValue7(new MyValue6(new MyValueEmpty()));
 
     // Test that the calling convention is keeping track of the null marker
     public MyValue1 testHelper1(MyValue1 val) {
@@ -521,7 +529,6 @@ public class TestFieldNullMarkers {
 
             t.testDeopt4(null, null, null, false);
 
-
             t.field5 = null;
             Asserts.assertEQ(t.testGet5(), null);
 
@@ -538,6 +545,28 @@ public class TestFieldNullMarkers {
             Asserts.assertEQ(t.testGet5().val, val6);
 
             t.testDeopt5(null, null, null, null, false);
+
+            // Check accesses with constant value
+            t.field1 = VAL1;
+            Asserts.assertEQ(t.field1.x, VAL1.x);
+            Asserts.assertEQ(t.field1.val1, VAL1.val1);
+            Asserts.assertEQ(t.field1.val2, VAL1.val2);
+
+            t.field2 = VAL4;
+            Asserts.assertEQ(t.field2.val1, VAL4.val1);
+            Asserts.assertEQ(t.field2.val2, VAL4.val2);
+
+            t.field3 = VAL5;
+            Asserts.assertEQ(t.field3.x, VAL5.x);
+            Asserts.assertEQ(t.field3.val.x, VAL5.val.x);
+            Asserts.assertEQ(t.field3.val.val.x, VAL5.val.val.x);
+            Asserts.assertEQ(t.field3.val.val.val.x, VAL5.val.val.val.x);
+
+            t.field4 = VAL6;
+            Asserts.assertEQ(t.field4.val, VAL6.val);
+
+            t.field5 = VAL7;
+            Asserts.assertEQ(t.field5.val, VAL7.val);
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account
@@ -563,3 +592,4 @@ public class TestFieldNullMarkers {
         t.testDeopt5(val8, val9, val10, val11, false);
     }
 }
+

@@ -1825,6 +1825,9 @@ void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off
     assert(!inner_field->is_flat(), "the iteration over nested fields is handled by the loop itself");
     int off = inner_field->offset_in_bytes() - vk->first_field_offset();
     LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
+    // TODO no null checks on holder required after first field copy
+    // load->needs_null_check(false)
+    // dest->needs_null_check(false)
     Value replacement = append(load);
     StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, false);
     store->set_enclosing_field(enclosing_field);
@@ -1886,7 +1889,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         constant = make_constant(field_value, field);
       } else if (field->is_null_free() && field->type()->as_instance_klass()->is_initialized() &&
                  field->type()->as_inline_klass()->is_empty()) {
-        // Loading from a field of an empty inline type. Just return the default instance.
+        // Loading from a field of an empty, null-free inline type. Just return the default instance.
         constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
       }
       if (constant != nullptr) {
@@ -1914,7 +1917,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         null_check(val);
       }
       if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
-        // Storing to a field of an empty inline type. Ignore.
+        // Storing to a field of an empty, null-free inline type. Ignore.
         break;
       }
       append(new StoreField(append(obj), offset, field, val, true, state_before, needs_patching));
@@ -1933,7 +1936,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         ObjectType* obj_type = obj->type()->as_ObjectType();
         if (field->is_null_free() && field->type()->as_instance_klass()->is_initialized()
             && field->type()->as_inline_klass()->is_empty()) {
-          // Loading from a field of an empty inline type. Just return the default instance.
+          // Loading from a field of an empty, null-free inline type. Just return the default instance.
           null_check(obj);
           constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
         } else if (field->is_constant() && !field->is_flat() && obj_type->is_constant() && !PatchALot) {
@@ -2006,7 +2009,14 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           } else {
             push(type, append(load));
           }
-        } else {  // field is flat
+        } else if (!field->is_null_free()) {
+          // Flat and nullable
+          assert(!needs_patching, "Can't patch flat inline type field access");
+          LoadField* load = new LoadField(obj, offset, field, false, state_before, needs_patching);
+          push(type, append(load));
+        } else {
+          // Flat and null-free
+          assert(!needs_patching, "Can't patch flat inline type field access");
           // Look at the next bytecode to check if we can delay the field access
           bool can_delay_access = false;
           ciBytecodeStream s(method());
@@ -2034,7 +2044,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
             bool need_membar = false;
-            if (inline_klass->is_initialized() && inline_klass->is_empty()) {
+            if (field->is_null_free() && inline_klass->is_initialized() && inline_klass->is_empty()) {
               apush(append(new Constant(new InstanceConstant(inline_klass->default_instance()))));
               if (has_pending_field_access()) {
                 set_pending_field_access(nullptr);
@@ -2058,7 +2068,6 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               NewInstance* new_instance = new NewInstance(inline_klass, state_before, false, true);
               _memory->new_instance(new_instance);
               apush(append_split(new_instance));
-              assert(!needs_patching, "Can't patch flat inline type field access");
               if (has_pending_field_access()) {
                 copy_inline_content(inline_klass, pending_field_access()->obj(),
                                     pending_field_access()->offset() + field->offset_in_bytes() - field->holder()->as_inline_klass()->first_field_offset(),
@@ -2091,7 +2100,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
       if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
-        // Storing to a field of an empty inline type. Ignore.
+        // Storing to a field of an empty, null-free inline type. Ignore.
         null_check(obj);
         null_check(val);
       } else if (!field->is_flat()) {
@@ -2103,7 +2112,13 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (store != nullptr) {
           append(store);
         }
+      } else if (!field->is_null_free()) {
+        // Flat and nullable
+        assert(!needs_patching, "Can't patch flat inline type field access");
+        StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
+        append(store);
       } else {
+        // Flat and null-free
         assert(!needs_patching, "Can't patch flat inline type field access");
         ciInlineKlass* inline_klass = field->type()->as_inline_klass();
         copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, offset, state_before, field);

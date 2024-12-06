@@ -88,6 +88,7 @@ public:
   address pack_handler() const;
   address unpack_handler() const;
   InlineKlass* get_InlineKlass() const;
+  int nullable_size_in_bytes() const;
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP
