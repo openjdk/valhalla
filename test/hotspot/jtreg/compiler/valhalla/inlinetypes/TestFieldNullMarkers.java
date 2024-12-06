@@ -29,8 +29,6 @@ import jdk.internal.vm.annotation.NullRestricted;
 
 import jdk.test.lib.Asserts;
 
-// TODO test with floats/doubles, also add oops
-
 /*
  * @test
  * @key randomness
@@ -58,13 +56,6 @@ import jdk.test.lib.Asserts;
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
-/*
-TODO
--XX:-AlwaysIncrementalInline
--XX:CompileCommand=compileonly,*::* -XX:CompileCommand=quiet
--XX:+Verbose -XX:CompileCommand=print,*::* -XX:+PrintIdeal -XX:+PrintFieldLayout -XX:+TraceDeoptimization -XX:+PrintDeoptimizationDetails
-*/
- 
 public class TestFieldNullMarkers {
 
     // Value class with two nullable flat fields 
@@ -219,11 +210,79 @@ public class TestFieldNullMarkers {
         }
     }
 
+    // Some more field types
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue8 {
+        byte b;
+
+        public MyValue8(byte b) {
+            this.b = b;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue9 {
+        short s;
+
+        public MyValue9(short s) {
+            this.s = s;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue10 {
+        int i;
+
+        public MyValue10(int i) {
+            this.i = i;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue11 {
+        float f;
+
+        public MyValue11(float f) {
+            this.f = f;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue12 {
+        char c;
+
+        public MyValue12(char c) {
+            this.c = c;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue13 {
+        boolean b;
+
+        public MyValue13(boolean b) {
+            this.b = b;
+        }
+    }
+
     MyValue1 field1; // Flat
     MyValue4 field2; // Not flat
     MyValue5 field3; // Not flat
     MyValue6 field4; // Flat
     MyValue7 field5; // Flat
+    MyValue8 field6; // Flat
+    MyValue9 field7; // Flat
+    MyValue10 field8; // Flat
+    MyValue11 field9; // Flat
+    MyValue12 field10; // Flat
+    MyValue13 field11; // Flat
 
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
     static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
@@ -428,8 +487,6 @@ public class TestFieldNullMarkers {
             Asserts.assertEQ(t.testGet1().x, val.x);
             Asserts.assertEQ(t.testGet1().val1, val2);
             Asserts.assertEQ(t.testGet1().val2, val2);
-            // TODO The substitutability test uses Unsafe
-            // Asserts.assertEQ(t.testGet1(), val);
 
             Asserts.assertTrue(t.testACmp(val2));
 
@@ -440,8 +497,6 @@ public class TestFieldNullMarkers {
             Asserts.assertEQ(t.field1.x, val.x);
             Asserts.assertEQ(t.field1.val1, val2);
             Asserts.assertEQ(t.field1.val2, val2);
-            // TODO The substitutability test uses Unsafe
-            // Asserts.assertEQ(t.field1, val);
 
             t.testDeopt1((byte)i, null, null, false);
 
@@ -567,6 +622,20 @@ public class TestFieldNullMarkers {
 
             t.field5 = VAL7;
             Asserts.assertEQ(t.field5.val, VAL7.val);
+
+            // Some more values classes with different flavors of primitive fields
+            t.field6 = new MyValue8((byte)i);
+            Asserts.assertEQ(t.field6.b, (byte)i);
+            t.field7 = new MyValue9((short)i);
+            Asserts.assertEQ(t.field7.s, (short)i);
+            t.field8 = new MyValue10(i);
+            Asserts.assertEQ(t.field8.i, i);
+            t.field9 = new MyValue11((float)i);
+            Asserts.assertEQ(t.field9.f, (float)i);
+            t.field10 = new MyValue12((char)i);
+            Asserts.assertEQ(t.field10.c, (char)i);
+            t.field11 = new MyValue13((i % 2) == 0);
+            Asserts.assertEQ(t.field11.b, (i % 2) == 0);
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account

@@ -2224,7 +2224,6 @@ void LIRGenerator::do_LoadField(LoadField* x) {
 
     // Check the null marker and set result to null if not set
     __ logical_and(payload, null_marker_mask(bt, field), payload);
-    __ cmp(lir_cond_notEqual, payload, (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0));
     __ cmove(lir_cond_notEqual, buffer->operand(), LIR_OprFact::oopConst(nullptr), rlock_result(x), T_OBJECT);
     return;
   }
