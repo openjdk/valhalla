@@ -226,15 +226,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
                        Register tmp1, Register tmp2,
                        Register obj = rax);
 
-  // Allocate value buffer in "obj" and read in flat element at the given index
-  // NOTES:
-  //   - Return via "obj" must be rax
-  //   - kills all given regs
-  //   - 32 bits: kills rdi and rsi
-  void read_flat_element(Register array, Register index,
-                         Register t1, Register t2,
-                         Register obj = rax);
-
   // Object locking
   void lock_object  (Register lock_reg);
   void unlock_object(Register lock_reg);

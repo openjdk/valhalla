@@ -405,7 +405,7 @@ void CollectedHeap::set_gc_cause(GCCause::Cause v) {
 // Returns the header size in words aligned to the requirements of the
 // array object type.
 static int int_array_header_size() {
-  size_t typesize_in_bytes = arrayOopDesc::header_size_in_bytes();
+  size_t typesize_in_bytes = arrayOopDesc::header_size_in_bytes(T_INT);
   return (int)align_up(typesize_in_bytes, HeapWordSize)/HeapWordSize;
 }
 

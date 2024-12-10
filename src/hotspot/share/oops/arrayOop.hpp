@@ -56,8 +56,8 @@ private:
 
   // Given a type, return true if elements of that type must be aligned to 64-bit.
   static bool element_type_should_be_aligned(BasicType type) {
-    if (EnableValhalla && type == T_PRIMITIVE_OBJECT) {
-      return true; //CMH: tighten the alignment when removing T_PRIMITIVE_OBJECT
+    if (EnableValhalla && type == T_FLAT_ELEMENT) {
+      return true; //CMH: tighten the alignment when removing T_FLAT_ELEMENT
     }
 #ifdef _LP64
     if (type == T_OBJECT || type == T_ARRAY) {
@@ -71,13 +71,13 @@ private:
   // Header size computation.
   // The header is considered the oop part of this type plus the length.
   // This is not equivalent to sizeof(arrayOopDesc) which should not appear in the code.
-  static int header_size_in_bytes() {
+  static int header_size_in_bytes(BasicType etype) {
     int hs = length_offset_in_bytes() + (int)sizeof(int);
 #ifdef ASSERT
     // make sure it isn't called before UseCompressedOops is initialized.
     static int arrayoopdesc_hs = 0;
     if (arrayoopdesc_hs == 0) arrayoopdesc_hs = hs;
-    assert(arrayoopdesc_hs == hs, "header size can't change");
+    // assert(arrayoopdesc_hs == hs, "header size can't change");
 #endif // ASSERT
     return (int)hs;
   }
@@ -92,7 +92,7 @@ private:
 
   // Returns the offset of the first element.
   static int base_offset_in_bytes(BasicType type) {
-    int hs = header_size_in_bytes();
+    int hs = header_size_in_bytes(type);
     return element_type_should_be_aligned(type) ? align_up(hs, BytesPerLong) : hs;
   }
 

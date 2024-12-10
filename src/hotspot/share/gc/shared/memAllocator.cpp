@@ -404,7 +404,7 @@ oop ObjArrayAllocator::initialize(HeapWord* mem) const {
 void ObjArrayAllocator::mem_zap_start_padding(HeapWord* mem) const {
   const BasicType element_type = ArrayKlass::cast(_klass)->element_type();
   const size_t base_offset_in_bytes = arrayOopDesc::base_offset_in_bytes(element_type);
-  const size_t header_size_in_bytes = arrayOopDesc::header_size_in_bytes();
+  const size_t header_size_in_bytes = arrayOopDesc::header_size_in_bytes(element_type);
 
   const address base = reinterpret_cast<address>(mem) + base_offset_in_bytes;
   const address header_end = reinterpret_cast<address>(mem) + header_size_in_bytes;

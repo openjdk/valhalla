@@ -1357,7 +1357,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
           THROW_OOP(e());
       }
       vk->set_default_value(val);
-      if (vk->has_nullable_layout()) {
+      if (vk->has_nullable_atomic_layout()) {
         val = vk->allocate_instance(THREAD);
         if (HAS_PENDING_EXCEPTION) {
             Handle e(THREAD, PENDING_EXCEPTION);

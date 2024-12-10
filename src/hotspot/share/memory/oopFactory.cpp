@@ -120,22 +120,31 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
   }
 }
 
-arrayOop oopFactory::new_valueArray(Klass* k, int length, TRAPS) {
+objArrayOop oopFactory::new_null_free_objArray(Klass* k, int length, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
-  // Request a flat array, but we might not actually get it...either way "null-free" are the aaload/aastore semantics
-  Klass* array_klass = klass->value_array_klass(CHECK_NULL);
-  assert(array_klass->is_null_free_array_klass(), "Expect a null-free array class here");
+  ObjArrayKlass* array_klass = klass->null_free_reference_array(CHECK_NULL);
 
-  arrayOop oop;
-  if (array_klass->is_flatArray_klass()) {
-    oop = (arrayOop) FlatArrayKlass::cast(array_klass)->allocate(length, CHECK_NULL);
-    assert(oop == nullptr || oop->is_flatArray(), "sanity");
-    assert(oop == nullptr || oop->klass()->is_flatArray_klass(), "sanity");
-  } else {
-    oop = (arrayOop) ObjArrayKlass::cast(array_klass)->allocate(length, CHECK_NULL);
-  }
-  assert(oop == nullptr || oop->klass()->is_null_free_array_klass(), "sanity");
-  assert(oop == nullptr || oop->is_null_free_array(), "sanity");
+  assert(array_klass->is_objArray_klass(), "Must be");
+  assert(array_klass->is_null_free_array_klass(), "Must be");
+
+  objArrayOop oop = array_klass->allocate(length, CHECK_NULL);
+
+  assert(oop == nullptr || oop->is_objArray(), "Sanity");
+  assert(oop == nullptr || oop->klass()->is_null_free_array_klass(), "Sanity");
+
+  return oop;
+}
+
+flatArrayOop oopFactory::new_flatArray(Klass* k, int length, LayoutKind lk, TRAPS) {
+  InlineKlass* klass = InlineKlass::cast(k);
+  Klass* array_klass = klass->flat_array_klass(lk, CHECK_NULL);
+
+  assert(array_klass->is_flatArray_klass(), "Must be");
+
+  flatArrayOop oop = FlatArrayKlass::cast(array_klass)->allocate(length, lk, CHECK_NULL);
+  assert(oop == nullptr || oop->is_flatArray(), "sanity");
+  assert(oop == nullptr || oop->klass()->is_flatArray_klass(), "sanity");
+
   return oop;
 }
 

@@ -48,8 +48,6 @@ public:
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
 
-  virtual void value_copy(MacroAssembler* masm, DecoratorSet decorators,
-                          Register src, Register dst, Register value_klass);
   virtual void flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
                           Register src, Register dst, Register inline_layout_info);
 

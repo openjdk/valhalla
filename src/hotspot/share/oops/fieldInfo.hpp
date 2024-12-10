@@ -26,6 +26,7 @@
 #define SHARE_OOPS_FIELDINFO_HPP
 
 #include "memory/allocation.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/typeArrayOop.hpp"
 #include "utilities/unsigned5.hpp"
 #include "utilities/vmEnums.hpp"
@@ -33,15 +34,6 @@
 static constexpr u4 flag_mask(int pos) {
   return (u4)1 << pos;
 }
-
-enum LayoutKind {
-  REFERENCE            = 0,    // indirection to a heap allocated instance
-  PAYLOAD              = 1,    // layout used in heap allocated standalone instances, probably temporary for the transition
-  NON_ATOMIC_FLAT      = 2,    // flat, no guarantee of atomic updates, no null marker
-  ATOMIC_FLAT          = 3,    // flat, size compatible with atomic updates, alignment requirement is equal to the size
-  NULLABLE_ATOMIC_FLAT = 4,    // flat, include a null marker, plus same properties as ATOMIC layout
-  UNKNOWN              = 5     // used for uninitialized fields of type LayoutKind
-};
 
 // Helper class for access to the underlying Array<u1> used to
 // store the compressed stream of FieldInfo

@@ -154,7 +154,7 @@ static BasicType runtime_type_from(JavaValue* result) {
 #ifndef _LP64
     case T_OBJECT   : // fall through
     case T_ARRAY    : // fall through
-    case T_PRIMITIVE_OBJECT: // fall through
+    case T_FLAT_ELEMENT: // fall through
 #endif
     case T_BYTE     : // fall through
     case T_VOID     : return T_INT;

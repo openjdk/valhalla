@@ -39,10 +39,8 @@ class flatArrayOopDesc : public arrayOopDesc {
   void*  base() const;
   void* value_at_addr(int index, jint lh) const;
 
-  // Return a buffered element from index
-  static oop value_alloc_copy_from_index(flatArrayHandle vah, int index, TRAPS);
-  void value_copy_from_index(int index, oop dst, LayoutKind lk) const;
-  void value_copy_to_index(oop src, int index, LayoutKind lk) const;
+  inline oop read_value_from_flat_array( int index, TRAPS);
+  inline void write_value_to_flat_array(oop value, int index, TRAPS);
 
   // Sizing
   static size_t element_size(int lh, int nof_elements) {

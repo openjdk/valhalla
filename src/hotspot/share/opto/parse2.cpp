@@ -305,11 +305,21 @@ void Parse::array_store(BasicType bt) {
           // ordered with other unknown and known flat array accesses.
           insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-          make_runtime_call(RC_LEAF,
-                            OptoRuntime::store_unknown_inline_Type(),
-                            CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline_C),
-                            "store_unknown_inline", TypeRawPtr::BOTTOM,
-                            val, casted_ary, idx);
+          Node* call = nullptr;
+          {
+            // Re-execute flat array store if runtime call triggers deoptimization
+            PreserveReexecuteState preexecs(this);
+            jvms()->set_bci(_bci);
+            jvms()->set_should_reexecute(true);
+            inc_sp(3);
+            kill_dead_locals();
+            call = make_runtime_call(RC_NO_LEAF,
+                              OptoRuntime::store_unknown_inline_Type(),
+                              OptoRuntime::store_unknown_inline_Java(),
+                              "store_unknown_inline", TypeRawPtr::BOTTOM,
+                              val, casted_ary, idx);
+          }
+          make_slow_call_ex(call, env()->Throwable_klass(), false);
 
           insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
         }

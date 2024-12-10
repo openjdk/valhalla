@@ -6056,12 +6056,6 @@ void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators, Ad
   }
 }
 
-void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Register dst,
-                                       Register inline_klass) {
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->value_copy(this, decorators, src, dst, inline_klass);
-}
-
 void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Register dst,
                                      Register inline_layout_info) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
@@ -6099,7 +6093,7 @@ void MacroAssembler::data_for_value_array_index(Register array, Register array_k
   andl(rcx, Klass::_lh_log2_element_size_mask);
   shlptr(index); // index << rcx
 
-  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_PRIMITIVE_OBJECT)));
+  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT)));
 }
 
 void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1,

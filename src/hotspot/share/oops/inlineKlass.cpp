@@ -140,8 +140,8 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
       return atomic_size_in_bytes();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      assert(has_nullable_layout(), "Layout not available");
-      return nullable_size_in_bytes();
+      assert(has_nullable_atomic_layout(), "Layout not available");
+      return nullable_atomic_size_in_bytes();
       break;
     case PAYLOAD:
       return payload_size_in_bytes();
@@ -162,8 +162,8 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
       return atomic_size_in_bytes();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      assert(has_nullable_layout(), "Layout not available");
-      return nullable_size_in_bytes();
+      assert(has_nullable_atomic_layout(), "Layout not available");
+      return nullable_atomic_size_in_bytes();
       break;
     case LayoutKind::PAYLOAD:
       return payload_alignment();
@@ -173,36 +173,113 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
   }
 }
 
-oop InlineKlass::read_flat_field(oop obj, int offset, LayoutKind lk, TRAPS) {
-
-  if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
-    InstanceKlass* recv = InstanceKlass::cast(obj->klass());
-    int nm_offset = offset + (null_marker_offset() - first_field_offset());
-    jbyte nm = obj->byte_field(nm_offset);
-    if (nm == 0) {
-      return nullptr;
-    }
+bool InlineKlass::is_layout_supported(LayoutKind lk) {
+  switch(lk) {
+    case LayoutKind::NON_ATOMIC_FLAT:
+      return has_non_atomic_layout();
+      break;
+    case LayoutKind::ATOMIC_FLAT:
+      return has_atomic_layout();
+      break;
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      return has_nullable_atomic_layout();
+      break;
+    case LayoutKind::PAYLOAD:
+      return true;
+      break;
+    default:
+      ShouldNotReachHere();
   }
-  oop res = nullptr;
-  assert(is_initialized() || is_being_initialized()|| is_in_error_state(),
-        "Must be initialized, initializing or in a corner case of an escaped instance of a class that failed its initialization");
-  if (is_empty_inline_type()) {
-    res = (instanceOop)default_value();
-  } else {
-    Handle obj_h(THREAD, obj);
-    res = allocate_instance_buffer(CHECK_NULL);
-    inline_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res, lk);
-  }
-  assert(res != nullptr, "Must be set in one of two paths above");
-  return res;
 }
 
-void InlineKlass::write_flat_field(oop obj, int offset, oop value, bool is_null_free, LayoutKind lk, TRAPS) {
-  if (is_null_free && value == nullptr) {
-    THROW(vmSymbols::java_lang_NullPointerException());
+void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool dest_is_initialized) {
+  assert(is_layout_supported(lk), "Unsupported layout");
+  assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
+  switch(lk) {
+    case NULLABLE_ATOMIC_FLAT: {
+    if (is_payload_marked_as_null((address)src)) {
+        if (!contains_oops()) {
+          mark_payload_as_null((address)dst);
+          return;
+        }
+        // copy null_reset value to dest
+        if (dest_is_initialized) {
+          HeapAccess<>::value_copy(data_for_oop(null_reset_value()), dst, this, lk);
+        } else {
+          HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(null_reset_value()), dst, this, lk);
+        }
+      } else {
+        // Copy has to be performed, even if this is an empty value, because of the null marker
+        mark_payload_as_non_null((address)src);
+        if (dest_is_initialized) {
+          HeapAccess<>::value_copy(src, dst, this, lk);
+        } else {
+          HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, lk);
+        }
+      }
+    }
+    break;
+    case PAYLOAD:
+    case ATOMIC_FLAT:
+    case NON_ATOMIC_FLAT: {
+      if (is_empty_inline_type()) return; // nothing to do
+      if (dest_is_initialized) {
+        HeapAccess<>::value_copy(src, dst, this, lk);
+      } else {
+        HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, lk);
+      }
+    }
+    break;
+    default:
+      ShouldNotReachHere();
   }
-  assert(!is_null_free || (lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::REFERENCE || lk == LayoutKind::PAYLOAD), "Consistency check");
-  inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset, lk);
+}
+
+oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAPS) {
+  assert(src != nullptr, "Must be");
+  assert(is_layout_supported(lk), "Unsupported layout");
+  switch(lk) {
+    case NULLABLE_ATOMIC_FLAT: {
+      if (is_payload_marked_as_null((address)((char*)(oopDesc*)src + offset))) {
+        return nullptr;
+      }
+    } // Fallthrough
+    case PAYLOAD:
+    case ATOMIC_FLAT:
+    case NON_ATOMIC_FLAT: {
+      if (is_empty_inline_type()) {
+        return default_value();
+      }
+      Handle obj_h(THREAD, src);
+      oop res = allocate_instance_buffer(CHECK_NULL);
+      copy_payload_to_addr((void*)((char*)(oopDesc*)obj_h() + offset), data_for_oop(res), lk, false);
+      if (lk == NULLABLE_ATOMIC_FLAT) {
+        if(is_payload_marked_as_null(data_for_oop(res))) {
+          return nullptr;
+        }
+      }
+      return res;
+    }
+    break;
+    default:
+      ShouldNotReachHere();
+  }
+}
+
+void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS) {
+  void* src_addr = nullptr;
+  if (src == nullptr) {
+    if (lk != NULLABLE_ATOMIC_FLAT) {
+      THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
+    }
+    src_addr = data_for_oop(null_reset_value());
+  } else {
+    src_addr = data_for_oop(src);
+    if (lk == NULLABLE_ATOMIC_FLAT) {
+      mark_payload_as_non_null((address)src_addr);
+    }
+  }
+  copy_payload_to_addr(src_addr, dst, lk, dest_is_initialized);
 }
 
 // Arrays of...
@@ -231,44 +308,77 @@ bool InlineKlass::flat_array() {
   return true;
 }
 
-Klass* InlineKlass::value_array_klass(int n, TRAPS) {
-  if (Atomic::load_acquire(adr_value_array_klasses()) == nullptr) {
+ObjArrayKlass* InlineKlass::null_free_reference_array(TRAPS) {
+  if (Atomic::load_acquire(adr_null_free_reference_array_klass()) == nullptr) {
     // Atomic creation of array_klasses
     RecursiveLocker rl(MultiArray_lock, THREAD);
 
     // Check if update has already taken place
-    if (value_array_klasses() == nullptr) {
-      ArrayKlass* k;
-      if (flat_array()) {
-        k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
-      } else {
-        k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
+    if (null_free_reference_array_klass() == nullptr) {
+      ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
 
-      }
       // use 'release' to pair with lock-free load
-      Atomic::release_store(adr_value_array_klasses(), k);
+      Atomic::release_store(adr_null_free_reference_array_klass(), k);
     }
   }
-  ArrayKlass* ak = value_array_klasses();
-  return ak->array_klass(n, THREAD);
+  return null_free_reference_array_klass();
 }
 
-Klass* InlineKlass::value_array_klass_or_null(int n) {
-  // Need load-acquire for lock-free read
-  ArrayKlass* ak = Atomic::load_acquire(adr_value_array_klasses());
-  if (ak == nullptr) {
-    return nullptr;
-  } else {
-    return ak->array_klass_or_null(n);
+
+// There's no reason for this method to have a TRAP argument
+FlatArrayKlass* InlineKlass::flat_array_klass(LayoutKind lk, TRAPS) {
+  FlatArrayKlass* volatile* adr_flat_array_klass = nullptr;
+  switch(lk) {
+    case NON_ATOMIC_FLAT:
+      assert(has_non_atomic_layout(), "Must be");
+      adr_flat_array_klass = adr_non_atomic_flat_array_klass();
+      break;
+    case ATOMIC_FLAT:
+    assert(has_atomic_layout(), "Must be");
+      adr_flat_array_klass = adr_atomic_flat_array_klass();
+      break;
+    case NULLABLE_ATOMIC_FLAT:
+      assert(has_nullable_atomic_layout(), "Must be");
+      adr_flat_array_klass = adr_nullable_atomic_flat_array_klass();
+      break;
+    default:
+      ShouldNotReachHere();
   }
+
+  if (Atomic::load_acquire(adr_flat_array_klass) == nullptr) {
+    // Atomic creation of array_klasses
+    RecursiveLocker rl(MultiArray_lock, THREAD);
+
+    if (*adr_flat_array_klass == nullptr) {
+      FlatArrayKlass* k = FlatArrayKlass::allocate_klass(this, lk, CHECK_NULL);
+      Atomic::release_store(adr_flat_array_klass, k);
+    }
+  }
+  return *adr_flat_array_klass;
 }
 
-Klass* InlineKlass::value_array_klass(TRAPS) {
-  return value_array_klass(1, THREAD);
-}
+FlatArrayKlass* InlineKlass::flat_array_klass_or_null(LayoutKind lk) {
+    FlatArrayKlass* volatile* adr_flat_array_klass = nullptr;
+  switch(lk) {
+    case NON_ATOMIC_FLAT:
+      assert(has_non_atomic_layout(), "Must be");
+      adr_flat_array_klass = adr_non_atomic_flat_array_klass();
+      break;
+    case ATOMIC_FLAT:
+    assert(has_atomic_layout(), "Must be");
+      adr_flat_array_klass = adr_atomic_flat_array_klass();
+      break;
+    case NULLABLE_ATOMIC_FLAT:
+      assert(has_nullable_atomic_layout(), "Must be");
+      adr_flat_array_klass = adr_nullable_atomic_flat_array_klass();
+      break;
+    default:
+      ShouldNotReachHere();
+  }
 
-Klass* InlineKlass::value_array_klass_or_null() {
-  return value_array_klass_or_null(1);
+  // Need load-acquire for lock-free read
+  FlatArrayKlass* k = Atomic::load_acquire(adr_flat_array_klass);
+  return k;
 }
 
 // Inline type arguments are not passed by reference, instead each

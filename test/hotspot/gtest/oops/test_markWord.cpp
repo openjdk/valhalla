@@ -201,8 +201,23 @@ static void assert_flat_array_type(markWord mark) {
   EXPECT_TRUE(mark.is_null_free_array());
 }
 
-TEST_VM(markWord, flat_array_prototype) {
-  markWord mark = markWord::flat_array_prototype();
+TEST_VM(markWord, null_free_flat_array_prototype) {
+  markWord mark = markWord::flat_array_prototype(LayoutKind::NON_ATOMIC_FLAT);
+  assert_unlocked_state(mark);
+  EXPECT_TRUE(mark.is_neutral());
+
+  assert_flat_array_type(mark);
+
+  EXPECT_TRUE(mark.has_no_hash());
+  EXPECT_FALSE(mark.is_marked());
+  EXPECT_TRUE(mark.decode_pointer() == NULL);
+
+  assert_copy_set_hash(mark);
+  assert_flat_array_type(mark);
+}
+
+TEST_VM(markWord, nullable_flat_array_prototype) {
+  markWord mark = markWord::flat_array_prototype(LayoutKind::NULLABLE_ATOMIC_FLAT);
   assert_unlocked_state(mark);
   EXPECT_TRUE(mark.is_neutral());
 

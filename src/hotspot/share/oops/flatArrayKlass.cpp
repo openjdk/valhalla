@@ -55,23 +55,42 @@
 
 // Allocation...
 
-FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(name, Kind) {
+FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk) : ArrayKlass(name, Kind) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
+  assert(lk == NON_ATOMIC_FLAT || lk == ATOMIC_FLAT || lk == NULLABLE_ATOMIC_FLAT, "Must be a flat layout");
 
   set_element_klass(InlineKlass::cast(element_klass));
   set_class_loader_data(element_klass->class_loader_data());
+  set_layout_kind(lk);
 
-  set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass)));
+  set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass), lk));
   assert(is_array_klass(), "sanity");
   assert(is_flatArray_klass(), "sanity");
   assert(is_null_free_array_klass(), "sanity");
 
 #ifdef _LP64
-  set_prototype_header(markWord::flat_array_prototype());
+  set_prototype_header(markWord::flat_array_prototype(lk));
   assert(prototype_header().is_flat_array(), "sanity");
 #else
+  fatal("Not supported yet");
   set_prototype_header(markWord::inline_type_prototype());
 #endif
+
+#ifdef ASSERT
+  switch(lk) {
+    case NON_ATOMIC_FLAT:
+      assert(layout_helper_is_null_free(layout_helper()), "Must be");
+      assert(layout_helper_is_array(layout_helper()), "Must be");
+      assert(layout_helper_is_flatArray(layout_helper()), "Must be");
+      assert(layout_helper_element_type(layout_helper()) == T_FLAT_ELEMENT, "Must be");
+      //assert(layout_helper_header_size(layout_helper()) ==  , "Must be");
+      assert(prototype_header().is_null_free_array(), "Must be");
+      assert(prototype_header().is_flat_array(), "Must be");
+    break;
+    default:
+    break;
+  }
+#endif // ASSERT
 
 #ifndef PRODUCT
   if (PrintFlatArrayLayout) {
@@ -80,15 +99,7 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(
 #endif
 }
 
-InlineKlass* FlatArrayKlass::element_klass() const {
-  return InlineKlass::cast(_element_klass);
-}
-
-void FlatArrayKlass::set_element_klass(Klass* k) {
-  _element_klass = k;
-}
-
-FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
+FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, LayoutKind lk, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
   assert(UseFlatArray, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
@@ -96,12 +107,6 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
   InlineKlass* element_klass = InlineKlass::cast(eklass);
   assert(element_klass->must_be_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
 
-  /*
-   *  MVT->LWorld, now need to allocate secondaries array types, just like objArrayKlass...
-   *  ...so now we are trying out covariant array types, just copy objArrayKlass
-   *  TODO refactor any remaining commonality
-   *
-   */
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
   Klass* element_super = element_klass->super();
@@ -121,7 +126,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
   Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(FlatArrayKlass::header_size());
-  FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name);
+  FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name, lk);
 
   ModuleEntry* module = vak->module();
   assert(module != nullptr, "No module entry for array");
@@ -142,23 +147,22 @@ void FlatArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 // Oops allocation...
-flatArrayOop FlatArrayKlass::allocate(int length, TRAPS) {
+flatArrayOop FlatArrayKlass::allocate(int length, LayoutKind lk, TRAPS) {
   check_array_allocation_length(length, max_elements(), CHECK_NULL);
   int size = flatArrayOopDesc::object_size(layout_helper(), length);
-  return (flatArrayOop) Universe::heap()->array_allocate(this, size, length, true, THREAD);
+  flatArrayOop array = (flatArrayOop) Universe::heap()->array_allocate(this, size, length, true, CHECK_NULL);
+  // array->set_layout_kind(lk);
+  return array;
 }
-
 
 oop FlatArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
-  // For flatArrays this is only called for the last dimension
-  assert(rank == 1, "just checking");
-  int length = *last_size;
-  return allocate(length, THREAD);
+  // FlatArrays only have one dimension
+  ShouldNotReachHere();
 }
 
-jint FlatArrayKlass::array_layout_helper(InlineKlass* vk) {
-  BasicType etype = T_PRIMITIVE_OBJECT;
-  int esize = log2i_exact(round_up_power_of_2(vk->payload_size_in_bytes()));
+jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
+  BasicType etype = T_FLAT_ELEMENT;
+  int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
 
   int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, true, hsize, etype, esize);
@@ -189,7 +193,7 @@ size_t FlatArrayKlass::oop_size(oop obj) const {
 jint FlatArrayKlass::max_elements() const {
   // Check the max number of heap words limit first (because of int32_t in oopDesc_oop_size() etc)
   size_t max_size = max_jint;
-  max_size -= (arrayOopDesc::base_offset_in_bytes(T_PRIMITIVE_OBJECT) >> LogHeapWordSize);
+  max_size -= (arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) >> LogHeapWordSize);
   max_size = align_down(max_size, MinObjAlignment);
   max_size <<= LogHeapWordSize;                                  // convert to max payload size in bytes
   max_size >>= layout_helper_log2_element_size(_layout_helper);  // divide by element size (in bytes) = max elements
@@ -216,112 +220,126 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
 
   assert(s->is_objArray() || s->is_flatArray(), "must be obj or flat array");
 
-   // Check destination
-   if ((!d->is_flatArray()) && (!d->is_objArray())) {
-     THROW(vmSymbols::java_lang_ArrayStoreException());
-   }
+  // Check destination
+  if ((!d->is_flatArray()) && (!d->is_objArray())) {
+    THROW(vmSymbols::java_lang_ArrayStoreException());
+  }
 
-   // Check if all offsets and lengths are non negative
-   if (src_pos < 0 || dst_pos < 0 || length < 0) {
-     THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
-   }
-   // Check if the ranges are valid
-   if  ( (((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length())
+  // Check if all offsets and lengths are non negative
+  if (src_pos < 0 || dst_pos < 0 || length < 0) {
+    THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
+  }
+  // Check if the ranges are valid
+  if  ( (((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length())
       || (((unsigned int) length + (unsigned int) dst_pos) > (unsigned int) d->length()) ) {
-     THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
-   }
-   // Check zero copy
-   if (length == 0)
-     return;
+    THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
+  }
+  // Check zero copy
+  if (length == 0)
+    return;
 
-   ArrayKlass* sk = ArrayKlass::cast(s->klass());
-   ArrayKlass* dk = ArrayKlass::cast(d->klass());
-   Klass* d_elem_klass = dk->element_klass();
-   Klass* s_elem_klass = sk->element_klass();
-   /**** CMH: compare and contrast impl, re-factor once we find edge cases... ****/
+  ArrayKlass* sk = ArrayKlass::cast(s->klass());
+  ArrayKlass* dk = ArrayKlass::cast(d->klass());
+  Klass* d_elem_klass = dk->element_klass();
+  Klass* s_elem_klass = sk->element_klass();
+  /**** CMH: compare and contrast impl, re-factor once we find edge cases... ****/
 
-   if (sk->is_flatArray_klass()) {
-     assert(sk == this, "Unexpected call to copy_array");
-     // Check subtype, all src homogeneous, so just once
-     if (!s_elem_klass->is_subtype_of(d_elem_klass)) {
-       THROW(vmSymbols::java_lang_ArrayStoreException());
-     }
+  if (sk->is_flatArray_klass()) {
+    assert(sk == this, "Unexpected call to copy_array");
+    FlatArrayKlass* fsk = FlatArrayKlass::cast(sk);
+    // Check subtype, all src homogeneous, so just once
+    if (!s_elem_klass->is_subtype_of(d_elem_klass)) {
+      THROW(vmSymbols::java_lang_ArrayStoreException());
+    }
 
-     flatArrayOop sa = flatArrayOop(s);
-     InlineKlass* s_elem_vklass = element_klass();
+    flatArrayOop sa = flatArrayOop(s);
+    InlineKlass* s_elem_vklass = element_klass();
 
-     // flatArray-to-flatArray
-     if (dk->is_flatArray_klass()) {
-       // element types MUST be exact, subtype check would be dangerous
-       if (dk != this) {
-         THROW(vmSymbols::java_lang_ArrayStoreException());
-       }
+    // flatArray-to-flatArray
+    if (dk->is_flatArray_klass()) {
+      // element types MUST be exact, subtype check would be dangerous
+      if (d_elem_klass != this->element_klass()) {
+        THROW(vmSymbols::java_lang_ArrayStoreException());
+      }
 
-       flatArrayOop da = flatArrayOop(d);
-       address dst = (address) da->value_at_addr(dst_pos, layout_helper());
-       address src = (address) sa->value_at_addr(src_pos, layout_helper());
-       if (contains_oops()) {
-         int elem_incr = 1 << log2_element_size();
-         address src_end = src + (length << log2_element_size());
-         if (needs_backwards_copy(s, src_pos, d, dst_pos, length)) {
-           swap(src, src_end);
-           dst = dst + (length << log2_element_size());
-           do {
-             src -= elem_incr;
-             dst -= elem_incr;
-             HeapAccess<>::value_copy(src, dst, s_elem_vklass, LayoutKind::PAYLOAD); // Temporary hack for the transition
-           } while (src > src_end);
-         } else {
-           address src_end = src + (length << log2_element_size());
-           while (src < src_end) {
-             HeapAccess<>::value_copy(src, dst, s_elem_vklass, LayoutKind::PAYLOAD); // Temporary hack for the transition
-             src += elem_incr;
-             dst += elem_incr;
-           }
-         }
-       } else {
-         // we are basically a type array...don't bother limiting element copy
-         // it would have to be a lot wasted space to be worth value_store() calls, need a setting here ?
-         Copy::conjoint_memory_atomic(src, dst, (size_t)length << log2_element_size());
-       }
-     }
-     else { // flatArray-to-objArray
-       assert(dk->is_objArray_klass(), "Expected objArray here");
-       // Need to allocate each new src elem payload -> dst oop
-       objArrayHandle dh(THREAD, (objArrayOop)d);
-       flatArrayHandle sh(THREAD, sa);
-       int dst_end = dst_pos + length;
-       while (dst_pos < dst_end) {
-         oop o = flatArrayOopDesc::value_alloc_copy_from_index(sh, src_pos, CHECK);
-         dh->obj_at_put(dst_pos, o);
-         dst_pos++;
-         src_pos++;
-       }
-     }
-   } else {
-     assert(s->is_objArray(), "Expected objArray");
-     objArrayOop sa = objArrayOop(s);
-     assert(d->is_flatArray(), "Excepted flatArray");  // objArray-to-flatArray
-     InlineKlass* d_elem_vklass = InlineKlass::cast(d_elem_klass);
-     flatArrayOop da = flatArrayOop(d);
+      FlatArrayKlass* fdk = FlatArrayKlass::cast(dk);
+      InlineKlass* vk = InlineKlass::cast(s_elem_klass);
+      flatArrayOop da = flatArrayOop(d);
+      int src_incr = fsk->element_byte_size();
+      int dst_incr = fdk->element_byte_size();
 
-     int src_end = src_pos + length;
-     int delem_incr = 1 << dk->log2_element_size();
-     address dst = (address) da->value_at_addr(dst_pos, layout_helper());
-     while (src_pos < src_end) {
-       oop se = sa->obj_at(src_pos);
-       if (se == nullptr) {
-         THROW(vmSymbols::java_lang_NullPointerException());
-       }
-       // Check exact type per element
-       if (se->klass() != d_elem_klass) {
-         THROW(vmSymbols::java_lang_ArrayStoreException());
-       }
-       d_elem_vklass->inline_copy_oop_to_payload(se, dst, LayoutKind::PAYLOAD); // Temporary hack for the transition
-       dst += delem_incr;
-       src_pos++;
-     }
-   }
+      if (fsk->layout_kind() == fdk->layout_kind()) {
+        assert(src_incr == dst_incr, "Must be");
+        if (needs_backwards_copy(sa, src_pos, da, dst_pos, length)) {
+          address dst = (address) da->value_at_addr(dst_pos + length - 1, fdk->layout_helper());
+          address src = (address) sa->value_at_addr(src_pos + length - 1, fsk->layout_helper());
+          for (int i = 0; i < length; i++) {
+            // because source and destination have the same layout, bypassing the InlineKlass copy methods
+            // and call AccessAPI directly
+            HeapAccess<>::value_copy(src, dst, vk, fsk->layout_kind());
+            dst -= dst_incr;
+            src -= src_incr;
+          }
+        } else {
+          // source and destination share same layout, direct copy from array to array is possible
+          address dst = (address) da->value_at_addr(dst_pos, fdk->layout_helper());
+          address src = (address) sa->value_at_addr(src_pos, fsk->layout_helper());
+          for (int i = 0; i < length; i++) {
+            // because source and destination have the same layout, bypassing the InlineKlass copy methods
+            // and call AccessAPI directly
+            HeapAccess<>::value_copy(src, dst, vk, fsk->layout_kind());
+            dst += dst_incr;
+            src += src_incr;
+          }
+        }
+      } else {
+        flatArrayHandle hd(THREAD, da);
+        flatArrayHandle hs(THREAD, sa);
+        // source and destination layouts mismatch, simpler solution is to copy through an intermediate buffer (heap instance)
+        bool need_null_check = fsk->layout_kind() == NULLABLE_ATOMIC_FLAT && fdk->layout_kind() != NULLABLE_ATOMIC_FLAT;
+        oop buffer = vk->allocate_instance(CHECK);
+        address dst = (address) hd->value_at_addr(dst_pos, fdk->layout_helper());
+        address src = (address) hs->value_at_addr(src_pos, fsk->layout_helper());
+        for (int i = 0; i < length; i++) {
+          if (need_null_check) {
+            if ( *(jboolean*)(src + vk->null_marker_offset_in_payload()) == 0) {
+              THROW(vmSymbols::java_lang_NullPointerException());
+            }
+          }
+          vk->copy_payload_to_addr(src, vk->data_for_oop(buffer), fsk->layout_kind(), true);
+          if (vk->has_nullable_atomic_layout()) {
+            // Setting null marker to not zero for non-nullable source layouts
+            vk->mark_payload_as_non_null(vk->data_for_oop(buffer));
+          }
+          vk->copy_payload_to_addr(vk->data_for_oop(buffer), dst, fdk->layout_kind(), true);
+          dst += dst_incr;
+          src += src_incr;
+        }
+      }
+    } else { // flatArray-to-objArray
+      assert(dk->is_objArray_klass(), "Expected objArray here");
+      // Need to allocate each new src elem payload -> dst oop
+      objArrayHandle dh(THREAD, (objArrayOop)d);
+      flatArrayHandle sh(THREAD, sa);
+      InlineKlass* vk = InlineKlass::cast(s_elem_klass);
+      for (int i = 0; i < length; i++) {
+        oop o = sh->read_value_from_flat_array(src_pos + i, CHECK);
+        dh->obj_at_put(dst_pos + i, o);
+      }
+    }
+  } else {
+    assert(s->is_objArray(), "Expected objArray");
+    objArrayOop sa = objArrayOop(s);
+    assert(d->is_flatArray(), "Expected flatArray");  // objArray-to-flatArray
+    InlineKlass* d_elem_vklass = InlineKlass::cast(d_elem_klass);
+    flatArrayOop da = flatArrayOop(d);
+    FlatArrayKlass* fdk = FlatArrayKlass::cast(da->klass());
+    InlineKlass* vk = InlineKlass::cast(d_elem_klass);
+
+    for (int i = 0; i < length; i++) {
+      da->write_value_to_flat_array(sa->obj_at(src_pos + i), dst_pos + i, CHECK);
+    }
+  }
 }
 
 ModuleEntry* FlatArrayKlass::module() const {

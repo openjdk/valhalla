@@ -24,8 +24,11 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP
 
+#include "classfile/vmSymbols.hpp"
 #include "memory/iterator.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -54,23 +57,6 @@ inline Array<VMRegPair>* InlineKlass::return_regs() const {
 inline address InlineKlass::data_for_oop(oop o) const {
   return ((address) (void*) o) + first_field_offset();
 }
-
-inline void InlineKlass::inline_copy_payload_to_new_oop(void* src, oop dst, LayoutKind lk) {
-  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, data_for_oop(dst), this, lk);
-}
-
-inline void InlineKlass::inline_copy_oop_to_new_oop(oop src, oop dst, LayoutKind lk) {
-  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(src), data_for_oop(dst), this, lk);
-}
-
-inline void InlineKlass::inline_copy_oop_to_new_payload(oop src, void* dst, LayoutKind lk) {
-  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(src), dst, this, lk);
-}
-
-inline void InlineKlass::inline_copy_oop_to_payload(oop src, void* dst, LayoutKind lk) {
-  HeapAccess<>::value_copy(data_for_oop(src), dst, this, lk);
-}
-
 
 template <typename T, class OopClosureType>
 void InlineKlass::oop_iterate_specialized(const address oop_addr, OopClosureType* closure) {

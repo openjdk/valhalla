@@ -926,7 +926,6 @@ public:
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register val,
                        Register tmp1, Register tmp2, Register tmp3);
 
-  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register inline_klass);
   void flat_field_copy(DecoratorSet decorators, Register src, Register dst, Register inline_layout_info);
 
   // inline type data payload offsets...

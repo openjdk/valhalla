@@ -446,9 +446,16 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
   Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
   assert(elem_klass->is_inline_klass(), "must be");
+  InlineKlass* vk = InlineKlass::cast(elem_klass);
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
-  arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);
+  arrayOop obj= nullptr;
+  //  Limitation here, only non-atomic layouts are supported
+  if (UseFlatArray && vk->has_non_atomic_layout()) {
+    obj = oopFactory::new_flatArray(elem_klass, length, LayoutKind::NON_ATOMIC_FLAT, CHECK);
+  } else {
+    obj = oopFactory::new_null_free_objArray(elem_klass, length, CHECK);
+  }
   current->set_vm_result(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
@@ -509,7 +516,7 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
   NOT_PRODUCT(_load_flat_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
   flatArrayHandle vah(current, array);
-  oop obj = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
+  oop obj = array->read_value_from_flat_array(index, CHECK);
   current->set_vm_result(obj);
 JRT_END
 
@@ -525,7 +532,7 @@ JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
     assert(array->klass()->is_flatArray_klass(), "should not be called");
-    array->value_copy_to_index(value, index, LayoutKind::PAYLOAD); // Non atomic is currently the only layout supported by flat arrays
+    array->write_value_to_flat_array(value, index, CHECK);
   }
 JRT_END
 

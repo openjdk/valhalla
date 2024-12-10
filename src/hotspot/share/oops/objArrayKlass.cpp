@@ -162,7 +162,6 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
     assert(dimension() == 1, "Can only populate the final dimension");
     assert(element_klass()->is_inline_klass(), "Unexpected");
     assert(!element_klass()->is_array_klass(), "ArrayKlass unexpected here");
-    assert(!InlineKlass::cast(element_klass())->flat_array(), "Expected flatArrayOop allocation");
     element_klass()->initialize(CHECK_NULL);
     // Populate default values...
     instanceOop value = (instanceOop) InlineKlass::cast(element_klass())->default_value();

@@ -192,7 +192,7 @@ private:
 
  public:
   static void load_unknown_inline_C(flatArrayOopDesc* array, int index, JavaThread* current);
-  static void store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index);
+  static void store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index, JavaThread* current);
 
   static bool is_callee_saved_register(MachRegisterNumbers reg);
 
@@ -226,6 +226,7 @@ private:
   static address slow_arraycopy_Java()                   { return _slow_arraycopy_Java; }
   static address register_finalizer_Java()               { return _register_finalizer_Java; }
   static address load_unknown_inline_Java()              { return _load_unknown_inline_Java; }
+  static address store_unknown_inline_Java()             { return _store_unknown_inline_Java; }
 #if INCLUDE_JVMTI
   static address notify_jvmti_vthread_start()            { return _notify_jvmti_vthread_start; }
   static address notify_jvmti_vthread_end()              { return _notify_jvmti_vthread_end; }
