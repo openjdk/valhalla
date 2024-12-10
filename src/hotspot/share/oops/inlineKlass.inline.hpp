@@ -24,11 +24,8 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP
 
-#include "classfile/vmSymbols.hpp"
 #include "memory/iterator.hpp"
-#include "runtime/fieldDescriptor.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
-#include "oops/flatArrayOop.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/oop.inline.hpp"

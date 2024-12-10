@@ -72,7 +72,10 @@ void InlineKlass::init_fixed_block() {
   *((address*)adr_pack_handler_jobject()) = nullptr;
   *((address*)adr_unpack_handler()) = nullptr;
   assert(pack_handler() == nullptr, "pack handler not null");
-  *((address*)adr_value_array_klasses()) = nullptr;
+  *((address*)adr_non_atomic_flat_array_klass()) = nullptr;
+  *((address*)adr_atomic_flat_array_klass()) = nullptr;
+  *((address*)adr_nullable_atomic_flat_array_klass()) = nullptr;
+  *((address*)adr_null_free_reference_array_klass()) = nullptr;
   set_default_value_offset(0);
   set_null_reset_value_offset(0);
   set_first_field_offset(-1);
@@ -677,7 +680,10 @@ void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   InstanceKlass::metaspace_pointers_do(it);
 
   InlineKlass* this_ptr = this;
-  it->push((Klass**)adr_value_array_klasses());
+  it->push((Klass**)adr_non_atomic_flat_array_klass());
+  it->push((Klass**)adr_atomic_flat_array_klass());
+  it->push((Klass**)adr_nullable_atomic_flat_array_klass());
+  it->push((Klass**)adr_null_free_reference_array_klass());
 }
 
 void InlineKlass::remove_unshareable_info() {
@@ -693,22 +699,49 @@ void InlineKlass::remove_unshareable_info() {
   *((address*)adr_pack_handler_jobject()) = nullptr;
   *((address*)adr_unpack_handler()) = nullptr;
   assert(pack_handler() == nullptr, "pack handler not null");
-  if (value_array_klasses() != nullptr) {
-    value_array_klasses()->remove_unshareable_info();
+  if (non_atomic_flat_array_klass() != nullptr) {
+    non_atomic_flat_array_klass()->remove_unshareable_info();
+  }
+  if (atomic_flat_array_klass() != nullptr) {
+    atomic_flat_array_klass()->remove_unshareable_info();
+  }
+  if (nullable_atomic_flat_array_klass() != nullptr) {
+    nullable_atomic_flat_array_klass()->remove_unshareable_info();
+  }
+  if (null_free_reference_array_klass() != nullptr) {
+    null_free_reference_array_klass()->remove_unshareable_info();
   }
 }
 
 void InlineKlass::remove_java_mirror() {
   InstanceKlass::remove_java_mirror();
-  if (value_array_klasses() != nullptr) {
-    value_array_klasses()->remove_java_mirror();
+  if (non_atomic_flat_array_klass() != nullptr) {
+    non_atomic_flat_array_klass()->remove_java_mirror();
+  }
+  if (atomic_flat_array_klass() != nullptr) {
+    atomic_flat_array_klass()->remove_java_mirror();
+  }
+  if (nullable_atomic_flat_array_klass() != nullptr) {
+    nullable_atomic_flat_array_klass()->remove_java_mirror();
+  }
+  if (null_free_reference_array_klass() != nullptr) {
+    null_free_reference_array_klass()->remove_java_mirror();
   }
 }
 
 void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
-  if (value_array_klasses() != nullptr) {
-    value_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
+  if (non_atomic_flat_array_klass() != nullptr) {
+    non_atomic_flat_array_klass()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
+  }
+  if (atomic_flat_array_klass() != nullptr) {
+    atomic_flat_array_klass()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
+  }
+  if (nullable_atomic_flat_array_klass() != nullptr) {
+    nullable_atomic_flat_array_klass()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
+  }
+  if (null_free_reference_array_klass() != nullptr) {
+    null_free_reference_array_klass()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
   }
 }
 

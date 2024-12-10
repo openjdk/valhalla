@@ -146,7 +146,6 @@ class InlineKlassFixedBlock {
   address* _unpack_handler;
   int* _default_value_offset;
   int* _null_reset_value_offset;
-  ArrayKlass** _value_array_klasses;      // To be removed?
   FlatArrayKlass* _non_atomic_flat_array_klass;
   FlatArrayKlass* _atomic_flat_array_klass;
   FlatArrayKlass* _nullable_atomic_flat_array_klass;

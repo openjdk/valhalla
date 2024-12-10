@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP
 #define SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP
 
+#include "classfile/vmSymbols.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/flatArrayOop.hpp"
 #include "oops/inlineKlass.inline.hpp"

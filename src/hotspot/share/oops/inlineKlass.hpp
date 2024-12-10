@@ -85,15 +85,6 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(null_reset_value_offset_offset());
   }
 
-  ArrayKlass* volatile* adr_value_array_klasses() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (ArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _value_array_klasses));
-  }
-
-  ArrayKlass* value_array_klasses() const {
-    return *adr_value_array_klasses();
-  }
-
   FlatArrayKlass* volatile* adr_non_atomic_flat_array_klass() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _non_atomic_flat_array_klass));
