@@ -2430,10 +2430,12 @@ public class TestLWorld {
     }
 
     @Test
+    /* FIX: JDK-8344532
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
         counts = {COUNTEDLOOP_MAIN, "= 0"})
+    */
     public void test88(Object[] src1, Object[] dst1, Object[] src2, Object[] dst2) {
         for (int i = 0; i < src1.length; i++) {
             dst1[i] = src1[i];

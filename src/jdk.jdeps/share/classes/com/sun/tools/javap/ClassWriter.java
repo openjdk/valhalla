@@ -450,7 +450,7 @@ public class ClassWriter extends BasicWriter {
 
         if (options.verbose)
             writeList(String.format("flags: (0x%04x) ", flags.flagsMask()),
-                    flagsReportUnknown(flags).stream().map(fl -> "ACC_" + fl.toString()).toList(),
+                    flagsReportUnknown(flags).stream().map(fl -> "ACC_" + fl.name()).toList(),
                     "\n");
 
         if (options.showAllAttrs) {
@@ -810,16 +810,16 @@ public class ClassWriter extends BasicWriter {
         return getModifiers(set);
     }
 
-    private static Set<String> getClassModifiers(AccessFlags flags, int majorVersion, int minorVersion) {
+    private Set<String> getClassModifiers(AccessFlags flags, int majorVersion, int minorVersion) {
         boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
-        Set<AccessFlag> flagSet = flags.flags();
+        Set<AccessFlag> flagSet = flagsReportUnknown(flags);
         if (flagSet.contains(AccessFlag.INTERFACE)) {
             flagSet = EnumSet.copyOf(flagSet);
             flagSet.remove(AccessFlag.ABSTRACT);
         } else if (Source.isSupported(Source.Feature.VALUE_CLASSES, majorVersion) && previewClassFile) {
-          Set<String> classModifers = getModifiers(flagSet);
-          classModifers.add("value");
-          return classModifers;
+            Set<String> classModifers = getModifiers(flagSet);
+            classModifers.add("value");
+            return classModifers;
         }
         return getModifiers(flagSet);
     }
