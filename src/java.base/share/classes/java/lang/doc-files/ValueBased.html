@@ -65,10 +65,10 @@ A value-based class has the following properties:
 <p>Synchronization on instances of value-based classes is strongly discouraged,
     because the programmer cannot guarantee exclusive ownership of the
     associated monitor. If the class is declared {@code value class},
-    {@code IdentityException} is thrown.</p>
+    {@link java.lang.IdentityException} is thrown.</p>
 
-<p>Identity-related behavior of value-based classes may changes when preview features are enabled.
-    For example, synchronization may fail.</p>
+<p>When preview features are enabled, use of value class instances for synchronization, mutexes, or with
+    {@linkplain java.lang.ref.Reference object references} result in {@link IdentityException}.</p>
 
 </body>
 </html>
