@@ -4497,4 +4497,161 @@ public class TestLWorld {
     public void test167_verifier() {
         Asserts.assertEquals(((MyValue1)test167()).hash(), hash());
     }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ValueClassWithInt {
+        int i;
+
+        ValueClassWithInt(int i) {
+            this.i = i;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ValueClassWithDouble {
+        double d;
+
+        ValueClassWithDouble(double d) {
+            this.d = d;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static abstract value class AbstractValueClassWithByte {
+        byte b;
+
+        AbstractValueClassWithByte(byte b) {
+            this.b = b;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class SubValueClassWithInt extends AbstractValueClassWithByte {
+        int i;
+
+        SubValueClassWithInt(int i) {
+            this.i = i;
+            super((byte)(i + 1));
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class SubValueClassWithDouble extends AbstractValueClassWithByte {
+        double d;
+
+        SubValueClassWithDouble(double d) {
+            this.d = d;
+            super((byte)(d + 1));
+        }
+    }
+
+    static final ValueClassWithInt[] VALUE_CLASS_WITH_INT_ARRAY = (ValueClassWithInt[]) ValueClass.newNullRestrictedArray(ValueClassWithInt.class, 2);
+    static final ValueClassWithDouble[] VALUE_CLASS_WITH_DOUBLE_ARRAY = (ValueClassWithDouble[]) ValueClass.newNullRestrictedArray(ValueClassWithDouble.class, 2);
+    static final SubValueClassWithInt[] SUB_VALUE_CLASS_WITH_INT_ARRAY = (SubValueClassWithInt[]) ValueClass.newNullRestrictedArray(SubValueClassWithInt.class, 2);
+    static final SubValueClassWithDouble[] SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY = (SubValueClassWithDouble[]) ValueClass.newNullRestrictedArray(SubValueClassWithDouble.class, 2);
+
+// TODO: Can only be enabled once JDK-8343835 is fixed. Otherwise, we hit the mismatched stores assert.
+//    static {
+//        VALUE_CLASS_WITH_INT_ARRAY[0] = new ValueClassWithInt(5);
+//        VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new ValueClassWithDouble(6);
+//        SUB_VALUE_CLASS_WITH_INT_ARRAY[0] = new SubValueClassWithInt(7);
+//        SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new SubValueClassWithDouble(8);
+//    }
+
+    @Test
+    static void testFlatArrayInexactObjectStore(Object o, boolean flag) {
+        Object[] oArr;
+        if (flag) {
+            oArr = VALUE_CLASS_WITH_INT_ARRAY; // VALUE_CLASS_WITH_INT_ARRAY is statically known to be flat.
+        } else {
+            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // VALUE_CLASS_WITH_DOUBLE_ARRAY is statically known to be flat.
+        }
+        // The type of 'oArr' is inexact here because we merge two arrays. Since both arrays are flat, 'oArr' is also flat:
+        //     Type: flat:narrowoop: java/lang/Object:NotNull * (flat in array)[int:2]
+        // Since the type is inexact, we do not know the exact flat array layout statically and thus need to fall back
+        // to call "store_unknown_inline_Type()" at runtime where we know the flat array layout
+        oArr[0] = o;
+    }
+
+    @Test
+    static Object testFlatArrayInexactObjectLoad(boolean flag) {
+        Object[] oArr;
+        if (flag) {
+            oArr = VALUE_CLASS_WITH_INT_ARRAY; // VALUE_CLASS_WITH_INT_ARRAY is statically known to be flat.
+        } else {
+            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // VALUE_CLASS_WITH_DOUBLE_ARRAY is statically known to be flat.
+        }
+        // The type of 'oArr' is inexact here because we merge two arrays. Since both arrays are flat, 'oArr' is also flat:
+        //     Type: flat:narrowoop: java/lang/Object:NotNull * (flat in array)[int:2]
+        // Since the type is inexact, we do not know the exact flat array layout statically and thus need to fall back
+        // to call "load_unknown_inline_Type()" at runtime where we know the flat array layout
+        return oArr[0];
+    }
+
+    @Test
+    static void testFlatArrayInexactAbstractValueClassStore(AbstractValueClassWithByte abstractValueClassWithByte,
+                                                            boolean flag) {
+        AbstractValueClassWithByte[] avArr;
+        if (flag) {
+            avArr = SUB_VALUE_CLASS_WITH_INT_ARRAY;
+        } else {
+            avArr = SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY;
+        }
+        // Same as testFlatArrayInexactObjectStore() but the inexact type is with an abstract value class:
+        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractValueClassWithByte:NotNull * (flat in array)[int:2]
+        avArr[0] = abstractValueClassWithByte;
+    }
+
+    @Test
+    static AbstractValueClassWithByte testFlatArrayInexactAbstractValueClassLoad(boolean flag) {
+        AbstractValueClassWithByte[] avArr;
+        if (flag) {
+            avArr = SUB_VALUE_CLASS_WITH_INT_ARRAY;
+        } else {
+            avArr = SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY;
+        }
+        // Same as testFlatArrayInexactObjectLoad() but the inexact type is with an abstract value class:
+        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractValueClassWithByte:NotNull * (flat in array)[int:2]
+        return avArr[0];
+    }
+
+    @Run(test = {"testFlatArrayInexactObjectStore",
+                 "testFlatArrayInexactObjectLoad",
+                 "testFlatArrayInexactAbstractValueClassStore",
+                 "testFlatArrayInexactAbstractValueClassLoad"})
+    static void runFlatArrayInexactLoadAndStore() {
+        // TODO: Remove these again once JDK-8343835 is fixed and uncomment static initializer above
+        VALUE_CLASS_WITH_INT_ARRAY[0] = new ValueClassWithInt(5);
+        VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new ValueClassWithDouble(6);
+        SUB_VALUE_CLASS_WITH_INT_ARRAY[0] = new SubValueClassWithInt(7);
+        SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new SubValueClassWithDouble(8);
+
+        boolean flag = true;
+        ValueClassWithInt valueClassWithInt = new ValueClassWithInt(15);
+        ValueClassWithDouble valueClassWithDouble = new ValueClassWithDouble(16);
+
+        testFlatArrayInexactObjectStore(valueClassWithInt, true);
+        Asserts.assertEQ(valueClassWithInt, VALUE_CLASS_WITH_INT_ARRAY[0]);
+        testFlatArrayInexactObjectStore(valueClassWithDouble, false);
+        Asserts.assertEQ(valueClassWithDouble, VALUE_CLASS_WITH_DOUBLE_ARRAY[0]);
+
+        Asserts.assertEQ(valueClassWithInt, testFlatArrayInexactObjectLoad(true));
+        Asserts.assertEQ(valueClassWithDouble, testFlatArrayInexactObjectLoad(false));
+
+        SubValueClassWithInt subValueClassWithInt = new SubValueClassWithInt(17);
+        SubValueClassWithDouble subValueClassWithDouble = new SubValueClassWithDouble(18);
+
+        testFlatArrayInexactAbstractValueClassStore(subValueClassWithInt, true);
+        Asserts.assertEQ(subValueClassWithInt, SUB_VALUE_CLASS_WITH_INT_ARRAY[0]);
+        testFlatArrayInexactAbstractValueClassStore(subValueClassWithDouble, false);
+        Asserts.assertEQ(subValueClassWithDouble, SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0]);
+
+        Asserts.assertEQ(subValueClassWithInt, testFlatArrayInexactAbstractValueClassLoad(true));
+        Asserts.assertEQ(subValueClassWithDouble, testFlatArrayInexactAbstractValueClassLoad(false));
+    }
 }
