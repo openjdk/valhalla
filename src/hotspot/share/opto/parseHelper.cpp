@@ -264,14 +264,14 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   const TypePtr* elem_ptr = elemtype->make_ptr();
   bool null_free;
-  if (elemtype->make_ptr()->is_inlinetypeptr()) {
+  if (elem_ptr->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
-    null_free = arytype->is_flat() || !elemtype->make_ptr()->maybe_null();
+    null_free = arytype->is_flat() || !elem_ptr->maybe_null();
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   } else {
     // TODO: Should move to TypeAry::is_null_free() with JDK-8345681
     TypePtr::PTR ptr = elem_ptr->ptr();
-    null_free = ptr == TypePtr::NotNull || ptr == TypePtr::AnyNull;
+    null_free = ((ptr == TypePtr::NotNull) || (ptr == TypePtr::AnyNull));
 #ifdef ASSERT
     // If the element type is exact, the array can be null-free (i.e. the element type is NotNull) if:
     //   - The elements are inline types
