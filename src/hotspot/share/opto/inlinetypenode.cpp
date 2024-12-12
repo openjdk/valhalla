@@ -561,17 +561,17 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
   if (kit->gvn().type(base)->isa_aryptr()) {
     kit->C->set_flat_accesses();
   }
+  if (null_marker_offset != -1) {
+    // Nullable flat field, store the null marker
+    Node* adr = kit->basic_plus_adr(base, ptr, null_marker_offset);
+    const TypePtr* adr_type = kit->gvn().type(adr)->isa_ptr();
+    int alias_idx = kit->C->get_alias_index(adr_type);
+    kit->store_to_memory(kit->control(), adr, get_is_init(), T_BOOLEAN, alias_idx, MemNode::unordered);
+  }
   // The inline type is embedded into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when storing the values.
   if (holder == nullptr) {
     holder = inline_klass();
-  }
-  if (null_marker_offset != -1) {
-    // Nullable flat field, store the null marker
-    Node* adr = kit->basic_plus_adr(base, null_marker_offset);
-    const TypePtr* adr_type = kit->gvn().type(adr)->isa_ptr();
-    int alias_idx = kit->C->get_alias_index(adr_type);
-    kit->store_to_memory(kit->control(), adr, get_is_init(), T_BOOLEAN, alias_idx, MemNode::unordered);
   }
   holder_offset -= inline_klass()->first_field_offset();
   store(kit, base, ptr, holder, holder_offset, -1, decorators);
@@ -1030,23 +1030,20 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   if (kit->gvn().type(obj)->isa_aryptr()) {
     kit->C->set_flat_accesses();
   }
-
-  bool null_free = (null_marker_offset == -1);
-
   // Create and initialize an InlineTypeNode by loading all field values from
   // a flat inline type field at 'holder_offset' or from an inline type array.
+  bool null_free = (null_marker_offset == -1);
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk, null_free);
-  // The inline type is flattened into the object without an oop header. Subtract the
-  // offset of the first field to account for the missing header when loading the values.
-  holder_offset -= vk->first_field_offset();
-
-  if (null_marker_offset != -1) {
+  if (!null_free) {
     // Nullable flat field, read the null marker
-    Node* adr = kit->basic_plus_adr(obj, null_marker_offset);
+    Node* adr = kit->basic_plus_adr(obj, ptr, null_marker_offset);
     Node* is_init = kit->make_load(nullptr, adr, TypeInt::BOOL, T_BOOLEAN, MemNode::unordered);
     vt->set_req(IsInit, is_init);
   }
 
+  // The inline type is flattened into the object without an oop header. Subtract the
+  // offset of the first field to account for the missing header when loading the values.
+  holder_offset -= vk->first_field_offset();
   vt->load(kit, obj, ptr, holder, visited, holder_offset, decorators);
   assert(vt->is_loaded(&kit->gvn()) != obj, "holder oop should not be used as flattened inline type oop");
   return kit->gvn().transform(vt)->as_InlineType();

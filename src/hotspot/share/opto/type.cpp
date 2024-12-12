@@ -2199,7 +2199,6 @@ static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, u
     if (field->is_flat()) {
       collect_inline_fields(field->type()->as_inline_klass(), field_array, pos);
       if (!field->is_null_free()) {
-        // TODO add is_init field at the end
         field_array[pos++] = Type::get_const_basic_type(T_BOOLEAN);
       }
     } else {
@@ -2238,7 +2237,6 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
       uint pos = TypeFunc::Parms;
       field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
-      // TODO move this in
       // InlineTypeNode::IsInit field used for null checking
       field_array[pos++] = get_const_basic_type(T_BOOLEAN);
       assert(pos == (TypeFunc::Parms + arg_cnt), "out of bounds");

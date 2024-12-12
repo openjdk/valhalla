@@ -23,6 +23,7 @@
 
 package compiler.valhalla.inlinetypes;
 
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -36,7 +37,8 @@ import jdk.test.lib.Asserts;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
- * @modules java.base/jdk.internal.vm.annotation
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
  * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
@@ -473,6 +475,28 @@ public class TestFieldNullMarkers {
         }
     }
 
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyHolderClass8 {
+        MyValue8 val8;
+
+        public MyHolderClass8(MyValue8 val8) {
+            this.val8 = val8;
+        }
+    }
+
+    // Test support for null markers in scalar replaced flat (null-free) array
+    public static void testFlatArray1(boolean trap) {
+        MyHolderClass8[] array = (MyHolderClass8[])ValueClass.newNullRestrictedArray(MyHolderClass8.class, 2);
+        MyValue8 val8 = new MyValue8((byte)42);
+        array[0] = new MyHolderClass8(val8);
+        array[1] = new MyHolderClass8(null);
+        if (trap) {
+            Asserts.assertEQ(array[0].val8, val8);
+            Asserts.assertEQ(array[1].val8, null);
+        }
+    }
+
     public static void main(String[] args) {
         TestFieldNullMarkers t = new TestFieldNullMarkers();
         t.testOSR();
@@ -636,6 +660,9 @@ public class TestFieldNullMarkers {
             Asserts.assertEQ(t.field10.c, (char)i);
             t.field11 = new MyValue13((i % 2) == 0);
             Asserts.assertEQ(t.field11.b, (i % 2) == 0);
+
+            // Test flat (null-free) arrays
+            testFlatArray1(false);
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account
@@ -659,6 +686,8 @@ public class TestFieldNullMarkers {
         MyValue7 val10 = new MyValue7(null);
         MyValue7 val11 = null;
         t.testDeopt5(val8, val9, val10, val11, false);
+
+        testFlatArray1(true);
     }
 }
 
