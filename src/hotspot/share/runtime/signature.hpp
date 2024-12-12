@@ -577,11 +577,10 @@ typedef GrowableArrayFilterIterator<SigEntry, SigEntryFilter> ExtendedSignature;
 // specially. See comment for InlineKlass::collect_fields().
 class SigEntry {
  public:
-  // TODO improve these comments
-  BasicType _bt;
-  int _offset;      // Offset of the corresponding field in it's value class holder for scalarized arguments (-1 otherwise). Used for packing and unpacking
+  BasicType _bt;      // Basic type of the argument
+  int _offset;        // Offset of the field in its value class holder for scalarized arguments (-1 otherwise). Used for packing and unpacking.
   float _sort_offset; // Offset used for sorting
-  Symbol* _symbol;  // For printing
+  Symbol* _symbol;    // Symbol for printing
 
   SigEntry()
     : _bt(T_ILLEGAL), _offset(-1), _sort_offset(-1), _symbol(NULL) {}

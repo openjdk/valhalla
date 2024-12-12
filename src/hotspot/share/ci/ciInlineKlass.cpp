@@ -97,9 +97,7 @@ bool ciInlineKlass::is_empty() {
   // Do not use InlineKlass::is_empty_inline_type here because it does
   // consider the container empty even if fields of empty inline types
   // are not flat
-  // TODO double check, I think we can also consider it empty if it only contains null-free flat fields of empty inline klasses
   return nof_declared_nonstatic_fields() == 0;
-  //return nof_nonstatic_fields() == 0;
 }
 
 // When passing an inline type's fields as arguments, count the number

@@ -301,6 +301,10 @@ class HierarchicalFieldStream : public StackObj  {
   bool is_null_free_inline_type() {
     return _current_stream.is_null_free_inline_type();
   }
+
+  int null_marker_offset() {
+    return _current_stream.null_marker_offset();
+  }
 };
 
 #endif // SHARE_OOPS_FIELDSTREAMS_HPP

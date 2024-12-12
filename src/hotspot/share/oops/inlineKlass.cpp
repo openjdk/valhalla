@@ -306,9 +306,7 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
       // Resolve klass of flat field and recursively collect fields
       int field_null_marker_offset = -1;
       if (!fs.is_null_free_inline_type()) {
-        // TODO can we use null_marker_offset() instead?
-        InlineLayoutInfo* li = inline_layout_info_adr(fs.index());
-        field_null_marker_offset = base_off + li->null_marker_offset() - (base_off > 0 ? first_field_offset() : 0);
+        field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? first_field_offset() : 0);
       }
       Klass* vk = get_inline_type_field_klass(fs.index());
       count += InlineKlass::cast(vk)->collect_fields(sig, max_offset, offset, field_null_marker_offset);
