@@ -513,8 +513,8 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
       value = make_default_impl(kit->gvn(), ft->as_inline_klass(), visited);
     } else if (field_is_flat(i)) {
       // Recursively load the flat inline type field
-      assert(field_is_null_free(i) == (field_null_marker_offset(i) == -1), "inconsistency");
-      value = make_from_flat_impl(kit, ft->as_inline_klass(), base, ptr, holder, offset, holder_offset + field_null_marker_offset(i), decorators, visited);
+      int nm_offset = field_is_null_free(i) ? -1 : (holder_offset + field_null_marker_offset(i));
+      value = make_from_flat_impl(kit, ft->as_inline_klass(), base, ptr, holder, offset, nm_offset, decorators, visited);
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != nullptr);
@@ -586,8 +586,8 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass
     ciType* ft = field_type(i);
     if (field_is_flat(i)) {
       // Recursively store the flat inline type field
-      assert(field_is_null_free(i) == (field_null_marker_offset(i) == -1), "inconsistency");
-      value->as_InlineType()->store_flat(kit, base, ptr, holder, offset, holder_offset + field_null_marker_offset(i), decorators);
+      int nm_offset = field_is_null_free(i) ? -1 : (holder_offset + field_null_marker_offset(i));
+      value->as_InlineType()->store_flat(kit, base, ptr, holder, offset, nm_offset, decorators);
     } else {
       // Store field value to memory
       const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
