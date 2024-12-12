@@ -63,6 +63,7 @@ protected:
   ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
 
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
+  uint add_fields_to_safepoint(Unique_Node_List& worklist, Node_List& null_markers, SafePointNode* sfpt);
 
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
 
@@ -122,7 +123,8 @@ public:
   // Inline type fields
   uint          field_count() const { return req() - Values; }
   Node*         field_value(uint index) const;
-  Node*         field_value_by_offset(int offset, bool recursive = false, bool root = true) const;
+  Node*         field_value_by_offset(int offset, bool recursive = false, bool search_null_marker = true) const;
+  Node*         null_marker_by_offset(int offset, int holder_offset = 0) const;
   void      set_field_value(uint index, Node* value);
   void      set_field_value_by_offset(int offset, Node* value);
   int           field_offset(uint index) const;
@@ -149,6 +151,7 @@ public:
   bool is_allocated(PhaseGVN* phase) const;
 
   void replace_call_results(GraphKit* kit, CallNode* call, Compile* C);
+  void replace_field_projs(Compile* C, CallNode* call, uint& proj_idx);
 
   // Allocate all non-flat inline type fields
   Node* allocate_fields(GraphKit* kit);

@@ -2212,7 +2212,8 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     ciInlineKlass* vk = field->type()->as_inline_klass();
     BasicType bt = size_to_basic_type(vk->nullable_size_in_bytes());
 
-    // Allocate buffer
+    // Allocate buffer (we can't easily do this conditionally on the null check below
+    // because branches added in the LIR are opaque to the register allocator).
     NewInstance* buffer = new NewInstance(vk, x->state_before(), false, true);
     do_NewInstance(buffer);
     LIRItem dest(buffer, this);

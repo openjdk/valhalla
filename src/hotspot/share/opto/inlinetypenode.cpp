@@ -192,20 +192,22 @@ Node* InlineTypeNode::field_value(uint index) const {
   return in(Values + index);
 }
 
-// TODO implement with a worklist
-static Node* helper2(const InlineTypeNode* vt, int search_offset, int holder_offset = 0) {
-  for (uint i = 0; i < vt->field_count(); ++i) {
-    if (vt->field_is_flat(i)) {
-      InlineTypeNode* value = vt->field_value(i)->as_InlineType();
-      if (!vt->field_is_null_free(i)) {
-        int offset = holder_offset + vt->field_null_marker_offset(i);
-        if (offset == search_offset) {
+// Get the value of the null marker at the given offset.
+Node* InlineTypeNode::null_marker_by_offset(int offset, int holder_offset) const {
+  // Search through the null markers of all flat fields
+  for (uint i = 0; i < field_count(); ++i) {
+    if (field_is_flat(i)) {
+      InlineTypeNode* value = field_value(i)->as_InlineType();
+      if (!field_is_null_free(i)) {
+        int nm_offset = holder_offset + field_null_marker_offset(i);
+        if (nm_offset == offset) {
           return value->get_is_init();
         }
       }
-      Node* ret = helper2(value->as_InlineType(), search_offset, holder_offset + vt->field_offset(i) - value->bottom_type()->inline_klass()->first_field_offset());
-      if (ret != nullptr) {
-        return ret;
+      int flat_holder_offset = holder_offset + field_offset(i) - value->inline_klass()->first_field_offset();
+      Node* nm_value = value->null_marker_by_offset(offset, flat_holder_offset);
+      if (nm_value != nullptr) {
+        return nm_value;
       }
     }
   }
@@ -214,15 +216,17 @@ static Node* helper2(const InlineTypeNode* vt, int search_offset, int holder_off
 
 // Get the value of the field at the given offset.
 // If 'recursive' is true, flat inline type fields will be resolved recursively.
-Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive, bool root) const {
-  // If the field at 'offset' belongs to a flat inline type field, 'index' refers to the
-  // corresponding InlineTypeNode input and 'sub_offset' is the offset in the flattened inline type.
-  if (root && recursive) {
-    // Check if we are loading a null marker
-    Node* val = helper2(this, offset);
-    if (val != nullptr) return val;
+Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive, bool search_null_marker) const {
+  // First check if we are loading a null marker which is not a real field
+  if (recursive && search_null_marker) {
+    Node* value = null_marker_by_offset(offset);
+    if (value != nullptr){
+      return value;
+    }
   }
 
+  // If the field at 'offset' belongs to a flat inline type field, 'index' refers to the
+  // corresponding InlineTypeNode input and 'sub_offset' is the offset in the flattened inline type.
   int index = inline_klass()->field_index_by_offset(offset);
   int sub_offset = offset - field_offset(index);
   Node* value = field_value(index);
@@ -290,29 +294,28 @@ int InlineTypeNode::field_null_marker_offset(uint index) const {
   return field->null_marker_offset();
 }
 
-
-// TODO implement with a worklist
-static uint helper(InlineTypeNode* vt, Unique_Node_List& worklist, Node_List& null_markers, SafePointNode* sfpt) {
+uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, Node_List& null_markers, SafePointNode* sfpt) {
   uint cnt = 0;
-  for (uint i = 0; i < vt->field_count(); ++i) {
-    Node* value = vt->field_value(i);
-    if (vt->field_is_flat(i)) {
-      cnt += helper(value->as_InlineType(), worklist, null_markers, sfpt);
-      if (!vt->field_is_null_free(i)) {
-        null_markers.push(value->as_InlineType()->get_is_init());
+  for (uint i = 0; i < field_count(); ++i) {
+    Node* value = field_value(i);
+    if (field_is_flat(i)) {
+      InlineTypeNode* vt = value->as_InlineType();
+      cnt += vt->add_fields_to_safepoint(worklist, null_markers, sfpt);
+      if (!field_is_null_free(i)) {
+        null_markers.push(vt->get_is_init());
+        cnt++;
       }
-    } else {
-      if (value->is_InlineType()) {
-        // Add inline type field to the worklist to process later
-        worklist.push(value);
-      }
-      sfpt->add_req(value);
-      cnt++;
+      continue;
     }
+    if (value->is_InlineType()) {
+      // Add inline type to the worklist to process later
+      worklist.push(value);
+    }
+    sfpt->add_req(value);
+    cnt++;
   }
   return cnt;
 }
-
 
 void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   // We should not scalarize larvals in debug info of their constructor calls because their fields could still be
@@ -345,12 +348,10 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   // Iterate over the inline type fields in order of increasing
   // offset and add the field values to the safepoint.
   Node_List null_markers;
-  uint nfields = helper(this, worklist, null_markers, sfpt);
-
+  uint nfields = add_fields_to_safepoint(worklist, null_markers, sfpt);
+  // Add null markers after the field values
   for (uint i = 0; i < null_markers.size(); ++i) {
-    Node* is_init = null_markers.at(i);
-    sfpt->add_req(is_init);
-    nfields++;
+    sfpt->add_req(null_markers.at(i));
   }
   jvms->set_endoff(sfpt->req());
   SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(type()->isa_instptr(),
@@ -712,28 +713,12 @@ bool InlineTypeNode::is_allocated(PhaseGVN* phase) const {
   return !oop_type->maybe_null();
 }
 
-// TODO implement with a worklist
-static void helper3(Compile* C, CallNode* call, const InlineTypeNode* vt, uint& proj_idx) {
-  for (uint i = 0; i < vt->field_count(); ++i) {
-    Node* value = vt->field_value(i);
-    if (vt->field_is_flat(i)) {
-      helper3(C, call, value->as_InlineType(), proj_idx);
-      if (!vt->field_is_null_free(i)) {
-        ProjNode* pn = call->proj_out_or_null(proj_idx++);
-        if (pn != nullptr) {
-          C->gvn_replace_by(pn, value->as_InlineType()->get_is_init());
-          C->initial_gvn()->hash_delete(pn);
-          pn->set_req(0, C->top());
-        }
-      }
-      continue;
-    }
-    ProjNode* pn = call->proj_out_or_null(proj_idx++);
-    if (pn != nullptr) {
-      C->gvn_replace_by(pn, value);
-      C->initial_gvn()->hash_delete(pn);
-      pn->set_req(0, C->top());
-    }
+static void replace_proj(Compile* C, CallNode* call, uint& proj_idx, Node* value) {
+  ProjNode* pn = call->proj_out_or_null(proj_idx++);
+  if (pn != nullptr) {
+    C->gvn_replace_by(pn, value);
+    C->initial_gvn()->hash_delete(pn);
+    pn->set_req(0, C->top());
   }
 }
 
@@ -743,22 +728,31 @@ static void helper3(Compile* C, CallNode* call, const InlineTypeNode* vt, uint& 
 // projection, we find the corresponding inline type field.
 void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) {
   uint proj_idx = TypeFunc::Parms;
-  ProjNode* pn = call->proj_out_or_null(proj_idx++);
-  if (pn != nullptr) {
-    C->gvn_replace_by(pn, get_oop());
-    C->initial_gvn()->hash_delete(pn);
-    pn->set_req(0, C->top());
-  }
-
-  helper3(C, call, this, proj_idx);
-
-  pn = call->proj_out_or_null(proj_idx++);
-  if (pn != nullptr) {
-    C->gvn_replace_by(pn, get_is_init());
-    C->initial_gvn()->hash_delete(pn);
-    pn->set_req(0, C->top());
-  }
+  // Replace oop projection
+  replace_proj(C, call, proj_idx, get_oop());
+  // Replace field projections
+  replace_field_projs(C, call, proj_idx);
+  // Replace is_init projection
+  replace_proj(C, call, proj_idx, get_is_init());
   assert(proj_idx == call->tf()->range_cc()->cnt(), "missed a projection");
+}
+
+void InlineTypeNode::replace_field_projs(Compile* C, CallNode* call, uint& proj_idx) {
+  for (uint i = 0; i < field_count(); ++i) {
+    Node* value = field_value(i);
+    if (field_is_flat(i)) {
+      InlineTypeNode* vt = value->as_InlineType();
+      // Replace field projections for flat field
+      vt->replace_field_projs(C, call, proj_idx);
+      if (!field_is_null_free(i)) {
+        // Replace is_init projection for nullable field
+        replace_proj(C, call, proj_idx, vt->get_is_init());
+      }
+      continue;
+    }
+    // Replace projection for field value
+    replace_proj(C, call, proj_idx, value);
+  }
 }
 
 Node* InlineTypeNode::allocate_fields(GraphKit* kit) {
