@@ -300,7 +300,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         address src = (address) hs->value_at_addr(src_pos, fsk->layout_helper());
         for (int i = 0; i < length; i++) {
           if (need_null_check) {
-            if ( *(jboolean*)(src + vk->null_marker_offset_in_payload()) == 0) {
+            if (vk->is_payload_marked_as_null(src)) {
               THROW(vmSymbols::java_lang_NullPointerException());
             }
           }

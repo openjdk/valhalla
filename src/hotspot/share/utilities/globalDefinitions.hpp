@@ -1366,6 +1366,7 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
 #define UseFlatArray (EnableValhalla && (FlatArrayElementMaxSize != 0))
+
 template<typename K> int primitive_compare(const K& k0, const K& k1) {
   return ((k0 < k1) ? -1 : (k0 == k1) ? 0 : 1);
 }
