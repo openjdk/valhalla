@@ -713,13 +713,14 @@ bool InlineTypeNode::is_allocated(PhaseGVN* phase) const {
   return !oop_type->maybe_null();
 }
 
-static void replace_proj(Compile* C, CallNode* call, uint& proj_idx, Node* value) {
-  ProjNode* pn = call->proj_out_or_null(proj_idx++);
+static void replace_proj(Compile* C, CallNode* call, uint& proj_idx, Node* value, BasicType bt) {
+  ProjNode* pn = call->proj_out_or_null(proj_idx);
   if (pn != nullptr) {
     C->gvn_replace_by(pn, value);
     C->initial_gvn()->hash_delete(pn);
     pn->set_req(0, C->top());
   }
+  proj_idx += type2size[bt];
 }
 
 // When a call returns multiple values, it has several result
@@ -729,11 +730,11 @@ static void replace_proj(Compile* C, CallNode* call, uint& proj_idx, Node* value
 void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) {
   uint proj_idx = TypeFunc::Parms;
   // Replace oop projection
-  replace_proj(C, call, proj_idx, get_oop());
+  replace_proj(C, call, proj_idx, get_oop(), T_OBJECT);
   // Replace field projections
   replace_field_projs(C, call, proj_idx);
   // Replace is_init projection
-  replace_proj(C, call, proj_idx, get_is_init());
+  replace_proj(C, call, proj_idx, get_is_init(), T_BOOLEAN);
   assert(proj_idx == call->tf()->range_cc()->cnt(), "missed a projection");
 }
 
@@ -746,12 +747,12 @@ void InlineTypeNode::replace_field_projs(Compile* C, CallNode* call, uint& proj_
       vt->replace_field_projs(C, call, proj_idx);
       if (!field_is_null_free(i)) {
         // Replace is_init projection for nullable field
-        replace_proj(C, call, proj_idx, vt->get_is_init());
+        replace_proj(C, call, proj_idx, vt->get_is_init(), T_BOOLEAN);
       }
       continue;
     }
     // Replace projection for field value
-    replace_proj(C, call, proj_idx, value);
+    replace_proj(C, call, proj_idx, value, field_type(i)->basic_type());
   }
 }
 
