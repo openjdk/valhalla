@@ -848,8 +848,8 @@ void TemplateTable::aaload() {
                 IS_ARRAY);
     __ jmp(done);
     __ bind(is_flat_array);
-    __ movptr(rbx, array);
-    call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), rbx, index);
+    __ movptr(rcx, array);
+    call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), rcx, index);
     __ bind(done);
   } else {
     do_oop_load(_masm,
