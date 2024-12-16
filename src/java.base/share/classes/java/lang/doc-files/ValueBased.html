@@ -47,6 +47,7 @@ A value-based class has the following properties:
         {@code y} that are equal according to {@code equals()} produces no
         visible change in the behavior of the class's methods;</li>
     <li>the class performs no synchronization using an instance's monitor;</li>
+    <li>the class does not declare (or discourages use of) accessible constructors;</li>
     <li>the class does not provide any instance creation mechanism that promises
         a unique identity on each method call&mdash;in particular, any factory
         method's contract must allow for the possibility that if two independently-produced
@@ -65,8 +66,13 @@ A value-based class has the following properties:
     because the programmer cannot guarantee exclusive ownership of the
     associated monitor.</p>
 
-<p>When preview features are enabled, use of value class instances for synchronization, mutexes, or with
-    {@linkplain java.lang.ref.Reference object references} result in {@link IdentityException}.</p>
+<p>Identity-related behavior of value-based classes may change when implemented as a value class.
+</p>
+<ul>
+    <li>The class may choose to allocate/cache instances differently.
+    <li>The use of the value class for synchronization or with
+    {@linkplain java.lang.ref.Reference object references} result in {@link IdentityException}.
+</ul>
 
 </body>
 </html>
