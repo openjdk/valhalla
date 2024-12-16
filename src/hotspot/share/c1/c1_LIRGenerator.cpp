@@ -1779,7 +1779,9 @@ void LIRGenerator::do_StoreField(StoreField* x) {
         __ branch_destination(L_isNull->label());
       }
     }
-    access_store_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload);
+    access_store_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
+                    // Make sure to emit an implicit null check
+                    info != nullptr ? new CodeEmitInfo(info) : nullptr, info);
     return;
   }
 
@@ -2220,7 +2222,9 @@ void LIRGenerator::do_LoadField(LoadField* x) {
 
     // Copy the payload to the buffer
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
-    access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload);
+    access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
+                   // Make sure to emit an implicit null check
+                   info ? new CodeEmitInfo(info) : nullptr, info);
     access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->first_field_offset()), payload);
 
     // Check the null marker and set result to null if not set

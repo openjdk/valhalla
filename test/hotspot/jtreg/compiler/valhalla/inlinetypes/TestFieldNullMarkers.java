@@ -497,6 +497,27 @@ public class TestFieldNullMarkers {
         }
     }
 
+    // Make sure that flat field accesses contain a (implicit) null check
+    public static void testNPE1() {
+        TestFieldNullMarkers t = null;
+        try {
+            MyValue8 v = t.field6;
+            throw new RuntimeException("No NPE thrown!");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    public static void testNPE2() {
+        TestFieldNullMarkers t = null;
+        try {
+            t.field6 = null;
+            throw new RuntimeException("No NPE thrown!");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
     public static void main(String[] args) {
         TestFieldNullMarkers t = new TestFieldNullMarkers();
         t.testOSR();
@@ -663,6 +684,9 @@ public class TestFieldNullMarkers {
 
             // Test flat (null-free) arrays
             testFlatArray1(false);
+
+            testNPE1();
+            testNPE2();
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account
