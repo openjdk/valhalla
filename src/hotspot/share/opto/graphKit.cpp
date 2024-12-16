@@ -1835,7 +1835,18 @@ void GraphKit::access_clone(Node* src, Node* dst, Node* size, bool is_array) {
 Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
-  uint shift = arytype->is_flat() ? arytype->flat_log_elem_size() : exact_log2(type2aelembytes(elembt));
+  assert(!arytype->is_flat() || elembt == T_OBJECT, "element type of flat arrays are T_OBJECT");
+  uint shift;
+  if (arytype->is_flat() && arytype->klass_is_exact()) {
+    // We can only determine the flat array layout statically if the klass is exact. Otherwise, we could have different
+    // value classes at runtime with a potentially different layout. The caller needs to fall back to call
+    // load/store_unknown_inline_Type() at runtime. We could return a sentinel node for the non-exact case but that
+    // might mess with other GVN transformations in between. Thus, we just continue in the else branch normally, even
+    // though we don't need the address node in this case and throw it away again.
+    shift = arytype->flat_log_elem_size();
+  } else {
+    shift = exact_log2(type2aelembytes(elembt));
+  }
   uint header = arrayOopDesc::base_offset_in_bytes(elembt);
 
   // short-circuit a common case (saves lots of confusing waste motion)
@@ -2092,7 +2103,7 @@ static void add_mergemem_users_to_worklist(Unique_Node_List& wl, Node* mem) {
 }
 
 // Replace the call with the current state of the kit.
-void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes) {
+void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes, bool do_asserts) {
   JVMState* ejvms = nullptr;
   if (has_exceptions()) {
     ejvms = transfer_exceptions_into_jvms();
@@ -2105,7 +2116,7 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
   SafePointNode* final_state = stop();
 
   // Find all the needed outputs of this call
-  CallProjections* callprojs = call->extract_projections(true);
+  CallProjections* callprojs = call->extract_projections(true, do_asserts);
 
   Unique_Node_List wl;
   Node* init_mem = call->in(TypeFunc::Memory);
@@ -3493,7 +3504,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
   const TypeOopPtr* toop = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
   bool safe_for_replace = (failure_control == nullptr);
-  assert(!null_free || toop->is_inlinetypeptr(), "must be an inline type pointer");
+  assert(!null_free || toop->can_be_inline_type(), "must be an inline type pointer");
 
   // Fast cutout:  Check the case that the cast is vacuously true.
   // This detects the common cases where the test will short-circuit

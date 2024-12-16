@@ -486,6 +486,8 @@ class InstanceKlass: public Klass {
   bool field_is_null_free_inline_type(int index) const;
   bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
 
+  int null_marker_offset(int index) const { return inline_layout_info(index).null_marker_offset(); }
+
   // Number of Java declared fields
   int java_fields_count() const;
   int total_fields_count() const;
@@ -1236,7 +1238,6 @@ public:
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
   void init_shared_package_entry();
   bool can_be_verified_at_dumptime() const;
-  bool methods_contain_jsr_bytecode() const;
   void compute_has_loops_flag_for_methods();
 #endif
 
