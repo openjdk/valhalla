@@ -330,23 +330,19 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
     return;
   }
 
-  ciInlineKlass* vk = inline_klass();
-  vk->nof_nonstatic_fields();
   JVMState* jvms = sfpt->jvms();
-  // Replace safepoint edge by SafePointScalarObjectNode and add field values
   assert(jvms != nullptr, "missing JVMS");
   uint first_ind = (sfpt->req() - jvms->scloff());
 
-  // Nullable inline types have an IsInit field that needs
-  // to be checked before using the field values.
+  // Iterate over the inline type fields in order of increasing offset and add the
+  // field values to the safepoint. Nullable inline types have an IsInit field that
+  // needs to be checked before using the field values.
   const TypeInt* tinit = igvn->type(get_is_init())->isa_int();
   if (tinit != nullptr && !tinit->is_con(1)) {
     sfpt->add_req(get_is_init());
   } else {
     sfpt->add_req(igvn->C->top());
   }
-  // Iterate over the inline type fields in order of increasing
-  // offset and add the field values to the safepoint.
   Node_List null_markers;
   uint nfields = add_fields_to_safepoint(worklist, null_markers, sfpt);
   // Add null markers after the field values
@@ -354,6 +350,7 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
     sfpt->add_req(null_markers.at(i));
   }
   jvms->set_endoff(sfpt->req());
+  // Replace safepoint edge by SafePointScalarObjectNode
   SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(type()->isa_instptr(),
                                                                   nullptr,
                                                                   first_ind,
@@ -1038,7 +1035,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   if (!null_free) {
     // Nullable flat field, read the null marker
     Node* adr = kit->basic_plus_adr(obj, ptr, null_marker_offset);
-    Node* is_init = kit->make_load(nullptr, adr, TypeInt::BOOL, T_BOOLEAN, MemNode::unordered);
+    Node* is_init = kit->make_load(kit->control(), adr, TypeInt::BOOL, T_BOOLEAN, MemNode::unordered);
     vt->set_req(IsInit, is_init);
   }
 
