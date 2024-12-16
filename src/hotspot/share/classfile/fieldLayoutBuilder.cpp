@@ -1063,19 +1063,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         assert(new_alignment % _layout->super_min_align_required() == 0, "Must be");
         _payload_alignment = new_alignment;
       }
-      if (_layout->first_empty_block()->offset() < _layout->first_field_block()->offset()) {
-        LayoutRawBlock* first_empty = _layout->start()->next_block();
-        if (first_empty->offset() % _payload_alignment != 0) {
-          int size =  _payload_alignment - (first_empty->offset() % _payload_alignment);
-          LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, size);
-          _layout->insert(first_empty, padding);
-          _layout->set_start(padding);
-        } else {
-          _layout->set_start( _layout->start());
-        }
-      } else {
-        _layout->set_start(_layout->first_field_block());
-      }
+      _layout->set_start(_layout->first_field_block());
     }
   } else {
     if (_is_abstract_value && _has_nonstatic_fields) {
