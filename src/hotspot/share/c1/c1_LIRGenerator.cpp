@@ -1635,23 +1635,6 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   set_result(x, result);
 }
 
-// Convert size in bytes to corresponding BasicType
-static BasicType size_to_basic_type(int size) {
-  BasicType bt;
-  if (size == sizeof(jlong)) {
-    bt = T_LONG;
-  } else if (size == sizeof(jint)) {
-    bt = T_INT;
-  } else if (size == sizeof(jshort)) {
-    bt = T_SHORT;
-  } else if (size == sizeof(jbyte)) {
-    bt = T_BYTE;
-  } else {
-    assert(false, "unsupported size: %d", size);
-  }
-  return bt;
-}
-
 // Returns a int/long value with the null marker bit set
 static LIR_Opr null_marker_mask(BasicType bt, ciField* field) {
   int nm_offset = field->null_marker_offset() - field->offset_in_bytes();
@@ -1754,7 +1737,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (field->is_flat()) {
     assert(!field->is_null_free(), "Null free flat fields are handled in high level IR");
     ciInlineKlass* vk = field->type()->as_inline_klass();
-    BasicType bt = size_to_basic_type(vk->nullable_size_in_bytes());
+    BasicType bt = vk->size_to_basic_type();
 
     // Zero the payload
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
@@ -2212,7 +2195,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     assert(!field->is_null_free(), "Null free flat fields are handled in high level IR");
     assert(x->state_before() != nullptr, "Needs state before");
     ciInlineKlass* vk = field->type()->as_inline_klass();
-    BasicType bt = size_to_basic_type(vk->nullable_size_in_bytes());
+    BasicType bt = vk->size_to_basic_type();
 
     // Allocate buffer (we can't easily do this conditionally on the null check below
     // because branches added in the LIR are opaque to the register allocator).

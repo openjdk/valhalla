@@ -324,7 +324,6 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
     SigEntry::add_entry(sig, T_BOOLEAN, name(), null_marker_offset, max_offset);
     count++;
   }
-  // TODO Shouldn't this use max_offset?
   SigEntry::add_entry(sig, T_VOID, name(), offset);
   if (base_off == 0) {
     sig->sort(SigEntry::compare);

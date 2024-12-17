@@ -86,6 +86,8 @@ protected:
   static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform = true);
   static InlineTypeNode* make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, int null_marker_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited);
 
+  Node* convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, int null_marker_offset) const;
+
 public:
   // Create with default field values
   static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk, bool is_larval = false);

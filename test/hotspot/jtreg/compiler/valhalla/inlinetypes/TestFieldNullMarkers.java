@@ -518,6 +518,15 @@ public class TestFieldNullMarkers {
         }
     }
 
+    public void checkFields(int i) {
+        Asserts.assertEQ(field6.b, (byte)i);
+        Asserts.assertEQ(field7.s, (short)i);
+        Asserts.assertEQ(field8.i, i);
+        Asserts.assertEQ(field9.f, (float)i);
+        Asserts.assertEQ(field10.c, (char)i);
+        Asserts.assertEQ(field11.b, (i % 2) == 0);
+    }
+
     public static void main(String[] args) {
         TestFieldNullMarkers t = new TestFieldNullMarkers();
         t.testOSR();
@@ -669,18 +678,45 @@ public class TestFieldNullMarkers {
             Asserts.assertEQ(t.field5.val, VAL7.val);
 
             // Some more values classes with different flavors of primitive fields
+            t.field6 = null;
+            Asserts.assertEQ(t.field6, null);
             t.field6 = new MyValue8((byte)i);
             Asserts.assertEQ(t.field6.b, (byte)i);
+            t.field7 = null;
+            Asserts.assertEQ(t.field7, null);
             t.field7 = new MyValue9((short)i);
             Asserts.assertEQ(t.field7.s, (short)i);
+            t.field8 = null;
+            Asserts.assertEQ(t.field8, null);
             t.field8 = new MyValue10(i);
             Asserts.assertEQ(t.field8.i, i);
+            t.field9 = null;
+            Asserts.assertEQ(t.field9, null);
             t.field9 = new MyValue11((float)i);
             Asserts.assertEQ(t.field9.f, (float)i);
+            t.field10 = null;
+            Asserts.assertEQ(t.field10, null);
             t.field10 = new MyValue12((char)i);
             Asserts.assertEQ(t.field10.c, (char)i);
+            t.field11 = null;
+            Asserts.assertEQ(t.field11, null);
             t.field11 = new MyValue13((i % 2) == 0);
             Asserts.assertEQ(t.field11.b, (i % 2) == 0);
+
+            // Write the fields again and check that we don't overwrite other fields
+            t.checkFields(i);
+            t.field6 = new MyValue8((byte)i);
+            t.checkFields(i);
+            t.field7 = new MyValue9((short)i);
+            t.checkFields(i);
+            t.field8 = new MyValue10(i);
+            t.checkFields(i);
+            t.field9 = new MyValue11((float)i);
+            t.checkFields(i);
+            t.field10 = new MyValue12((char)i);
+            t.checkFields(i);
+            t.field11 = new MyValue13((i % 2) == 0);
+            t.checkFields(i);
 
             // Test flat (null-free) arrays
             testFlatArray1(false);

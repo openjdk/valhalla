@@ -28,8 +28,10 @@
 #include "gc/shared/gc_globals.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
+#include "opto/convertnode.hpp"
 #include "opto/graphKit.hpp"
 #include "opto/inlinetypenode.hpp"
+#include "opto/movenode.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/phaseX.hpp"
 
@@ -554,16 +556,70 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
   }
 }
 
+// Set a field value in the payload by shifting it according to the offset
+static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node* value, BasicType val_bt, int offset) {
+  assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
+  Node* shift_val = gvn->intcon(offset << LogBitsPerByte);
+  if (bt == T_LONG) {
+    // Convert to long and remove the sign bit (the backend will fold this and emit a zero extend i2l)
+    value = gvn->transform(new ConvI2LNode(value));
+    value = gvn->transform(new AndLNode(value, gvn->longcon(0xFFFFFFFF)));
+
+    Node* shift_value = gvn->transform(new LShiftLNode(value, shift_val));
+    payload = new OrLNode(shift_value, payload);
+  } else {
+    Node* shift_value = gvn->transform(new LShiftINode(value, shift_val));
+    payload = new OrINode(shift_value, payload);
+  }
+  return gvn->transform(payload);
+}
+
+// Convert the field values to a payload value of type 'bt'
+Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, int null_marker_offset) const {
+  // Set the null marker
+  Node* value = gvn->transform(new AndINode(get_is_init(), gvn->intcon(0xFF)));
+  payload = set_payload_value(gvn, payload, bt, value, T_BYTE, null_marker_offset);
+
+  // Iterate over the fields and add their values to the payload
+  for (uint i = 0; i < field_count(); ++i) {
+    value = field_value(i);
+    int offset = holder_offset + field_offset(i) - inline_klass()->first_field_offset();
+    if (field_is_flat(i)) {
+      null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
+      payload = value->as_InlineType()->convert_to_payload(gvn, bt, payload, offset, field_is_null_free(i) ? -1 : null_marker_offset);
+    } else {
+      BasicType field_bt = field_type(i)->basic_type();
+      if (field_bt == T_BYTE || field_bt == T_BOOLEAN) {
+        value = gvn->transform(new AndINode(value, gvn->intcon(0xFF)));
+      } else if (field_bt == T_CHAR || field_bt == T_SHORT) {
+        value = gvn->transform(new AndINode(value, gvn->intcon(0xFFFF)));
+      } else if (field_bt == T_FLOAT) {
+        value = gvn->transform(new MoveF2INode(value));
+      } else {
+        assert(field_bt == T_INT, "Unsupported type: %s", type2name(bt));
+      }
+      payload = set_payload_value(gvn, payload, bt, value, field_bt, offset);
+    }
+  }
+  return payload;
+}
+
 void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, int null_marker_offset, DecoratorSet decorators) const {
   if (kit->gvn().type(base)->isa_aryptr()) {
     kit->C->set_flat_accesses();
   }
   if (null_marker_offset != -1) {
-    // Nullable flat field, store the null marker
-    Node* adr = kit->basic_plus_adr(base, ptr, null_marker_offset);
-    const TypePtr* adr_type = kit->gvn().type(adr)->isa_ptr();
-    int alias_idx = kit->C->get_alias_index(adr_type);
-    kit->store_to_memory(kit->control(), adr, get_is_init(), T_BOOLEAN, alias_idx, MemNode::unordered);
+    // Flat and nullable, convert to a payload value and write atomically
+    BasicType bt = inline_klass()->size_to_basic_type();
+    Node* payload = (bt == T_LONG) ? kit->longcon(0) : kit->intcon(0);
+    payload = convert_to_payload(&kit->gvn(), bt, payload, 0, null_marker_offset - holder_offset);
+    decorators |= C2_MISMATCHED | C2_UNSAFE_ACCESS;
+    const TypePtr* adr_type = field_adr_type(base, holder_offset, holder, decorators, kit->gvn());
+    Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
+    const Type* val_type = Type::get_const_basic_type(bt);
+    bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
+    kit->access_store_at(base, adr, adr_type, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators);
+    return;
   }
   // The inline type is embedded into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when storing the values.
