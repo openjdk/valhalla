@@ -60,7 +60,11 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @enablePreview
  * @compile InlineTypesTest.java
  * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+UseZGC -Xint -XX:+ZVerifyOops -XX:+PrintInlineLayout -XX:+PrintFieldLayout
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
+ *                   runtime.valhalla.inlinetypes.InlineTypesTest
+ * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:ForceNonTearable=*
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
  */
 
@@ -268,23 +272,23 @@ public class InlineTypesTest {
     public static void main(String[] args) {
         Class<?> inlineClass = runtime.valhalla.inlinetypes.TestValue1.class;
         Class<?> testClasses[] = {
-                runtime.valhalla.inlinetypes.TestValue1.class/*,
+                runtime.valhalla.inlinetypes.TestValue1.class,
                 runtime.valhalla.inlinetypes.TestValue2.class,
                 runtime.valhalla.inlinetypes.TestValue3.class,
-                runtime.valhalla.inlinetypes.TestValue4.class*/
+                runtime.valhalla.inlinetypes.TestValue4.class
         };
         Class<?> containerClasses[] = {
-                runtime.valhalla.inlinetypes.ContainerValue1.class/*,
+                runtime.valhalla.inlinetypes.ContainerValue1.class,
                 runtime.valhalla.inlinetypes.ContainerValue2.class,
                 runtime.valhalla.inlinetypes.ContainerValue3.class,
-                runtime.valhalla.inlinetypes.ContainerValue4.class*/
+                runtime.valhalla.inlinetypes.ContainerValue4.class
         };
 
         for (int i = 0; i < testClasses.length; i++) {
             try {
-                //testExecutionStackToLocalVariable(testClasses[i]);
+                testExecutionStackToLocalVariable(testClasses[i]);
                 testExecutionStackToFields(testClasses[i], containerClasses[i]);
-                //testExecutionStackToInlineArray(testClasses[i], containerClasses[i]);
+                testExecutionStackToInlineArray(testClasses[i], containerClasses[i]);
             } catch (Throwable t) {
                 t.printStackTrace();
                 throw new RuntimeException(t);

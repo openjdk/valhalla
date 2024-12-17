@@ -105,48 +105,6 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
-
-final class ContainerValue1 {
-    static TestValue1 staticInlineField;
-    @NullRestricted
-    TestValue1 nonStaticInlineField;
-    TestValue1[] valueArray;
-}
-
-@ImplicitlyConstructible
-@LooselyConsistentValue
-value class TestValue1 {
-
-    static TestValue1 staticValue = getInstance();
-
-    final int i;
-    final String name;
-
-    public TestValue1() {
-        int now =  (int)System.nanoTime();
-        i = now;
-        name = Integer.valueOf(now).toString();
-    }
-
-    public TestValue1(int i) {
-        this.i = i;
-        name = Integer.valueOf(i).toString();
-    }
-
-    public static TestValue1 getInstance() {
-        return new TestValue1();
-    }
-
-    public static TestValue1 getNonBufferedInstance() {
-        return (TestValue1) staticValue;
-    }
-
-    public boolean verify() {
-        if (name == null) return i == 0;
-        return Integer.valueOf(i).toString().compareTo(name) == 0;
-    }
-}
-
 public class InlineOops {
 
     // Extra debug: -XX:+VerifyOops -XX:+VerifyStack -XX:+VerifyLastFrame -XX:+VerifyBeforeGC -XX:+VerifyAfterGC -XX:+VerifyDuringGC -XX:VerifySubSet=threads,heap
@@ -168,20 +126,19 @@ public class InlineOops {
     static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
     public static void main(String[] args) {
-        /*
         if (args.length > 0) {
             MIN_ACTIVE_GC_COUNT = Integer.parseInt(args[0]);
         }
         testClassLoad();
         testValues();
-        */
+
         if (!USE_COMPILER) {
             testOopMaps();
         }
 
         // Check we survive GC...
-        //testOverGc();   // Exercise root scan / oopMap
-        //testActiveGc(); // Brute force
+        testOverGc();   // Exercise root scan / oopMap
+        testActiveGc(); // Brute force
     }
 
     /**
@@ -256,10 +213,6 @@ public class InlineOops {
      * Check oop map generation for klass layout and frame...
      */
     public static void testOopMaps() {
-        Object[] oops = WB.getObjectsViaOopIterator(new ContainerValue1());
-        System.out.println("================= DEBUG A THING ================");
-        dumpOopMap(oops);
-
         Object[] objects = WB.getObjectsViaKlassOopMaps(new Couple());
         assertTrue(objects.length == 4, "Expected 4 oops");
         for (int i = 0; i < objects.length; i++) {
