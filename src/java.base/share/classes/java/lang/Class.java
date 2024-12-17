@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -683,36 +683,34 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents an identity
-     * class or interface; otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents an identity class;
+     * otherwise {@code false}}
      *
-     * If this {@code Class} object represents an array type, then this method
-     * returns {@code true}.
-     * If this {@code Class} object represents a primitive type, or {@code void},
+     * If this {@code Class} object represents an array type then this method returns {@code true}.
+     * If this {@code Class} object represents an interface, a primitive type, or {@code void}
      * then this method returns {@code false}.
      *
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public native boolean isIdentity();
 
     /**
-     * {@return {@code true} if this {@code Class} object represents a value
-     * class; otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents a value class;
+     * otherwise {@code false}}
+     * All classes that are not {@linkplain #isIdentity identity classes} are value classes.
      *
-     * If this {@code Class} object represents an array type, an interface,
-     * a primitive type, or {@code void}, then this method returns {@code false}.
+     * If this {@code Class} object represents an array type then this method returns {@code false}.
+     * If this {@code Class} object represents an interface, a primitive type, or {@code void},
+     * then this method returns {@code true}.
      *
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public boolean isValue() {
-        if (!PreviewFeatures.isEnabled()) {
-            return false;
-        }
-         if (isPrimitive() || isArray() || isInterface())
-             return false;
-        return ((getModifiers() & Modifier.IDENTITY) == 0);
+        return PreviewFeatures.isEnabled() ? !isIdentity() : false;
     }
 
     /**
