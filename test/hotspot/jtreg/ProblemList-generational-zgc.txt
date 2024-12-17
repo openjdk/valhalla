@@ -118,13 +118,11 @@ serviceability/sa/sadebugd/SADebugDTest.java                  8307393   generic-
 vmTestbase/gc/gctests/MemoryEaterMT/MemoryEaterMT.java        8289582   windows-x64
 
 # Valhalla...
-compiler/valhalla/inlinetypes/TestArrayCopyWithOops.java      8341844   generic-all
-compiler/valhalla/inlinetypes/TestCallingConvention.java      8341844   generic-all
-compiler/valhalla/inlinetypes/TestNullableInlineTypes.java    8341844   generic-all
-runtime/valhalla/inlinetypes/InlineTypesTest.java             8341844   generic-all
+compiler/valhalla/inlinetypes/TestArrayCopyWithOops.java      8346466   generic-all
 
+
+# Once jdk-24+22 are merged (remove singlegen zgc) together with 8341844, many of these issues are resolved...
 compiler/valhalla/inlinetypes/TestStressReturnBuffering.java  8341846   generic-all
-
 compiler/valhalla/inlinetypes/TestUnloadedInlineTypeArray.java   8341848 generic-all
 compiler/valhalla/inlinetypes/TestArrays.java                 8341848   generic-all
 compiler/valhalla/inlinetypes/TestBasicFunctionality.java     8341848   generic-all
