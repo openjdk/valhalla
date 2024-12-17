@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,9 @@ import jdk.internal.access.SharedSecrets;
 
 /**
  * This class implements the {@code Map} interface with a hash table, using
- * reference-equality in place of object-equality when comparing keys (and
+ * reference-equality for {@linkplain Class#isIdentity() identity objects} and
+ * substutitability for {@linkplain Class#isValue value objects}
+ * in place of object-equality when comparing keys (and
  * values).  In other words, in an {@code IdentityHashMap}, two keys
  * {@code k1} and {@code k2} are considered equal if and only if
  * {@code (k1==k2)}.  (In normal {@code Map} implementations (like

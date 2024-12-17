@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,13 @@
 
 package java.util;
 
-import java.lang.ref.WeakReference;
+import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 
 /**
@@ -121,6 +123,22 @@ import java.util.function.Consumer;
  * <p>This class is a member of the
  * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
+ *
+ * @apiNote
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          Keys that are {@linkplain Class#isValue() value objects} do not have identity
+ *          and can not be used as keys in a {@code WeakHashMap}. {@linkplain Reference References}
+ *          such as {@linkplain WeakReference WeakReference} used by {@code WeakhashMap}
+ *          to hold the key; cannot refer to a value object.
+ *          Methods such as {@linkplain #get get} or {@linkplain #containsKey containsKey}
+ *          will always return {@code null} or {@code false} respectively.
+ *          The methods such as {@linkplain #put put}, {@linkplain #putAll putAll},
+ *          {@linkplain #compute(Object, BiFunction) compute}, and
+ *          {@linkplain #computeIfAbsent(Object, Function) computeIfAbsent} or any method putting
+ *          a value object, as a key, throw {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
@@ -290,6 +308,9 @@ public class WeakHashMap<K,V>
      * default uses Object.equals.
      */
     private boolean matchesKey(Entry<K,V> e, Object key) {
+        // only identity objects can be compared to a reference
+        if (!Objects.hasIdentity(key))
+            return false;
         // check if the given entry refers to the given key without
         // keeping a strong reference to the entry's referent
         if (e.refersTo(key)) return true;
@@ -456,9 +477,11 @@ public class WeakHashMap<K,V>
      *         {@code null} if there was no mapping for {@code key}.
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
+     * @throws IdentityException if the {@code key} is a value object
      */
     public V put(K key, V value) {
         Object k = maskNull(key);
+        Objects.hasIdentity(k);
         int h = hash(k);
         Entry<K,V>[] tab = getTable();
         int i = indexFor(h, tab.length);
@@ -548,6 +571,7 @@ public class WeakHashMap<K,V>
      *
      * @param m mappings to be stored in this map.
      * @throws  NullPointerException if the specified map is null.
+     * @throws  IdentityException if any of the {@code keys} is a value object
      */
     public void putAll(Map<? extends K, ? extends V> m) {
         int numKeysToBeAdded = m.size();
