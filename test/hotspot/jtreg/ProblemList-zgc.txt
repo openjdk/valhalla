@@ -116,3 +116,14 @@ serviceability/sa/sadebugd/RunCommandOnServerTest.java        8307393   generic-
 serviceability/sa/sadebugd/SADebugDTest.java                  8307393   generic-all
 
 vmTestbase/gc/gctests/MemoryEaterMT/MemoryEaterMT.java        8289582   windows-x64
+
+# Valhalla...
+compiler/valhalla/inlinetypes/TestArrayCopyWithOops.java      8346466   generic-all
+compiler/valhalla/inlinetypes/TestArrays.java                 8341848   generic-all
+compiler/valhalla/inlinetypes/TestBasicFunctionality.java     8341848   generic-all
+compiler/valhalla/inlinetypes/TestIntrinsics.java             8341849   generic-all
+compiler/valhalla/inlinetypes/TestLWorld.java                 8341848   generic-all
+compiler/valhalla/inlinetypes/TestNullableArrays.java         8341850   generic-all
+compiler/valhalla/inlinetypes/TestUnloadedInlineTypeArray.java   8341848 generic-all
+
+compiler/valhalla/inlinetypes/TestUnloadedInlineTypeField.java 8341947   generic-aarch64
