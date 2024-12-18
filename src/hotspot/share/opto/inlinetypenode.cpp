@@ -556,9 +556,64 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
   }
 }
 
+// Get a field value from the payload by shifting it according to the offset
+static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, BasicType val_bt, int offset) {
+  // Shift to the right position in the long value
+  assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
+  Node* value = nullptr;
+  Node* shift_val = gvn->intcon(offset << LogBitsPerByte);
+  if (bt == T_LONG) {
+    value = gvn->transform(new URShiftLNode(payload, shift_val));
+    value = gvn->transform(new ConvL2INode(value));
+  } else {
+    value = gvn->transform(new URShiftINode(payload, shift_val));
+  }
+  if (val_bt == T_INT) {
+    return value;
+  } else {
+    // Make sure to zero unused bits in the 32-bit value
+    return Compile::narrow_value(val_bt, value, nullptr, gvn, true);
+  }
+}
+
+// TODO what about AtomicFieldFlattening? Nullable flat fields should then be atomic as well
+
+// Convert a payload value to field values
+void InlineTypeNode::convert_from_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, int null_marker_offset) {
+  // Get the null marker
+  Node* value = get_payload_value(gvn, payload, bt, T_BOOLEAN, null_marker_offset);
+  set_req(IsInit, value);
+
+  // Iterate over the fields and get their values from the payload
+  for (uint i = 0; i < field_count(); ++i) {
+    int offset = holder_offset + field_offset(i) - inline_klass()->first_field_offset();
+    if (field_is_flat(i)) {
+      null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
+      InlineTypeNode* vt = make_uninitialized(*gvn, field_type(i)->as_inline_klass(), field_is_null_free(i));
+      vt->convert_from_payload(gvn, bt, payload, offset, null_marker_offset);
+      value = gvn->transform(vt);
+    } else {
+      value = get_payload_value(gvn, payload, bt, field_type(i)->basic_type(), offset);
+    }
+    set_field_value(i, value);
+  }
+}
+
 // Set a field value in the payload by shifting it according to the offset
 static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node* value, BasicType val_bt, int offset) {
   assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
+
+  // Make sure to zero unused bits in the 32-bit value
+  if (val_bt == T_BYTE || val_bt == T_BOOLEAN) {
+    value = gvn->transform(new AndINode(value, gvn->intcon(0xFF)));
+  } else if (val_bt == T_CHAR || val_bt == T_SHORT) {
+    value = gvn->transform(new AndINode(value, gvn->intcon(0xFFFF)));
+  } else if (val_bt == T_FLOAT) {
+    value = gvn->transform(new MoveF2INode(value));
+  } else {
+    assert(val_bt == T_INT, "Unsupported type: %s", type2name(val_bt));
+  }
+
   Node* shift_val = gvn->intcon(offset << LogBitsPerByte);
   if (bt == T_LONG) {
     // Convert to long and remove the sign bit (the backend will fold this and emit a zero extend i2l)
@@ -577,7 +632,7 @@ static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node*
 // Convert the field values to a payload value of type 'bt'
 Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, int null_marker_offset) const {
   // Set the null marker
-  Node* value = gvn->transform(new AndINode(get_is_init(), gvn->intcon(0xFF)));
+  Node* value = get_is_init();
   payload = set_payload_value(gvn, payload, bt, value, T_BYTE, null_marker_offset);
 
   // Iterate over the fields and add their values to the payload
@@ -588,17 +643,7 @@ Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payl
       null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
       payload = value->as_InlineType()->convert_to_payload(gvn, bt, payload, offset, field_is_null_free(i) ? -1 : null_marker_offset);
     } else {
-      BasicType field_bt = field_type(i)->basic_type();
-      if (field_bt == T_BYTE || field_bt == T_BOOLEAN) {
-        value = gvn->transform(new AndINode(value, gvn->intcon(0xFF)));
-      } else if (field_bt == T_CHAR || field_bt == T_SHORT) {
-        value = gvn->transform(new AndINode(value, gvn->intcon(0xFFFF)));
-      } else if (field_bt == T_FLOAT) {
-        value = gvn->transform(new MoveF2INode(value));
-      } else {
-        assert(field_bt == T_INT, "Unsupported type: %s", type2name(bt));
-      }
-      payload = set_payload_value(gvn, payload, bt, value, field_bt, offset);
+      payload = set_payload_value(gvn, payload, bt, value, field_type(i)->basic_type(), offset);
     }
   }
   return payload;
@@ -613,12 +658,12 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     BasicType bt = inline_klass()->size_to_basic_type();
     Node* payload = (bt == T_LONG) ? kit->longcon(0) : kit->intcon(0);
     payload = convert_to_payload(&kit->gvn(), bt, payload, 0, null_marker_offset - holder_offset);
-    decorators |= C2_MISMATCHED | C2_UNSAFE_ACCESS;
-    const TypePtr* adr_type = field_adr_type(base, holder_offset, holder, decorators, kit->gvn());
+    decorators |= C2_MISMATCHED;
     Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
     const Type* val_type = Type::get_const_basic_type(bt);
     bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
-    kit->access_store_at(base, adr, adr_type, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators);
+    kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators);
+    kit->insert_mem_bar(Op_MemBarCPUOrder);
     return;
   }
   // The inline type is embedded into the object without an oop header. Subtract the
@@ -1089,10 +1134,15 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   bool null_free = (null_marker_offset == -1);
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk, null_free);
   if (!null_free) {
-    // Nullable flat field, read the null marker
-    Node* adr = kit->basic_plus_adr(obj, ptr, null_marker_offset);
-    Node* is_init = kit->make_load(kit->control(), adr, TypeInt::BOOL, T_BOOLEAN, MemNode::unordered);
-    vt->set_req(IsInit, is_init);
+    // Flat and nullable, read atomically
+    BasicType bt = vk->size_to_basic_type();
+    decorators |= C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD;
+    Node* adr = kit->basic_plus_adr(obj, ptr, holder_offset);
+    const Type* val_type = Type::get_const_basic_type(bt);
+    bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
+    Node* payload = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
+    vt->convert_from_payload(&kit->gvn(), bt, payload, 0, null_marker_offset - holder_offset);
+    return kit->gvn().transform(vt)->as_InlineType();
   }
 
   // The inline type is flattened into the object without an oop header. Subtract the

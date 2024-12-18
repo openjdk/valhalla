@@ -527,10 +527,20 @@ public class TestFieldNullMarkers {
         Asserts.assertEQ(field11.b, (i % 2) == 0);
     }
 
+    // Test that writing and reading a (signed) byte stays in bounds
+    public void testBounds(int i) {
+        MyValue8 val = new MyValue8((byte)i);
+        field6 = val;
+        int b = field6.b;
+        if (b < -128 || b > 127) {
+            throw new RuntimeException("Byte value out of bounds: " + b);
+        }
+    }
+
     public static void main(String[] args) {
         TestFieldNullMarkers t = new TestFieldNullMarkers();
         t.testOSR();
-        for (int i = 0; i < 100_000; ++i) {
+        for (int i = -50_000; i < 50_000; ++i) {
             t.field1 = null;
             Asserts.assertEQ(t.testGet1(), null);
 
@@ -723,6 +733,8 @@ public class TestFieldNullMarkers {
 
             testNPE1();
             testNPE2();
+
+            t.testBounds(i);
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account

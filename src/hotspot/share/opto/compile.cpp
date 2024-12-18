@@ -65,6 +65,7 @@
 #include "opto/matcher.hpp"
 #include "opto/mathexactnode.hpp"
 #include "opto/memnode.hpp"
+#include "opto/movenode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/node.hpp"
@@ -5810,6 +5811,8 @@ Node* Compile::narrow_value(BasicType bt, Node* value, const Type* type, PhaseGV
     result = new AndINode(value, phase->intcon(0xFF));
   } else if (bt == T_CHAR) {
     result = new AndINode(value,phase->intcon(0xFFFF));
+  } else if (bt == T_FLOAT) {
+    result = new MoveI2FNode(value);
   } else {
     assert(bt == T_SHORT, "unexpected narrow type");
     result = phase->transform(new LShiftINode(value, phase->intcon(16)));
