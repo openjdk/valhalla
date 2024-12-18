@@ -498,10 +498,6 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
     //   2) load and store barrier for each oop
     //   3) possibly raw copy for any primitive payload trailer
 
-    assert(lk == NON_ATOMIC_FLAT || (!md->must_be_atomic()) ||
-           (md->layout_size_in_bytes(lk) == sizeof(zpointer) && md->nonstatic_oop_count() == 1), // If atomic with oops, only a single oop suppported
-           "Cannot support layout other than NON_ATOMIC_FLAT or single oop");
-
     // src/dst may not be oops, need offset to adjust oop map offset
     const address src_oop_addr_offset = ((address) src) - md->first_field_offset();
     OopMapBlock* map = md->start_of_nonstatic_oop_maps();
