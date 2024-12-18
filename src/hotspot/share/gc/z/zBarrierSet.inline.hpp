@@ -24,6 +24,7 @@
 #ifndef SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
 #define SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
 
+#include "gc/z/zAddress.hpp"
 #include "gc/z/zBarrierSet.hpp"
 
 #include "gc/shared/accessBarrierSupport.inline.hpp"
@@ -496,7 +497,10 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
     //   1) possibly raw copy for any primitive payload before each map
     //   2) load and store barrier for each oop
     //   3) possibly raw copy for any primitive payload trailer
-    assert(lk == NON_ATOMIC_FLAT || lk == PAYLOAD, "Cannot support layout other than NON_ATOMIC_FLAT"); // Note: PAYLOAD is incorrect, resolve when transistioned to new flattening
+
+    assert(lk == NON_ATOMIC_FLAT || (!md->must_be_atomic()) ||
+           (md->layout_size_in_bytes(lk) == sizeof(zpointer) && md->nonstatic_oop_count() == 1), // If atomic with oops, only a single oop suppported
+           "Cannot support layout other than NON_ATOMIC_FLAT or single oop");
 
     // src/dst may not be oops, need offset to adjust oop map offset
     const address src_oop_addr_offset = ((address) src) - md->first_field_offset();
