@@ -6096,7 +6096,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       _must_be_atomic = false;
     }
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible)
-        && (_super_klass == vmClasses::Object_klass() || _super_klass->is_implicitly_constructible())) {
+        && (_super_klass == vmClasses::Object_klass() || _super_klass == vmClasses::Record_klass()
+        || _super_klass->is_implicitly_constructible())) {
       _is_implicitly_constructible = true;
     }
     // Apply VM options override

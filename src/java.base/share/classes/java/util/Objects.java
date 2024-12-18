@@ -498,17 +498,6 @@ public final class Objects {
     }
 
     /**
-     * Return the size of the object in the heap.
-     *
-     * @param o an object
-     * @return the objects's size
-     * @since Valhalla
-     */
-    public static long getObjectSize(Object o) {
-        return Unsafe.getUnsafe().getObjectSize(o);
-    }
-
-    /**
      * Checks if the {@code index} is within the bounds of the range from
      * {@code 0} (inclusive) to {@code length} (exclusive).
      *
