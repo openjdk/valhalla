@@ -576,8 +576,6 @@ static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Basic
   }
 }
 
-// TODO what about AtomicFieldFlattening? Nullable flat fields should then be atomic as well
-
 // Convert a payload value to field values
 void InlineTypeNode::convert_from_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, int null_marker_offset) {
   // Get the null marker

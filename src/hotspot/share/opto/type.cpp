@@ -2199,8 +2199,8 @@ static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, u
     if (field->is_flat()) {
       collect_inline_fields(field->type()->as_inline_klass(), field_array, pos);
       if (!field->is_null_free()) {
-        // TODO we use T_INT instead of T_BOOLEAN here because the upper bits can contain garbage if the holder is null
-        // and C2 will only zero them for T_INT assuming that T_BOOLEAN is already canonicalized
+        // Use T_INT instead of T_BOOLEAN here because the upper bits can contain garbage if the holder
+        // is null and C2 will only zero them for T_INT assuming that T_BOOLEAN is already canonicalized.
         field_array[pos++] = Type::get_const_basic_type(T_INT);
       }
     } else {
