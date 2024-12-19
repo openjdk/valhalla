@@ -101,7 +101,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=160
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:InlineFieldMaxFlatSize=160
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -118,24 +118,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=160
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.inlinetypes.InlineOops
- */
-
-/**
- * @test id=ZGen
- * @requires vm.gc.Z & vm.opt.final.ZGenerational
- * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @library /test/lib /test/jdk/java/lang/invoke/common
- * @enablePreview
- * @compile Person.java InlineOops.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -XX:+ZGenerational -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=160
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:InlineFieldMaxFlatSize=160
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
