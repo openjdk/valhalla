@@ -56,11 +56,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
 
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(vk->is_implicitly_constructible(), "null-free fields must be implicitly constructible");
-    if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
-      if (field_info.access_flags().is_volatile()) {
-        // volatile keyword is used to prevent all flattening
-        return LayoutKind::REFERENCE;
-      }
+    if (vk->must_be_atomic() || field_info.access_flags().is_volatile() || AlwaysAtomicAccesses) {
       if (vk->is_naturally_atomic() && vk->has_non_atomic_layout()) return LayoutKind::NON_ATOMIC_FLAT;
       return (vk->has_atomic_layout() && use_atomic_flat) ? LayoutKind::ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
@@ -899,7 +895,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     case T_OBJECT:
     case T_ARRAY:
     {
-      bool use_atomic_flat = _must_be_atomic && !_is_abstract_value; // flatten atomic flat only if the container is itself atomic
+      bool use_atomic_flat = _must_be_atomic; // flatten atomic fields only if the container is itself atomic
       LayoutKind lk = field_layout_selection(fieldinfo, _inline_layout_info_array, use_atomic_flat);
       if (fieldinfo.field_flags().is_null_free_inline_type() || lk != LayoutKind::REFERENCE
           || (!fieldinfo.field_flags().is_injected()
