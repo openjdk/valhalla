@@ -23,6 +23,7 @@
 
 /**
  * @test
+ * @requires vm.gc.Z
  * @bug 8313667
  * @summary Test that GenZ uses correct array copy stub for flat value class arrays when expanding ArrayCopyNode.
  * @library /test/lib
