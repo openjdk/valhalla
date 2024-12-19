@@ -87,7 +87,7 @@ public class FieldLayoutAnalyzer {
         case ""                : return NON_FLAT;
         case "NON_ATOMIC_FLAT" : return NON_ATOMIC_FLAT;
         case "ATOMIC_FLAT"     : return ATOMIC_FLAT;
-        case "NULLABLE_FLAT"   : return NULLABLE_FLAT;
+        case "NULLABLE_ATOMIC_FLAT"   : return NULLABLE_FLAT;
         default:
           throw new RuntimeException("Unknown layout kind: " + s);
       }
@@ -360,7 +360,7 @@ public class FieldLayoutAnalyzer {
     }
 
     FieldBlock getFieldFromName(String fieldName, boolean isStatic) {
-      FieldBlock block = getFieldFromName(fieldName, isStatic);
+      FieldBlock block = getFieldFromNameOrNull(fieldName, isStatic);
       if (block == null) {
         throw new RuntimeException("No " + (isStatic ? "static" : "nonstatic") + " field found with name "+ fieldName);
       }
