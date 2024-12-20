@@ -142,11 +142,10 @@ InlineKlass* ciInlineKlass::get_InlineKlass() const {
   GUARDED_VM_ENTRY(return to_InlineKlass();)
 }
 
-// Convert nullable size in bytes to corresponding BasicType
-BasicType ciInlineKlass::size_to_basic_type() const {
+// Convert payload size in bytes to corresponding BasicType
+BasicType ciInlineKlass::payload_size_to_basic_type() const {
   VM_ENTRY_MARK
-  assert(get_InlineKlass()->has_nullable_layout(), "Layout not available");
-  int size = get_InlineKlass()->nullable_size_in_bytes();
+  int size = get_InlineKlass()->payload_size_in_bytes();
   BasicType bt;
   if (size == sizeof(jlong)) {
     bt = T_LONG;

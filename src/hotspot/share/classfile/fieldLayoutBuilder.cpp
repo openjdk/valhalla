@@ -55,7 +55,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
 
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(vk->is_implicitly_constructible(), "null-free fields must be implicitly constructible");
-    if (vk->must_be_atomic() || field_info.access_flags().is_volatile() ||  AlwaysAtomicAccesses) {
+    if (vk->must_be_atomic() || field_info.access_flags().is_volatile() || AlwaysAtomicAccesses) {
       return vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return vk->has_non_atomic_layout() ? LayoutKind::NON_ATOMIC_FLAT : LayoutKind::REFERENCE;

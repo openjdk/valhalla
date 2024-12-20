@@ -39,21 +39,22 @@ import jdk.test.lib.Asserts;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   -XX:CompileCommand=dontinline,*::testHelper*
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   -XX:+InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   -XX:-InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   -XX:+InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableFieldFlattening
+ * @run main/othervm -Xbatch -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   -XX:-InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
@@ -274,6 +275,20 @@ public class TestFieldNullMarkers {
         }
     }
 
+    // Test value class with nullable and null-free fields
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue14 {
+        @NullRestricted
+        MyValue8 nullfree;
+        MyValue8 nullable;
+
+        public MyValue14(MyValue8 nullfree, MyValue8 nullable) {
+            this.nullfree = nullfree;
+            this.nullable = nullable;
+        }
+    }
+
     MyValue1 field1; // Flat
     MyValue4 field2; // Not flat
     MyValue5 field3; // Not flat
@@ -285,6 +300,16 @@ public class TestFieldNullMarkers {
     MyValue11 field9; // Flat
     MyValue12 field10; // Flat
     MyValue13 field11; // Flat
+
+    @NullRestricted
+    volatile MyValue8 field12;
+
+    @NullRestricted
+    MyValue14 field13;          // Null-free, flat
+    volatile MyValue14 field14; // Nullable, atomic, flat
+    MyValue14 field15;          // Nullable, (atomic), flat
+    @NullRestricted
+    volatile MyValue14 field16; // Null-free, atomic, flat
 
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
     static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
@@ -735,6 +760,100 @@ public class TestFieldNullMarkers {
             testNPE2();
 
             t.testBounds(i);
+
+            // Null-free, flat, atomic
+            MyValue8 val8 = new MyValue8((byte)i);
+            t.field12 = val8;
+            Asserts.assertEQ(t.field12.b, (byte)i);
+
+            try {
+                t.field12 = null;
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+
+            // Null-free, flat with both nullable and null-free fields
+            t.field13 = new MyValue14(val8, val8);
+            Asserts.assertEQ(t.field13.nullfree, val8);
+            Asserts.assertEQ(t.field13.nullable, val8);
+
+            t.field13 = new MyValue14(val8, null);
+            Asserts.assertEQ(t.field13.nullfree, val8);
+            Asserts.assertEQ(t.field13.nullable, null);
+
+            try {
+                t.field13 = new MyValue14(null, null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+            try {
+                t.field13 = null;
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+
+            // Nullable, atomic, flat with both nullable and null-free fields
+            t.field14 = null;
+            Asserts.assertEQ(t.field14, null);
+
+            t.field14 = new MyValue14(val8, val8);
+            Asserts.assertEQ(t.field14.nullfree, val8);
+            Asserts.assertEQ(t.field14.nullable, val8);
+
+            t.field14 = new MyValue14(val8, null);
+            Asserts.assertEQ(t.field14.nullfree, val8);
+            Asserts.assertEQ(t.field14.nullable, null);
+
+            try {
+                t.field14 = new MyValue14(null, null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+
+            // Nullable, (atomic), flat with both nullable and null-free fields
+            t.field15 = null;
+            Asserts.assertEQ(t.field15, null);
+
+            t.field15 = new MyValue14(val8, val8);
+            Asserts.assertEQ(t.field15.nullfree, val8);
+            Asserts.assertEQ(t.field15.nullable, val8);
+
+            t.field15 = new MyValue14(val8, null);
+            Asserts.assertEQ(t.field15.nullfree, val8);
+            Asserts.assertEQ(t.field15.nullable, null);
+
+            try {
+                t.field15 = new MyValue14(null, null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+
+            // Null-free, atomic, flat with both nullable and null-free fields
+            t.field16 = new MyValue14(val8, val8);
+            Asserts.assertEQ(t.field16.nullfree, val8);
+            Asserts.assertEQ(t.field16.nullable, val8);
+
+            t.field16 = new MyValue14(val8, null);
+            Asserts.assertEQ(t.field16.nullfree, val8);
+            Asserts.assertEQ(t.field16.nullable, null);
+
+            try {
+                t.field16 = new MyValue14(null, null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+            try {
+                t.field16 = null;
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account

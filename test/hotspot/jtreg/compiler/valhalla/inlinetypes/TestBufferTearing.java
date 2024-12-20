@@ -35,6 +35,8 @@ import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
+// TODO We need a test that actually verifies that the access happens atomically. Use -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening -XX:+UnlockExperimentalVMOptions -XX:+AlwaysAtomicAccesses
+
 /**
  * @test TestBufferTearing
  * @key randomness

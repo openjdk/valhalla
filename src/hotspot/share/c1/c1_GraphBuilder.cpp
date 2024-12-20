@@ -1820,15 +1820,26 @@ Value GraphBuilder::make_constant(ciConstant field_value, ciField* field) {
 }
 
 void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* enclosing_field) {
-  for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
-    ciField* inner_field = vk->nonstatic_field_at(i);
-    assert(!inner_field->is_flat(), "the iteration over nested fields is handled by the loop itself");
-    int off = inner_field->offset_in_bytes() - vk->first_field_offset();
-    LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
-    Value replacement = append(load);
-    StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, false);
-    store->set_enclosing_field(enclosing_field);
-    append(store);
+  for (int i = 0; i < vk->nof_declared_nonstatic_fields(); i++) {
+    ciField* field = vk->declared_nonstatic_field_at(i);
+    int offset = field->offset_in_bytes() - vk->first_field_offset();
+    if (field->is_flat()) {
+      copy_inline_content(field->type()->as_inline_klass(), src, src_off + offset, dest, dest_off + offset, state_before, enclosing_field);
+      if (!field->is_null_free()) {
+        // TODO Should this access be atomic?
+        // Nullable, copy the null marker using Unsafe because null markers are no real fields
+        int null_marker_offset = field->null_marker_offset() - vk->first_field_offset();
+        Value offset = append(new Constant(new LongConstant(src_off + null_marker_offset)));
+        Value nm = append(new UnsafeGet(T_BOOLEAN, src, offset, false));
+        offset = append(new Constant(new LongConstant(dest_off + null_marker_offset)));
+        append(new UnsafePut(T_BOOLEAN, dest, offset, nm, false));
+      }
+    } else {
+      Value value = append(new LoadField(src, src_off + offset, field, false, state_before, false));
+      StoreField* store = new StoreField(dest, dest_off + offset, field, value, false, state_before, false);
+      store->set_enclosing_field(enclosing_field);
+      append(store);
+    }
   }
 }
 
@@ -2006,14 +2017,15 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           } else {
             push(type, append(load));
           }
-        } else if (!field->is_null_free()) {
-          // Flat and nullable
+        } else if (!field->is_null_free() || field->is_volatile()) {
+          // Flat and atomic (nullable implies atomic)
           assert(!needs_patching, "Can't patch flat inline type field access");
           LoadField* load = new LoadField(obj, offset, field, false, state_before, needs_patching);
           push(type, append(load));
         } else {
           // Flat and null-free
           assert(!needs_patching, "Can't patch flat inline type field access");
+          assert(field->is_null_free() && !field->is_volatile(), "sanity");
           // Look at the next bytecode to check if we can delay the field access
           bool can_delay_access = false;
           ciBytecodeStream s(method());
@@ -2024,7 +2036,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             bool next_needs_patching = !next_field->holder()->is_loaded() ||
                                        !next_field->will_link(method(), Bytecodes::_getfield) ||
                                        PatchALot;
-            can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching;
+            // We can't update the offset for atomic accesses
+            bool requires_atomic_access = !next_field->is_null_free() || next_field->is_volatile();
+            can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching && !requires_atomic_access;
           }
           if (can_delay_access) {
             if (has_pending_load_indexed()) {
@@ -2109,14 +2123,18 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (store != nullptr) {
           append(store);
         }
-      } else if (!field->is_null_free()) {
-        // Flat and nullable
+      } else if (!field->is_null_free() || field->is_volatile()) {
+        // Flat and atomic (nullable implies atomic)
         assert(!needs_patching, "Can't patch flat inline type field access");
+        if (field->is_null_free()) {
+          null_check(val);
+        }
         StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
         append(store);
       } else {
         // Flat and null-free
         assert(!needs_patching, "Can't patch flat inline type field access");
+        assert(field->is_null_free() && !field->is_volatile(), "sanity");
         ciInlineKlass* inline_klass = field->type()->as_inline_klass();
         copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, offset, state_before, field);
       }

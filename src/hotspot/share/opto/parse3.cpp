@@ -151,7 +151,8 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     ld = InlineTypeNode::make_default(_gvn, field_klass->as_inline_klass());
   } else if (field->is_flat()) {
     // Loading from a flat inline type field.
-    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset, field->null_marker_offset());
+    bool needs_atomic_access = !field->is_null_free() || field->is_volatile();
+    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset, needs_atomic_access, field->null_marker_offset());
   } else {
     // Build the resultant type of the load
     const Type* type;
@@ -271,7 +272,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
     }
     inc_sp(1);
-    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset, field->null_marker_offset(), IN_HEAP | MO_UNORDERED);
+    bool needs_atomic_access = !field->is_null_free() || field->is_volatile();
+    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset, needs_atomic_access, field->null_marker_offset(), IN_HEAP | MO_UNORDERED);
     dec_sp(1);
   } else {
     // Store the value.

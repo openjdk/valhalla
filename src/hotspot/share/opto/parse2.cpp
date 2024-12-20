@@ -259,7 +259,7 @@ void Parse::array_store(BasicType bt) {
         PreserveReexecuteState preexecs(this);
         inc_sp(3);
         jvms()->set_should_reexecute(true);
-        stored_value_casted->as_InlineType()->store_flat(this, array, adr, nullptr, 0, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+        stored_value_casted->as_InlineType()->store_flat(this, array, adr, nullptr, 0, false, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       } else {
         // Element type of flat array is not exact. Therefore, we cannot determine the flat array layout statically.
         // Emit a runtime call to store the element to the flat array.
@@ -325,7 +325,7 @@ void Parse::array_store(BasicType bt) {
             PreserveReexecuteState preexecs(this);
             inc_sp(3);
             jvms()->set_should_reexecute(true);
-            null_checked_stored_value_casted->as_InlineType()->store_flat(this, casted_array, casted_adr, nullptr, 0, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+            null_checked_stored_value_casted->as_InlineType()->store_flat(this, casted_array, casted_adr, nullptr, 0, false, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, null_checked_stored_value_casted);

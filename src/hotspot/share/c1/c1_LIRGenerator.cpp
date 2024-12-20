@@ -1637,6 +1637,7 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
 
 // Returns a int/long value with the null marker bit set
 static LIR_Opr null_marker_mask(BasicType bt, ciField* field) {
+  assert(field->null_marker_offset() != -1, "field does not have null marker");
   int nm_offset = field->null_marker_offset() - field->offset_in_bytes();
   unsigned long null_marker = 1UL << (nm_offset << LogBitsPerByte);
   return (bt == T_LONG) ? LIR_OprFact::longConst(null_marker) : LIR_OprFact::intConst(null_marker);
@@ -1735,9 +1736,9 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   }
 
   if (field->is_flat()) {
-    assert(!field->is_null_free(), "Null free flat fields are handled in high level IR");
+    assert(!field->is_null_free() || field->is_volatile(), "Non-atomic flat fields should be handled in high level IR");
     ciInlineKlass* vk = field->type()->as_inline_klass();
-    BasicType bt = vk->size_to_basic_type();
+    BasicType bt = vk->payload_size_to_basic_type();
 
     // Zero the payload
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
@@ -1752,12 +1753,13 @@ void LIRGenerator::do_StoreField(StoreField* x) {
         __ cmp(lir_cond_equal, value.result(), LIR_OprFact::oopConst(nullptr));
         __ branch(lir_cond_equal, L_isNull->label());
       }
-      // Load payload (if not empty) and set null marker
+      // Load payload (if not empty) and set null marker (if not null-free)
       if (bt != T_BYTE) {
         access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->first_field_offset()), payload);
       }
-      __ logical_or(payload, null_marker_mask(bt, field), payload);
-
+      if (!field->is_null_free()) {
+        __ logical_or(payload, null_marker_mask(bt, field), payload);
+      }
       if (needs_null_check) {
         __ branch_destination(L_isNull->label());
       }
@@ -2192,10 +2194,10 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   }
 
   if (field->is_flat()) {
-    assert(!field->is_null_free(), "Null free flat fields are handled in high level IR");
+    assert(!field->is_null_free() || field->is_volatile(), "Non-atomic flat fields should be handled in high level IR");
     assert(x->state_before() != nullptr, "Needs state before");
     ciInlineKlass* vk = field->type()->as_inline_klass();
-    BasicType bt = vk->size_to_basic_type();
+    BasicType bt = vk->payload_size_to_basic_type();
 
     // Allocate buffer (we can't easily do this conditionally on the null check below
     // because branches added in the LIR are opaque to the register allocator).
@@ -2210,9 +2212,16 @@ void LIRGenerator::do_LoadField(LoadField* x) {
                    info ? new CodeEmitInfo(info) : nullptr, info);
     access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->first_field_offset()), payload);
 
-    // Check the null marker and set result to null if not set
-    __ logical_and(payload, null_marker_mask(bt, field), payload);
-    __ cmove(lir_cond_notEqual, buffer->operand(), LIR_OprFact::oopConst(nullptr), rlock_result(x), T_OBJECT);
+    if (field->is_null_free()) {
+      set_result(x, buffer->operand());
+    } else {
+      // Check the null marker and set result to null if it's not set
+      __ logical_and(payload, null_marker_mask(bt, field), payload);
+      __ cmove(lir_cond_notEqual, buffer->operand(), LIR_OprFact::oopConst(nullptr), rlock_result(x), T_OBJECT);
+    }
+
+    // Ensure the copy is visible before any subsequent store that publishes the buffer.
+    __ membar_storestore();
     return;
   }
 

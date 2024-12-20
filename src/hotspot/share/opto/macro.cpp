@@ -579,7 +579,11 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
     int field_offset = offset + vt->field_offset(i);
     Node* value = nullptr;
     if (vt->field_is_flat(i)) {
-      assert(vt->field_is_null_free(i), "Unexpected nullable flat field");
+      // TODO Fix
+      // assert(vt->field_is_null_free(i), "Unexpected nullable flat field");
+      if (!vt->field_is_null_free(i)) {
+        return nullptr;
+      }
       value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), adr_type, field_offset, alloc);
     } else {
       const Type* ft = Type::get_const_type(field_type);

@@ -513,7 +513,24 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
     } else if (field_is_flat(i)) {
       // Recursively load the flat inline type field
       int nm_offset = field_is_null_free(i) ? -1 : (holder_offset + field_null_marker_offset(i));
-      value = make_from_flat_impl(kit, ft->as_inline_klass(), base, ptr, holder, offset, nm_offset, decorators, visited);
+      // TODO we are reading fields individually, so no atomicity requirements, right? But what if the field is atomic? But if we read/store from/to a buffer, we don't need this at all
+      // "illegal combination of modifiers: final and volatile", but nullable -> atomic
+      // I think we need this when loading a nullable field from a value class that was flattened without atomicity requirements
+      /*
+       value class B {
+           int x;
+           int y;
+       }
+
+       value class A {
+           B innerField; // Atomic, null-able, flat
+       }
+
+       @NullRestricted
+       A outerField; // Non-atomic, null-free, flat
+
+       */
+      value = make_from_flat_impl(kit, ft->as_inline_klass(), base, ptr, holder, offset, false, nm_offset, decorators, visited);
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != nullptr);
@@ -577,10 +594,13 @@ static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Basic
 }
 
 // Convert a payload value to field values
-void InlineTypeNode::convert_from_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, int null_marker_offset) {
-  // Get the null marker
-  Node* value = get_payload_value(gvn, payload, bt, T_BOOLEAN, null_marker_offset);
-  set_req(IsInit, value);
+void InlineTypeNode::convert_from_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset) {
+  Node* value = nullptr;
+  if (!null_free) {
+    // Get the null marker
+    value = get_payload_value(gvn, payload, bt, T_BOOLEAN, null_marker_offset);
+    set_req(IsInit, value);
+  }
 
   // Iterate over the fields and get their values from the payload
   for (uint i = 0; i < field_count(); ++i) {
@@ -588,7 +608,7 @@ void InlineTypeNode::convert_from_payload(PhaseGVN* gvn, BasicType bt, Node* pay
     if (field_is_flat(i)) {
       null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
       InlineTypeNode* vt = make_uninitialized(*gvn, field_type(i)->as_inline_klass(), field_is_null_free(i));
-      vt->convert_from_payload(gvn, bt, payload, offset, null_marker_offset);
+      vt->convert_from_payload(gvn, bt, payload, offset, field_is_null_free(i), null_marker_offset);
       value = gvn->transform(vt);
     } else {
       value = get_payload_value(gvn, payload, bt, field_type(i)->basic_type(), offset);
@@ -628,10 +648,13 @@ static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node*
 }
 
 // Convert the field values to a payload value of type 'bt'
-Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, int null_marker_offset) const {
-  // Set the null marker
-  Node* value = get_is_init();
-  payload = set_payload_value(gvn, payload, bt, value, T_BYTE, null_marker_offset);
+Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset) const {
+  Node* value = nullptr;
+  if (!null_free) {
+    // Set the null marker
+    value = get_is_init();
+    payload = set_payload_value(gvn, payload, bt, value, T_BYTE, null_marker_offset);
+  }
 
   // Iterate over the fields and add their values to the payload
   for (uint i = 0; i < field_count(); ++i) {
@@ -639,7 +662,7 @@ Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payl
     int offset = holder_offset + field_offset(i) - inline_klass()->first_field_offset();
     if (field_is_flat(i)) {
       null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
-      payload = value->as_InlineType()->convert_to_payload(gvn, bt, payload, offset, field_is_null_free(i) ? -1 : null_marker_offset);
+      payload = value->as_InlineType()->convert_to_payload(gvn, bt, payload, offset, field_is_null_free(i), null_marker_offset);
     } else {
       payload = set_payload_value(gvn, payload, bt, value, field_type(i)->basic_type(), offset);
     }
@@ -647,15 +670,17 @@ Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payl
   return payload;
 }
 
-void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, int null_marker_offset, DecoratorSet decorators) const {
+void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, bool atomic, int null_marker_offset, DecoratorSet decorators) const {
   if (kit->gvn().type(base)->isa_aryptr()) {
     kit->C->set_flat_accesses();
   }
-  if (null_marker_offset != -1) {
-    // Flat and nullable, convert to a payload value and write atomically
-    BasicType bt = inline_klass()->size_to_basic_type();
+  bool null_free = (null_marker_offset == -1);
+
+  if (atomic) {
+    // Convert to a payload value and write atomically
+    BasicType bt = inline_klass()->payload_size_to_basic_type();
     Node* payload = (bt == T_LONG) ? kit->longcon(0) : kit->intcon(0);
-    payload = convert_to_payload(&kit->gvn(), bt, payload, 0, null_marker_offset - holder_offset);
+    payload = convert_to_payload(&kit->gvn(), bt, payload, 0, null_free, null_marker_offset - holder_offset);
     decorators |= C2_MISMATCHED;
     Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
     const Type* val_type = Type::get_const_basic_type(bt);
@@ -664,6 +689,15 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     kit->insert_mem_bar(Op_MemBarCPUOrder);
     return;
   }
+
+  if (!null_free) {
+    // Nullable, store the null marker
+    Node* adr = kit->basic_plus_adr(base, ptr, null_marker_offset);
+    const TypePtr* adr_type = kit->gvn().type(adr)->isa_ptr();
+    int alias_idx = kit->C->get_alias_index(adr_type);
+    kit->store_to_memory(kit->control(), adr, get_is_init(), T_BOOLEAN, alias_idx, MemNode::unordered);
+  }
+
   // The inline type is embedded into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when storing the values.
   if (holder == nullptr) {
@@ -683,7 +717,7 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass
     if (field_is_flat(i)) {
       // Recursively store the flat inline type field
       int nm_offset = field_is_null_free(i) ? -1 : (holder_offset + field_null_marker_offset(i));
-      value->as_InlineType()->store_flat(kit, base, ptr, holder, offset, nm_offset, decorators);
+      value->as_InlineType()->store_flat(kit, base, ptr, holder, offset, false, nm_offset, decorators);
     } else {
       // Store field value to memory
       const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
@@ -1116,14 +1150,16 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
   return gvn.transform(vt)->as_InlineType();
 }
 
-InlineTypeNode* InlineTypeNode::make_from_flat(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, int null_marker_offset, DecoratorSet decorators) {
+InlineTypeNode* InlineTypeNode::make_from_flat(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset,
+                                               bool atomic, int null_marker_offset, DecoratorSet decorators) {
   GrowableArray<ciType*> visited;
   visited.push(vk);
-  return make_from_flat_impl(kit, vk, obj, ptr, holder, holder_offset, null_marker_offset, decorators, visited);
+  return make_from_flat_impl(kit, vk, obj, ptr, holder, holder_offset, atomic, null_marker_offset, decorators, visited);
 }
 
 // GraphKit wrapper for the 'make_from_flat' method
-InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, int null_marker_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited) {
+InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset,
+                                                    bool atomic, int null_marker_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited) {
   if (kit->gvn().type(obj)->isa_aryptr()) {
     kit->C->set_flat_accesses();
   }
@@ -1131,16 +1167,24 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   // a flat inline type field at 'holder_offset' or from an inline type array.
   bool null_free = (null_marker_offset == -1);
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk, null_free);
-  if (!null_free) {
-    // Flat and nullable, read atomically
-    BasicType bt = vk->size_to_basic_type();
+
+  if (atomic) {
+    // Read atomically and convert from payload
+    BasicType bt = vk->payload_size_to_basic_type();
     decorators |= C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD;
     Node* adr = kit->basic_plus_adr(obj, ptr, holder_offset);
     const Type* val_type = Type::get_const_basic_type(bt);
     bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
     Node* payload = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
-    vt->convert_from_payload(&kit->gvn(), bt, payload, 0, null_marker_offset - holder_offset);
+    vt->convert_from_payload(&kit->gvn(), bt, payload, 0, null_free, null_marker_offset - holder_offset);
     return kit->gvn().transform(vt)->as_InlineType();
+  }
+
+  if (!null_free) {
+    // Nullable, read the null marker
+    Node* adr = kit->basic_plus_adr(obj, ptr, null_marker_offset);
+    Node* is_init = kit->make_load(kit->control(), adr, TypeInt::BOOL, T_BOOLEAN, MemNode::unordered);
+    vt->set_req(IsInit, is_init);
   }
 
   // The inline type is flattened into the object without an oop header. Subtract the
