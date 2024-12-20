@@ -61,7 +61,7 @@ import jdk.test.lib.Asserts;
 
 public class TestFieldNullMarkers {
 
-    // Value class with two nullable flat fields 
+    // Value class with two nullable flat fields
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue1 {
@@ -86,7 +86,7 @@ public class TestFieldNullMarkers {
         byte x;
 
         public MyAbstract1(byte x) {
-            this.x = x; 
+            this.x = x;
         }
     }
 
@@ -325,7 +325,7 @@ public class TestFieldNullMarkers {
     public void testSet1(MyValue1 val) {
         field1 = testHelper1(val);
     }
-    
+
     public MyValue1 testGet1() {
         return field1;
     }
