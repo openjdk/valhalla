@@ -80,8 +80,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * The {@code Class} instance representing the primitive type
      * {@code byte}.
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Byte>     TYPE = (Class<Byte>) Class.getPrimitiveClass("byte");
+    public static final Class<Byte> TYPE = Class.getPrimitiveClass("byte");
 
     /**
      * Returns a new {@code String} object representing the
@@ -119,7 +118,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
 
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(ByteCache.class);
-            if (archivedCache == null || archivedCache.length != size) {
+            if (archivedCache == null) {
                 Byte[] c = new Byte[size];
                 byte value = (byte)-128;
                 for(int i = 0; i < size; i++) {
@@ -128,6 +127,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
                 archivedCache = c;
             }
             cache = archivedCache;
+            assert cache.length == size;
         }
     }
 
@@ -479,8 +479,8 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      *                  {@code false} otherwise.
      */
     public boolean equals(Object obj) {
-        if (obj instanceof Byte) {
-            return value == ((Byte)obj).byteValue();
+        if (obj instanceof Byte b) {
+            return value == b.byteValue();
         }
         return false;
     }
