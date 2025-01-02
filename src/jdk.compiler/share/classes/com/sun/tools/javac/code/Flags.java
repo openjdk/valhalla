@@ -111,7 +111,7 @@ public class Flags {
     public static final int ACC_STRICT   = 0x0800;
     public static final int ACC_MODULE   = 0x8000;
 
-    /*****************************************
+    /* ***************************************
      * Internal compiler flags (no bits in the lower 16).
      *****************************************/
 
@@ -289,14 +289,19 @@ public class Flags {
      */
     public static final long THROWS = 1L<<47;
 
-    /**
+    /*
      * Currently available: Bit 48.
      */
 
     /**
      * Flag that marks a synthetic method body for a lambda expression
      */
-    public static final long LAMBDA_METHOD = 1L<<49;
+    public static final long LAMBDA_METHOD = 1L<<49; //MethodSymbols only
+
+    /**
+     * Flag that marks a synthetic local capture field in a local/anon class
+     */
+    public static final long LOCAL_CAPTURE_FIELD = 1L<<49; //VarSymbols only
 
     /**
      * Flag to control recursion in TransTypes
@@ -455,7 +460,7 @@ public class Flags {
         ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
         ExtendedLocalClassFlags           = (long) LocalClassFlags | VALUE_CLASS,
         ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | VALUE_CLASS,
-        ExtendedVarFlags                  = (long) VarFlags | STRICT,
+        ValueFieldFlags                   = (long) VarFlags | STRICT | FINAL,
         ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,

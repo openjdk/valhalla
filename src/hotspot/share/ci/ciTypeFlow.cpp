@@ -324,8 +324,6 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // But when (obj/flat)Array meets (obj/flat)Array, we look carefully at element types.
     if ((k1->is_obj_array_klass() || k1->is_flat_array_klass()) &&
         (k2->is_obj_array_klass() || k2->is_flat_array_klass())) {
-      bool null_free = k1->as_array_klass()->is_elem_null_free() &&
-                       k2->as_array_klass()->is_elem_null_free();
       ciType* elem1 = k1->as_array_klass()->element_klass();
       ciType* elem2 = k2->as_array_klass()->element_klass();
       ciType* elem = elem1;
@@ -334,14 +332,12 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
       }
       // Do an easy shortcut if one type is a super of the other.
       if (elem == elem1 && !elem->is_inlinetype()) {
-        assert(k1 == ciArrayKlass::make(elem, null_free), "shortcut is OK");
+        assert(k1 == ciArrayKlass::make(elem), "shortcut is OK");
         return k1;
       } else if (elem == elem2 && !elem->is_inlinetype()) {
-        assert(k2 == ciArrayKlass::make(elem, null_free), "shortcut is OK");
+        assert(k2 == ciArrayKlass::make(elem), "shortcut is OK");
         return k2;
       } else {
-        // TODO 8325106 Remove
-        assert(!null_free, "should be dead");
         return ciArrayKlass::make(elem);
       }
     } else {
@@ -431,11 +427,9 @@ const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
     state->push_translate(str.type());
   }
   // Set the rest of the locals to bottom.
-  Cell cell = state->next_cell(state->tos());
-  state->set_stack_size(0);
-  int limit = state->limit_cell();
-  for (; cell < limit; cell = state->next_cell(cell)) {
-    state->set_type_at(cell, state->bottom_type());
+  assert(state->stack_size() <= 0, "stack size should not be strictly positive");
+  while (state->stack_size() < 0) {
+    state->push(state->bottom_type());
   }
   // Lock an object, if necessary.
   state->set_monitor_count(method()->is_synchronized() ? 1 : 0);
@@ -604,12 +598,7 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
          (Deoptimization::Reason_unloaded,
           Deoptimization::Action_reinterpret));
   } else {
-    if (array_klass->is_elem_null_free()) {
-      // TODO 8325106 Is this dead?
-      push(outer()->mark_as_null_free(element_klass));
-    } else {
-      push_object(element_klass);
-    }
+    push_object(element_klass);
   }
 }
 
@@ -634,12 +623,7 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
       // Useless cast, propagate more precise type of object
       klass = type->as_klass();
     }
-    if (klass->is_inlinetype() && type->is_null_free()) {
-      // TODO 8325106 Is this dead?
-      push(outer()->mark_as_null_free(klass));
-    } else {
-      push_object(klass);
-    }
+    push_object(klass);
   }
 }
 
@@ -787,12 +771,18 @@ void ciTypeFlow::StateVector::do_jsr(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_ldc(ciBytecodeStream* str) {
   if (str->is_in_error()) {
     trap(str, nullptr, Deoptimization::make_trap_request(Deoptimization::Reason_unhandled,
-                                                      Deoptimization::Action_none));
+                                                         Deoptimization::Action_none));
     return;
   }
   ciConstant con = str->get_constant();
   if (con.is_valid()) {
     int cp_index = str->get_constant_pool_index();
+    if (!con.is_loaded()) {
+      trap(str, nullptr, Deoptimization::make_trap_request(Deoptimization::Reason_unloaded,
+                                                           Deoptimization::Action_reinterpret,
+                                                           cp_index));
+      return;
+    }
     BasicType basic_type = str->get_basic_type_for_constant_at(cp_index);
     if (is_reference_type(basic_type)) {
       ciObject* obj = con.as_object();
@@ -2282,11 +2272,10 @@ bool ciTypeFlow::can_trap(ciBytecodeStream& str) {
   if (!Bytecodes::can_trap(str.cur_bc()))  return false;
 
   switch (str.cur_bc()) {
-    // %%% FIXME: ldc of Class can generate an exception
     case Bytecodes::_ldc:
     case Bytecodes::_ldc_w:
     case Bytecodes::_ldc2_w:
-      return str.is_in_error();
+      return str.is_in_error() || !str.get_constant().is_loaded();
 
     case Bytecodes::_aload_0:
       // These bytecodes can trap for rewriting.  We need to assume that

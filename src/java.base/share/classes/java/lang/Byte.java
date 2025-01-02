@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package java.lang;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 
@@ -35,14 +36,13 @@ import java.util.Optional;
 
 import static java.lang.constant.ConstantDescs.BSM_EXPLICIT_CAST;
 import static java.lang.constant.ConstantDescs.CD_byte;
-import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
 
 /**
- *
- * The {@code Byte} class wraps a value of primitive type {@code byte}
- * in an object.  An object of type {@code Byte} contains a single
- * field whose type is {@code byte}.
+ * The {@code Byte} class is the {@linkplain
+ * java.lang##wrapperClass wrapper class} for values of the primitive
+ * type {@code byte}. An object of type {@code Byte} contains a
+ * single field whose type is {@code byte}.
  *
  * <p>In addition, this class provides several methods for converting
  * a {@code byte} to a {@code String} and a {@code String} to a {@code
@@ -145,6 +145,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * @since  1.5
      */
     @IntrinsicCandidate
+    @DeserializeConstructor
     public static Byte valueOf(byte b) {
         final int offset = 128;
         return ByteCache.cache[(int)b + offset];

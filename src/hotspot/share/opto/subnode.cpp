@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -644,6 +644,14 @@ CmpNode *CmpNode::make(Node *in1, Node *in2, BasicType bt, bool unsigned_comp) {
         return new CmpULNode(in1, in2);
       }
       return new CmpLNode(in1, in2);
+    case T_OBJECT:
+    case T_ARRAY:
+    case T_ADDRESS:
+    case T_METADATA:
+      return new CmpPNode(in1, in2);
+    case T_NARROWOOP:
+    case T_NARROWKLASS:
+      return new CmpNNode(in1, in2);
     default:
       fatal("Not implemented for %s", type2name(bt));
   }
@@ -1143,7 +1151,6 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 
   // return the ConP(Foo.klass)
   assert(mirror_type->is_klass(), "mirror_type should represent a Klass*");
-  // TODO 8325106 Handle null free arrays here?
   return phase->makecon(TypeKlassPtr::make(mirror_type->as_klass(), Type::trust_interfaces));
 }
 
@@ -1233,10 +1240,8 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (con2 != (intptr_t) superklass->super_check_offset())
     return nullptr;                // Might be element-klass loading from array klass
 
-  // TODO 8325106 Fix comment
-  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-  // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
-  // the klass for [LMyValue. Do not bypass the klass load from the primary supertype array.
+  // Do not fold the subtype check to an array klass pointer comparison for null-able inline type arrays
+  // because null-free [LMyValue <: null-able [LMyValue but the klasses are different. Perform a full test.
   if (superklass->is_obj_array_klass() && !superklass->as_array_klass()->is_elem_null_free() &&
       superklass->as_array_klass()->element_klass()->is_inlinetype()) {
     return nullptr;
@@ -1717,25 +1722,8 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return new BoolNode( ncmp, _test.negate() );
   }
 
-  // Change ((x & m) u<= m) or ((m & x) u<= m) to always true
-  // Same with ((x & m) u< m+1) and ((m & x) u< m+1)
-  if (cop == Op_CmpU &&
-      cmp1_op == Op_AndI) {
-    Node* bound = nullptr;
-    if (_test._test == BoolTest::le) {
-      bound = cmp2;
-    } else if (_test._test == BoolTest::lt &&
-               cmp2->Opcode() == Op_AddI &&
-               cmp2->in(2)->find_int_con(0) == 1) {
-      bound = cmp2->in(1);
-    }
-    if (cmp1->in(2) == bound || cmp1->in(1) == bound) {
-      return ConINode::make(1);
-    }
-  }
-
   // Change ((x & (m - 1)) u< m) into (m > 0)
-  // This is the off-by-one variant of the above
+  // This is the off-by-one variant of ((x & m) u<= m)
   if (cop == Op_CmpU &&
       _test._test == BoolTest::lt &&
       cmp1_op == Op_AndI) {
@@ -1921,9 +1909,39 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 }
 
 //------------------------------Value------------------------------------------
+// Change ((x & m) u<= m) or ((m & x) u<= m) to always true
+// Same with ((x & m) u< m+1) and ((m & x) u< m+1)
+const Type* BoolNode::Value_cmpu_and_mask(PhaseValues* phase) const {
+  Node* cmp = in(1);
+  if (cmp != nullptr && cmp->Opcode() == Op_CmpU) {
+    Node* cmp1 = cmp->in(1);
+    Node* cmp2 = cmp->in(2);
+
+    if (cmp1->Opcode() == Op_AndI) {
+      Node* bound = nullptr;
+      if (_test._test == BoolTest::le) {
+        bound = cmp2;
+      } else if (_test._test == BoolTest::lt && cmp2->Opcode() == Op_AddI && cmp2->in(2)->find_int_con(0) == 1) {
+        bound = cmp2->in(1);
+      }
+
+      if (cmp1->in(2) == bound || cmp1->in(1) == bound) {
+        return TypeInt::ONE;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
 // Simplify a Bool (convert condition codes to boolean (1 or 0)) node,
 // based on local information.   If the input is constant, do it.
 const Type* BoolNode::Value(PhaseGVN* phase) const {
+  const Type* t = Value_cmpu_and_mask(phase);
+  if (t != nullptr) {
+    return t;
+  }
+
   return _test.cc2logical( phase->type( in(1) ) );
 }
 

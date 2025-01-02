@@ -621,6 +621,24 @@ public abstract value class ShortVector extends AbstractVector<Short> {
         return r;
     }
 
+    static ShortVector selectFromTwoVectorHelper(Vector<Short> indexes, Vector<Short> src1, Vector<Short> src2) {
+        int vlen = indexes.length();
+        VectorPayloadMF vecPayload1 = ((ShortVector)indexes).vec();
+        VectorPayloadMF vecPayload2 = ((ShortVector)src1).vec();
+        VectorPayloadMF vecPayload3 = ((ShortVector)src2).vec();
+        AbstractSpecies<Short> vsp = ((ShortVector)src1).vspecies();
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vecPayload2);
+        long vOffset = tpayload.multiFieldOffset();
+        for (int i = 0; i < vlen; i++) {
+            int wrapped_index = VectorIntrinsics.wrapToRange((int)U.getShort(vecPayload1, vOffset + i * Short.BYTES), 2 * vlen);
+            U.putShort(tpayload, vOffset + i * Short.BYTES, wrapped_index >= vlen ?
+                        U.getShort(vecPayload3, vOffset + (wrapped_index  - vlen) * Short.BYTES) :
+                        U.getShort(vecPayload2, vOffset + wrapped_index * Short.BYTES));
+        }
+        tpayload = U.finishPrivateBuffer(tpayload);
+        return ((ShortVector)(vsp.dummyVectorMF())).vectorFactory(tpayload);
+    }
+
     // Static factories (other than memory operations)
 
     // Note: A surprising behavior in javadoc
@@ -2514,17 +2532,18 @@ public abstract value class ShortVector extends AbstractVector<Short> {
      */
     @Override
     public abstract
-    ShortVector rearrange(VectorShuffle<Short> m);
+    ShortVector rearrange(VectorShuffle<Short> shuffle);
 
     /*package-private*/
     @ForceInline
     final
     <S extends VectorShuffle<Short>>
     ShortVector rearrangeTemplate(Class<S> shuffletype, S shuffle) {
-        shuffle.checkIndexes();
+        @SuppressWarnings("unchecked")
+        S ws = (S) shuffle.wrapIndexes();
         return VectorSupport.rearrangeOp(
             getClass(), shuffletype, null, short.class, length(),
-            this, shuffle, null,
+            this, ws, null,
             (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                 int ei = s_.laneSource(i);
                 return v1.lane(ei);
@@ -2549,17 +2568,14 @@ public abstract value class ShortVector extends AbstractVector<Short> {
                                            M m) {
 
         m.check(masktype, this);
-        VectorMask<Short> valid = shuffle.laneIsValid();
-        if (m.andNot(valid).anyTrue()) {
-            shuffle.checkIndexes();
-            throw new AssertionError();
-        }
+        @SuppressWarnings("unchecked")
+        S ws = (S) shuffle.wrapIndexes();
         return VectorSupport.rearrangeOp(
                    getClass(), shuffletype, masktype, short.class, length(),
-                   this, shuffle, m,
+                   this, ws, m,
                    (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                         int ei = s_.laneSource(i);
-                        return ei < 0  || !m_.laneIsSet(i) ? 0 : v1.lane(ei);
+                        return !m_.laneIsSet(i) ? 0 : v1.lane(ei);
                    }));
     }
 
@@ -2672,7 +2688,10 @@ public abstract value class ShortVector extends AbstractVector<Short> {
     /*package-private*/
     @ForceInline
     final ShortVector selectFromTemplate(ShortVector v) {
-        return v.rearrange(this.toShuffle());
+        return (ShortVector)VectorSupport.selectFromOp(getClass(), null, short.class,
+                                                        length(), this, v, null,
+                                                        (v1, v2, _m) ->
+                                                         v2.rearrange(v1.toShuffle()));
     }
 
     /**
@@ -2684,9 +2703,31 @@ public abstract value class ShortVector extends AbstractVector<Short> {
 
     /*package-private*/
     @ForceInline
-    final ShortVector selectFromTemplate(ShortVector v,
-                                                  AbstractMask<Short> m) {
-        return v.rearrange(this.toShuffle(), m);
+    final
+    <M extends VectorMask<Short>>
+    ShortVector selectFromTemplate(ShortVector v,
+                                            Class<M> masktype, M m) {
+        m.check(masktype, this);
+        return (ShortVector)VectorSupport.selectFromOp(getClass(), masktype, short.class,
+                                                        length(), this, v, m,
+                                                        (v1, v2, _m) ->
+                                                         v2.rearrange(v1.toShuffle(), _m));
+    }
+
+
+    /**
+     * {@inheritDoc} <!--workaround-->
+     */
+    @Override
+    public abstract
+    ShortVector selectFrom(Vector<Short> v1, Vector<Short> v2);
+
+
+    /*package-private*/
+    @ForceInline
+    final ShortVector selectFromTemplate(ShortVector v1, ShortVector v2) {
+        return VectorSupport.selectFromTwoVectorOp(getClass(), short.class, length(), this, v1, v2,
+                                                   (vec1, vec2, vec3) -> selectFromTwoVectorHelper(vec1, vec2, vec3));
     }
 
     /// Ternary operations
@@ -3170,7 +3211,35 @@ public abstract value class ShortVector extends AbstractVector<Short> {
                                    short[] a, int offset,
                                    int[] indexMap, int mapOffset) {
         ShortSpecies vsp = (ShortSpecies) species;
-        return vsp.vOpMF(n -> a[offset + indexMap[mapOffset + n]]);
+        IntVector.IntSpecies isp = IntVector.species(vsp.indexShape());
+        Objects.requireNonNull(a);
+        Objects.requireNonNull(indexMap);
+        Class<? extends ShortVector> vectorType = vsp.vectorType();
+
+
+        // Constant folding should sweep out following conditonal logic.
+        VectorSpecies<Integer> lsp;
+        if (isp.length() > IntVector.SPECIES_PREFERRED.length()) {
+            lsp = IntVector.SPECIES_PREFERRED;
+        } else {
+            lsp = isp;
+        }
+
+        // Check indices are within array bounds.
+        for (int i = 0; i < vsp.length(); i += lsp.length()) {
+            IntVector vix = IntVector
+                .fromArray(lsp, indexMap, mapOffset + i)
+                .add(offset);
+            VectorIntrinsics.checkIndex(vix, a.length);
+        }
+
+        return VectorSupport.loadWithMap(
+            vectorType, null, short.class, vsp.laneCount(),
+            lsp.vectorType(),
+            a, ARRAY_BASE, null, null,
+            a, offset, indexMap, mapOffset, vsp,
+            (c, idx, iMap, idy, s, vm) ->
+            s.vOpMF(n -> c[idx + iMap[idy+n]]));
     }
 
     /**
@@ -3215,8 +3284,13 @@ public abstract value class ShortVector extends AbstractVector<Short> {
                                    short[] a, int offset,
                                    int[] indexMap, int mapOffset,
                                    VectorMask<Short> m) {
-        ShortSpecies vsp = (ShortSpecies) species;
-        return vsp.vOpMF(m, n -> a[offset + indexMap[mapOffset + n]]);
+        if (m.allTrue()) {
+            return fromArray(species, a, offset, indexMap, mapOffset);
+        }
+        else {
+            ShortSpecies vsp = (ShortSpecies) species;
+            return vsp.dummyVectorMF().fromArray0(a, offset, indexMap, mapOffset, m);
+        }
     }
 
     /**
@@ -3867,6 +3941,49 @@ public abstract value class ShortVector extends AbstractVector<Short> {
                                         (arr_, off_, i) -> arr_[off_ + i]));
     }
 
+    /*package-private*/
+    abstract
+    ShortVector fromArray0(short[] a, int offset,
+                                    int[] indexMap, int mapOffset,
+                                    VectorMask<Short> m);
+    @ForceInline
+    final
+    <M extends VectorMask<Short>>
+    ShortVector fromArray0Template(Class<M> maskClass, short[] a, int offset,
+                                            int[] indexMap, int mapOffset, M m) {
+        ShortSpecies vsp = vspecies();
+        IntVector.IntSpecies isp = IntVector.species(vsp.indexShape());
+        Objects.requireNonNull(a);
+        Objects.requireNonNull(indexMap);
+        m.check(vsp);
+        Class<? extends ShortVector> vectorType = vsp.vectorType();
+
+
+        // Constant folding should sweep out following conditonal logic.
+        VectorSpecies<Integer> lsp;
+        if (isp.length() > IntVector.SPECIES_PREFERRED.length()) {
+            lsp = IntVector.SPECIES_PREFERRED;
+        } else {
+            lsp = isp;
+        }
+
+        // Check indices are within array bounds.
+        // FIXME: Check index under mask controlling.
+        for (int i = 0; i < vsp.length(); i += lsp.length()) {
+            IntVector vix = IntVector
+                .fromArray(lsp, indexMap, mapOffset + i)
+                .add(offset);
+            VectorIntrinsics.checkIndex(vix, a.length);
+        }
+
+        return VectorSupport.loadWithMap(
+            vectorType, maskClass, short.class, vsp.laneCount(),
+            lsp.vectorType(),
+            a, ARRAY_BASE, null, m,
+            a, offset, indexMap, mapOffset, vsp,
+            (c, idx, iMap, idy, s, vm) ->
+            s.vOpMF(vm, n -> c[idx + iMap[idy+n]]));
+    }
 
     /*package-private*/
     abstract

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -222,6 +222,9 @@ void MethodLiveness::init_basic_blocks() {
           dest = _block_map->at(bytes.get_dest());
           assert(dest != nullptr, "branch destination must start a block.");
           dest->add_normal_predecessor(current_block);
+          if (bci + Bytecodes::length_for(code) >= method_len) {
+            break;
+          }
           BasicBlock *jsrExit = _block_map->at(current_block->limit_bci());
           assert(jsrExit != nullptr, "jsr return bci must start a block.");
           jsr_exit_list->append(jsrExit);
@@ -232,6 +235,9 @@ void MethodLiveness::init_basic_blocks() {
           dest = _block_map->at(bytes.get_far_dest());
           assert(dest != nullptr, "branch destination must start a block.");
           dest->add_normal_predecessor(current_block);
+          if (bci + Bytecodes::length_for(code) >= method_len) {
+            break;
+          }
           BasicBlock *jsrExit = _block_map->at(current_block->limit_bci());
           assert(jsrExit != nullptr, "jsr return bci must start a block.");
           jsr_exit_list->append(jsrExit);
@@ -618,18 +624,22 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
       // These bytecodes have no effect on the method's locals.
       break;
 
-    case Bytecodes::_return:
-      if (instruction->method()->intrinsic_id() == vmIntrinsics::_Object_init ||
-          (instruction->method()->is_object_constructor() && instruction->method()->holder()->is_inlinetype())) {
-        // return from Object.init implicitly registers a finalizer
-        // for the receiver if needed, so keep it alive.
-        // Value class constructors update the scalarized receiver. Keep it live so that
-        // we can find it after (chained) constructor calls and propagate updates to the caller.
+    case Bytecodes::_return: {
+      ciMethod* method = instruction->method();
+      ciInstanceKlass* holder = method->holder();
+      const bool abstract_klass = holder->is_abstract();
+      const bool concrete_value_klass = !abstract_klass && holder->is_inlinetype();
+      if (method->intrinsic_id() == vmIntrinsics::_Object_init ||
+          (method->is_object_constructor() && (concrete_value_klass || abstract_klass))) {
+        // Returning from Object.<init> implicitly registers a finalizer for the receiver if needed, to keep it alive.
+        // Value class constructors update the scalarized receiver. We need to keep it live so that we can find it after
+        // (chained) constructor calls and propagate updates to the caller. If the holder of the constructor is abstract,
+        // we do not know if the constructor was called on a value class or not. We therefore keep the receiver of all
+        // abstract constructors live.
         load_one(0);
       }
       break;
-
-
+    }
     case Bytecodes::_lload:
     case Bytecodes::_dload:
       load_two(instruction->get_index());

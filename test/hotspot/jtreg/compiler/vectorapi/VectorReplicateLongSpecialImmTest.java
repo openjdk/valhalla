@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
  * @requires os.arch == "aarch64"
  * @modules jdk.incubator.vector
  * @enablePreview
- * @run testng/othervm -XX:UseSVE=0 -XX:-TieredCompilation -XX:CompileThreshold=100 compiler.vectorapi.VectorReplicateLongSpecialImmTest
+ * @run testng/othervm -XX:UseSVE=0 -XX:-TieredCompilation -XX:CompileThreshold=100 -XX:+IgnoreUnrecognizedVMOptions -XX:CompileCommand=MemLimit,*.*,0 compiler.vectorapi.VectorReplicateLongSpecialImmTest
  */
 public class VectorReplicateLongSpecialImmTest {
 

@@ -110,7 +110,6 @@ Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Skip pushing casts across VectorBoxes for now, such a pattern is currently not handled
   // by VectorBox expansion.
   if (vt != nullptr && !vt->is_VectorBox() && phase->type(vt)->filter_speculative(_type) != Type::TOP) {
-    // TODO 8325106 Can we avoid cloning?
     Node* cast = clone();
     cast->set_req(1, vt->get_oop());
     vt = vt->clone()->as_InlineType();

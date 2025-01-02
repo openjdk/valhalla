@@ -47,14 +47,6 @@ class FlatArrayKlass : public ArrayKlass {
 
   FlatArrayKlass() {}
 
-  // Returns the ObjArrayKlass for n'th dimension.
-  virtual ArrayKlass* array_klass(int n, TRAPS);
-  virtual ArrayKlass* array_klass_or_null(int n);
-
-  // Returns the array class with this class as element type.
-  virtual ArrayKlass* array_klass(TRAPS);
-  virtual ArrayKlass* array_klass_or_null();
-
   virtual InlineKlass* element_klass() const;
   virtual void set_element_klass(Klass* k);
 
@@ -85,8 +77,8 @@ class FlatArrayKlass : public ArrayKlass {
   }
 
   // Override.
-  bool element_access_is_atomic() {
-    return element_klass()->is_atomic();
+  bool element_access_must_be_atomic() {
+    return element_klass()->must_be_atomic();
   }
 
   oop protection_domain() const;

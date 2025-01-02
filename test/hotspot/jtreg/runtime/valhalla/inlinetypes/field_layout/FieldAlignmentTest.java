@@ -56,6 +56,8 @@
  import java.util.List;
 
  import jdk.internal.vm.annotation.ImplicitlyConstructible;
+ import jdk.internal.vm.annotation.LooselyConsistentValue;
+ import jdk.internal.vm.annotation.NullRestricted;
 
  import jdk.test.lib.Asserts;
  import jdk.test.lib.ByteCodeLoader;
@@ -93,16 +95,16 @@
 
   List<String> testNames = new ArrayList<String>();
 
-  @ImplicitlyConstructible static value class ValueOneByte { byte val = 0; }
-  @ImplicitlyConstructible static value class ValueOneChar { char val = 0; }
-  @ImplicitlyConstructible static value class ValueOneShort { short val = 0; }
-  @ImplicitlyConstructible static value class ValueOneInt { int val = 0; }
-  @ImplicitlyConstructible static value class ValueOneLong { long val = 0; }
-  @ImplicitlyConstructible static value class ValueOneFloat { float val = 0f; }
-  @ImplicitlyConstructible static value class ValueOneDouble { double val = 0d; }
+  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneByte { byte val = 0; }
+  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneChar { char val = 0; }
+  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneShort { short val = 0; }
+  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneInt { int val = 0; }
+  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneLong { long val = 0; }
+  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneFloat { float val = 0f; }
+  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneDouble { double val = 0d; }
 
-  @ImplicitlyConstructible static value class ValueByteLong { byte b = 0; long l = 0; }
-  @ImplicitlyConstructible static value class ValueByteInt { byte b = 0; int i = 0; }
+  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueByteLong { byte b = 0; long l = 0; }
+  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueByteInt { byte b = 0; int i = 0; }
 
   void generateTests() throws Exception {
     for (String vName : valueNames) {
@@ -147,11 +149,12 @@
     Collections.addAll(argsList, "--enable-preview");
     Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
+    Collections.addAll(argsList, "-Xshare:off");
     if (compressedOopsArg != null) {
       Collections.addAll(argsList, compressedOopsArg);
     }
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + ":.");
+    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") +".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
   }
@@ -178,11 +181,20 @@
     ProcessBuilder pb = exec(compressedOopsArg, "TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
+    if (out.getExitValue() != 0) {
+      out.outputTo(System.out);
+    }
+    Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
+
     // Analyze the test runner output
-    System.out.print(out.getOutput());
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
 
     FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
-    fla.check();
+    try {
+      fla.check();
+    } catch (Throwable t) {
+      out.outputTo(System.out);
+      throw t;
+    }
   }
  }

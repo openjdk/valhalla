@@ -621,6 +621,24 @@ public abstract value class IntVector extends AbstractVector<Integer> {
         return r;
     }
 
+    static IntVector selectFromTwoVectorHelper(Vector<Integer> indexes, Vector<Integer> src1, Vector<Integer> src2) {
+        int vlen = indexes.length();
+        VectorPayloadMF vecPayload1 = ((IntVector)indexes).vec();
+        VectorPayloadMF vecPayload2 = ((IntVector)src1).vec();
+        VectorPayloadMF vecPayload3 = ((IntVector)src2).vec();
+        AbstractSpecies<Integer> vsp = ((IntVector)src1).vspecies();
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vecPayload2);
+        long vOffset = tpayload.multiFieldOffset();
+        for (int i = 0; i < vlen; i++) {
+            int wrapped_index = VectorIntrinsics.wrapToRange((int)U.getInt(vecPayload1, vOffset + i * Integer.BYTES), 2 * vlen);
+            U.putInt(tpayload, vOffset + i * Integer.BYTES, wrapped_index >= vlen ?
+                        U.getInt(vecPayload3, vOffset + (wrapped_index  - vlen) * Integer.BYTES) :
+                        U.getInt(vecPayload2, vOffset + wrapped_index * Integer.BYTES));
+        }
+        tpayload = U.finishPrivateBuffer(tpayload);
+        return ((IntVector)(vsp.dummyVectorMF())).vectorFactory(tpayload);
+    }
+
     // Static factories (other than memory operations)
 
     // Note: A surprising behavior in javadoc
@@ -2502,17 +2520,18 @@ public abstract value class IntVector extends AbstractVector<Integer> {
      */
     @Override
     public abstract
-    IntVector rearrange(VectorShuffle<Integer> m);
+    IntVector rearrange(VectorShuffle<Integer> shuffle);
 
     /*package-private*/
     @ForceInline
     final
     <S extends VectorShuffle<Integer>>
     IntVector rearrangeTemplate(Class<S> shuffletype, S shuffle) {
-        shuffle.checkIndexes();
+        @SuppressWarnings("unchecked")
+        S ws = (S) shuffle.wrapIndexes();
         return VectorSupport.rearrangeOp(
             getClass(), shuffletype, null, int.class, length(),
-            this, shuffle, null,
+            this, ws, null,
             (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                 int ei = s_.laneSource(i);
                 return v1.lane(ei);
@@ -2537,17 +2556,14 @@ public abstract value class IntVector extends AbstractVector<Integer> {
                                            M m) {
 
         m.check(masktype, this);
-        VectorMask<Integer> valid = shuffle.laneIsValid();
-        if (m.andNot(valid).anyTrue()) {
-            shuffle.checkIndexes();
-            throw new AssertionError();
-        }
+        @SuppressWarnings("unchecked")
+        S ws = (S) shuffle.wrapIndexes();
         return VectorSupport.rearrangeOp(
                    getClass(), shuffletype, masktype, int.class, length(),
-                   this, shuffle, m,
+                   this, ws, m,
                    (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                         int ei = s_.laneSource(i);
-                        return ei < 0  || !m_.laneIsSet(i) ? 0 : v1.lane(ei);
+                        return !m_.laneIsSet(i) ? 0 : v1.lane(ei);
                    }));
     }
 
@@ -2660,7 +2676,10 @@ public abstract value class IntVector extends AbstractVector<Integer> {
     /*package-private*/
     @ForceInline
     final IntVector selectFromTemplate(IntVector v) {
-        return v.rearrange(this.toShuffle());
+        return (IntVector)VectorSupport.selectFromOp(getClass(), null, int.class,
+                                                        length(), this, v, null,
+                                                        (v1, v2, _m) ->
+                                                         v2.rearrange(v1.toShuffle()));
     }
 
     /**
@@ -2672,9 +2691,31 @@ public abstract value class IntVector extends AbstractVector<Integer> {
 
     /*package-private*/
     @ForceInline
-    final IntVector selectFromTemplate(IntVector v,
-                                                  AbstractMask<Integer> m) {
-        return v.rearrange(this.toShuffle(), m);
+    final
+    <M extends VectorMask<Integer>>
+    IntVector selectFromTemplate(IntVector v,
+                                            Class<M> masktype, M m) {
+        m.check(masktype, this);
+        return (IntVector)VectorSupport.selectFromOp(getClass(), masktype, int.class,
+                                                        length(), this, v, m,
+                                                        (v1, v2, _m) ->
+                                                         v2.rearrange(v1.toShuffle(), _m));
+    }
+
+
+    /**
+     * {@inheritDoc} <!--workaround-->
+     */
+    @Override
+    public abstract
+    IntVector selectFrom(Vector<Integer> v1, Vector<Integer> v2);
+
+
+    /*package-private*/
+    @ForceInline
+    final IntVector selectFromTemplate(IntVector v1, IntVector v2) {
+        return VectorSupport.selectFromTwoVectorOp(getClass(), int.class, length(), this, v1, v2,
+                                                   (vec1, vec2, vec3) -> selectFromTwoVectorHelper(vec1, vec2, vec3));
     }
 
     /// Ternary operations

@@ -460,6 +460,10 @@ bool LateInlineMHCallGenerator::do_late_inline_check(Compile* C, JVMState* jvms)
       assert(cg != nullptr, "inline call generator expected");
     }
 
+    if (!allow_inline && (C->print_inlining() || C->print_intrinsics())) {
+      C->print_inlining(cg->method(), jvms->depth()-1, call_node()->jvms()->bci(), InliningResult::FAILURE,
+                        "late method handle call resolution");
+    }
     assert(!cg->is_late_inline() || cg->is_mh_late_inline() || AlwaysIncrementalInline || StressIncrementalInlining, "we're doing late inlining");
     _inline_cg = cg;
     C->dec_number_of_mh_late_inlines();
@@ -582,6 +586,10 @@ bool LateInlineVirtualCallGenerator::do_late_inline_check(Compile* C, JVMState* 
                                         true /*allow_intrinsics*/);
 
   if (cg != nullptr) {
+    if (!allow_inline && (C->print_inlining() || C->print_intrinsics())) {
+      C->print_inlining(cg->method(), jvms->depth()-1, call_node()->jvms()->bci(), InliningResult::FAILURE,
+                        "late call devirtualization");
+    }
     assert(!cg->is_late_inline() || cg->is_mh_late_inline() || AlwaysIncrementalInline || StressIncrementalInlining, "we're doing late inlining");
     _inline_cg = cg;
     return true;
@@ -642,7 +650,10 @@ void CallGenerator::do_late_inline_helper() {
   }
 
   // check for unreachable loop
-  CallProjections* callprojs = call->extract_projections(true);
+  // Similar to incremental inlining, don't assert that all call
+  // projections are still there for post-parse call devirtualization.
+  bool do_asserts = !is_mh_late_inline() && !is_virtual_late_inline();
+  CallProjections* callprojs = call->extract_projections(true, do_asserts);
   if ((callprojs->fallthrough_catchproj == call->in(0)) ||
       (callprojs->catchall_catchproj    == call->in(0)) ||
       (callprojs->fallthrough_memproj   == call->in(TypeFunc::Memory)) ||
@@ -676,7 +687,7 @@ void CallGenerator::do_late_inline_helper() {
     // The call is marked as pure (no important side effects), but result isn't used.
     // It's safe to remove the call.
     GraphKit kit(call->jvms());
-    kit.replace_call(call, C->top(), true);
+    kit.replace_call(call, C->top(), true, do_asserts);
   } else {
     // Make a clone of the JVMState that appropriate to use for driving a parse
     JVMState* old_jvms = call->jvms();
@@ -850,7 +861,7 @@ void CallGenerator::do_late_inline_helper() {
     }
     assert(buffer_oop == nullptr, "unused buffer allocation");
 
-    kit.replace_call(call, result, true);
+    kit.replace_call(call, result, true, do_asserts);
   }
 }
 
@@ -1163,21 +1174,6 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   }
 }
 
-static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
-  PhaseGVN& gvn = kit.gvn();
-  Node* arg = kit.argument(arg_nb);
-  const Type* arg_type = arg->bottom_type();
-  const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
-  if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
-    const Type* narrowed_arg_type = arg_type->filter_speculative(sig_type); // keep speculative part
-    arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, narrowed_arg_type));
-    kit.set_argument(arg_nb, arg);
-  }
-  if (sig_type->is_inlinetypeptr()) {
-    arg = InlineTypeNode::make_from_oop(&kit, arg, sig_type->inline_klass(), !kit.gvn().type(arg)->maybe_null());
-    kit.set_argument(arg_nb, arg);
-  }
-}
 
 CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool allow_inline, bool& input_not_const) {
   GraphKit kit(jvms);
@@ -1252,13 +1248,29 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         const int receiver_skip = target->is_static() ? 0 : 1;
         // Cast receiver to its type.
         if (!target->is_static()) {
-          cast_argument(nargs, 0, signature->accessing_klass(), kit);
+          Node* recv = kit.argument(0);
+          Node* casted_recv = kit.maybe_narrow_object_type(recv, signature->accessing_klass());
+          if (casted_recv->is_top()) {
+            print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
+                                   "argument types mismatch");
+            return nullptr; // FIXME: effectively dead; issue a halt node instead
+          } else if (casted_recv != recv) {
+            kit.set_argument(0, casted_recv);
+          }
         }
         // Cast reference arguments to its type.
         for (int i = 0, j = 0; i < signature->count(); i++) {
           ciType* t = signature->type_at(i);
           if (t->is_klass()) {
-            cast_argument(nargs, receiver_skip + j, t, kit);
+            Node* arg = kit.argument(receiver_skip + j);
+            Node* casted_arg = kit.maybe_narrow_object_type(arg, t->as_klass());
+            if (casted_arg->is_top()) {
+              print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
+                                     "argument types mismatch");
+              return nullptr; // FIXME: effectively dead; issue a halt node instead
+            } else if (casted_arg != arg) {
+              kit.set_argument(receiver_skip + j, casted_arg);
+            }
           }
           j += t->size();  // long and double take two slots
         }

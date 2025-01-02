@@ -28,7 +28,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm -Xint ValueFieldInheritanceTest 0
+ * @run main/othervm ValueFieldInheritanceTest 0
  */
 
 /*
@@ -38,7 +38,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm -Xint ValueFieldInheritanceTest 1
+ * @run main/othervm ValueFieldInheritanceTest 1
  */
 
 /*
@@ -48,7 +48,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm -Xint ValueFieldInheritanceTest 2
+ * @run main/othervm ValueFieldInheritanceTest 2
  */
 
 /*
@@ -58,7 +58,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm -Xint ValueFieldInheritanceTest 3
+ * @run main/othervm ValueFieldInheritanceTest 3
  */
 
 import java.util.ArrayList;
@@ -176,6 +176,7 @@ public class ValueFieldInheritanceTest {
     Collections.addAll(argsList, "--enable-preview");
     Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
+    Collections.addAll(argsList, "-Xshare:off");
     if (compressedOopsArg != null) {
       Collections.addAll(argsList, compressedOopsArg);
     }
@@ -183,7 +184,7 @@ public class ValueFieldInheritanceTest {
       Collections.addAll(argsList, compressedKlassPointersArg);
     }
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + ":.");
+    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
   }

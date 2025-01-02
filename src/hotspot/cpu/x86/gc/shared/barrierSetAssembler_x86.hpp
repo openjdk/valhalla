@@ -28,16 +28,15 @@
 #include "asm/macroAssembler.hpp"
 #include "memory/allocation.hpp"
 #include "oops/access.hpp"
+#ifdef COMPILER2
+#include "opto/optoreg.hpp"
 
+class BarrierStubC2;
+class Node;
+#endif // COMPILER2
 class InterpreterMacroAssembler;
 
 class BarrierSetAssembler: public CHeapObj<mtGC> {
-private:
-  void incr_allocated_bytes(MacroAssembler* masm, Register thread,
-                            Register var_size_in_bytes,
-                            int con_size_in_bytes,
-                            Register t1);
-
 public:
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count) {}
@@ -51,6 +50,8 @@ public:
 
   virtual void value_copy(MacroAssembler* masm, DecoratorSet decorators,
                           Register src, Register dst, Register value_klass);
+  virtual void flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
+                          Register src, Register dst, Register inline_layout_info);
 
   // The copy_[load/store]_at functions are used by arraycopy stubs. Be careful to only use
   // r10 (aka rscratch1) in a context where restore_arg_regs_using_thread has been used instead
@@ -109,6 +110,63 @@ public:
   virtual void c2i_entry_barrier(MacroAssembler* masm);
 
   virtual void check_oop(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, Label& error);
+
+#ifdef COMPILER2
+  OptoReg::Name refine_register(const Node* node,
+                                OptoReg::Name opto_reg);
+#endif // COMPILER2
 };
+
+#ifdef COMPILER2
+
+#ifdef _LP64
+
+// This class saves and restores the registers that need to be preserved across
+// the runtime call represented by a given C2 barrier stub. Use as follows:
+// {
+//   SaveLiveRegisters save(masm, stub);
+//   ..
+//   __ call(RuntimeAddress(...);
+//   ..
+// }
+class SaveLiveRegisters {
+private:
+  struct XMMRegisterData {
+    XMMRegister _reg;
+    int         _size;
+
+    // Used by GrowableArray::find()
+    bool operator == (const XMMRegisterData& other) {
+      return _reg == other._reg;
+    }
+  };
+
+  MacroAssembler* const          _masm;
+  GrowableArray<Register>        _gp_registers;
+  GrowableArray<KRegister>       _opmask_registers;
+  GrowableArray<XMMRegisterData> _xmm_registers;
+  int                            _spill_size;
+  int                            _spill_offset;
+
+  static int xmm_compare_register_size(XMMRegisterData* left, XMMRegisterData* right);
+  static int xmm_slot_size(OptoReg::Name opto_reg);
+  static uint xmm_ideal_reg_for_size(int reg_size);
+  bool xmm_needs_vzeroupper() const;
+  void xmm_register_save(const XMMRegisterData& reg_data);
+  void xmm_register_restore(const XMMRegisterData& reg_data);
+  void gp_register_save(Register reg);
+  void opmask_register_save(KRegister reg);
+  void gp_register_restore(Register reg);
+  void opmask_register_restore(KRegister reg);
+  void initialize(BarrierStubC2* stub);
+
+public:
+  SaveLiveRegisters(MacroAssembler* masm, BarrierStubC2* stub);
+  ~SaveLiveRegisters();
+};
+
+#endif // _LP64
+
+#endif // COMPILER2
 
 #endif // CPU_X86_GC_SHARED_BARRIERSETASSEMBLER_X86_HPP

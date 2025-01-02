@@ -146,7 +146,6 @@ public:
 
   virtual void make_parsable(JavaThread* thread) {}
 
-public:
   // Print a description of the memory for the barrier set
   virtual void print_on(outputStream* st) const = 0;
 
@@ -318,8 +317,8 @@ public:
       Raw::clone(src, dst, size);
     }
 
-    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md) {
-      Raw::value_copy(src, dst, md);
+    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+      Raw::value_copy(src, dst, md, lk);
     }
 
   };

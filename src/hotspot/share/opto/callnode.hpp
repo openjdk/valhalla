@@ -151,6 +151,17 @@ class RethrowNode : public Node {
 };
 
 
+//------------------------------ForwardExceptionNode---------------------------
+// Pop stack frame and jump to StubRoutines::forward_exception_entry()
+class ForwardExceptionNode : public ReturnNode {
+public:
+  ForwardExceptionNode(Node* cntrl, Node* i_o, Node* memory, Node* frameptr, Node* retadr)
+    : ReturnNode(TypeFunc::Parms, cntrl, i_o, memory, frameptr, retadr) {
+  }
+
+  virtual int Opcode() const;
+};
+
 //------------------------------TailCallNode-----------------------------------
 // Pop stack frame and jump indirect
 class TailCallNode : public ReturnNode {
@@ -773,18 +784,18 @@ protected:
   virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 
+  ciMethod* _method;               // Method being direct called
   bool    _optimized_virtual;
   bool    _method_handle_invoke;
   bool    _override_symbolic_info; // Override symbolic call site info from bytecode
-  ciMethod* _method;               // Method being direct called
   bool    _arg_escape;             // ArgEscape in parameter list
 public:
   CallJavaNode(const TypeFunc* tf , address addr, ciMethod* method)
     : CallNode(tf, addr, TypePtr::BOTTOM),
+      _method(method),
       _optimized_virtual(false),
       _method_handle_invoke(false),
       _override_symbolic_info(false),
-      _method(method),
       _arg_escape(false)
   {
     init_class_id(Class_CallJava);
@@ -819,7 +830,7 @@ class CallStaticJavaNode : public CallJavaNode {
   virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 
-  bool remove_useless_allocation(PhaseGVN *phase, Node* ctl, Node* mem, Node* unc_arg);
+  bool remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node* ctl, Node* mem, Node* unc_arg);
 
 public:
   CallStaticJavaNode(Compile* C, const TypeFunc* tf, address addr, ciMethod* method)
@@ -1104,9 +1115,6 @@ public:
 // High-level array allocation
 //
 class AllocateArrayNode : public AllocateNode {
-private:
-  bool _null_free;
-
 public:
   AllocateArrayNode(Compile* C, const TypeFunc* atype, Node* ctrl, Node* mem, Node* abio, Node* size, Node* klass_node,
                     Node* initial_test, Node* count_val, Node* valid_length_test,
@@ -1119,7 +1127,6 @@ public:
     set_req(AllocateNode::ValidLengthTest, valid_length_test);
     init_req(AllocateNode::DefaultValue,  default_value);
     init_req(AllocateNode::RawDefaultValue, raw_default_value);
-    _null_free = false;
   }
   virtual uint size_of() const { return sizeof(*this); }
   virtual int Opcode() const;
@@ -1140,9 +1147,6 @@ public:
     return (allo == nullptr || !allo->is_AllocateArray())
            ? nullptr : allo->as_AllocateArray();
   }
-
-  void set_null_free() { _null_free = true; }
-  bool is_null_free() const { return _null_free; }
 };
 
 //------------------------------AbstractLockNode-----------------------------------
@@ -1206,6 +1210,10 @@ public:
   void set_non_esc_obj() { _kind = NonEscObj; set_eliminated_lock_counter(); }
   void set_coarsened()   { _kind = Coarsened; set_eliminated_lock_counter(); }
   void set_nested()      { _kind = Nested; set_eliminated_lock_counter(); }
+
+  // Check that all locks/unlocks associated with object come from balanced regions.
+  // They can become unbalanced after coarsening optimization or on OSR entry.
+  bool is_balanced();
 
   // locking does not modify its arguments
   virtual bool may_modify(const TypeOopPtr* t_oop, PhaseValues* phase){ return false; }

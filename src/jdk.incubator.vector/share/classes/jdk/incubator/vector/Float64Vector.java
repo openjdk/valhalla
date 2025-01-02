@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -492,9 +492,16 @@ value class Float64Vector extends FloatVector {
                                    VectorMask<Float> m) {
         return (Float64Vector)
             super.selectFromTemplate((Float64Vector) v,
-                                     (Float64Mask) m);  // specialize
+                                     Float64Mask.class, (Float64Mask) m);  // specialize
     }
 
+    @Override
+    @ForceInline
+    public Float64Vector selectFrom(Vector<Float> v1,
+                                   Vector<Float> v2) {
+        return (Float64Vector)
+            super.selectFromTemplate((Float64Vector) v1, (Float64Vector) v2);  // specialize
+    }
 
     @ForceInline
     @Override
@@ -513,9 +520,9 @@ value class Float64Vector extends FloatVector {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                         VectorPayloadMF vecpayload = vec.vec();
-                         long start_offset = vecpayload.multiFieldOffset();
-                         return (long)Float.floatToIntBits(U.getFloat(vecpayload, start_offset + ix * Float.BYTES));
+                     VectorPayloadMF vecpayload = vec.vec();
+                     long start_offset = vecpayload.multiFieldOffset();
+                     return (long)Float.floatToRawIntBits(U.getFloat(vecpayload, start_offset + ix * Float.BYTES));
                      });
     }
 
@@ -532,7 +539,7 @@ value class Float64Vector extends FloatVector {
     public Float64Vector withLaneHelper(int i, float e) {
         return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
-                                this, i, (long)Float.floatToIntBits(e),
+                                this, i, (long)Float.floatToRawIntBits(e),
                                 (v, ix, bits) -> {
                                     VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
@@ -780,6 +787,13 @@ value class Float64Vector extends FloatVector {
                 throw new IllegalArgumentException("VectorShuffle length and species length differ");
             int[] shuffleArray = toArray();
             return s.shuffleFromArray(shuffleArray, 0).check(s);
+        }
+
+        @Override
+        @ForceInline
+        public Float64Shuffle wrapIndexes() {
+            return VectorSupport.wrapShuffleIndexes(ETYPE, Float64Shuffle.class, this, VLENGTH,
+                                                    (s) -> ((Float64Shuffle)(((AbstractShuffle<Float>)(s)).wrapIndexesTemplate())));
         }
 
         @ForceInline

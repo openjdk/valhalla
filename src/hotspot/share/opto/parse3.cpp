@@ -153,7 +153,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   bool must_assert_null = false;
 
   if (field->is_multifield_base() || field->is_multifield()) {
-    // A read access to multifield should be preformed using Unsafe.get* APIs.
+    // A read access to multifield should only be preformed using Unsafe.get* APIs.
     assert(false, "Illegal direct read access to mutifield through getfield bytecode");
   }
 
@@ -261,99 +261,18 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   BasicType bt = field->layout_type();
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
 
-  if (obj->is_InlineType()) {
-    // TODO 8325106 Factor into own method
-    // TODO 8325106 Assert that we only do this in the constructor and align with checks in ::do_call
-    //if (_method->is_object_constructor() && _method->holder()->is_inlinetype()) {
-    assert(obj->as_InlineType()->is_larval(), "must be larval");
-
-    // TODO 8325106 Assert that holder is null-free
-    /*
-    int holder_depth = field->type()->size();
-    null_check(peek(holder_depth));
+  if (field->is_null_free()) {
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+    inc_sp(1);
+    val = null_check(val);
     if (stopped()) {
       return;
     }
-    */
-
-    if (field->is_null_free()) {
-      PreserveReexecuteState preexecs(this);
-      jvms()->set_should_reexecute(true);
-      inc_sp(1);
-      val = null_check(val);
-      if (stopped()) {
-        return;
-      }
-    }
-    if (!val->is_InlineType() && field->type()->is_inlinetype()) {
-      // Scalarize inline type field value
-      val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
-    } else if (val->is_InlineType() && !field->is_flat()) {
-      // Field value needs to be allocated because it can be merged with an oop.
-      // Re-execute if buffering triggers deoptimization.
-      PreserveReexecuteState preexecs(this);
-      jvms()->set_should_reexecute(true);
-      inc_sp(1);
-      val = val->as_InlineType()->buffer(this);
-    } else if (field->is_multifield_base()) {
-      // Only possible direct non-unsafe access to multifield base is within vector payload constructors.
-      // At present the semantics of putfield are applicable to flat and non-flat (including primitive and reference)
-      // fields. Mutifield does not fit into any such pre-existing class of fields, in non-scalarized form its treated
-      // as a single bundle, while in scalrized form each sub-field has a seperate ciField and IR representation.
-      // Thus a direct non-unsafe update of base multifield should also reflect over synthetic fields.
-      if (!InlineTypeNode::is_multifield_scalarized(field)) {
-         val = _gvn.transform(VectorNode::scalar2vector(val, field->secondary_fields_count(), Type::get_const_type(field->type()), false));
-      }
-    } else if (field->is_multifield()) {
-      assert(false, "Illegal direct write access to mutifield through putfield bytecode");
-    }
-    // Clone the inline type node and set the new field value
-    InlineTypeNode* new_vt = obj->as_InlineType()->clone_if_required(&_gvn, _map);
-    new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
-
-    // Tie initialization value to all the synthetic multifields.
-    if (InlineTypeNode::is_multifield_scalarized(field)) {
-      int fsize = type2aelembytes(field->type()->basic_type());
-      for (int i = 1; i < field->secondary_fields_count(); i++) {
-        assert((uint)i < new_vt->field_count(), "");
-        int offset = field->offset_in_bytes() + i * fsize;
-        new_vt->set_field_value_by_offset(offset, val);
-      }
-    }
-
-    {
-      PreserveReexecuteState preexecs(this);
-      jvms()->set_should_reexecute(true);
-      inc_sp(1);
-      new_vt = new_vt->adjust_scalarization_depth(this);
-    }
-
-    // TODO 8325106 Double check and explain these checks
-    if ((!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor()) && new_vt->is_allocated(&gvn())) {
-      assert(new_vt->as_InlineType()->is_allocated(&gvn()), "must be buffered");
-      // We need to store to the buffer
-      // TODO 8325106 looks like G1BarrierSetC2::g1_can_remove_pre_barrier is not strong enough to remove the pre barrier
-      // TODO is it really guaranteed that the preval is null?
-      new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, C2_TIGHTLY_COUPLED_ALLOC | IN_HEAP | MO_UNORDERED, field->offset_in_bytes());
-
-      // Preserve allocation ptr to create precedent edge to it in membar
-      // generated on exit from constructor.
-      AllocateNode* alloc = AllocateNode::Ideal_allocation(new_vt->get_oop());
-      if (alloc != nullptr) {
-        set_alloc_with_final(new_vt->get_oop());
-      }
-      set_wrote_final(true);
-    }
-
-    replace_in_map(obj, _gvn.transform(new_vt));
-    return;
   }
-
-  if (field->is_null_free()) {
-    PreserveReexecuteState preexecs(this);
-    inc_sp(1);
-    jvms()->set_should_reexecute(true);
-    val = null_check(val);
+  if (obj->is_InlineType()) {
+    set_inline_type_field(obj, field, val);
+    return;
   }
   if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
@@ -364,7 +283,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
     inc_sp(1);
-    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset);
+    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset, IN_HEAP | MO_UNORDERED);
     dec_sp(1);
   } else {
     // Store the value.
@@ -397,23 +316,87 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     set_wrote_fields(true);
 
     // If the field is final, the rules of Java say we are in <init> or <clinit>.
-    // Note the presence of writes to final non-static fields, so that we
+    // If the field is @Stable, we can be in any method, but we only care about
+    // constructors at this point.
+    //
+    // Note the presence of writes to final/@Stable non-static fields, so that we
     // can insert a memory barrier later on to keep the writes from floating
     // out of the constructor.
-    // Any method can write a @Stable field; insert memory barriers after those also.
-    if (field->is_final()) {
-      set_wrote_final(true);
+    if (field->is_final() || field->is_stable()) {
+      if (field->is_final()) {
+        set_wrote_final(true);
+      }
+      if (field->is_stable()) {
+        set_wrote_stable(true);
+      }
       if (AllocateNode::Ideal_allocation(obj) != nullptr) {
         // Preserve allocation ptr to create precedent edge to it in membar
         // generated on exit from constructor.
-        // Can't bind stable with its allocation, only record allocation for final field.
-        set_alloc_with_final(obj);
+        set_alloc_with_final_or_stable(obj);
       }
     }
-    if (field->is_stable()) {
-      set_wrote_stable(true);
+  }
+}
+
+void Parse::set_inline_type_field(Node* obj, ciField* field, Node* val) {
+  assert(_method->is_object_constructor(), "inline type is initialized outside of constructor");
+  assert(obj->as_InlineType()->is_larval(), "must be larval");
+  assert(!_gvn.type(obj)->maybe_null(), "should never be null");
+
+  // Re-execute if buffering in below code triggers deoptimization.
+  PreserveReexecuteState preexecs(this);
+  jvms()->set_should_reexecute(true);
+  inc_sp(1);
+
+  if (!val->is_InlineType() && field->type()->is_inlinetype()) {
+    // Scalarize inline type field value
+    val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
+  } else if (val->is_InlineType() && !field->is_flat()) {
+    // Field value needs to be allocated because it can be merged with a non-inline type.
+    val = val->as_InlineType()->buffer(this);
+  } else if (field->is_multifield_base()) {
+    // Only possible non-unsafe access to base multifield is possible within vector payload constructor.
+    // At present, putfield only updates a primitive or reference type field of an instance.
+    // Mutifield does not fit into any such pre-existing class of fields, in non-scalarized form it's treated
+    // as an atomic bundle of fields which is updated through vector store operation, while in scalarized
+    // form each component field should be updated individually.
+    if (!InlineTypeNode::is_multifield_scalarized(field)) {
+       val = _gvn.transform(VectorNode::scalar2vector(val, field->secondary_fields_count(), field->type()->basic_type(), false));
+    }
+  } else if (field->is_multifield()) {
+    assert(false, "Illegal direct write access to mutifield through putfield bytecode");
+  }
+  // Clone the inline type node and set the new field value
+  InlineTypeNode* new_vt = obj->as_InlineType()->clone_if_required(&_gvn, _map);
+  new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
+
+  // Initialize all synthetic multifields if its its scalarized.
+  if (InlineTypeNode::is_multifield_scalarized(field)) {
+    int fsize = type2aelembytes(field->type()->basic_type());
+    for (int i = 1; i < field->secondary_fields_count(); i++) {
+      assert((uint)i < new_vt->field_count(), "");
+      int offset = field->offset_in_bytes() + i * fsize;
+      new_vt->set_field_value_by_offset(offset, val);
     }
   }
+
+  new_vt = new_vt->adjust_scalarization_depth(this);
+
+  // If the inline type is buffered and the caller might use the buffer, update it.
+  if (new_vt->is_allocated(&gvn()) && (!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor())) {
+    new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, field->offset_in_bytes());
+
+    // Preserve allocation ptr to create precedent edge to it in membar
+    // generated on exit from constructor.
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(new_vt->get_oop());
+    if (alloc != nullptr) {
+      set_alloc_with_final_or_stable(new_vt->get_oop());
+    }
+    set_wrote_final(true);
+  }
+
+  replace_in_map(obj, _gvn.transform(new_vt));
+  return;
 }
 
 //=============================================================================

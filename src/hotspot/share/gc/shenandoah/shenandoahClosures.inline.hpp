@@ -97,18 +97,6 @@ void ShenandoahKeepAliveClosure::do_oop_work(T* p) {
   }
 }
 
-ShenandoahUpdateRefsClosure::ShenandoahUpdateRefsClosure() :
-  _heap(ShenandoahHeap::heap()) {
-}
-
-template <class T>
-void ShenandoahUpdateRefsClosure::do_oop_work(T* p) {
-  _heap->update_with_forwarded(p);
-}
-
-void ShenandoahUpdateRefsClosure::do_oop(oop* p)       { do_oop_work(p); }
-void ShenandoahUpdateRefsClosure::do_oop(narrowOop* p) { do_oop_work(p); }
-
 template <bool concurrent, bool stable_thread>
 ShenandoahEvacuateUpdateRootClosureBase<concurrent, stable_thread>::ShenandoahEvacuateUpdateRootClosureBase() :
   _heap(ShenandoahHeap::heap()), _thread(stable_thread ? Thread::current() : nullptr) {
@@ -192,18 +180,16 @@ void ShenandoahCleanUpdateWeakOopsClosure<CONCURRENT, IsAlive, KeepAlive>::do_oo
   ShouldNotReachHere();
 }
 
-ShenandoahCodeBlobAndDisarmClosure::ShenandoahCodeBlobAndDisarmClosure(OopClosure* cl) :
-  CodeBlobToOopClosure(cl, true /* fix_relocations */),
+ShenandoahNMethodAndDisarmClosure::ShenandoahNMethodAndDisarmClosure(OopClosure* cl) :
+  NMethodToOopClosure(cl, true /* fix_relocations */),
    _bs(BarrierSet::barrier_set()->barrier_set_nmethod()) {
 }
 
-void ShenandoahCodeBlobAndDisarmClosure::do_code_blob(CodeBlob* cb) {
-  nmethod* const nm = cb->as_nmethod_or_null();
-  if (nm != nullptr) {
-    assert(!ShenandoahNMethod::gc_data(nm)->is_unregistered(), "Should not be here");
-    CodeBlobToOopClosure::do_code_blob(cb);
-    _bs->disarm(nm);
-  }
+void ShenandoahNMethodAndDisarmClosure::do_nmethod(nmethod* nm) {
+  assert(nm != nullptr, "Sanity");
+  assert(!ShenandoahNMethod::gc_data(nm)->is_unregistered(), "Should not be here");
+  NMethodToOopClosure::do_nmethod(nm);
+  _bs->disarm(nm);
 }
 
 #ifdef ASSERT

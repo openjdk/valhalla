@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -492,9 +492,16 @@ value class FloatMaxVector extends FloatVector {
                                    VectorMask<Float> m) {
         return (FloatMaxVector)
             super.selectFromTemplate((FloatMaxVector) v,
-                                     (FloatMaxMask) m);  // specialize
+                                     FloatMaxMask.class, (FloatMaxMask) m);  // specialize
     }
 
+    @Override
+    @ForceInline
+    public FloatMaxVector selectFrom(Vector<Float> v1,
+                                   Vector<Float> v2) {
+        return (FloatMaxVector)
+            super.selectFromTemplate((FloatMaxVector) v1, (FloatMaxVector) v2);  // specialize
+    }
 
     @ForceInline
     @Override
@@ -511,9 +518,9 @@ value class FloatMaxVector extends FloatVector {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                         VectorPayloadMF vecpayload = vec.vec();
-                         long start_offset = vecpayload.multiFieldOffset();
-                         return (long)Float.floatToIntBits(U.getFloat(vecpayload, start_offset + ix * Float.BYTES));
+                     VectorPayloadMF vecpayload = vec.vec();
+                     long start_offset = vecpayload.multiFieldOffset();
+                     return (long)Float.floatToRawIntBits(U.getFloat(vecpayload, start_offset + ix * Float.BYTES));
                      });
     }
 
@@ -529,7 +536,7 @@ value class FloatMaxVector extends FloatVector {
     public FloatMaxVector withLaneHelper(int i, float e) {
         return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
-                                this, i, (long)Float.floatToIntBits(e),
+                                this, i, (long)Float.floatToRawIntBits(e),
                                 (v, ix, bits) -> {
                                     VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
@@ -777,6 +784,13 @@ value class FloatMaxVector extends FloatVector {
                 throw new IllegalArgumentException("VectorShuffle length and species length differ");
             int[] shuffleArray = toArray();
             return s.shuffleFromArray(shuffleArray, 0).check(s);
+        }
+
+        @Override
+        @ForceInline
+        public FloatMaxShuffle wrapIndexes() {
+            return VectorSupport.wrapShuffleIndexes(ETYPE, FloatMaxShuffle.class, this, VLENGTH,
+                                                    (s) -> ((FloatMaxShuffle)(((AbstractShuffle<Float>)(s)).wrapIndexesTemplate())));
         }
 
         @ForceInline

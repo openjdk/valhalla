@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -303,6 +303,16 @@ public class TreeInfo {
         }
     }
 
+    /**
+     * Is the given method invocation an invocation of this(...) or super(...)?
+     */
+    public static boolean isConstructorCall(JCMethodInvocation invoke) {
+        Name name = TreeInfo.name(invoke.meth);
+        Names names = name.table.names;
+
+        return (name == names._this || name == names._super);
+    }
+
     /** Finds super() invocations and translates them using the given mapping.
      */
     public static void mapSuperCalls(JCBlock block, Function<? super JCExpressionStatement, ? extends JCStatement> mapper) {
@@ -334,11 +344,13 @@ public class TreeInfo {
         @Override
         public void visitClassDef(JCClassDecl tree) {
             // don't descend any further
+            result = tree;
         }
 
         @Override
         public void visitLambda(JCLambda tree) {
             // don't descend any further
+            result = tree;
         }
     }
 
@@ -406,7 +418,6 @@ public class TreeInfo {
             case PLUS_ASG: case MINUS_ASG:
             case MUL_ASG: case DIV_ASG: case MOD_ASG:
             case APPLY: case NEWCLASS:
-            case STRING_TEMPLATE:
             case ERRONEOUS:
                 return true;
             default:
@@ -477,13 +488,6 @@ public class TreeInfo {
                 ? ((JCCompilationUnit) tree).docComments
                 : env.toplevel.docComments;
         return (docComments == null) ? null : docComments.getCommentText(tree);
-    }
-
-    public static DCTree.DCDocComment getCommentTree(Env<?> env, JCTree tree) {
-        DocCommentTable docComments = (tree.hasTag(JCTree.Tag.TOPLEVEL))
-                ? ((JCCompilationUnit) tree).docComments
-                : env.toplevel.docComments;
-        return (docComments == null) ? null : docComments.getCommentTree(tree);
     }
 
     /** The position of the first statement in a block, or the position of
@@ -621,10 +625,6 @@ public class TreeInfo {
             case BINDINGPATTERN: {
                 JCBindingPattern node = (JCBindingPattern)tree;
                 return getStartPos(node.var);
-            }
-            case STRING_TEMPLATE: {
-                JCStringTemplate node = (JCStringTemplate) tree;
-                return node.processor == null ? node.pos : getStartPos(node.processor);
             }
             case ERRONEOUS: {
                 JCErroneous node = (JCErroneous)tree;

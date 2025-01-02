@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/archiveUtils.hpp"
 #include "cds/cdsConfig.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
@@ -72,32 +73,33 @@ void InlineKlass::init_fixed_block() {
   *((address*)adr_pack_handler_jobject()) = nullptr;
   *((address*)adr_unpack_handler()) = nullptr;
   assert(pack_handler() == nullptr, "pack handler not null");
-  *((int*)adr_default_value_offset()) = 0;
   *((address*)adr_value_array_klasses()) = nullptr;
+  set_default_value_offset(0);
+  set_null_reset_value_offset(0);
+  set_first_field_offset(-1);
+  set_payload_size_in_bytes(-1);
+  set_payload_alignment(-1);
+  set_non_atomic_size_in_bytes(-1);
+  set_non_atomic_alignment(-1);
+  set_atomic_size_in_bytes(-1);
+  set_nullable_size_in_bytes(-1);
+  set_null_marker_offset(-1);
 }
 
-oop InlineKlass::default_value() {
-  assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
-  oop val = java_mirror()->obj_field_acquire(default_value_offset());
+void InlineKlass::set_default_value(oop val) {
   assert(val != nullptr, "Sanity check");
   assert(oopDesc::is_oop(val), "Sanity check");
   assert(val->is_inline_type(), "Sanity check");
   assert(val->klass() == this, "sanity check");
-  return val;
+  java_mirror()->obj_field_put(default_value_offset(), val);
 }
 
-int InlineKlass::first_field_offset_old() {
-#ifdef ASSERT
-  int first_offset = INT_MAX;
-  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-    if (fs.offset() < first_offset) first_offset= fs.offset();
-  }
-#endif
-  int base_offset = instanceOopDesc::base_offset_in_bytes();
-  // The first field of line types is aligned on a long boundary
-  base_offset = align_up(base_offset, BytesPerLong);
-  assert(base_offset == first_offset, "inconsistent offsets");
-  return base_offset;
+void InlineKlass::set_null_reset_value(oop val) {
+  assert(val != nullptr, "Sanity check");
+  assert(oopDesc::is_oop(val), "Sanity check");
+  assert(val->is_inline_type(), "Sanity check");
+  assert(val->klass() == this, "sanity check");
+  java_mirror()->obj_field_put(null_reset_value_offset(), val);
 }
 
 instanceOop InlineKlass::allocate_instance(TRAPS) {
@@ -128,7 +130,60 @@ int InlineKlass::nonstatic_oop_count() {
   return oops;
 }
 
-oop InlineKlass::read_flat_field(oop obj, int offset, TRAPS) {
+int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
+  switch(kind) {
+    case LayoutKind::NON_ATOMIC_FLAT:
+      assert(has_non_atomic_layout(), "Layout not available");
+      return non_atomic_size_in_bytes();
+      break;
+    case LayoutKind::ATOMIC_FLAT:
+      assert(has_atomic_layout(), "Layout not available");
+      return atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      assert(has_nullable_layout(), "Layout not available");
+      return nullable_size_in_bytes();
+      break;
+    case PAYLOAD:
+      return payload_size_in_bytes();
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+}
+
+int InlineKlass::layout_alignment(LayoutKind kind) const {
+  switch(kind) {
+    case LayoutKind::NON_ATOMIC_FLAT:
+      assert(has_non_atomic_layout(), "Layout not available");
+      return non_atomic_alignment();
+      break;
+    case LayoutKind::ATOMIC_FLAT:
+      assert(has_atomic_layout(), "Layout not available");
+      return atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      assert(has_nullable_layout(), "Layout not available");
+      return nullable_size_in_bytes();
+      break;
+    case LayoutKind::PAYLOAD:
+      return payload_alignment();
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+}
+
+oop InlineKlass::read_flat_field(oop obj, int offset, LayoutKind lk, TRAPS) {
+
+  if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+    InstanceKlass* recv = InstanceKlass::cast(obj->klass());
+    int nm_offset = offset + (null_marker_offset() - first_field_offset());
+    jbyte nm = obj->byte_field(nm_offset);
+    if (nm == 0) {
+      return nullptr;
+    }
+  }
   oop res = nullptr;
   assert(is_initialized() || is_being_initialized()|| is_in_error_state(),
         "Must be initialized, initializing or in a corner case of an escaped instance of a class that failed its initialization");
@@ -137,24 +192,18 @@ oop InlineKlass::read_flat_field(oop obj, int offset, TRAPS) {
   } else {
     Handle obj_h(THREAD, obj);
     res = allocate_instance_buffer(CHECK_NULL);
-    inline_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res);
+    inline_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res, lk);
   }
   assert(res != nullptr, "Must be set in one of two paths above");
   return res;
 }
 
-void InlineKlass::write_flat_field(oop obj, int offset, oop value, TRAPS) {
-  if (value == nullptr) {
+void InlineKlass::write_flat_field(oop obj, int offset, oop value, bool is_null_free, LayoutKind lk, TRAPS) {
+  if (is_null_free && value == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
-  write_non_null_flat_field(obj, offset, value);
-}
-
-void InlineKlass::write_non_null_flat_field(oop obj, int offset, oop value) {
-  assert(value != nullptr, "");
-  if (!is_empty_inline_type()) {
-    inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
-  }
+  assert(!is_null_free || (lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::REFERENCE || lk == LayoutKind::PAYLOAD), "Consistency check");
+  inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset, lk);
 }
 
 // Arrays of...
@@ -167,7 +216,7 @@ bool InlineKlass::flat_array() {
     return false;
   }
   // Too big
-  int elem_bytes = get_payload_size_in_bytes();
+  int elem_bytes = payload_size_in_bytes();
   if ((FlatArrayElementMaxSize >= 0) && (elem_bytes > FlatArrayElementMaxSize)) {
     return false;
   }
@@ -188,24 +237,20 @@ bool InlineKlass::flat_array() {
 
 Klass* InlineKlass::value_array_klass(int n, TRAPS) {
   if (Atomic::load_acquire(adr_value_array_klasses()) == nullptr) {
-    ResourceMark rm(THREAD);
-    JavaThread *jt = JavaThread::cast(THREAD);
-    {
-      // Atomic creation of array_klasses
-      MutexLocker ma(THREAD, MultiArray_lock);
+    // Atomic creation of array_klasses
+    RecursiveLocker rl(MultiArray_lock, THREAD);
 
-      // Check if update has already taken place
-      if (value_array_klasses() == nullptr) {
-        ArrayKlass* k;
-        if (flat_array()) {
-          k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
-        } else {
-          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
+    // Check if update has already taken place
+    if (value_array_klasses() == nullptr) {
+      ArrayKlass* k;
+      if (flat_array()) {
+        k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
+      } else {
+        k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
 
-        }
-        // use 'release' to pair with lock-free load
-        Atomic::release_store(adr_value_array_klasses(), k);
       }
+      // use 'release' to pair with lock-free load
+      Atomic::release_store(adr_value_array_klasses(), k);
     }
   }
   ArrayKlass* ak = value_array_klasses();
@@ -250,10 +295,13 @@ Klass* InlineKlass::value_array_klass_or_null() {
 // T_METADATA, drop everything until and including the closing
 // T_VOID) or the compiler point of view (each field of the inline
 // types is an argument: drop all T_METADATA/T_VOID from the list).
+//
+// Value classes could also have fields in abstract super value classes.
+// Use a HierarchicalFieldStream to get them as well.
 int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   int count = 0;
   SigEntry::add_entry(sig, T_METADATA, name(), base_off);
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (HierarchicalFieldStream<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
@@ -533,6 +581,10 @@ void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 void InlineKlass::remove_unshareable_info() {
   InstanceKlass::remove_unshareable_info();
 
+  // update it to point to the "buffered" copy of this class.
+  _adr_inlineklass_fixed_block = inlineklass_static_block();
+  ArchivePtrMarker::mark_pointer((address*)&_adr_inlineklass_fixed_block);
+
   *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
   *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
   *((address*)adr_pack_handler()) = nullptr;
@@ -552,10 +604,6 @@ void InlineKlass::remove_java_mirror() {
 }
 
 void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
-  // We are no longer bookkeeping pointer to fixed block during serialization, hence reinitializing
-  // fixed block address since its size was already accounted by InstanceKlass::size() and it will
-  // anyways be part of shared archive.
-  _adr_inlineklass_fixed_block = inlineklass_static_block();
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
   if (value_array_klasses() != nullptr) {
     value_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);

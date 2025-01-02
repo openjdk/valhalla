@@ -175,7 +175,7 @@ void PhaseVector::scalarize_vbox_node(VectorBoxNode* vec_box) {
   // Process merged VBAs
 
   if (EnableVectorAggressiveReboxing) {
-    Unique_Node_List calls(C->comp_arena());
+    Unique_Node_List calls;
     for (DUIterator_Fast imax, i = vec_box->fast_outs(imax); i < imax; i++) {
       Node* use = vec_box->fast_out(i);
       if (use->is_CallJava()) {
@@ -352,7 +352,7 @@ void PhaseVector::expand_vunbox_node(VectorUnboxNode* vec_unbox) {
     }
 
     assert(node->bottom_type()->isa_vect() != nullptr, "not a vector");
-    assert(Type::cmp(vec_unbox->bottom_type(), node->bottom_type()) == 0, "type is not matched");
+    assert(Type::equals(vec_unbox->bottom_type(), node->bottom_type()), "type is not matched");
 
     C->set_max_vector_size(MAX2(C->max_vector_size(), vec_unbox->bottom_type()->is_vect()->length_in_bytes()));
     gvn.hash_delete(vec_unbox);

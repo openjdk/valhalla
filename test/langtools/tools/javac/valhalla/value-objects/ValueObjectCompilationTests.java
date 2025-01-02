@@ -26,7 +26,7 @@
  *
  * @test
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
- *      8329345
+ *      8329345 8341061 8340984
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
@@ -187,6 +187,16 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             new TestData(
                     """
                     value record Point(int x, int y) {}
+                    """
+            ),
+            new TestData(
+                    """
+                    value class One extends Number {
+                        public int intValue() { return 0; }
+                        public long longValue() { return 0; }
+                        public float floatValue() { return 0; }
+                        public double doubleValue() { return 0; }
+                    }
                     """
             ),
             new TestData(
@@ -500,6 +510,14 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """,
                     new String[] {"--source", Integer.toString(Runtime.version().feature())}
+            ),
+            new TestData(
+                    "compiler.err.illegal.combination.of.modifiers", // --enable-preview -source"
+                    """
+                    value class V {
+                        volatile int f = 1;
+                    }
+                    """
             )
     );
 
@@ -542,7 +560,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     false // local sealed classes are not allowed
             ),
             new TestData(
-                    "compiler.err.illegal.combination.of.modifiers",
+                    "compiler.err.non.abstract.value.class.cant.be.sealed.or.non.sealed",
                     """
                     abstract sealed value class SC {}
                     non-sealed value class VC extends SC {}
@@ -550,10 +568,37 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     false
             ),
             new TestData(
-                    "compiler.err.illegal.combination.of.modifiers",
+                    "compiler.err.non.abstract.value.class.cant.be.sealed.or.non.sealed",
                     """
                     sealed value class SI {}
-                    non-sealed value class VC extends SI {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed abstract value class SI {}
+                    value class V extends SI {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed abstract value class SI permits V {}
+                    value class V extends SI {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed interface I {}
+                    non-sealed abstract value class V implements I {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed interface I permits V {}
+                    non-sealed abstract value class V implements I {}
                     """,
                     false
             )
@@ -731,14 +776,18 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testConstruction() throws Exception {
-        record Data(String src, boolean isRecord) {}
+        record Data(String src, boolean isRecord) {
+            Data(String src) {
+                this(src, false);
+            }
+        }
         for (Data data : List.of(
                 new Data(
                     """
                     value class Test {
                         int i = 100;
                     }
-                    """, false),
+                    """),
                 new Data(
                     """
                     value class Test {
@@ -747,7 +796,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             i = 100;
                         }
                     }
-                    """, false),
+                    """),
                 new Data(
                     """
                     value class Test {
@@ -757,7 +806,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             super();
                         }
                     }
-                    """, false),
+                    """),
                 new Data(
                     """
                     value class Test {
@@ -767,7 +816,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             super();
                         }
                     }
-                    """, false),
+                    """),
                 new Data(
                     """
                     value record Test(int i) {}
@@ -799,13 +848,13 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """
                 value class Test {
                     int i = 100;
-                    int j;
+                    int j = 0;
                     {
-                        j = 200;
+                        System.out.println(j);
                     }
                 }
                 """;
-        String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,aload_0,sipush,putfield,return,";
+        String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,iconst_0,putfield,aload_0,invokespecial,getstatic,iconst_0,invokevirtual,return,";
         File dir = assertOK(true, source);
         for (final File fileEntry : dir.listFiles()) {
             ClassFile classFile = ClassFile.read(fileEntry);
@@ -816,7 +865,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     for (Instruction inst: code.getInstructions()) {
                         foundCodeSequence += inst.getMnemonic() + ",";
                     }
-                    Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                    Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
                 }
             }
         }
@@ -861,6 +910,105 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 value class Test {
                     Test t = null;
                     Runnable r = () -> { System.err.println(t); };
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.after.ctor.called",
+                """
+                value class Test {
+                    int f;
+                    {
+                        f = 1;
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.before.ctor.called",
+                """
+                value class V {
+                    int x;
+                    int y = x + 1; // allowed
+                    V1() {
+                        x = 12;
+                        // super();
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.var.might.already.be.assigned",
+                """
+                value class V2 {
+                    int x;
+                    V2() { this(x = 3); } // error
+                    V2(int i) { x = 4; }
+                }
+                """
+        );
+        assertOK(
+                """
+                abstract value class AV1 {
+                    AV1(int i) {}
+                }
+                value class V3 extends AV1 {
+                    int x;
+                    V3() {
+                        super(x = 3); // ok
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.before.ctor.called",
+                """
+                value class V4 {
+                    int x;
+                    int y = x + 1;
+                    V4() {
+                        x = 12;
+                    }
+                    V4(int i) {
+                        x = i;
+                    }
+                }
+                """
+        );
+        assertOK(
+                """
+                value class V {
+                    final int x = "abc".length();
+                    { System.out.println(x); }
+                }
+                """
+        );
+        assertFail("compiler.err.illegal.forward.ref",
+                """
+                value class V {
+                    { System.out.println(x); }
+                    final int x = "abc".length();
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.before.ctor.called",
+                """
+                value class V {
+                    int x = "abc".length();
+                    int y = x;
+                }
+                """
+        );
+        assertOK(
+                """
+                value class V {
+                    int x = "abc".length();
+                    { int y = x; }
+                }
+                """
+        );
+        assertOK(
+                """
+                value class V {
+                    String s1;
+                    { System.out.println(s1); }
+                    String s2 = (s1 = "abc");
                 }
                 """
         );
@@ -924,38 +1072,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 value class V {
                     void selector() {
                         int i = int.some_selector;
-                    }
-                }
-                """
-        );
-    }
-
-    @Test
-    void testAnonymousValue() throws Exception {
-        assertOK(
-                """
-                class Test {
-                    void m() {
-                        Object o = new value Comparable<String>() {
-                            @Override
-                            public int compareTo(String o) {
-                                return 0;
-                            }
-                        };
-                    }
-                }
-                """
-        );
-        assertOK(
-                """
-                class Test {
-                    void m() {
-                        Object o = new value Comparable<>() {
-                            @Override
-                            public int compareTo(Object o) {
-                                return 0;
-                            }
-                        };
                     }
                 }
                 """

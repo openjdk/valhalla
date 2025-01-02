@@ -29,12 +29,12 @@ public class InlineTypeRegexes {
     private static final String MID = ".*)+(\\s){2}===.*";
     private static final String END = ")";
     // Generic allocation
-    public static final String ALLOC_G = "(.*call,static.*wrapper for: _new_instance_Java" + END;
-    public static final String ALLOCA_G = "(.*call,static.*wrapper for: _new_array_Java" + END;
+    public static final String ALLOC_G = "(.*call,static.*wrapper for: C2 Runtime new_instance" + END;
+    public static final String ALLOCA_G = "(.*call,static.*wrapper for: C2 Runtime new_array" + END;
     // Inline type allocation
     public static final String MYVALUE_ARRAY_KLASS = "\\[(precise )?compiler/valhalla/inlinetypes/MyValue";
-    public static final String ALLOC = "(.*precise compiler/valhalla/inlinetypes/MyValue.*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*_new_instance_Java" + END;
-    public static final String ALLOCA = "(.*" + MYVALUE_ARRAY_KLASS + ".*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*_new_array_Java" + END;
+    public static final String ALLOC = "(.*precise compiler/valhalla/inlinetypes/MyValue.*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*C2 Runtime new_instance" + END;
+    public static final String ALLOCA = "(.*" + MYVALUE_ARRAY_KLASS + ".*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*C2 Runtime new_array" + END;
     public static final String LOAD = START + "Load(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/inlinetypes/.*" + END;
     public static final String LOADK = START + "LoadK" + MID + END;
     public static final String STORE = START + "Store(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/inlinetypes/.*" + END;
@@ -50,7 +50,7 @@ public class InlineTypeRegexes {
     protected static final String CALL_UNSAFE = START + "CallStaticJava" + MID + "# Static  jdk.internal.misc.Unsafe::" + END;
     public static final String STORE_INLINE_FIELDS = START + "CallStaticJava" + MID + "store_inline_type_fields" + END;
     public static final String SCOBJ = "(.*# ScObj.*" + END;
-    public static final String LOAD_UNKNOWN_INLINE = START + "CallStaticJava" + MID + "_load_unknown_inline" + END;
+    public static final String LOAD_UNKNOWN_INLINE = START + "CallStaticJava" + MID + "C2 Runtime load_unknown_inline" + END;
     public static final String STORE_UNKNOWN_INLINE = "(.*" + CALL_LEAF + ".*store_unknown_inline.*" + END;
     public static final String INLINE_ARRAY_NULL_GUARD = "(.*call,static.*wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
     public static final String INTRINSIC_SLOW_PATH = "(.*call,static.*wrapper for: uncommon_trap.*reason='intrinsic_or_type_checked_inlining'.*" + END;
@@ -62,7 +62,6 @@ public class InlineTypeRegexes {
     public static final String UNHANDLED_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*unhandled" + END;
     public static final String PREDICATE_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*predicate" + END;
     public static final String MEMBAR = START + "MemBar" + MID + END;
-    public static final String CHECKCAST_ARRAY = "(((?i:cmp|CLFI|CLR).*" + MYVALUE_ARRAY_KLASS + ".*:|.*(?i:mov|or).*" + MYVALUE_ARRAY_KLASS + ".*:.*\\R(.*(decode|mov|nop).*\\R)*.*(cmp|CMP|CLR))" + END;
     public static final String CHECKCAST_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*checkcast_arraycopy.*" + END;
     public static final String JLONG_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*jlong_disjoint_arraycopy.*" + END;
     public static final String FIELD_ACCESS = "(.*Field: *" + END;

@@ -35,7 +35,7 @@
 // must be put in this file, as they require runtime/handles.inline.hpp.
 
 inline Symbol* fieldDescriptor::name() const {
-  return field().name(field_holder()->multifield_info(),  _cp());
+  return field().name(_cp(), field_holder()->multifield_info());
 }
 
 inline Symbol* fieldDescriptor::signature() const {
@@ -69,7 +69,6 @@ inline BasicType fieldDescriptor::field_type() const {
 inline bool fieldDescriptor::is_flat()  const  { return field().field_flags().is_flat(); }
 inline bool fieldDescriptor::is_null_free_inline_type() const { return field().field_flags().is_null_free_inline_type(); }
 inline bool fieldDescriptor::has_null_marker() const { return field().field_flags().has_null_marker(); }
-inline bool fieldDescriptor::has_internal_null_marker() const { return field().field_flags().is_null_marker_internal(); }
 
 inline bool fieldDescriptor::is_multifield() const { return field().is_multifield(); }
 inline bool fieldDescriptor::is_multifield_base() const { return field().is_multifield_base(); }

@@ -94,7 +94,6 @@ class fieldDescriptor {
   inline jbyte multifield_index()        const;
   inline int secondary_fields_count(int base_idx) const;
   inline bool has_null_marker()   const;
-  inline bool has_internal_null_marker() const;
 
   bool is_synthetic()             const    { return access_flags().is_synthetic(); }
 

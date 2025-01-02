@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -492,9 +492,16 @@ value class Double64Vector extends DoubleVector {
                                    VectorMask<Double> m) {
         return (Double64Vector)
             super.selectFromTemplate((Double64Vector) v,
-                                     (Double64Mask) m);  // specialize
+                                     Double64Mask.class, (Double64Mask) m);  // specialize
     }
 
+    @Override
+    @ForceInline
+    public Double64Vector selectFrom(Vector<Double> v1,
+                                   Vector<Double> v2) {
+        return (Double64Vector)
+            super.selectFromTemplate((Double64Vector) v1, (Double64Vector) v2);  // specialize
+    }
 
     @ForceInline
     @Override
@@ -512,9 +519,9 @@ value class Double64Vector extends DoubleVector {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                         VectorPayloadMF vecpayload = vec.vec();
-                         long start_offset = vecpayload.multiFieldOffset();
-                         return (long)Double.doubleToLongBits(U.getDouble(vecpayload, start_offset + ix * Double.BYTES));
+                     VectorPayloadMF vecpayload = vec.vec();
+                     long start_offset = vecpayload.multiFieldOffset();
+                     return (long)Double.doubleToRawLongBits(U.getDouble(vecpayload, start_offset + ix * Double.BYTES));
                      });
     }
 
@@ -530,7 +537,7 @@ value class Double64Vector extends DoubleVector {
     public Double64Vector withLaneHelper(int i, double e) {
         return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
-                                this, i, (long)Double.doubleToLongBits(e),
+                                this, i, (long)Double.doubleToRawLongBits(e),
                                 (v, ix, bits) -> {
                                     VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
@@ -778,6 +785,13 @@ value class Double64Vector extends DoubleVector {
                 throw new IllegalArgumentException("VectorShuffle length and species length differ");
             int[] shuffleArray = toArray();
             return s.shuffleFromArray(shuffleArray, 0).check(s);
+        }
+
+        @Override
+        @ForceInline
+        public Double64Shuffle wrapIndexes() {
+            return VectorSupport.wrapShuffleIndexes(ETYPE, Double64Shuffle.class, this, VLENGTH,
+                                                    (s) -> ((Double64Shuffle)(((AbstractShuffle<Double>)(s)).wrapIndexesTemplate())));
         }
 
         @ForceInline

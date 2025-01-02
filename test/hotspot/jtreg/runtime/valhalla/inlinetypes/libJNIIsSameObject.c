@@ -26,11 +26,7 @@
 #include <string.h>
 #include <jni.h>
 
-#if !defined(_WIN32) && !defined(_WIN64)
-
 JNIEXPORT jboolean JNICALL
 Java_TestJNIIsSameObject_isSameObject(JNIEnv* env, jclass klass, jobject obj0, jobject obj1) {
   return (*env)->IsSameObject(env, obj0, obj1);
 }
-
-#endif

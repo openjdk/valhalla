@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +35,14 @@ import java.util.Objects;
 import java.util.StringJoiner;
 
 import jdk.internal.util.ByteArray;
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import sun.reflect.misc.ReflectUtil;
+
+import static java.io.ObjectInputStream.TRACE;
+
+import static jdk.internal.util.ModifiedUtf.putChar;
+import static jdk.internal.util.ModifiedUtf.utfLen;
 
 /**
  * An ObjectOutputStream writes primitive data types and graphs of Java objects
@@ -158,8 +166,35 @@ import sun.reflect.misc.ReflectUtil;
  * defaultWriteObject and writeFields initially terminate any existing
  * block-data record.
  *
+ * <a id="record-serialization"></a>
  * <p>Records are serialized differently than ordinary serializable or externalizable
  * objects, see <a href="ObjectInputStream.html#record-serialization">record serialization</a>.
+ *
+ * <a id="valueclass-serialization"></a>
+ * <p>Value classes are {@linkplain Serializable} through the use of the serialization proxy pattern.
+ * The serialization protocol does not support a standard serialized form for value classes.
+ * The value class delegates to a serialization proxy by supplying an alternate
+ * record or object to be serialized instead of the value class.
+ * When the proxy is deserialized it re-constructs the value object and returns the value object.
+ * For example,
+ * {@snippet lang="java" :
+ * value class ZipCode implements Serializable {    // @highlight substring="value class"
+ *     private static final long serialVersionUID = 1L;
+ *     private int zipCode;
+ *     public ZipCode(int zip) { this.zipCode = zip; }
+ *     public int zipCode() { return zipCode; }
+ *
+ *     public Object writeReplace() {    // @highlight substring="writeReplace"
+ *         return new ZipCodeProxy(zipCode);
+ *     }
+ *
+ *     private record ZipCodeProxy(int zipCode) implements Serializable {
+ *         public Object readResolve() {    // @highlight substring="readResolve"
+ *             return new ZipCode(zipCode);
+ *         }
+ *     }
+ * }
+ * }
  *
  * @spec serialization/index.html Java Object Serialization Specification
  * @author      Mike Warres
@@ -175,6 +210,7 @@ import sun.reflect.misc.ReflectUtil;
 public class ObjectOutputStream
     extends OutputStream implements ObjectOutput, ObjectStreamConstants
 {
+    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
     private static class Caches {
         /** cache of subclass security audit results */
@@ -344,6 +380,9 @@ public class ObjectOutputStream
      * object are written transitively so that a complete equivalent graph of
      * objects can be reconstructed by an ObjectInputStream.
      *
+     * <p>Serialization and deserialization of value classes is described in
+     * {@linkplain ObjectOutputStream##valueclass-serialization value class serialization}.
+     *
      * <p>Exceptions are thrown for problems with the OutputStream and for
      * classes that should not be serialized.  All exceptions are fatal to the
      * OutputStream, which is left in an indeterminate state, and it is up to
@@ -412,6 +451,9 @@ public class ObjectOutputStream
      * rules described above only apply to the base-level object written with
      * writeUnshared, and not to any transitively referenced sub-objects in the
      * object graph to be serialized.
+     *
+     * <p>Serialization and deserialization of value classes is described in
+     * {@linkplain ObjectOutputStream##valueclass-serialization value class serialization}.
      *
      * <p>ObjectOutputStream subclasses which override this method can only be
      * constructed in security contexts possessing the
@@ -891,7 +933,7 @@ public class ObjectOutputStream
      *          stream
      */
     public void writeUTF(String str) throws IOException {
-        bout.writeUTF(str);
+        bout.writeUTFInternal(str, false);
     }
 
     /**
@@ -1033,7 +1075,7 @@ public class ObjectOutputStream
          *         calling the {@link java.io.ObjectOutputStream#writeFields()}
          *         method.
          */
-        @Deprecated
+        @Deprecated(forRemoval = true, since = "1.4")
         public abstract void write(ObjectOutput out) throws IOException;
     }
 
@@ -1198,9 +1240,6 @@ public class ObjectOutputStream
             } else if (obj instanceof Enum) {
                 writeEnum((Enum<?>) obj, desc, unshared);
             } else if (obj instanceof Serializable) {
-                if (cl.isValue() && !desc.isInstantiable()) {
-                    throw new NotSerializableException(cl.getName());
-                }
                 writeOrdinaryObject(obj, desc, unshared);
             } else {
                 if (extendedDebugInfo) {
@@ -1281,7 +1320,7 @@ public class ObjectOutputStream
         }
 
         bout.setBlockDataMode(true);
-        if (cl != null && isCustomSubclass()) {
+        if (isCustomSubclass()) {
             ReflectUtil.checkPackageAccess(cl);
         }
         annotateProxyClass(cl);
@@ -1326,14 +1365,7 @@ public class ObjectOutputStream
      */
     private void writeString(String str, boolean unshared) throws IOException {
         handles.assign(unshared ? null : str);
-        long utflen = bout.getUTFLength(str);
-        if (utflen <= 0xFFFF) {
-            bout.writeByte(TC_STRING);
-            bout.writeUTF(str, utflen);
-        } else {
-            bout.writeByte(TC_LONGSTRING);
-            bout.writeLongUTF(str, utflen);
-        }
+        bout.writeUTFInternal(str, true);
     }
 
     /**
@@ -1456,8 +1488,8 @@ public class ObjectOutputStream
             if (desc.isRecord()) {
                 writeRecordData(obj, desc);
             } else if (desc.isExternalizable() && !desc.isProxy()) {
-                if (desc.forClass().isValue())
-                    throw new NotSerializableException("Externalizable not valid for value class "
+                if (desc.isValue())
+                    throw new InvalidClassException("Externalizable not valid for value class "
                             + desc.forClass().getName());
                 writeExternalData((Externalizable) obj);
             } else {
@@ -1507,10 +1539,10 @@ public class ObjectOutputStream
         throws IOException
     {
         assert obj.getClass().isRecord();
-        ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
-        if (slots.length != 1) {
+        List<ObjectStreamClass.ClassDataSlot> slots = desc.getClassDataLayout();
+        if (slots.size() != 1) {
             throw new InvalidClassException(
-                    "expected a single record slot length, but found: " + slots.length);
+                    "expected a single record slot length, but found: " + slots.size());
         }
 
         defaultWriteFields(obj, desc);  // #### seems unnecessary to use the accessors
@@ -1523,9 +1555,9 @@ public class ObjectOutputStream
     private void writeSerialData(Object obj, ObjectStreamClass desc)
         throws IOException
     {
-        ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
-        for (int i = 0; i < slots.length; i++) {
-            ObjectStreamClass slotDesc = slots[i].desc;
+       List<ObjectStreamClass.ClassDataSlot> slots = desc.getClassDataLayout();
+        for (int i = 0; i < slots.size(); i++) {
+            ObjectStreamClass slotDesc = slots.get(i).desc;
             if (slotDesc.hasWriteObjectMethod()) {
                 PutFieldImpl oldPut = curPut;
                 curPut = null;
@@ -2006,26 +2038,27 @@ public class ObjectOutputStream
             }
         }
 
-        public void writeBytes(String s) throws IOException {
-            int endoff = s.length();
-            int cpos = 0;
-            int csize = 0;
-            for (int off = 0; off < endoff; ) {
-                if (cpos >= csize) {
-                    cpos = 0;
-                    csize = Math.min(endoff - off, CHAR_BUF_SIZE);
-                    s.getChars(off, off + csize, cbuf, 0);
-                }
-                if (pos >= MAX_BLOCK_SIZE) {
+        @SuppressWarnings("deprecation")
+        void writeBytes(String s, int len) throws IOException {
+            int pos = this.pos;
+            for (int strpos = 0; strpos < len;) {
+                int rem = MAX_BLOCK_SIZE - pos;
+                int csize = Math.min(len - strpos, rem);
+                s.getBytes(strpos, strpos + csize, buf, pos);
+                pos += csize;
+                strpos += csize;
+
+                if (pos == MAX_BLOCK_SIZE) {
+                    this.pos = pos;
                     drain();
+                    pos = 0;
                 }
-                int n = Math.min(csize - cpos, MAX_BLOCK_SIZE - pos);
-                int stop = pos + n;
-                while (pos < stop) {
-                    buf[pos++] = (byte) cbuf[cpos++];
-                }
-                off += n;
             }
+            this.pos = pos;
+        }
+
+        public void writeBytes(String s) throws IOException {
+            writeBytes(s, s.length());
         }
 
         public void writeChars(String s) throws IOException {
@@ -2038,8 +2071,47 @@ public class ObjectOutputStream
             }
         }
 
-        public void writeUTF(String s) throws IOException {
-            writeUTF(s, getUTFLength(s));
+        public void writeUTF(String str) throws IOException {
+            writeUTFInternal(str, false);
+        }
+
+        private void writeUTFInternal(String str, boolean writeHeader) throws IOException {
+            int strlen = str.length();
+            int countNonZeroAscii = JLA.countNonZeroAscii(str);
+            int utflen = utfLen(str, countNonZeroAscii);
+            if (utflen <= 0xFFFF) {
+                if(writeHeader) {
+                    writeByte(TC_STRING);
+                }
+                writeShort(utflen);
+            } else {
+                if(writeHeader) {
+                    writeByte(TC_LONGSTRING);
+                }
+                writeLong(utflen);
+            }
+
+            if (countNonZeroAscii != 0) {
+                writeBytes(str, countNonZeroAscii);
+            }
+            if (countNonZeroAscii != strlen) {
+                writeMoreUTF(str, countNonZeroAscii);
+            }
+        }
+
+        private void writeMoreUTF(String str, int stroff) throws IOException {
+            int pos = this.pos;
+            for (int strlen = str.length(); stroff < strlen;) {
+                char c = str.charAt(stroff++);
+                int csize = c != 0 && c < 0x80 ? 1 : c >= 0x800 ? 3 : 2;
+                if (pos + csize >= MAX_BLOCK_SIZE) {
+                    this.pos = pos;
+                    drain();
+                    pos = 0;
+                }
+                pos = putChar(buf, pos, c);
+            }
+            this.pos = pos;
         }
 
 
@@ -2163,112 +2235,6 @@ public class ObjectOutputStream
                 } else {
                     dout.writeDouble(v[off++]);
                 }
-            }
-        }
-
-        /**
-         * Returns the length in bytes of the UTF encoding of the given string.
-         */
-        long getUTFLength(String s) {
-            int len = s.length();
-            long utflen = 0;
-            for (int off = 0; off < len; ) {
-                int csize = Math.min(len - off, CHAR_BUF_SIZE);
-                s.getChars(off, off + csize, cbuf, 0);
-                for (int cpos = 0; cpos < csize; cpos++) {
-                    char c = cbuf[cpos];
-                    if (c >= 0x0001 && c <= 0x007F) {
-                        utflen++;
-                    } else if (c > 0x07FF) {
-                        utflen += 3;
-                    } else {
-                        utflen += 2;
-                    }
-                }
-                off += csize;
-            }
-            return utflen;
-        }
-
-        /**
-         * Writes the given string in UTF format.  This method is used in
-         * situations where the UTF encoding length of the string is already
-         * known; specifying it explicitly avoids a prescan of the string to
-         * determine its UTF length.
-         */
-        void writeUTF(String s, long utflen) throws IOException {
-            if (utflen > 0xFFFFL) {
-                throw new UTFDataFormatException();
-            }
-            writeShort((int) utflen);
-            if (utflen == (long) s.length()) {
-                writeBytes(s);
-            } else {
-                writeUTFBody(s);
-            }
-        }
-
-        /**
-         * Writes given string in "long" UTF format.  "Long" UTF format is
-         * identical to standard UTF, except that it uses an 8 byte header
-         * (instead of the standard 2 bytes) to convey the UTF encoding length.
-         */
-        void writeLongUTF(String s) throws IOException {
-            writeLongUTF(s, getUTFLength(s));
-        }
-
-        /**
-         * Writes given string in "long" UTF format, where the UTF encoding
-         * length of the string is already known.
-         */
-        void writeLongUTF(String s, long utflen) throws IOException {
-            writeLong(utflen);
-            if (utflen == (long) s.length()) {
-                writeBytes(s);
-            } else {
-                writeUTFBody(s);
-            }
-        }
-
-        /**
-         * Writes the "body" (i.e., the UTF representation minus the 2-byte or
-         * 8-byte length header) of the UTF encoding for the given string.
-         */
-        private void writeUTFBody(String s) throws IOException {
-            int limit = MAX_BLOCK_SIZE - 3;
-            int len = s.length();
-            for (int off = 0; off < len; ) {
-                int csize = Math.min(len - off, CHAR_BUF_SIZE);
-                s.getChars(off, off + csize, cbuf, 0);
-                for (int cpos = 0; cpos < csize; cpos++) {
-                    char c = cbuf[cpos];
-                    if (pos <= limit) {
-                        if (c <= 0x007F && c != 0) {
-                            buf[pos++] = (byte) c;
-                        } else if (c > 0x07FF) {
-                            buf[pos + 2] = (byte) (0x80 | ((c >> 0) & 0x3F));
-                            buf[pos + 1] = (byte) (0x80 | ((c >> 6) & 0x3F));
-                            buf[pos + 0] = (byte) (0xE0 | ((c >> 12) & 0x0F));
-                            pos += 3;
-                        } else {
-                            buf[pos + 1] = (byte) (0x80 | ((c >> 0) & 0x3F));
-                            buf[pos + 0] = (byte) (0xC0 | ((c >> 6) & 0x1F));
-                            pos += 2;
-                        }
-                    } else {    // write one byte at a time to normalize block
-                        if (c <= 0x007F && c != 0) {
-                            write(c);
-                        } else if (c > 0x07FF) {
-                            write(0xE0 | ((c >> 12) & 0x0F));
-                            write(0x80 | ((c >> 6) & 0x3F));
-                            write(0x80 | ((c >> 0) & 0x3F));
-                        } else {
-                            write(0xC0 | ((c >> 6) & 0x1F));
-                            write(0x80 | ((c >> 0) & 0x3F));
-                        }
-                    }
-                }
-                off += csize;
             }
         }
     }
