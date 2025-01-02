@@ -196,7 +196,7 @@ public class ClassWriter extends ClassFile {
         extraAttributeHooks = extraAttributeHooks.prepend(addExtraAttributes);
     }
 
-/******************************************************************
+/* ****************************************************************
  * Diagnostics: dump generated class names and modifiers
  ******************************************************************/
 
@@ -238,7 +238,7 @@ public class ClassWriter extends ClassFile {
             "", "VOLATILE", "TRANSIENT", "NATIVE", "INTERFACE",
             "ABSTRACT", "STRICTFP"};
 
-/******************************************************************
+/* ****************************************************************
  * Output routines
  ******************************************************************/
 
@@ -260,7 +260,7 @@ public class ClassWriter extends ClassFile {
         buf.elems[adr+3] = (byte)((x      ) & 0xFF);
     }
 
-/******************************************************************
+/* ****************************************************************
  * Writing the Constant Pool
  ******************************************************************/
 
@@ -278,7 +278,7 @@ public class ClassWriter extends ClassFile {
         }
     }
 
-/******************************************************************
+/* ****************************************************************
  * Writing Attributes
  ******************************************************************/
 
@@ -330,7 +330,7 @@ public class ClassWriter extends ClassFile {
         int alenIdx = writeAttr(attributeName);
         ClassSymbol enclClass = c.owner.enclClass();
         MethodSymbol enclMethod =
-            (c.owner.type == null // local to init block
+            ((c.owner.flags() & BLOCK) != 0 // local to init block
              || c.owner.kind != MTH) // or member init
             ? null
             : ((MethodSymbol)c.owner).originalEnclosingMethod();
@@ -481,7 +481,7 @@ public class ClassWriter extends ClassFile {
         return attrCount;
     }
 
-/**********************************************************************
+/* ********************************************************************
  * Writing Java-language annotations (aka metadata, attributes)
  **********************************************************************/
 
@@ -742,7 +742,7 @@ public class ClassWriter extends ClassFile {
         }
     }
 
-/**********************************************************************
+/* ********************************************************************
  * Writing module attributes
  **********************************************************************/
 
@@ -824,7 +824,7 @@ public class ClassWriter extends ClassFile {
         return 1;
     }
 
-/**********************************************************************
+/* ********************************************************************
  * Writing Objects
  **********************************************************************/
 

@@ -356,14 +356,14 @@ TEST_VM(os_linux, pretouch_thp_and_use_concurrent) {
   const bool useThp = UseTransparentHugePages;
   UseTransparentHugePages = true;
   char* const heap = os::reserve_memory(size, false, mtInternal);
-  EXPECT_NE(heap, (char*)NULL);
+  EXPECT_NE(heap, nullptr);
   EXPECT_TRUE(os::commit_memory(heap, size, false));
 
   {
-    auto pretouch = [heap, size](Thread*, int) {
+    auto pretouch = [&](Thread*, int) {
       os::pretouch_memory(heap, heap + size, os::vm_page_size());
     };
-    auto useMemory = [heap, size](Thread*, int) {
+    auto useMemory = [&](Thread*, int) {
       int* iptr = reinterpret_cast<int*>(heap);
       for (int i = 0; i < 1000; i++) *iptr++ = i;
     };

@@ -93,7 +93,7 @@ class FieldStreamBase : public StackObj {
   }
 
   Symbol* name() const {
-    return field()->name(_multifield_info, _constants());
+    return field()->name(_constants(), _multifield_info);
   }
 
   int name_index() const {
@@ -120,7 +120,7 @@ class FieldStreamBase : public StackObj {
     return field()->field_flags().is_null_free_inline_type();
   }
 
-  bool is_flat() {
+  bool is_flat() const {
     return field()->field_flags().is_flat();
   }
 
@@ -272,6 +272,9 @@ class HierarchicalFieldStream : public StackObj  {
   bool done() const { return _next_klass == nullptr && _current_stream.done(); }
 
   // bridge functions from FieldStreamBase
+  int index() const {
+    return _current_stream.index();
+  }
 
   AccessFlags access_flags() const {
     return _current_stream.access_flags();
@@ -313,6 +316,9 @@ class HierarchicalFieldStream : public StackObj  {
     return _current_stream.field_descriptor();
   }
 
+  bool is_flat() const {
+    return _current_stream.is_flat();
+  }
 };
 
 #endif // SHARE_OOPS_FIELDSTREAMS_HPP

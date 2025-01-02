@@ -774,7 +774,7 @@ Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask*
 
         if (Opcode() == Op_CallLeafVector) {
           // If the return is in vector, compute appropriate regmask taking into account the whole range
-          if(ideal_reg >= Op_VecS && ideal_reg <= Op_VecZ) {
+          if(ideal_reg >= Op_VecA && ideal_reg <= Op_VecZ) {
             if(OptoReg::is_valid(regs.second())) {
               for (OptoReg::Name r = regs.first(); r <= regs.second(); r = OptoReg::add(r, 1)) {
                 rm.Insert(r);
@@ -1035,7 +1035,7 @@ Node* CallNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 }
 
 bool CallNode::is_call_to_arraycopystub() const {
-  if (_name != nullptr && strstr(_name, "arraycopy") != 0) {
+  if (_name != nullptr && strstr(_name, "arraycopy") != nullptr) {
     return true;
   }
   return false;
@@ -1131,9 +1131,9 @@ bool CallStaticJavaNode::cmp( const Node &n ) const {
 
 Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (can_reshape && uncommon_trap_request() != 0) {
-    if (remove_useless_allocation(phase, in(0), in(TypeFunc::Memory), in(TypeFunc::Parms))) {
+    PhaseIterGVN* igvn = phase->is_IterGVN();
+    if (remove_unknown_flat_array_load(igvn, in(0), in(TypeFunc::Memory), in(TypeFunc::Parms))) {
       if (!in(0)->is_Region()) {
-        PhaseIterGVN* igvn = phase->is_IterGVN();
         igvn->replace_input_of(this, 0, phase->C->top());
       }
       return this;
@@ -1192,16 +1192,13 @@ int CallStaticJavaNode::extract_uncommon_trap_request(const Node* call) {
   return call->in(TypeFunc::Parms)->bottom_type()->is_int()->get_con();
 }
 
-bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, Node* mem, Node* unc_arg) {
-  // Split if can cause the flat array branch of an array load to
-  // end in an uncommon trap. In that case, the allocation of the
-  // loaded value and its initialization is useless. Eliminate it. use
-  // the jvm state of the allocation to create a new uncommon trap
-  // call at the load.
+// Split if can cause the flat array branch of an array load with unknown type (see
+// Parse::array_load) to end in an uncommon trap. In that case, the call to
+// 'load_unknown_inline' is useless. Replace it with an uncommon trap with the same JVMState.
+bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node* ctl, Node* mem, Node* unc_arg) {
   if (ctl == nullptr || ctl->is_top() || mem == nullptr || mem->is_top() || !mem->is_MergeMem()) {
     return false;
   }
-  PhaseIterGVN* igvn = phase->is_IterGVN();
   if (ctl->is_Region()) {
     bool res = false;
     for (uint i = 1; i < ctl->req(); i++) {
@@ -1212,17 +1209,17 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
           mms.set_memory(m->in(i));
         }
       }
-      if (remove_useless_allocation(phase, ctl->in(i), mm, unc_arg)) {
+      if (remove_unknown_flat_array_load(igvn, ctl->in(i), mm, unc_arg)) {
         res = true;
         if (!ctl->in(i)->is_Region()) {
-          igvn->replace_input_of(ctl, i, phase->C->top());
+          igvn->replace_input_of(ctl, i, igvn->C->top());
         }
       }
       igvn->remove_dead_node(mm);
     }
     return res;
   }
-  // verify the control flow is ok
+  // Verify the control flow is ok
   Node* call = ctl;
   MemBarNode* membar = nullptr;
   for (;;) {
@@ -1231,7 +1228,7 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
     }
     if (call->is_Proj() || call->is_Catch() || call->is_MemBar()) {
       call = call->in(0);
-    } else if (call->Opcode() == Op_CallStaticJava &&
+    } else if (call->Opcode() == Op_CallStaticJava && !call->in(0)->is_top() &&
                call->as_Call()->entry_point() == OptoRuntime::load_unknown_inline_Java()) {
       assert(call->in(0)->is_Proj() && call->in(0)->in(0)->is_MemBar(), "missing membar");
       membar = call->in(0)->in(0)->as_MemBar();
@@ -1242,21 +1239,21 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
   }
 
   JVMState* jvms = call->jvms();
-  if (phase->C->too_many_traps(jvms->method(), jvms->bci(), Deoptimization::trap_request_reason(uncommon_trap_request()))) {
+  if (igvn->C->too_many_traps(jvms->method(), jvms->bci(), Deoptimization::trap_request_reason(uncommon_trap_request()))) {
     return false;
   }
 
-  Node* alloc_mem = call->in(TypeFunc::Memory);
-  if (alloc_mem == nullptr || alloc_mem->is_top()) {
+  Node* call_mem = call->in(TypeFunc::Memory);
+  if (call_mem == nullptr || call_mem->is_top()) {
     return false;
   }
-  if (!alloc_mem->is_MergeMem()) {
-    alloc_mem = MergeMemNode::make(alloc_mem);
-    igvn->register_new_node_with_optimizer(alloc_mem);
+  if (!call_mem->is_MergeMem()) {
+    call_mem = MergeMemNode::make(call_mem);
+    igvn->register_new_node_with_optimizer(call_mem);
   }
 
-  // and that there's no unexpected side effect
-  for (MergeMemStream mms2(mem->as_MergeMem(), alloc_mem->as_MergeMem()); mms2.next_non_empty2(); ) {
+  // Verify that there's no unexpected side effect
+  for (MergeMemStream mms2(mem->as_MergeMem(), call_mem->as_MergeMem()); mms2.next_non_empty2(); ) {
     Node* m1 = mms2.is_empty() ? mms2.base_memory() : mms2.memory();
     Node* m2 = mms2.memory2();
 
@@ -1286,14 +1283,14 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
       }
     }
   }
-  if (alloc_mem->outcnt() == 0) {
-    igvn->remove_dead_node(alloc_mem);
+  if (call_mem->outcnt() == 0) {
+    igvn->remove_dead_node(call_mem);
   }
 
   // Remove membar preceding the call
   membar->remove(igvn);
 
-  address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
+  address call_addr = OptoRuntime::uncommon_trap_blob()->entry_point();
   CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap", nullptr);
   unc->init_req(TypeFunc::Control, call->in(0));
   unc->init_req(TypeFunc::I_O, call->in(TypeFunc::I_O));
@@ -1304,13 +1301,14 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
   unc->set_cnt(PROB_UNLIKELY_MAG(4));
   unc->copy_call_debug_info(igvn, call->as_CallStaticJava());
 
-  igvn->replace_input_of(call, 0, phase->C->top());
+  // Replace the call with an uncommon trap
+  igvn->replace_input_of(call, 0, igvn->C->top());
 
   igvn->register_new_node_with_optimizer(unc);
 
-  Node* ctrl = phase->transform(new ProjNode(unc, TypeFunc::Control));
-  Node* halt = phase->transform(new HaltNode(ctrl, call->in(TypeFunc::FramePtr), "uncommon trap returned which should never happen"));
-  igvn->add_input_to(phase->C->root(), halt);
+  Node* ctrl = igvn->transform(new ProjNode(unc, TypeFunc::Control));
+  Node* halt = igvn->transform(new HaltNode(ctrl, call->in(TypeFunc::FramePtr), "uncommon trap returned which should never happen"));
+  igvn->add_input_to(igvn->C->root(), halt);
 
   return true;
 }
@@ -2177,6 +2175,22 @@ bool AbstractLockNode::find_unlocks_for_region(const RegionNode* region, LockNod
 
 }
 
+// Check that all locks/unlocks associated with object come from balanced regions.
+bool AbstractLockNode::is_balanced() {
+  Node* obj = obj_node();
+  for (uint j = 0; j < obj->outcnt(); j++) {
+    Node* n = obj->raw_out(j);
+    if (n->is_AbstractLock() &&
+        n->as_AbstractLock()->obj_node()->eqv_uncast(obj)) {
+      BoxLockNode* n_box = n->as_AbstractLock()->box_node()->as_BoxLock();
+      if (n_box->is_unbalanced()) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 const char* AbstractLockNode::_kind_names[] = {"Regular", "NonEscObj", "Coarsened", "Nested"};
 
 const char * AbstractLockNode::kind_as_string() const {
@@ -2230,7 +2244,7 @@ Node *LockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // If we are locking an non-escaped object, the lock/unlock is unnecessary
     //
     ConnectionGraph *cgr = phase->C->congraph();
-    if (cgr != nullptr && cgr->not_global_escape(obj_node())) {
+    if (cgr != nullptr && cgr->can_eliminate_lock(this)) {
       assert(!is_eliminated() || is_coarsened(), "sanity");
       // The lock could be marked eliminated by lock coarsening
       // code during first IGVN before EA. Replace coarsened flag
@@ -2284,6 +2298,8 @@ Node *LockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           int unlocks = 0;
           if (Verbose) {
             tty->print_cr("=== Locks coarsening ===");
+            tty->print("Obj: ");
+            obj_node()->dump();
           }
           for (int i = 0; i < lock_ops.length(); i++) {
             AbstractLockNode* lock = lock_ops.at(i);
@@ -2292,6 +2308,8 @@ Node *LockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
             else
               unlocks++;
             if (Verbose) {
+              tty->print("Box %d: ", i);
+              box_node()->dump();
               tty->print(" %d: ", i);
               lock->dump();
             }
@@ -2393,6 +2411,7 @@ bool LockNode::is_nested_lock_region(Compile * c) {
       obj_node = bs->step_over_gc_barrier(obj_node);
       BoxLockNode* box_node = sfn->monitor_box(jvms, idx)->as_BoxLock();
       if ((box_node->stack_slot() < stk_slot) && obj_node->eqv_uncast(obj)) {
+        box->set_nested();
         return true;
       }
     }
@@ -2427,7 +2446,7 @@ Node *UnlockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // If we are unlocking an non-escaped object, the lock/unlock is unnecessary.
     //
     ConnectionGraph *cgr = phase->C->congraph();
-    if (cgr != nullptr && cgr->not_global_escape(obj_node())) {
+    if (cgr != nullptr && cgr->can_eliminate_lock(this)) {
       assert(!is_eliminated() || is_coarsened(), "sanity");
       // The lock could be marked eliminated by lock coarsening
       // code during first IGVN before EA. Replace coarsened flag

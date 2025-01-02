@@ -29,6 +29,7 @@
 #include "memory/allocation.hpp"
 #include "metaprogramming/enableIf.hpp"
 #include "oops/accessDecorators.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/debug.hpp"
@@ -106,7 +107,7 @@ namespace AccessInternal {
                                      arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                      size_t length);
     typedef void (*clone_func_t)(oop src, oop dst, size_t size);
-    typedef void (*value_copy_func_t)(void* src, void* dst, InlineKlass* md);
+    typedef void (*value_copy_func_t)(void* src, void* dst, InlineKlass* md, LayoutKind lk);
   };
 
   template <DecoratorSet decorators>
@@ -159,6 +160,8 @@ namespace AccessInternal {
   void arraycopy_arrayof_conjoint(T* src, T* dst, size_t length);
   template<typename T>
   void arraycopy_conjoint_atomic(T* src, T* dst, size_t length);
+
+  void value_copy_internal(void* src, void* dst, size_t length);
 }
 
 // This mask specifies what decorators are relevant for raw accesses. When passing
@@ -348,7 +351,7 @@ public:
                             size_t length);
 
   static void clone(oop src, oop dst, size_t size);
-  static void value_copy(void* src, void* dst, InlineKlass* md);
+  static void value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk);
 
 };
 
@@ -551,10 +554,10 @@ namespace AccessInternal {
     typedef typename AccessFunction<decorators, T, BARRIER_VALUE_COPY>::type func_t;
     static func_t _value_copy_func;
 
-    static void value_copy_init(void* src, void* dst, InlineKlass* md);
+    static void value_copy_init(void* src, void* dst, InlineKlass* md, LayoutKind lk);
 
-    static inline void value_copy(void* src, void* dst, InlineKlass* md) {
-      _value_copy_func(src, dst, md);
+    static inline void value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+      _value_copy_func(src, dst, md, lk);
     }
   };
 
@@ -921,17 +924,17 @@ namespace AccessInternal {
     template <DecoratorSet decorators>
     inline static typename EnableIf<
       HasDecorator<decorators, AS_RAW>::value>::type
-    value_copy(void* src, void* dst, InlineKlass* md) {
+    value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
       typedef RawAccessBarrier<decorators & RAW_DECORATOR_MASK> Raw;
-      Raw::value_copy(src, dst, md);
+      Raw::value_copy(src, dst, md, lk);
     }
 
     template <DecoratorSet decorators>
     inline static typename EnableIf<
       !HasDecorator<decorators, AS_RAW>::value>::type
-      value_copy(void* src, void* dst, InlineKlass* md) {
+      value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
       const DecoratorSet expanded_decorators = decorators;
-      RuntimeDispatch<expanded_decorators, void*, BARRIER_VALUE_COPY>::value_copy(src, dst, md);
+      RuntimeDispatch<expanded_decorators, void*, BARRIER_VALUE_COPY>::value_copy(src, dst, md, lk);
     }
   };
 
@@ -1226,9 +1229,9 @@ namespace AccessInternal {
   }
 
   template <DecoratorSet decorators>
-  inline void value_copy(void* src, void* dst, InlineKlass* md) {
+  inline void value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
     const DecoratorSet expanded_decorators = DecoratorFixup<decorators>::value;
-    PreRuntimeDispatch::value_copy<expanded_decorators>(src, dst, md);
+    PreRuntimeDispatch::value_copy<expanded_decorators>(src, dst, md, lk);
   }
 
   // Infer the type that should be returned from an Access::oop_load.

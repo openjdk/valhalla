@@ -40,7 +40,7 @@ inline intptr_t* InstanceKlass::end_of_itable()     const { return start_of_itab
 
 inline oop InstanceKlass::static_field_base_raw() { return java_mirror(); }
 
-inline Symbol* InstanceKlass::field_name(int index) const { return field(index).name(multifield_info(), constants()); }
+inline Symbol* InstanceKlass::field_name(int index) const { return field(index).name(constants(), multifield_info()); }
 inline Symbol* InstanceKlass::field_signature(int index) const { return field(index).signature(constants()); }
 
 inline int InstanceKlass::java_fields_count() const { return FieldInfoStream::num_java_fields(fieldinfo_stream()); }
@@ -66,7 +66,7 @@ inline InstanceKlass* volatile* InstanceKlass::adr_implementor() const {
 inline InlineKlass* InstanceKlass::get_inline_type_field_klass(int idx) const {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
-  InlineKlass* k = inline_type_field_klasses_array()->at(idx);
+  InlineKlass* k = inline_layout_info(idx).klass();
   assert(k != nullptr, "Should always be set before being read");
   return k;
 }
@@ -74,25 +74,9 @@ inline InlineKlass* InstanceKlass::get_inline_type_field_klass(int idx) const {
 inline InlineKlass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) const {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
-  InlineKlass* k = inline_type_field_klasses_array()->at(idx);
+  InlineKlass* k = inline_layout_info(idx).klass();
   return k;
 }
-
-inline void InstanceKlass::set_inline_type_field_klass(int idx, InlineKlass* k) {
-  assert(has_inline_type_fields(), "Sanity checking");
-  assert(idx < java_fields_count(), "IOOB");
-  assert(k != nullptr, "Should not be set to nullptr");
-  assert(inline_type_field_klasses_array() != nullptr, "array must have been created");
-  assert(inline_type_field_klasses_array()->at(idx) == nullptr, "Should not be set twice");
-  inline_type_field_klasses_array()->at_put(idx, k);
-}
-
-inline void InstanceKlass::reset_inline_type_field_klass(int idx) {
-  assert(has_inline_type_fields(), "Sanity checking");
-  assert(idx < java_fields_count(), "IOOB");
-  inline_type_field_klasses_array()->at_put(idx, nullptr);
-}
-
 
 inline ArrayKlass* InstanceKlass::array_klasses_acquire() const {
   return Atomic::load_acquire(&_array_klasses);

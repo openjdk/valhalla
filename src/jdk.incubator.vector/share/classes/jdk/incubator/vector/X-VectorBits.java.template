@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -516,9 +516,16 @@ value class $vectortype$ extends $abstractvectortype$ {
                                    VectorMask<$Boxtype$> m) {
         return ($vectortype$)
             super.selectFromTemplate(($vectortype$) v,
-                                     ($masktype$) m);  // specialize
+                                     $masktype$.class, ($masktype$) m);  // specialize
     }
 
+    @Override
+    @ForceInline
+    public $vectortype$ selectFrom(Vector<$Boxtype$> v1,
+                                   Vector<$Boxtype$> v2) {
+        return ($vectortype$)
+            super.selectFromTemplate(($vectortype$) v1, ($vectortype$) v2);  // specialize
+    }
 
 #if[FP]
     @ForceInline
@@ -567,9 +574,9 @@ value class $vectortype$ extends $abstractvectortype$ {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                         VectorPayloadMF vecpayload = vec.vec();
-                         long start_offset = vecpayload.multiFieldOffset();
-                         return (long)$Type$.$type$To$Bitstype$Bits(U.get$Type$(vecpayload, start_offset + ix * $Boxtype$.BYTES));
+                     VectorPayloadMF vecpayload = vec.vec();
+                     long start_offset = vecpayload.multiFieldOffset();
+                     return (long)$Type$.$type$ToRaw$Bitstype$Bits(U.get$Type$(vecpayload, start_offset + ix * $Boxtype$.BYTES));
                      });
     }
 
@@ -615,7 +622,7 @@ value class $vectortype$ extends $abstractvectortype$ {
     public $vectortype$ withLaneHelper(int i, $type$ e) {
         return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
-                                this, i, (long)$Type$.$type$To$Bitstype$Bits(e),
+                                this, i, (long)$Type$.$type$ToRaw$Bitstype$Bits(e),
                                 (v, ix, bits) -> {
                                     VectorPayloadMF vec = v.vec();
                                     VectorPayloadMF tpayload = U.makePrivateBuffer(vec);
@@ -1134,6 +1141,13 @@ value class $vectortype$ extends $abstractvectortype$ {
             return s.shuffleFromArray(shuffleArray, 0).check(s);
         }
 
+        @Override
+        @ForceInline
+        public $shuffletype$ wrapIndexes() {
+            return VectorSupport.wrapShuffleIndexes(ETYPE, $shuffletype$.class, this, VLENGTH,
+                                                    (s) -> (($shuffletype$)(((AbstractShuffle<$Boxtype$>)(s)).wrapIndexesTemplate())));
+        }
+
         @ForceInline
         @Override
         public $shuffletype$ rearrange(VectorShuffle<$Boxtype$> shuffle) {
@@ -1175,14 +1189,12 @@ value class $vectortype$ extends $abstractvectortype$ {
         return super.fromArray0Template($masktype$.class, a, offset, ($masktype$) m, offsetInRange);  // specialize
     }
 
-#if[!byteOrShort]
     @ForceInline
     @Override
     final
     $abstractvectortype$ fromArray0($type$[] a, int offset, int[] indexMap, int mapOffset, VectorMask<$Boxtype$> m) {
         return super.fromArray0Template($masktype$.class, a, offset, indexMap, mapOffset, ($masktype$) m);
     }
-#end[!byteOrShort]
 
 #if[short]
     @ForceInline

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -254,7 +254,7 @@ public class Annotate {
             DiagnosticPosition prevLintPos =
                     deferPos != null
                             ? deferredLintHandler.setPos(deferPos)
-                            : deferredLintHandler.immediate();
+                            : deferredLintHandler.immediate(lint);
             Lint prevLint = deferPos != null ? null : chk.setLint(lint);
             try {
                 if (s.hasAnnotations() && annotations.nonEmpty())
@@ -958,7 +958,13 @@ public class Annotate {
         boolean fatalError = false;
 
         // Validate that there is a (and only 1) value method
-        Scope scope = targetContainerType.tsym.members();
+        Scope scope = null;
+        try {
+            scope = targetContainerType.tsym.members();
+        } catch (CompletionFailure ex) {
+            chk.completionError(pos, ex);
+            return null;
+        }
         int nr_value_elems = 0;
         boolean error = false;
         for(Symbol elm : scope.getSymbolsByName(names.value)) {
@@ -1028,7 +1034,7 @@ public class Annotate {
         return validRepeated;
     }
 
-    /********************
+    /* ******************
      * Type annotations *
      ********************/
 
@@ -1179,9 +1185,18 @@ public class Annotate {
             scan(tree.args);
             // the anonymous class instantiation if any will be visited separately.
         }
+
+        @Override
+        public void visitErroneous(JCErroneous tree) {
+            if (tree.errs != null) {
+                for (JCTree err : tree.errs) {
+                    scan(err);
+                }
+            }
+        }
     }
 
-    /*********************
+    /* *******************
      * Completer support *
      *********************/
 

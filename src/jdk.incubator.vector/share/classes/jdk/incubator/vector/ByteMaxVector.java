@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -505,9 +505,16 @@ value class ByteMaxVector extends ByteVector {
                                    VectorMask<Byte> m) {
         return (ByteMaxVector)
             super.selectFromTemplate((ByteMaxVector) v,
-                                     (ByteMaxMask) m);  // specialize
+                                     ByteMaxMask.class, (ByteMaxMask) m);  // specialize
     }
 
+    @Override
+    @ForceInline
+    public ByteMaxVector selectFrom(Vector<Byte> v1,
+                                   Vector<Byte> v2) {
+        return (ByteMaxVector)
+            super.selectFromTemplate((ByteMaxVector) v1, (ByteMaxVector) v2);  // specialize
+    }
 
     @ForceInline
     @Override
@@ -791,6 +798,13 @@ value class ByteMaxVector extends ByteVector {
             return s.shuffleFromArray(shuffleArray, 0).check(s);
         }
 
+        @Override
+        @ForceInline
+        public ByteMaxShuffle wrapIndexes() {
+            return VectorSupport.wrapShuffleIndexes(ETYPE, ByteMaxShuffle.class, this, VLENGTH,
+                                                    (s) -> ((ByteMaxShuffle)(((AbstractShuffle<Byte>)(s)).wrapIndexesTemplate())));
+        }
+
         @ForceInline
         @Override
         public ByteMaxShuffle rearrange(VectorShuffle<Byte> shuffle) {
@@ -828,6 +842,12 @@ value class ByteMaxVector extends ByteVector {
         return super.fromArray0Template(ByteMaxMask.class, a, offset, (ByteMaxMask) m, offsetInRange);  // specialize
     }
 
+    @ForceInline
+    @Override
+    final
+    ByteVector fromArray0(byte[] a, int offset, int[] indexMap, int mapOffset, VectorMask<Byte> m) {
+        return super.fromArray0Template(ByteMaxMask.class, a, offset, indexMap, mapOffset, (ByteMaxMask) m);
+    }
 
 
     @ForceInline

@@ -111,5 +111,8 @@ public class ValueClassValidation {
 
     // Test an abstract value class with a non-static synchronized method
     runTest("SynchMethodInAbstractValue", "Method m in class SynchMethodInAbstractValue (not an identity class) has illegal modifiers: 0x21", null);
+
+    // Test a class with a primitive descriptor in its LoadableDescriptors attribute:
+    runTest("PrimitiveInLoadableDescriptors", null, null);
   }
 }

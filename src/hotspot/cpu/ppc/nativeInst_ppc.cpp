@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -92,10 +92,10 @@ address NativeCall::destination() const {
 // Used in the runtime linkage of calls; see class CompiledIC.
 //
 // Add parameter assert_lock to switch off assertion
-// during code generation, where no patching lock is needed.
+// during code generation, where no lock is needed.
 void NativeCall::set_destination_mt_safe(address dest, bool assert_lock) {
   assert(!assert_lock ||
-         (Patching_lock->is_locked() || SafepointSynchronize::is_at_safepoint()) ||
+         (CodeCache_lock->is_locked() || SafepointSynchronize::is_at_safepoint()) ||
          CompiledICLocker::is_safe(addr_at(0)),
          "concurrent code patching");
 
@@ -460,7 +460,7 @@ void NativeDeoptInstruction::verify() {
 bool NativeDeoptInstruction::is_deopt_at(address code_pos) {
   if (!Assembler::is_illtrap(code_pos)) return false;
   CodeBlob* cb = CodeCache::find_blob(code_pos);
-  if (cb == nullptr || !cb->is_compiled()) return false;
+  if (cb == nullptr || !cb->is_nmethod()) return false;
   nmethod *nm = (nmethod *)cb;
   // see NativeInstruction::is_sigill_not_entrant_at()
   return nm->verified_entry_point() != code_pos;

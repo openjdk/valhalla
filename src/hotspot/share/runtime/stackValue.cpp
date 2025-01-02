@@ -246,14 +246,15 @@ StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMapT* 
     return new StackValue(value.p);
 #endif
   } else if (sv->is_object()) { // Scalar replaced object in compiled frame
-    ObjectValue* ov = ((ObjectValue *)sv);
-    bool scalar_replaced = ov->value().is_null();
+    ObjectValue* ov = (ObjectValue *)sv;
+    Handle hdl = ov->value();
+    bool scalar_replaced = hdl.is_null() && ov->is_scalar_replaced();
     if (ov->maybe_null()) {
       // Don't treat inline type as scalar replaced if it is null
       jint is_init = StackValue::create_stack_value(fr, reg_map, ov->is_init())->get_jint();
       scalar_replaced &= (is_init != 0);
     }
-    return new StackValue(ov->value(), scalar_replaced ? 1 : 0);
+    return new StackValue(hdl, scalar_replaced ? 1 : 0);
   } else if (sv->is_marker()) {
     // Should never need to directly construct a marker.
     ShouldNotReachHere();

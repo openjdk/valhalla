@@ -47,10 +47,10 @@ import static com.sun.tools.javac.main.Option.*;
  *  deletion without notice.</b>
  */
 public enum Source {
-    /** 1.0 had no inner classes, and so could not pass the JCK. */
+    /* 1.0 had no inner classes, and so could not pass the JCK. */
     // public static final Source JDK1_0 =              new Source("1.0");
 
-    /** 1.1 did not have strictfp, and so could not pass the JCK. */
+    /* 1.1 did not have strictfp, and so could not pass the JCK. */
     // public static final Source JDK1_1 =              new Source("1.1");
 
     /** 1.2 introduced strictfp. */
@@ -143,6 +143,11 @@ public enum Source {
       * 23, tbd
       */
     JDK23("23"),
+
+    /**
+      * 24, tbd
+      */
+    JDK24("24"),
     ; // Reduce code churn when appending new constants
 
     private static final Context.Key<Source> sourceKey = new Context.Key<>();
@@ -208,6 +213,7 @@ public enum Source {
 
     public Target requiredTarget() {
         return switch(this) {
+        case JDK24  -> Target.JDK1_24;
         case JDK23  -> Target.JDK1_23;
         case JDK22  -> Target.JDK1_22;
         case JDK21  -> Target.JDK1_21;
@@ -263,13 +269,13 @@ public enum Source {
         REDUNDANT_STRICTFP(JDK17),
         UNCONDITIONAL_PATTERN_IN_INSTANCEOF(JDK21, Fragments.FeatureUnconditionalPatternsInInstanceof, DiagKind.PLURAL),
         RECORD_PATTERNS(JDK21, Fragments.FeatureDeconstructionPatterns, DiagKind.PLURAL),
-        STRING_TEMPLATES(JDK21, Fragments.FeatureStringTemplates, DiagKind.PLURAL),
         IMPLICIT_CLASSES(JDK21, Fragments.FeatureImplicitClasses, DiagKind.PLURAL),
         WARN_ON_ILLEGAL_UTF8(MIN, JDK21),
         UNNAMED_VARIABLES(JDK22, Fragments.FeatureUnnamedVariables, DiagKind.PLURAL),
         PRIMITIVE_PATTERNS(JDK23, Fragments.FeaturePrimitivePatterns, DiagKind.PLURAL),
-        SUPER_INIT(JDK22, Fragments.FeatureSuperInit, DiagKind.NORMAL),
         VALUE_CLASSES(JDK22, Fragments.FeatureValueClasses, DiagKind.PLURAL),
+        FLEXIBLE_CONSTRUCTORS(JDK22, Fragments.FeatureFlexibleConstructors, DiagKind.NORMAL),
+        MODULE_IMPORTS(JDK23, Fragments.FeatureModuleImports, DiagKind.PLURAL),
         ;
 
         enum DiagKind {
@@ -355,6 +361,7 @@ public enum Source {
         case JDK21  -> RELEASE_21;
         case JDK22  -> RELEASE_22;
         case JDK23  -> RELEASE_23;
+        case JDK24  -> RELEASE_24;
         default     -> null;
         };
     }

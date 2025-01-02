@@ -29,6 +29,7 @@ import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.TypeKind;
+
 import jdk.internal.classfile.impl.AbstractInstruction;
 import jdk.internal.classfile.impl.Util;
 import jdk.internal.javac.PreviewFeature;
@@ -54,6 +55,8 @@ public sealed interface OperatorInstruction extends Instruction
      *
      * @param op the opcode for the specific type of array load instruction,
      *           which must be of kind {@link Opcode.Kind#OPERATOR}
+     * @throws IllegalArgumentException if the opcode kind is not
+     *         {@link Opcode.Kind#OPERATOR}.
      */
     static OperatorInstruction of(Opcode op) {
         Util.checkKind(op, Opcode.Kind.OPERATOR);

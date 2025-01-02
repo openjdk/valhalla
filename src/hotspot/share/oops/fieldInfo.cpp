@@ -31,7 +31,7 @@ void FieldInfo::print(outputStream* os, ConstantPool* cp) {
                "AccessFlags=%d FieldFlags=%d "
                "initval_index=%d gen_signature_index=%d, gen_signature=%s contended_group=%d",
                 index(),
-                name_index(), name(nullptr, cp)->as_utf8(),
+                name_index(), name(cp)->as_utf8(),
                 signature_index(), signature(cp)->as_utf8(),
                 offset(),
                 access_flags().as_int(),
@@ -111,6 +111,9 @@ Array<u1>* FieldInfoStream::create_FieldInfoStream(GrowableArray<FieldInfo>* fie
     }
     if (fi_ref->field_flags().is_contended()) {
       assert(fi_ref->contended_group() == fi.contended_group(), "Must be");
+    }
+    if (fi_ref->field_flags().is_flat()) {
+      assert(fi_ref->layout_kind() == fi.layout_kind(), "Must be");
     }
     if (fi_ref->field_flags().has_null_marker()) {
       assert(fi_ref->null_marker_offset() == fi.null_marker_offset(), "Must be");

@@ -29,6 +29,7 @@ import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.TypeKind;
+
 import jdk.internal.classfile.impl.AbstractInstruction;
 import jdk.internal.classfile.impl.BytecodeHelpers;
 import jdk.internal.classfile.impl.Util;
@@ -65,6 +66,8 @@ public sealed interface ReturnInstruction extends Instruction
      *
      * @param op the opcode for the specific type of return instruction,
      *           which must be of kind {@link Opcode.Kind#RETURN}
+     * @throws IllegalArgumentException if the opcode kind is not
+     *         {@link Opcode.Kind#RETURN}.
      */
     static ReturnInstruction of(Opcode op) {
         Util.checkKind(op, Opcode.Kind.RETURN);

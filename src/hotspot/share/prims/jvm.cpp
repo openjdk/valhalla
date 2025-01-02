@@ -114,6 +114,9 @@
 #if INCLUDE_MANAGEMENT
 #include "services/finalizerService.hpp"
 #endif
+#ifdef LINUX
+#include "osContainer_linux.hpp"
+#endif
 
 #include <errno.h>
 
@@ -435,11 +438,14 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
   if (klass->is_identity_class()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
   }
-  InstanceKlass* ik = InstanceKlass::cast(klass);
-  if (!ik->is_implicitly_constructible()) {
+  if (klass->is_abstract()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is abstract");
+  }
+  InlineKlass* vk = InlineKlass::cast(klass);
+  if (!vk->is_implicitly_constructible()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
   }
-  oop array = oopFactory::new_valueArray(ik, len, CHECK_NULL);
+  oop array = oopFactory::new_valueArray(vk, len, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
@@ -514,6 +520,15 @@ JVM_END
 JVM_LEAF(jboolean, JVM_IsUseContainerSupport(void))
 #ifdef LINUX
   if (UseContainerSupport) {
+    return JNI_TRUE;
+  }
+#endif
+  return JNI_FALSE;
+JVM_END
+
+JVM_LEAF(jboolean, JVM_IsContainerized(void))
+#ifdef LINUX
+  if (OSContainer::is_containerized()) {
     return JNI_TRUE;
   }
 #endif
@@ -723,7 +738,7 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
       (klass->is_instance_klass() &&
        InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
     ResourceMark rm(THREAD);
-    THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
+    THROW_MSG_NULL(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
   }
 
   if (klass->is_inline_klass()) {
@@ -829,7 +844,7 @@ JVM_ENTRY(jclass, JVM_FindPrimitiveClass(JNIEnv* env, const char* utf))
     mirror = Universe::java_mirror(t);
   }
   if (mirror == nullptr) {
-    THROW_MSG_0(vmSymbols::java_lang_ClassNotFoundException(), (char*) utf);
+    THROW_MSG_NULL(vmSymbols::java_lang_ClassNotFoundException(), (char*) utf);
   } else {
     return (jclass) JNIHandles::make_local(THREAD, mirror);
   }
@@ -847,7 +862,7 @@ JVM_ENTRY(jclass, JVM_FindClassFromBootLoader(JNIEnv* env,
     // into the constant pool.
     return nullptr;
   }
-  assert(UTF8::is_legal_utf8((const unsigned char*)name, (int)strlen(name), false), "illegal UTF name");
+  assert(UTF8::is_legal_utf8((const unsigned char*)name, strlen(name), false), "illegal UTF name");
 
   TempNewSymbol h_name = SymbolTable::new_symbol(name);
   Klass* k = SystemDictionary::resolve_or_null(h_name, CHECK_NULL);
@@ -990,7 +1005,7 @@ static jclass jvm_lookup_define_class(jclass lookup, const char *name,
   Klass* lookup_k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(lookup));
   // Lookup class must be a non-null instance
   if (lookup_k == nullptr) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class is null");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class is null");
   }
   assert(lookup_k->is_instance_klass(), "Lookup class must be an instance klass");
 
@@ -1017,20 +1032,20 @@ static jclass jvm_lookup_define_class(jclass lookup, const char *name,
   if (!is_hidden) {
     // classData is only applicable for hidden classes
     if (classData != nullptr) {
-      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for hidden classes");
+      THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for hidden classes");
     }
     if (is_nestmate) {
-      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "dynamic nestmate is only applicable for hidden classes");
+      THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "dynamic nestmate is only applicable for hidden classes");
     }
     if (!is_strong) {
-      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "an ordinary class must be strongly referenced by its defining loader");
+      THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "an ordinary class must be strongly referenced by its defining loader");
     }
     if (vm_annotations) {
-      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "vm annotations only allowed for hidden classes");
+      THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "vm annotations only allowed for hidden classes");
     }
     if (flags != STRONG_LOADER_LINK) {
-      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(),
-                  err_msg("invalid flag 0x%x", flags));
+      THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(),
+                     err_msg("invalid flag 0x%x", flags));
     }
   }
 
@@ -1070,7 +1085,7 @@ static jclass jvm_lookup_define_class(jclass lookup, const char *name,
     // The hidden class loader data has been artificially been kept alive to
     // this point. The mirror and any instances of this class have to keep
     // it alive afterwards.
-    ik->class_loader_data()->dec_keep_alive();
+    ik->class_loader_data()->dec_keep_alive_ref_count();
 
     if (is_nestmate && log_is_enabled(Debug, class, nestmates)) {
       ModuleEntry* module = ik->module();
@@ -1085,7 +1100,7 @@ static jclass jvm_lookup_define_class(jclass lookup, const char *name,
 
   if ((!is_hidden || is_nestmate) && !Reflection::is_same_class_package(lookup_k, ik)) {
     // non-hidden class or nestmate class must be in the same package as the Lookup class
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class and defined class are in different packages");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class and defined class are in different packages");
   }
 
   if (init) {
@@ -1116,7 +1131,7 @@ JVM_ENTRY(jclass, JVM_LookupDefineClass(JNIEnv *env, jclass lookup, const char *
           jsize len, jobject pd, jboolean initialize, int flags, jobject classData))
 
   if (lookup == nullptr) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class is null");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class is null");
   }
 
   assert(buf != nullptr, "buf must not be null");
@@ -1309,45 +1324,6 @@ JVM_ENTRY(jboolean, JVM_IsImplicitlyConstructibleClass(JNIEnv *env, jclass cls))
   oop mirror = JNIHandles::resolve_non_null(cls);
   InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
   return ik->is_implicitly_constructible();
-JVM_END
-
-JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
-  JvmtiVMObjectAllocEventCollector oam;
-  oop mirror = JNIHandles::resolve_non_null(cls);
-  if (java_lang_Class::is_primitive(mirror)) {
-    // There are no signers for primitive types
-    return nullptr;
-  }
-
-  objArrayHandle signers(THREAD, java_lang_Class::signers(mirror));
-
-  // If there are no signers set in the class, or if the class
-  // is an array, return null.
-  if (signers == nullptr) return nullptr;
-
-  // copy of the signers array
-  Klass* element = ObjArrayKlass::cast(signers->klass())->element_klass();
-  objArrayOop signers_copy = oopFactory::new_objArray(element, signers->length(), CHECK_NULL);
-  for (int index = 0; index < signers->length(); index++) {
-    signers_copy->obj_at_put(index, signers->obj_at(index));
-  }
-
-  // return the copy
-  return (jobjectArray) JNIHandles::make_local(THREAD, signers_copy);
-JVM_END
-
-
-JVM_ENTRY(void, JVM_SetClassSigners(JNIEnv *env, jclass cls, jobjectArray signers))
-  oop mirror = JNIHandles::resolve_non_null(cls);
-  if (!java_lang_Class::is_primitive(mirror)) {
-    // This call is ignored for primitive types and arrays.
-    // Signers are only set once, ClassLoader.java, and thus shouldn't
-    // be called with an array.  Only the bootstrap loader creates arrays.
-    Klass* k = java_lang_Class::as_Klass(mirror);
-    if (k->is_instance_klass()) {
-      java_lang_Class::set_signers(k->java_mirror(), objArrayOop(JNIHandles::resolve(signers)));
-    }
-  }
 JVM_END
 
 
@@ -1801,8 +1777,8 @@ JVM_ENTRY(jobjectArray, JVM_GetMethodParameters(JNIEnv *env, jobject method))
       bounds_check(cp, index, CHECK_NULL);
 
       if (0 != index && !mh->constants()->tag_at(index).is_utf8()) {
-        THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(),
-                    "Wrong type at constant pool index");
+        THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(),
+                       "Wrong type at constant pool index");
       }
 
     }
@@ -1924,17 +1900,6 @@ JVM_ENTRY(jobjectArray, JVM_GetRecordComponents(JNIEnv* env, jclass ofClass))
 }
 JVM_END
 
-static bool select_method(const methodHandle& method, bool want_constructor) {
-  bool is_ctor = (method->is_object_constructor());
-  if (want_constructor) {
-    return is_ctor;
-  } else {
-    return (!is_ctor &&
-            !method->is_class_initializer() &&
-            !method->is_overpass());
-  }
-}
-
 static jobjectArray get_class_declared_methods_helper(
                                   JNIEnv *env,
                                   jclass ofClass, jboolean publicOnly,
@@ -1967,14 +1932,22 @@ static jobjectArray get_class_declared_methods_helper(
   GrowableArray<int>* idnums = new GrowableArray<int>(methods_length);
   int num_methods = 0;
 
+  // Select methods matching the criteria.
   for (int i = 0; i < methods_length; i++) {
-    methodHandle method(THREAD, methods->at(i));
-    if (select_method(method, want_constructor)) {
-      if (!publicOnly || method->is_public()) {
-        idnums->push(method->method_idnum());
-        ++num_methods;
-      }
+    Method* method = methods->at(i);
+    if (want_constructor && !method->is_object_constructor()) {
+      continue;
     }
+    if (!want_constructor &&
+        (method->is_object_constructor() || method->is_class_initializer() ||
+         method->is_overpass())) {
+      continue;
+    }
+    if (publicOnly && !method->is_public()) {
+      continue;
+    }
+    idnums->push(method->method_idnum());
+    ++num_methods;
   }
 
   // Allocate result
@@ -2235,7 +2208,7 @@ JVM_ENTRY(jclass, JVM_ConstantPoolGetClassAt(JNIEnv *env, jobject obj, jobject u
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
   if (!tag.is_klass() && !tag.is_unresolved_klass()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   Klass* k = cp->klass_at(index, CHECK_NULL);
   return (jclass) JNIHandles::make_local(THREAD, k->java_mirror());
@@ -2248,7 +2221,7 @@ JVM_ENTRY(jclass, JVM_ConstantPoolGetClassAtIfLoaded(JNIEnv *env, jobject obj, j
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
   if (!tag.is_klass() && !tag.is_unresolved_klass()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   Klass* k = ConstantPool::klass_at_if_loaded(cp, index);
   if (k == nullptr) return nullptr;
@@ -2259,7 +2232,7 @@ JVM_END
 static jobject get_method_at_helper(const constantPoolHandle& cp, jint index, bool force_resolution, TRAPS) {
   constantTag tag = cp->tag_at(index);
   if (!tag.is_method() && !tag.is_interface_method()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   int klass_ref  = cp->uncached_klass_ref_index_at(index);
   Klass* k_o;
@@ -2274,7 +2247,7 @@ static jobject get_method_at_helper(const constantPoolHandle& cp, jint index, bo
   Symbol* sig  = cp->uncached_signature_ref_at(index);
   methodHandle m (THREAD, k->find_method(name, sig));
   if (m.is_null()) {
-    THROW_MSG_0(vmSymbols::java_lang_RuntimeException(), "Unable to look up method in target class");
+    THROW_MSG_NULL(vmSymbols::java_lang_RuntimeException(), "Unable to look up method in target class");
   }
   oop method;
   if (m->is_object_constructor()) {
@@ -2308,7 +2281,7 @@ JVM_END
 static jobject get_field_at_helper(constantPoolHandle cp, jint index, bool force_resolution, TRAPS) {
   constantTag tag = cp->tag_at(index);
   if (!tag.is_field()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   int klass_ref  = cp->uncached_klass_ref_index_at(index);
   Klass* k_o;
@@ -2324,7 +2297,7 @@ static jobject get_field_at_helper(constantPoolHandle cp, jint index, bool force
   fieldDescriptor fd;
   Klass* target_klass = k->find_field(name, sig, &fd);
   if (target_klass == nullptr) {
-    THROW_MSG_0(vmSymbols::java_lang_RuntimeException(), "Unable to look up field in target class");
+    THROW_MSG_NULL(vmSymbols::java_lang_RuntimeException(), "Unable to look up field in target class");
   }
   oop field = Reflection::new_field(&fd, CHECK_NULL);
   return JNIHandles::make_local(THREAD, field);
@@ -2357,7 +2330,7 @@ JVM_ENTRY(jobjectArray, JVM_ConstantPoolGetMemberRefInfoAt(JNIEnv *env, jobject 
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
   if (!tag.is_field_or_method()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   int klass_ref = cp->uncached_klass_ref_index_at(index);
   Symbol*  klass_name  = cp->klass_name_at(klass_ref);
@@ -2408,7 +2381,7 @@ JVM_ENTRY(jobjectArray, JVM_ConstantPoolGetNameAndTypeRefInfoAt(JNIEnv *env, job
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
   if (!tag.is_name_and_type()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   Symbol* member_name = cp->symbol_at(cp->name_ref_index_at(index));
   Symbol* member_sig = cp->symbol_at(cp->signature_ref_index_at(index));
@@ -2476,7 +2449,7 @@ JVM_ENTRY(jstring, JVM_ConstantPoolGetStringAt(JNIEnv *env, jobject obj, jobject
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
   if (!tag.is_string()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   oop str = cp->string_at(index, CHECK_NULL);
   return (jstring) JNIHandles::make_local(THREAD, str);
@@ -2490,7 +2463,7 @@ JVM_ENTRY(jstring, JVM_ConstantPoolGetUTF8At(JNIEnv *env, jobject obj, jobject u
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
   if (!tag.is_symbol()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   Symbol* sym = cp->symbol_at(index);
   Handle str = java_lang_String::create_from_symbol(sym, CHECK_NULL);
@@ -2559,7 +2532,7 @@ JVM_ENTRY(jboolean, JVM_ArrayIsAccessAtomic(JNIEnv *env, jclass unused, jobject 
   if ((o == nullptr) || (!k->is_array_klass())) {
     THROW_0(vmSymbols::java_lang_IllegalArgumentException());
   }
-  return ArrayKlass::cast(k)->element_access_is_atomic();
+  return ArrayKlass::cast(k)->element_access_must_be_atomic();
 JVM_END
 
 JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobject array))
@@ -2570,7 +2543,7 @@ JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobje
   }
   if (k->is_flatArray_klass()) {
     FlatArrayKlass* vk = FlatArrayKlass::cast(k);
-    if (!vk->element_access_is_atomic()) {
+    if (!vk->element_access_must_be_atomic()) {
       /**
        * Need to decide how to implement:
        *
@@ -3086,9 +3059,10 @@ JVM_ENTRY(void, JVM_StartThread(JNIEnv* env, jobject jthread))
   // We must release the Threads_lock before we can post a jvmti event
   // in Thread::start.
   {
+    ConditionalMutexLocker throttle_ml(ThreadsLockThrottle_lock, UseThreadsLockThrottleLock);
     // Ensure that the C++ Thread and OSThread structures aren't freed before
     // we operate.
-    MutexLocker mu(Threads_lock);
+    MutexLocker ml(Threads_lock);
 
     // Since JDK 5 the java.lang.Thread threadStatus is used to prevent
     // re-starting an already started thread, so we should usually find
@@ -3256,14 +3230,6 @@ JVM_END
 JVM_ENTRY(jobject, JVM_GetStackTrace(JNIEnv *env, jobject jthread))
   oop trace = java_lang_Thread::async_get_stack_trace(JNIHandles::resolve(jthread), THREAD);
   return JNIHandles::make_local(THREAD, trace);
-JVM_END
-
-JVM_ENTRY(void, JVM_DumpAllStacks(JNIEnv* env, jclass))
-  VM_PrintThreads op;
-  VMThread::execute(&op);
-  if (JvmtiExport::should_post_data_dump()) {
-    JvmtiExport::post_data_dump();
-  }
 JVM_END
 
 JVM_ENTRY(void, JVM_SetNativeThreadName(JNIEnv* env, jobject jthread, jstring name))
@@ -3439,13 +3405,13 @@ JVM_END
 // resolve array handle and check arguments
 static inline arrayOop check_array(JNIEnv *env, jobject arr, bool type_array_only, TRAPS) {
   if (arr == nullptr) {
-    THROW_0(vmSymbols::java_lang_NullPointerException());
+    THROW_NULL(vmSymbols::java_lang_NullPointerException());
   }
   oop a = JNIHandles::resolve_non_null(arr);
   if (!a->is_array()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Argument is not an array");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Argument is not an array");
   } else if (type_array_only && !a->is_typeArray()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Argument is not an array of primitive type");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Argument is not an array of primitive type");
   }
   return arrayOop(a);
 }
@@ -3550,7 +3516,7 @@ JVM_ENTRY_NO_ENV(void*, JVM_LoadLibrary(const char* name, jboolean throwExceptio
                                   vmSymbols::java_lang_UnsatisfiedLinkError(),
                                   msg, Exceptions::unsafe_to_utf8);
 
-      THROW_HANDLE_0(h_exception);
+      THROW_HANDLE_NULL(h_exception);
     } else {
       log_info(library)("Failed to load library %s", name);
       return load_result;
@@ -3597,6 +3563,10 @@ JVM_END
 
 JVM_LEAF(jboolean, JVM_IsForeignLinkerSupported(void))
   return ForeignGlobals::is_foreign_linker_supported() ? JNI_TRUE : JNI_FALSE;
+JVM_END
+
+JVM_ENTRY_NO_ENV(jboolean, JVM_IsStaticallyLinked(void))
+  return is_vm_statically_linked() ? JNI_TRUE : JNI_FALSE;
 JVM_END
 
 // String support ///////////////////////////////////////////////////////////////////////////
@@ -3686,7 +3656,7 @@ JVM_ENTRY(jobject, JVM_InvokeMethod(JNIEnv *env, jobject method, jobject obj, jo
     }
     return res;
   } else {
-    THROW_0(vmSymbols::java_lang_StackOverflowError());
+    THROW_NULL(vmSymbols::java_lang_StackOverflowError());
   }
 JVM_END
 
@@ -3804,14 +3774,6 @@ JVM_ENTRY(jclass, JVM_LookupLambdaProxyClassFromArchive(JNIEnv* env,
 #endif // INCLUDE_CDS
 JVM_END
 
-JVM_LEAF(jboolean, JVM_IsCDSDumpingEnabled(JNIEnv* env))
-  return CDSConfig::is_dumping_archive();
-JVM_END
-
-JVM_LEAF(jboolean, JVM_IsSharingEnabled(JNIEnv* env))
-  return UseSharedSpaces;
-JVM_END
-
 JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
   if (CDSConfig::is_dumping_static_archive()) {
     // We do this so that the default CDS archive can be deterministic.
@@ -3835,17 +3797,13 @@ JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
   }
 JVM_END
 
-JVM_LEAF(jboolean, JVM_IsDumpingClassList(JNIEnv *env))
-#if INCLUDE_CDS
-  return ClassListWriter::is_enabled() || CDSConfig::is_dumping_dynamic_archive();
-#else
-  return false;
-#endif // INCLUDE_CDS
+JVM_ENTRY_NO_ENV(jint, JVM_GetCDSConfigStatus())
+  return CDSConfig::get_status();
 JVM_END
 
 JVM_ENTRY(void, JVM_LogLambdaFormInvoker(JNIEnv *env, jstring line))
 #if INCLUDE_CDS
-  assert(ClassListWriter::is_enabled() || CDSConfig::is_dumping_dynamic_archive(),  "Should be set and open or do dynamic dump");
+  assert(CDSConfig::is_logging_lambda_form_invokers(), "sanity");
   if (line != nullptr) {
     ResourceMark rm(THREAD);
     Handle h_line (THREAD, JNIHandles::resolve_non_null(line));
@@ -3857,7 +3815,7 @@ JVM_ENTRY(void, JVM_LogLambdaFormInvoker(JNIEnv *env, jstring line))
     }
     if (ClassListWriter::is_enabled()) {
       ClassListWriter w;
-      w.stream()->print_cr("%s %s", LAMBDA_FORM_TAG, c_line);
+      w.stream()->print_cr("%s %s", ClassListParser::lambda_form_tag(), c_line);
     }
   }
 #endif // INCLUDE_CDS
@@ -3910,7 +3868,7 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
 
   // Check if threads is null
   if (threads == nullptr) {
-    THROW_(vmSymbols::java_lang_NullPointerException(), 0);
+    THROW_NULL(vmSymbols::java_lang_NullPointerException());
   }
 
   objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(threads));
@@ -3918,13 +3876,13 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
   int num_threads = ah->length();
   // check if threads is non-empty array
   if (num_threads == 0) {
-    THROW_(vmSymbols::java_lang_IllegalArgumentException(), 0);
+    THROW_NULL(vmSymbols::java_lang_IllegalArgumentException());
   }
 
   // check if threads is not an array of objects of Thread class
   Klass* k = ObjArrayKlass::cast(ah->klass())->element_klass();
   if (k != vmClasses::Thread_klass()) {
-    THROW_(vmSymbols::java_lang_IllegalArgumentException(), 0);
+    THROW_NULL(vmSymbols::java_lang_IllegalArgumentException());
   }
 
   ResourceMark rm(THREAD);

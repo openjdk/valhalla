@@ -621,6 +621,24 @@ public abstract value class LongVector extends AbstractVector<Long> {
         return r;
     }
 
+    static LongVector selectFromTwoVectorHelper(Vector<Long> indexes, Vector<Long> src1, Vector<Long> src2) {
+        int vlen = indexes.length();
+        VectorPayloadMF vecPayload1 = ((LongVector)indexes).vec();
+        VectorPayloadMF vecPayload2 = ((LongVector)src1).vec();
+        VectorPayloadMF vecPayload3 = ((LongVector)src2).vec();
+        AbstractSpecies<Long> vsp = ((LongVector)src1).vspecies();
+        VectorPayloadMF tpayload = U.makePrivateBuffer(vecPayload2);
+        long vOffset = tpayload.multiFieldOffset();
+        for (int i = 0; i < vlen; i++) {
+            int wrapped_index = VectorIntrinsics.wrapToRange((int)U.getLong(vecPayload1, vOffset + i * Long.BYTES), 2 * vlen);
+            U.putLong(tpayload, vOffset + i * Long.BYTES, wrapped_index >= vlen ?
+                        U.getLong(vecPayload3, vOffset + (wrapped_index  - vlen) * Long.BYTES) :
+                        U.getLong(vecPayload2, vOffset + wrapped_index * Long.BYTES));
+        }
+        tpayload = U.finishPrivateBuffer(tpayload);
+        return ((LongVector)(vsp.dummyVectorMF())).vectorFactory(tpayload);
+    }
+
     // Static factories (other than memory operations)
 
     // Note: A surprising behavior in javadoc
@@ -2368,17 +2386,18 @@ public abstract value class LongVector extends AbstractVector<Long> {
      */
     @Override
     public abstract
-    LongVector rearrange(VectorShuffle<Long> m);
+    LongVector rearrange(VectorShuffle<Long> shuffle);
 
     /*package-private*/
     @ForceInline
     final
     <S extends VectorShuffle<Long>>
     LongVector rearrangeTemplate(Class<S> shuffletype, S shuffle) {
-        shuffle.checkIndexes();
+        @SuppressWarnings("unchecked")
+        S ws = (S) shuffle.wrapIndexes();
         return VectorSupport.rearrangeOp(
             getClass(), shuffletype, null, long.class, length(),
-            this, shuffle, null,
+            this, ws, null,
             (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                 int ei = s_.laneSource(i);
                 return v1.lane(ei);
@@ -2403,17 +2422,14 @@ public abstract value class LongVector extends AbstractVector<Long> {
                                            M m) {
 
         m.check(masktype, this);
-        VectorMask<Long> valid = shuffle.laneIsValid();
-        if (m.andNot(valid).anyTrue()) {
-            shuffle.checkIndexes();
-            throw new AssertionError();
-        }
+        @SuppressWarnings("unchecked")
+        S ws = (S) shuffle.wrapIndexes();
         return VectorSupport.rearrangeOp(
                    getClass(), shuffletype, masktype, long.class, length(),
-                   this, shuffle, m,
+                   this, ws, m,
                    (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                         int ei = s_.laneSource(i);
-                        return ei < 0  || !m_.laneIsSet(i) ? 0 : v1.lane(ei);
+                        return !m_.laneIsSet(i) ? 0 : v1.lane(ei);
                    }));
     }
 
@@ -2526,7 +2542,10 @@ public abstract value class LongVector extends AbstractVector<Long> {
     /*package-private*/
     @ForceInline
     final LongVector selectFromTemplate(LongVector v) {
-        return v.rearrange(this.toShuffle());
+        return (LongVector)VectorSupport.selectFromOp(getClass(), null, long.class,
+                                                        length(), this, v, null,
+                                                        (v1, v2, _m) ->
+                                                         v2.rearrange(v1.toShuffle()));
     }
 
     /**
@@ -2538,9 +2557,31 @@ public abstract value class LongVector extends AbstractVector<Long> {
 
     /*package-private*/
     @ForceInline
-    final LongVector selectFromTemplate(LongVector v,
-                                                  AbstractMask<Long> m) {
-        return v.rearrange(this.toShuffle(), m);
+    final
+    <M extends VectorMask<Long>>
+    LongVector selectFromTemplate(LongVector v,
+                                            Class<M> masktype, M m) {
+        m.check(masktype, this);
+        return (LongVector)VectorSupport.selectFromOp(getClass(), masktype, long.class,
+                                                        length(), this, v, m,
+                                                        (v1, v2, _m) ->
+                                                         v2.rearrange(v1.toShuffle(), _m));
+    }
+
+
+    /**
+     * {@inheritDoc} <!--workaround-->
+     */
+    @Override
+    public abstract
+    LongVector selectFrom(Vector<Long> v1, Vector<Long> v2);
+
+
+    /*package-private*/
+    @ForceInline
+    final LongVector selectFromTemplate(LongVector v1, LongVector v2) {
+        return VectorSupport.selectFromTwoVectorOp(getClass(), long.class, length(), this, v1, v2,
+                                                   (vec1, vec2, vec3) -> selectFromTwoVectorHelper(vec1, vec2, vec3));
     }
 
     /// Ternary operations
