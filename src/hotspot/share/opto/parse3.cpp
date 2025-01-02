@@ -359,7 +359,7 @@ void Parse::set_inline_type_field(Node* obj, ciField* field, Node* val) {
     // At present, putfield only updates a primitive or reference type field of an instance.
     // Mutifield does not fit into any such pre-existing class of fields, in non-scalarized form it's treated
     // as an atomic bundle of fields which is updated through vector store operation, while in scalarized
-    // form each component field should be updated individually. 
+    // form each component field should be updated individually.
     if (!InlineTypeNode::is_multifield_scalarized(field)) {
        val = _gvn.transform(VectorNode::scalar2vector(val, field->secondary_fields_count(), field->type()->basic_type(), false));
     }

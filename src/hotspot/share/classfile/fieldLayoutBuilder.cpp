@@ -114,7 +114,7 @@ LayoutRawBlock::LayoutRawBlock(int index, Kind kind, int size, int alignment, jb
  _size(size),
  _multifield_index(multifield_index),
  _field_index(index) {
-  assert(kind == REGULAR || kind == FLAT || kind == INHERITED || kind == MULTIFIELD, 
+  assert(kind == REGULAR || kind == FLAT || kind == INHERITED || kind == MULTIFIELD,
          "Other kind do not have a field index");
   assert(size > 0, "Sanity check");
   assert(alignment > 0, "Sanity check");

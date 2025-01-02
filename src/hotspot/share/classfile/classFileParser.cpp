@@ -1233,7 +1233,7 @@ static void parse_annotations(const ConstantPool* const cp,
       }
       coll->set_contended_group(group_index);
       continue; // proceed to next annotation
-    } 
+    }
 
     if (AnnotationCollector::_jdk_internal_vm_annotation_MultiField == id) {
       // TODO: change those assertion into a conditional statement to process the value
