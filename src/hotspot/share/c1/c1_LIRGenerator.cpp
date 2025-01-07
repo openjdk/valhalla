@@ -1639,7 +1639,7 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
 static LIR_Opr null_marker_mask(BasicType bt, ciField* field) {
   assert(field->null_marker_offset() != -1, "field does not have null marker");
   int nm_offset = field->null_marker_offset() - field->offset_in_bytes();
-  unsigned long null_marker = 1UL << (nm_offset << LogBitsPerByte);
+  jlong null_marker = 1ULL << (nm_offset << LogBitsPerByte);
   return (bt == T_LONG) ? LIR_OprFact::longConst(null_marker) : LIR_OprFact::intConst(null_marker);
 }
 
@@ -1744,7 +1744,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
 #ifdef ASSERT
     bool is_naturally_atomic = vk->nof_declared_nonstatic_fields() <= 1;
     bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
-    assert(needs_atomic_access, "Non-atomic flat fields should be handled in high level IR");
+    assert(needs_atomic_access, "No atomic access required");
 #endif
 
     // Zero the payload
@@ -2207,7 +2207,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
 #ifdef ASSERT
     bool is_naturally_atomic = vk->nof_declared_nonstatic_fields() <= 1;
     bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
-    assert(needs_atomic_access, "Non-atomic flat fields should be handled in high level IR");
+    assert(needs_atomic_access, "No atomic access required");
     assert(x->state_before() != nullptr, "Needs state before");
 #endif
 
