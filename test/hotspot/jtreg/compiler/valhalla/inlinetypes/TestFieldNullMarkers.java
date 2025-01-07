@@ -289,9 +289,41 @@ public class TestFieldNullMarkers {
         }
     }
 
-    MyValue1 field1; // Flat
+    static class MyClass {
+        int x;
+
+        public MyClass(int x) {
+            this.x = x;
+        }
+    }
+
+    // Value class with oop field
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue15 {
+        MyClass obj;
+
+        public MyValue15(MyClass obj) {
+            this.obj = obj;
+        }
+    }
+
+    // Value class with two oop fields
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue16 {
+        MyClass obj1;
+        MyClass obj2;
+
+        public MyValue16(MyClass obj1, MyClass obj2) {
+            this.obj1 = obj1;
+            this.obj2 = obj2;
+        }
+    }
+
+    MyValue1 field1; // Not flat
     MyValue4 field2; // Not flat
-    MyValue5 field3; // Not flat
+    MyValue5 field3; // Flat
     MyValue6 field4; // Flat
     MyValue7 field5; // Flat
     MyValue8 field6; // Flat
@@ -310,6 +342,12 @@ public class TestFieldNullMarkers {
     MyValue14 field15;          // Nullable, (atomic), flat
     @NullRestricted
     volatile MyValue14 field16; // Null-free, atomic, flat
+
+    @NullRestricted
+    volatile MyValue15 field17;
+    MyValue15 field18;
+    @NullRestricted
+    volatile MyValue16 field19;
 
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
     static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
@@ -562,10 +600,32 @@ public class TestFieldNullMarkers {
         }
     }
 
+    static void produceGarbage() {
+        for (int i = 0; i < 100; ++i) {
+            Object[] arrays = new Object[1024];
+            for (int j = 0; j < arrays.length; j++) {
+                arrays[j] = new int[1024];
+            }
+        }
+        System.gc();
+    }
+
+    // Test that barriers are emitted when writing flat, atomic fields with oops
+    public void testWriteOopFields1(MyValue15 val) {
+        field17 = val;
+        field18 = val;
+    }
+
+    public void testWriteOopFields2(MyValue16 val) {
+        field19 = val;
+    }
+
     public static void main(String[] args) {
         TestFieldNullMarkers t = new TestFieldNullMarkers();
         t.testOSR();
-        for (int i = -50_000; i < 50_000; ++i) {
+
+        final int LIMIT = 50_000;
+        for (int i = -50_000; i < LIMIT; ++i) {
             t.field1 = null;
             Asserts.assertEQ(t.testGet1(), null);
 
@@ -854,6 +914,24 @@ public class TestFieldNullMarkers {
             } catch (NullPointerException npe) {
                 // Expected
             }
+
+            MyValue15 val15 = new MyValue15(new MyClass(i));
+            t.testWriteOopFields1(val15);
+            if (i > (LIMIT - 50)) {
+                // After warmup, produce some garbage to trigger GC
+                produceGarbage();
+            }
+            Asserts.assertEQ(t.field17.obj.x, i);
+            Asserts.assertEQ(t.field18.obj.x, i);
+
+            MyValue16 val16 = new MyValue16(new MyClass(i), new MyClass(i));
+            t.testWriteOopFields2(val16);
+            if (i > (LIMIT - 50)) {
+                // After warmup, produce some garbage to trigger GC
+                produceGarbage();
+            }
+            Asserts.assertEQ(t.field19.obj1.x, i);
+            Asserts.assertEQ(t.field19.obj2.x, i);
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account

@@ -577,6 +577,7 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
 static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, BasicType val_bt, int offset) {
   // Shift to the right position in the long value
   assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
+  assert(!is_reference_type(val_bt), "Reference types are not supported");
   Node* value = nullptr;
   Node* shift_val = gvn->intcon(offset << LogBitsPerByte);
   if (bt == T_LONG) {
@@ -620,6 +621,7 @@ void InlineTypeNode::convert_from_payload(PhaseGVN* gvn, BasicType bt, Node* pay
 // Set a field value in the payload by shifting it according to the offset
 static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node* value, BasicType val_bt, int offset) {
   assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
+  assert(!is_reference_type(val_bt), "Reference types are not supported");
 
   // Make sure to zero unused bits in the 32-bit value
   if (val_bt == T_BYTE || val_bt == T_BOOLEAN) {
@@ -1154,7 +1156,12 @@ InlineTypeNode* InlineTypeNode::make_from_flat(GraphKit* kit, ciInlineKlass* vk,
                                                bool atomic, int null_marker_offset, DecoratorSet decorators) {
   GrowableArray<ciType*> visited;
   visited.push(vk);
-  return make_from_flat_impl(kit, vk, obj, ptr, holder, holder_offset, atomic, null_marker_offset, decorators, visited);
+  InlineTypeNode* res = make_from_flat_impl(kit, vk, obj, ptr, holder, holder_offset, atomic, null_marker_offset, decorators, visited);
+  if (atomic) {
+    // TODO even needed?
+    kit->insert_mem_bar(Op_MemBarCPUOrder);
+  }
+  return res;
 }
 
 // GraphKit wrapper for the 'make_from_flat' method

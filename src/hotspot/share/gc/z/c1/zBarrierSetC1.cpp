@@ -412,6 +412,10 @@ LIR_Opr ZBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_regist
 }
 
 void ZBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
+  // ZGC does not support compressed oops, therefore only one oop can be in an atomic flat field and we can only flat if it's nullable
+  // -> We should use the non-atomic version
+  assert(access.vk() == nullptr || !access.vk()->has_object_fields(), "not supported");
+
   if (!barrier_needed(access)) {
     BarrierSetC1::load_at_resolved(access, result);
     return;
@@ -422,6 +426,8 @@ void ZBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
 }
 
 void ZBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
+  assert(access.vk() == nullptr || !access.vk()->has_object_fields(), "not supported");
+
   if (!barrier_needed(access)) {
     BarrierSetC1::store_at_resolved(access, value);
     return;
