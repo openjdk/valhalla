@@ -102,13 +102,13 @@ void fieldDescriptor::reinitialize(InstanceKlass* ik, int index) {
   guarantee(_fieldinfo.name_index() != 0 && _fieldinfo.signature_index() != 0, "bad constant pool index for fieldDescriptor");
 }
 
-void fieldDescriptor::print_on(outputStream* st) const {
+void fieldDescriptor::print_on(outputStream* st, int base_offset) const {
   access_flags().print_on(st);
   if (field_flags().is_injected()) st->print("injected ");
   name()->print_value_on(st);
   st->print(" ");
   signature()->print_value_on(st);
-  st->print(" @%d ", offset());
+  st->print(" @%d ", offset() + base_offset);
   if (WizardMode && has_initial_value()) {
     st->print("(initval ");
     constantTag t = initial_value_tag();
@@ -126,12 +126,10 @@ void fieldDescriptor::print_on(outputStream* st) const {
 
 void fieldDescriptor::print() const { print_on(tty); }
 
-void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
+void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, int base_offset) {
   BasicType ft = field_type();
-  if (!is_null_free_inline_type()) {
-    print_on(st);
-    st->print(" ");
-  }
+  print_on(st, base_offset);
+  st->print(" ");
   jint as_int = 0;
   switch (ft) {
     case T_BYTE:
@@ -164,14 +162,19 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
     case T_ARRAY:
     case T_OBJECT:
       if (is_flat()) { // only some inline types can be flat
-        assert(is_null_free_inline_type(), "Only null free inline type fields can be flat");
         // Print fields of flat fields (recursively)
         InlineKlass* vk = InlineKlass::cast(field_holder()->get_inline_type_field_klass(index()));
         int field_offset = offset() - vk->first_field_offset();
         obj = cast_to_oop(cast_from_oop<address>(obj) + field_offset);
-        st->print_cr("Flat inline type field '%s':", vk->name()->as_C_string());
-        FieldPrinter print_field(st, obj);
+        st->print_cr("Flat inline type field:");
+        FieldPrinter print_field(st, obj, indent + 1, base_offset + field_offset );
         vk->do_nonstatic_fields(&print_field);
+        if (this->field_flags().has_null_marker()) {
+          for (int i = 0; i <  + 1; i++) st->print("  ");
+          st->print_cr(" - [null_marker] @%d %s",
+                    vk->null_marker_offset() - base_offset + field_offset,
+                    obj->bool_field(vk->null_marker_offset()) ? "Field marked as non-null" : "Field marked as null");
+        }
         return; // Do not print underlying representation
       }
       // Not flat inline type field, fall through

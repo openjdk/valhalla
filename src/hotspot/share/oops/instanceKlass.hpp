@@ -91,8 +91,11 @@ public:
 class FieldPrinter: public FieldClosure {
    oop _obj;
    outputStream* _st;
+   int _indent;
+   int _base_offset;
  public:
-   FieldPrinter(outputStream* st, oop obj = nullptr) : _obj(obj), _st(st) {}
+   FieldPrinter(outputStream* st, oop obj = nullptr, int indent = 0, int base_offset = 0) :
+                 _obj(obj), _st(st), _indent(indent), _base_offset(base_offset) {}
    void do_field(fieldDescriptor* fd);
 };
 
@@ -1256,7 +1259,8 @@ public:
 
   void oop_print_value_on(oop obj, outputStream* st);
 
-  void oop_print_on      (oop obj, outputStream* st);
+  void oop_print_on      (oop obj, outputStream* st) { oop_print_on(obj, st, 0, 0); }
+  void oop_print_on      (oop obj, outputStream* st, int indent = 0, int base_offset = 0);
 
 #ifndef PRODUCT
   void print_dependent_nmethods(bool verbose = false);
