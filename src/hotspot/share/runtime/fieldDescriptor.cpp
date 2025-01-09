@@ -170,7 +170,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, int ba
         FieldPrinter print_field(st, obj, indent + 1, base_offset + field_offset );
         vk->do_nonstatic_fields(&print_field);
         if (this->field_flags().has_null_marker()) {
-          for (int i = 0; i <  + 1; i++) st->print("  ");
+          for (int i = 0; i < indent + 1; i++) st->print("  ");
           st->print_cr(" - [null_marker] @%d %s",
                     vk->null_marker_offset() - base_offset + field_offset,
                     obj->bool_field(vk->null_marker_offset()) ? "Field marked as non-null" : "Field marked as null");
