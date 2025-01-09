@@ -451,7 +451,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint 
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
   }
   oop array = nullptr;
-  if (UseFlatArray && vk->has_non_atomic_layout()) {
+  if (vk->flat_array()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
   } else {
     array = oopFactory::new_null_free_objArray(vk, len, CHECK_NULL);

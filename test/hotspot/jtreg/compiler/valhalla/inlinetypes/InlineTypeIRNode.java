@@ -134,7 +134,7 @@ public class InlineTypeIRNode {
 
     public static final String STORE_UNKNOWN_INLINE = PREFIX + "STORE_UNKNOWN_INLINE" + POSTFIX;
     static {
-        IRNode.optoOnly(STORE_UNKNOWN_INLINE, InlineTypeRegexes.STORE_UNKNOWN_INLINE);
+        IRNode.beforeMatching(STORE_UNKNOWN_INLINE, InlineTypeRegexes.STORE_UNKNOWN_INLINE);
     }
 
     public static final String INLINE_ARRAY_NULL_GUARD = PREFIX + "INLINE_ARRAY_NULL_GUARD" + POSTFIX;

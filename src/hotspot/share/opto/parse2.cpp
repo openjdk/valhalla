@@ -362,10 +362,10 @@ void Parse::store_to_unknown_flat_array(Node* array, Node* const idx, Node* non_
     jvms()->set_should_reexecute(true);
     inc_sp(3);
     kill_dead_locals();
-    call = make_runtime_call(RC_NO_LEAF,
+    call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
                       OptoRuntime::store_unknown_inline_Type(),
                       OptoRuntime::store_unknown_inline_Java(),
-                      "store_unknown_inline", TypeRawPtr::BOTTOM,
+                      nullptr, TypeRawPtr::BOTTOM,
                       non_null_stored_value, array, idx);
   }
   make_slow_call_ex(call, env()->Throwable_klass(), false);

@@ -115,7 +115,7 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free) {
       EXCEPTION_CONTEXT;
       Klass* ak = nullptr;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
-      if (UseFlatArray && vk->has_non_atomic_layout()) {
+      if (vk->flat_array()) {
         // Current limitation: returns only non-atomic flat arrays, atomic layout not supported here
         ak = vk->flat_array_klass(LayoutKind::NON_ATOMIC_FLAT, THREAD);
       } else {
