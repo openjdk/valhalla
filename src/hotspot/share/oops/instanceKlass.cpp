@@ -3891,18 +3891,19 @@ void InstanceKlass::print_value_on(outputStream* st) const {
 }
 
 void FieldPrinter::do_field(fieldDescriptor* fd) {
+  for (int i = 0; i < _indent; i++) _st->print("  ");
   _st->print(BULLET);
    if (_obj == nullptr) {
-     fd->print_on(_st);
+     fd->print_on(_st, _base_offset);
      _st->cr();
    } else {
-     fd->print_on_for(_st, _obj);
-     _st->cr();
+     fd->print_on_for(_st, _obj, _indent, _base_offset);
+     if (!fd->field_flags().is_flat()) _st->cr();
    }
 }
 
 
-void InstanceKlass::oop_print_on(oop obj, outputStream* st) {
+void InstanceKlass::oop_print_on(oop obj, outputStream* st, int indent, int base_offset) {
   Klass::oop_print_on(obj, st);
 
   if (this == vmClasses::String_klass()) {
@@ -3918,7 +3919,7 @@ void InstanceKlass::oop_print_on(oop obj, outputStream* st) {
   }
 
   st->print_cr(BULLET"---- fields (total size " SIZE_FORMAT " words):", oop_size(obj));
-  FieldPrinter print_field(st, obj);
+  FieldPrinter print_field(st, obj, indent, base_offset);
   print_nonstatic_fields(&print_field);
 
   if (this == vmClasses::Class_klass()) {
