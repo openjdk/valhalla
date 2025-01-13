@@ -38,7 +38,8 @@
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "utilities/powerOfTwo.hpp"
 
-static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayoutInfo>* inline_layout_info_array) {
+static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayoutInfo>* inline_layout_info_array,
+                                         bool use_atomic_flat) {
 
   if (field_info.field_flags().is_injected()) {
     // don't flatten injected fields
@@ -55,14 +56,15 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
 
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(vk->is_implicitly_constructible(), "null-free fields must be implicitly constructible");
-    if (vk->must_be_atomic() || field_info.access_flags().is_volatile() ||  AlwaysAtomicAccesses) {
-      return vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::REFERENCE;
+    if (vk->must_be_atomic() || field_info.access_flags().is_volatile() || AlwaysAtomicAccesses) {
+      if (vk->is_naturally_atomic() && vk->has_non_atomic_layout()) return LayoutKind::NON_ATOMIC_FLAT;
+      return (vk->has_atomic_layout() && use_atomic_flat) ? LayoutKind::ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return vk->has_non_atomic_layout() ? LayoutKind::NON_ATOMIC_FLAT : LayoutKind::REFERENCE;
     }
   } else {
     if (NullableFieldFlattening && vk->has_nullable_atomic_layout()) {
-      return LayoutKind::NULLABLE_ATOMIC_FLAT;
+      return use_atomic_flat ? LayoutKind::NULLABLE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return LayoutKind::REFERENCE;
     }
@@ -810,7 +812,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
     case T_OBJECT:
     case T_ARRAY:
     {
-      LayoutKind lk = field_layout_selection(fieldinfo, _inline_layout_info_array);
+      LayoutKind lk = field_layout_selection(fieldinfo, _inline_layout_info_array, true);
       if (fieldinfo.field_flags().is_null_free_inline_type() || lk != LayoutKind::REFERENCE
           || (!fieldinfo.field_flags().is_injected()
               && _inline_layout_info_array != nullptr && _inline_layout_info_array->adr_at(fieldinfo.index())->klass() != nullptr
@@ -893,7 +895,8 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     case T_OBJECT:
     case T_ARRAY:
     {
-      LayoutKind lk = field_layout_selection(fieldinfo, _inline_layout_info_array);
+      bool use_atomic_flat = _must_be_atomic; // flatten atomic fields only if the container is itself atomic
+      LayoutKind lk = field_layout_selection(fieldinfo, _inline_layout_info_array, use_atomic_flat);
       if (fieldinfo.field_flags().is_null_free_inline_type() || lk != LayoutKind::REFERENCE
           || (!fieldinfo.field_flags().is_injected()
               && _inline_layout_info_array != nullptr && _inline_layout_info_array->adr_at(fieldinfo.index())->klass() != nullptr
@@ -919,11 +922,6 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
         field_alignment = alignment;
         _field_info->adr_at(idx)->field_flags_addr()->update_flat(true);
         _field_info->adr_at(idx)->set_layout_kind(lk);
-        // default is atomic, but class file parsing could have set _must_be_atomic to false (@LooselyConsistentValue + checks)
-        // Presence of a must_be_atomic field must revert the _must_be_atomic flag of the holder to true
-        if (vk->must_be_atomic()) {
-          _must_be_atomic = true;
-        }
       }
       break;
     }
@@ -1063,19 +1061,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         assert(new_alignment % _layout->super_min_align_required() == 0, "Must be");
         _payload_alignment = new_alignment;
       }
-      if (_layout->first_empty_block()->offset() < _layout->first_field_block()->offset()) {
-        LayoutRawBlock* first_empty = _layout->start()->next_block();
-        if (first_empty->offset() % _payload_alignment != 0) {
-          int size =  _payload_alignment - (first_empty->offset() % _payload_alignment);
-          LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, size);
-          _layout->insert(first_empty, padding);
-          _layout->set_start(padding);
-        } else {
-          _layout->set_start( _layout->start());
-        }
-      } else {
-        _layout->set_start(_layout->first_field_block());
-      }
+      _layout->set_start(_layout->first_field_block());
     }
   } else {
     if (_is_abstract_value && _has_nonstatic_fields) {

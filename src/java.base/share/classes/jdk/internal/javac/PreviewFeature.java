@@ -64,17 +64,15 @@ public @interface PreviewFeature {
      * Values should be annotated with the feature's {@code JEP}.
      */
     public enum Feature {
-        // not used, but required for interim javac to not warn.
-        VIRTUAL_THREADS,
-        FOREIGN,
         @JEP(number=401, title="Value Classes and Objects", status = "Preview")
         VALUE_OBJECTS,
 
-        @JEP(number=459, title="String Templates", status="Second Preview")
-        STRING_TEMPLATES,
+        // while building the interim javac, the ClassReader will produce a warning when loading a class
+        // keeping the constant of a feature that has been integrated or dropped, serves the purpose of muting such warnings.
+        //---
         @JEP(number=477, title="Implicitly Declared Classes and Instance Main Methods", status="Third Preview")
         IMPLICIT_CLASSES,
-        @JEP(number=481, title="Scoped Values", status="Third Preview")
+        @JEP(number=487, title="Scoped Values", status="Fourth Preview")
         SCOPED_VALUES,
         @JEP(number=480, title="Structured Concurrency", status="Third Preview")
         STRUCTURED_CONCURRENCY,
@@ -84,6 +82,8 @@ public @interface PreviewFeature {
         STREAM_GATHERERS,
         @JEP(number=476, title="Module Import Declarations", status="Preview")
         MODULE_IMPORTS,
+        @JEP(number=478, title="Key Derivation Function API", status="Preview")
+        KEY_DERIVATION,
         LANGUAGE_MODEL,
         /**
          * A key for testing.

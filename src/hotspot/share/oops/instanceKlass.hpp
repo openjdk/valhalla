@@ -91,8 +91,11 @@ public:
 class FieldPrinter: public FieldClosure {
    oop _obj;
    outputStream* _st;
+   int _indent;
+   int _base_offset;
  public:
-   FieldPrinter(outputStream* st, oop obj = nullptr) : _obj(obj), _st(st) {}
+   FieldPrinter(outputStream* st, oop obj = nullptr, int indent = 0, int base_offset = 0) :
+                 _obj(obj), _st(st), _indent(indent), _base_offset(base_offset) {}
    void do_field(fieldDescriptor* fd);
 };
 
@@ -489,6 +492,8 @@ class InstanceKlass: public Klass {
   bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
   bool field_is_null_free_inline_type(int index) const;
   bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
+
+  int null_marker_offset(int index) const { return inline_layout_info(index).null_marker_offset(); }
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -1258,7 +1263,8 @@ public:
 
   void oop_print_value_on(oop obj, outputStream* st);
 
-  void oop_print_on      (oop obj, outputStream* st);
+  void oop_print_on      (oop obj, outputStream* st) { oop_print_on(obj, st, 0, 0); }
+  void oop_print_on      (oop obj, outputStream* st, int indent = 0, int base_offset = 0);
 
 #ifndef PRODUCT
   void print_dependent_nmethods(bool verbose = false);
