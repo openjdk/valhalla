@@ -198,7 +198,6 @@ static void assert_flat_array_type(markWord mark) {
   EXPECT_TRUE(mark.is_flat_array());
   EXPECT_FALSE(mark.is_inline_type());
   EXPECT_FALSE(mark.is_larval_state());
-  EXPECT_TRUE(mark.is_null_free_array());
 }
 
 TEST_VM(markWord, null_free_flat_array_prototype) {
@@ -207,6 +206,7 @@ TEST_VM(markWord, null_free_flat_array_prototype) {
   EXPECT_TRUE(mark.is_neutral());
 
   assert_flat_array_type(mark);
+  EXPECT_TRUE(mark.is_null_free_array());
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
@@ -214,6 +214,7 @@ TEST_VM(markWord, null_free_flat_array_prototype) {
 
   assert_copy_set_hash(mark);
   assert_flat_array_type(mark);
+  EXPECT_TRUE(mark.is_null_free_array());
 }
 
 TEST_VM(markWord, nullable_flat_array_prototype) {
@@ -222,6 +223,7 @@ TEST_VM(markWord, nullable_flat_array_prototype) {
   EXPECT_TRUE(mark.is_neutral());
 
   assert_flat_array_type(mark);
+  EXPECT_FALSE(mark.is_null_free_array());
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
@@ -229,6 +231,7 @@ TEST_VM(markWord, nullable_flat_array_prototype) {
 
   assert_copy_set_hash(mark);
   assert_flat_array_type(mark);
+  EXPECT_FALSE(mark.is_null_free_array());
 }
 
 static void assert_null_free_array_type(markWord mark) {

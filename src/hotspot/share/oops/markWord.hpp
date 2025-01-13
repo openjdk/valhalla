@@ -221,7 +221,7 @@ class markWord {
   static const uintptr_t inline_type_pattern      = inline_type_bit_in_place | unlocked_value;
   static const uintptr_t null_free_array_pattern  = null_free_array_bit_in_place | unlocked_value;
   static const uintptr_t null_free_flat_array_pattern = flat_array_bit_in_place | null_free_array_pattern;
-  static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place;
+  static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place | unlocked_value;
 
   // Has static klass prototype, used for decode/encode pointer
   static const uintptr_t static_prototype_mask    = LP64_ONLY(right_n_bits(inline_type_bits + flat_array_bits + null_free_array_bits)) NOT_LP64(right_n_bits(inline_type_bits));
