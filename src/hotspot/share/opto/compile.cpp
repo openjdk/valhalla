@@ -394,7 +394,7 @@ void Compile::remove_useless_node(Node* dead) {
   if (dead->is_expensive()) {
     remove_expensive_node(dead);
   }
-  if (dead->Opcode() == Op_Opaque4) {
+  if (dead->is_OpaqueTemplateAssertionPredicate()) {
     remove_template_assertion_predicate_opaq(dead);
   }
   if (dead->is_ParsePredicate()) {
@@ -4267,6 +4267,12 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_InlineType: {
     n->dump(-1);
     assert(false, "inline type node was not removed");
+    break;
+  }
+  case Op_ConNKlass: {
+    const TypePtr* tp = n->as_Type()->type()->make_ptr();
+    ciKlass* klass = tp->is_klassptr()->exact_klass();
+    assert(klass->is_in_encoding_range(), "klass cannot be compressed");
     break;
   }
 #endif

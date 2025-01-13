@@ -1188,8 +1188,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
                                                   Register t1, Register t2,
                                                   bool clear_fields, Label& alloc_failed) {
   MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  {
-    SkipIfEqual skip_if(this, &DTraceAllocProbes, 0, rscratch1);
+  if (DTraceMethodProbes) {
     // Trigger dtrace event for fastpath
     push(atos);
     call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);

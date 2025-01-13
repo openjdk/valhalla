@@ -167,10 +167,18 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * <a href="http://www.unicode.org/glossary/">Unicode Glossary</a>.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Character} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @spec https://www.unicode.org/reports/tr27 Unicode 3.1.0
  * @author  Lee Boynton
@@ -233,8 +241,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      *
      * @since   1.1
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Character> TYPE = (Class<Character>) Class.getPrimitiveClass("char");
+    public static final Class<Character> TYPE = Class.getPrimitiveClass("char");
 
     /*
      * Normative general types
@@ -8986,7 +8993,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
 
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(CharacterCache.class);
-            if (archivedCache == null || archivedCache.length != size) {
+            if (archivedCache == null) {
                 Character[] c = new Character[size];
                 for (int i = 0; i < size; i++) {
                     c[i] = new Character((char) i);
@@ -8994,6 +9001,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
                 archivedCache = c;
             }
             cache = archivedCache;
+            assert cache.length == size;
         }
     }
 
@@ -9068,8 +9076,8 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      *          {@code false} otherwise.
      */
     public boolean equals(Object obj) {
-        if (obj instanceof Character) {
-            return value == ((Character)obj).charValue();
+        if (obj instanceof Character c) {
+            return value == c.charValue();
         }
         return false;
     }

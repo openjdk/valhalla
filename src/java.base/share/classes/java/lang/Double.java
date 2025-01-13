@@ -49,10 +49,18 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * {@code double}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Double} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * <h2><a id=equivalenceRelation>Floating-point Equality, Equivalence,
  * and Comparison</a></h2>
@@ -461,8 +469,7 @@ public final class Double extends Number
      *
      * @since 1.1
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Double>   TYPE = (Class<Double>) Class.getPrimitiveClass("double");
+    public static final Class<Double> TYPE = Class.getPrimitiveClass("double");
 
     /**
      * Returns a string representation of the {@code double}
@@ -1260,9 +1267,8 @@ public final class Double extends Number
      * @jls 15.21.1 Numerical Equality Operators == and !=
      */
     public boolean equals(Object obj) {
-        return (obj instanceof Double)
-               && (doubleToLongBits(((Double)obj).value) ==
-                      doubleToLongBits(value));
+        return (obj instanceof Double d) &&
+            (doubleToLongBits(d.value) == doubleToLongBits(value));
     }
 
     /**

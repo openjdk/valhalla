@@ -51,8 +51,6 @@ public class EntryHashCode {
         new LinkedHashMap<>(),
         new TreeMap<>(),
         new WeakHashMap<>(),
-        new WeakHashMap<>(16, 0.75f, WeakHashMap.ValuePolicy.SOFT),
-        new WeakHashMap<>(16, 0.75f, WeakHashMap.ValuePolicy.STRONG),
         new ConcurrentHashMap<>(),
         new ConcurrentSkipListMap<>()
     };

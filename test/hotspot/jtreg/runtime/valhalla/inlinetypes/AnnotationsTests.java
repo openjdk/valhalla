@@ -425,5 +425,26 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         Asserts.assertNull(exception, "Unexpected IncompatibleClassChangeError received");
     }
 
+    // Test that value record can be considered @ImplicitlyConstructible
+    // (note java.lang.Record is a special super-class because it is not annotated with @ImplicitlyConstructible)
+
+    @ImplicitlyConstructible
+    static value record Value16(byte b) { }
+
+    static class Test16 {
+        @NullRestricted
+        Value16 v = new Value16((byte)1);
+    }
+
+    void test_16() {
+        Throwable exception = null;
+        try {
+            Test16 t16 = new Test16();
+        } catch(Throwable e) {
+            exception = e;
+            System.out.println("Received "+ e);
+        }
+        Asserts.assertNull(exception, "Unexpected exception " + exception);
+    }
  }
 

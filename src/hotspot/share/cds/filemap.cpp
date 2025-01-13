@@ -276,7 +276,6 @@ void FileMapHeader::populate(FileMapInfo *info, size_t core_region_alignment,
   }
   _compressed_oops = UseCompressedOops;
   _compressed_class_ptrs = UseCompressedClassPointers;
-  _use_secondary_supers_table = UseSecondarySupersTable;
   _max_heap_size = MaxHeapSize;
   _use_optimized_module_handling = CDSConfig::is_using_optimized_module_handling();
   _has_full_module_graph = CDSConfig::is_dumping_full_module_graph();
@@ -340,7 +339,6 @@ void FileMapHeader::print(outputStream* st) {
   st->print_cr("- narrow_oop_mode:                %d", _narrow_oop_mode);
   st->print_cr("- compressed_oops:                %d", _compressed_oops);
   st->print_cr("- compressed_class_ptrs:          %d", _compressed_class_ptrs);
-  st->print_cr("- use_secondary_supers_table:     %d", _use_secondary_supers_table);
   st->print_cr("- cloned_vtables_offset:          " SIZE_FORMAT_X, _cloned_vtables_offset);
   st->print_cr("- serialized_data_offset:         " SIZE_FORMAT_X, _serialized_data_offset);
   st->print_cr("- jvm_ident:                      %s", _jvm_ident);
@@ -1002,7 +1000,7 @@ void FileMapInfo::extract_module_paths(const char* runtime_path, GrowableArray<c
     ClassLoaderExt::extract_jar_files_from_path(name, module_paths);
   }
   // module paths are stored in sorted order in the CDS archive.
-  module_paths->sort(ClassLoaderExt::compare_module_path_by_name);
+  module_paths->sort(ClassLoaderExt::compare_module_names);
 }
 
 bool FileMapInfo::check_module_paths() {
@@ -2126,8 +2124,7 @@ void FileMapInfo::map_or_load_heap_region() {
       success = ArchiveHeapLoader::load_heap_region(this);
     } else {
       if (!UseCompressedOops && !ArchiveHeapLoader::can_map()) {
-        // TODO - remove implicit knowledge of G1
-        log_info(cds)("Cannot use CDS heap data. UseG1GC is required for -XX:-UseCompressedOops");
+        log_info(cds)("Cannot use CDS heap data. Selected GC not compatible -XX:-UseCompressedOops");
       } else {
         log_info(cds)("Cannot use CDS heap data. UseEpsilonGC, UseG1GC, UseSerialGC, UseParallelGC, or UseShenandoahGC are required.");
       }
@@ -2207,7 +2204,7 @@ address FileMapInfo::heap_region_requested_address() {
   assert(CDSConfig::is_using_archive(), "runtime only");
   FileMapRegion* r = region_at(MetaspaceShared::hp);
   assert(is_aligned(r->mapping_offset(), sizeof(HeapWord)), "must be");
-  assert(ArchiveHeapLoader::can_map(), "cannot be used by ArchiveHeapLoader::can_load() mode");
+  assert(ArchiveHeapLoader::can_use(), "GC must support mapping or loading");
   if (UseCompressedOops) {
     // We can avoid relocation if each region's offset from the runtime CompressedOops::base()
     // is the same as its offset from the CompressedOops::base() during dumptime.
@@ -2580,11 +2577,6 @@ bool FileMapHeader::validate() {
                          "incompatible with the current JVM setting", err);
       return false;
     }
-  }
-
-  if (! _use_secondary_supers_table && UseSecondarySupersTable) {
-    log_warning(cds)("The shared archive was created without UseSecondarySupersTable.");
-    return false;
   }
 
   if (!_use_optimized_module_handling) {
