@@ -101,8 +101,12 @@ note: The `<unique-Element-ID>` for methods looks like
 it is somewhat inspired from the VM Method Descriptors. But we use the erased return so that methods
 that were later generified remain the same.
 
+To help projects still in development, unsure of actual `@since` tag value, one may want to use token name instead of continuely
+updating the current version since tags. For example, `@since LongRunningProjectName`. The option `--ignoreSince` maybe used to
+ignore these tags (`--ignoreSince LongRunningProjectName`). Maybe be specified multiple times.
+
 usage: the checker is run from a module specific test
-        `@run main SinceChecker <moduleName> [--exclude package1,package2 | --exclude package1 package2]`
+        `@run main SinceChecker <moduleName> [--ignoreSince <string>] [--exclude package1,package2 | --exclude package1 package2]`
 */
 
 public class SinceChecker {
@@ -110,6 +114,11 @@ public class SinceChecker {
     private final Map<String, IntroducedIn> classDictionary = new HashMap<>();
     private final JavaCompiler tool;
     private int errorCount = 0;
+
+    // Ignored since tags
+    private static final Set<String> IGNORE_SINCE = new HashSet<>();
+    // Simply replace ignored since tags with the latest version
+    private static final Version     IGNORE_VERSION = Version.parse(Integer.toString(Runtime.version().major()));
 
     // packages to skip during the test
     private static final Set<String> EXCLUDE_LIST = new HashSet<>();
@@ -127,7 +136,11 @@ public class SinceChecker {
         boolean excludeFlag = false;
 
         for (int i = 1; i < args.length; i++) {
-            if ("--exclude".equals(args[i])) {
+            if ("--ignoreSince".equals(args[i])) {
+                i++;
+                IGNORE_SINCE.add("@since " + args[i]);
+            }
+            else if ("--exclude".equals(args[i])) {
                 excludeFlag = true;
                 continue;
             }
@@ -452,6 +465,11 @@ public class SinceChecker {
     }
 
     private Version extractSinceVersionFromText(String documentation) {
+        for (String ignoreSince : IGNORE_SINCE) {
+            if (documentation.contains(ignoreSince)) {
+                return IGNORE_VERSION;
+            }
+        }
         Pattern pattern = Pattern.compile("@since\\s+(\\d+(?:\\.\\d+)?)");
         Matcher matcher = pattern.matcher(documentation);
         if (matcher.find()) {

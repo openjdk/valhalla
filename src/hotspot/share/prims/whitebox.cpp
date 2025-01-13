@@ -22,6 +22,7 @@
  *
  */
 
+#include "oops/access.hpp"
 #include "precompiled.hpp"
 #include "cds.h"
 #include "cds/archiveHeapLoader.hpp"
@@ -90,6 +91,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/javaThread.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
+#include "runtime/keepStackGCProcessed.hpp"
 #include "runtime/lockStack.hpp"
 #include "runtime/os.hpp"
 #include "runtime/stackFrameStream.inline.hpp"
@@ -427,11 +429,7 @@ WB_ENTRY(jboolean, WB_isObjectInOldGen(JNIEnv* env, jobject o, jobject obj))
 #endif
 #if INCLUDE_ZGC
   if (UseZGC) {
-    if (ZGenerational) {
-      return ZHeap::heap()->is_old(to_zaddress(p));
-    } else {
-      return Universe::heap()->is_in(p);
-    }
+    return ZHeap::heap()->is_old(to_zaddress(p));
   }
 #endif
 #if INCLUDE_SHENANDOAHGC
@@ -1085,6 +1083,10 @@ bool WhiteBox::compile_method(Method* method, int comp_level, int bci, JavaThrea
   AbstractCompiler* comp = CompileBroker::compiler(comp_level);
   if (method == nullptr) {
     tty->print_cr("WB error: request to compile null method");
+    return false;
+  }
+  if (method->is_abstract()) {
+    tty->print_cr("WB error: request to compile abstract method");
     return false;
   }
   if (comp_level > CompilationPolicy::highest_compile_level()) {
@@ -1754,7 +1756,7 @@ WB_ENTRY(jlong, WB_GetTotalUsedWordsInMetaspaceTestContext(JNIEnv* env, jobject 
 WB_END
 
 WB_ENTRY(jlong, WB_CreateArenaInTestContext(JNIEnv* env, jobject wb, jlong context, jboolean is_micro))
-  const Metaspace::MetaspaceType type = is_micro ? Metaspace::ReflectionMetaspaceType : Metaspace::StandardMetaspaceType;
+  const Metaspace::MetaspaceType type = is_micro ? Metaspace::ClassMirrorHolderMetaspaceType : Metaspace::StandardMetaspaceType;
   metaspace::MetaspaceTestContext* context0 = (metaspace::MetaspaceTestContext*) context;
   return (jlong)p2i(context0->create_arena(type));
 WB_END
@@ -1938,49 +1940,67 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
   return (jobjectArray)JNIHandles::make_local(THREAD, result_array());
 WB_END
 
-class CollectOops : public BasicOopIterateClosure {
- public:
-  GrowableArray<Handle>* array;
+// Collect Object oops but not value objects...loaded from heap
+class CollectObjectOops : public BasicOopIterateClosure {
+  public:
+  GrowableArray<Handle>* _array;
 
-  jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
-    objArrayHandle result_array =
-        oopFactory::new_objArray_handle(vmClasses::Object_klass(), array->length(), CHECK_NULL);
-    for (int i = 0 ; i < array->length(); i++) {
-      result_array->obj_at_put(i, array->at(i)());
-    }
-    return (jobjectArray)JNIHandles::make_local(THREAD, result_array());
+  CollectObjectOops() {
+      _array = new GrowableArray<Handle>(128);
   }
 
   void add_oop(oop o) {
     Handle oh = Handle(Thread::current(), o);
-    // Value might be oop, but JLS can't see as Object, just iterate through it...
     if (oh != nullptr && oh->is_inline_type()) {
       oh->oop_iterate(this);
     } else {
-      array->append(oh);
+      _array->append(oh);
     }
   }
 
-  void do_oop(oop* o) { add_oop(HeapAccess<>::oop_load(o)); }
-  void do_oop(narrowOop* v) { add_oop(HeapAccess<>::oop_load(v)); }
+  template <class T> inline void add_oop(T* p) { add_oop(HeapAccess<>::oop_load(p)); }
+  void do_oop(oop* o) { add_oop(o); }
+  void do_oop(narrowOop* v) { add_oop(v); }
+
+  jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
+    objArrayHandle result_array =
+        oopFactory::new_objArray_handle(vmClasses::Object_klass(), _array->length(), CHECK_NULL);
+    for (int i = 0 ; i < _array->length(); i++) {
+      result_array->obj_at_put(i, _array->at(i)());
+    }
+    return (jobjectArray)JNIHandles::make_local(THREAD, result_array());
+  }
 };
 
+// Collect Object oops but not value objects...loaded from frames
+class CollectFrameObjectOops : public BasicOopIterateClosure {
+ public:
+  CollectObjectOops _collect;
+
+  template <class T> inline void add_oop(T* p) { _collect.add_oop(RawAccess<>::oop_load(p)); }
+  void do_oop(oop* o) { add_oop(o); }
+  void do_oop(narrowOop* v) { add_oop(v); }
+
+  jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
+    return _collect.create_jni_result(env, THREAD);
+  }
+};
+
+// Collect Object oops for the given oop, iterate through value objects
 WB_ENTRY(jobjectArray, WB_getObjectsViaOopIterator(JNIEnv* env, jobject wb, jobject thing))
   ResourceMark rm(thread);
   Handle objh(thread, JNIHandles::resolve(thing));
-  GrowableArray<Handle>* array = new GrowableArray<Handle>(128);
-  CollectOops collectOops;
-  collectOops.array = array;
+  CollectObjectOops collectOops;
   objh->oop_iterate(&collectOops);
   return collectOops.create_jni_result(env, THREAD);
 WB_END
 
+// Collect Object oops for the given frame deep, iterate through value objects
 WB_ENTRY(jobjectArray, WB_getObjectsViaFrameOopIterator(JNIEnv* env, jobject wb, jint depth))
+  KeepStackGCProcessedMark ksgcpm(THREAD);
   ResourceMark rm(THREAD);
-  GrowableArray<Handle>* array = new GrowableArray<Handle>(128);
-  CollectOops collectOops;
-  collectOops.array = array;
-  StackFrameStream sfs(thread, false /* update */, true /* process_frames */);
+  CollectFrameObjectOops collectOops;
+  StackFrameStream sfs(thread, true /* update */, true /* process_frames */);
   while (depth > 0) { // Skip the native WB API frame
     sfs.next();
     frame* f = sfs.current();
@@ -2247,8 +2267,7 @@ WB_ENTRY(jboolean, WB_IsJVMCISupportedByGC(JNIEnv* env))
 WB_END
 
 WB_ENTRY(jboolean, WB_CanWriteJavaHeapArchive(JNIEnv* env))
-  return HeapShared::can_write()
-      && ArchiveHeapLoader::can_use(); // work-around JDK-8341371
+  return HeapShared::can_write();
 WB_END
 
 

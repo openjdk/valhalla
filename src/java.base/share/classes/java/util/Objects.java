@@ -185,6 +185,7 @@ public final class Objects {
     *
     * @param obj an object
     * @throws NullPointerException if {@code obj} is {@code null}
+    * @since Valhalla
     */
    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
 //    @IntrinsicCandidate
@@ -494,17 +495,6 @@ public final class Objects {
     public static
     int checkFromIndexSize(int fromIndex, int size, int length) {
         return Preconditions.checkFromIndexSize(fromIndex, size, length, null);
-    }
-
-    /**
-     * Return the size of the object in the heap.
-     *
-     * @param o an object
-     * @return the objects's size
-     * @since Valhalla
-     */
-    public static long getObjectSize(Object o) {
-        return Unsafe.getUnsafe().getObjectSize(o);
     }
 
     /**

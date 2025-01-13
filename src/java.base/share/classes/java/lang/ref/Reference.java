@@ -39,9 +39,14 @@ import java.util.Objects;
  * operations common to all reference objects.  Because reference objects are
  * implemented in close cooperation with the garbage collector, this class may
  * not be subclassed directly.
- * <p>
- * The referent must be an {@linkplain Objects#hasIdentity(Object) identity object}.
- * Attempts to create a reference to a value object result in an {@link IdentityException}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          The referent must have {@linkplain Objects#hasIdentity(Object) object identity}.
+ *          When preview features are enabled, attempts to create a reference
+ *          to a {@linkplain Class#isValue value object} result in an {@link IdentityException}.
+ *      </div>
+ * </div>
  * @param <T> the type of the referent
  *
  * @author   Mark Reinhold

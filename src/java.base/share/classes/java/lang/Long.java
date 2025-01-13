@@ -57,10 +57,19 @@ import static java.lang.String.UTF16;
  * with a {@code long}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Long} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
+ *
  *
  * <p>Implementation note: The implementations of the "bit twiddling"
  * methods (such as {@link #highestOneBit(long) highestOneBit} and
@@ -97,8 +106,7 @@ public final class Long extends Number
      *
      * @since   1.1
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Long>     TYPE = (Class<Long>) Class.getPrimitiveClass("long");
+    public static final Class<Long> TYPE = Class.getPrimitiveClass("long");
 
     /**
      * Returns a string representation of the first argument in the
@@ -965,7 +973,7 @@ public final class Long extends Number
 
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(LongCache.class);
-            if (archivedCache == null || archivedCache.length != size) {
+            if (archivedCache == null) {
                 Long[] c = new Long[size];
                 long value = -128;
                 for(int i = 0; i < size; i++) {
@@ -974,6 +982,7 @@ public final class Long extends Number
                 archivedCache = c;
             }
             cache = archivedCache;
+            assert cache.length == size;
         }
     }
 
@@ -1248,8 +1257,8 @@ public final class Long extends Number
      *          {@code false} otherwise.
      */
     public boolean equals(Object obj) {
-        if (obj instanceof Long) {
-            return value == ((Long)obj).longValue();
+        if (obj instanceof Long ell) {
+            return value == ell.longValue();
         }
         return false;
     }

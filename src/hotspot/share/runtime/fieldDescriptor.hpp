@@ -109,8 +109,8 @@ class fieldDescriptor {
 
   // Print
   void print() const;
-  void print_on(outputStream* st) const;
-  void print_on_for(outputStream* st, oop obj);
+  void print_on(outputStream* st, int base_offset = 0) const;
+  void print_on_for(outputStream* st, oop obj, int indent = 0, int base_offset = 0);
 };
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_HPP

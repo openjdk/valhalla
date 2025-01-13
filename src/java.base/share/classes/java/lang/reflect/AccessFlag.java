@@ -574,6 +574,8 @@ public enum AccessFlag {
      * @param cffv the class file format version
      * @throws IllegalArgumentException if the mask contains bit
      * positions not supported for the location in question
+     *
+     * @since Valhalla
      */
     public static Set<AccessFlag> maskToAccessFlags(int mask, Location location,
                                                     ClassFileFormatVersion cffv) {
