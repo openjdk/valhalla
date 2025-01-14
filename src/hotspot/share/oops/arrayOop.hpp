@@ -71,7 +71,7 @@ private:
   // Header size computation.
   // The header is considered the oop part of this type plus the length.
   // This is not equivalent to sizeof(arrayOopDesc) which should not appear in the code.
-  static int header_size_in_bytes(BasicType etype) {
+  static int header_size_in_bytes() {
     int hs = length_offset_in_bytes() + (int)sizeof(int);
 #ifdef ASSERT
     // make sure it isn't called before UseCompressedOops is initialized.
@@ -92,7 +92,7 @@ private:
 
   // Returns the offset of the first element.
   static int base_offset_in_bytes(BasicType type) {
-    int hs = header_size_in_bytes(type);
+    int hs = header_size_in_bytes();
     return element_type_should_be_aligned(type) ? align_up(hs, BytesPerLong) : hs;
   }
 
