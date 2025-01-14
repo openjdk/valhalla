@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2024, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -5534,7 +5534,7 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", "floatToFloat16");
     address entry = __ pc();
     BLOCK_COMMENT("Entry:");
-    __ flt_to_flt16(r0, v0, v1);
+    __ flt_to_flt16(r0, v0, v1, T_FLOAT);
     __ ret(lr);
     return entry;
   }

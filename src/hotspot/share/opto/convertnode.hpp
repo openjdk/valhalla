@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,6 +66,17 @@ class ConvD2FNode : public ConvertNode {
   virtual int Opcode() const;
   virtual const Type* in_type() const { return Type::DOUBLE; }
   virtual const Type* Value(PhaseGVN* phase) const;
+  virtual Node* Identity(PhaseGVN* phase);
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+};
+
+//------------------------------ConvD2HFNode-----------------------------------
+// Convert double to half-precision float
+class ConvD2HFNode : public ConvertNode {
+  public:
+  ConvD2HFNode(Node* in1) : ConvertNode(TypeInt::SHORT, in1) {}
+  virtual int Opcode() const;
+  virtual const Type* in_type() const { return Type::DOUBLE; }
   virtual Node* Identity(PhaseGVN* phase);
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };
@@ -205,6 +216,15 @@ public:
   virtual Node* Identity(PhaseGVN* phase);
 };
 
+//------------------------------ConvI2HFNode-----------------------------------
+// Convert Integer to Half float
+class ConvI2HFNode : public ConvertNode {
+  public:
+  ConvI2HFNode(Node* in1) : ConvertNode(TypeInt::SHORT, in1) {}
+  virtual int Opcode() const;
+  virtual const Type* in_type() const { return TypeInt::INT; }
+};
+
 //-----------------------------ReinterpretS2HFNode ---------------------------
 // Reinterpret Short to Half Float
 class ReinterpretS2HFNode : public Node {
@@ -258,6 +278,15 @@ public:
   virtual int Opcode() const;
   virtual const Type* in_type() const { return TypeLong::LONG; }
   virtual const Type* Value(PhaseGVN* phase) const;
+};
+
+//------------------------------ConvL2HFNode-----------------------------------
+// Convert Long to Half float
+class ConvL2HFNode : public ConvertNode {
+  public:
+  ConvL2HFNode(Node* in1) : ConvertNode(TypeInt::SHORT, in1) {}
+  virtual int Opcode() const;
+  virtual const Type* in_type() const { return TypeLong::LONG; }
 };
 
 //------------------------------ConvL2INode------------------------------------

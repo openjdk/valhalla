@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -472,6 +472,11 @@ public class IRNode {
         beforeMatchingNameRegex(CONV, "Conv");
     }
 
+    public static final String CONV_D2HF = PREFIX + "CONV_D2HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_D2HF, "ConvD2HF");
+    }
+
     public static final String CONV_F2HF = PREFIX + "CONV_F2HF" + POSTFIX;
     static {
         beforeMatchingNameRegex(CONV_F2HF, "ConvF2HF");
@@ -497,9 +502,24 @@ public class IRNode {
         beforeMatchingNameRegex(CONV_I2L, "ConvI2L");
     }
 
+    public static final String CONV_I2HF = PREFIX + "CONV_I2HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_I2HF, "ConvI2HF");
+    }
+
+    public static final String CONV_I2D = PREFIX + "CONV_I2D" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_I2D, "ConvI2D");
+    }
+
     public static final String CONV_L2I = PREFIX + "CONV_L2I" + POSTFIX;
     static {
         beforeMatchingNameRegex(CONV_L2I, "ConvL2I");
+    }
+
+    public static final String CONV_L2HF = PREFIX + "CONV_L2HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CONV_L2HF, "ConvL2HF");
     }
 
     public static final String CONV_HF2F = PREFIX + "CONV_HF2F" + POSTFIX;
@@ -2012,6 +2032,21 @@ public class IRNode {
     public static final String VECTOR_CAST_F2HF = VECTOR_PREFIX + "VECTOR_CAST_F2HF" + POSTFIX;
     static {
         vectorNode(VECTOR_CAST_F2HF, "VectorCastF2HF", TYPE_SHORT);
+    }
+
+    public static final String VECTOR_CAST_I2HF = PREFIX + "VECTOR_CAST_I2HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(VECTOR_CAST_I2HF, "VectorCastI2HF");
+    }
+
+    public static final String VECTOR_CAST_D2HF = PREFIX + "VECTOR_CAST_D2HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(VECTOR_CAST_D2HF, "VectorCastD2HF");
+    }
+
+    public static final String VECTOR_CAST_L2HF = PREFIX + "VECTOR_CAST_L2HF" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(VECTOR_CAST_L2HF, "VectorCastL2HF");
     }
 
     public static final String VECTOR_CAST_HF2I = VECTOR_PREFIX + "VECTOR_CAST_HF2I" + POSTFIX;

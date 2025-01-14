@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1895,13 +1895,35 @@ static Node* split_flow_path(PhaseGVN *phase, PhiNode *phi) {
   return phi;
 }
 
+static bool is_HF2X_op(int opcode) {
+  switch(opcode) {
+    case Op_ConvHF2F:
+    case Op_ConvHF2I:
+    case Op_ConvHF2D:
+    case Op_ConvHF2L:
+      return true;
+    default:
+      return false;
+    }
+}
+
+static bool is_X2HF_op(int opcode) {
+  switch(opcode) {
+    case Op_ConvF2HF:
+    case Op_ConvI2HF:
+    case Op_ConvD2HF:
+    case Op_ConvL2HF:
+      return true;
+    default:
+      return false;
+    }
+}
+
 // Returns the BasicType of a given convert node based on its opcode and type
 static BasicType get_convert_type(Node* convert, const Type* type, const bool is_source=false) {
   int convert_op = convert->Opcode();
   if (type->isa_int()) {
-    if (is_source && convert_op == Op_ConvHF2I) {
-      return T_SHORT;
-    } else if (convert_op == Op_ConvHF2F || convert_op == Op_ConvF2HF || convert_op == Op_ConvHF2D || convert_op == Op_ConvHF2L) {
+    if ((is_source && is_HF2X_op(convert_op)) || (!is_source && is_X2HF_op(convert_op))) {
       return T_SHORT;
     }
   }

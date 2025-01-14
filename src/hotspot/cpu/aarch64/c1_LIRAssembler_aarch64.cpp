@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -1933,7 +1933,7 @@ void LIR_Assembler::intrinsic_op(LIR_Code code, LIR_Opr value, LIR_Opr tmp, LIR_
   switch(code) {
   case lir_abs : __ fabsd(dest->as_double_reg(), value->as_double_reg()); break;
   case lir_sqrt: __ fsqrtd(dest->as_double_reg(), value->as_double_reg()); break;
-  case lir_f2hf: __ flt_to_flt16(dest->as_register(), value->as_float_reg(), tmp->as_float_reg()); break;
+  case lir_f2hf: __ flt_to_flt16(dest->as_register(), value->as_float_reg(), tmp->as_float_reg(), T_FLOAT); break;
   case lir_hf2f: __ flt16_to_flt(dest->as_float_reg(), value->as_register(), tmp->as_float_reg(), T_FLOAT); break;
   default      : ShouldNotReachHere();
   }

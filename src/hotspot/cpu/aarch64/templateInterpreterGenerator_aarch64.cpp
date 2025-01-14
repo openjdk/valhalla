@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -331,7 +331,7 @@ address TemplateInterpreterGenerator::generate_Float_floatToFloat16_entry() {
 
   address entry_point = __ pc();
   __ ldrs(v0, Address(esp));
-  __ flt_to_flt16(c_rarg0, v0, v1);
+  __ flt_to_flt16(c_rarg0, v0, v1, T_FLOAT);
   __ mov(sp, r19_sender_sp); // Restore caller's SP
   __ br(lr);
   return entry_point;

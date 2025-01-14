@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -384,16 +384,21 @@ public final class Float16
     * @param  value a {@code long} value.
     */
     public static Float16 valueOf(long value) {
+        return new Float16(longToFloat16(value));
+    }
+
+    @IntrinsicCandidate
+    private static short longToFloat16(long value) {
         if (value <= -65_520L) {  // -(Float16.MAX_VALUE + Float16.ulp(Float16.MAX_VALUE) / 2)
-            return NEGATIVE_INFINITY;
+            return float16ToRawShortBits(NEGATIVE_INFINITY);
         } else {
             if (value >= 65_520L) {  // Float16.MAX_VALUE + Float16.ulp(Float16.MAX_VALUE) / 2
-                return POSITIVE_INFINITY;
+                return float16ToRawShortBits(POSITIVE_INFINITY);
             }
             // Remaining range of long, the integers in approx. +/-
             // 2^16, all fit in a float so the correct conversion can
             // be done via an intermediate float conversion.
-            return valueOf((float)value);
+            return Float.floatToFloat16((float)value);
         }
     }
 
@@ -411,7 +416,7 @@ public final class Float16
         return new Float16(Float.floatToFloat16(f));
     }
 
-   /**
+    /**
     * {@return a {@code Float16} value rounded from the {@code double}
     * argument using the round to nearest rounding policy}
     *
@@ -421,7 +426,12 @@ public final class Float16
     *
     * @param  d a {@code double}
     */
-    public static Float16 valueOf(double d) {
+        public static Float16 valueOf(double d) {
+        return new Float16(doubleToFloat16(d));
+    }
+
+    @IntrinsicCandidate
+    private static short doubleToFloat16(double d) {
         long doppel = Double.doubleToRawLongBits(d);
 
         short sign_bit = (short)((doppel & 0x8000_0000_0000_0000L) >> 48);
@@ -429,7 +439,7 @@ public final class Float16
         if (Double.isNaN(d)) {
             // Have existing float code handle any attempts to
             // preserve NaN bits.
-            return valueOf((float)d);
+            return Float.floatToFloat16((float)d);
         }
 
         double abs_d = Math.abs(d);
@@ -437,13 +447,13 @@ public final class Float16
         // The overflow threshold is binary16 MAX_VALUE + 1/2 ulp
         if (abs_d >= (0x1.ffcp15 + 0x0.002p15) ) {
              // correctly signed infinity
-            return new Float16((short)(sign_bit | 0x7c00));
+            return (short)(sign_bit | 0x7c00);
         }
 
         // Smallest magnitude nonzero representable binary16 value
         // is equal to 0x1.0p-24; half-way and smaller rounds to zero.
         if (abs_d <= 0x1.0p-24d * 0.5d) { // Covers double zeros and subnormals.
-            return new Float16(sign_bit); // Positive or negative zero
+            return sign_bit; // Positive or negative zero
         }
 
         // Dealing with finite values in exponent range of binary16
@@ -494,7 +504,7 @@ public final class Float16
         // to implement a carry out from rounding the significand.
         assert (0xf800 & signif_bits) == 0x0;
 
-        return new Float16((short)(sign_bit | ( ((exp + 15) << 10) + signif_bits ) ));
+        return (short)(sign_bit | ( ((exp + 15) << 10) + signif_bits ) );
     }
 
     /**

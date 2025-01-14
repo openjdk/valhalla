@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2024, Arm Limited. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Arm Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -176,11 +176,41 @@ public class FP16ScalarOperations {
         }
     }
 
-    public static void test_conversions(Float16 inp []) {
+    public static void test_conversions_fromFP16(Float16 inp []) {
         for (int i = 0; i < inp.length; i++) {
             test_fp16ToInt(inp[i]);
             test_fp16ToLong(inp[i]);
             test_fp16ToDouble(inp[i]);
+        }
+    }
+
+    public static void test_conversions_toFP16(int inp []) {
+        for (int i = 0; i < inp.length; i++) {
+            Float16 actual = Float16.valueOf(inp[i]);
+            Float16 expected = Float16.valueOf((float) inp[i]);
+            if (expected != actual) {
+                System.out.println("Incorrest result for int to FP16 conversion. Expected value:" + expected + " Actual value: " + actual);
+            }
+        }
+    }
+
+    public static void test_conversions_toFP16(double inp []) {
+        for (int i = 0; i < inp.length; i++) {
+            Float16 actual = Float16.valueOf(inp[i]);
+            Float16 expected = Float16.valueOf((float) inp[i]);
+            if (expected != actual) {
+                System.out.println("Incorrest result for double to FP16 conversion. Expected value:" + expected + " Actual value: " + actual);
+            }
+        }
+    }
+
+    public static void test_conversions_toFP16(long inp []) {
+        for (int i = 0; i < inp.length; i++) {
+            Float16 actual = Float16.valueOf(inp[i]);
+            Float16 expected = Float16.valueOf((float) inp[i]);
+            if (expected != actual) {
+                System.out.println("Incorrest result for int to FP16 conversion. Expected value:" + expected + " Actual value: " + actual);
+            }
         }
     }
 
@@ -189,10 +219,18 @@ public class FP16ScalarOperations {
         Float16 [] input2 = new Float16[SIZE];
         Float16 [] input3 = new Float16[SIZE];
 
+        int [] int_inp       = new int[SIZE];
+        long [] long_inp     = new long[SIZE];
+        double [] double_inp = new double[SIZE];
+
         // input1, input2, input3 contain the entire value range for FP16
         IntStream.range(0, input1.length).forEach(i -> {input1[i] = Float16.valueOf((float)i);});
         IntStream.range(0, input2.length).forEach(i -> {input2[i] = Float16.valueOf((float)i);});
         IntStream.range(0, input2.length).forEach(i -> {input3[i] = Float16.valueOf((float)i);});
+
+        IntStream.range(0, int_inp.length).forEach(i -> {int_inp[i] = input1[i].intValue();});
+        IntStream.range(0, long_inp.length).forEach(i -> {long_inp[i] = input1[i].longValue();});
+        IntStream.range(0, double_inp.length).forEach(i -> {double_inp[i] = input1[i].doubleValue();});
 
         Float16 [] special_values = {
               Float16.NaN,                 // NAN
@@ -219,8 +257,13 @@ public class FP16ScalarOperations {
             test_fin_inf_nan();
 
             // Test conversions from FP16 to int/long/double
-            test_conversions(input1);
-            test_conversions(special_values);
+            test_conversions_fromFP16(input1);
+            test_conversions_fromFP16(special_values);
+
+            // Test conversions from int/long/double to FP16
+            test_conversions_toFP16(int_inp);
+            test_conversions_toFP16(long_inp);
+            test_conversions_toFP16(double_inp);
         }
         System.out.println("PASS");
     }

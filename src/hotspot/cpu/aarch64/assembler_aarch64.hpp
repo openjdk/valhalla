@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2021, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -2014,6 +2014,7 @@ void mvnw(Register Rd, Register Rm,
   INSN(fnegd,  0b01, 0b000010);
   INSN(fsqrtd, 0b01, 0b000011);
   INSN(fcvtd,  0b01, 0b000100);   // Double-precision to single-precision
+  INSN(fcvtdh, 0b01, 0b000111);   // Double-precision to half-precision
 
   INSN(fabsh,  0b11, 0b000001);
   INSN(fnegh,  0b11, 0b000010);
@@ -2203,6 +2204,9 @@ public:
   INSN(scvtfs,  0b1, 0b00, 0b00, 0b010);
   INSN(scvtfwd, 0b0, 0b01, 0b00, 0b010);
   INSN(scvtfd,  0b1, 0b01, 0b00, 0b010);
+
+  INSN(scvtfwh, 0b0, 0b11, 0b00, 0b010); // 32-bit to half-precision
+  INSN(scvtfxh, 0b1, 0b11, 0b00, 0b010); // 64-bit to half-precision
 
   // INSN(fmovhid, 0b100, 0b10, 0b01, 0b111);
 

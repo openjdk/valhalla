@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
 // Copyright (c) 2014, 2024, Red Hat, Inc. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
@@ -2302,6 +2302,8 @@ bool Matcher::match_rule_supported(int opcode) {
     case Op_FmaHF:
     case Op_ConvHF2I:
     case Op_ConvHF2L:
+    case Op_ConvI2HF:
+    case Op_ConvL2HF:
       // Half-precision floating point scalar operations require FEAT_FP16
       // to be available. FEAT_FP16 is enabled if both "fphp" and "asimdhp"
       // features are supported.
@@ -14547,6 +14549,18 @@ instruct convD2F_reg(vRegF dst, vRegD src) %{
   ins_pipe(fp_d2f);
 %}
 
+instruct convD2HF_reg_reg(iRegINoSp dst, vRegD src, vRegF tmp) %{
+  match(Set dst (ConvD2HF src));
+  format %{ "fcvt $tmp, $src\t# convert double to half precision\n\t"
+            "smov $dst, $tmp\t# move result from $tmp to $dst"
+  %}
+  effect(TEMP tmp);
+  ins_encode %{
+    __ flt_to_flt16($dst$$Register, $src$$FloatRegister, $tmp$$FloatRegister, T_DOUBLE);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
 instruct convF2D_reg(vRegD dst, vRegF src) %{
   match(Set dst (ConvF2D src));
 
@@ -14593,7 +14607,7 @@ instruct convF2HF_reg_reg(iRegINoSp dst, vRegF src, vRegF tmp) %{
   %}
   effect(TEMP tmp);
   ins_encode %{
-      __ flt_to_flt16($dst$$Register, $src$$FloatRegister, $tmp$$FloatRegister);
+    __ flt_to_flt16($dst$$Register, $src$$FloatRegister, $tmp$$FloatRegister, T_FLOAT);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -14657,6 +14671,19 @@ instruct convI2F_reg_reg(vRegF dst, iRegIorL2I src) %{
   ins_pipe(fp_i2f);
 %}
 
+instruct convI2HF_reg_reg(iRegINoSp dst, iRegIorL2I src, vRegF tmp) %{
+  match(Set dst (ConvI2HF src));
+  effect(TEMP tmp);
+  format %{ "scvtf $tmp, $src\t# convert integer to half precision\n\t"
+            "smov $dst, $tmp\t# move result from $tmp to $dst"
+  %}
+  ins_encode %{
+    __ scvtfwh($tmp$$FloatRegister, $src$$Register);
+    __ smov($dst$$Register, $tmp$$FloatRegister, __ H, 0);
+  %}
+  ins_pipe(fp_i2f);
+%}
+
 instruct convL2F_reg_reg(vRegF dst, iRegL src) %{
   match(Set dst (ConvL2F src));
 
@@ -14667,6 +14694,19 @@ instruct convL2F_reg_reg(vRegF dst, iRegL src) %{
     __ scvtfs(as_FloatRegister($dst$$reg), as_Register($src$$reg));
   %}
 
+  ins_pipe(fp_l2f);
+%}
+
+instruct convL2HF_reg_reg(iRegINoSp dst, iRegL src, vRegF tmp) %{
+  match(Set dst (ConvL2HF src));
+  effect(TEMP tmp);
+  format %{ "scvtf $tmp, $src\t# convert long to half precision\n\t"
+            "smov $dst, $tmp\t# move result from $tmp to $dst"
+  %}
+  ins_encode %{
+    __ scvtfxh($tmp$$FloatRegister, $src$$Register);
+    __ smov($dst$$Register, $tmp$$FloatRegister, __ H, 0);
+  %}
   ins_pipe(fp_l2f);
 %}
 
