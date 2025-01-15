@@ -47,7 +47,7 @@ class FlatArrayKlass : public ArrayKlass {
 
  public:
 
-  FlatArrayKlass() {} // Why?
+  FlatArrayKlass() {} // used by CppVtableCloner<T>::initialize()
 
   InlineKlass* element_klass() const { return InlineKlass::cast(_element_klass); }
   void set_element_klass(Klass* k) { _element_klass = k; }
