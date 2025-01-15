@@ -159,7 +159,7 @@ public class PoolWriter {
         if (s.kind == TYP) {
             return putName(classSig(s.type));
         } else {
-            return putName(typeSig(s.type));
+            return putName(typeSig(s.type, true));
         }
     }
 
@@ -302,15 +302,24 @@ public class PoolWriter {
          */
         @Override
         public void assembleSig(Type type) {
+            assembleSig(type, false);
+        }
+
+        /**
+         * Assemble signature of given type in string buffer.
+         * Check for uninitialized types before calling the general case.
+         */
+        @Override
+        public void assembleSig(Type type, boolean includeNullMarkers) {
             switch (type.getTag()) {
                 case UNINITIALIZED_THIS:
                 case UNINITIALIZED_OBJECT:
                     // we don't yet have a spec for uninitialized types in the
                     // local variable table
-                    assembleSig(types.erasure(((UninitializedType)type).qtype));
+                    assembleSig(types.erasure(((UninitializedType)type).qtype), includeNullMarkers);
                     break;
                 default:
-                    super.assembleSig(type);
+                    super.assembleSig(type, includeNullMarkers);
             }
         }
 
@@ -507,8 +516,12 @@ public class PoolWriter {
      * Return signature of given type
      */
     private Name typeSig(Type type) {
+        return typeSig(type, false);
+    }
+
+    private Name typeSig(Type type, boolean includeNullMarkers) {
         signatureGen.reset();
-        signatureGen.assembleSig(type);
+        signatureGen.assembleSig(type, includeNullMarkers);
         return signatureGen.toName();
     }
 

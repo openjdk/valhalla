@@ -5262,6 +5262,10 @@ public class Types {
          * Assemble signature of given type in string buffer.
          */
         public void assembleSig(Type type) {
+            assembleSig(type, false);
+        }
+
+        public void assembleSig(Type type, boolean includeNullMarkers) {
             switch (type.getTag()) {
                 case BYTE:
                     append('B');
@@ -5294,22 +5298,26 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    NullMarker nullMarker = type.getNullMarker();
-                    if (nullMarker != NullMarker.UNSPECIFIED) {
-                        append(nullMarker.typeSuffix().charAt(0));
-                    }
                     append('L');
-                    assembleClassSig(type);
+                    assembleClassSig(type, includeNullMarkers);
+                    if (includeNullMarkers) {
+                        NullMarker nullMarker = type.getNullMarker();
+                        if (nullMarker != NullMarker.UNSPECIFIED) {
+                            append(nullMarker.typeSuffix().charAt(0));
+                        }
+                    }
                     append(';');
                     break;
                 case ARRAY:
                     ArrayType at = (ArrayType) type;
-                    NullMarker nmArray = at.getNullMarker();
-                    if (nmArray != NullMarker.UNSPECIFIED) {
-                        append(nmArray.typeSuffix().charAt(0));
-                    }
                     append('[');
-                    assembleSig(at.elemtype);
+                    assembleSig(at.elemtype, includeNullMarkers);
+                    /*if (includeNullMarkers) {   // there is no type in the VM for null-restricted arrays, for now
+                        NullMarker nmArray = at.getNullMarker();
+                        if (nmArray != NullMarker.UNSPECIFIED) {
+                            append(nmArray.typeSuffix().charAt(0));
+                        }
+                    }*/
                     break;
                 case METHOD:
                     MethodType mt = (MethodType) type;
@@ -5329,11 +5337,11 @@ public class Types {
                     switch (ta.kind) {
                         case SUPER:
                             append('-');
-                            assembleSig(ta.type);
+                            assembleSig(ta.type, includeNullMarkers);
                             break;
                         case EXTENDS:
                             append('+');
-                            assembleSig(ta.type);
+                            assembleSig(ta.type, includeNullMarkers);
                             break;
                         case UNBOUND:
                             append('*');
@@ -5347,16 +5355,18 @@ public class Types {
                     if (((TypeVar)type).isCaptured()) {
                         reportIllegalSignature(type);
                     }
-                    if (Types.this.isDeclaredParametric(type)) {
-                        append('=');// '*' is already used for wildcards
-                    } else {
-                        NullMarker nmTV = type.getNullMarker();
-                        if (nmTV != NullMarker.UNSPECIFIED) {
-                            append(nmTV.typeSuffix().charAt(0));
-                        }
-                    }
                     append('T');
                     append(type.tsym.name);
+                    if (includeNullMarkers) {
+                        if (Types.this.isDeclaredParametric(type)) {
+                            append('=');// '*' is already used for wildcards
+                        } else {
+                            NullMarker nmTV = type.getNullMarker();
+                            if (nmTV != NullMarker.UNSPECIFIED) {
+                                append(nmTV.typeSuffix().charAt(0));
+                            }
+                        }
+                    }
                     append(';');
                     break;
                 case FORALL:
@@ -5380,6 +5390,10 @@ public class Types {
         }
 
         public void assembleClassSig(Type type) {
+            assembleClassSig(type, false);
+        }
+
+        public void assembleClassSig(Type type, boolean includeNullMarkers) {
             ClassType ct = (ClassType) type;
             ClassSymbol c = (ClassSymbol) ct.tsym;
             classReference(c);
@@ -5390,7 +5404,7 @@ public class Types {
                         c.name == Types.this.names.empty; // or anonymous
                 assembleClassSig(rawOuter
                         ? Types.this.erasure(outer)
-                        : outer);
+                        : outer, includeNullMarkers);
                 append(rawOuter ? '$' : '.');
                 Assert.check(c.flatname.startsWith(c.owner.enclClass().flatname));
                 append(rawOuter
@@ -5401,12 +5415,16 @@ public class Types {
             }
             if (ct.getTypeArguments().nonEmpty()) {
                 append('<');
-                assembleSig(ct.getTypeArguments());
+                assembleSig(ct.getTypeArguments(), includeNullMarkers);
                 append('>');
             }
         }
 
         public void assembleParamsSig(List<Type> typarams) {
+            assembleParamsSig(typarams, false);
+        }
+
+        public void assembleParamsSig(List<Type> typarams, boolean includeNullMarkers) {
             append('<');
             for (List<Type> ts = typarams; ts.nonEmpty(); ts = ts.tail) {
                 Type.TypeVar tvar = (Type.TypeVar) ts.head;
@@ -5417,15 +5435,19 @@ public class Types {
                 }
                 for (List<Type> l = bounds; l.nonEmpty(); l = l.tail) {
                     append(':');
-                    assembleSig(l.head);
+                    assembleSig(l.head, includeNullMarkers);
                 }
             }
             append('>');
         }
 
         public void assembleSig(List<Type> types) {
+            assembleSig(types, false);
+        }
+
+        public void assembleSig(List<Type> types, boolean includeNullMarkers) {
             for (List<Type> ts = types; ts.nonEmpty(); ts = ts.tail) {
-                assembleSig(ts.head);
+                assembleSig(ts.head, includeNullMarkers);
             }
         }
     }

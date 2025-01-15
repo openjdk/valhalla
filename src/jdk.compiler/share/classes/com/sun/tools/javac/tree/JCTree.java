@@ -2931,7 +2931,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
                     case "?" -> NULLABLE;
                     case "*" -> PARAMETRIC;
                     case "" -> UNSPECIFIED;
-                    default -> throw new AssertionError("invalid type suffix");
+                    default -> throw new AssertionError("invalid type suffix " + typeSuffix);
                 };
             }
         }
