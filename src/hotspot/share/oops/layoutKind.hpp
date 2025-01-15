@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,23 +22,16 @@
  *
  */
 
-#ifndef SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP
-#define SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP
+#ifndef SHARE_OOPS_LAYOUTKIND_HPP
+#define SHARE_OOPS_LAYOUTKIND_HPP
 
-#include "memory/allocation.hpp"
-#include "oops/oopsHierarchy.hpp"
-#include "oops/inlineKlass.hpp"
-#include "utilities/globalDefinitions.hpp"
-#include "utilities/macros.hpp"
-
-class oopDesc;
-class JavaThread;
-
-class BarrierSetRuntime: public AllStatic {
-public:
-  // Template interpreter...
-  static void value_copy(void* src, void* dst, InlineLayoutInfo* layout_info);
-  static void value_copy_is_dest_uninitialized(void* src, void* dst, InlineLayoutInfo* layout_info);
+enum LayoutKind {
+  REFERENCE            = 0,    // indirection to a heap allocated instance
+  PAYLOAD              = 1,    // layout used in heap allocated standalone instances, probably temporary for the transition
+  NON_ATOMIC_FLAT      = 2,    // flat, no guarantee of atomic updates, no null marker
+  ATOMIC_FLAT          = 3,    // flat, size compatible with atomic updates, alignment requirement is equal to the size
+  NULLABLE_ATOMIC_FLAT = 4,    // flat, include a null marker, plus same properties as ATOMIC layout
+  UNKNOWN              = 5     // used for uninitialized fields of type LayoutKind
 };
 
-#endif // SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP
+#endif // SHARE_OOPS_LAYOUTKIND_HPP

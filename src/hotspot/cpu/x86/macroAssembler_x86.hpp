@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -405,10 +405,7 @@ class MacroAssembler: public Assembler {
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register val,
                        Register tmp1, Register tmp2, Register tmp3);
 
-  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register inline_klass);
   void flat_field_copy(DecoratorSet decorators, Register src, Register dst, Register inline_layout_info);
-  // We probably need the following for arrays:    TODO FIXME
-  // void flat_element_copy(DecoratorSet decorators, Register src, Register dst, Register array);
 
   // inline type data payload offsets...
   void first_field_offset(Register inline_klass, Register offset);

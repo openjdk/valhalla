@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,8 +67,8 @@ class InterpreterRuntime: AllStatic {
   static void    read_nullable_flat_field(JavaThread* current, oopDesc* object, ResolvedFieldEntry* entry);
   static void    write_nullable_flat_field(JavaThread* current, oopDesc* object, oopDesc* value, ResolvedFieldEntry* entry);
 
-  static void value_array_load(JavaThread* current, arrayOopDesc* array, int index);
-  static void value_array_store(JavaThread* current, void* val, arrayOopDesc* array, int index);
+  static void flat_array_load(JavaThread* current, arrayOopDesc* array, int index);
+  static void flat_array_store(JavaThread* current, oopDesc* val, arrayOopDesc* array, int index);
 
   static jboolean is_substitutable(JavaThread* current, oopDesc* aobj, oopDesc* bobj);
 

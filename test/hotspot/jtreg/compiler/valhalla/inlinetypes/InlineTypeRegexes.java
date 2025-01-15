@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ public class InlineTypeRegexes {
     public static final String STORE_INLINE_FIELDS = START + "CallStaticJava" + MID + "store_inline_type_fields" + END;
     public static final String SCOBJ = "(.*# ScObj.*" + END;
     public static final String LOAD_UNKNOWN_INLINE = START + "CallStaticJava" + MID + "C2 Runtime load_unknown_inline" + END;
-    public static final String STORE_UNKNOWN_INLINE = "(.*" + CALL_LEAF + ".*store_unknown_inline.*" + END;
+    public static final String STORE_UNKNOWN_INLINE = START + "CallStaticJava" + MID + "C2 Runtime store_unknown_inline" + END;
     public static final String INLINE_ARRAY_NULL_GUARD = "(.*call,static.*wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
     public static final String INTRINSIC_SLOW_PATH = "(.*call,static.*wrapper for: uncommon_trap.*reason='intrinsic_or_type_checked_inlining'.*" + END;
     public static final String CLONE_INTRINSIC_SLOW_PATH = "(.*call,static.*java.lang.Object::clone.*" + END;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -169,6 +169,7 @@
   do_stub(slow_arraycopy, 0, false, false)                             \
   do_stub(register_finalizer, 0, false, false)                         \
   do_stub(load_unknown_inline, 0, true, false)                         \
+  do_stub(store_unknown_inline, 0, true, false)                        \
 
 #else
 #define C2_STUBS_DO(do_blob, do_stub, do_jvmti_stub)

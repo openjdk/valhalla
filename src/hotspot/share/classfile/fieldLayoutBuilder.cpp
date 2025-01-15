@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
       return vk->has_non_atomic_layout() ? LayoutKind::NON_ATOMIC_FLAT : LayoutKind::REFERENCE;
     }
   } else {
-    if (NullableFieldFlattening && vk->has_nullable_layout()) {
+    if (NullableFieldFlattening && vk->has_nullable_atomic_layout()) {
       return use_atomic_flat ? LayoutKind::NULLABLE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return LayoutKind::REFERENCE;
@@ -82,7 +82,7 @@ static void get_size_and_alignment(InlineKlass* vk, LayoutKind kind, int* size, 
       *alignment = *size;
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      *size = vk->nullable_size_in_bytes();
+      *size = vk->nullable_atomic_size_in_bytes();
       *alignment = *size;
     break;
     default:
@@ -1105,8 +1105,9 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   if (!_is_abstract_value) { // Flat layouts are only for concrete value classes
     // Validation of the non atomic layout
-    if ((InlineFieldMaxFlatSize < 0 || _payload_size_in_bytes * BitsPerByte <= InlineFieldMaxFlatSize)
-         && (!_must_be_atomic || _is_naturally_atomic)) {
+    if (true) { // TODO: Use this workaround as long as C2 only supports LayoutKind::NON_ATOMIC_FLAT
+    // if ((InlineFieldMaxFlatSize < 0 || _payload_size_in_bytes * BitsPerByte <= InlineFieldMaxFlatSize)
+    //      && (!_must_be_atomic || _is_naturally_atomic)) {
       _non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
       _non_atomic_layout_alignment = _payload_alignment;
     }
@@ -1178,7 +1179,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     if (has_atomic_layout() && _payload_alignment < atomic_layout_size_in_bytes()) {
       required_alignment = atomic_layout_size_in_bytes();
     }
-    if (has_nullable_layout() && _payload_alignment < nullable_layout_size_in_bytes()) {
+    if (has_nullable_atomic_layout() && _payload_alignment < nullable_layout_size_in_bytes()) {
       required_alignment = nullable_layout_size_in_bytes();
     }
     int shift = first_field->offset() % required_alignment;
@@ -1187,14 +1188,14 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         assert(_layout->first_field_block() != nullptr, "A concrete value class must have at least one (possible dummy) field");
         _layout->shift_fields(shift);
         _first_field_offset = _layout->first_field_block()->offset();
-        if (has_nullable_layout()) {
+        if (has_nullable_atomic_layout()) {
           assert(!_is_empty_inline_class, "Should not get here with empty values");
           _null_marker_offset = _layout->find_null_marker()->offset();
         }
         _payload_alignment = required_alignment;
       } else {
         _atomic_layout_size_in_bytes = -1;
-        if (has_nullable_layout() && !_is_empty_inline_class) {  // empty values don't have a dedicated NULL_MARKER block
+        if (has_nullable_atomic_layout() && !_is_empty_inline_class) {  // empty values don't have a dedicated NULL_MARKER block
           _layout->remove_null_marker();
         }
         _nullable_layout_size_in_bytes = -1;
@@ -1207,7 +1208,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // If the inline class has a nullable layout, the layout used in heap allocated standalone
     // instances must also be the nullable layout, in order to be able to set the null marker to
     // non-null before copying the payload to other containers.
-    if (has_nullable_layout() && payload_layout_size_in_bytes() < nullable_layout_size_in_bytes()) {
+    if (has_nullable_atomic_layout() && payload_layout_size_in_bytes() < nullable_layout_size_in_bytes()) {
       _payload_size_in_bytes = nullable_layout_size_in_bytes();
     }
   }
@@ -1371,7 +1372,7 @@ void FieldLayoutBuilder::epilogue() {
       } else {
         st.print_cr("Atomic flat layout: -/-");
       }
-      if (has_nullable_layout()) {
+      if (has_nullable_atomic_layout()) {
         st.print_cr("Nullable flat layout: %d/%d", _nullable_layout_size_in_bytes, _nullable_layout_size_in_bytes);
       } else {
         st.print_cr("Nullable flat layout: -/-");

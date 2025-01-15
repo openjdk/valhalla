@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -354,11 +354,21 @@ void Parse::store_to_unknown_flat_array(Node* array, Node* const idx, Node* non_
   // ordered with other unknown and known flat array accesses.
   insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-  make_runtime_call(RC_LEAF,
-                    OptoRuntime::store_unknown_inline_Type(),
-                    CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline_C),
-                    "store_unknown_inline", TypeRawPtr::BOTTOM,
-                    non_null_stored_value, array, idx);
+  Node* call = nullptr;
+  {
+    // Re-execute flat array store if runtime call triggers deoptimization
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_bci(_bci);
+    jvms()->set_should_reexecute(true);
+    inc_sp(3);
+    kill_dead_locals();
+    call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                      OptoRuntime::store_unknown_inline_Type(),
+                      OptoRuntime::store_unknown_inline_Java(),
+                      nullptr, TypeRawPtr::BOTTOM,
+                      non_null_stored_value, array, idx);
+  }
+  make_slow_call_ex(call, env()->Throwable_klass(), false);
 
   insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 }
