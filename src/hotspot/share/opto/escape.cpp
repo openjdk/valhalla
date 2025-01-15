@@ -1598,7 +1598,8 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       }
       break;
     }
-    case Op_CastX2P: {
+    case Op_CastX2P:
+    case Op_CastI2N: {
       map_ideal_node(n, phantom_obj);
       break;
     }
@@ -3807,6 +3808,7 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
       Node* uncast_base = base->uncast();
       int opcode = uncast_base->Opcode();
       assert(opcode == Op_ConP || opcode == Op_ThreadLocal ||
+          // TODO?
              opcode == Op_CastX2P || uncast_base->is_DecodeNarrowPtr() ||
              (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_rawptr() != nullptr)) ||
              is_captured_store_address(addp), "sanity");

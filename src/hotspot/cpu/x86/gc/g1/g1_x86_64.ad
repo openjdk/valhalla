@@ -60,13 +60,17 @@ static void write_barrier_post(MacroAssembler* masm,
                                Register store_addr,
                                Register new_val,
                                Register tmp1,
-                               Register tmp2) {
+                               Register tmp2,
+                               RegSet preserve = RegSet()) {
   if (!G1PostBarrierStubC2::needs_barrier(node)) {
     return;
   }
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   G1BarrierSetAssembler* g1_asm = static_cast<G1BarrierSetAssembler*>(BarrierSet::barrier_set()->barrier_set_assembler());
   G1PostBarrierStubC2* const stub = G1PostBarrierStubC2::create(node);
+  for (RegSetIterator<Register> reg = preserve.begin(); *reg != noreg; ++reg) {
+    stub->preserve(*reg);
+  }
   g1_asm->g1_write_barrier_post_c2(masm, store_addr, new_val, r15_thread, tmp1, tmp2, stub);
 }
 
@@ -95,6 +99,90 @@ instruct g1StoreP(memory mem, any_RegP src, rRegP tmp1, rRegP tmp2, rRegP tmp3, 
     write_barrier_post(masm, this,
                        $tmp1$$Register /* store_addr */,
                        $src$$Register /* new_val */,
+                       $tmp3$$Register /* tmp1 */,
+                       $tmp2$$Register /* tmp2 */);
+  %}
+  ins_pipe(ialu_mem_reg);
+%}
+
+// TODO Can we use an unbound register for src? Same below.
+instruct g1StoreLSpecialOneOop(memory mem, rdx_RegL src, immI off, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
+%{
+  predicate(UseG1GC);
+  match(Set mem (StoreLSpecial mem (Binary src off)));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL src, KILL cr);
+  format %{ "movq    $mem, $src\t# g1StoreLSpecialOneOop" %}
+  ins_encode %{
+    // TODO We should not set this here and also handle G1C2BarrierPostNotNull
+    ((MachNode*)this)->set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
+
+    __ lea($tmp1$$Register, $mem$$Address);
+    // Adjust address to point to oop
+    __ addq($tmp1$$Register, $off$$constant);
+    write_barrier_pre(masm, this,
+                      $tmp1$$Register /* obj */,
+                      $tmp2$$Register /* pre_val */,
+                      $tmp3$$Register /* tmp */,
+                      RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
+
+    __ movq($mem$$Address, $src$$Register);
+
+    // Shift long value to extract the oop field value
+    __ shrq($src$$Register, $off$$constant << LogBitsPerByte);
+    // TODO zero extend int to long, is this necessary?
+    __ movl($src$$Register, $src$$Register);
+    write_barrier_post(masm, this,
+                       $tmp1$$Register /* store_addr */,
+                       $src$$Register /* new_val */,
+                       $tmp3$$Register /* tmp1 */,
+                       $tmp2$$Register /* tmp2 */);
+  %}
+  ins_pipe(ialu_mem_reg);
+%}
+
+instruct g1StoreLSpecialTwoOops(memory mem, rdx_RegL src, rRegP tmp1, rRegP tmp2, rRegP tmp3, rRegP tmp4, rFlagsReg cr)
+%{
+  predicate(UseG1GC);
+  match(Set mem (StoreLSpecial mem src));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, USE_KILL src, KILL cr);
+  format %{ "movq    $mem, $src\t# g1StoreLSpecialTwoOops" %}
+  ins_encode %{
+    // TODO We should not set this here and also handle G1C2BarrierPostNotNull
+    ((MachNode*)this)->set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
+
+    __ lea($tmp1$$Register, $mem$$Address);
+    write_barrier_pre(masm, this,
+                      $tmp1$$Register /* obj */,
+                      $tmp2$$Register /* pre_val */,
+                      $tmp3$$Register /* tmp */,
+                      RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
+    // Adjust address to point to the second oop in the long value
+    __ addq($tmp1$$Register, 4);
+    write_barrier_pre(masm, this,
+                      $tmp1$$Register /* obj */,
+                      $tmp2$$Register /* pre_val */,
+                      $tmp3$$Register /* tmp */,
+                      RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
+
+    __ movq($mem$$Address, $src$$Register);
+
+    // TODO zero extend int to long, is this necessary?
+    __ movl($tmp4$$Register, $src$$Register);
+    // Shift long value to extract the second oop field value
+    __ shrq($src$$Register, 32);
+    // TODO zero extend int to long, is this necessary?
+    __ movl($src$$Register, $src$$Register);
+    write_barrier_post(masm, this,
+                       $tmp1$$Register /* store_addr */,
+                       $src$$Register /* new_val */,
+                       $tmp3$$Register /* tmp1 */,
+                       $tmp2$$Register /* tmp2 */,
+                       RegSet::of($tmp1$$Register, $tmp4$$Register) /* preserve */);
+    // Adjust address again to point to the first oop in the long value
+    __ subq($tmp1$$Register, 4);
+    write_barrier_post(masm, this,
+                       $tmp1$$Register /* store_addr */,
+                       $tmp4$$Register /* new_val */,
                        $tmp3$$Register /* tmp1 */,
                        $tmp2$$Register /* tmp2 */);
   %}

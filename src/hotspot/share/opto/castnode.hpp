@@ -218,6 +218,16 @@ class CastX2PNode : public Node {
   virtual const Type *bottom_type() const { return TypeRawPtr::BOTTOM; }
 };
 
+// TODO
+class CastI2NNode : public Node {
+  public:
+  CastI2NNode(Node* ctrl, Node* n) : Node(ctrl, n) { }
+  virtual int Opcode() const;
+  virtual const Type* Value(PhaseGVN* phase) const { return CastI2NNode::bottom_type(); }
+  virtual uint ideal_reg() const { return Op_RegN; }
+  virtual const Type* bottom_type() const { return TypeNarrowOop::BOTTOM; }
+};
+
 //------------------------------CastP2XNode-------------------------------------
 // Used in both 32-bit and 64-bit land.
 // Used for card-marks and unsafe pointer math.

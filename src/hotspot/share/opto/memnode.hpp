@@ -712,6 +712,25 @@ public:
 #endif
 };
 
+// TODO
+class StoreLSpecialNode : public StoreNode {
+
+public:
+  StoreLSpecialNode(Node* c, Node* mem, Node* adr, const TypePtr* at, Node* val, Node* oop_off, MemOrd mo)
+    : StoreNode(c, mem, adr, at, val, mo) {
+    set_mismatched_access();
+    if (oop_off != nullptr) {
+      add_req(oop_off);
+    }
+  }
+  virtual int Opcode() const;
+  virtual BasicType memory_type() const { return T_LONG; }
+
+  virtual uint match_edge(uint idx) const { return idx == MemNode::Address ||
+                                                   idx == MemNode::ValueIn ||
+                                                   idx == MemNode::ValueIn + 1; }
+};
+
 //------------------------------StoreFNode-------------------------------------
 // Store float to memory
 class StoreFNode : public StoreNode {

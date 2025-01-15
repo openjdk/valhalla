@@ -32,6 +32,7 @@
 #include "opto/graphKit.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/movenode.hpp"
+#include "opto/narrowptrnode.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/phaseX.hpp"
 
@@ -577,7 +578,7 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
 static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, BasicType val_bt, int offset) {
   // Shift to the right position in the long value
   assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
-  assert(!is_reference_type(val_bt), "Reference types are not supported");
+ // assert(!is_reference_type(val_bt), "Reference types are not supported");
   Node* value = nullptr;
   Node* shift_val = gvn->intcon(offset << LogBitsPerByte);
   if (bt == T_LONG) {
@@ -586,7 +587,11 @@ static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Basic
   } else {
     value = gvn->transform(new URShiftINode(payload, shift_val));
   }
-  if (val_bt == T_INT) {
+
+  if (val_bt == T_OBJECT) {
+    // TODO assert that it's a narrow oop, 32-bit size
+    return value;
+  } else if (val_bt == T_INT) {
     return value;
   } else {
     // Make sure to zero unused bits in the 32-bit value
@@ -595,7 +600,8 @@ static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Basic
 }
 
 // Convert a payload value to field values
-void InlineTypeNode::convert_from_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset) {
+void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset) {
+  PhaseGVN* gvn = &kit->gvn();
   Node* value = nullptr;
   if (!null_free) {
     // Get the null marker
@@ -609,10 +615,22 @@ void InlineTypeNode::convert_from_payload(PhaseGVN* gvn, BasicType bt, Node* pay
     if (field_is_flat(i)) {
       null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
       InlineTypeNode* vt = make_uninitialized(*gvn, field_type(i)->as_inline_klass(), field_is_null_free(i));
-      vt->convert_from_payload(gvn, bt, payload, offset, field_is_null_free(i), null_marker_offset);
+      vt->convert_from_payload(kit, bt, payload, offset, field_is_null_free(i), null_marker_offset);
       value = gvn->transform(vt);
     } else {
       value = get_payload_value(gvn, payload, bt, field_type(i)->basic_type(), offset);
+      if (!field_type(i)->is_primitive_type()) {
+        // TODO assert that we never pack an oop into an int, this should be done with an individual write
+        // assert(bt == T_LONG, "sanity");
+        const Type* val_type = Type::get_const_type(field_type(i))->make_narrowoop();
+        assert(val_type->is_narrowoop(), "sanity");
+        // TODO ctrl needed? Membar needed?
+        value = gvn->transform(new CastI2NNode(kit->control(), value));
+        value = gvn->transform(new DecodeNNode(value, val_type));
+        // TODO the decodeN seems to degrade to Object type, put a type on the CastI2N?
+        value = gvn->transform(new CastPPNode(kit->control(), value, Type::get_const_type(field_type(i)), ConstraintCastNode::UnconditionalDependency));
+        kit->insert_mem_bar(Op_MemBarVolatile, value);
+      }
     }
     set_field_value(i, value);
   }
@@ -621,7 +639,7 @@ void InlineTypeNode::convert_from_payload(PhaseGVN* gvn, BasicType bt, Node* pay
 // Set a field value in the payload by shifting it according to the offset
 static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node* value, BasicType val_bt, int offset) {
   assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
-  assert(!is_reference_type(val_bt), "Reference types are not supported");
+ // assert(!is_reference_type(val_bt), "Reference types are not supported");
 
   // Make sure to zero unused bits in the 32-bit value
   if (val_bt == T_BYTE || val_bt == T_BOOLEAN) {
@@ -650,7 +668,7 @@ static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node*
 }
 
 // Convert the field values to a payload value of type 'bt'
-Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset) const {
+Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset, int& oop_off_1, int& oop_off_2) const {
   Node* value = nullptr;
   if (!null_free) {
     // Set the null marker
@@ -661,12 +679,32 @@ Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payl
   // Iterate over the fields and add their values to the payload
   for (uint i = 0; i < field_count(); ++i) {
     value = field_value(i);
-    int offset = holder_offset + field_offset(i) - inline_klass()->first_field_offset();
+    int inner_offset = field_offset(i) - inline_klass()->first_field_offset();
+    int offset = holder_offset + inner_offset;
     if (field_is_flat(i)) {
       null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
-      payload = value->as_InlineType()->convert_to_payload(gvn, bt, payload, offset, field_is_null_free(i), null_marker_offset);
+      payload = value->as_InlineType()->convert_to_payload(gvn, bt, payload, offset, field_is_null_free(i), null_marker_offset, oop_off_1, oop_off_2);
     } else {
-      payload = set_payload_value(gvn, payload, bt, value, field_type(i)->basic_type(), offset);
+      BasicType field_bt = field_type(i)->basic_type();
+      if (!field_type(i)->is_primitive_type()) {
+        // TODO assert that we never pack an oop into an int, this should be done with an individual write
+        // assert(bt == T_LONG, "sanity");
+        if (oop_off_1 == -1) {
+          oop_off_1 = inner_offset;
+        } else {
+          assert(oop_off_2 == -1, "already set");
+          oop_off_2 = inner_offset;
+        }
+        // TODO is there a risk that this floats up above a safepoint?
+        const Type* val_type = Type::get_const_type(field_type(i))->make_narrowoop();
+        assert(val_type->is_narrowoop(), "sanity");
+        value = gvn->transform(new EncodePNode(value, val_type));
+        value = gvn->transform(new CastP2XNode(nullptr, value));
+        // TODO can we avoid this? We will convert back to long anyway
+        value = gvn->transform(new ConvL2INode(value));
+        field_bt = T_INT;
+      }
+      payload = set_payload_value(gvn, payload, bt, value, field_bt, offset);
     }
   }
   return payload;
@@ -679,15 +717,35 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
   bool null_free = (null_marker_offset == -1);
 
   if (atomic) {
+#ifdef ASSERT
+    bool is_naturally_atomic = inline_klass()->is_empty() || (null_free && inline_klass()->nof_declared_nonstatic_fields() == 1);
+    assert(!is_naturally_atomic, "No atomic access required");
+#endif
     // Convert to a payload value and write atomically
     BasicType bt = inline_klass()->payload_size_to_basic_type();
     Node* payload = (bt == T_LONG) ? kit->longcon(0) : kit->intcon(0);
-    payload = convert_to_payload(&kit->gvn(), bt, payload, 0, null_free, null_marker_offset - holder_offset);
-    decorators |= C2_MISMATCHED;
+    int oop_off_1 = -1;
+    int oop_off_2 = -1;
+    payload = convert_to_payload(&kit->gvn(), bt, payload, 0, null_free, null_marker_offset - holder_offset, oop_off_1, oop_off_2);
     Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
-    const Type* val_type = Type::get_const_basic_type(bt);
-    bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
-    kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators);
+    // TODO Use current implementation for non-G1
+    if (!UseG1GC || oop_off_1 == -1) {
+      // No oops
+      assert(!UseG1GC || oop_off_2 == -1, "sanity");
+      const Type* val_type = Type::get_const_basic_type(bt);
+      bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
+      decorators |= C2_MISMATCHED;
+      kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+    } else {
+      // Contains oops
+      // Oops are always narrow and always stored with StoreL (either one or two narrow oops)
+      const TypePtr* adr_type = TypeRawPtr::BOTTOM;
+      Node* mem = kit->memory(adr_type);
+      // If one oop, set the offset (if no offset is set, two oops are assumed by the backend)
+      Node* oop_offset = (oop_off_2 == -1) ? kit->intcon(oop_off_1) : nullptr;
+      Node* st = kit->gvn().transform(new StoreLSpecialNode(kit->control(), mem, adr, adr_type, payload, oop_offset, MemNode::unordered));
+      kit->set_memory(st, adr_type);
+    }
     kit->insert_mem_bar(Op_MemBarCPUOrder);
     return;
   }
@@ -919,6 +977,7 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
         }
       }
     } else if (use->Opcode() == Op_CastP2X) {
+      // TODO this is dead code now with late barrier expansion. Check if there's more
       if (UseG1GC && use->find_out_with(Op_XorX)->in(1) != use) {
         // The G1 pre-barrier uses a CastP2X both for the pointer of the object
         // we store into, as well as the value we are storing. Skip if this is a
@@ -1177,13 +1236,17 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
 
   if (atomic) {
     // Read atomically and convert from payload
+#ifdef ASSERT
+    bool is_naturally_atomic = vk->is_empty() || (null_free && vk->nof_declared_nonstatic_fields() == 1);
+    assert(!is_naturally_atomic, "No atomic access required");
+#endif
     BasicType bt = vk->payload_size_to_basic_type();
     decorators |= C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD;
     Node* adr = kit->basic_plus_adr(obj, ptr, holder_offset);
     const Type* val_type = Type::get_const_basic_type(bt);
     bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
     Node* payload = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
-    vt->convert_from_payload(&kit->gvn(), bt, payload, 0, null_free, null_marker_offset - holder_offset);
+    vt->convert_from_payload(kit, bt, payload, 0, null_free, null_marker_offset - holder_offset);
     return kit->gvn().transform(vt)->as_InlineType();
   }
 

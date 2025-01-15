@@ -496,6 +496,11 @@ void MachNode::method_set( intptr_t addr ) {
 
 //------------------------------rematerialize----------------------------------
 bool MachNode::rematerialize() const {
+  // TODO
+  if (ideal_Opcode() == Op_CastI2N) {
+    return false;
+  }
+
   // Temps are always rematerializable
   if (is_MachTemp()) return true;
 
