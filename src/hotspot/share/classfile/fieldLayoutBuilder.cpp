@@ -1164,7 +1164,9 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       } else {
         // If the nullable layout is rejected, the NULL_MARKER block should be removed
         // from the layout, otherwise it will appear anyway if the layout is printer
-        _layout->remove_null_marker();
+        if (!_is_empty_inline_class) {  // empty values don't have a dedicated NULL_MARKER block
+          _layout->remove_null_marker();
+        }
         _null_marker_offset = -1;
       }
     }
