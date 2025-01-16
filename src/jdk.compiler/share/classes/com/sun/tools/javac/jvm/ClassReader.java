@@ -570,11 +570,6 @@ public class ClassReader {
             Type poly = new ForAll(sigToTypeParams(), sigToType());
             typevars = typevars.leave();
             return poly;
-        case '?': case '!' : case '=':
-            char nmChar = (char)signature[sigp];
-            sigp++;
-            Type t = sigToType();
-            return t == Type.noType ? t : t.asNullMarked(nmChar == '=' ? NullMarker.PARAMETRIC : NullMarker.of(String.valueOf(nmChar)));
         default:
             throw badClassFile("bad.signature", quoteBadSignature());
         }
@@ -590,6 +585,7 @@ public class ClassReader {
         sigp++;
         Type outer = Type.noType;
         int startSbp = sbp;
+        NullMarker nm = NullMarker.UNSPECIFIED;
 
         while (true) {
             final byte c = signature[sigp++];
@@ -599,17 +595,28 @@ public class ClassReader {
                                                          startSbp,
                                                          sbp - startSbp));
 
+                Type result;
                 try {
                     if (outer == Type.noType) {
                         ClassType et = (ClassType) t.erasure(types);
-                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
+                        result = new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
+                    } else {
+                        result = new ClassType(outer, List.nil(), t, List.nil());
                     }
-                    return new ClassType(outer, List.nil(), t, List.nil());
+                    if (nm != NullMarker.UNSPECIFIED) {
+                        result = result.asNullMarked(nm);
+                        nm = NullMarker.UNSPECIFIED;
+                    }
+                    return result;
                 } finally {
                     sbp = startSbp;
                 }
             }
-
+            case '?': case '!' : case '=': {
+                char nmChar = (char) c;
+                nm = (nmChar == '=' ? NullMarker.PARAMETRIC : NullMarker.of(String.valueOf(nmChar)));
+                continue;
+            }
             case '<':           // generic arguments
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
@@ -679,6 +686,12 @@ public class ClassReader {
                             return super.getTypeArguments();
                         }
                 };
+                char currentCh = (char)signature[sigp];
+                if (currentCh == '?' || currentCh == '!' || currentCh == '=' ) {
+                    nm = (currentCh == '=' ? NullMarker.PARAMETRIC : NullMarker.of(String.valueOf(currentCh)));
+                    outer = outer.asNullMarked(nm);
+                    sigp++;
+                }
                 switch (signature[sigp++]) {
                 case ';':
                     if (sigp < siglimit && signature[sigp] == '.') {
@@ -700,7 +713,7 @@ public class ClassReader {
                     signatureBuffer[sbp++] = (byte)'$';
                     break;
                 default:
-                    throw new AssertionError(signature[sigp-1]);
+                    throw new AssertionError((char)signature[sigp-1]);
                 }
                 continue;
 
