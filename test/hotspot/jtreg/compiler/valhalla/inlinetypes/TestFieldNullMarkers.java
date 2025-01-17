@@ -321,6 +321,21 @@ public class TestFieldNullMarkers {
         }
     }
 
+    // Value class with oop field and primitive fields
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue17 {
+        byte b1;
+        MyClass obj;
+        byte b2;
+
+        public MyValue17(MyClass obj, byte b1, byte b2) {
+            this.obj = obj;
+            this.b1 = b1;
+            this.b2 = b2;
+        }
+    }
+
     MyValue1 field1; // Not flat
     MyValue4 field2; // Not flat
     MyValue5 field3; // Flat
@@ -348,6 +363,9 @@ public class TestFieldNullMarkers {
     MyValue15 field18;
     @NullRestricted
     volatile MyValue16 field19;
+    @NullRestricted
+    volatile MyValue17 field20;
+    MyValue17 field21;
 
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
     static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
@@ -618,6 +636,11 @@ public class TestFieldNullMarkers {
 
     public void testWriteOopFields2(MyValue16 val) {
         field19 = val;
+    }
+
+    public void testWriteOopFields3(MyValue17 val) {
+        field20 = val;
+        field21 = val;
     }
 
     public static void main(String[] args) {
@@ -932,6 +955,19 @@ public class TestFieldNullMarkers {
             }
             Asserts.assertEQ(t.field19.obj1.x, i);
             Asserts.assertEQ(t.field19.obj2.x, i);
+
+            MyValue17 val17 = new MyValue17(new MyClass(i), (byte)i, (byte)i);
+            t.testWriteOopFields3(val17);
+            if (i > (LIMIT - 50)) {
+                // After warmup, produce some garbage to trigger GC
+                produceGarbage();
+            }
+            Asserts.assertEQ(t.field20.obj.x, i);
+            Asserts.assertEQ(t.field20.b1, (byte)i);
+            Asserts.assertEQ(t.field20.b2, (byte)i);
+            Asserts.assertEQ(t.field21.obj.x, i);
+            Asserts.assertEQ(t.field21.b1, (byte)i);
+            Asserts.assertEQ(t.field21.b2, (byte)i);
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account
