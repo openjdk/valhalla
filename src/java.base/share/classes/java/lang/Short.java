@@ -50,10 +50,18 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * dealing with a {@code short}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Short} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @author  Nakul Saraiya
  * @author  Joseph D. Darcy
@@ -80,8 +88,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * The {@code Class} instance representing the primitive type
      * {@code short}.
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Short>    TYPE = (Class<Short>) Class.getPrimitiveClass("short");
+    public static final Class<Short> TYPE = Class.getPrimitiveClass("short");
 
     /**
      * Returns a new {@code String} object representing the
@@ -246,7 +253,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
 
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(ShortCache.class);
-            if (archivedCache == null || archivedCache.length != size) {
+            if (archivedCache == null) {
                 Short[] c = new Short[size];
                 short value = -128;
                 for(int i = 0; i < size; i++) {
@@ -255,6 +262,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
                 archivedCache = c;
             }
             cache = archivedCache;
+            assert cache.length == size;
         }
     }
 
@@ -485,8 +493,8 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *                  {@code false} otherwise.
      */
     public boolean equals(Object obj) {
-        if (obj instanceof Short) {
-            return value == ((Short)obj).shortValue();
+        if (obj instanceof Short s) {
+            return value == s.shortValue();
         }
         return false;
     }

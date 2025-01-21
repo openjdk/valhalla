@@ -337,12 +337,11 @@ public class NullMarkersTest {
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
     if (out.getExitValue() != 0) {
-      out.outputTo(System.out);
+      System.out.print(out.getOutput());
     }
     Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
     // Get and parse the test output
-    System.out.print(out.getOutput());
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
     FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
 

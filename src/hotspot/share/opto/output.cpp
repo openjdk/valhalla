@@ -854,7 +854,14 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
 
       for (uint i = 1; i < smerge->req(); i++) {
         Node* obj_node = smerge->in(i);
-        (void)FillLocArray(mv->possible_objects()->length(), sfpt, obj_node, mv->possible_objects(), objs);
+        int idx = mv->possible_objects()->length();
+        (void)FillLocArray(idx, sfpt, obj_node, mv->possible_objects(), objs);
+
+        // By default ObjectValues that are in 'possible_objects' are not root objects.
+        // They will be marked as root later if they are directly referenced in a JVMS.
+        assert(mv->possible_objects()->length() > idx, "Didn't add entry to possible_objects?!");
+        assert(mv->possible_objects()->at(idx)->is_object(), "Entries in possible_objects should be ObjectValue.");
+        mv->possible_objects()->at(idx)->as_ObjectValue()->set_root(false);
       }
     }
     array->append(mv);
@@ -1193,7 +1200,14 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
 
           for (uint i = 1; i < smerge->req(); i++) {
             Node* obj_node = smerge->in(i);
-            FillLocArray(mv->possible_objects()->length(), sfn, obj_node, mv->possible_objects(), objs);
+            int idx = mv->possible_objects()->length();
+            (void)FillLocArray(idx, sfn, obj_node, mv->possible_objects(), objs);
+
+            // By default ObjectValues that are in 'possible_objects' are not root objects.
+            // They will be marked as root later if they are directly referenced in a JVMS.
+            assert(mv->possible_objects()->length() > idx, "Didn't add entry to possible_objects?!");
+            assert(mv->possible_objects()->at(idx)->is_object(), "Entries in possible_objects should be ObjectValue.");
+            mv->possible_objects()->at(idx)->as_ObjectValue()->set_root(false);
           }
         }
         scval = mv;
@@ -1224,11 +1238,17 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
 
         for (int j = 0; j< merge->possible_objects()->length(); j++) {
           ObjectValue* ov = merge->possible_objects()->at(j)->as_ObjectValue();
-          bool is_root = locarray->contains(ov) ||
-                         exparray->contains(ov) ||
-                         contains_as_owner(monarray, ov) ||
-                         contains_as_scalarized_obj(jvms, sfn, objs, ov);
-          ov->set_root(is_root);
+          if (ov->is_root()) {
+            // Already flagged as 'root' by something else. We shouldn't change it
+            // to non-root in a younger JVMS because it may need to be alive in
+            // a younger JVMS.
+          } else {
+            bool is_root = locarray->contains(ov) ||
+                           exparray->contains(ov) ||
+                           contains_as_owner(monarray, ov) ||
+                           contains_as_scalarized_obj(jvms, sfn, objs, ov);
+            ov->set_root(is_root);
+          }
         }
       }
     }
@@ -1734,30 +1754,7 @@ void PhaseOutput::fill_buffer(C2_MacroAssembler* masm, uint* blk_starts) {
               }
             }
           }
-        }
-#ifdef ASSERT
-          // Check that oop-store precedes the card-mark
-        else if (mach->ideal_Opcode() == Op_StoreCM) {
-          uint storeCM_idx = j;
-          int count = 0;
-          for (uint prec = mach->req(); prec < mach->len(); prec++) {
-            Node *oop_store = mach->in(prec);  // Precedence edge
-            if (oop_store == nullptr) continue;
-            count++;
-            uint i4;
-            for (i4 = 0; i4 < last_inst; ++i4) {
-              if (block->get_node(i4) == oop_store) {
-                break;
-              }
-            }
-            // Note: This test can provide a false failure if other precedence
-            // edges have been added to the storeCMNode.
-            assert(i4 == last_inst || i4 < storeCM_idx, "CM card-mark executes before oop-store");
-          }
-          assert(count > 0, "storeCM expects at least one precedence edge");
-        }
-#endif
-        else if (!n->is_Proj()) {
+        } else if (!n->is_Proj()) {
           // Remember the beginning of the previous instruction, in case
           // it's followed by a flag-kill and a null-check.  Happens on
           // Intel all the time, with add-to-memory kind of opcodes.

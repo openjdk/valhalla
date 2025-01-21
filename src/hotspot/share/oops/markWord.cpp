@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,5 +92,19 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
       st->print("??");
     }
     st->print(" age=%d)", age());
+  }
+}
+
+markWord markWord::flat_array_prototype(LayoutKind lk) {
+  switch(lk) {
+    case ATOMIC_FLAT:
+    case NON_ATOMIC_FLAT:
+      return markWord(null_free_flat_array_pattern);
+      break;
+    case NULLABLE_ATOMIC_FLAT:
+      return markWord(nullable_flat_array_pattern);
+      break;
+    default:
+      ShouldNotReachHere();
   }
 }

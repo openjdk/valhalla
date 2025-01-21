@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -91,8 +91,11 @@ public:
 class FieldPrinter: public FieldClosure {
    oop _obj;
    outputStream* _st;
+   int _indent;
+   int _base_offset;
  public:
-   FieldPrinter(outputStream* st, oop obj = nullptr) : _obj(obj), _st(st) {}
+   FieldPrinter(outputStream* st, oop obj = nullptr, int indent = 0, int base_offset = 0) :
+                 _obj(obj), _st(st), _indent(indent), _base_offset(base_offset) {}
    void do_field(fieldDescriptor* fd);
 };
 
@@ -146,7 +149,10 @@ class InlineKlassFixedBlock {
   address* _unpack_handler;
   int* _default_value_offset;
   int* _null_reset_value_offset;
-  ArrayKlass** _null_free_inline_array_klasses;
+  FlatArrayKlass* _non_atomic_flat_array_klass;
+  FlatArrayKlass* _atomic_flat_array_klass;
+  FlatArrayKlass* _nullable_atomic_flat_array_klass;
+  ObjArrayKlass* _null_free_reference_array_klass;
   int _first_field_offset;
   int _payload_size_in_bytes;   // size of payload layout
   int _payload_alignment;       // alignment required for payload
@@ -154,7 +160,8 @@ class InlineKlassFixedBlock {
   int _non_atomic_alignment;    // alignment requirement for null-free non-atomic layout
   int _atomic_size_in_bytes;    // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
   int _nullable_size_in_bytes;  // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
-  int _null_marker_offset;
+  int _null_marker_offset;      // expressed as an offset from the beginning of the object for a heap buffered value
+                                // first_field_offset must be subtracted to get the offset from the beginning of the payload
 
   friend class InlineKlass;
 };
@@ -485,6 +492,8 @@ class InstanceKlass: public Klass {
   bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
   bool field_is_null_free_inline_type(int index) const;
   bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
+
+  int null_marker_offset(int index) const { return inline_layout_info(index).null_marker_offset(); }
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -1236,7 +1245,6 @@ public:
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
   void init_shared_package_entry();
   bool can_be_verified_at_dumptime() const;
-  bool methods_contain_jsr_bytecode() const;
   void compute_has_loops_flag_for_methods();
 #endif
 
@@ -1255,7 +1263,8 @@ public:
 
   void oop_print_value_on(oop obj, outputStream* st);
 
-  void oop_print_on      (oop obj, outputStream* st);
+  void oop_print_on      (oop obj, outputStream* st) { oop_print_on(obj, st, 0, 0); }
+  void oop_print_on      (oop obj, outputStream* st, int indent = 0, int base_offset = 0);
 
 #ifndef PRODUCT
   void print_dependent_nmethods(bool verbose = false);

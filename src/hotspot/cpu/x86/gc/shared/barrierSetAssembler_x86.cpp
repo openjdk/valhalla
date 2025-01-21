@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -200,19 +200,6 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
   }
 }
 
-void BarrierSetAssembler::value_copy(MacroAssembler* masm, DecoratorSet decorators,
-                                     Register src, Register dst, Register value_klass) {
-  // value_copy implementation is fairly complex, and there are not any
-  // "short-cuts" to be made from asm. What there is, appears to have the same
-  // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
-  // of hand-rolled instructions...
-  if (decorators & IS_DEST_UNINITIALIZED) {
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, value_klass);
-  } else {
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, value_klass);
-  }
-}
-
 void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
                                      Register src, Register dst, Register inline_layout_info) {
   // flat_field_copy implementation is fairly complex, and there are not any
@@ -220,9 +207,9 @@ void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet dec
   // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
   // of hand-rolled instructions...
   if (decorators & IS_DEST_UNINITIALIZED) {
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized2), src, dst, inline_layout_info);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, inline_layout_info);
   } else {
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy2), src, dst, inline_layout_info);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, inline_layout_info);
   }
 }
 

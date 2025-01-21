@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,17 +123,13 @@ class LayoutRawBlock : public ResourceObj {
   // sort fields in decreasing order.
   // Note: with line types, the comparison should include alignment constraint if sizes are equals
   static int compare_size_inverted(LayoutRawBlock** x, LayoutRawBlock** y)  {
-#ifdef _WINDOWS
-    // qsort() on Windows reverse the order of fields with the same size
-    // the extension of the comparison function below preserves this order
     int diff = (*y)->size() - (*x)->size();
+    // qsort() may reverse the order of fields with the same size.
+    // The extension is to ensure stable sort.
     if (diff == 0) {
       diff = (*x)->field_index() - (*y)->field_index();
     }
     return diff;
-#else
-    return (*y)->size() - (*x)->size();
-#endif // _WINDOWS
   }
 };
 
@@ -330,7 +326,7 @@ class FieldLayoutBuilder : public ResourceObj {
   int  non_atomic_layout_alignment() const     { return _non_atomic_layout_alignment; }
   bool has_atomic_layout() const               { return _atomic_layout_size_in_bytes != -1; }
   int  atomic_layout_size_in_bytes() const     { return _atomic_layout_size_in_bytes; }
-  bool has_nullable_layout() const             { return _nullable_layout_size_in_bytes != -1; }
+  bool has_nullable_atomic_layout() const      { return _nullable_layout_size_in_bytes != -1; }
   int  nullable_layout_size_in_bytes() const   { return _nullable_layout_size_in_bytes; }
   int  null_marker_offset() const              { return _null_marker_offset; }
   bool is_empty_inline_class() const           { return _is_empty_inline_class; }

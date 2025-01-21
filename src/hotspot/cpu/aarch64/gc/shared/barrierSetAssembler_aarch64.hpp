@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,8 +100,6 @@ public:
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
 
-  virtual void value_copy(MacroAssembler* masm, DecoratorSet decorators,
-                          Register src, Register dst, Register value_klass);
   virtual void flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
                           Register src, Register dst, Register inline_layout_info);
 

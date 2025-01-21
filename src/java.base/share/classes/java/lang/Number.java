@@ -45,6 +45,16 @@ package java.lang;
  * See the documentation of a given {@code Number} implementation for
  * conversion details.
  *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Number} is
+ *          an abstract {@linkplain Class#isValue value class}.
+ *          Subclasses of {@code Number} can be either an {@linkplain Class#isIdentity identity class}
+ *          or a {@linkplain Class#isValue value class}.
+ *          See {@jls The Java Language Specification 8.1.1.5 Value Classes}.
+ *      </div>
+ * </div>
+ *
  * @author      Lee Boynton
  * @author      Arthur van Hoff
  * @jls 5.1.2 Widening Primitive Conversion

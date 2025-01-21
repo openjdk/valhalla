@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2023, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -1505,11 +1505,11 @@ int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayO
 
 int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayOop array, short header_size) {
   BasicType type = ArrayKlass::cast(array->klass())->element_type();
-  assert((type >= T_BOOLEAN && type <= T_OBJECT) || type == T_PRIMITIVE_OBJECT, "invalid array element type");
+  assert((type >= T_BOOLEAN && type <= T_OBJECT) || type == T_FLAT_ELEMENT, "invalid array element type");
   int type_size;
   if (type == T_OBJECT) {
     type_size = sizeof(address);
-  } else if (type == T_PRIMITIVE_OBJECT) {
+  } else if (type == T_FLAT_ELEMENT) {
       // TODO: FIXME
       fatal("Not supported yet"); // FIXME: JDK-8325678
   } else {

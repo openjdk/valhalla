@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -362,18 +362,18 @@ UNSAFE_ENTRY(jboolean, Unsafe_IsFlatField(JNIEnv *env, jobject unsafe, jobject o
   return InstanceKlass::cast(k)->field_is_flat(slot);
 } UNSAFE_END
 
-UNSAFE_ENTRY(jboolean, Unsafe_HasNullMarker(JNIEnv *env, jobject unsage, jobject o)) {
+UNSAFE_ENTRY(jboolean, Unsafe_HasNullMarker(JNIEnv *env, jobject unsafe, jobject o)) {
   oop f = JNIHandles::resolve_non_null(o);
   Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
   int slot = java_lang_reflect_Field::slot(f);
   return InstanceKlass::cast(k)->field_has_null_marker(slot);
 } UNSAFE_END
 
-UNSAFE_ENTRY(jint, Unsafe_NullMarkerOffset(JNIEnv *env, jobject unsage, jobject o)) {
+UNSAFE_ENTRY(jint, Unsafe_NullMarkerOffset(JNIEnv *env, jobject unsafe, jobject o)) {
   oop f = JNIHandles::resolve_non_null(o);
   Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
   int slot = java_lang_reflect_Field::slot(f);
-  fatal("Not supported yet");
+  return InstanceKlass::cast(k)->null_marker_offset(slot);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlatArray(JNIEnv *env, jobject unsafe, jclass c)) {
@@ -394,7 +394,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
   InlineKlass* vk = InlineKlass::cast(k);
   assert_and_log_unsafe_value_access(base, offset, vk);
   Handle base_h(THREAD, base);
-  oop v = vk->read_flat_field(base_h(), offset, LayoutKind::PAYLOAD, CHECK_NULL);  // TODO FIXME Hard coded layout kind to make the code compile, Unsafe must be upgraded to handle correct layout kind
+  oop v = vk->read_payload_from_addr(base_h(), offset, LayoutKind::PAYLOAD, CHECK_NULL);// TODO FIXME Hard coded layout kind to make the code compile, Unsafe must be upgraded to handle correct layout kind
   return JNIHandles::make_local(THREAD, v);
 } UNSAFE_END
 
@@ -405,7 +405,8 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   assert(!base->is_inline_type() || base->mark().is_larval_state(), "must be an object instance or a larval inline type");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
-  vk->write_flat_field(base, offset, v, true /*null free*/, LayoutKind::PAYLOAD, CHECK);  // TODO FIXME Hard coded layout kind to make the code compile, Unsafe must be upgraded to handle correct layout kind
+  // TODO FIXME: problem below, with new APIs, null checking depends on LayoutKind, but Unsafe APIs are not able to communicate the right layout kind yet
+  vk->write_value_to_addr(v, ((char*)(oopDesc*)base) + offset, LayoutKind::PAYLOAD, true, CHECK);// TODO FIXME Hard coded layout kind to make the code compile, Unsafe must be upgraded to handle correct layout kind
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
@@ -414,7 +415,7 @@ UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobj
   Handle vh(THREAD, v);
   InlineKlass* vk = InlineKlass::cast(v->klass());
   instanceOop new_value = vk->allocate_instance_buffer(CHECK_NULL);
-  vk->inline_copy_oop_to_new_oop(vh(), new_value, LayoutKind::PAYLOAD);  // FIXME temporary hack for the transition
+  vk->copy_payload_to_addr(vk->data_for_oop(vh()), vk->data_for_oop(new_value), LayoutKind::PAYLOAD, false);
   markWord mark = new_value->mark();
   new_value->set_mark(mark.enter_larval_state());
   return JNIHandles::make_local(THREAD, new_value);
@@ -827,7 +828,7 @@ static jclass Unsafe_DefineClass_impl(JNIEnv *env, jstring name, jbyteArray data
   }
 
   env->GetByteArrayRegion(data, offset, length, body);
-  if (env->ExceptionOccurred()) {
+  if (env->ExceptionCheck()) {
     goto free_body;
   }
 

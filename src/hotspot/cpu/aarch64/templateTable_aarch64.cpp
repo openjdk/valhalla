@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -828,7 +828,7 @@ void TemplateTable::aaload()
 
     __ b(done);
     __ bind(is_flat_array);
-    __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_load), r0, r1);
+    __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), r0, r1);
     // Ensure the stores to copy the inline field contents are visible
     // before any subsequent store that publishes this reference.
     __ membar(Assembler::StoreStore);
@@ -1182,7 +1182,11 @@ void TemplateTable::aastore() {
   if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
-    // No way to store null in flat null-free array
+    if (UseFlatArray) {
+      __ test_flat_array_oop(r3, r8, is_flat_array);
+    }
+
+    // No way to store null in a null-free array
     __ test_null_free_array_oop(r3, r8, is_null_into_value_array_npe);
     __ b(store_null);
 
@@ -1200,40 +1204,10 @@ void TemplateTable::aastore() {
      Label is_type_ok;
     __ bind(is_flat_array); // Store non-null value to flat
 
-    // Simplistic type check...
-    // r0 - value, r2 - index, r3 - array.
-
-    // Profile the not-null value's klass.
-    // Load value class
-     __ load_klass(r1, r0);
-
-    // Move element klass into r7
-     __ ldr(r7, Address(r5, ArrayKlass::element_klass_offset()));
-
-    // flat value array needs exact type match
-    // is "r1 == r7" (value subclass == array element superclass)
-
-     __ cmp(r7, r1);
-     __ br(Assembler::EQ, is_type_ok);
-
-     __ b(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
-
-     __ bind(is_type_ok);
-    // r1: value's klass
-    // r3: array
-    // r5: array klass
-    __ test_klass_is_empty_inline_type(r1, r7, done);
-
-    // calc dst for copy
-    __ ldrw(r7, at_tos_p1()); // index
-    __ data_for_value_array_index(r3, r5, r7, r7);
-
-    // ...and src for copy
-    __ ldr(r6, at_tos());  // value
-    __ data_for_oop(r6, r6, r1);
-
-    __ mov(r4, r1);  // Shuffle arguments to avoid conflict with c_rarg1
-    __ access_value_copy(IN_HEAP, r6, r7, r4);
+    __ ldr(r0, at_tos());    // value
+    __ ldr(r3, at_tos_p1()); // index
+    __ ldr(r2, at_tos_p2()); // array
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_store), r0, r2, r3);
   }
 
   // Pop stack arguments

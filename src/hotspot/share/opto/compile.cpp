@@ -394,7 +394,7 @@ void Compile::remove_useless_node(Node* dead) {
   if (dead->is_expensive()) {
     remove_expensive_node(dead);
   }
-  if (dead->Opcode() == Op_Opaque4) {
+  if (dead->is_OpaqueTemplateAssertionPredicate()) {
     remove_template_assertion_predicate_opaq(dead);
   }
   if (dead->is_ParsePredicate()) {
@@ -2098,11 +2098,7 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
     Node* n = wq.at(i);
     if (n->is_Mem()) {
       const TypePtr* adr_type = nullptr;
-      if (n->Opcode() == Op_StoreCM) {
-        adr_type = get_adr_type(get_alias_index(n->in(MemNode::OopStore)->adr_type()));
-      } else {
-        adr_type = get_adr_type(get_alias_index(n->adr_type()));
-      }
+      adr_type = get_adr_type(get_alias_index(n->adr_type()));
       if (adr_type == TypeAryPtr::INLINES) {
         memnodes.push(n);
       }
@@ -2142,22 +2138,10 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
     for (uint i = 0; i < memnodes.size(); i++) {
       Node* m = memnodes.at(i);
       const TypePtr* adr_type = nullptr;
-      if (m->Opcode() == Op_StoreCM) {
-        adr_type = m->in(MemNode::OopStore)->adr_type();
-        if (adr_type != TypeAryPtr::INLINES) {
-          // store was optimized out and we lost track of the adr_type
-          Node* clone = new StoreCMNode(m->in(MemNode::Control), m->in(MemNode::Memory), m->in(MemNode::Address),
-                                        m->adr_type(), m->in(MemNode::ValueIn), m->in(MemNode::OopStore),
-                                        get_alias_index(adr_type));
-          igvn.register_new_node_with_optimizer(clone);
-          igvn.replace_node(m, clone);
-        }
-      } else {
-        adr_type = m->adr_type();
+      adr_type = m->adr_type();
 #ifdef ASSERT
-        m->as_Mem()->set_adr_type(adr_type);
+      m->as_Mem()->set_adr_type(adr_type);
 #endif
-      }
       int idx = get_alias_index(adr_type);
       start_alias = MIN2(start_alias, idx);
       stop_alias = MAX2(stop_alias, idx);
@@ -3558,53 +3542,6 @@ struct Final_Reshape_Counts : public StackObj {
   int  get_inner_loop_count() const { return _inner_loop_count; }
 };
 
-// Eliminate trivially redundant StoreCMs and accumulate their
-// precedence edges.
-void Compile::eliminate_redundant_card_marks(Node* n) {
-  assert(n->Opcode() == Op_StoreCM, "expected StoreCM");
-  if (n->in(MemNode::Address)->outcnt() > 1) {
-    // There are multiple users of the same address so it might be
-    // possible to eliminate some of the StoreCMs
-    Node* mem = n->in(MemNode::Memory);
-    Node* adr = n->in(MemNode::Address);
-    Node* val = n->in(MemNode::ValueIn);
-    Node* prev = n;
-    bool done = false;
-    // Walk the chain of StoreCMs eliminating ones that match.  As
-    // long as it's a chain of single users then the optimization is
-    // safe.  Eliminating partially redundant StoreCMs would require
-    // cloning copies down the other paths.
-    while (mem->Opcode() == Op_StoreCM && mem->outcnt() == 1 && !done) {
-      if (adr == mem->in(MemNode::Address) &&
-          val == mem->in(MemNode::ValueIn)) {
-        // redundant StoreCM
-        if (mem->req() > MemNode::OopStore) {
-          // Hasn't been processed by this code yet.
-          n->add_prec(mem->in(MemNode::OopStore));
-        } else {
-          // Already converted to precedence edge
-          for (uint i = mem->req(); i < mem->len(); i++) {
-            // Accumulate any precedence edges
-            if (mem->in(i) != nullptr) {
-              n->add_prec(mem->in(i));
-            }
-          }
-          // Everything above this point has been processed.
-          done = true;
-        }
-        // Eliminate the previous StoreCM
-        prev->set_req(MemNode::Memory, mem->in(MemNode::Memory));
-        assert(mem->outcnt() == 0, "should be dead");
-        mem->disconnect_inputs(this);
-      } else {
-        prev = mem;
-      }
-      mem = prev->in(MemNode::Memory);
-    }
-  }
-}
-
-
 //------------------------------final_graph_reshaping_impl----------------------
 // Implement items 1-5 from final_graph_reshaping below.
 void Compile::final_graph_reshaping_impl(Node *n, Final_Reshape_Counts& frc, Unique_Node_List& dead_nodes) {
@@ -3774,33 +3711,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     }
     break;
   }
-
-  case Op_StoreCM:
-    {
-      // Convert OopStore dependence into precedence edge
-      Node* prec = n->in(MemNode::OopStore);
-      n->del_req(MemNode::OopStore);
-      if (prec->is_MergeMem()) {
-        MergeMemNode* mm = prec->as_MergeMem();
-        Node* base = mm->base_memory();
-        for (int i = AliasIdxRaw + 1; i < num_alias_types(); i++) {
-          const TypePtr* adr_type = get_adr_type(i);
-          if (adr_type->is_flat()) {
-            Node* m = mm->memory_at(i);
-            n->add_prec(m);
-          }
-        }
-        if (mm->outcnt() == 0) {
-          mm->disconnect_inputs(this);
-        }
-      } else {
-        n->add_prec(prec);
-      }
-      eliminate_redundant_card_marks(n);
-    }
-
-    // fall through
-
   case Op_StoreB:
   case Op_StoreC:
   case Op_StoreI:
@@ -4357,6 +4267,12 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_InlineType: {
     n->dump(-1);
     assert(false, "inline type node was not removed");
+    break;
+  }
+  case Op_ConNKlass: {
+    const TypePtr* tp = n->as_Type()->type()->make_ptr();
+    ciKlass* klass = tp->is_klassptr()->exact_klass();
+    assert(klass->is_in_encoding_range(), "klass cannot be compressed");
     break;
   }
 #endif

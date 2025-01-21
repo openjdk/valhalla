@@ -39,9 +39,14 @@ import java.util.Objects;
  * operations common to all reference objects.  Because reference objects are
  * implemented in close cooperation with the garbage collector, this class may
  * not be subclassed directly.
- * <p>
- * The referent must be an {@linkplain Objects#hasIdentity(Object) identity object}.
- * Attempts to create a reference to a value object result in an {@link IdentityException}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          The referent must have {@linkplain Objects#hasIdentity(Object) object identity}.
+ *          When preview features are enabled, attempts to create a reference
+ *          to a {@linkplain Class#isValue value object} result in an {@link IdentityException}.
+ *      </div>
+ * </div>
  * @param <T> the type of the referent
  *
  * @author   Mark Reinhold
@@ -408,13 +413,23 @@ public abstract sealed class Reference<T>
      * necessary.
      */
     public void clear() {
+        clearImpl();
+    }
+
+    /* Implementation of clear(). A simple assignment of the referent field
+     * won't do for some garbage collectors. There is the override for phantom
+     * references, which requires different semantics. This method is also
+     * used by enqueue().
+     *
+     * <p>This method exists only to avoid making clear0() virtual. Making
+     * clear0() virtual has the undesirable effect of C2 often preferring
+     * to call the native implementation over the intrinsic.
+     */
+    void clearImpl() {
         clear0();
     }
 
-    /* Implementation of clear(), also used by enqueue().  A simple
-     * assignment of the referent field won't do for some garbage
-     * collectors.
-     */
+    @IntrinsicCandidate
     private native void clear0();
 
     /* -- Operations on inactive FinalReferences -- */
@@ -516,7 +531,7 @@ public abstract sealed class Reference<T>
      *           it was not registered with a queue when it was created
      */
     public boolean enqueue() {
-        clear0();               // Intentionally clear0() rather than clear()
+        clearImpl(); // Intentionally clearImpl() to dispatch to overridden method, if needed
         return this.queue.enqueue(this);
     }
 

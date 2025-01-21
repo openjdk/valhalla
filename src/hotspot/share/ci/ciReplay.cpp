@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1153,7 +1153,7 @@ class CompileReplay : public StackObj {
           } else if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
             Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
             parse_klass(CHECK_(true)); // eat up the array class name
-            value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
+            value = oopFactory::new_flatArray(kelem, length, LayoutKind::NON_ATOMIC_FLAT, CHECK_(true)); // TODO FIXME fix the hard coded layout kind
           } else {
             report_error("unhandled array staticfield");
           }

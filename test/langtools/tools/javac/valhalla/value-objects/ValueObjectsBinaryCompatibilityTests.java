@@ -273,5 +273,30 @@ public class ValueObjectsBinaryCompatibilityTests extends TestRunner {
                 true,
                 IncompatibleClassChangeError.class
         );
+        /* Removing the value modifier from a non-abstract value class does not break compatibility with
+         * pre-existing binaries.
+         */
+        testCompatibilityAfterChange(
+                base,
+                """
+                package pkg;
+                public value class A {}
+                """,
+                """
+                package pkg;
+                public class A {}
+                """,
+                """
+                package pkg;
+                public class Client {
+                    public static void main(String... args) {
+                        A a = new A();
+                        System.out.println("Hello World!");
+                    }
+                }
+                """,
+                false,
+                null
+        );
     }
 }

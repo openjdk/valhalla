@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,6 +65,7 @@ class PSPromotionManager;
 class vtableEntry;
 
 class Klass : public Metadata {
+
   friend class VMStructs;
   friend class JVMCIVMStructs;
  public:
@@ -162,6 +163,9 @@ class Klass : public Metadata {
   // Provide access the corresponding instance java.lang.ClassLoader.
   ClassLoaderData* _class_loader_data;
 
+  // Bitmap and hash code used by hashed secondary supers.
+  uintx    _secondary_supers_bitmap;
+  uint8_t  _hash_slot;
 
   int _vtable_len;              // vtable length. This field may be read very often when we
                                 // have lots of itable dispatches (e.g., lambdas and streams).
@@ -174,10 +178,6 @@ class Klass : public Metadata {
   JFR_ONLY(DEFINE_TRACE_ID_FIELD;)
 
   markWord _prototype_header;  // inline type and inline array mark patterns
-  // Bitmap and hash code used by hashed secondary supers.
-  uintx    _bitmap;
-  uint8_t  _hash_slot;
-
 private:
   // This is an index into FileMapHeader::_shared_path_table[], to
   // associate this class with the JAR file where it's loaded from during
@@ -242,7 +242,6 @@ protected:
   void set_secondary_super_cache(Klass* k) { _secondary_super_cache = k; }
 
   Array<Klass*>* secondary_supers() const { return _secondary_supers; }
-  void set_secondary_supers(Array<Klass*>* k);
   void set_secondary_supers(Array<Klass*>* k, uintx bitmap);
 
   uint8_t hash_slot() const { return _hash_slot; }
@@ -401,6 +400,11 @@ protected:
   static void  hash_insert(Klass* klass, GrowableArray<Klass*>* secondaries, uintx& bitmap);
   static uintx hash_secondary_supers(Array<Klass*>* secondaries, bool rewrite);
 
+  bool search_secondary_supers(Klass* k) const;
+  bool lookup_secondary_supers_table(Klass *k) const;
+  bool linear_search_secondary_supers(const Klass* k) const;
+  bool fallback_search_secondary_supers(const Klass* k, int index, uintx rotated_bitmap) const;
+
  public:
   // Secondary supers table support
   static Array<Klass*>* pack_secondary_supers(ClassLoaderData* loader_data,
@@ -412,7 +416,7 @@ protected:
   static uintx   compute_secondary_supers_bitmap(Array<Klass*>* secondary_supers);
   static uint8_t compute_home_slot(Klass* k, uintx bitmap);
 
-  static constexpr int SECONDARY_SUPERS_TABLE_SIZE = sizeof(_bitmap) * 8;
+  static constexpr int SECONDARY_SUPERS_TABLE_SIZE = sizeof(_secondary_supers_bitmap) * 8;
   static constexpr int SECONDARY_SUPERS_TABLE_MASK = SECONDARY_SUPERS_TABLE_SIZE - 1;
 
   static constexpr uintx SECONDARY_SUPERS_BITMAP_EMPTY    = 0;
@@ -433,7 +437,9 @@ protected:
   static ByteSize subklass_offset()              { return byte_offset_of(Klass, _subklass); }
   static ByteSize next_sibling_offset()          { return byte_offset_of(Klass, _next_sibling); }
 #endif
-  static ByteSize bitmap_offset()                { return byte_offset_of(Klass, _bitmap); }
+  static ByteSize secondary_supers_bitmap_offset()
+                                                 { return byte_offset_of(Klass, _secondary_supers_bitmap); }
+  static ByteSize hash_slot_offset()             { return byte_offset_of(Klass, _hash_slot); }
   static ByteSize misc_flags_offset()            { return byte_offset_of(Klass, _misc_flags._flags); }
 
   // Unpacking layout_helper:
@@ -499,7 +505,7 @@ protected:
   static BasicType layout_helper_element_type(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int btvalue = (lh >> _lh_element_type_shift) & _lh_element_type_mask;
-    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_PRIMITIVE_OBJECT, "sanity");
+    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_FLAT_ELEMENT, "sanity");
     return (BasicType) btvalue;
   }
 
@@ -520,7 +526,7 @@ protected:
   static int layout_helper_log2_element_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int l2esz = (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
-    assert(layout_helper_element_type(lh) == T_PRIMITIVE_OBJECT || l2esz <= LogBytesPerLong,
+    assert(layout_helper_element_type(lh) == T_FLAT_ELEMENT || l2esz <= LogBytesPerLong,
            "sanity. l2esz: 0x%x for lh: 0x%x", (uint)l2esz, (uint)lh);
     return l2esz;
   }
@@ -552,22 +558,11 @@ protected:
 
   // subclass check
   bool is_subclass_of(const Klass* k) const;
+
   // subtype check: true if is_subclass_of, or if k is interface and receiver implements it
-  bool is_subtype_of(Klass* k) const {
-    juint    off = k->super_check_offset();
-    Klass* sup = *(Klass**)( (address)this + off );
-    const juint secondary_offset = in_bytes(secondary_super_cache_offset());
-    if (sup == k) {
-      return true;
-    } else if (off != secondary_offset) {
-      return false;
-    } else {
-      return search_secondary_supers(k);
-    }
-  }
+  bool is_subtype_of(Klass* k) const;
 
-  bool search_secondary_supers(Klass* k) const;
-
+public:
   // Find LCA in class hierarchy
   Klass *LCA( Klass *k );
 

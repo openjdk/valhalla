@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2024 Red Hat, Inc.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -848,7 +848,7 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
     case T_DOUBLE:      push_double((_ap++)->d); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_PRIMITIVE_OBJECT: push_object((_ap++)->l); break;
+    case T_FLAT_ELEMENT: push_object((_ap++)->l); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -1835,18 +1835,18 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
     assert(k->is_instance_klass(), "Only instance can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
-    ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
+    bool found = ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
+    assert(found, "Field not found");
     InstanceKlass* holder = fd.field_holder();
+    assert(holder->field_is_flat(fd.index()), "Must be");
     InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
     InlineKlass* field_vklass = li->klass();
-    res = field_vklass->read_flat_field(o, ik->field_offset(fd.index()), li->kind(), CHECK_NULL);
+    res = field_vklass->read_payload_from_addr(o, ik->field_offset(fd.index()), li->kind(), CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(THREAD, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
   return ret;
 JNI_END
-
-
 
 #define DEFINE_GETFIELD(Return,Fieldname,Result \
   , EntryProbe, ReturnProbe) \
@@ -1944,7 +1944,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
     InlineKlass* vklass = li->klass();
     oop v = JNIHandles::resolve_non_null(value);
-    vklass->write_flat_field(o, offset, v, fd.is_null_free_inline_type(), li->kind(), CHECK);
+    vklass->write_value_to_addr(v, ((char*)(oopDesc*)obj) + offset, li->kind(), true, CHECK);
   }
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
@@ -2375,8 +2375,7 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
   if (arr->is_within_bounds(index)) {
     if (arr->is_flatArray()) {
       flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
-      flatArrayHandle vah(thread, a);
-      res = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK_NULL);
+      res = a->read_value_from_flat_array(index, CHECK_NULL);
       assert(res != nullptr, "Must be set in one of two paths above");
     } else {
       assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
@@ -2411,7 +2410,7 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
        FlatArrayKlass* vaklass = FlatArrayKlass::cast(a->klass());
        InlineKlass* element_vklass = vaklass->element_klass();
        if (v != nullptr && v->is_a(element_vklass)) {
-         a->value_copy_to_index(v, index, LayoutKind::PAYLOAD);  // Temporary hack for the transition
+         a->write_value_to_flat_array(v, index, CHECK);
        } else {
          ResourceMark rm(THREAD);
          stringStream ss;
@@ -3945,6 +3944,9 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
     return JNI_ERR;
   }
 
+  // Want this inside 'attaching via jni'.
+  JFR_ONLY(Jfr::on_thread_start(thread);)
+
   // mark the thread as no longer attaching
   // this uses a fence to push the change through so we don't have
   // to regrab the threads_lock
@@ -3958,8 +3960,6 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
   if (JvmtiExport::should_post_thread_life()) {
     JvmtiExport::post_thread_start(thread);
   }
-
-  JFR_ONLY(Jfr::on_thread_start(thread);)
 
   *(JNIEnv**)penv = thread->jni_environment();
 

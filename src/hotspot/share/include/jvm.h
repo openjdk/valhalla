@@ -1125,6 +1125,15 @@ JVM_GetTemporaryDirectory(JNIEnv *env);
 JNIEXPORT jarray JNICALL
 JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len);
 
+JNIEXPORT jarray JNICALL
+JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass, jint len);
+
+JNIEXPORT jarray JNICALL
+JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint len);
+
+JNIEXPORT jboolean JNICALL
+JVM_IsFlatArray(JNIEnv *env, jobject obj);
+
 JNIEXPORT jboolean JNICALL
 JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj);
 
@@ -1156,9 +1165,6 @@ JVM_VirtualThreadMount(JNIEnv* env, jobject vthread, jboolean hide);
 
 JNIEXPORT void JNICALL
 JVM_VirtualThreadUnmount(JNIEnv* env, jobject vthread, jboolean hide);
-
-JNIEXPORT void JNICALL
-JVM_VirtualThreadHideFrames(JNIEnv* env, jclass clazz, jboolean hide);
 
 JNIEXPORT void JNICALL
 JVM_VirtualThreadDisableSuspend(JNIEnv* env, jclass clazz, jboolean enter);
