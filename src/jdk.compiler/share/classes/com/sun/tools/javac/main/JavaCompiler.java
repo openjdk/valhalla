@@ -1624,7 +1624,9 @@ public class JavaCompiler {
 
             if (shouldStop(CompileState.VALUEINITIALIZERS))
                 return;
-//            if (scanner.hasValueClasses) {
+            if (scanner.hasValueClasses) {
+                System.out.println("has value classes");
+            }
             env.tree = ValueInitializers.instance(context).translateTopLevelClass(env, env.tree, localMake);
 //            }
             compileStates.put(env, CompileState.VALUEINITIALIZERS);
