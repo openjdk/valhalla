@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -505,7 +505,7 @@ protected:
   static BasicType layout_helper_element_type(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int btvalue = (lh >> _lh_element_type_shift) & _lh_element_type_mask;
-    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_PRIMITIVE_OBJECT, "sanity");
+    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_FLAT_ELEMENT, "sanity");
     return (BasicType) btvalue;
   }
 
@@ -526,7 +526,7 @@ protected:
   static int layout_helper_log2_element_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int l2esz = (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
-    assert(layout_helper_element_type(lh) == T_PRIMITIVE_OBJECT || l2esz <= LogBytesPerLong,
+    assert(layout_helper_element_type(lh) == T_FLAT_ELEMENT || l2esz <= LogBytesPerLong,
            "sanity. l2esz: 0x%x for lh: 0x%x", (uint)l2esz, (uint)lh);
     return l2esz;
   }

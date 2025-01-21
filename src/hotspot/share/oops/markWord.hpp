@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
 #define SHARE_OOPS_MARKWORD_HPP
 
 #include "metaprogramming/primitiveConversions.hpp"
+#include "layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
+#include "utilities/vmEnums.hpp"
 
 #include <type_traits>
 
@@ -218,7 +220,9 @@ class markWord {
 
   static const uintptr_t inline_type_pattern      = inline_type_bit_in_place | unlocked_value;
   static const uintptr_t null_free_array_pattern  = null_free_array_bit_in_place | unlocked_value;
-  static const uintptr_t flat_array_pattern       = flat_array_bit_in_place | null_free_array_pattern;
+  static const uintptr_t null_free_flat_array_pattern = flat_array_bit_in_place | null_free_array_pattern;
+  static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place | unlocked_value;
+
   // Has static klass prototype, used for decode/encode pointer
   static const uintptr_t static_prototype_mask    = LP64_ONLY(right_n_bits(inline_type_bits + flat_array_bits + null_free_array_bits)) NOT_LP64(right_n_bits(inline_type_bits));
   static const uintptr_t static_prototype_mask_in_place = static_prototype_mask << lock_bits;
@@ -382,7 +386,8 @@ class markWord {
 
 #ifdef _LP64 // 64 bit encodings only
   bool is_flat_array() const {
-    return (mask_bits(value(), flat_array_mask_in_place) == flat_array_pattern);
+    return (mask_bits(value(), flat_array_mask_in_place) == null_free_flat_array_pattern)
+           || (mask_bits(value(), flat_array_mask_in_place) == nullable_flat_array_pattern);
   }
 
   bool is_null_free_array() const {
@@ -409,9 +414,7 @@ class markWord {
   }
 
 #ifdef _LP64 // 64 bit encodings only
-  static markWord flat_array_prototype() {
-    return markWord(flat_array_pattern);
-  }
+  static markWord flat_array_prototype(LayoutKind lk);
 
   static markWord null_free_array_prototype() {
     return markWord(null_free_array_pattern);

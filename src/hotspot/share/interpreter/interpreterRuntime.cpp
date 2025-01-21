@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -302,7 +302,14 @@ JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc
   InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(entry->field_index());
   InlineKlass* field_vklass = layout_info->klass();
 
-  oop res = field_vklass->read_flat_field(obj_h(), entry->field_offset(), layout_info->kind(), CHECK);
+#ifdef ASSERT
+  fieldDescriptor fd;
+  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
+  assert(found, "Field not found");
+  assert(fd.is_flat(), "Field must be flat");
+#endif // ASSERT
+
+  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), layout_info->kind(), CHECK);
   current->set_vm_result(res);
 JRT_END
 
@@ -315,14 +322,17 @@ JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current
   int field_index = entry->field_index();
   InlineLayoutInfo* li= holder->inline_layout_info_adr(field_index);
 
-  int nm_offset = li->null_marker_offset();
-  if (obj_h()->byte_field_acquire(nm_offset) == 0) {
-    current->set_vm_result(nullptr);
-  } else {
-    InlineKlass* field_vklass = InlineKlass::cast(li->klass());
-    oop res = field_vklass->read_flat_field(obj_h(), entry->field_offset(), LayoutKind::NULLABLE_ATOMIC_FLAT, CHECK);
-    current->set_vm_result(res);
-  }
+#ifdef ASSERT
+  fieldDescriptor fd;
+  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
+  assert(found, "Field not found");
+  assert(fd.is_flat(), "Field must be flat");
+#endif // ASSERT
+
+  InlineKlass* field_vklass = InlineKlass::cast(li->klass());
+  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), li->kind(), CHECK);
+  current->set_vm_result(res);
+
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
@@ -334,31 +344,7 @@ JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* curren
   InstanceKlass* holder = entry->field_holder();
   InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
   InlineKlass* vk = li->klass();
-  assert(li->kind() == LayoutKind::NULLABLE_ATOMIC_FLAT, "Must be");
-  int nm_offset = li->null_marker_offset();
-
-  if (val_h() == nullptr) {
-    if (li->klass()->nonstatic_oop_count() == 0) {
-      // No embedded oops, just reset the null marker
-      obj_h()->byte_field_put(nm_offset, (jbyte)0);
-    } else {
-      // Has embedded oops, using the reset value to rewrite all fields to null/zeros
-      assert(li->klass()->null_reset_value()->byte_field(vk->null_marker_offset()) == 0, "reset value must always have a null marker set to 0");
-      vk->inline_copy_oop_to_payload(vk->null_reset_value(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind());
-    }
-    return;
-  }
-
-  assert(val_h()->klass() == vk, "Must match because flat fields are monomorphic");
-  // The interpreter copies values with a bulk operation
-  // To avoid accidentally setting the null marker to "null" during
-  // the copying, the null marker is set to non zero in the source object
-  jbyte nm = val_h()->byte_field(vk->null_marker_offset());
-  assert(nm == 0 || nm == 1, "invalid null marker value: %d", nm);
-  if (nm == 0) {
-    val_h()->byte_field_put(vk->null_marker_offset(), (jbyte)1);
-  }
-  vk->inline_copy_oop_to_payload(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind());
+  vk->write_value_to_addr(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind(), true, CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
@@ -373,15 +359,17 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool*
   current->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* current, arrayOopDesc* array, int index))
-  flatArrayHandle vah(current, (flatArrayOop)array);
-  oop value_holder = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
-  current->set_vm_result(value_holder);
+JRT_ENTRY(void, InterpreterRuntime::flat_array_load(JavaThread* current, arrayOopDesc* array, int index))
+  assert(array->is_flatArray(), "Must be");
+  flatArrayOop farray = (flatArrayOop)array;
+  oop res = farray->read_value_from_flat_array(index, CHECK);
+  current->set_vm_result(res);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* current, void* val, arrayOopDesc* array, int index))
-  assert(val != nullptr, "can't store null into flat array");
-  ((flatArrayOop)array)->value_copy_to_index(cast_to_oop(val), index, LayoutKind::PAYLOAD); // Non atomic is the only layout currently supported by flat arrays
+JRT_ENTRY(void, InterpreterRuntime::flat_array_store(JavaThread* current, oopDesc* val, arrayOopDesc* array, int index))
+  assert(array->is_flatArray(), "Must be");
+  flatArrayOop farray = (flatArrayOop)array;
+  farray->write_value_to_flat_array(val, index, CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* first_size_address))

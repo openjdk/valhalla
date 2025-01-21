@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -299,8 +299,10 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
   oop result;
 
   if (array_type->is_flatArray_klass()) {
-    Klass* elem_type = FlatArrayKlass::cast(array_type)->element_klass();
-    result = oopFactory::new_valueArray(elem_type, len, THREAD);
+    Handle holder(current, array_type->klass_holder()); // keep the array klass alive
+    FlatArrayKlass* fak = FlatArrayKlass::cast(array_type);
+    Klass* elem_type = fak->element_klass();
+    result = oopFactory::new_flatArray(elem_type, len, fak->layout_kind(), THREAD);
   } else if (array_type->is_typeArray_klass()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)
@@ -2039,8 +2041,7 @@ const TypeFunc *OptoRuntime::pack_inline_type_Type() {
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline_C(flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
-  flatArrayHandle vah(current, array);
-  oop buffer = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, THREAD);
+  oop buffer = array->read_value_from_flat_array(index, THREAD);
   deoptimize_caller_frame(current, HAS_PENDING_EXCEPTION);
   current->set_vm_result(buffer);
   JRT_BLOCK_END;
@@ -2063,11 +2064,14 @@ const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
   return TypeFunc::make(domain, range);
 }
 
-JRT_LEAF(void, OptoRuntime::store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index))
-{
+JRT_BLOCK_ENTRY(void, OptoRuntime::store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index, JavaThread* current))
+  JRT_BLOCK;
   assert(buffer != nullptr, "can't store null into flat array");
-  array->value_copy_to_index(buffer, index, LayoutKind::PAYLOAD); // Temporary hack for the transition
-}
+  array->write_value_to_flat_array(buffer, index, THREAD);
+  if (HAS_PENDING_EXCEPTION) {
+      fatal("This entry must be changed to be a non-leaf entry because writing to a flat array can now throw an exception");
+  }
+  JRT_BLOCK_END;
 JRT_END
 
 const TypeFunc* OptoRuntime::store_unknown_inline_Type() {

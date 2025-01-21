@@ -7974,7 +7974,7 @@ instruct castX2P(iRegPNoSp dst, iRegL src) %{
   ins_pipe(ialu_reg);
 %}
 
-instruct castI2N(iRegN dst, iRegINoSp src) %{
+instruct castI2N(iRegNNoSp dst, iRegI src) %{
   match(Set dst (CastI2N src));
 
   ins_cost(INSN_COST);

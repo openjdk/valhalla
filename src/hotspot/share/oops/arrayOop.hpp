@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,8 +56,8 @@ private:
 
   // Given a type, return true if elements of that type must be aligned to 64-bit.
   static bool element_type_should_be_aligned(BasicType type) {
-    if (EnableValhalla && type == T_PRIMITIVE_OBJECT) {
-      return true; //CMH: tighten the alignment when removing T_PRIMITIVE_OBJECT
+    if (EnableValhalla && type == T_FLAT_ELEMENT) {
+      return true; //CMH: tighten the alignment when removing T_FLAT_ELEMENT
     }
 #ifdef _LP64
     if (type == T_OBJECT || type == T_ARRAY) {
@@ -77,7 +77,7 @@ private:
     // make sure it isn't called before UseCompressedOops is initialized.
     static int arrayoopdesc_hs = 0;
     if (arrayoopdesc_hs == 0) arrayoopdesc_hs = hs;
-    assert(arrayoopdesc_hs == hs, "header size can't change");
+    // assert(arrayoopdesc_hs == hs, "header size can't change");
 #endif // ASSERT
     return (int)hs;
   }

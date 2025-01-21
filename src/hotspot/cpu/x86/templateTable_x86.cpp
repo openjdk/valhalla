@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -848,7 +848,8 @@ void TemplateTable::aaload() {
                 IS_ARRAY);
     __ jmp(done);
     __ bind(is_flat_array);
-    __ read_flat_element(array, index, rbx, rcx, rax);
+    __ movptr(rcx, array);
+    call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), rcx, index);
     __ bind(done);
   } else {
     do_oop_load(_masm,
@@ -1200,6 +1201,13 @@ void TemplateTable::aastore() {
   if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
+      // Move array class to rdi
+    __ load_klass(rdi, rdx, rscratch1);
+    if (UseFlatArray) {
+      __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
+      __ test_flat_array_layout(rbx, is_flat_array);
+    }
+
     // No way to store null in null-free array
     __ test_null_free_array_oop(rdx, rbx, is_null_into_value_array_npe);
     __ jmp(store_null);
@@ -1217,34 +1225,11 @@ void TemplateTable::aastore() {
     Label is_type_ok;
     __ bind(is_flat_array); // Store non-null value to flat
 
-    // Simplistic type check...
+    __ movptr(rax, at_tos());
+    __ movl(rcx, at_tos_p1()); // index
+    __ movptr(rdx, at_tos_p2()); // array
 
-    // Profile the not-null value's klass.
-    __ load_klass(rbx, rax, rscratch1);
-    // Move element klass into rax
-    __ movptr(rax, Address(rdi, ArrayKlass::element_klass_offset()));
-    // flat value array needs exact type match
-    // is "rax == rbx" (value subclass == array element superclass)
-    __ cmpptr(rax, rbx);
-    __ jccb(Assembler::equal, is_type_ok);
-
-    __ jump(RuntimeAddress(Interpreter::_throw_ArrayStoreException_entry));
-
-    __ bind(is_type_ok);
-    // rbx: value's klass
-    // rdx: array
-    // rdi: array klass
-    __ test_klass_is_empty_inline_type(rbx, rax, done);
-
-    // calc dst for copy
-    __ movl(rax, at_tos_p1()); // index
-    __ data_for_value_array_index(rdx, rdi, rax, rax);
-
-    // ...and src for copy
-    __ movptr(rcx, at_tos());  // value
-    __ data_for_oop(rcx, rcx, rbx);
-
-    __ access_value_copy(IN_HEAP, rcx, rax, rbx);
+    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_store), rax, rdx, rcx);
   }
   // Pop stack arguments
   __ bind(done);
