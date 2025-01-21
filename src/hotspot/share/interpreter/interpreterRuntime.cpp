@@ -338,7 +338,7 @@ JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* curren
   int nm_offset = li->null_marker_offset();
 
   if (val_h() == nullptr) {
-    if(li->klass()->nonstatic_oop_count() == 0) {
+    if (li->klass()->nonstatic_oop_count() == 0) {
       // No embedded oops, just reset the null marker
       obj_h()->byte_field_put(nm_offset, (jbyte)0);
     } else {
@@ -353,7 +353,9 @@ JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* curren
   // The interpreter copies values with a bulk operation
   // To avoid accidentally setting the null marker to "null" during
   // the copying, the null marker is set to non zero in the source object
-  if (val_h()->byte_field(vk->null_marker_offset()) == 0) {
+  jbyte nm = val_h()->byte_field(vk->null_marker_offset());
+  assert(nm == 0 || nm == 1, "invalid null marker value: %d", nm);
+  if (nm == 0) {
     val_h()->byte_field_put(vk->null_marker_offset(), (jbyte)1);
   }
   vk->inline_copy_oop_to_payload(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind());

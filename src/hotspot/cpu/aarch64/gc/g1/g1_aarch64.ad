@@ -83,6 +83,7 @@ instruct g1StoreLSpecialOneOop(indirect mem, iRegL_R11 src, immI off, iRegPNoSp 
   predicate(UseG1GC);
   match(Set mem (StoreLSpecial mem (Binary src off)));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, USE_KILL src, KILL cr);
+  ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# g1StoreLSpecialOneOop" %}
   ins_encode %{
     // TODO We should not set this here and also handle G1C2BarrierPostNotNull
@@ -118,6 +119,7 @@ instruct g1StoreLSpecialTwoOops(indirect mem, iRegL_R11 src, iRegPNoSp tmp1, iRe
   predicate(UseG1GC);
   match(Set mem (StoreLSpecial mem src));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, USE_KILL src, KILL cr);
+  ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# g1StoreLSpecialTwoOops" %}
   ins_encode %{
     // TODO We should not set this here and also handle G1C2BarrierPostNotNull

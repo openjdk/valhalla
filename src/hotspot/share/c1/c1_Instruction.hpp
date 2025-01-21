@@ -847,8 +847,7 @@ LEAF(LoadField, AccessField)
  public:
   // creation
   LoadField(Value obj, int offset, ciField* field, bool is_static,
-            ValueStack* state_before, bool needs_patching,
-            ciInlineKlass* inline_klass = nullptr, Value default_value = nullptr )
+            ValueStack* state_before, bool needs_patching)
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   {
     set_null_free(field->is_null_free());
